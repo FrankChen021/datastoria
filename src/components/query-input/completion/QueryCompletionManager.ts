@@ -1,0 +1,400 @@
+import type { Connection } from '../../../lib/connection/Connection';
+import { Api } from '../../../lib/api';
+import type { Ace } from 'ace-builds';
+import { QuerySnippetManager } from '../snippet/QuerySnippetManager';
+import { StringUtils } from '../../../lib/string-utils';
+
+type CompletionItem = {
+  doc?: string;
+} & Ace.Completion;
+
+export class QueryCompletionManager {
+  private static instance: QueryCompletionManager;
+
+  public static getInstance(): QueryCompletionManager {
+    return this.instance || (this.instance = new this());
+  }
+
+  private miscCompletion: CompletionItem[] = [];
+  private databaseCompletion: CompletionItem[] = [];
+  private tableCompletion: Map<string, CompletionItem[]> = new Map();
+  private columnCompletion: Map<string, CompletionItem[]> = new Map();
+  private allSettingsCompletion: CompletionItem[] = [];
+  private userSettingsCompletion: CompletionItem[] = [];
+  private formatCompletion: CompletionItem[] = [];
+  private clusterCompletion: CompletionItem[] = [];
+  private engineCompletion: CompletionItem[] = [];
+  private currentConnectionName: string | null = null;
+
+  public onConnectionSelected(connection: Connection | null): void {
+    if (connection == null) {
+      this.currentConnectionName = null;
+      return;
+    }
+
+    // Skip if already loaded for this connection
+    if (this.currentConnectionName === connection.name) {
+      return;
+    }
+
+    this.currentConnectionName = connection.name;
+
+    const api = Api.create(connection);
+
+    // The SQL returns 4 columns: name/type/score/description
+    api.executeSQL(
+      {
+        sql: `SELECT name, 'database', -30, '' FROM system.databases ORDER BY name
+UNION ALL
+    -- Functions
+    SELECT name, 'function', -50, '' FROM 
+    (
+        SELECT DISTINCT name FROM (
+                SELECT concat(name, '()') AS name FROM system.functions WHERE is_aggregate = 0
+            UNION ALL
+                -- Aggregate Combinator
+                SELECT concat(functions.name, combinator.name, '()') AS name FROM system.functions AS functions
+                CROSS JOIN system.aggregate_function_combinators  AS combinator
+                WHERE functions.is_aggregate
+            UNION ALL
+                -- cluster/clusterAllReplicas functions are not in the table now
+                SELECT 'cluster()' AS name
+            UNION ALL
+                SELECT 'clusterAllReplicas()' AS name
+        ) ORDER BY name
+    )
+UNION ALL
+    -- Data Type
+    SELECT multiIf(alias_to = '', name, alias_to) AS name, 'type', -0, '' FROM system.data_type_families
+UNION ALL
+    -- Settings, has its own completion
+    SELECT name, 'setting', -60, concat(description, '<br/><br/>Current value: ', value) FROM system.settings ORDER BY name
+UNION ALL
+    -- Merge Tree Setting, has its own completion
+    SELECT name, 'merge_tree_setting', -100, concat(description, '<br/><br/>Current value: ', value) FROM system.merge_tree_settings ORDER BY name
+UNION ALL
+    -- Table Engine, has its own completion
+    SELECT name, 'engine', -100, '' FROM system.table_engines ORDER BY name
+UNION ALL
+    -- Format Setting, has its own completion
+    SELECT name, 'format', -60, '' FROM system.formats WHERE is_output ORDER BY name`,
+        params: {
+          default_format: 'JSONCompact',
+        },
+      },
+      (response) => {
+        const returnList = response.data.data;
+
+        this.miscCompletion = [];
+        this.databaseCompletion = [];
+        this.formatCompletion = [];
+        this.allSettingsCompletion = [];
+        this.userSettingsCompletion = [];
+
+        returnList.forEach((eachRowObject: any) => {
+          const description = eachRowObject[3];
+          const docHTML =
+            description !== ''
+              ? ['<b>', eachRowObject[0], '</b>', '<hr />', eachRowObject[3]].join('')
+              : undefined;
+
+          const completion: CompletionItem = {
+            caption: eachRowObject[0],
+            value: eachRowObject[0],
+            meta: eachRowObject[1],
+            score: eachRowObject[2],
+            docHTML: docHTML,
+          };
+
+          const type = eachRowObject[1];
+          if (type === 'format') {
+            this.formatCompletion.push(completion);
+          } else if (type === 'setting') {
+            this.userSettingsCompletion.push(completion);
+            this.allSettingsCompletion.push(completion);
+          } else if (type === 'merge_tree_setting') {
+            this.allSettingsCompletion.push(completion);
+          } else if (type === 'engine') {
+            this.engineCompletion.push(completion);
+          } else if (type === 'database') {
+            this.databaseCompletion.push(completion);
+
+            // Add to misc too
+            this.miscCompletion.push(completion);
+          } else {
+            this.miscCompletion.push(completion);
+          }
+        });
+      },
+      (error) => {
+        console.error('Failed to load completion data:', error);
+      }
+    );
+
+    //
+    // Get tables
+    //
+    api.executeSQL(
+      {
+        sql: `SELECT database, name FROM system.tables WHERE NOT startsWith(tables.name, '.inner') ORDER BY database, name`,
+        params: {
+          default_format: 'JSONCompact',
+        },
+      },
+      (response) => {
+        this.tableCompletion.clear();
+
+        const returnList = response.data.data as any[];
+        returnList.forEach((eachRowObject) => {
+          const database = eachRowObject[0];
+          const table = eachRowObject[1];
+
+          if (!this.tableCompletion.has(database)) {
+            this.tableCompletion.set(database, []);
+          }
+          const completions = this.tableCompletion.get(database);
+          completions?.push({
+            caption: table,
+            value: table,
+            meta: 'table',
+            score: 100,
+          });
+        });
+      },
+      (error) => {
+        console.error('Failed to load table completion data:', error);
+      }
+    );
+
+    //
+    // Get columns
+    //
+    api.executeSQL(
+      {
+        sql: `SELECT table, name, type FROM system.columns WHERE NOT startsWith(table, '.inner') ORDER BY table, name`,
+        params: {
+          default_format: 'JSONCompact',
+        },
+      },
+      (response) => {
+        this.columnCompletion.clear();
+
+        const returnList = response.data.data as any[];
+        returnList.forEach((eachRowObject) => {
+          const table = eachRowObject[0];
+          const column = eachRowObject[1];
+          const type = eachRowObject[2];
+
+          if (!this.columnCompletion.has(table)) {
+            this.columnCompletion.set(table, []);
+          }
+          const completions = this.columnCompletion.get(table);
+          completions?.push({
+            caption: column,
+            value: column,
+            meta: 'column',
+            score: 100,
+            docHTML: ['<b>', column, '</b>', '<hr />', 'type: ', type].join(''),
+          });
+        });
+      },
+      (error) => {
+        console.error('Failed to load column completion data:', error);
+      }
+    );
+
+    //
+    // GET CLUSTER
+    //
+    if (connection.cluster.length > 0) {
+      this.clusterCompletion = [
+        {
+          caption: connection.cluster,
+          value: connection.cluster,
+          meta: 'cluster',
+          score: 100,
+        },
+      ];
+    } else {
+      api.executeSQL(
+        {
+          sql: `SELECT distinct cluster FROM system.clusters ORDER BY cluster`,
+          params: {
+            default_format: 'JSONCompact',
+          },
+        },
+        (response) => {
+          const returnList = response.data.data as any[];
+          this.clusterCompletion = returnList.map((eachRowObject) => {
+            const cluster = eachRowObject[0];
+            return {
+              caption: cluster,
+              value: cluster,
+              meta: 'cluster',
+              score: 100,
+            } as CompletionItem;
+          });
+        },
+        (error) => {
+          console.error('Failed to load cluster completion data:', error);
+        }
+      );
+    }
+  }
+
+  public getCompleters(completers: Ace.Completer[] | undefined): Ace.Completer[] {
+    if (completers !== undefined) {
+      // Remove the local completer which does not define the 'id' property. The local completer uses tokens in current editor as suggestion list.
+      // Remove the default keyword because we're going to use the ClickHouse own keywords
+      completers = completers.filter((completer) => completer.id !== undefined);
+    } else {
+      completers = [];
+    }
+
+    return [
+      {
+        id: 'clickhouse-schema',
+        triggerCharacters: ['.', '='],
+
+        /**
+         * 'ENGINE ='
+         * 'ENGINE = '
+         * 'ENGINE = anyInput'
+         *
+         */
+        getCompletions: (
+          editor: Ace.Editor,
+          session: Ace.EditSession,
+          pos: Ace.Point,
+          prefix: any,
+          callback: any
+        ) => {
+          if (session !== undefined) {
+            // Get current token
+            let currentToken = session.getTokenAt(pos.row, pos.column);
+
+            // If current token is the 'dot' and this dot token is not the first,
+            // we can continue to check previous token
+            // Since the token might contain leading space, we use 'endsWith' to compare
+            if (currentToken !== null && currentToken.index !== undefined && currentToken.index > 0) {
+              const tokenList = session.getTokens(pos.row);
+
+              // Find backward until it's a non-space token
+              let currentTokenIndex = currentToken.index;
+
+              // If the current token is blank text, it means that the auto-completion is triggered by Option+Space or Space key,
+              // In this case, we need to backward the previous token to make decision which completion list should be used.
+              // Only once backward
+              let iterations = 2;
+              if (
+                currentTokenIndex > 0 &&
+                currentToken.type === 'text' &&
+                StringUtils.isAllSpace(currentToken.value)
+              ) {
+                currentToken = tokenList[--currentTokenIndex];
+
+                // because here it's already backward
+                iterations--;
+              }
+
+              // Process twice
+              // The first time, we process input token to see if it matches the keyword.
+              // In this case, the completion is most likely to be triggered by Option+Space hotkey.
+              //
+              // The 2nd time, we process previous token of current input,
+              // In this case, the completion is triggered by keyboard input
+              for (let i = 0; i < iterations; i++) {
+                if (currentTokenIndex > 0 && currentToken.value.indexOf('.') > -1) {
+                  if (this.getTableCompletion(currentTokenIndex, tokenList, callback)) {
+                    return;
+                  }
+                } else if (currentTokenIndex > 0 && currentToken.value.indexOf('=') > -1) {
+                  if (this.getEngineCompletion(currentTokenIndex, tokenList, callback)) {
+                    return;
+                  }
+                } else {
+                  if (
+                    currentToken.value.localeCompare('CLUSTER', undefined, { sensitivity: 'accent' }) === 0
+                  ) {
+                    callback(null, this.clusterCompletion);
+                    return;
+                  }
+                  if (
+                    currentToken.value.localeCompare('SETTINGS', undefined, { sensitivity: 'accent' }) === 0
+                  ) {
+                    callback(null, this.allSettingsCompletion);
+                    return;
+                  }
+                  if (
+                    currentToken.value.localeCompare('FORMAT', undefined, { sensitivity: 'accent' }) === 0
+                  ) {
+                    callback(null, this.formatCompletion);
+                    return;
+                  }
+                  if (
+                    currentToken.value.localeCompare('FROM', undefined, { sensitivity: 'accent' }) === 0
+                  ) {
+                    callback(null, this.databaseCompletion);
+                    return;
+                  }
+                  if (
+                    currentToken.value.localeCompare('SET', undefined, { sensitivity: 'accent' }) === 0
+                  ) {
+                    callback(null, this.userSettingsCompletion);
+                    return;
+                  }
+
+                  // Backward to the non-space token
+                  do {
+                    currentTokenIndex--;
+                  } while (
+                    currentTokenIndex > 0 &&
+                    tokenList[currentTokenIndex].type === 'text' &&
+                    StringUtils.isAllSpace(tokenList[currentTokenIndex].value)
+                  );
+                  currentToken = tokenList[currentTokenIndex];
+                }
+              }
+            }
+          }
+
+          // Use default completer
+          callback(null, QuerySnippetManager.getInstance().getSnippetCompletionList());
+          callback(null, this.miscCompletion);
+          completers.forEach((c) => c.getCompletions(editor, session, pos, prefix, callback));
+        },
+      },
+    ];
+  }
+
+  private getTableCompletion(currentTokenIndex: number, tokenList: any[], callback: any): boolean {
+    const preToken = tokenList[currentTokenIndex - 1];
+
+    const tableCompletion = this.tableCompletion.get(preToken.value);
+    if (tableCompletion !== undefined) {
+      callback(null, tableCompletion);
+      return true;
+    }
+
+    const columnCompletion = this.columnCompletion.get(preToken.value);
+    if (columnCompletion !== undefined) {
+      callback(null, columnCompletion);
+      return true;
+    }
+
+    return false;
+  }
+
+  private getEngineCompletion(currentTokenIndex: number, tokenList: any[], callback: any): boolean {
+    let prevToken = null;
+    do {
+      prevToken = tokenList[--currentTokenIndex];
+    } while (currentTokenIndex > 0 && prevToken.type === 'text' && prevToken.value.trim() === '');
+
+    if (prevToken.value.localeCompare('ENGINE', undefined, { sensitivity: 'accent' }) === 0) {
+      callback(null, this.engineCompletion);
+      return true;
+    }
+    return false;
+  }
+}
