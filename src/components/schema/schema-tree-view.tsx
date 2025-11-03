@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { QueryExecutor } from "../query-execution/query-executor";
+import { QueryExecutor } from "../query-tab/query-execution/query-executor";
 import { TableTabManager } from "../table-tab/table-tab-manager";
 
 // Shared badge component for schema tree nodes

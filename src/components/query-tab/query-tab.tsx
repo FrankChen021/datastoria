@@ -1,5 +1,5 @@
-import { QueryInputView } from "@/components/query-input/query-input-view";
-import { QueryListView } from "@/components/query/query-list-view";
+import { QueryInputView } from "./query-input/query-input-view";
+import { QueryListView } from "@/components/query-tab/query-list-view";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 export interface QueryTabProps {

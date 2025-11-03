@@ -9,12 +9,12 @@ import "ace-builds/src-noconflict/theme-solarized_dark";
 import "./ace-setup";
 import "./completion/clickhouse-sql";
 
-import { useConnection } from "../../lib/connection/ConnectionContext";
-import { useTheme } from "../theme-provider";
+import { useTheme } from "@/components/theme-provider";
+import { useConnection } from "@/lib/connection/ConnectionContext";
 import { QueryExecutor } from "../query-execution/query-executor";
-import { QueryCompletionManager } from "./completion/QueryCompletionManager";
-import { QueryInputLocalStorage } from "./query-input-local-storage";
 import "./query-input-view.css";
+import { QueryInputLocalStorage } from "../query-input/query-input-local-storage";
+import { QueryCompletionManager } from "./completion/QueryCompletionManager";
 import { QuerySnippetManager } from "./snippet/QuerySnippetManager";
 
 type ExtendedEditor = {

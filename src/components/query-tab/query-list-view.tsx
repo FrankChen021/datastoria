@@ -4,7 +4,7 @@ import { useConnection } from "@/lib/connection/ConnectionContext";
 import { toastManager } from "@/lib/toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
-import { QueryExecutor, type QueryRequestEventDetail } from "../query-execution/query-executor";
+import { QueryExecutor, type QueryRequestEventDetail } from "./query-execution/query-executor";
 import { QueryListItemView } from "./query-list-item-view";
 import type { QueryRequestViewModel, QueryResponseViewModel, QueryViewProps } from "./query-view-model";
 

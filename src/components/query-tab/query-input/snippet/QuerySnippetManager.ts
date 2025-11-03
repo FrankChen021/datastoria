@@ -1,8 +1,8 @@
-import { LocalStorage } from '../../../lib/connection/LocalStorage';
+import type { Connection } from '@/lib/connection/Connection';
+import { LocalStorage } from '@/lib/connection/LocalStorage';
 import type { Ace } from 'ace-builds';
 import { builtinSnippet } from './BuiltinSnippet';
 import type { Snippet } from './Snippet';
-import type { Connection } from '../../../lib/connection/Connection';
 
 export class QuerySnippetManager {
   private static instance: QuerySnippetManager;

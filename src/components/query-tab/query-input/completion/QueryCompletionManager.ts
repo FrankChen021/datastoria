@@ -1,8 +1,8 @@
-import type { Connection } from '../../../lib/connection/Connection';
-import { Api } from '../../../lib/api';
+import { Api } from '@/lib/api';
+import type { Connection } from '@/lib/connection/Connection';
+import { StringUtils } from '@/lib/string-utils';
 import type { Ace } from 'ace-builds';
 import { QuerySnippetManager } from '../snippet/QuerySnippetManager';
-import { StringUtils } from '../../../lib/string-utils';
 
 type CompletionItem = {
   doc?: string;

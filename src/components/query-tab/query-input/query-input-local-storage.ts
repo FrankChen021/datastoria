@@ -1,4 +1,4 @@
-import { LocalStorage } from '../../lib/connection/LocalStorage';
+import { LocalStorage } from '@/lib/connection/LocalStorage';
 
 export class QueryInputLocalStorage {
   public static getInput(): string {

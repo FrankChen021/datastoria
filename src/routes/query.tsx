@@ -1,4 +1,4 @@
-import { QueryTab } from "@/components/query/query-tab";
+import { QueryTab } from "@/components/query-tab/query-tab";
 import { SchemaTreeView } from "@/components/schema/schema-tree-view";
 import { TableTab } from "@/components/table-tab/table-tab";
 import { TableTabManager, type OpenTableTabEventDetail } from "@/components/table-tab/table-tab-manager";
