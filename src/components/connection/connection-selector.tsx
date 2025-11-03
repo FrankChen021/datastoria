@@ -4,13 +4,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { Connection } from "@/lib/connection/Connection";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { ConnectionManager } from "@/lib/connection/ConnectionManager";
-import { cn } from "@/lib/utils";
-import { ChevronDown, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
-import { showConnectionEditDialog } from "./connection-edit-dialog";
-import { Separator } from "../ui/separator";
-import { useCommandState } from "cmdk";
 import { TextHighlighter } from "@/lib/text-highlighter";
+import { cn } from "@/lib/utils";
+import { useCommandState } from "cmdk";
+import { Pencil, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Input } from "../ui/input";
+import { Separator } from "../ui/separator";
+import { showConnectionEditDialog } from "./connection-edit-dialog";
 
 interface HighlightItemProps {
   text: string;
@@ -66,10 +67,31 @@ export function ConnectionSelector() {
       <div className="flex items-center gap-1">
         <Popover open={isCommandOpen} onOpenChange={setIsCommandOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="max-w-[300px]">
-              <span className="truncate">{selectedConnection?.name}</span>
-              <ChevronDown className="h-4 w-4 ml-2 shrink-0" />
-            </Button>
+            {/* <Button variant="outline" size="sm" className="w-[200px] justify-between">
+              <span className="truncate text-left">{selectedConnection?.name}</span>
+              <ChevronDown className="h-4 w-4 shrink-0" />
+            </Button> */}
+            <div className="relative">
+              <Input
+                className="w-[350px] h-9 pr-9 cursor-pointer"
+                title="Edit Connection"
+                value={`${selectedConnection?.name}@${selectedConnection!.url}`}
+                readOnly
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-9 w-9 rounded-l-none"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  showConnectionEditDialog({ connection: selectedConnection, onSave: () => {} });
+                }}
+                title="Edit Connection"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </div>
           </PopoverTrigger>
           <PopoverContent className="w-[300px] p-0" align="start" sideOffset={0}>
             <Command
@@ -104,7 +126,12 @@ export function ConnectionSelector() {
                             <div className={cn("font-medium truncate", isSelected && "text-primary")}>
                               <HighlightableCommandItem text={conn.name} />
                             </div>
-                            <div className={cn("text-xs truncate", isSelected ? "text-primary/80" : "text-muted-foreground")}>
+                            <div
+                              className={cn(
+                                "text-xs truncate",
+                                isSelected ? "text-primary/80" : "text-muted-foreground"
+                              )}
+                            >
                               {getConnectionItemText(conn)}
                             </div>
                           </div>

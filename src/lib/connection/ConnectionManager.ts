@@ -179,7 +179,7 @@ export class ConnectionManager {
   }
 
   public getLastSelectedOrFirst() {
-    const selected = LocalStorage.getInstance().getObject(ConnectionKey + '.selected');
+    const selected = LocalStorage.getInstance().getString(ConnectionKey + '.selected');
     if (selected === null) {
       return this.first();
     }

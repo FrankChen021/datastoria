@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { DialogClose } from "@/components/ui/dialog";
+import { DialogClose, DialogFooter } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +19,7 @@ import { useConnection } from "@/lib/connection/ConnectionContext";
 import { ConnectionManager } from "@/lib/connection/ConnectionManager";
 import { toastManager } from "@/lib/toast";
 import axios from "axios";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
 export interface ConnectionEditDialogProps {
@@ -34,129 +34,21 @@ export interface ShowConnectionEditDialogOptions {
   onCancel?: () => void;
 }
 
-export function showConnectionEditDialog(options: ShowConnectionEditDialogOptions) {
-  const { connection, onSave, onDelete, onCancel } = options;
-  const isAddMode = connection == null;
-
-  // Use closures to store handlers
-  let saveHandler: (() => Promise<boolean>) | null = null;
-  let testHandler: (() => void) | null = null;
-
-  const formContent = (
-    <ConnectionEditForm
-      connection={connection}
-      onSaveHandlerRef={(handler) => {
-        saveHandler = handler;
-      }}
-      onTestHandlerRef={(handler) => {
-        testHandler = handler;
-      }}
-      onSave={(conn) => {
-        if (onSave) {
-          onSave(conn);
-        }
-      }}
-      onDelete={onDelete}
-    />
-  );
-
-  Dialog.showDialog({
-    title: isAddMode ? "Create a new connection" : "Modify an existing connection",
-    description: (
-      <div>
-        <p className="text-sm text-muted-foreground mb-4">Configure your ClickHouse connection settings.</p>
-        {formContent}
-        <div className="flex gap-2 mt-4 justify-end">
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (testHandler) {
-                testHandler();
-              }
-            }}
-          >
-            Test Connection
-          </Button>
-          {!isAddMode && onDelete && (
-            <Button
-              variant="destructive"
-              onClick={() => {
-                Dialog.confirm({
-                  title: "Confirm deletion",
-                  description: "Are you sure you want to delete this connection? This action cannot be undone.",
-                  dialogButtons: [
-                    {
-                      text: "Delete",
-                      default: true,
-                      onClick: async () => {
-                        if (connection) {
-                          ConnectionManager.getInstance().remove(connection.name.trim());
-                          if (onDelete) {
-                            onDelete();
-                          }
-                        }
-                        return true;
-                      },
-                    },
-                    {
-                      text: "Cancel",
-                      default: false,
-                      onClick: async () => true,
-                    },
-                  ],
-                });
-              }}
-            >
-              Delete
-            </Button>
-          )}
-          <DialogClose asChild>
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (onCancel) {
-                  onCancel();
-                }
-              }}
-            >
-              Cancel
-            </Button>
-          </DialogClose>
-          <DialogClose asChild>
-            <Button
-              onClick={async (e) => {
-                if (saveHandler) {
-                  const shouldClose = await saveHandler();
-                  if (!shouldClose) {
-                    // Prevent dialog from closing if save validation fails
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return false;
-                  }
-                }
-              }}
-            >
-              Save
-            </Button>
-          </DialogClose>
-        </div>
-      </div>
-    ),
-    className: "max-w-lg",
-    dialogButtons: [],
-  });
-}
-
-interface ConnectionEditFormProps {
+// Wrapper component that includes form and buttons with shared state
+function ConnectionEditDialogWrapper({
+  connection,
+  onSave,
+  onDelete,
+  onCancel,
+  isAddMode,
+}: {
   connection: Connection | null;
-  onSaveHandlerRef: (handler: () => Promise<boolean>) => void;
-  onTestHandlerRef: (handler: () => void) => void;
-  onSave: (connection: Connection) => void;
+  onSave?: (connection: Connection) => void;
   onDelete?: () => void;
-}
-
-function ConnectionEditForm({ connection, onSaveHandlerRef, onTestHandlerRef, onSave }: ConnectionEditFormProps) {
-  const isAddMode = connection == null;
+  onCancel?: () => void;
+  isAddMode: boolean;
+}) {
+  const [isTesting, setIsTesting] = useState(false);
   const { setSelectedConnection } = useConnection();
 
   const hasProvider = import.meta.env.VITE_CONSOLE_CONNECTION_PROVIDER_ENABLED === "true";
@@ -279,9 +171,7 @@ function ConnectionEditForm({ connection, onSaveHandlerRef, onTestHandlerRef, on
     return newConnection;
   }, [name, cluster, url, user, password, editable]);
 
-  // Stabilize handlers with useCallback - include the actual handler functions as dependencies
-  // Since handleSave and handleTestConnection are defined in this component and depend on state,
-  // we recreate them when state changes, so we include all dependencies
+  // Save handler
   const stableHandleSave = useCallback(async (): Promise<boolean> => {
     const editingConnection = getEditingConnection();
     if (editingConnection == null) {
@@ -325,121 +215,18 @@ function ConnectionEditForm({ connection, onSaveHandlerRef, onTestHandlerRef, on
     // Update the selected connection to the newly saved/edited connection
     // This will also initialize the connection runtime and save it as the last selected
     setSelectedConnection(savedConnection);
-    onSave(savedConnection);
+    if (onSave) {
+      onSave(savedConnection);
+    }
     return true; // Close dialog
   }, [getEditingConnection, currentSelectedConnection, isAddMode, onSave, setSelectedConnection]);
 
-  const stableHandleTestConnection = useCallback(() => {
-    const testConnection = getEditingConnection();
-    if (testConnection == null) {
-      console.log("Test connection: getEditingConnection returned null");
-      return;
-    }
-
-    console.log("Test connection: Starting test for", testConnection);
-
-    try {
-      const initializedConnection = ensureConnectionRuntimeInitialized(testConnection);
-      if (!initializedConnection || !initializedConnection.runtime) {
-        console.error("Test connection: Failed to initialize connection runtime", initializedConnection);
-        showErrorMessage("Failed to initialize connection. Please check your URL format.");
-        return;
-      }
-
-      console.log("Test connection: Connection initialized, runtime:", initializedConnection.runtime);
-      const api = Api.create(initializedConnection);
-      console.log("Test connection: API created, executing SQL...");
-      const testCanceller = api.executeSQL(
-        { sql: "SELECT 525" },
-        (response) => {
-          console.log("Test connection: Response received", response);
-          if (testConnection.cluster.length === 0) {
-            if (response.httpHeaders["x-clickhouse-format"] == null) {
-              showErrorMessage(
-                "Successfully connected. But the response from ClickHouse server might not be configured correctly that this console does not support all features. Maybe there is a CORS problem at the server side."
-              );
-            } else {
-              showMessage("Successfully connected.");
-            }
-            return;
-          }
-
-          //
-          // For CLUSTER MODE, continue to check if the cluster exists
-          //
-          const clusterCanceller = api.executeSQL(
-            {
-              sql: `SELECT 1 FROM system.clusters WHERE cluster = '${testConnection.cluster}' Format JSONCompact`,
-            },
-            (response) => {
-              if (response.data.data.length === 0) {
-                showErrorMessage(`Cluster [${testConnection.cluster}] is not found on given ClickHouse server.`);
-              } else {
-                showMessage("Successfully connected to specified cluster.");
-              }
-            },
-            (error) => {
-              showErrorMessage(
-                `Successfully connected to ClickHouse server. But unable to determine if the cluster [${testConnection.name}] exists on the server. You can still save the connection to continue. ${
-                  error.httpStatus !== 404 ? error.errorMessage : ""
-                }`
-              );
-            },
-            () => {
-              // Test completed
-            }
-          );
-
-          setApiCanceller(clusterCanceller);
-        },
-        (error) => {
-          console.error("Test connection: Error received", error);
-          setApiCanceller(undefined);
-
-          //
-          // Authentication fails
-          //
-          if (
-            error.httpStatus === 403 &&
-            error.httpHeaders &&
-            error.httpHeaders["x-clickhouse-exception-code"] === "516"
-          ) {
-            showErrorMessage("User name or password is wrong.");
-            return;
-          }
-
-          // try to detect if the error object has 'message' field and then use it if it has
-          const detailMessage =
-            typeof error?.data == "object"
-              ? error.data.message
-                ? error.data.message
-                : JSON.stringify(error.data, null, 2)
-              : error?.data;
-
-          showErrorMessage(`${error.errorMessage}\n${detailMessage}`);
-        },
-        () => {
-          console.log("Test connection: Request finalized");
-        }
-      );
-
-      setApiCanceller(testCanceller);
-      console.log("Test connection: Request initiated");
-    } catch (e: unknown) {
-      console.error("Test connection: Exception caught", e);
-      const errorMessage = e instanceof Error ? e.message : "Unknown error";
-      showErrorMessage(`Internal Error\n${errorMessage}`);
-    }
-  }, [getEditingConnection, setApiCanceller]);
-
-  // Expose handlers via refs
   useEffect(() => {
-    onSaveHandlerRef(stableHandleSave);
-  }, [stableHandleSave, onSaveHandlerRef]);
-
-  useEffect(() => {
-    onTestHandlerRef(stableHandleTestConnection);
-  }, [stableHandleTestConnection, onTestHandlerRef]);
+    return () => {
+      // cancel any inflight request on unmount
+      apiCanceller?.cancel();
+    };
+  }, [apiCanceller]);
 
   const renderConnectionSelector = () => {
     if (!hasProvider) return null;
@@ -484,73 +271,296 @@ function ConnectionEditForm({ connection, onSaveHandlerRef, onTestHandlerRef, on
     );
   };
 
-  useEffect(() => {
-    return () => {
-      // cancel any inflight request on unmount
-      apiCanceller?.cancel();
+  // Test handler that manages testing state
+  const handleTestConnection = useCallback(async () => {
+    const testConnection = getEditingConnection();
+    if (testConnection == null) {
+      console.log("Test connection: getEditingConnection returned null");
+      return;
+    }
+
+    // Set testing state to true
+    setIsTesting(true);
+
+    console.log("Test connection: Starting test for", testConnection);
+
+    // Helper function to show message with delay and stop testing
+    const showMessageWithDelay = (messageFn: () => void) => {
+      setTimeout(() => {
+        setIsTesting(false);
+        messageFn();
+      }, 300); // 500ms delay for smooth UI
     };
-  }, [apiCanceller]);
+
+    try {
+      const initializedConnection = ensureConnectionRuntimeInitialized(testConnection);
+      if (!initializedConnection || !initializedConnection.runtime) {
+        console.error("Test connection: Failed to initialize connection runtime", initializedConnection);
+        showMessageWithDelay(() => {
+          showErrorMessage("Failed to initialize connection. Please check your URL format.");
+        });
+        return;
+      }
+
+      console.log("Test connection: Connection initialized, runtime:", initializedConnection.runtime);
+      const api = Api.create(initializedConnection);
+      console.log("Test connection: API created, executing SQL...");
+
+      // Create abort controller for cancellation
+      const abortController = new AbortController();
+      setApiCanceller({
+        cancel: () => abortController.abort(),
+      });
+
+      try {
+        const response = await api.executeAsync({ sql: "SELECT 525" }, abortController.signal);
+        console.log("Test connection: Response received", response);
+
+        if (testConnection.cluster.length === 0) {
+          setApiCanceller(undefined);
+          if (response.httpHeaders["x-clickhouse-format"] == null) {
+            showMessageWithDelay(() => {
+              showErrorMessage(
+                "Successfully connected. But the response from ClickHouse server might not be configured correctly that this console does not support all features. Maybe there is a CORS problem at the server side."
+              );
+            });
+          } else {
+            showMessageWithDelay(() => {
+              showMessage("Successfully connected.");
+            });
+          }
+          return;
+        }
+
+        // For CLUSTER MODE, continue to check if the cluster exists
+        try {
+          const clusterResponse = await api.executeAsync(
+            {
+              sql: `SELECT 1 FROM system.clusters WHERE cluster = '${testConnection.cluster}' Format JSONCompact`,
+            },
+            abortController.signal
+          );
+
+          setApiCanceller(undefined);
+          if (clusterResponse.data.data.length === 0) {
+            showMessageWithDelay(() => {
+              showErrorMessage(`Cluster [${testConnection.cluster}] is not found on given ClickHouse server.`);
+            });
+          } else {
+            showMessageWithDelay(() => {
+              showMessage("Successfully connected to specified cluster.");
+            });
+          }
+        } catch (clusterError: unknown) {
+          const error = clusterError as ApiErrorResponse;
+          setApiCanceller(undefined);
+          showMessageWithDelay(() => {
+            showErrorMessage(
+              `Successfully connected to ClickHouse server. But unable to determine if the cluster [${testConnection.name}] exists on the server. You can still save the connection to continue. ${
+                error.httpStatus !== 404 ? error.errorMessage : ""
+              }`
+            );
+          });
+        }
+      } catch (error: unknown) {
+        console.error("Test connection: Error received", error);
+        setApiCanceller(undefined);
+
+        const apiError = error as ApiErrorResponse;
+
+        // Authentication fails
+        if (
+          apiError.httpStatus === 403 &&
+          apiError.httpHeaders &&
+          apiError.httpHeaders["x-clickhouse-exception-code"] === "516"
+        ) {
+          showMessageWithDelay(() => {
+            showErrorMessage("User name or password is wrong.");
+          });
+          return;
+        }
+
+        // try to detect if the error object has 'message' field and then use it if it has
+        const detailMessage =
+          typeof apiError?.data == "object"
+            ? apiError.data?.message
+              ? apiError.data.message
+              : JSON.stringify(apiError.data, null, 2)
+            : apiError?.data;
+
+        showMessageWithDelay(() => {
+          showErrorMessage(`${apiError.errorMessage}${detailMessage ? `\n${detailMessage}` : ""}`);
+        });
+      }
+    } catch (e: unknown) {
+      console.error("Test connection: Exception caught", e);
+      const errorMessage = e instanceof Error ? e.message : "Unknown error";
+      showMessageWithDelay(() => {
+        showErrorMessage(`Internal Error\n${errorMessage}`);
+      });
+    }
+  }, [getEditingConnection, setApiCanceller]);
+
+  // Wrapped save handler - needs to prevent DialogClose if validation fails
+  const handleSave = useCallback(
+    async (e: React.MouseEvent) => {
+      const shouldClose = await stableHandleSave();
+      if (!shouldClose) {
+        // Prevent dialog from closing if validation fails
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      // If shouldClose is true, DialogClose will handle closing
+    },
+    [stableHandleSave]
+  );
+
+  const handleCancel = useCallback(() => {
+    if (onCancel) {
+      onCancel();
+    }
+    // DialogClose will handle closing
+  }, [onCancel]);
+
+  const handleDelete = useCallback(() => {
+    Dialog.confirm({
+      title: "Confirm deletion",
+      mainContent: "Are you sure you want to delete this connection? This action cannot be undone.",
+      dialogButtons: [
+        {
+          text: "Delete",
+          default: true,
+          onClick: async () => {
+            if (connection) {
+              ConnectionManager.getInstance().remove(connection.name.trim());
+              if (onDelete) {
+                onDelete();
+              }
+            }
+            return true;
+          },
+        },
+        {
+          text: "Cancel",
+          default: false,
+          onClick: async () => true,
+        },
+      ],
+    });
+  }, [connection, onDelete]);
 
   return (
-    <div className="space-y-4 py-4">
-      {renderConnectionSelector()}
-
+    <>
       <div className="space-y-2">
-        <Label htmlFor="name">Name (Required)</Label>
-        <Input
-          id="name"
-          autoFocus
-          placeholder="name of a connection. Must be unique."
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </div>
+        {renderConnectionSelector()}
 
-      <div className="space-y-2">
-        <Label htmlFor="cluster" className={!editable ? "text-muted-foreground" : ""}>
-          Cluster (Optional)
-        </Label>
-        <Input
-          id="cluster"
-          placeholder="logic cluster name"
-          value={cluster}
-          disabled={!editable}
-          onChange={(e) => setCluster(e.target.value)}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="url">URL (Required)</Label>
-        <Input id="url" placeholder="http(s)://" value={url} onChange={(e) => setUrl(e.target.value)} />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="user">User (Required)</Label>
-        <Input id="user" placeholder="user name" value={user} onChange={(e) => setUser(e.target.value)} />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <div className="relative">
+        <div className="space-y-2">
+          <Label htmlFor="name">Connection Name (Required)</Label>
           <Input
-            id="password"
-            placeholder="password"
-            type={isShowPassword ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="pr-10"
+            id="name"
+            autoFocus
+            placeholder="(Required) Name of the connection. Must be unique."
+            value={name}
+            onChange={(e) => setName(e.target.value)}
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-            onClick={() => setShowPassword((prev) => !prev)}
-          >
-            {isShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </Button>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="cluster" className={!editable ? "text-muted-foreground" : ""}>
+            Cluster (Optional)
+          </Label>
+          <Input
+            id="cluster"
+            placeholder="The cluster name in the ClickHouse server"
+            value={cluster}
+            disabled={!editable}
+            onChange={(e) => setCluster(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="url">URL (Required)</Label>
+          <Input id="url" placeholder="http(s)://" value={url} onChange={(e) => setUrl(e.target.value)} />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="user">User (Required)</Label>
+          <Input id="user" placeholder="user name" value={user} onChange={(e) => setUser(e.target.value)} />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <div className="relative">
+            <Input
+              id="password"
+              placeholder="password"
+              type={isShowPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="pr-10"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+              onClick={() => setShowPassword((prev) => !prev)}
+            >
+              {isShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+      <DialogFooter className="mt-4">
+        <Button variant="outline" onClick={handleTestConnection} disabled={isTesting}>
+          {isTesting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Test Connection
+            </>
+          ) : (
+            "Test Connection"
+          )}
+        </Button>
+        {!isAddMode && onDelete && (
+          <Button variant="destructive" onClick={handleDelete}>
+            Delete
+          </Button>
+        )}
+        <DialogClose asChild>
+          <Button variant="outline" onClick={handleCancel}>
+            Cancel
+          </Button>
+        </DialogClose>
+        <DialogClose asChild>
+          <Button onClick={(e: React.MouseEvent<HTMLButtonElement>) => handleSave(e)}>Save</Button>
+        </DialogClose>
+      </DialogFooter>
+    </>
   );
+}
+
+export function showConnectionEditDialog(options: ShowConnectionEditDialogOptions) {
+  const { connection, onSave, onDelete, onCancel } = options;
+  const isAddMode = connection == null;
+
+  const mainContent = (
+    <ConnectionEditDialogWrapper
+      connection={connection}
+      onSave={onSave}
+      onDelete={onDelete}
+      onCancel={onCancel}
+      isAddMode={isAddMode}
+    />
+  );
+
+  Dialog.showDialog({
+    title: isAddMode ? "Create a new connection" : "Modify existing connection",
+    className: "max-w-lg",
+    description: "Configure your ClickHouse connection settings.",
+    mainContent: mainContent,
+    dialogButtons: [], // Buttons are now in mainContent
+    onCancel: onCancel,
+    disableBackdrop: true,
+  });
 }

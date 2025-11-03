@@ -353,7 +353,7 @@ export const DataSampleView = forwardRef<DataSampleViewRef, DataSampleViewProps>
     const content = renderDialogContent(value, columnType);
     Dialog.alert({
       title: `${columnName} (${columnType})`,
-      description: content,
+      mainContent: content,
       className: "max-w-4xl max-h-[80vh]",
     });
   };

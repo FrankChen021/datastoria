@@ -43,19 +43,25 @@ class ApiCancellerImpl implements ApiCanceller {
 export class Api {
   private instance: AxiosInstance;
   private readonly path: string;
+  private readonly host: string;
+  private readonly username: string;
+  private readonly password: string;
   private readonly userParams: Record<string, unknown>;
 
   public constructor(connection: Connection) {
     const connectionRuntime = connection.runtime as ConnectionRuntime;
 
     this.path = connectionRuntime.path;
+    this.host = connectionRuntime.host;
     this.userParams = connectionRuntime.userParams;
+    this.username = Api.getConnectionUser(connection);
+    this.password = connection.password as string;
 
     const config: AxiosRequestConfig = {
       baseURL: connectionRuntime.host,
       auth: {
-        username: Api.getConnectionUser(connection),
-        password: connection.password as string,
+        username: this.username,
+        password: this.password,
       },
     };
 
@@ -144,5 +150,132 @@ export class Api {
       });
 
     return apiCanceller;
+  }
+
+  public async executeAsync(
+    sql: { sql: string; headers?: Record<string, string>; params?: Record<string, unknown> },
+    abortSignal?: AbortSignal
+  ): Promise<ApiResponse> {
+    const headers: Record<string, string> = sql.headers || {};
+
+    // Set default ClickHouse headers if not provided
+    if (!headers['Content-Type']) {
+      headers['Content-Type'] = 'text/plain';
+    }
+
+    // Merge user params with request params (request params take precedence)
+    const params: Record<string, unknown> = Object.assign({}, this.userParams);
+    if (sql.params) {
+      Object.assign(params, sql.params);
+    }
+    // Add default format if not specified
+    if (!params['default_format']) {
+      params['default_format'] = 'JSONCompact';
+    }
+
+    const maxExecutionTime = params['max_execution_time'];
+    const timeout = (typeof maxExecutionTime === 'number' ? maxExecutionTime : 60) * 1000;
+
+    // Build URL with query parameters
+    const url = new URL(this.path, this.host);
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, String(value));
+      }
+    });
+
+    // Build Basic Auth header
+    const basicAuth = btoa(`${this.username}:${this.password}`);
+    headers['Authorization'] = `Basic ${basicAuth}`;
+
+    console.log('API async request config:', {
+      url: url.toString(),
+      method: 'POST',
+      headers: headers,
+      params: params,
+    });
+
+    // Create timeout controller
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      timeoutController.abort();
+    }, timeout);
+
+    // Combine abort signals - if external signal provided, create a combined controller
+    let combinedSignal: AbortSignal;
+    if (abortSignal) {
+      const combined = new AbortController();
+      abortSignal.addEventListener('abort', () => combined.abort());
+      timeoutController.signal.addEventListener('abort', () => combined.abort());
+      combinedSignal = combined.signal;
+    } else {
+      combinedSignal = timeoutController.signal;
+    }
+
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers: headers,
+        body: sql.sql,
+        signal: combinedSignal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.text().catch(() => '');
+        const error: ApiErrorResponse = {
+          errorMessage: `HTTP ${response.status}: ${response.statusText}${errorData ? ` - ${errorData}` : ''}`,
+          httpStatus: response.status,
+          httpHeaders: Object.fromEntries(response.headers.entries()),
+          data: errorData,
+        };
+        throw error;
+      }
+
+      const data = await response.json().catch(() => response.text());
+
+      return {
+        httpStatus: response.status,
+        httpHeaders: Object.fromEntries(response.headers.entries()),
+        data: data,
+      };
+    } catch (error: unknown) {
+      clearTimeout(timeoutId);
+
+      // If it's already an ApiErrorResponse, re-throw it
+      if (error && typeof error === 'object' && 'errorMessage' in error) {
+        throw error;
+      }
+
+      if (error instanceof Error && error.name === 'AbortError') {
+        if (timeoutController.signal.aborted) {
+          const timeoutError: ApiErrorResponse = {
+            errorMessage: `${timeout / 1000}s timeout to wait for response from ClickHouse server.`,
+            httpStatus: undefined,
+            httpHeaders: undefined,
+            data: undefined,
+          };
+          throw timeoutError;
+        }
+        const abortError: ApiErrorResponse = {
+          errorMessage: error.message || 'Request aborted',
+          httpStatus: undefined,
+          httpHeaders: undefined,
+          data: undefined,
+        };
+        throw abortError;
+      }
+
+      // Re-throw as ApiErrorResponse-like error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const genericError: ApiErrorResponse = {
+        errorMessage,
+        httpStatus: undefined,
+        httpHeaders: undefined,
+        data: undefined,
+      };
+      throw genericError;
+    }
   }
 }

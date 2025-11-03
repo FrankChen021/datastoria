@@ -1,14 +1,13 @@
 "use client";
 
-import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    Dialog as DialogUI,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Dialog as DialogUI,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "next-themes";
@@ -19,11 +18,14 @@ export interface DialogButton {
   text: string;
   default: boolean;
   onClick: () => Promise<boolean>;
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  content?: React.ReactNode | (() => React.ReactNode); // Custom content to render instead of text (e.g., spinner + text)
 }
 
 export interface DialogProps {
   title?: string;
-  description?: React.ReactNode;
+  description?: string;
+  mainContent?: React.ReactNode;
   className?: string;
   onCancel?: () => void;
   dialogButtons?: DialogButton[];
@@ -32,7 +34,11 @@ export interface DialogProps {
    * If it returns true, the dialog will not be closed.
    * If it returns false or is not provided, the dialog can be closed normally.
    */
-  disableClose?: () => boolean;
+  canClose?: () => boolean;
+  /**
+   * If true, disables the backdrop overlay and prevents closing by clicking outside.
+   */
+  disableBackdrop?: boolean;
 }
 
 interface InternalDialogProps extends DialogProps {
@@ -53,15 +59,20 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
 
   const handleOpenChange = (newOpen: boolean) => {
     // If closing and disableClose callback returns true, prevent closing
-    if (!newOpen && dialogProps.disableClose && dialogProps.disableClose()) {
+    if (!newOpen && dialogProps.canClose && !dialogProps.canClose()) {
       return;
     }
     setOpen(newOpen);
   };
 
   const handleInteractOutside = (event: Event) => {
+    // If backdrop is disabled, always prevent interaction
+    if (dialogProps.disableBackdrop) {
+      event.preventDefault();
+      return;
+    }
     // If disableClose callback returns true, prevent default behavior
-    if (dialogProps.disableClose && dialogProps.disableClose()) {
+    if (dialogProps.canClose && !dialogProps.canClose()) {
       event.preventDefault();
       return;
     }
@@ -75,35 +86,45 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
     <DialogUI open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         // The full-screen mode of MUI table has z-index of 1300, so we have to set a larger z-index to make sure the dialog is on top of the table.
-        className={cn("flex flex-col gap-2 p-5 justify-between z-[2000]", dialogProps.className)}
+        className={cn("flex flex-col gap-1 p-5 justify-between z-[2000]", dialogProps.className)}
+        disableBackdrop={dialogProps.disableBackdrop}
         onInteractOutside={handleInteractOutside}
         onEscapeKeyDown={(event) => {
-          // Prevent closing on Escape key if disableClose callback returns true
-          if (dialogProps.disableClose && dialogProps.disableClose()) {
+          // Prevent closing on Escape key if disableClose callback returns true or backdrop is disabled
+          if (dialogProps.disableBackdrop || (dialogProps.canClose && !dialogProps.canClose())) {
             event.preventDefault();
           }
         }}
       >
         <DialogHeader>
           <DialogTitle>{dialogProps.title}</DialogTitle>
-          <DialogDescription></DialogDescription>
+          <DialogDescription>{dialogProps.description}</DialogDescription>
         </DialogHeader>
-        <div className="flex-grow mt-3 mb-3 overflow-auto">{dialogProps.description}</div>
+        <div className="flex-grow my-2 overflow-auto">{dialogProps.mainContent}</div>
         {dialogProps.dialogButtons && dialogProps.dialogButtons.length > 0 && (
           <DialogFooter className="mt-auto">
-            {dialogProps.dialogButtons.map((button, index) => (
-              <DialogClose
-                key={index}
-                className={cn(buttonVariants(button.default ? {} : { variant: "outline" }))}
-                onClick={async () => {
-                  if (await button.onClick()) {
-                    setOpen(false);
-                  }
-                }}
-              >
-                {button.text}
-              </DialogClose>
-            ))}
+            {dialogProps.dialogButtons.map((button, index) => {
+              const variant = button.variant || (button.default ? "default" : "outline");
+              const content = button.content !== undefined 
+                ? (typeof button.content === 'function' ? button.content() : button.content)
+                : button.text;
+              const isLoading = button.content !== undefined;
+              return (
+                <Button
+                  key={index}
+                  variant={variant}
+                  disabled={isLoading} // Disable button when showing loading state
+                  onClick={async () => {
+                    const shouldClose = await button.onClick();
+                    if (shouldClose) {
+                      setOpen(false);
+                    }
+                  }}
+                >
+                  {content}
+                </Button>
+              );
+            })}
           </DialogFooter>
         )}
       </DialogContent>
