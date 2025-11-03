@@ -3,6 +3,7 @@ import FloatingProgressBar from "@/components/floating-progress-bar";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
+import { StringUtils } from "@/lib/string-utils";
 import { toastManager } from "@/lib/toast";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
@@ -129,7 +130,7 @@ function TableDDLView({
 
     // Use ThemedSyntaxHighlighter for create_table_query and as_select columns
     if (columnName === "create_table_query" || columnName === "as_select") {
-      const valueStr = String(value);
+      const valueStr = StringUtils.prettyFormatQuery(value as string);
       if (valueStr.length == 0) {
         return "-";
       }

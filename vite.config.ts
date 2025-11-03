@@ -45,7 +45,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['@mui/material', '@emotion/react', '@emotion/styled'],
+    include: ['@mui/material', '@emotion/react', '@emotion/styled', 'sql-formatter'],
   },
   build: {
     commonjsOptions: {

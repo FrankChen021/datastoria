@@ -1,3 +1,5 @@
+import { format as formatSQL } from "sql-formatter";
+
 export class StringUtils {
   public static isAllSpace(text: string): boolean {
     for (let i = 0; i < text.length; i++) {
@@ -6,5 +8,13 @@ export class StringUtils {
       }
     }
     return true;
+  }
+
+  public static prettyFormatQuery(query: string): string {
+    try {
+      return formatSQL(query);
+    } catch (e) {
+      return query;
+    }
   }
 }

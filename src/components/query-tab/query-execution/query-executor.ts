@@ -5,12 +5,13 @@
 export interface QueryRequestOptions {
   displayFormat?: "sql" | "text";
   formatter?: (text: string) => string;
+  view?: string; // View type (e.g., "dependency", "query")
+  params?: Record<string, unknown>; // Query parameters to pass to executeSQL
 }
 
 export interface QueryRequestEventDetail {
   sql: string;
   options?: QueryRequestOptions;
-  params?: Record<string, unknown>; // Query parameters to pass to executeSQL
   tabId?: string; // Optional tabId for multi-tab support
 }
 
@@ -35,13 +36,12 @@ export class QueryExecutor {
   static sendQueryRequest(
     sql: string,
     options?: QueryRequestOptions,
-    params?: Record<string, unknown>,
     tabId?: string
   ): void {
     const event = new CustomEvent<QueryRequestEventDetail>(
       QueryExecutor.QUERY_REQUEST_EVENT,
       {
-        detail: { sql, options, params, tabId },
+        detail: { sql, options, tabId },
       }
     );
     window.dispatchEvent(event);

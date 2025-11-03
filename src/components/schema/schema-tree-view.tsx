@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { DependencyTabManager } from "../dependency-tab/dependency-tab-manager";
 import { QueryExecutor } from "../query-tab/query-execution/query-executor";
 import { TableTabManager } from "../table-tab/table-tab-manager";
 
@@ -480,6 +481,19 @@ export function SchemaTreeView({ onExecuteQuery, tabId }: SchemaTreeViewProps) {
     setContextMenuPosition(null);
   }, [contextMenuNode, executeQuery]);
 
+  const [serverVersion, setServerVersion] = useState<string>("");
+
+  const handleShowDependency = useCallback(
+    (databaseName: string) => {
+      // Open dependency tab instead of executing query
+      DependencyTabManager.sendOpenDependencyTabRequest(databaseName, tabId);
+
+      setContextMenuNode(null);
+      setContextMenuPosition(null);
+    },
+    [tabId]
+  );
+
   const loadDatabases = useCallback(() => {
     if (!selectedConnection) {
       setTreeData([]);
@@ -719,12 +733,32 @@ ORDER BY lower(database), database, table, columnName`,
             onContextMenu={(e) => e.preventDefault()}
           >
             {contextMenuNode.data?.type === "database" && (
-              <div
-                className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground"
-                onClick={handleShowCreateDatabase}
-              >
-                Show create database
-              </div>
+              <>
+                <div
+                  className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground"
+                  onClick={handleShowCreateDatabase}
+                >
+                  Show create database
+                </div>
+                {(() => {
+                  const dbData = contextMenuNode.data as DatabaseNodeData;
+                  const hasChildren = contextMenuNode.children && contextMenuNode.children.length > 0;
+                  if (hasChildren) {
+                    return (
+                      <>
+                        <div className="h-px w-full bg-border my-1" />
+                        <div
+                          className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground"
+                          onClick={() => handleShowDependency(dbData.name)}
+                        >
+                          Show table dependencies
+                        </div>
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
+              </>
             )}
             {contextMenuNode.data?.type === "table" && (
               <div

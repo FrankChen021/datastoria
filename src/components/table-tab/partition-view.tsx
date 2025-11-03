@@ -91,63 +91,63 @@ GROUP BY
 ORDER BY 
     diskSize DESC`;
 
-    const canceller = api.executeSQL(
-      {
-        sql: sql,
-        headers: {
-          "Content-Type": "text/plain",
+      const canceller = api.executeSQL(
+        {
+          sql: sql,
+          headers: {
+            "Content-Type": "text/plain",
+          },
+          params: {
+            default_format: "JSON",
+          },
         },
-        params: {
-          default_format: "JSON",
-        },
-      },
-      (response: ApiResponse) => {
-        if (!isMountedRef.current) {
-          return;
-        }
+        (response: ApiResponse) => {
+          if (!isMountedRef.current) {
+            return;
+          }
 
-        try {
-          const data = response.data.data || [];
-          // Ensure numeric fields are converted to numbers
-          const processedData: PartitionSizeInfo[] = data.map((item: Record<string, unknown>) => ({
-            partition: String(item.partition || ""),
-            partCount: Number(item.partCount) || 0,
-            rows: Number(item.rows) || 0,
-            diskSize: Number(item.diskSize) || 0,
-            uncompressedSize: Number(item.uncompressedSize) || 0,
-            compressRatio: Number(item.compressRatio) || 0,
-          }));
-          setPartitionSizeInfo(processedData);
-          setIsLoading(false);
-        } catch (err) {
-          console.error("Error processing partition size response:", err);
-          const errorMessage = err instanceof Error ? err.message : String(err);
+          try {
+            const data = response.data.data || [];
+            // Ensure numeric fields are converted to numbers
+            const processedData: PartitionSizeInfo[] = data.map((item: Record<string, unknown>) => ({
+              partition: String(item.partition || ""),
+              partCount: Number(item.partCount) || 0,
+              rows: Number(item.rows) || 0,
+              diskSize: Number(item.diskSize) || 0,
+              uncompressedSize: Number(item.uncompressedSize) || 0,
+              compressRatio: Number(item.compressRatio) || 0,
+            }));
+            setPartitionSizeInfo(processedData);
+            setIsLoading(false);
+          } catch (err) {
+            console.error("Error processing partition size response:", err);
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            setError(errorMessage);
+            setIsLoading(false);
+            toastManager.show(`Failed to process partition size: ${errorMessage}`, "error");
+          }
+        },
+        (error: ApiErrorResponse) => {
+          if (!isMountedRef.current) return;
+
+          const errorMessage = error.errorMessage || "Unknown error occurred";
+          const lowerErrorMessage = errorMessage.toLowerCase();
+          if (lowerErrorMessage.includes("cancel") || lowerErrorMessage.includes("abort")) {
+            setIsLoading(false);
+            return;
+          }
+
+          console.error("API Error:", error);
           setError(errorMessage);
           setIsLoading(false);
-          toastManager.show(`Failed to process partition size: ${errorMessage}`, "error");
+          toastManager.show(`Failed to load partition size: ${errorMessage}`, "error");
+        },
+        () => {
+          if (isMountedRef.current) {
+            setIsLoading(false);
+          }
         }
-      },
-      (error: ApiErrorResponse) => {
-        if (!isMountedRef.current) return;
-
-        const errorMessage = error.errorMessage || "Unknown error occurred";
-        const lowerErrorMessage = errorMessage.toLowerCase();
-        if (lowerErrorMessage.includes("cancel") || lowerErrorMessage.includes("abort")) {
-          setIsLoading(false);
-          return;
-        }
-
-        console.error("API Error:", error);
-        setError(errorMessage);
-        setIsLoading(false);
-        toastManager.show(`Failed to load partition size: ${errorMessage}`, "error");
-      },
-      () => {
-        if (isMountedRef.current) {
-          setIsLoading(false);
-        }
-      }
-    );
+      );
 
       apiCancellerRef.current = canceller;
     };
@@ -172,132 +172,132 @@ ORDER BY
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedConnection, database, table, refreshTrigger, autoLoad]);
 
-  const handleSort = (column: SortColumn) => {
-    if (sortColumn === column) {
-      // Cycle through: asc -> desc -> null
-      if (sortDirection === "asc") {
-        setSortDirection("desc");
-      } else if (sortDirection === "desc") {
-        setSortColumn(null);
-        setSortDirection(null);
-      }
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
-    }
-  };
-
-  const sortedPartitionSizeInfo = useMemo(() => {
-    if (!sortColumn || !sortDirection) {
-      return partitionSizeInfo;
-    }
-
-    return [...partitionSizeInfo].sort((a, b) => {
-      let aValue: number | string = a[sortColumn];
-      let bValue: number | string = b[sortColumn];
-
-      // Handle null/undefined values
-      if (aValue == null) aValue = "";
-      if (bValue == null) bValue = "";
-
-      // Compare values
-      let comparison = 0;
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        comparison = aValue - bValue;
+    const handleSort = (column: SortColumn) => {
+      if (sortColumn === column) {
+        // Cycle through: asc -> desc -> null
+        if (sortDirection === "asc") {
+          setSortDirection("desc");
+        } else if (sortDirection === "desc") {
+          setSortColumn(null);
+          setSortDirection(null);
+        }
       } else {
-        comparison = String(aValue).localeCompare(String(bValue));
+        setSortColumn(column);
+        setSortDirection("asc");
+      }
+    };
+
+    const sortedPartitionSizeInfo = useMemo(() => {
+      if (!sortColumn || !sortDirection) {
+        return partitionSizeInfo;
       }
 
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
-  }, [partitionSizeInfo, sortColumn, sortDirection]);
+      return [...partitionSizeInfo].sort((a, b) => {
+        let aValue: number | string = a[sortColumn];
+        let bValue: number | string = b[sortColumn];
 
-  const getSortIcon = (column: SortColumn) => {
-    if (sortColumn !== column) {
+        // Handle null/undefined values
+        if (aValue == null) aValue = "";
+        if (bValue == null) bValue = "";
+
+        // Compare values
+        let comparison = 0;
+        if (typeof aValue === "number" && typeof bValue === "number") {
+          comparison = aValue - bValue;
+        } else {
+          comparison = String(aValue).localeCompare(String(bValue));
+        }
+
+        return sortDirection === "asc" ? comparison : -comparison;
+      });
+    }, [partitionSizeInfo, sortColumn, sortDirection]);
+
+    const getSortIcon = (column: SortColumn) => {
+      if (sortColumn !== column) {
+        return <ArrowUpDown className="inline-block w-4 h-4 ml-1 opacity-50" />;
+      }
+      if (sortDirection === "asc") {
+        return <ArrowUp className="inline-block w-4 h-4 ml-1" />;
+      }
+      if (sortDirection === "desc") {
+        return <ArrowDown className="inline-block w-4 h-4 ml-1" />;
+      }
       return <ArrowUpDown className="inline-block w-4 h-4 ml-1 opacity-50" />;
-    }
-    if (sortDirection === "asc") {
-      return <ArrowUp className="inline-block w-4 h-4 ml-1" />;
-    }
-    if (sortDirection === "desc") {
-      return <ArrowDown className="inline-block w-4 h-4 ml-1" />;
-    }
-    return <ArrowUpDown className="inline-block w-4 h-4 ml-1 opacity-50" />;
-  };
+    };
 
-  const handleDropPartitionClick = (partition: string) => {
-    setPartitionToDrop(partition);
-    setDropPartitionDialogOpen(true);
-  };
+    const handleDropPartitionClick = (partition: string) => {
+      setPartitionToDrop(partition);
+      setDropPartitionDialogOpen(true);
+    };
 
-  const handleDropPartitionConfirm = () => {
-    if (!selectedConnection || !partitionToDrop) {
-      return;
-    }
-
-    setIsDroppingPartition(true);
-
-    const api = Api.create(selectedConnection);
-    // Escape single quotes by doubling them (SQL standard)
-    const escapedPartition = partitionToDrop.replace(/'/g, "''");
-    const sql = `ALTER TABLE \`${database}\`.\`${table}\` DROP PARTITION '${escapedPartition}'`;
-
-    const canceller = api.executeSQL(
-      {
-        sql: sql,
-        headers: {
-          "Content-Type": "text/plain",
-        },
-        params: {
-          default_format: "JSON",
-        },
-      },
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      (_response: ApiResponse) => {
-        if (!isMountedRef.current) {
-          return;
-        }
-
-        setIsDroppingPartition(false);
-        setDropPartitionDialogOpen(false);
-        setPartitionToDrop(null);
-        toastManager.show(`Partition ${partitionToDrop} dropped successfully`, "success");
-
-        // Refresh the partition list by removing the dropped partition
-        setPartitionSizeInfo((prev) => prev.filter((p) => p.partition !== partitionToDrop));
-      },
-      (error: ApiErrorResponse) => {
-        if (!isMountedRef.current) return;
-
-        const errorMessage = error.errorMessage || "Unknown error occurred";
-        const lowerErrorMessage = errorMessage.toLowerCase();
-        if (lowerErrorMessage.includes("cancel") || lowerErrorMessage.includes("abort")) {
-          setIsDroppingPartition(false);
-          return;
-        }
-
-        console.error("API Error dropping partition:", error);
-        setIsDroppingPartition(false);
-        toastManager.show(`Failed to drop partition: ${errorMessage}`, "error");
-      },
-      () => {
-        if (isMountedRef.current) {
-          setIsDroppingPartition(false);
-        }
+    const handleDropPartitionConfirm = () => {
+      if (!selectedConnection || !partitionToDrop) {
+        return;
       }
-    );
 
-    dropPartitionCancellerRef.current = canceller;
-  };
+      setIsDroppingPartition(true);
 
-  const handleDropPartitionCancel = () => {
-    if (dropPartitionCancellerRef.current && isDroppingPartition) {
-      dropPartitionCancellerRef.current.cancel();
-    }
-    setDropPartitionDialogOpen(false);
-    setPartitionToDrop(null);
-    setIsDroppingPartition(false);
-  };
+      const api = Api.create(selectedConnection);
+      // Escape single quotes by doubling them (SQL standard)
+      const escapedPartition = partitionToDrop.replace(/'/g, "''");
+      const sql = `ALTER TABLE \`${database}\`.\`${table}\` DROP PARTITION '${escapedPartition}'`;
+
+      const canceller = api.executeSQL(
+        {
+          sql: sql,
+          headers: {
+            "Content-Type": "text/plain",
+          },
+          params: {
+            default_format: "JSON",
+          },
+        },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        (_response: ApiResponse) => {
+          if (!isMountedRef.current) {
+            return;
+          }
+
+          setIsDroppingPartition(false);
+          setDropPartitionDialogOpen(false);
+          setPartitionToDrop(null);
+          toastManager.show(`Partition ${partitionToDrop} dropped successfully`, "success");
+
+          // Refresh the partition list by removing the dropped partition
+          setPartitionSizeInfo((prev) => prev.filter((p) => p.partition !== partitionToDrop));
+        },
+        (error: ApiErrorResponse) => {
+          if (!isMountedRef.current) return;
+
+          const errorMessage = error.errorMessage || "Unknown error occurred";
+          const lowerErrorMessage = errorMessage.toLowerCase();
+          if (lowerErrorMessage.includes("cancel") || lowerErrorMessage.includes("abort")) {
+            setIsDroppingPartition(false);
+            return;
+          }
+
+          console.error("API Error dropping partition:", error);
+          setIsDroppingPartition(false);
+          toastManager.show(`Failed to drop partition: ${errorMessage}`, "error");
+        },
+        () => {
+          if (isMountedRef.current) {
+            setIsDroppingPartition(false);
+          }
+        }
+      );
+
+      dropPartitionCancellerRef.current = canceller;
+    };
+
+    const handleDropPartitionCancel = () => {
+      if (dropPartitionCancellerRef.current && isDroppingPartition) {
+        dropPartitionCancellerRef.current.cancel();
+      }
+      setDropPartitionDialogOpen(false);
+      setPartitionToDrop(null);
+      setIsDroppingPartition(false);
+    };
 
     return (
       <CollapsibleSection title="Table Size by Partition" className="relative" defaultOpen={true}>
@@ -376,7 +376,7 @@ ORDER BY
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDropPartitionClick(info.partition)}
-                        className="h-8 w-8 p-0"
+                        className="h-4 w-4 p-0"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -389,21 +389,23 @@ ORDER BY
         )}
 
         {/* Drop Partition Confirmation Dialog */}
-        <Dialog open={dropPartitionDialogOpen} onOpenChange={(open) => !isDroppingPartition && setDropPartitionDialogOpen(open)}>
+        <Dialog
+          open={dropPartitionDialogOpen}
+          onOpenChange={(open) => !isDroppingPartition && setDropPartitionDialogOpen(open)}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Drop Partition</DialogTitle>
               <DialogDescription>
                 Are you sure you want to drop partition <strong>{partitionToDrop}</strong> from table{" "}
-                <strong>{database}.{table}</strong>? This action cannot be undone.
+                <strong>
+                  {database}.{table}
+                </strong>
+                ? This action cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button
-                variant="destructive"
-                onClick={handleDropPartitionConfirm}
-                disabled={isDroppingPartition}
-              >
+              <Button variant="destructive" onClick={handleDropPartitionConfirm} disabled={isDroppingPartition}>
                 {isDroppingPartition ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -413,11 +415,7 @@ ORDER BY
                   "Drop Partition"
                 )}
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleDropPartitionCancel}
-                disabled={isDroppingPartition}
-              >
+              <Button variant="outline" onClick={handleDropPartitionCancel} disabled={isDroppingPartition}>
                 Cancel
               </Button>
             </DialogFooter>

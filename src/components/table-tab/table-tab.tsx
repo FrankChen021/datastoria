@@ -35,7 +35,7 @@ export function TableTab({ database, table, engine }: TableTabProps) {
 
   // Remove table-size and partitions for System tables
   const availableTabs = isSystemTable
-    ? new Set([...baseAvailableTabs].filter((tab) => tab !== "data-sample" && tab !== "table-size" && tab !== "partitions"))
+    ? new Set([...baseAvailableTabs].filter((tab) => tab !== "table-size" && tab !== "partitions"))
     : baseAvailableTabs;
 
   const initialTab = availableTabs.has("data-sample") ? "data-sample" : "metadata";

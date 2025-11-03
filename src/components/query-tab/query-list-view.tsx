@@ -51,7 +51,7 @@ export function QueryListView({ tabId }: QueryListViewProps) {
   const executeQuery = useCallback(
     (
       sql: string,
-      options?: { displayFormat?: "sql" | "text"; formatter?: (text: string) => string },
+      options?: { displayFormat?: "sql" | "text"; formatter?: (text: string) => string; view?: string },
       params?: Record<string, unknown>
     ) => {
       if (!selectedConnection) {
@@ -92,7 +92,7 @@ export function QueryListView({ tabId }: QueryListViewProps) {
         return newResponseList.concat({
           queryRequest: queryRequest,
           viewArgs: { ...options, params },
-          view: "query",
+          view: options?.view || "query",
           isExecuting: true,
         });
       });
@@ -112,15 +112,25 @@ export function QueryListView({ tabId }: QueryListViewProps) {
       const api = Api.create(selectedConnection);
       const queryRequest = query.queryRequest;
 
+      // Use JSON format for dependency view, TabSeparated for others
+      const defaultFormat = query.view === "dependency" ? "JSON" : "TabSeparated";
+
       const canceller = api.executeSQL(
         {
           sql: queryRequest.sql,
           params: query.viewArgs?.params || {
-            default_format: "TabSeparated",
+            default_format: defaultFormat,
+            output_format_json_quote_64bit_integers: query.view === "dependency" ? 0 : undefined,
           },
         },
         (response: ApiResponse) => {
-          const responseText = typeof response.data === "string" ? response.data : String(response.data);
+          // For dependency view, keep the JSON structure; for others, convert to string
+          let responseData: unknown;
+          if (query.view === "dependency") {
+            responseData = response.data; // Keep JSON structure for dependency view
+          } else {
+            responseData = typeof response.data === "string" ? response.data : String(response.data);
+          }
 
           const queryResponse: QueryResponseViewModel = {
             formatter: query.viewArgs?.formatter,
@@ -130,7 +140,7 @@ export function QueryListView({ tabId }: QueryListViewProps) {
             errorMessage: null,
             httpStatus: response.httpStatus,
             httpHeaders: response.httpHeaders,
-            data: responseText,
+            data: responseData,
           };
 
           shouldScrollRef.current = true;
@@ -182,7 +192,7 @@ export function QueryListView({ tabId }: QueryListViewProps) {
   // Listen for query request events
   useEffect(() => {
     const unsubscribe = QueryExecutor.onQueryRequest((event: CustomEvent<QueryRequestEventDetail>) => {
-      const { sql, options, params, tabId: eventTabId } = event.detail;
+      const { sql, options, tabId: eventTabId } = event.detail;
 
       // If tabId is specified, only handle events for this tab
       // If no tabId is specified in event, handle it in all tabs
@@ -190,7 +200,7 @@ export function QueryListView({ tabId }: QueryListViewProps) {
         return;
       }
 
-      executeQuery(sql, options, params);
+      executeQuery(sql, options, options?.params);
     });
 
     return unsubscribe;

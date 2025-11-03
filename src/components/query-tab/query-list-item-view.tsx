@@ -70,10 +70,8 @@ export function QueryListItemView({ onQueryDelete, view, isExecuting, queryReque
 
       {/* Query Response */}
       {queryResponse &&
-        view === "query" &&
-        (queryResponse.data !== undefined || queryResponse.errorMessage !== undefined) && (
-          <QueryResponseView queryResponse={queryResponse} />
-        )}
+        (queryResponse.data !== undefined || queryResponse.errorMessage !== undefined) &&
+        view === "query" && <QueryResponseView queryResponse={queryResponse} />}
 
       {/* Query Status */}
       <div className="flex items-center gap-2 mt-2">

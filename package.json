@@ -54,7 +54,12 @@
     "recharts": "^2.15.4",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "d3-graphviz": "^5.0.2",
+    "d3-selection": "^3.0.0",
+    "d3-zoom": "^3.0.0",
+    "crypto-js": "^4.2.0",
+    "sql-formatter": "^15.4.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
@@ -62,6 +67,10 @@
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "@types/uuid": "^10.0.0",
+    "@types/d3-graphviz": "^2.6.7",
+    "@types/d3-selection": "^3.0.0",
+    "@types/d3-zoom": "^3.0.0",
+    "@types/crypto-js": "^4.2.2",
     "@vitejs/plugin-react": "^5.0.4",
     "@vitest/ui": "^4.0.6",
     "autoprefixer": "^10.4.21",
