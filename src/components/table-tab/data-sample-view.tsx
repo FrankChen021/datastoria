@@ -173,8 +173,6 @@ export const DataSampleView = forwardRef<DataSampleViewRef, DataSampleViewProps>
     const fullTableName = `${database}.${table}`;
     setIsLoading(true);
     setError(null);
-    setData([]);
-    setColumns([]);
 
     const api = Api.create(selectedConnection);
 

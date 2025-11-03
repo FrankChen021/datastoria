@@ -47,7 +47,6 @@ function TableDDLView({
 
     setIsLoading(true);
     setError(null);
-    setTableData(null);
 
     const api = Api.create(selectedConnection);
 
@@ -110,7 +109,7 @@ function TableDDLView({
 
   useEffect(() => {
     isMountedRef.current = true;
-    if (autoLoad || refreshTrigger > 0) {
+    if (autoLoad || (refreshTrigger !== undefined && refreshTrigger > 0)) {
       fetchDDL();
     }
 
@@ -212,7 +211,6 @@ function TableStructureView({
     const fullTableName = `${database}.${table}`;
     setIsLoading(true);
     setError(null);
-    setColumns([]);
 
     const api = Api.create(selectedConnection);
 
@@ -270,7 +268,7 @@ function TableStructureView({
 
   useEffect(() => {
     isMountedRef.current = true;
-    if (autoLoad || refreshTrigger > 0) {
+    if (autoLoad || (refreshTrigger !== undefined && refreshTrigger > 0)) {
       fetchStructure();
     }
 

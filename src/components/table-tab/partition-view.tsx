@@ -68,7 +68,6 @@ export const PartitionSizeView = forwardRef<PartitionSizeViewRef, PartitionViewP
 
       setIsLoading(true);
       setError(null);
-      setPartitionSizeInfo([]);
 
       const api = Api.create(selectedConnection);
 
@@ -170,6 +169,7 @@ ORDER BY
           dropPartitionCancellerRef.current = null;
         }
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedConnection, database, table, refreshTrigger, autoLoad]);
 
   const handleSort = (column: SortColumn) => {

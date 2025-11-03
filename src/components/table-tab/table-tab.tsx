@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DataSampleView, type DataSampleViewRef } from "./data-sample-view";
 import { PartitionSizeView, type PartitionSizeViewRef } from "./partition-view";
@@ -43,6 +43,9 @@ export function TableTab({ database, table, engine }: TableTabProps) {
   
   // Track which tabs have been loaded (to load data only once)
   const [loadedTabs, setLoadedTabs] = useState<Set<string>>(new Set([initialTab]));
+  
+  // Track refresh state for button animation
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Refs for each tab view
   const dataSampleRef = useRef<DataSampleViewRef>(null);
@@ -61,6 +64,11 @@ export function TableTab({ database, table, engine }: TableTabProps) {
   }, [currentTab]);
 
   const handleRefresh = () => {
+    setIsRefreshing(true);
+    // Reset refreshing state after a short delay to allow child components to update their loading state
+    // The FloatingProgressBar will show the actual loading state
+    setTimeout(() => setIsRefreshing(false), 100);
+    
     switch (currentTab) {
       case "data-sample":
         dataSampleRef.current?.refresh();
@@ -96,8 +104,12 @@ export function TableTab({ database, table, engine }: TableTabProps) {
             currentTab === "metadata" ||
             currentTab === "table-size" ||
             currentTab === "partitions") && (
-            <Button variant="ghost" size="icon" onClick={handleRefresh} className="h-8 w-8">
-              <RefreshCw className="h-4 w-4" />
+            <Button variant="ghost" size="icon" onClick={handleRefresh} className="h-8 w-8" disabled={isRefreshing}>
+              {isRefreshing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
             </Button>
           )}
         </div>

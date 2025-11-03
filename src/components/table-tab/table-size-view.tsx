@@ -101,7 +101,6 @@ function TableSizeViewImpl({
 
     setIsLoading(true);
     setError(null);
-    setSizeInfo([]);
 
     const api = Api.create(selectedConnection);
 
@@ -221,7 +220,7 @@ ORDER BY
 
   useEffect(() => {
     isMountedRef.current = true;
-    if (autoLoad || refreshTrigger > 0) {
+    if (autoLoad || (refreshTrigger !== undefined && refreshTrigger > 0)) {
       fetchTableSize();
     }
 
@@ -232,6 +231,7 @@ ORDER BY
         apiCancellerRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConnection, database, table, groupByHost, groupByDiskName, refreshTrigger, autoLoad]);
 
   const handleSort = (column: TableSizeSortColumn) => {
@@ -455,7 +455,6 @@ function ColumnSizeView({
 
     setIsLoading(true);
     setError(null);
-    setColumnSizeInfo([]);
 
     const api = Api.create(selectedConnection);
 
@@ -542,7 +541,7 @@ ORDER BY
 
   useEffect(() => {
     isMountedRef.current = true;
-    if (autoLoad || refreshTrigger > 0) {
+    if (autoLoad || (refreshTrigger !== undefined && refreshTrigger > 0)) {
       fetchColumnSize();
     }
 
@@ -553,6 +552,7 @@ ORDER BY
         apiCancellerRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConnection, database, table, refreshTrigger, autoLoad]);
 
   const handleSort = (column: ColumnSizeSortColumn) => {
