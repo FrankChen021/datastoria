@@ -67,7 +67,7 @@ export function QueryResponseView({ queryResponse, isLoading = false }: QueryRes
         </ThemedSyntaxHighlighter>
       );
     } else {
-      return <pre className="p-1 text-sm whitespace-pre-wrap mb-0">{rawQueryResponse}</pre>;
+      return <pre>{rawQueryResponse}</pre>;
     }
   };
 
