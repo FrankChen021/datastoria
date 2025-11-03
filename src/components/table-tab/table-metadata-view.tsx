@@ -4,7 +4,7 @@ import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter"
 import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { toastManager } from "@/lib/toast";
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 export interface TableMetadataViewProps {
   database: string;
@@ -32,32 +32,31 @@ function TableDDLView({
 }: TableMetadataViewProps & { refreshTrigger?: number }) {
   const { selectedConnection } = useConnection();
   const [isLoading, setIsLoading] = useState(false);
-  const [ddl, setDdl] = useState<string>("");
+  const [tableData, setTableData] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const apiCancellerRef = useRef<ApiCanceller | null>(null);
   const isMountedRef = useRef(true);
 
-  const fetchDDL = () => {
+  const fetchDDL = useCallback(() => {
     if (!selectedConnection) {
       setError("No connection selected");
       return;
     }
 
-    const fullTableName = `${database}.${table}`;
     setIsLoading(true);
     setError(null);
-    setDdl("");
+    setTableData(null);
 
     const api = Api.create(selectedConnection);
 
     const canceller = api.executeSQL(
       {
-        sql: `SHOW CREATE TABLE ${fullTableName}`,
+        sql: `SELECT * FROM system.tables WHERE database = '${database}' AND name = '${table}'`,
         headers: {
           "Content-Type": "text/plain",
         },
         params: {
-          default_format: "TabSeparatedRaw",
+          default_format: "JSON",
         },
       },
       (response: ApiResponse) => {
@@ -66,9 +65,13 @@ function TableDDLView({
         }
 
         try {
-          // TabSeparated format returns plain text string
-          const ddlText = typeof response.data === "string" ? response.data : String(response.data);
-          setDdl(ddlText.trim());
+          // JSON format returns { data: [...] } structure
+          const data = response.data.data || [];
+          if (data.length > 0) {
+            setTableData(data[0]);
+          } else {
+            setTableData(null);
+          }
           setIsLoading(false);
         } catch (err) {
           console.error("Error processing table DDL response:", err);
@@ -101,7 +104,7 @@ function TableDDLView({
     );
 
     apiCancellerRef.current = canceller;
-  };
+  }, [selectedConnection, database, table]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -114,10 +117,37 @@ function TableDDLView({
         apiCancellerRef.current = null;
       }
     };
-  }, [selectedConnection, database, table, refreshTrigger]);
+  }, [fetchDDL, refreshTrigger]);
+
+  const renderCellValue = (columnName: string, value: unknown) => {
+    if (value === null || value === undefined) {
+      return <span className="text-muted-foreground">-</span>;
+    }
+
+    // Use ThemedSyntaxHighlighter for create_table_query and as_select columns
+    if (columnName === "create_table_query" || columnName === "as_select") {
+      const valueStr = String(value);
+      if (valueStr.length == 0) {
+        return "-";
+      }
+      return (
+        <div className="overflow-x-auto">
+          <ThemedSyntaxHighlighter
+            language="sql"
+            customStyle={{ fontSize: "14px", margin: 0 }}
+            showLineNumbers={false}
+          >
+            {valueStr}
+          </ThemedSyntaxHighlighter>
+        </div>
+      );
+    }
+
+    return <span className="whitespace-nowrap">{String(value)}</span>;
+  };
 
   return (
-    <CollapsibleSection title="Table DDL" className="relative">
+    <CollapsibleSection title="Table Metadata" className="relative">
       <FloatingProgressBar show={isLoading} />
       {error ? (
         <div className="p-4">
@@ -128,17 +158,26 @@ function TableDDLView({
         </div>
       ) : (
         <div className="overflow-auto">
-          {ddl ? (
-            <ThemedSyntaxHighlighter
-              language="sql"
-              customStyle={{ fontSize: "14px", margin: 0 }}
-              showLineNumbers={true}
-            >
-              {ddl}
-            </ThemedSyntaxHighlighter>
+          {tableData ? (
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2 font-semibold whitespace-nowrap">Name</th>
+                  <th className="text-left p-2 font-semibold whitespace-nowrap">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(tableData).map(([columnName, value]) => (
+                  <tr key={columnName} className="border-b hover:bg-muted/50">
+                    <td className="p-2 whitespace-nowrap font-medium">{columnName}</td>
+                    <td className="p-2">{renderCellValue(columnName, value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           ) : (
             <div className="p-4 text-sm text-muted-foreground">
-              {isLoading ? "Loading..." : "No DDL found"}
+              {isLoading ? "Loading..." : "No table data found"}
             </div>
           )}
         </div>
@@ -159,7 +198,7 @@ function TableStructureView({
   const apiCancellerRef = useRef<ApiCanceller | null>(null);
   const isMountedRef = useRef(true);
 
-  const fetchStructure = () => {
+  const fetchStructure = useCallback(() => {
     if (!selectedConnection) {
       setError("No connection selected");
       return;
@@ -222,7 +261,7 @@ function TableStructureView({
     );
 
     apiCancellerRef.current = canceller;
-  };
+  }, [selectedConnection, database, table]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -235,7 +274,7 @@ function TableStructureView({
         apiCancellerRef.current = null;
       }
     };
-  }, [selectedConnection, database, table, refreshTrigger]);
+  }, [fetchStructure, refreshTrigger]);
 
   return (
     <CollapsibleSection title="Table Structure" className="relative">
