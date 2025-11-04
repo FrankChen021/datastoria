@@ -2,7 +2,7 @@ import React, { type CSSProperties } from "react";
 import { type Graphviz, graphviz, type GraphvizOptions } from "d3-graphviz";
 import { select as d3_select, selectAll as d3_selectAll, type Selection } from "d3-selection";
 import { zoomIdentity as d3_zoomIdentity, zoomTransform as d3_zoomTransform } from "d3-zoom";
-import { ZoomIn, ZoomOut } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -519,20 +519,26 @@ interface GraphvizProps {
 interface GraphvizState {
   fit: boolean;
   useWorker: boolean;
+  isFullscreen: boolean;
+  isHovered: boolean;
 }
 
 export class GraphvizComponent extends React.PureComponent<GraphvizProps, GraphvizState> {
   private containerRef = React.createRef<HTMLDivElement>();
+  private fullscreenContainerRef = React.createRef<HTMLDivElement>();
   private fixIntervalId?: ReturnType<typeof setInterval>;
   private fixTimeoutId?: ReturnType<typeof setTimeout>;
+  private keyDownHandler?: (e: KeyboardEvent) => void;
+  private fullscreenChangeHandler?: () => void;
 
   constructor(props: GraphvizProps) {
     super(props);
-    this.state = { fit: false, useWorker: false };
+    this.state = { fit: false, useWorker: false, isFullscreen: false, isHovered: false };
   }
 
   componentDidMount() {
     this.fixSVGDimensions();
+    this.setupFullscreenHandlers();
   }
 
   componentDidUpdate() {
@@ -546,6 +552,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
     if (this.fixTimeoutId) {
       clearTimeout(this.fixTimeoutId);
     }
+    this.cleanupFullscreenHandlers();
   }
 
   private fixSVGDimensions = () => {
@@ -619,6 +626,97 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
     }
   };
 
+  private setupFullscreenHandlers = () => {
+    // Handle ESC key to exit fullscreen
+    this.keyDownHandler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && this.state.isFullscreen) {
+        this.exitFullscreen();
+      }
+    };
+
+    // Handle fullscreen change events (user might exit via browser controls)
+    this.fullscreenChangeHandler = () => {
+      const container = this.fullscreenContainerRef.current;
+      const isCurrentlyFullscreen = !!(
+        (document.fullscreenElement === container) ||
+        ((document as any).webkitFullscreenElement === container) ||
+        ((document as any).mozFullScreenElement === container) ||
+        ((document as any).msFullscreenElement === container)
+      );
+
+      // Sync state with actual fullscreen status
+      if (isCurrentlyFullscreen !== this.state.isFullscreen) {
+        this.setState({ isFullscreen: isCurrentlyFullscreen });
+      }
+    };
+
+    document.addEventListener("keydown", this.keyDownHandler);
+    document.addEventListener("fullscreenchange", this.fullscreenChangeHandler);
+    document.addEventListener("webkitfullscreenchange", this.fullscreenChangeHandler);
+    document.addEventListener("mozfullscreenchange", this.fullscreenChangeHandler);
+    document.addEventListener("MSFullscreenChange", this.fullscreenChangeHandler);
+  };
+
+  private cleanupFullscreenHandlers = () => {
+    if (this.keyDownHandler) {
+      document.removeEventListener("keydown", this.keyDownHandler);
+    }
+    if (this.fullscreenChangeHandler) {
+      document.removeEventListener("fullscreenchange", this.fullscreenChangeHandler);
+      document.removeEventListener("webkitfullscreenchange", this.fullscreenChangeHandler);
+      document.removeEventListener("mozfullscreenchange", this.fullscreenChangeHandler);
+      document.removeEventListener("MSFullscreenChange", this.fullscreenChangeHandler);
+    }
+  };
+
+  private enterFullscreen = async () => {
+    const container = this.fullscreenContainerRef.current;
+    if (!container) return;
+
+    try {
+      if (container.requestFullscreen) {
+        await container.requestFullscreen();
+      } else if ((container as any).webkitRequestFullscreen) {
+        await (container as any).webkitRequestFullscreen();
+      } else if ((container as any).mozRequestFullScreen) {
+        await (container as any).mozRequestFullScreen();
+      } else if ((container as any).msRequestFullscreen) {
+        await (container as any).msRequestFullscreen();
+      } else {
+        console.warn("Fullscreen API is not supported in this browser");
+        return;
+      }
+      this.setState({ isFullscreen: true });
+    } catch (error) {
+      console.error("Error entering fullscreen:", error);
+    }
+  };
+
+  private exitFullscreen = async () => {
+    try {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if ((document as any).webkitExitFullscreen) {
+        await (document as any).webkitExitFullscreen();
+      } else if ((document as any).mozCancelFullScreen) {
+        await (document as any).mozCancelFullScreen();
+      } else if ((document as any).msExitFullscreen) {
+        await (document as any).msExitFullscreen();
+      }
+      this.setState({ isFullscreen: false });
+    } catch (error) {
+      console.error("Error exiting fullscreen:", error);
+    }
+  };
+
+  private handleMouseEnter = () => {
+    this.setState({ isHovered: true });
+  };
+
+  private handleMouseLeave = () => {
+    this.setState({ isHovered: false });
+  };
+
   render() {
     const containerStyle: CSSProperties = {
       position: "relative",
@@ -626,9 +724,26 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
       height: "100%",
       ...this.props.style,
     };
+
+    const fullscreenContainerStyle: CSSProperties = this.state.isFullscreen
+      ? {
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          zIndex: 9999,
+          backgroundColor: "var(--background)",
+        }
+      : containerStyle;
     
     return (
-      <div style={containerStyle}>
+      <div 
+        ref={this.fullscreenContainerRef} 
+        style={fullscreenContainerStyle}
+        onMouseEnter={this.handleMouseEnter}
+        onMouseLeave={this.handleMouseLeave}
+      >
         {/* Scrollable container */}
         <div
           className="w-full h-full overflow-auto"
@@ -637,6 +752,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
             position: "relative",
             overflowX: "auto",
             overflowY: "auto",
+            ...(this.state.isFullscreen ? { height: "100vh", width: "100vw" } : {}),
           }}
         >
           {/* Inner wrapper divs to enable horizontal scrolling */}
@@ -685,7 +801,11 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
           </div>
         </div>
         {/* Floating zoom buttons */}
-        <div className="absolute top-2 right-2 flex flex-row gap-2 z-10">
+        <div 
+          className={`absolute top-2 left-2 flex flex-row gap-2 z-10 transition-opacity duration-200 ${
+            this.state.isHovered ? "opacity-100" : "opacity-0"
+          }`}
+        >
           <Button
             variant="outline"
             size="icon"
@@ -712,6 +832,27 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
           >
             <ZoomOut className="h-4 w-4" />
           </Button>
+          {!this.state.isFullscreen ? (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={this.enterFullscreen}
+              className="h-8 w-8 bg-background/90 backdrop-blur-sm shadow-md hover:bg-background"
+              title="Enter Fullscreen"
+            >
+              <Maximize className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={this.exitFullscreen}
+              className="h-8 w-8 bg-background/90 backdrop-blur-sm shadow-md hover:bg-background"
+              title="Exit Fullscreen (ESC)"
+            >
+              <Minimize2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
     );

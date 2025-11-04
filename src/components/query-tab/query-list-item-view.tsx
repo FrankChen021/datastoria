@@ -7,6 +7,10 @@ import { toastManager } from "@/lib/toast";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { ExplainASTResponseView } from "./explain-ast-response-view";
+import { ExplainPipelineResponseView } from "./explain-pipeline-response-view";
+import { ExplainQueryResponseView } from "./explain-query-response-view";
+import { ExplainSyntaxResponseView } from "./explain-syntax-response-view";
 import { QueryRequestView } from "./query-request-view";
 import { QueryResponseView } from "./query-response-view";
 import type { QueryResponseViewModel, QueryViewProps } from "./query-view-model";
@@ -58,15 +62,20 @@ export function QueryListItemView({
     const api = Api.create(selectedConnection);
 
     // Use JSON format for dependency view, TabSeparated for others
+    // But if params are provided in viewArgs, use those instead (they override defaults)
     const defaultFormat = view === "dependency" ? "JSON" : "TabSeparated";
+    
+    const params = viewArgs?.params
+      ? { ...viewArgs.params }
+      : {
+          default_format: defaultFormat,
+          output_format_json_quote_64bit_integers: view === "dependency" ? 0 : undefined,
+        };
 
     const canceller = api.executeSQL(
       {
         sql: queryRequest.sql,
-        params: viewArgs?.params || {
-          default_format: defaultFormat,
-          output_format_json_quote_64bit_integers: view === "dependency" ? 0 : undefined,
-        },
+        params: params,
       },
       (response: ApiResponse) => {
         // For dependency view, keep the JSON structure; for others, convert to string
@@ -189,6 +198,49 @@ export function QueryListItemView({
     return <QueryRequestView queryRequest={queryRequest} />;
   };
 
+  const renderExplainResultView = () => {
+    if (!queryResponse) {
+      return null;
+    }
+
+    if (queryResponse.errorMessage !== null) {
+      return (
+        <div className="text-sm text-destructive p-4">
+          <pre className="whitespace-pre-wrap">
+            {queryResponse.errorMessage}
+            {queryResponse.data && typeof queryResponse.data === "string" && (
+              <>{`\n\n${queryResponse.data as string}`}</>
+            )}
+          </pre>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {view === "ast" && (
+          <ExplainASTResponseView queryRequest={queryRequest} queryResponse={queryResponse} />
+        )}
+
+        {view === "pipeline" && (
+          <ExplainPipelineResponseView queryRequest={queryRequest} queryResponse={queryResponse} />
+        )}
+
+        {view === "plan" && (
+          <ExplainQueryResponseView queryRequest={queryRequest} queryResponse={queryResponse} />
+        )}
+
+        {view === "estimate" && (
+          <ExplainQueryResponseView queryRequest={queryRequest} queryResponse={queryResponse} />
+        )}
+
+        {view === "syntax" && (
+          <ExplainSyntaxResponseView queryRequest={queryRequest} queryResponse={queryResponse} />
+        )}
+      </>
+    );
+  };
+
   return (
     <div
       className={`pb-4 mb-4 ${isLast ? "" : "border-b"}`}
@@ -218,6 +270,12 @@ export function QueryListItemView({
       {queryResponse &&
         (queryResponse.data !== undefined || queryResponse.errorMessage !== undefined) &&
         view === "query" && <QueryResponseView queryResponse={queryResponse} />}
+
+      {/* Explain Response */}
+      {queryResponse &&
+        (queryResponse.data !== undefined || queryResponse.errorMessage !== undefined) &&
+        view !== "query" &&
+        renderExplainResultView()}
 
       {isExecuting && (
         <div className="flex items-center gap-2 mt-2 mb-2">

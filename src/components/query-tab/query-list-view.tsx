@@ -1,5 +1,12 @@
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { toastManager } from "@/lib/toast";
+import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import { QueryExecutor, type QueryRequestEventDetail } from "./query-execution/query-executor";
@@ -59,6 +66,25 @@ export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewPr
       const queryId = uuid();
       const timestamp = Date.now();
 
+      // Extract original SQL for rawSQL if this is an explain query
+      let rawSQL = sql;
+      const view = options?.view;
+      const isExplainQuery = view && view !== "query";
+      
+      if (isExplainQuery) {
+        // Remove EXPLAIN prefix to get original SQL
+        if (view === "pipeline") {
+          // Remove "EXPLAIN pipeline graph = 1\n" or "EXPLAIN pipeline graph = 1 " prefix
+          rawSQL = sql.replace(/^EXPLAIN\s+pipeline\s+graph\s*=\s*1[\s\n]+/i, "");
+        } else if (view === "plan") {
+          // Remove "EXPLAIN plan indexes = 1\n" or "EXPLAIN plan indexes = 1 " prefix
+          rawSQL = sql.replace(/^EXPLAIN\s+plan\s+indexes\s*=\s*1[\s\n]+/i, "");
+        } else {
+          // Remove "EXPLAIN <type>\n" or "EXPLAIN <type> " prefix
+          rawSQL = sql.replace(new RegExp(`^EXPLAIN\\s+${view}[\s\n]+`, "i"), "");
+        }
+      }
+
       setQueryList((responseList) => {
         let newResponseList = responseList;
         if (newResponseList.length >= MAX_QUERY_VIEW_LIST_SIZE) {
@@ -66,15 +92,23 @@ export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewPr
           newResponseList = [];
         }
 
+        // For explain queries, hide the request by default
+        // For regular queries, hide if formatter is provided (for formatted queries)
+        const showRequest = isExplainQuery
+          ? "hide"
+          : options?.formatter
+            ? "hide"
+            : "show";
+
         const queryRequest: QueryRequestViewModel = {
           uuid: queryId,
           sql: sql,
-          rawSQL: sql,
+          rawSQL: rawSQL,
           requestServer: "Random Host",
           queryId: queryId,
           traceId: null,
           timestamp: timestamp,
-          showRequest: options?.formatter ? "hide" : "show",
+          showRequest: showRequest,
           params: params,
           onCancel: () => {
             // Cancellation is now handled by the child component
@@ -122,6 +156,14 @@ export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewPr
     setQueryList((prevList) => prevList.filter((q) => q.queryRequest.uuid !== queryId));
   }, []);
 
+  const handleClearScreen = useCallback(() => {
+    setQueryList([]);
+    executingQueriesRef.current.clear();
+    if (onExecutionStateChange) {
+      onExecutionStateChange(false);
+    }
+  }, [onExecutionStateChange]);
+
   const queryViewProps: QueryViewProps[] = useMemo(
     () =>
       queryList.map((item) => ({
@@ -134,33 +176,43 @@ export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewPr
 
 
   return (
-    <div ref={responseScrollContainerRef} className="h-full w-full overflow-auto p-2" style={{ scrollBehavior: 'smooth' }}>
-      {queryViewProps.length === 0 ? (
-        <div className="text-sm text-muted-foreground p-1">Input your SQL in the editor below and execute it, then the results will appear here.</div>
-      ) : (
-        <>
-          {queryViewProps.map((query, index) => (
-            <QueryListItemView 
-              key={query.queryRequest.uuid} 
-              {...query} 
-              onQueryDelete={handleQueryDelete}
-              isLast={index === queryViewProps.length - 1}
-              onExecutionStateChange={(queryId, isExecuting) => {
-                if (isExecuting) {
-                  executingQueriesRef.current.add(queryId);
-                } else {
-                  executingQueriesRef.current.delete(queryId);
-                }
-                if (onExecutionStateChange) {
-                  onExecutionStateChange(executingQueriesRef.current.size > 0);
-                }
-              }}
-            />
-          ))}
-          {/* Placeholder element used for smooth scrolling to the end */}
-          <div ref={scrollPlaceholderRef} />
-        </>
-      )}
-    </div>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div ref={responseScrollContainerRef} className="h-full w-full overflow-auto p-2" style={{ scrollBehavior: 'smooth' }}>
+          {queryViewProps.length === 0 ? (
+            <div className="text-sm text-muted-foreground p-1">Input your SQL in the editor below and execute it, then the results will appear here.</div>
+          ) : (
+            <>
+              {queryViewProps.map((query, index) => (
+                <QueryListItemView 
+                  key={query.queryRequest.uuid} 
+                  {...query} 
+                  onQueryDelete={handleQueryDelete}
+                  isLast={index === queryViewProps.length - 1}
+                  onExecutionStateChange={(queryId, isExecuting) => {
+                    if (isExecuting) {
+                      executingQueriesRef.current.add(queryId);
+                    } else {
+                      executingQueriesRef.current.delete(queryId);
+                    }
+                    if (onExecutionStateChange) {
+                      onExecutionStateChange(executingQueriesRef.current.size > 0);
+                    }
+                  }}
+                />
+              ))}
+              {/* Placeholder element used for smooth scrolling to the end */}
+              <div ref={scrollPlaceholderRef} />
+            </>
+          )}
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={handleClearScreen}>
+          <Trash2 className="mr-2 h-4 w-4" />
+          Clear screen
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
