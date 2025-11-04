@@ -4,16 +4,13 @@ import { Dialog } from "@/components/use-dialog";
 import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { toastManager } from "@/lib/toast";
+import type { RefreshableTabViewRef } from "./table-tab";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 export interface DataSampleViewProps {
   database: string;
   table: string;
   autoLoad?: boolean;
-}
-
-export interface DataSampleViewRef {
-  refresh: () => void;
 }
 
 interface ColumnInfo {
@@ -155,7 +152,7 @@ const formatValueForDisplay = (val: unknown): string => {
   return String(val);
 };
 
-export const DataSampleView = forwardRef<DataSampleViewRef, DataSampleViewProps>(({ database, table, autoLoad = false }, ref) => {
+export const DataSampleView = forwardRef<RefreshableTabViewRef, DataSampleViewProps>(({ database, table, autoLoad = false }, ref) => {
   const { selectedConnection } = useConnection();
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<Record<string, unknown>[]>([]);

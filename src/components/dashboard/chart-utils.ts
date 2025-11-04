@@ -88,6 +88,9 @@ export interface ColumnDef {
   inverse?: boolean;
   chartType?: string;
   fill?: boolean;
+
+  // Action column support: render custom action buttons for each row
+  renderAction?: (row: Record<string, unknown>, rowIndex: number) => React.ReactNode;
 }
 
 export interface QueryResponse {
@@ -125,28 +128,42 @@ export interface ChartDescriptor {
   type: string; // "line" | "bar" | "pie" | "scatter" | "heatmap" | "table" | "map" | "custom" | "stat"
   id?: string;
 
-  // Deprecated, use titleOption
-  title: string;
-  // Deprecated, use titleOption
-  link?: string;
   titleOption?: TitleOption;
 
   // If not given, it defaults to false
   isCollapsed?: boolean;
 
-  columns: (ColumnDef | string)[];
-
-  yAxis?: YAxisOption[];
-
-  data?: number[];
-  labels?: string[];
   width: number;
   height?: number;
 
   query: SQLQuery;
-  legend?: LegendSpec;
-  threshold?: ThresholdSpec;
-  details?: ChartDescriptor;
+}
+
+export interface TableDescriptor extends ChartDescriptor {
+  type: "table";
+
+  columns: (ColumnDef | string)[];
+
+  // Initial sorting configuration
+  initialSort?: {
+    column: string;
+    direction: "asc" | "desc";
+  };
+
+  // Enable server-side sorting. When enabled, sorting will modify the SQL ORDER BY clause
+  // and re-execute the query instead of sorting client-side
+  serverSideSorting?: boolean;
+}
+
+// Custom renderer for specific keys in transposed table
+export type TransposedValueRenderer = (key: string, value: unknown) => React.ReactNode;
+
+export interface TransposeTableDescriptor extends ChartDescriptor {
+  type: "transpose-table";
+
+  // Optional custom renderers for specific keys
+  // If a key is not in this map, default formatting will be used
+  valueRenderers?: Map<string, TransposedValueRenderer> | Record<string, TransposedValueRenderer>;
 }
 
 export type Reducer = "min" | "max" | "avg" | "sum" | "count" | "first" | "last";

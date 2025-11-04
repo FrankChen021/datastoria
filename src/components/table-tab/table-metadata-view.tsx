@@ -1,30 +1,17 @@
-import { CollapsibleSection } from "@/components/collapsible-section";
-import FloatingProgressBar from "@/components/floating-progress-bar";
+import type { ColumnDef, TableDescriptor, TransposeTableDescriptor } from "@/components/dashboard/chart-utils";
+import type { RefreshableComponent } from "@/components/dashboard/refreshable-component";
+import RefreshableTableComponent from "@/components/dashboard/refreshable-table-component";
+import RefreshableTransposedTableComponent from "@/components/dashboard/refreshable-transposed-table-component";
+import type { TimeSpan } from "@/components/dashboard/timespan-selector";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
-import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
-import { useConnection } from "@/lib/connection/ConnectionContext";
 import { StringUtils } from "@/lib/string-utils";
-import { toastManager } from "@/lib/toast";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import type { RefreshableTabViewRef } from "./table-tab";
 
 export interface TableMetadataViewProps {
   database: string;
   table: string;
   autoLoad?: boolean;
-}
-
-export interface TableMetadataViewRef {
-  refresh: () => void;
-}
-
-interface ColumnInfo {
-  name: string;
-  type: string;
-  default_type: string;
-  default_expression: string;
-  comment: string;
-  codec_expression: string;
-  ttl_expression: string;
 }
 
 function TableDDLView({
@@ -33,27 +20,60 @@ function TableDDLView({
   refreshTrigger,
   autoLoad = false,
 }: TableMetadataViewProps & { refreshTrigger?: number; autoLoad?: boolean }) {
-  const { selectedConnection } = useConnection();
-  const [isLoading, setIsLoading] = useState(false);
-  const [tableData, setTableData] = useState<Record<string, unknown> | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const apiCancellerRef = useRef<ApiCanceller | null>(null);
+  const tableComponentRef = useRef<RefreshableComponent>(null);
   const isMountedRef = useRef(true);
 
-  const fetchDDL = useCallback(() => {
-    if (!selectedConnection) {
-      setError("No connection selected");
-      return;
-    }
+  // Create transposed table descriptor
+  const tableDescriptor = useMemo<TransposeTableDescriptor>(() => {
+    // Define custom renderers for SQL fields
+    const valueRenderers: Record<string, (key: string, value: unknown) => React.ReactNode> = {
+      create_table_query: (_key: string, value: unknown) => {
+        if (value === null || value === undefined) {
+          return <span className="text-muted-foreground">-</span>;
+        }
+        const valueStr = StringUtils.prettyFormatQuery(value as string);
+        if (valueStr.length === 0) {
+          return <span className="text-muted-foreground">-</span>;
+        }
+        return (
+          <div className="overflow-x-auto">
+            <ThemedSyntaxHighlighter language="sql" customStyle={{ fontSize: "14px", margin: 0 }} showLineNumbers={false}>
+              {valueStr}
+            </ThemedSyntaxHighlighter>
+          </div>
+        );
+      },
+      as_select: (_key: string, value: unknown) => {
+        if (value === null || value === undefined) {
+          return <span className="text-muted-foreground">-</span>;
+        }
+        const valueStr = StringUtils.prettyFormatQuery(value as string);
+        if (valueStr.length === 0) {
+          return <span className="text-muted-foreground">-</span>;
+        }
+        return (
+          <div className="overflow-x-auto">
+            <ThemedSyntaxHighlighter language="sql" customStyle={{ fontSize: "14px", margin: 0 }} showLineNumbers={false}>
+              {valueStr}
+            </ThemedSyntaxHighlighter>
+          </div>
+        );
+      },
+    };
 
-    setIsLoading(true);
-    setError(null);
+    const sql = `SELECT * FROM system.tables WHERE database = '${database}' AND name = '${table}'`;
 
-    const api = Api.create(selectedConnection);
-
-    const canceller = api.executeSQL(
-      {
-        sql: `SELECT * FROM system.tables WHERE database = '${database}' AND name = '${table}'`,
+    return {
+      type: "transpose-table",
+      id: `table-ddl-${database}-${table}`,
+      titleOption: {
+        title: "Table Metadata",
+        align: "left",
+      },
+      isCollapsed: false,
+      width: 100,
+      query: {
+        sql: sql,
         headers: {
           "Content-Type": "text/plain",
         },
@@ -61,133 +81,24 @@ function TableDDLView({
           default_format: "JSON",
         },
       },
-      (response: ApiResponse) => {
-        if (!isMountedRef.current) {
-          return;
-        }
-
-        try {
-          // JSON format returns { data: [...] } structure
-          const data = response.data.data || [];
-          if (data.length > 0) {
-            setTableData(data[0]);
-          } else {
-            setTableData(null);
-          }
-          setIsLoading(false);
-        } catch (err) {
-          console.error("Error processing table DDL response:", err);
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          setError(errorMessage);
-          setIsLoading(false);
-          toastManager.show(`Failed to process table DDL: ${errorMessage}`, "error");
-        }
-      },
-      (error: ApiErrorResponse) => {
-        if (!isMountedRef.current) return;
-
-        const errorMessage = error.errorMessage || "Unknown error occurred";
-        const lowerErrorMessage = errorMessage.toLowerCase();
-        if (lowerErrorMessage.includes("cancel") || lowerErrorMessage.includes("abort")) {
-          setIsLoading(false);
-          return;
-        }
-
-        console.error("API Error:", error);
-        setError(errorMessage);
-        setIsLoading(false);
-        toastManager.show(`Failed to load table DDL: ${errorMessage}`, "error");
-      },
-      () => {
-        if (isMountedRef.current) {
-          setIsLoading(false);
-        }
-      }
-    );
-
-    apiCancellerRef.current = canceller;
-  }, [selectedConnection, database, table]);
+      valueRenderers: valueRenderers,
+    };
+  }, [database, table]);
 
   useEffect(() => {
     isMountedRef.current = true;
     if (autoLoad || (refreshTrigger !== undefined && refreshTrigger > 0)) {
-      fetchDDL();
+      // Force refresh by passing a unique timestamp to bypass the parameter change check
+      const refreshParam = { inputFilter: `refresh_${Date.now()}_${refreshTrigger}` };
+      tableComponentRef.current?.refresh(refreshParam);
     }
 
     return () => {
       isMountedRef.current = false;
-      if (apiCancellerRef.current) {
-        apiCancellerRef.current.cancel();
-        apiCancellerRef.current = null;
-      }
     };
-  }, [fetchDDL, refreshTrigger, autoLoad]);
+  }, [autoLoad, refreshTrigger]);
 
-  const renderCellValue = (columnName: string, value: unknown) => {
-    if (value === null || value === undefined) {
-      return <span className="text-muted-foreground">-</span>;
-    }
-
-    // Use ThemedSyntaxHighlighter for create_table_query and as_select columns
-    if (columnName === "create_table_query" || columnName === "as_select") {
-      const valueStr = StringUtils.prettyFormatQuery(value as string);
-      if (valueStr.length == 0) {
-        return "-";
-      }
-      return (
-        <div className="overflow-x-auto">
-          <ThemedSyntaxHighlighter
-            language="sql"
-            customStyle={{ fontSize: "14px", margin: 0 }}
-            showLineNumbers={false}
-          >
-            {valueStr}
-          </ThemedSyntaxHighlighter>
-        </div>
-      );
-    }
-
-    return <span className="whitespace-nowrap">{String(value)}</span>;
-  };
-
-  return (
-    <CollapsibleSection title="Table Metadata" className="relative">
-      <FloatingProgressBar show={isLoading} />
-      {error ? (
-        <div className="p-4">
-          <div className="text-sm text-destructive">
-            <p className="font-semibold mb-2">Error loading table DDL:</p>
-            <p>{error}</p>
-          </div>
-        </div>
-      ) : (
-        <div className="overflow-auto">
-          {tableData ? (
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-2 font-semibold whitespace-nowrap">Name</th>
-                  <th className="text-left p-2 font-semibold whitespace-nowrap">Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(tableData).map(([columnName, value]) => (
-                  <tr key={columnName} className="border-b hover:bg-muted/50">
-                    <td className="p-2 whitespace-nowrap font-medium">{columnName}</td>
-                    <td className="p-2">{renderCellValue(columnName, value)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="p-4 text-sm text-muted-foreground">
-              {isLoading ? "Loading..." : "No table data found"}
-            </div>
-          )}
-        </div>
-      )}
-    </CollapsibleSection>
-  );
+  return <RefreshableTransposedTableComponent ref={tableComponentRef} descriptor={tableDescriptor} />;
 }
 
 function TableStructureView({
@@ -196,28 +107,70 @@ function TableStructureView({
   refreshTrigger,
   autoLoad = false,
 }: TableMetadataViewProps & { refreshTrigger?: number; autoLoad?: boolean }) {
-  const { selectedConnection } = useConnection();
-  const [isLoading, setIsLoading] = useState(false);
-  const [columns, setColumns] = useState<ColumnInfo[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const apiCancellerRef = useRef<ApiCanceller | null>(null);
+  const tableComponentRef = useRef<RefreshableComponent>(null);
   const isMountedRef = useRef(true);
 
-  const fetchStructure = useCallback(() => {
-    if (!selectedConnection) {
-      setError("No connection selected");
-      return;
-    }
-
+  // Create table descriptor
+  const tableDescriptor = useMemo<TableDescriptor>(() => {
     const fullTableName = `${database}.${table}`;
-    setIsLoading(true);
-    setError(null);
-
-    const api = Api.create(selectedConnection);
-
-    const canceller = api.executeSQL(
+    const columns: ColumnDef[] = [
       {
-        sql: `DESCRIBE TABLE ${fullTableName}`,
+        name: "name",
+        title: "Name",
+        sortable: true,
+        align: "left",
+      },
+      {
+        name: "type",
+        title: "Type",
+        sortable: true,
+        align: "center",
+      },
+      {
+        name: "default_type",
+        title: "Default Type",
+        sortable: true,
+        align: "center",
+      },
+      {
+        name: "default_expression",
+        title: "Default Expression",
+        sortable: true,
+        align: "center",
+      },
+      {
+        name: "comment",
+        title: "Comment",
+        sortable: true,
+        align: "center",
+      },
+      {
+        name: "codec_expression",
+        title: "Codec Expression",
+        sortable: true,
+        align: "center",
+      },
+      {
+        name: "ttl_expression",
+        title: "TTL Expression",
+        sortable: true,
+        align: "center",
+      },
+    ];
+
+    const sql = `DESCRIBE TABLE ${fullTableName}`;
+
+    return {
+      type: "table",
+      id: `table-structure-${database}-${table}`,
+      titleOption: {
+        title: "Table Structure",
+        align: "left",
+      },
+      isCollapsed: false,
+      width: 100,
+      query: {
+        sql: sql,
         headers: {
           "Content-Type": "text/plain",
         },
@@ -225,120 +178,33 @@ function TableStructureView({
           default_format: "JSON",
         },
       },
-      (response: ApiResponse) => {
-        if (!isMountedRef.current) {
-          return;
-        }
-
-        try {
-          const data = response.data.data || [];
-          setColumns(data as ColumnInfo[]);
-          setIsLoading(false);
-        } catch (err) {
-          console.error("Error processing table structure response:", err);
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          setError(errorMessage);
-          setIsLoading(false);
-          toastManager.show(`Failed to process table structure: ${errorMessage}`, "error");
-        }
-      },
-      (error: ApiErrorResponse) => {
-        if (!isMountedRef.current) return;
-
-        const errorMessage = error.errorMessage || "Unknown error occurred";
-        const lowerErrorMessage = errorMessage.toLowerCase();
-        if (lowerErrorMessage.includes("cancel") || lowerErrorMessage.includes("abort")) {
-          setIsLoading(false);
-          return;
-        }
-
-        console.error("API Error:", error);
-        setError(errorMessage);
-        setIsLoading(false);
-        toastManager.show(`Failed to load table structure: ${errorMessage}`, "error");
-      },
-      () => {
-        if (isMountedRef.current) {
-          setIsLoading(false);
-        }
-      }
-    );
-
-    apiCancellerRef.current = canceller;
-  }, [selectedConnection, database, table]);
+      columns: columns,
+    };
+  }, [database, table]);
 
   useEffect(() => {
     isMountedRef.current = true;
     if (autoLoad || (refreshTrigger !== undefined && refreshTrigger > 0)) {
-      fetchStructure();
+      // Force refresh by passing a unique timestamp to bypass the parameter change check
+      const refreshParam = { inputFilter: `refresh_${Date.now()}_${refreshTrigger}` };
+      tableComponentRef.current?.refresh(refreshParam);
     }
 
     return () => {
       isMountedRef.current = false;
-      if (apiCancellerRef.current) {
-        apiCancellerRef.current.cancel();
-        apiCancellerRef.current = null;
-      }
     };
-  }, [fetchStructure, refreshTrigger, autoLoad]);
+  }, [autoLoad, refreshTrigger]);
 
-  return (
-    <CollapsibleSection title="Table Structure" className="relative">
-      <FloatingProgressBar show={isLoading} />
-      {error ? (
-        <div className="p-4">
-          <div className="text-sm text-destructive">
-            <p className="font-semibold mb-2">Error loading table structure:</p>
-            <p>{error}</p>
-          </div>
-        </div>
-      ) : (
-        <div className="overflow-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left p-2 font-semibold">Name</th>
-                <th className="text-left p-2 font-semibold">Type</th>
-                <th className="text-left p-2 font-semibold">Default Type</th>
-                <th className="text-left p-2 font-semibold">Default Expression</th>
-                <th className="text-left p-2 font-semibold">Comment</th>
-                <th className="text-left p-2 font-semibold">Codec Expression</th>
-                <th className="text-left p-2 font-semibold">TTL Expression</th>
-              </tr>
-            </thead>
-            <tbody>
-              {columns.length === 0 && !isLoading && (
-                <tr>
-                  <td colSpan={7} className="p-4 text-center text-muted-foreground">
-                    No columns found
-                  </td>
-                </tr>
-              )}
-              {columns.map((column, index) => (
-                <tr key={index} className="border-b hover:bg-muted/50">
-                  <td className="p-2 ">{column.name || "-"}</td>
-                  <td className="p-2 ">{column.type || "-"}</td>
-                  <td className="p-2">{column.default_type || "-"}</td>
-                  <td className="p-2 ">{column.default_expression || "-"}</td>
-                  <td className="p-2">{column.comment || "-"}</td>
-                  <td className="p-2 ">{column.codec_expression || "-"}</td>
-                  <td className="p-2 ">{column.ttl_expression || "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </CollapsibleSection>
-  );
+  return <RefreshableTableComponent ref={tableComponentRef} descriptor={tableDescriptor} />;
 }
 
-export const TableMetadataView = forwardRef<TableMetadataViewRef, TableMetadataViewProps>(
+export const TableMetadataView = forwardRef<RefreshableTabViewRef, TableMetadataViewProps>(
   ({ database, table, autoLoad = false }, ref) => {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     useImperativeHandle(ref, () => ({
-      refresh: () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      refresh: (_timeSpan?: TimeSpan) => {
         setRefreshTrigger((prev) => prev + 1);
       },
     }));
@@ -353,4 +219,3 @@ export const TableMetadataView = forwardRef<TableMetadataViewRef, TableMetadataV
 );
 
 TableMetadataView.displayName = "TableMetadataView";
-

@@ -17,6 +17,7 @@ import { Skeleton } from "../ui/skeleton";
 import type { MinimapOption, Reducer, SQLQuery, StatDescriptor } from "./chart-utils";
 import type { RefreshableComponent, RefreshParameter } from "./refreshable-component";
 import type { TimeSpan } from "./timespan-selector";
+import { useRefreshable } from "./use-refreshable";
 
 interface RefreshableStatComponentProps {
   // The stat descriptor configuration
@@ -194,13 +195,6 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
     const [isLoadingOffset, setIsLoadingOffset] = useState(false);
     const [offsetError, setOffsetError] = useState("");
     const [error, setError] = useState("");
-    const [needRefresh, setNeedRefresh] = useState(false);
-
-    // Refs
-    const componentRef = useRef<HTMLDivElement>(null);
-    const observerRef = useRef<IntersectionObserver | null>(null);
-    const refreshParameterRef = useRef<RefreshParameter | undefined>(undefined);
-    const lastRefreshParamRef = useRef<RefreshParameter | undefined>(undefined);
 
     // Helper functions
     const shouldShowMinimap = useCallback((): boolean => {
@@ -267,20 +261,6 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
       }
     }, []);
 
-    const isComponentInView = useCallback((): boolean => {
-      if (componentRef.current) {
-        const rect = componentRef.current.getBoundingClientRect();
-        // Check if the whole component is in the viewport
-        // rect.top >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight);
-
-        // Check if the component is top of this component in the viewport
-        // rect.top is the distance from the top of the component to the top of the viewport.
-        // window.innerHeight is the height of the viewport.
-        // document.documentElement.clientHeight is the height of the viewport in case window.innerHeight is not available (for older browsers).
-        return rect.top >= 0 && rect.top < (window.innerHeight || document.documentElement.clientHeight);
-      }
-      return false;
-    }, []);
 
     const loadData = useCallback(
       async (_param: RefreshParameter, isOffset: boolean = false) => {
@@ -417,109 +397,61 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
       [descriptor, shouldShowMinimap, getMinimapDataFromResponse, calculateReducedValue]
     );
 
-    const refreshInternal = useCallback(() => {
-      console.trace(`Refreshing stat [${descriptor.id}]...`);
+    // Internal refresh function
+    const refreshInternal = useCallback(
+      (param: RefreshParameter) => {
+        console.trace(`Refreshing stat [${descriptor.id}]...`);
 
-      const currentParam = refreshParameterRef.current;
-
-      if (!descriptor.query) {
-        console.error(`No query defined for stat [${descriptor.id}]`);
-        setError("No query defined for this stat component.");
-        return;
-      }
-
-      if (!currentParam || !currentParam.selectedTimeSpan) {
-        console.error(`No timespan for stat [${descriptor.id}]`);
-        setError("Please choose time span.");
-        return;
-      }
-
-      // Load data - for timeseries with minimap, we get both stat and minimap from same response
-      loadData(currentParam);
-
-      // Load offset data
-      if (offset !== 0) {
-        const offsetTimeSpan: TimeSpan = {
-          startISO8601: DateTimeExtension.formatISO8601(
-            new Date(new Date(currentParam.selectedTimeSpan.startISO8601).getTime() + offset * 1000)
-          ) || "",
-
-          endISO8601: DateTimeExtension.formatISO8601(
-            new Date(new Date(currentParam.selectedTimeSpan.endISO8601).getTime() + offset * 1000)
-          ) || "",
-        };
-
-        const offsetParam: RefreshParameter = {
-          ...currentParam,
-          selectedTimeSpan: offsetTimeSpan,
-        };
-
-        loadData(offsetParam, true);
-      }
-    }, [descriptor, offset, loadData]);
-
-    const refresh = useCallback(
-      async (param: RefreshParameter) => {
-        // Check if the parameters have actually changed
-        // Skip refresh if we already have data with the same parameters (avoid unnecessary API calls)
-        if (lastRefreshParamRef.current && JSON.stringify(lastRefreshParamRef.current) === JSON.stringify(param)) {
-          console.trace(`Stat component [${descriptor.id}] skipping refresh - parameters unchanged`);
+        if (!descriptor.query) {
+          console.error(`No query defined for stat [${descriptor.id}]`);
+          setError("No query defined for this stat component.");
           return;
         }
 
-        lastRefreshParamRef.current = param;
-        refreshParameterRef.current = param;
-
-        console.trace(
-          `Stat component [${descriptor.id}] refresh called, isInView: ${isComponentInView()}, hasTimeSpan: ${!!param.selectedTimeSpan}`
-        );
-
-        if (!isComponentInView()) {
-          setNeedRefresh(true);
+        if (!param.selectedTimeSpan) {
+          console.error(`No timespan for stat [${descriptor.id}]`);
+          setError("Please choose time span.");
           return;
         }
-        refreshInternal();
+
+        // Load data - for timeseries with minimap, we get both stat and minimap from same response
+        loadData(param);
+
+        // Load offset data
+        if (offset !== 0) {
+          const offsetTimeSpan: TimeSpan = {
+            startISO8601: DateTimeExtension.formatISO8601(
+              new Date(new Date(param.selectedTimeSpan.startISO8601).getTime() + offset * 1000)
+            ) || "",
+
+            endISO8601: DateTimeExtension.formatISO8601(
+              new Date(new Date(param.selectedTimeSpan.endISO8601).getTime() + offset * 1000)
+            ) || "",
+          };
+
+          const offsetParam: RefreshParameter = {
+            ...param,
+            selectedTimeSpan: offsetTimeSpan,
+          };
+
+          loadData(offsetParam, true);
+        }
       },
-      [descriptor.id, isComponentInView, refreshInternal]
+      [descriptor, offset, loadData]
     );
 
-    const getLastRefreshParameter = useCallback((): RefreshParameter => {
-      return refreshParameterRef.current!;
-    }, []);
+    // Use shared refreshable hook (stat chart doesn't have collapse, but uses viewport checking)
+    const { componentRef, refresh, getLastRefreshParameter } = useRefreshable({
+      componentId: descriptor.id,
+      initialCollapsed: false, // Stat chart is always "expanded"
+      refreshInternal,
+    });
 
     // Expose methods via ref
     useImperativeHandle(ref, () => ({
       refresh,
       getLastRefreshParameter,
     }));
-
-    // IntersectionObserver setup
-    useEffect(() => {
-      const handleIntersection = (entries: IntersectionObserverEntry[]) => {
-        const entry = entries[0];
-        if (entry.isIntersecting && needRefresh) {
-          console.trace(`Refreshing chart [${descriptor.id}] as it's in the viewport...`);
-          refreshInternal();
-          setNeedRefresh(false);
-        }
-      };
-
-      observerRef.current = new IntersectionObserver(handleIntersection, {
-        root: null,
-        rootMargin: "0px",
-        threshold: 0.1,
-      });
-
-      if (componentRef.current) {
-        observerRef.current.observe(componentRef.current);
-      }
-
-      return () => {
-        if (componentRef.current && observerRef.current) {
-          observerRef.current.unobserve(componentRef.current);
-        }
-      };
-    }, [descriptor.id, needRefresh, refreshInternal]);
 
     // Render comparison helper
     const renderComparison = () => {
@@ -569,9 +501,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
     return (
       <Card ref={componentRef} className="@container/card relative">
         <FloatingProgressBar show={isLoadingValue} />
-        <CardHeader
-          className={`pt-5 pb-1 transition-opacity duration-200 ${isLoadingValue ? "opacity-70" : "opacity-100"}`}
-        >
+        <CardHeader className="pt-5 pb-1">
           <CardDescription
             className={descriptor.titleOption?.align ? "text-" + descriptor.titleOption.align : "text-center"}
           >

@@ -1,17 +1,39 @@
+import TimeSpanSelector, {
+  type DisplayTimeSpan,
+  type TimeSpan,
+  BUILT_IN_TIME_SPAN_LIST,
+} from "@/components/dashboard/timespan-selector";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, RefreshCw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { DataSampleView, type DataSampleViewRef } from "./data-sample-view";
-import { PartitionSizeView, type PartitionSizeViewRef } from "./partition-view";
-import { TableMetadataView, type TableMetadataViewRef } from "./table-metadata-view";
-import { TableSizeView, type TableSizeViewRef } from "./table-size-view";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DataSampleView } from "./data-sample-view";
+import { PartitionSizeView } from "./partition-view";
+import { QueryLogView } from "./query-log-view";
+import { TableMetadataView } from "./table-metadata-view";
+import { TableSizeView } from "./table-size-view";
 
 export interface TableTabProps {
   database: string;
   table: string;
   engine?: string;
   tabId?: string;
+}
+
+// Common interface for all tab views that support refresh
+export interface RefreshableTabViewRef {
+  refresh: (timeSpan?: TimeSpan) => void;
+  supportsTimeSpanSelector?: boolean;
+}
+
+// Type guard to check if a ref has refresh capability
+function hasRefreshCapability(ref: unknown): ref is RefreshableTabViewRef {
+  return (
+    ref !== null &&
+    typeof ref === "object" &&
+    "refresh" in ref &&
+    typeof (ref as RefreshableTabViewRef).refresh === "function"
+  );
 }
 
 // Map of engine types to their available tabs
@@ -40,18 +62,48 @@ export function TableTab({ database, table, engine }: TableTabProps) {
 
   const initialTab = availableTabs.has("data-sample") ? "data-sample" : "metadata";
   const [currentTab, setCurrentTab] = useState<string>(initialTab);
-  
+
   // Track which tabs have been loaded (to load data only once)
   const [loadedTabs, setLoadedTabs] = useState<Set<string>>(new Set([initialTab]));
-  
+
   // Track refresh state for button animation
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Time span selector state
+  const [selectedTimeSpan, setSelectedTimeSpan] = useState<DisplayTimeSpan>(
+    BUILT_IN_TIME_SPAN_LIST[3] // Default to "Last 15 Mins"
+  );
+
   // Refs for each tab view
-  const dataSampleRef = useRef<DataSampleViewRef>(null);
-  const metadataRef = useRef<TableMetadataViewRef>(null);
-  const tableSizeRef = useRef<TableSizeViewRef>(null);
-  const partitionRef = useRef<PartitionSizeViewRef>(null);
+  const dataSampleRef = useRef<RefreshableTabViewRef>(null);
+  const metadataRef = useRef<RefreshableTabViewRef>(null);
+  const tableSizeRef = useRef<RefreshableTabViewRef>(null);
+  const partitionRef = useRef<RefreshableTabViewRef>(null);
+  const queryLogRef = useRef<RefreshableTabViewRef>(null);
+
+  // Helper function to get the current ref based on active tab
+  const getCurrentRef = useCallback((): RefreshableTabViewRef | null => {
+    switch (currentTab) {
+      case "data-sample":
+        return dataSampleRef.current;
+      case "metadata":
+        return metadataRef.current;
+      case "table-size":
+        return tableSizeRef.current;
+      case "partitions":
+        return partitionRef.current;
+      case "query-log":
+        return queryLogRef.current;
+      default:
+        return null;
+    }
+  }, [currentTab]);
+
+  // Check if current tab has refresh capability
+  // This will re-evaluate when currentTab changes
+  const currentRef = useMemo(() => getCurrentRef(), [getCurrentRef]);
+  const hasRefresh = useMemo(() => hasRefreshCapability(currentRef), [currentRef]);
+  const supportsTimeSpan = useMemo(() => currentRef?.supportsTimeSpanSelector === true, [currentRef]);
 
   // Mark tab as loaded when it becomes active for the first time
   useEffect(() => {
@@ -63,35 +115,30 @@ export function TableTab({ database, table, engine }: TableTabProps) {
     });
   }, [currentTab]);
 
-  const handleRefresh = () => {
+  const handleRefresh = (overrideTimeSpan?: TimeSpan) => {
     setIsRefreshing(true);
     // Reset refreshing state after a short delay to allow child components to update their loading state
     // The FloatingProgressBar will show the actual loading state
     setTimeout(() => setIsRefreshing(false), 100);
-    
-    switch (currentTab) {
-      case "data-sample":
-        dataSampleRef.current?.refresh();
-        break;
-      case "metadata":
-        metadataRef.current?.refresh();
-        break;
-      case "table-size":
-        tableSizeRef.current?.refresh();
-        break;
-      case "partitions":
-        partitionRef.current?.refresh();
-        break;
-      default:
-        // Query Log and Part Log tabs don't have refresh functionality yet
-        break;
+
+    const currentRef = getCurrentRef();
+    if (hasRefreshCapability(currentRef)) {
+      const timeSpan = overrideTimeSpan ?? (supportsTimeSpan ? selectedTimeSpan.getTimeSpan() : undefined);
+      currentRef.refresh(timeSpan);
     }
+  };
+
+  const handleTimeSpanChanged = (span: DisplayTimeSpan) => {
+    setSelectedTimeSpan(span);
+    // Trigger refresh when time span changes, passing the new timespan directly
+    const timeSpan = span.getTimeSpan();
+    handleRefresh(timeSpan);
   };
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">
       <Tabs value={currentTab} onValueChange={setCurrentTab} className="flex flex-col flex-1 overflow-hidden">
-        <div className="flex justify-between items-center gap-2 mx-2 mt-2">
+        <div className="flex justify-between items-center gap-2 m-2">
           <TabsList>
             {availableTabs.has("data-sample") && <TabsTrigger value="data-sample">Data Sample</TabsTrigger>}
             {availableTabs.has("metadata") && <TabsTrigger value="metadata">Metadata</TabsTrigger>}
@@ -100,30 +147,41 @@ export function TableTab({ database, table, engine }: TableTabProps) {
             {availableTabs.has("query-log") && <TabsTrigger value="query-log">Query Log</TabsTrigger>}
             {availableTabs.has("part-log") && <TabsTrigger value="part-log">Part Log</TabsTrigger>}
           </TabsList>
-          {(currentTab === "data-sample" ||
-            currentTab === "metadata" ||
-            currentTab === "table-size" ||
-            currentTab === "partitions") && (
-            <Button variant="ghost" size="icon" onClick={handleRefresh} className="h-8 w-8" disabled={isRefreshing}>
-              {isRefreshing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
+          {hasRefresh ? (
+            <div className="flex items-center gap-2">
+              {supportsTimeSpan && (
+                <TimeSpanSelector
+                  defaultTimeSpan={selectedTimeSpan}
+                  showTimeSpanSelector={true}
+                  showRefresh={false}
+                  showAutoRefresh={false}
+                  size="sm"
+                  onSelectedSpanChanged={handleTimeSpanChanged}
+                />
               )}
-            </Button>
-          )}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleRefresh()}
+                className="h-9 w-9"
+                disabled={isRefreshing}
+              >
+                {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              </Button>
+            </div>
+          ) : null}
         </div>
         <div className="flex-1 relative overflow-hidden">
           {/* All tabs are always mounted, visibility controlled by CSS */}
           {availableTabs.has("data-sample") && (
             <div
-              className={`absolute inset-0 overflow-auto p-2 ${currentTab === "data-sample" ? "block" : "hidden"}`}
+              className={`absolute inset-0 overflow-auto px-2 ${currentTab === "data-sample" ? "block" : "hidden"}`}
               role="tabpanel"
               aria-hidden={currentTab !== "data-sample"}
             >
-              <DataSampleView 
-                ref={dataSampleRef} 
-                database={database} 
+              <DataSampleView
+                ref={dataSampleRef}
+                database={database}
                 table={table}
                 autoLoad={loadedTabs.has("data-sample")}
               />
@@ -131,13 +189,13 @@ export function TableTab({ database, table, engine }: TableTabProps) {
           )}
           {availableTabs.has("metadata") && (
             <div
-              className={`absolute inset-0 overflow-auto p-2 space-y-2 ${currentTab === "metadata" ? "block" : "hidden"}`}
+              className={`absolute inset-0 overflow-auto px-2 space-y-2 ${currentTab === "metadata" ? "block" : "hidden"}`}
               role="tabpanel"
               aria-hidden={currentTab !== "metadata"}
             >
-              <TableMetadataView 
-                ref={metadataRef} 
-                database={database} 
+              <TableMetadataView
+                ref={metadataRef}
+                database={database}
                 table={table}
                 autoLoad={loadedTabs.has("metadata")}
               />
@@ -145,13 +203,13 @@ export function TableTab({ database, table, engine }: TableTabProps) {
           )}
           {availableTabs.has("table-size") && (
             <div
-              className={`absolute inset-0 overflow-auto p-2 ${currentTab === "table-size" ? "block" : "hidden"}`}
+              className={`absolute inset-0 overflow-auto px-2 ${currentTab === "table-size" ? "block" : "hidden"}`}
               role="tabpanel"
               aria-hidden={currentTab !== "table-size"}
             >
-              <TableSizeView 
-                ref={tableSizeRef} 
-                database={database} 
+              <TableSizeView
+                ref={tableSizeRef}
+                database={database}
                 table={table}
                 autoLoad={loadedTabs.has("table-size")}
               />
@@ -159,13 +217,13 @@ export function TableTab({ database, table, engine }: TableTabProps) {
           )}
           {availableTabs.has("partitions") && (
             <div
-              className={`absolute inset-0 overflow-auto p-2 ${currentTab === "partitions" ? "block" : "hidden"}`}
+              className={`absolute inset-0 overflow-auto px-2 ${currentTab === "partitions" ? "block" : "hidden"}`}
               role="tabpanel"
               aria-hidden={currentTab !== "partitions"}
             >
-              <PartitionSizeView 
-                ref={partitionRef} 
-                database={database} 
+              <PartitionSizeView
+                ref={partitionRef}
+                database={database}
                 table={table}
                 autoLoad={loadedTabs.has("partitions")}
               />
@@ -173,18 +231,21 @@ export function TableTab({ database, table, engine }: TableTabProps) {
           )}
           {availableTabs.has("query-log") && (
             <div
-              className={`absolute inset-0 overflow-auto p-4 mt-2 ${currentTab === "query-log" ? "block" : "hidden"}`}
+              className={`absolute inset-0 overflow-auto px-2 ${currentTab === "query-log" ? "block" : "hidden"}`}
               role="tabpanel"
               aria-hidden={currentTab !== "query-log"}
             >
-              <div className="h-full flex items-center justify-center text-muted-foreground">
-                Query Log content coming soon
-              </div>
+              <QueryLogView
+                ref={queryLogRef}
+                database={database}
+                table={table}
+                autoLoad={loadedTabs.has("query-log")}
+              />
             </div>
           )}
           {availableTabs.has("part-log") && (
             <div
-              className={`absolute inset-0 overflow-auto p-4 mt-2 ${currentTab === "part-log" ? "block" : "hidden"}`}
+              className={`absolute inset-0 overflow-auto px-2 ${currentTab === "part-log" ? "block" : "hidden"}`}
               role="tabpanel"
               aria-hidden={currentTab !== "part-log"}
             >

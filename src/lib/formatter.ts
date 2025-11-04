@@ -24,7 +24,8 @@ export type FormatName =
   | "binary_byte" // For compatibility only, use binary_size instead
   | "time" // For compatibility only, use DateTime formatter above instead
   | "template"
-  | "detail"; // For table only
+  | "detail" // For table only
+  | "sql"; // For SQL queries - shows truncated text with click-to-expand dialog
 
 export class Formatter {
   private static instance: Formatter;

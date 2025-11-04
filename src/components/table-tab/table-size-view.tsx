@@ -1,4 +1,8 @@
 import { CollapsibleSection } from "@/components/collapsible-section";
+import type { ColumnDef, TableDescriptor } from "@/components/dashboard/chart-utils";
+import type { RefreshableComponent } from "@/components/dashboard/refreshable-component";
+import RefreshableTableComponent from "@/components/dashboard/refreshable-table-component";
+import type { TimeSpan } from "@/components/dashboard/timespan-selector";
 import FloatingProgressBar from "@/components/floating-progress-bar";
 import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
@@ -6,15 +10,12 @@ import "@/lib/number-utils";
 import { toastManager } from "@/lib/toast";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import type { RefreshableTabViewRef } from "./table-tab";
 
 export interface TableSizeViewProps {
   database: string;
   table: string;
   autoLoad?: boolean;
-}
-
-export interface TableSizeViewRef {
-  refresh: () => void;
 }
 
 interface TableSizeInfo {
@@ -28,15 +29,6 @@ interface TableSizeInfo {
   avgRowSize?: number;
 }
 
-interface ColumnSizeInfo {
-  column: string;
-  compressedSize: number;
-  uncompressedSize: number;
-  compressRatio: number;
-  rowsCount: number;
-  avgUncompressedSize: number;
-}
-
 type TableSizeSortColumn =
   | "host"
   | "disk_name"
@@ -46,21 +38,15 @@ type TableSizeSortColumn =
   | "diskSize"
   | "uncompressedSize"
   | "compressRatio";
-type ColumnSizeSortColumn =
-  | "column"
-  | "compressedSize"
-  | "uncompressedSize"
-  | "compressRatio"
-  | "rowsCount"
-  | "avgUncompressedSize";
 type SortDirection = "asc" | "desc" | null;
 
-export const TableSizeView = forwardRef<TableSizeViewRef, TableSizeViewProps>(
+export const TableSizeView = forwardRef<RefreshableTabViewRef, TableSizeViewProps>(
   ({ database, table, autoLoad = false }, ref) => {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     useImperativeHandle(ref, () => ({
-      refresh: () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      refresh: (_timeSpan?: TimeSpan) => {
         setRefreshTrigger((prev) => prev + 1);
       },
     }));
@@ -438,27 +424,54 @@ function ColumnSizeView({
   refreshTrigger,
   autoLoad = false,
 }: TableSizeViewProps & { refreshTrigger?: number; autoLoad?: boolean }) {
-  const { selectedConnection } = useConnection();
-  const [isLoading, setIsLoading] = useState(false);
-  const [columnSizeInfo, setColumnSizeInfo] = useState<ColumnSizeInfo[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [sortColumn, setSortColumn] = useState<ColumnSizeSortColumn | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
-  const apiCancellerRef = useRef<ApiCanceller | null>(null);
+  const tableComponentRef = useRef<RefreshableComponent>(null);
   const isMountedRef = useRef(true);
 
-  const fetchColumnSize = () => {
-    if (!selectedConnection) {
-      setError("No connection selected");
-      return;
-    }
+  // Create table descriptor
+  const tableDescriptor = useMemo<TableDescriptor>(() => {
+    const columns: ColumnDef[] = [
+      {
+        name: "column",
+        title: "Column",
+        sortable: true,
+        align: "left", // First column is left aligned
+      },
+      {
+        name: "rowsCount",
+        title: "Rows",
+        sortable: true,
+        align: "center",
+        format: "comma_number",
+      },
+      {
+        name: "compressedSize",
+        title: "Compressed Size",
+        sortable: true,
+        align: "center",
+        format: "binary_size",
+      },
+      {
+        name: "uncompressedSize",
+        title: "Uncompressed Size",
+        sortable: true,
+        align: "center",
+        format: "binary_size",
+      },
+      {
+        name: "compressRatio",
+        title: "Compress Ratio (%)",
+        sortable: true,
+        align: "center",
+      },
+      {
+        name: "avgUncompressedSize",
+        title: "Avg Uncompressed Size",
+        sortable: true,
+        align: "center",
+        format: "binary_size",
+      },
+    ];
 
-    setIsLoading(true);
-    setError(null);
-
-    const api = Api.create(selectedConnection);
-
-    // Query column size from system.parts_columns
     const sql = `
 SELECT 
     column,
@@ -478,8 +491,16 @@ GROUP BY
 ORDER BY 
     sum(column_data_compressed_bytes) DESC`;
 
-    const canceller = api.executeSQL(
-      {
+    return {
+      type: "table",
+      id: `column-size-${database}-${table}`,
+      titleOption: {
+        title: "Column Size",
+        align: "left",
+      },
+      isCollapsed: false,
+      width: 100,
+      query: {
         sql: sql,
         headers: {
           "Content-Type": "text/plain",
@@ -488,208 +509,22 @@ ORDER BY
           default_format: "JSON",
         },
       },
-      (response: ApiResponse) => {
-        if (!isMountedRef.current) {
-          return;
-        }
-
-        try {
-          const data = response.data.data || [];
-          // Ensure numeric fields are converted to numbers
-          const processedData: ColumnSizeInfo[] = data.map((item: Record<string, unknown>) => ({
-            column: String(item.column || ""),
-            compressedSize: Number(item.compressedSize) || 0,
-            uncompressedSize: Number(item.uncompressedSize) || 0,
-            compressRatio: Number(item.compressRatio) || 0,
-            rowsCount: Number(item.rowsCount) || 0,
-            avgUncompressedSize: Number(item.avgUncompressedSize) || 0,
-          }));
-          setColumnSizeInfo(processedData);
-          setIsLoading(false);
-        } catch (err) {
-          console.error("Error processing column size response:", err);
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          setError(errorMessage);
-          setIsLoading(false);
-          toastManager.show(`Failed to process column size: ${errorMessage}`, "error");
-        }
-      },
-      (error: ApiErrorResponse) => {
-        if (!isMountedRef.current) return;
-
-        const errorMessage = error.errorMessage || "Unknown error occurred";
-        const lowerErrorMessage = errorMessage.toLowerCase();
-        if (lowerErrorMessage.includes("cancel") || lowerErrorMessage.includes("abort")) {
-          setIsLoading(false);
-          return;
-        }
-
-        console.error("API Error:", error);
-        setError(errorMessage);
-        setIsLoading(false);
-        toastManager.show(`Failed to load column size: ${errorMessage}`, "error");
-      },
-      () => {
-        if (isMountedRef.current) {
-          setIsLoading(false);
-        }
-      }
-    );
-
-    apiCancellerRef.current = canceller;
-  };
+      columns: columns,
+    };
+  }, [database, table]);
 
   useEffect(() => {
     isMountedRef.current = true;
     if (autoLoad || (refreshTrigger !== undefined && refreshTrigger > 0)) {
-      fetchColumnSize();
+      // Force refresh by passing a unique timestamp to bypass the parameter change check
+      const refreshParam = { inputFilter: `refresh_${Date.now()}_${refreshTrigger}` };
+      tableComponentRef.current?.refresh(refreshParam);
     }
 
     return () => {
       isMountedRef.current = false;
-      if (apiCancellerRef.current) {
-        apiCancellerRef.current.cancel();
-        apiCancellerRef.current = null;
-      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedConnection, database, table, refreshTrigger, autoLoad]);
+  }, [autoLoad, refreshTrigger]);
 
-  const handleSort = (column: ColumnSizeSortColumn) => {
-    if (sortColumn === column) {
-      // Cycle through: asc -> desc -> null
-      if (sortDirection === "asc") {
-        setSortDirection("desc");
-      } else if (sortDirection === "desc") {
-        setSortColumn(null);
-        setSortDirection(null);
-      }
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
-    }
-  };
-
-  const sortedColumnSizeInfo = useMemo(() => {
-    if (!sortColumn || !sortDirection) {
-      return columnSizeInfo;
-    }
-
-    return [...columnSizeInfo].sort((a, b) => {
-      let aValue: number | string = a[sortColumn];
-      let bValue: number | string = b[sortColumn];
-
-      // Handle null/undefined values
-      if (aValue == null) aValue = "";
-      if (bValue == null) bValue = "";
-
-      // Compare values
-      let comparison = 0;
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        comparison = aValue - bValue;
-      } else {
-        comparison = String(aValue).localeCompare(String(bValue));
-      }
-
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
-  }, [columnSizeInfo, sortColumn, sortDirection]);
-
-  const getSortIcon = (column: ColumnSizeSortColumn) => {
-    if (sortColumn !== column) {
-      return <ArrowUpDown className="inline-block w-4 h-4 ml-1 opacity-50" />;
-    }
-    if (sortDirection === "asc") {
-      return <ArrowUp className="inline-block w-4 h-4 ml-1" />;
-    }
-    if (sortDirection === "desc") {
-      return <ArrowDown className="inline-block w-4 h-4 ml-1" />;
-    }
-    return <ArrowUpDown className="inline-block w-4 h-4 ml-1 opacity-50" />;
-  };
-
-  return (
-    <CollapsibleSection title="Column Size" className="relative">
-      <FloatingProgressBar show={isLoading} />
-      {error ? (
-        <div className="p-4">
-          <div className="text-sm text-destructive">
-            <p className="font-semibold mb-2">Error loading column size:</p>
-            <p>{error}</p>
-          </div>
-        </div>
-      ) : (
-        <div className="overflow-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b">
-                <th
-                  className="text-left p-2 font-semibold cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort("column")}
-                >
-                  Column{getSortIcon("column")}
-                </th>
-                <th
-                  className="text-left p-2 font-semibold cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort("rowsCount")}
-                >
-                  Rows{getSortIcon("rowsCount")}
-                </th>
-                <th
-                  className="text-left p-2 font-semibold cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort("compressedSize")}
-                >
-                  Compressed Size{getSortIcon("compressedSize")}
-                </th>
-                <th
-                  className="text-left p-2 font-semibold cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort("uncompressedSize")}
-                >
-                  Uncompressed Size{getSortIcon("uncompressedSize")}
-                </th>
-                <th
-                  className="text-left p-2 font-semibold cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort("compressRatio")}
-                >
-                  Compress Ratio (%){getSortIcon("compressRatio")}
-                </th>
-                <th
-                  className="text-left p-2 font-semibold cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort("avgUncompressedSize")}
-                >
-                  Avg Uncompressed Size{getSortIcon("avgUncompressedSize")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedColumnSizeInfo.length === 0 && !isLoading && (
-                <tr>
-                  <td colSpan={6} className="p-4 text-center text-muted-foreground">
-                    No column size information found
-                  </td>
-                </tr>
-              )}
-              {sortedColumnSizeInfo.map((info, index) => (
-                <tr key={index} className="border-b hover:bg-muted/50">
-                  <td className="p-2">{info.column || "-"}</td>
-                  <td className="p-2">{info.rowsCount?.toLocaleString() || "-"}</td>
-                  <td className="p-2">
-                    {info.compressedSize != null ? Number(info.compressedSize).formatBinarySize() : "-"}
-                  </td>
-                  <td className="p-2">
-                    {info.uncompressedSize != null ? Number(info.uncompressedSize).formatBinarySize() : "-"}
-                  </td>
-                  <td className="p-2">{info.compressRatio != null ? info.compressRatio : "-"}</td>
-
-                  <td className="p-2">
-                    {info.avgUncompressedSize != null ? Number(info.avgUncompressedSize).formatBinarySize() : "-"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </CollapsibleSection>
-  );
+  return <RefreshableTableComponent ref={tableComponentRef} descriptor={tableDescriptor} />;
 }

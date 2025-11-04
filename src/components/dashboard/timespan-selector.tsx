@@ -15,9 +15,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 type AutoRefreshProps = {
   onRefresh: () => void;
+  size?: "default" | "sm" | "lg" | "icon";
 };
 
-const AutoRefresher: React.FC<AutoRefreshProps> = ({ onRefresh }) => {
+const AutoRefresher: React.FC<AutoRefreshProps> = ({ onRefresh, size = "icon" }) => {
   const [refreshInterval, setRefreshInterval] = useState<number | null>(null);
   const [countDown, setCountDown] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
@@ -66,10 +67,15 @@ const AutoRefresher: React.FC<AutoRefreshProps> = ({ onRefresh }) => {
     setIsRunning(false);
   };
 
+  // For "sm" size, we need to make it square like icon but with sm height
+  // We'll use a custom className to override the size
+  const buttonSize = size === "sm" ? undefined : size;
+  const buttonClassName = cn(size === "sm" ? "h-9 w-9" : "", "rounded-none rounded-r");
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="rounded-none rounded-r">
+        <Button variant="outline" size={buttonSize} className={buttonClassName}>
           {isRunning ? countDown + "s" : <ChevronDown className="h-4 w-4" />}
         </Button>
       </DropdownMenuTrigger>
@@ -160,23 +166,38 @@ export class DisplayTimeSpan {
     if (val === "today") {
       const e = new Date();
       const s = startOfDay(e);
-      return { startISO8601: DateTimeExtension.formatISO8601(s) || "", endISO8601: DateTimeExtension.formatISO8601(e) || "" };
+      return {
+        startISO8601: DateTimeExtension.formatISO8601(s) || "",
+        endISO8601: DateTimeExtension.formatISO8601(e) || "",
+      };
     } else if (val === "yesterday") {
       const e = startOfDay(new Date());
       const s = subDays(e, 1);
-      return { startISO8601: DateTimeExtension.formatISO8601(s) || "", endISO8601: DateTimeExtension.formatISO8601(e) || "" };
+      return {
+        startISO8601: DateTimeExtension.formatISO8601(s) || "",
+        endISO8601: DateTimeExtension.formatISO8601(e) || "",
+      };
     } else if (this.unit === "m") {
       const e = new Date();
       const s = sub(e, { minutes: this.value as number });
-      return { startISO8601: DateTimeExtension.formatISO8601(s) || "", endISO8601: DateTimeExtension.formatISO8601(e) || "" };
+      return {
+        startISO8601: DateTimeExtension.formatISO8601(s) || "",
+        endISO8601: DateTimeExtension.formatISO8601(e) || "",
+      };
     } else if (this.unit === "h") {
       const e = new Date();
       const s = sub(e, { hours: this.value as number });
-      return { startISO8601: DateTimeExtension.formatISO8601(s) || "", endISO8601: DateTimeExtension.formatISO8601(e) || "" };
+      return {
+        startISO8601: DateTimeExtension.formatISO8601(s) || "",
+        endISO8601: DateTimeExtension.formatISO8601(e) || "",
+      };
     } else if (this.unit === "d") {
       const e = new Date();
       const s = sub(e, { days: this.value as number });
-      return { startISO8601: DateTimeExtension.formatISO8601(s) || "", endISO8601: DateTimeExtension.formatISO8601(e) || "" };
+      return {
+        startISO8601: DateTimeExtension.formatISO8601(s) || "",
+        endISO8601: DateTimeExtension.formatISO8601(e) || "",
+      };
     } else if (this.value === "user") {
       return { startISO8601: this.start || "", endISO8601: this.end || "" };
     } else if (this.value === "all") {
@@ -188,7 +209,10 @@ export class DisplayTimeSpan {
     // Default fallback
     const e = new Date();
     const s = startOfDay(e);
-    return { startISO8601: DateTimeExtension.formatISO8601(s) || "", endISO8601: DateTimeExtension.formatISO8601(e) || "" };
+    return {
+      startISO8601: DateTimeExtension.formatISO8601(s) || "",
+      endISO8601: DateTimeExtension.formatISO8601(e) || "",
+    };
   }
 }
 
@@ -245,6 +269,9 @@ interface TimeSpanSelectorProps {
   showTimeSpanSelector?: boolean;
   showRefresh?: boolean;
   showAutoRefresh?: boolean;
+
+  // Button size
+  size?: "default" | "sm" | "lg" | "icon";
 
   // Callback prop to notify the caller
   onSelectedSpanChanged: (span: DisplayTimeSpan) => void;
@@ -414,7 +441,7 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
       userTimeSpans,
     } = this.state;
 
-    const { showTimeSpanSelector = true, showRefresh = true, showAutoRefresh = true } = this.props;
+    const { showTimeSpanSelector = true, showRefresh = true, showAutoRefresh = true, size = "default" } = this.props;
 
     // If no components are visible, render nothing
     if (!showTimeSpanSelector && !showRefresh && !showAutoRefresh) {
@@ -437,6 +464,7 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
+                size={size}
                 className={cn("rounded-none", showRefresh || showAutoRefresh ? "rounded-l" : "rounded")}
               >
                 {selectedTimeSpan.label} {/* Display the label of the selected range */}
@@ -460,8 +488,12 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                         selected={inputDateRange}
                         onSelect={(date) => {
                           this.setState({
-                            startDateInput: date?.from ? (DateTimeExtension.formatDateTime(date.from, "yyyy-MM-dd HH:mm:ss") || "") : "",
-                            endDateInput: date?.to ? (DateTimeExtension.formatDateTime(date.to, "yyyy-MM-dd HH:mm:ss") || "") : "",
+                            startDateInput: date?.from
+                              ? DateTimeExtension.formatDateTime(date.from, "yyyy-MM-dd HH:mm:ss") || ""
+                              : "",
+                            endDateInput: date?.to
+                              ? DateTimeExtension.formatDateTime(date.to, "yyyy-MM-dd HH:mm:ss") || ""
+                              : "",
                             inputDateRange: date,
                             error: "",
                           });
@@ -571,7 +603,7 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
         {showRefresh && (
           <Button
             variant="outline"
-            size="icon"
+            size={size}
             className={cn(
               "rounded-none",
               !showTimeSpanSelector && showAutoRefresh ? "rounded-l" : "",
@@ -587,7 +619,7 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
         {/* Auto Refresh Controller */}
         {showAutoRefresh && (
           <div className={cn(!showTimeSpanSelector && !showRefresh ? "rounded" : "")}>
-            <AutoRefresher onRefresh={this.onAutoRefreshTriggered} />
+            <AutoRefresher onRefresh={this.onAutoRefreshTriggered} size={size} />
           </div>
         )}
       </div>
