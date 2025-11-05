@@ -62,7 +62,57 @@ const predefinedDashboard = {
           query: {
             sql: "SELECT count() FROM system.databases",
           },
-          valueOption: {},
+          drilldown: {
+            databases: {
+              type: "table",
+              titleOption: {
+                title: "Databases",
+                description: "The number of databases on the server",
+              },
+              columns: [
+                {
+                  name: "name",
+                  title: "Name",
+                },
+                {
+                  name: "size",
+                  title: "Size",
+                  format: "binary_size",
+                },
+                {
+                  name: "rows",
+                  title: "Rows",
+                  format: "comma_number",
+                },
+                {
+                  name: "percentage",
+                  title: "Size Percentage of Total",
+                  format: "percentage_bar",
+                  formatArgs: [100, 16],
+                  width: 100,
+                },
+              ],
+              query: {
+                sql: `SELECT 
+    A.name, B.size, B.rows, B.percentage
+FROM system.databases AS A
+LEFT JOIN (
+    SELECT
+        database,
+        sum(bytes_on_disk) AS size,
+        sum(rows) as rows,
+        round(100 * size / (SELECT sum(bytes_on_disk) FROM system.parts WHERE active=1), 2) as percentage
+    FROM system.parts
+    WHERE active = 1
+    GROUP BY
+        database
+    )
+AS B
+ON A.name = B.database
+ORDER BY B.size DESC`,
+              },
+            },
+          },
         },
         {
           type: "stat",
@@ -160,6 +210,35 @@ ORDER BY
           valueOption: {
             format: "percentage",
           },
+          drilldown: {
+            "used-storage": {
+              type: "table",
+              titleOption: {
+                title: "Used Storage",
+                description: "The used storage of all disks",
+              },
+              columns: [
+                {
+                  name: "name",
+                  title: "Name",
+                },
+                {
+                  name: "path",
+                  title: "Path",
+                },
+                {
+                  name: "used_percent",
+                  title: "Used Percent",
+                  format: "percentage_bar",
+                  formatArgs: [100, 16],
+                  width: 100,
+                },
+              ],
+              query: {
+                sql: `SELECT name, path, round((1 - free_space / total_space) * 100, 2) AS used_percent FROM system.disks`,
+              },
+            },
+          },
         },
         {
           type: "stat",
@@ -171,7 +250,107 @@ ORDER BY
           query: {
             sql: `SELECT count() FROM system.merges`,
           },
-          valueOption: {},
+          drilldown: {
+            "ongoing-merges": {
+              type: "table",
+              titleOption: {
+                title: "Ongoing Merges",
+                description: "The ongoing merges",
+              },
+              columns: [
+                {
+                  name: "table",
+                  title: "Table",
+                },
+                {
+                  name: "result_part_name",
+                  title: "Result Part Name",
+                },
+                {
+                  name: "is_mutation",
+                  title: "Is Mutation",
+                },
+                {
+                  name: "num_parts",
+                  title: "Number of Parts",
+                  format: "comma_number",
+                },
+                {
+                  name: "elapsed",
+                  title: "Elapsed",
+                  format: "seconds",
+                },
+                {
+                  name: "progress",
+                  title: "Progress",
+                  format: "percentage_bar",
+                  formatArgs: [100, 16],
+                  width: 50,
+                },
+                {
+                  name: "total_size_bytes_compressed",
+                  title: "Total Size",
+                  format: "binary_size",
+                },
+                {
+                  name: "bytes_read_uncompressed",
+                  title: "Bytes Read",
+                  format: "binary_size",
+                },
+                {
+                  name: "rows_read",
+                  title: "Rows Read",
+                  format: "comma_number",
+                },
+                {
+                  name: "bytes_written_uncompressed",
+                  title: "Bytes Written",
+                  format: "binary_size",
+                },
+                {
+                  name: "rows_written",
+                  title: "Rows Written",
+                  format: "comma_number",
+                },
+                {
+                  name: "columns_written",
+                  title: "Columns Written",
+                  format: "comma_number",
+                },
+                {
+                  name: "memory_usage",
+                  title: "Memory Usage",
+                  format: "binary_size",
+                },
+              ],
+              sortOption: {
+                initialSort: {
+                  column: "progress",
+                  direction: "desc",
+                },
+              },
+              query: {
+                sql: `
+SELECT 
+    database || '.' || table AS table,
+    result_part_name,  
+    is_mutation,  
+    elapsed, 
+    progress * 100 AS progress, 
+    length(source_part_names) as num_parts,
+    total_size_bytes_compressed,
+    bytes_read_uncompressed,
+    rows_read,
+    bytes_written_uncompressed,
+    rows_written,
+    columns_written,
+    memory_usage
+FROM system.merges 
+ORDER BY progress DESC
+`,
+              },
+            } as TableDescriptor,
+          },
         },
         {
           type: "stat",
@@ -183,7 +362,61 @@ ORDER BY
           query: {
             sql: `SELECT count() FROM system.mutations WHERE is_done = 0`,
           },
-          valueOption: {},
+          drilldown: {
+            "ongoing-mutations": {
+              type: "table",
+              titleOption: {
+                title: "Ongoing Mutations",
+                description: "The number of ongoing mutations",
+              },
+              columns: [
+                {
+                  name: "database",
+                  title: "Database",
+                },
+                {
+                  name: "table",
+                  title: "Table",
+                },
+                {
+                  name: "create_time",
+                  title: "Create Time",
+                  format: "dateTime",
+                },
+                {
+                  name: "mutation_id",
+                  title: "Mutation ID",
+                },
+                {
+                  name: "command",
+                  title: "Command",
+                },
+                {
+                  name: "parts_to_do",
+                  title: "Parts to Do",
+                  format: "comma_number",
+                },
+                {
+                  name: "latest_fail_time",
+                  title: "Latest Fail Time",
+                  format: "dateTime",
+                },
+                {
+                  name: "latest_fail_reason",
+                  title: "Latest Fail Reason",
+                },
+              ],
+              sortOption: {
+                initialSort: {
+                  column: "create_time",
+                  direction: "desc",
+                },
+              },
+              query: {
+                sql: `SELECT database, table, create_time, mutation_id, command, parts_to_do, latest_fail_time, latest_fail_reason FROM system.mutations WHERE is_done = 0 ORDER BY create_time DESC`,
+              },
+            } as TableDescriptor,
+          },
         },
         {
           type: "stat",

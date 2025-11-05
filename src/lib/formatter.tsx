@@ -82,6 +82,7 @@ export class Formatter {
     this._formatters["nanosecond"] = (v) => this.nanoFormat(v, 2);
     this._formatters["millisecond"] = (v) => this.milliFormat(v, 2);
     this._formatters["microsecond"] = (v) => this.microFormat(v, 2);
+    this._formatters["seconds"] = (v) => this.timeFormat(v, 2, ["s"]);
     this._formatters["byte_rate"] = (v) => v.formatBinarySize() + "/s";
     this._formatters["rate"] = (v) => v.formatCompactNumber() + "/s";
 
