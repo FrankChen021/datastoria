@@ -3,7 +3,7 @@
 import { Api, type ApiResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { DateTimeExtension } from "@/lib/datetime-utils";
-import { Formatter } from "@/lib/formatter";
+import { Formatter } from "../../lib/formatter";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CircleAlert, TrendingDown, TrendingUpIcon } from "lucide-react";
@@ -657,7 +657,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
       Dialog.showDialog({
         title,
         description,
-        className: "max-w-[90vw] max-h-[90vh]",
+        className: "max-w-[60vw] max-h-[90vh]",
         disableContentScroll: false,
         mainContent: <div className="w-full">{renderDrilldownComponent(modifiedDescriptor)}</div>,
       });

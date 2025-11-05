@@ -87,8 +87,12 @@ export interface ColumnDef {
   sortable?: boolean;
   resizable?: boolean;
   pinned?: boolean;
-  format?: FormatName;
+
   align?: "left" | "right" | "center";
+
+  format?: FormatName;
+  // Arguments to pass to the formatter function
+  formatArgs?: any[];
 
   yAxis?: number;
   inverse?: boolean;

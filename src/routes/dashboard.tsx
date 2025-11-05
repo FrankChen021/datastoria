@@ -110,6 +110,13 @@ const predefinedDashboard = {
                   title: "Size",
                   format: "binary_size",
                 },
+                {
+                  name: "pct_of_total",
+                  title: "Percentage",
+                  format: "percentage_bar",
+                  formatArgs: [100, 16],
+                  width: 100,
+                },
               ],
               sortOption: {
                 initialSort: {
@@ -118,7 +125,23 @@ const predefinedDashboard = {
                 },
               },
               query: {
-                sql: `SELECT database, table, sum(bytes_on_disk) as size FROM system.parts WHERE active = 1 GROUP BY database, table ORDER BY size DESC`,
+                sql: `WITH (
+    SELECT sum(bytes_on_disk)
+    FROM system.parts
+    WHERE active = 1
+) AS total_size
+SELECT
+    database,
+    table,
+    sum(bytes_on_disk) AS size,
+    round(100 * sum(bytes_on_disk) / total_size, 2) AS pct_of_total
+FROM system.parts
+WHERE active = 1
+GROUP BY
+    database,
+    table
+ORDER BY
+    size DESC;`,
               },
             } as TableDescriptor,
           },

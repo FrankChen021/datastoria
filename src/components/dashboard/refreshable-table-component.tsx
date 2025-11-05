@@ -2,11 +2,11 @@
 
 import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
-import { Formatter } from "@/lib/formatter";
 import { StringUtils } from "@/lib/string-utils";
 import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight } from "lucide-react";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { Formatter } from "../../lib/formatter";
 import FloatingProgressBar from "../floating-progress-bar";
 import { ThemedSyntaxHighlighter } from "../themed-syntax-highlighter";
 import { Card, CardContent, CardDescription, CardHeader } from "../ui/card";
@@ -338,7 +338,8 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
       // Apply format if specified
       if (columnDef.format) {
         const formatter = Formatter.getInstance().getFormatter(columnDef.format);
-        const formatted = formatter(value);
+        // Pass args as params to the formatter (third parameter)
+        const formatted = formatter(value, undefined, columnDef.formatArgs);
         // If formatter returns empty string, show '-'
         if (formatted === "" || (typeof formatted === "string" && formatted.trim() === "")) {
           return <span className="text-muted-foreground">-</span>;
@@ -607,8 +608,10 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
 
                 // Regular data columns
                 const value = row[column.name];
+                // For percentage_bar format, don't apply whitespace-nowrap to allow the bar to render properly
+                const shouldWrap = column.format === "percentage_bar";
                 return (
-                  <td key={column.name} className={cn("p-4 align-middle", getCellAlignmentClass(column), "whitespace-nowrap !p-2")}>
+                  <td key={column.name} className={cn("p-4 align-middle", getCellAlignmentClass(column), !shouldWrap && "whitespace-nowrap", "!p-2")}>
                     {formatCellValue(value, column)}
                   </td>
                 );

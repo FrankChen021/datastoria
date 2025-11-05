@@ -5,6 +5,7 @@ export type FormatName =
   | "json_string"
   | "percentage"
   | "percentage_0_1" // for number in the range of [0,1]. input: 0.1, output: 10%
+  | "percentage_bar" // Renders a rectangular bar showing the percentage value
   | "nanosecond"
   | "millisecond"
   | "microsecond"
@@ -53,6 +54,31 @@ export class Formatter {
 
     this._formatters["percentage"] = (v) => (v === "NaN" ? "0%" : v.formatWithNoTrailingZeros(2) + "%");
     this._formatters["percentage_0_1"] = (v) => (v === "NaN" ? "0%" : (v * 100).formatWithNoTrailingZeros(2) + "%");
+    this._formatters["percentage_bar"] = (v, props, params) => {
+      // Ensure value is a number
+      const numValue = typeof v === "number" ? v : parseFloat(String(v)) || 0;
+
+      // Clamp value between 0 and 100
+      const percentage = Math.max(0, Math.min(100, numValue));
+
+      // Get width from args (first element in params array, or props.formatArgs, or default to 100)
+      const width = (params && params[0]) || (props && props.formatArgs && props.formatArgs[0]) || 100;
+
+      // Get height from args (second element in params array, or props.formatArgs, or default to 20)
+      const height = (params && params[1]) || (props && props.formatArgs && props.formatArgs[1]) || 20;
+
+      return (
+        <div className="flex items-center gap-2">
+          <div
+            className="relative bg-muted rounded-sm overflow-hidden"
+            style={{ width: `${width}px`, height: `${height}px` }}
+          >
+            <div className="h-full bg-primary transition-all" style={{ width: `${percentage}%` }} />
+          </div>
+          <span className="text-sm tabular-nums">{percentage.toFixed(1)}%</span>
+        </div>
+      );
+    };
     this._formatters["nanosecond"] = (v) => this.nanoFormat(v, 2);
     this._formatters["millisecond"] = (v) => this.milliFormat(v, 2);
     this._formatters["microsecond"] = (v) => this.microFormat(v, 2);

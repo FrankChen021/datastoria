@@ -3,11 +3,11 @@
 import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { DateTimeExtension } from "@/lib/datetime-utils";
-import { Formatter, type FormatName } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
 import * as echarts from "echarts";
 import { ChevronRight, EllipsisVertical, Minus } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Formatter, type FormatName } from "../../lib/formatter";
 import FloatingProgressBar from "../floating-progress-bar";
 import { useTheme } from "../theme-provider";
 import { Button } from "../ui/button";
