@@ -7,7 +7,7 @@ import { DashboardGroupSection } from "./dashboard-group-section";
 import type { Dashboard, DashboardGroup } from "./dashboard-model";
 import type { RefreshableComponent, RefreshParameter } from "./refreshable-component";
 import RefreshableStatComponent from "./refreshable-stat-chart";
- 
+
 import RefreshableTimeseriesChart from "./refreshable-timeseries-chart";
 import TimeSpanSelector, { BUILT_IN_TIME_SPAN_LIST } from "./timespan-selector";
 
@@ -47,7 +47,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ dashboard, searchParams =
   const inputFilterRef = useRef<HTMLInputElement>(undefined);
   const subComponentRefs = useRef<(RefreshableComponent | null)[]>([]);
   const filterRef = useRef<TimeSpanSelector | null>(null);
-
 
   // Function to connect all chart instances together
   const connectAllCharts = useCallback(() => {
@@ -115,7 +114,20 @@ const DashboardView: React.FC<DashboardViewProps> = ({ dashboard, searchParams =
     return BUILT_IN_TIME_SPAN_LIST[3];
   }, []);
 
+  // Get the current selected time span with fallback to default
+  // This ensures charts always get a valid time span, even when filterRef is not ready yet
+  const getCurrentTimeSpan = useCallback(() => {
+    if (filterRef.current) {
+      return filterRef.current.getSelectedTimeSpan()?.calculateAbsoluteTimeSpan();
+    }
+    // Fallback to default time span when filterRef is not ready
+    // This allows charts to trigger their initial load immediately
+    return defaultTimeSpan.calculateAbsoluteTimeSpan();
+  }, [defaultTimeSpan]);
+
   // No initial refresh here; each component handles its own initial refresh via useRefreshable
+  // Charts will get the default time span initially, then refresh when TimeSpanSelector
+  // triggers onSelectedSpanChanged (which happens on mount via componentDidUpdate)
 
   console.log("Rendering dashboard", dashboard?.name);
 
@@ -217,24 +229,24 @@ const DashboardView: React.FC<DashboardViewProps> = ({ dashboard, searchParams =
                                   width: widthStyle,
                                 }}
                               >
-                              {(chart.type === "line" || chart.type === "bar" || chart.type === "area") && (
-                                <RefreshableTimeseriesChart
-                                  ref={(el) => {
-                                    onSubComponentUpdated(el, currentIndex);
-                                  }}
-                                  descriptor={chart as TimeseriesDescriptor}
-                                  selectedTimeSpan={filterRef.current?.getSelectedTimeSpan()?.calculateAbsoluteTimeSpan()}
-                                  inputFilter={inputFilterRef.current?.value}
-                                  searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
-                                />
-                              )}
+                                {(chart.type === "line" || chart.type === "bar" || chart.type === "area") && (
+                                  <RefreshableTimeseriesChart
+                                    ref={(el) => {
+                                      onSubComponentUpdated(el, currentIndex);
+                                    }}
+                                    descriptor={chart as TimeseriesDescriptor}
+                                    selectedTimeSpan={getCurrentTimeSpan()}
+                                    inputFilter={inputFilterRef.current?.value}
+                                    searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
+                                  />
+                                )}
                                 {chart.type === "stat" && (
                                   <RefreshableStatComponent
                                     ref={(el) => {
                                       onSubComponentUpdated(el, currentIndex);
                                     }}
                                     descriptor={chart as StatDescriptor}
-                                    selectedTimeSpan={filterRef.current?.getSelectedTimeSpan()?.calculateAbsoluteTimeSpan()}
+                                    selectedTimeSpan={getCurrentTimeSpan()}
                                     searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
                                   />
                                 )}
@@ -255,7 +267,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ dashboard, searchParams =
                           const widthPercent = chart.width >= 4 ? 100 : (chart.width / 4) * 100;
                           const gapAdjustment = chart.width >= 4 ? 0 : (3 * 0.25) / 4; // 0.1875rem per chart
                           const widthStyle = chart.width >= 4 ? "100%" : `calc(${widthPercent}% - ${gapAdjustment}rem)`;
-                      return (
+                          return (
                             <div
                               key={`chart-${chartIndex}`}
                               style={{
@@ -268,7 +280,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ dashboard, searchParams =
                                     onSubComponentUpdated(el, currentIndex);
                                   }}
                                   descriptor={chart as TimeseriesDescriptor}
-                                  selectedTimeSpan={filterRef.current?.getSelectedTimeSpan()?.calculateAbsoluteTimeSpan()}
+                                  selectedTimeSpan={getCurrentTimeSpan()}
                                   inputFilter={inputFilterRef.current?.value}
                                   searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
                                 />
@@ -279,7 +291,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ dashboard, searchParams =
                                     onSubComponentUpdated(el, currentIndex);
                                   }}
                                   descriptor={chart as StatDescriptor}
-                                  selectedTimeSpan={filterRef.current?.getSelectedTimeSpan()?.calculateAbsoluteTimeSpan()}
+                                  selectedTimeSpan={getCurrentTimeSpan()}
                                   searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
                                 />
                               )}

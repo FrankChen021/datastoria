@@ -267,10 +267,6 @@ ORDER BY
                   title: "Result Part Name",
                 },
                 {
-                  name: "is_mutation",
-                  title: "Is Mutation",
-                },
-                {
                   name: "num_parts",
                   title: "Number of Parts",
                   format: "comma_number",
@@ -278,7 +274,7 @@ ORDER BY
                 {
                   name: "elapsed",
                   title: "Elapsed",
-                  format: "seconds",
+                  format: "timeDuration",
                 },
                 {
                   name: "progress",
@@ -286,6 +282,10 @@ ORDER BY
                   format: "percentage_bar",
                   formatArgs: [100, 16],
                   width: 50,
+                },
+                {
+                  name: "is_mutation",
+                  title: "Is Mutation",
                 },
                 {
                   name: "total_size_bytes_compressed",
@@ -325,7 +325,7 @@ ORDER BY
               ],
               sortOption: {
                 initialSort: {
-                  column: "progress",
+                  column: "elapsed",
                   direction: "desc",
                 },
               },
@@ -335,7 +335,7 @@ SELECT
     database || '.' || table AS table,
     result_part_name,  
     is_mutation,  
-    elapsed, 
+    elapsed * 1000 AS elapsed, 
     progress * 100 AS progress, 
     length(source_part_names) as num_parts,
     total_size_bytes_compressed,
@@ -346,7 +346,7 @@ SELECT
     columns_written,
     memory_usage
 FROM system.merges 
-ORDER BY progress DESC
+ORDER BY elapsed DESC
 `,
               },
             } as TableDescriptor,
