@@ -1,4 +1,5 @@
-import NavBar from "@/components/nav-bar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createRootRoute({
@@ -7,9 +8,11 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   return (
-    <>
-      <NavBar />
-      <Outlet />
-    </>
+    <SidebarProvider open={false}>
+      <AppSidebar />
+      <SidebarInset>
+        <Outlet />
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
