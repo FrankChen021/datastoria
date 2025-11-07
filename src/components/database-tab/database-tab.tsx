@@ -1,5 +1,5 @@
 import type { TableDescriptor, TransposeTableDescriptor } from "@/components/dashboard/chart-utils";
-import { TableTabManager } from "@/components/table-tab/table-tab-manager";
+import { TabManager } from "@/components/tab-manager";
 import type { FormatName } from "@/lib/formatter";
 import { useMemo } from "react";
 import RefreshableTableComponent from "../dashboard/refreshable-table-component";
@@ -59,7 +59,7 @@ where database = '${database}'
   // Create table descriptor for tables list
   const tablesDescriptor = useMemo<TableDescriptor>(() => {
     const handleTableClick = (tableName: string, tableEngine: string) => {
-      TableTabManager.sendOpenTableTabRequest(database, tableName, tableEngine);
+      TabManager.sendOpenTableTabRequest(database, tableName, tableEngine);
     };
 
     const fieldOptions = {

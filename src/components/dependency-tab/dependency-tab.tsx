@@ -1,6 +1,6 @@
 import FloatingProgressBar from "@/components/floating-progress-bar";
 import { GraphvizComponent } from "@/components/graphviz-component/GraphvizComponent";
-import { TableTabManager } from "@/components/table-tab/table-tab-manager";
+import { TabManager } from "@/components/tab-manager";
 import { useTheme } from "@/components/theme-provider";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
@@ -265,7 +265,7 @@ FROM system.tables`;
 
   const handleOpenTableTab = () => {
     if (!showTableNode) return;
-    TableTabManager.sendOpenTableTabRequest(showTableNode.database, showTableNode.name, showTableNode.engine);
+    TabManager.sendOpenTableTabRequest(showTableNode.database, showTableNode.name, showTableNode.engine);
   };
 
   if (!queryResponse && !isLoading) {

@@ -1,5 +1,5 @@
+import type { TabInfo } from "@/components/tab-manager";
 import { Button } from "@/components/ui/button";
-import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -7,65 +7,26 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-
-interface TableTabInfo {
-  id: string;
-  database: string;
-  table: string;
-  engine?: string;
-}
-
-interface DependencyTabInfo {
-  id: string;
-  database: string;
-}
-
-interface DatabaseTabInfo {
-  id: string;
-  database: string;
-}
-
-interface DashboardTabInfo {
-  id: string;
-  host: string;
-}
 
 interface MainPageTabListProps {
   activeTab: string;
   onTabChange: (tabId: string) => void;
-  tableTabs: TableTabInfo[];
-  dependencyTabs: DependencyTabInfo[];
-  databaseTabs: DatabaseTabInfo[];
-  dashboardTabs: DashboardTabInfo[];
-  onCloseTableTab: (tabId: string, event?: React.MouseEvent) => void;
-  onCloseDependencyTab: (tabId: string, event?: React.MouseEvent) => void;
-  onCloseDatabaseTab: (tabId: string, event?: React.MouseEvent) => void;
-  onCloseDashboardTab: (tabId: string, event?: React.MouseEvent) => void;
+  tabs: TabInfo[];
+  onCloseTab: (tabId: string, event?: React.MouseEvent) => void;
   onCloseTabsToRight: (tabId: string) => void;
   onCloseOthers: (tabId: string) => void;
   onCloseAll: () => void;
-  getPreviousTabId: (
-    tabId: string,
-    tableTabs: TableTabInfo[],
-    dependencyTabs: DependencyTabInfo[],
-    databaseTabs: DatabaseTabInfo[],
-    dashboardTabs: DashboardTabInfo[]
-  ) => string;
+  getPreviousTabId: (tabId: string, tabsList: TabInfo[]) => string;
 }
 
 export function MainPageTabList({
   activeTab,
   onTabChange,
-  tableTabs,
-  dependencyTabs,
-  databaseTabs,
-  dashboardTabs,
-  onCloseTableTab,
-  onCloseDependencyTab,
-  onCloseDatabaseTab,
-  onCloseDashboardTab,
+  tabs,
+  onCloseTab,
   onCloseTabsToRight,
   onCloseOthers,
   onCloseAll,
@@ -140,7 +101,7 @@ export function MainPageTabList({
       // Use requestAnimationFrame for resize to batch updates
       requestAnimationFrame(checkScrollPosition);
     });
-    resizeObserver.observe(container);
+      resizeObserver.observe(container);
 
     container.addEventListener("scroll", handleScroll, { passive: true });
     // Add wheel event listener to prevent browser navigation
@@ -155,7 +116,7 @@ export function MainPageTabList({
         scrollTimeoutRef.current = null;
       }
     };
-  }, [checkScrollPosition, handleScroll, handleWheel, tableTabs, dependencyTabs, databaseTabs, dashboardTabs]);
+  }, [checkScrollPosition, handleScroll, handleWheel, tabs]);
 
   // Scroll active tab into view
   useEffect(() => {
@@ -178,7 +139,7 @@ export function MainPageTabList({
     requestAnimationFrame(() => {
       setTimeout(checkScrollPosition, 100);
     });
-  }, [activeTab, tableTabs, dependencyTabs, databaseTabs, dashboardTabs, checkScrollPosition]);
+  }, [activeTab, tabs, checkScrollPosition]);
 
   // Handle scroll left
   const handleScrollLeft = useCallback(() => {
@@ -200,18 +161,22 @@ export function MainPageTabList({
     setTimeout(handleScroll, 100);
   }, [handleScroll]);
 
+  const showNavigationButtons = canScrollLeft || canScrollRight;
+
   return (
     <div className="relative w-full border-b bg-background h-9 flex items-center">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-9 w-9 rounded-none shrink-0 z-10"
-        onClick={handleScrollLeft}
-        disabled={!canScrollLeft}
-        aria-label="Scroll tabs left"
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
+      {showNavigationButtons && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-none shrink-0 z-10"
+          onClick={handleScrollLeft}
+          disabled={!canScrollLeft}
+          aria-label="Scroll tabs left"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+      )}
       <div ref={tabsScrollContainerRef} className="flex-1 overflow-x-auto scrollbar-hide">
         <TabsList className="inline-flex justify-start rounded-none border-0 h-auto p-0 bg-transparent flex-nowrap">
           <ContextMenu>
@@ -229,259 +194,118 @@ export function MainPageTabList({
             <ContextMenuContent>
               <ContextMenuItem
                 onClick={() => onCloseTabsToRight("query")}
-                disabled={tableTabs.length === 0 && dependencyTabs.length === 0 && databaseTabs.length === 0 && dashboardTabs.length === 0}
+                disabled={tabs.length === 0}
               >
                 Close to the right
               </ContextMenuItem>
               <ContextMenuSeparator />
               <ContextMenuItem
                 onClick={() => onCloseOthers("query")}
-                disabled={tableTabs.length === 0 && dependencyTabs.length === 0 && databaseTabs.length === 0 && dashboardTabs.length === 0}
+                disabled={tabs.length === 0}
               >
                 Close others
               </ContextMenuItem>
               <ContextMenuItem
                 onClick={onCloseAll}
-                disabled={tableTabs.length === 0 && dependencyTabs.length === 0 && databaseTabs.length === 0 && dashboardTabs.length === 0}
+                disabled={tabs.length === 0}
               >
                 Close all
               </ContextMenuItem>
             </ContextMenuContent>
           </ContextMenu>
-          {dashboardTabs.map((tab, index) => (
-            <ContextMenu key={tab.id}>
-              <ContextMenuTrigger asChild>
-                <div className="relative inline-flex items-center flex-shrink-0">
-                  <TabsTrigger
-                    value={tab.id}
-                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pr-8"
-                    onClick={() => onTabChange(tab.id)}
-                  >
-                    <span>Dashboard: {tab.host}</span>
-                  </TabsTrigger>
-                  <button
-                    onClick={(e) => onCloseDashboardTab(tab.id, e)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted z-10"
-                    aria-label="Close tab"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              </ContextMenuTrigger>
-              <ContextMenuContent>
-                <ContextMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (activeTab === tab.id) {
-                      const previousTabId = getPreviousTabId(tab.id, tableTabs, dependencyTabs, databaseTabs, dashboardTabs);
-                      onTabChange(previousTabId);
-                    }
-                    onCloseDashboardTab(tab.id);
-                  }}
-                >
-                  Close this tab
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onClick={() => onCloseTabsToRight(tab.id)}
-                  disabled={index === dashboardTabs.length - 1 && dependencyTabs.length === 0 && databaseTabs.length === 0 && tableTabs.length === 0}
-                >
-                  Close to the right
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem
-                  onClick={() => onCloseOthers(tab.id)}
-                  disabled={dashboardTabs.length === 1 && dependencyTabs.length === 0 && databaseTabs.length === 0 && tableTabs.length === 0}
-                >
-                  Close others
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onClick={onCloseAll}
-                  disabled={dashboardTabs.length === 0 && dependencyTabs.length === 0 && databaseTabs.length === 0 && tableTabs.length === 0}
-                >
-                  Close all
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
-          ))}
-          {databaseTabs.map((tab, index) => (
-            <ContextMenu key={tab.id}>
-              <ContextMenuTrigger asChild>
-                <div className="relative inline-flex items-center flex-shrink-0">
-                  <TabsTrigger
-                    value={tab.id}
-                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pr-8"
-                    onClick={() => onTabChange(tab.id)}
-                  >
-                    <span>Database: {tab.database}</span>
-                  </TabsTrigger>
-                  <button
-                    onClick={(e) => onCloseDatabaseTab(tab.id, e)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted z-10"
-                    aria-label="Close tab"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              </ContextMenuTrigger>
-              <ContextMenuContent>
-                <ContextMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (activeTab === tab.id) {
-                      const previousTabId = getPreviousTabId(tab.id, tableTabs, dependencyTabs, databaseTabs, dashboardTabs);
-                      onTabChange(previousTabId);
-                    }
-                    onCloseDatabaseTab(tab.id);
-                  }}
-                >
-                  Close this tab
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onClick={() => onCloseTabsToRight(tab.id)}
-                  disabled={index === databaseTabs.length - 1 && dependencyTabs.length === 0 && tableTabs.length === 0}
-                >
-                  Close to the right
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem
-                  onClick={() => onCloseOthers(tab.id)}
-                  disabled={databaseTabs.length === 1 && dependencyTabs.length === 0 && tableTabs.length === 0}
-                >
-                  Close others
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onClick={onCloseAll}
-                  disabled={databaseTabs.length === 0 && dependencyTabs.length === 0 && tableTabs.length === 0}
-                >
-                  Close all
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
-          ))}
-          {dependencyTabs.map((tab, index) => (
-            <ContextMenu key={tab.id}>
-              <ContextMenuTrigger asChild>
-                <div className="relative inline-flex items-center flex-shrink-0">
-                  <TabsTrigger
-                    value={tab.id}
-                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pr-8"
-                    onClick={() => onTabChange(tab.id)}
-                  >
-                    <span>Dependencies: {tab.database}</span>
-                  </TabsTrigger>
-                  <button
-                    onClick={(e) => onCloseDependencyTab(tab.id, e)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted z-10"
-                    aria-label="Close tab"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              </ContextMenuTrigger>
-              <ContextMenuContent>
-                <ContextMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (activeTab === tab.id) {
-                      const previousTabId = getPreviousTabId(tab.id, tableTabs, dependencyTabs, databaseTabs, dashboardTabs);
-                      onTabChange(previousTabId);
-                    }
-                    onCloseDependencyTab(tab.id);
-                  }}
-                >
-                  Close this tab
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onClick={() => onCloseTabsToRight(tab.id)}
-                  disabled={index === dependencyTabs.length - 1 && databaseTabs.length === 0 && tableTabs.length === 0}
-                >
-                  Close to the right
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem
-                  onClick={() => onCloseOthers(tab.id)}
-                  disabled={dependencyTabs.length === 1 && databaseTabs.length === 0 && tableTabs.length === 0}
-                >
-                  Close others
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onClick={onCloseAll}
-                  disabled={dependencyTabs.length === 0 && databaseTabs.length === 0 && tableTabs.length === 0}
-                >
-                  Close all
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
-          ))}
-          {tableTabs.map((tab, index) => (
-            <ContextMenu key={tab.id}>
-              <ContextMenuTrigger asChild>
-                <div className="relative inline-flex items-center flex-shrink-0">
-                  <TabsTrigger
-                    value={tab.id}
-                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pr-8"
-                    onClick={() => onTabChange(tab.id)}
-                  >
-                    <span>
-                      {tab.database}.{tab.table}
-                    </span>
-                  </TabsTrigger>
-                  <button
-                    onClick={(e) => onCloseTableTab(tab.id, e)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted z-10"
-                    aria-label="Close tab"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              </ContextMenuTrigger>
-              <ContextMenuContent>
-                <ContextMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (activeTab === tab.id) {
-                      const previousTabId = getPreviousTabId(tab.id, tableTabs, dependencyTabs, databaseTabs, dashboardTabs);
-                      onTabChange(previousTabId);
-                    }
-                    onCloseTableTab(tab.id);
-                  }}
-                >
-                  Close this tab
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onClick={() => onCloseTabsToRight(tab.id)}
-                  disabled={index === tableTabs.length - 1 && dependencyTabs.length === 0 && databaseTabs.length === 0}
-                >
-                  Close to the right
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem
-                  onClick={() => onCloseOthers(tab.id)}
-                  disabled={tableTabs.length === 1 && dependencyTabs.length === 0 && databaseTabs.length === 0}
-                >
-                  Close others
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onClick={onCloseAll}
-                  disabled={tableTabs.length === 0 && dependencyTabs.length === 0 && databaseTabs.length === 0}
-                >
-                  Close all
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
-          ))}
+          {(() => {
+            // Sort tabs by type: dashboard, database, dependency, table
+            const order: Record<string, number> = { dashboard: 1, database: 2, dependency: 3, table: 4 };
+            const sortedTabs = [...tabs].sort((a, b) => (order[a.type] || 0) - (order[b.type] || 0));
+
+            return sortedTabs.map((tab, index) => {
+              const hasTabsToRight = index < sortedTabs.length - 1;
+              const hasOtherTabs = tabs.length > 1;
+
+              let tabLabel: string;
+              if (tab.type === "dashboard") {
+                tabLabel = `Dashboard: ${tab.host}`;
+              } else if (tab.type === "database") {
+                tabLabel = `Database: ${tab.database}`;
+              } else if (tab.type === "dependency") {
+                tabLabel = `Dependencies: ${tab.database}`;
+              } else if (tab.type === "table") {
+                tabLabel = `${tab.database}.${tab.table}`;
+              } else {
+                return null;
+              }
+
+              return (
+                <ContextMenu key={tab.id}>
+                  <ContextMenuTrigger asChild>
+                    <div className="relative inline-flex items-center flex-shrink-0">
+                      <TabsTrigger
+                        value={tab.id}
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pr-8"
+                        onClick={() => onTabChange(tab.id)}
+                      >
+                        <span>{tabLabel}</span>
+                      </TabsTrigger>
+                      <button
+                        onClick={(e) => onCloseTab(tab.id, e)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted z-10"
+                        aria-label="Close tab"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (activeTab === tab.id) {
+                          const previousTabId = getPreviousTabId(tab.id, tabs);
+                          onTabChange(previousTabId);
+                        }
+                        onCloseTab(tab.id);
+                      }}
+                    >
+                      Close this tab
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => onCloseTabsToRight(tab.id)}
+                      disabled={!hasTabsToRight}
+                    >
+                      Close to the right
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem
+                      onClick={() => onCloseOthers(tab.id)}
+                      disabled={!hasOtherTabs}
+                    >
+                      Close others
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={onCloseAll}
+                      disabled={tabs.length === 0}
+                    >
+                      Close all
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              );
+            });
+          })()}
         </TabsList>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-9 w-9 rounded-none shrink-0 z-10"
-        onClick={handleScrollRight}
-        disabled={!canScrollRight}
-        aria-label="Scroll tabs right"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
+      {showNavigationButtons && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-none shrink-0 z-10"
+          onClick={handleScrollRight}
+          disabled={!canScrollRight}
+          aria-label="Scroll tabs right"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }

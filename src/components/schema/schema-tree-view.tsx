@@ -26,11 +26,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { DashboardTabManager } from "../dashboard-tab/dashboard-tab-manager";
-import { DatabaseTabManager } from "../database-tab/database-tab-manager";
-import { DependencyTabManager } from "../dependency-tab/dependency-tab-manager";
 import { QueryExecutor } from "../query-tab/query-execution/query-executor";
-import { TableTabManager } from "../table-tab/table-tab-manager";
+import { TabManager } from "../tab-manager";
 import { showDropTableConfirmationDialog } from "./drop-table-confirmation-dialog";
 
 // Shared badge component for schema tree nodes
@@ -541,7 +538,7 @@ export function SchemaTreeView({ onExecuteQuery, tabId }: SchemaTreeViewProps) {
   const handleShowDependency = useCallback(
     (databaseName: string) => {
       // Open dependency tab instead of executing query
-      DependencyTabManager.sendOpenDependencyTabRequest(databaseName, tabId);
+      TabManager.sendOpenDependencyTabRequest(databaseName, tabId);
 
       setContextMenuNode(null);
       setContextMenuPosition(null);
@@ -741,17 +738,17 @@ ORDER BY lower(database), database, table, columnName`,
       // If a host node is clicked, open the dashboard tab
       if (item.data.type === "host") {
         const hostData = item.data as HostNodeData;
-        DashboardTabManager.sendOpenDashboardTabRequest(hostData.host, tabId);
+        TabManager.sendOpenDashboardTabRequest(hostData.host, tabId);
       }
       // If a database node is clicked, open the database tab
       else if (item.data.type === "database") {
         const databaseData = item.data as DatabaseNodeData;
-        DatabaseTabManager.sendOpenDatabaseTabRequest(databaseData.name, tabId);
+        TabManager.sendOpenDatabaseTabRequest(databaseData.name, tabId);
       }
       // If a table node is clicked, open the table tab
       else if (item.data.type === "table") {
         const tableData = item.data as TableNodeData;
-        TableTabManager.sendOpenTableTabRequest(tableData.database, tableData.table, tableData.fullTableEngine, tabId);
+        TabManager.sendOpenTableTabRequest(tableData.database, tableData.table, tableData.fullTableEngine, tabId);
       }
     },
     [tabId]
