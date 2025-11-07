@@ -6,7 +6,7 @@ import TimeSpanSelector, {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DataSampleView } from "./data-sample-view";
 import { PartLogView } from "./part-log-view";
 import { PartitionSizeView } from "./partition-view";
@@ -57,9 +57,7 @@ export function TableTab({ database, table, engine }: TableTabProps) {
     : new Set(["data-sample", "metadata", "table-size", "partitions", "query-log", "part-log"]);
 
   // Remove table-size and partitions for System tables
-  const availableTabs = isSystemTable
-    ? new Set([...baseAvailableTabs].filter((tab) => tab !== "table-size" && tab !== "partitions"))
-    : baseAvailableTabs;
+  const availableTabs = isSystemTable ? new Set(["data-sample", "metadata"]) : baseAvailableTabs;
 
   const initialTab = availableTabs.has("table-size") ? "table-size" : "metadata";
   const [currentTab, setCurrentTab] = useState<string>(initialTab);
@@ -104,10 +102,23 @@ export function TableTab({ database, table, engine }: TableTabProps) {
   }, [currentTab]);
 
   // Check if current tab has refresh capability
-  // This will re-evaluate when currentTab changes
-  const currentRef = useMemo(() => getCurrentRef(), [getCurrentRef]);
-  const hasRefresh = useMemo(() => hasRefreshCapability(currentRef), [currentRef]);
-  const supportsTimeSpan = useMemo(() => currentRef?.supportsTimeSpanSelector === true, [currentRef]);
+  // Use state to track ref availability, which gets updated after child components mount
+  const [hasRefresh, setHasRefresh] = useState(false);
+  const [supportsTimeSpan, setSupportsTimeSpan] = useState(false);
+
+  // Re-check ref availability after mount and when currentTab changes
+  // This ensures we detect when the ref becomes available after child component mounts
+  useEffect(() => {
+    // Use a small timeout to allow child components to mount and set their refs
+    const timeoutId = setTimeout(() => {
+      const ref = getCurrentRef();
+      const hasRefreshCap = hasRefreshCapability(ref);
+      setHasRefresh(hasRefreshCap);
+      setSupportsTimeSpan(ref?.supportsTimeSpanSelector === true);
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [currentTab, getCurrentRef]);
 
   // Mark tab as loaded when it becomes active for the first time
   useEffect(() => {
@@ -254,12 +265,7 @@ export function TableTab({ database, table, engine }: TableTabProps) {
               role="tabpanel"
               aria-hidden={currentTab !== "part-log"}
             >
-              <PartLogView
-                ref={partLogRef}
-                database={database}
-                table={table}
-                autoLoad={loadedTabs.has("part-log")}
-              />
+              <PartLogView ref={partLogRef} database={database} table={table} autoLoad={loadedTabs.has("part-log")} />
             </div>
           )}
         </div>

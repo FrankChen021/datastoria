@@ -22,6 +22,7 @@ import {
   Search,
   Table as TableIcon,
   Type,
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -247,6 +248,7 @@ export function SchemaTreeView({ onExecuteQuery, tabId }: SchemaTreeViewProps) {
   const [apiCanceller, setApiCanceller] = useState<ApiCanceller | null>(null);
   const isLoadingRef = useRef(false);
   const currentConnectionIdRef = useRef<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Cancel API call on unmount
   useEffect(() => {
@@ -650,6 +652,13 @@ ORDER BY lower(database), database, table, columnName`,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConnection]);
 
+  // Auto-focus search input when tree data is loaded
+  useEffect(() => {
+    if (treeData.length > 0 && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [treeData.length]);
+
   const handleDropTable = useCallback(() => {
     if (contextMenuNode?.data?.type === "table" && selectedConnection) {
       const tableData = contextMenuNode.data as TableNodeData;
@@ -762,16 +771,28 @@ ORDER BY lower(database), database, table, columnName`,
       <div className="relative border-b flex items-center h-9">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
         <Input
+          ref={searchInputRef}
           placeholder="Filter database or table"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-8 pr-10 rounded-none border-none flex-1 h-9"
+          className="pl-8 pr-20 rounded-none border-none flex-1 h-9"
           disabled={!selectedConnection || (!completeTree && treeData.length === 0 && !isLoading)}
         />
+        {search && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute right-8 h-6 w-6 shrink-0"
+            onClick={() => setSearch("")}
+            title="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
         <Button
           variant="ghost"
-          size="icon"
-          className="absolute right-1 h-8 w-8 shrink-0"
+          size="sm"
+          className="absolute right-1 h-6 w-6 shrink-0"
           onClick={() => loadDatabases()}
           disabled={isLoading || !selectedConnection}
           title="Refresh schema"

@@ -2,7 +2,6 @@ import type { StatDescriptor } from "@/components/dashboard/chart-utils";
 import DashboardContainer, { type DashboardContainerRef } from "@/components/dashboard/dashboard-container";
 import type { Dashboard } from "@/components/dashboard/dashboard-model";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
-import { replaceTimeSpanParams } from "@/components/dashboard/sql-time-utils";
 import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 import type { RefreshableTabViewRef } from "./table-tab";
@@ -39,62 +38,6 @@ export const PartLogView = forwardRef<RefreshableTabViewRef, PartLogViewProps>((
     [selectedTimeSpan]
   );
 
-  // Create stat descriptor for merge count
-  const mergeCountStatDescriptor = useMemo<StatDescriptor>(() => {
-    // Use template parameters for time span
-    const sqlTemplate = `
-SELECT count()
-FROM merge('system', '^part_log')
-WHERE 
-    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
-    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
-    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
-    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
-    AND database = '${database}'
-    AND table = '${table}'
-    AND event_type = 'MergeParts'`;
-
-    // Replace time span parameters
-    // If no time span is selected, use a default (start of today to now)
-    // This ensures the SQL is valid even before user selects a time span
-    let timeSpanToUse = selectedTimeSpan;
-    if (!timeSpanToUse) {
-      const now = new Date();
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
-      timeSpanToUse = {
-        startISO8601: startOfToday.toISOString(),
-        endISO8601: now.toISOString(),
-      };
-    }
-    const sql = replaceTimeSpanParams(sqlTemplate, timeSpanToUse);
-
-    return {
-      type: "stat",
-      id: `merge-count-${database}-${table}`,
-      titleOption: {
-        title: "Number of Merges",
-        align: "left",
-      },
-      isCollapsed: false,
-      width: 1,
-      query: {
-        sql: sql,
-        headers: {
-          "Content-Type": "text/plain",
-        },
-        params: {
-          default_format: "JSON",
-        },
-      },
-      valueOption: {
-        reducer: "sum",
-        align: "center",
-        format: "comma_number",
-      },
-    };
-  }, [database, table, selectedTimeSpan]);
-
   // Create dashboard with the stat chart
   const dashboard = useMemo<Dashboard>(() => {
     return {
@@ -107,9 +50,91 @@ WHERE
         showRefresh: false,
         showAutoRefresh: false,
       },
-      charts: [mergeCountStatDescriptor],
+      charts: [
+        {
+          type: "stat",
+          id: `merge-count-${database}-${table}`,
+          titleOption: {
+            title: "Number of Merges",
+            align: "center",
+          },
+          isCollapsed: false,
+          width: 2,
+          minimapOption: {
+            type: "line",
+          },
+          valueOption: {
+            reducer: "sum",
+            align: "center",
+            format: "comma_number",
+          },
+          query: {
+            sql: `
+SELECT 
+toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+count()
+FROM system.part_log
+WHERE 
+    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+    AND database = '${database}'
+    AND table = '${table}'
+    AND event_type = 'MergeParts'
+GROUP BY t
+ORDER BY t
+WITH FILL STEP {rounding:UInt32}
+`,
+            headers: {
+              "Content-Type": "text/plain",
+            },
+          },
+        } as StatDescriptor,
+
+        {
+          type: "stat",
+          id: `mutation-count-${database}-${table}`,
+          titleOption: {
+            title: "Number of Mutations",
+            align: "center",
+          },
+          isCollapsed: false,
+          width: 2,
+          minimapOption: {
+            type: "line",
+          },
+          valueOption: {
+            reducer: "sum",
+            align: "center",
+            format: "comma_number",
+          },
+          query: {
+            sql: `
+SELECT 
+toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+count()
+FROM system.part_log
+WHERE 
+    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+    AND database = '${database}'
+    AND table = '${table}'
+    AND event_type = 'MutateParts'
+GROUP BY t
+ORDER BY t
+WITH FILL STEP {rounding:UInt32}
+`,
+            headers: {
+              "Content-Type": "text/plain",
+            },
+          },
+        } as StatDescriptor,
+      ],
     };
-  }, [mergeCountStatDescriptor, database, table]);
+  }, [database, table]);
 
   return (
     <DashboardContainer
@@ -122,4 +147,3 @@ WHERE
 });
 
 PartLogView.displayName = "PartLogView";
-

@@ -16,6 +16,8 @@ import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/
 import { ChartContainer, ChartTooltip } from "../ui/chart";
 import { Skeleton } from "../ui/skeleton";
 import { Dialog } from "../use-dialog";
+import { classifyColumns, transformRowsToChartData } from "./chart-data-utils";
+import { replaceTimeSpanParams } from "./sql-time-utils";
 import type {
   ChartDescriptor,
   MinimapOption,
@@ -265,30 +267,64 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
     }, [descriptor]);
 
     const getMinimapDataFromResponse = useCallback((response: ApiResponse): MinimapDataPoint[] => {
-      if (!response.data || response.data.length === 0) {
+      if (!response.data) {
         return [];
       }
 
-      const dataPoints: MinimapDataPoint[] = [];
+      try {
+        const responseData = response.data;
+        
+        // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
+        const rows = responseData.data || [];
+        const meta = responseData.meta || [];
 
-      // // For timeseries queries, response.data is an array of metrics with tags and values
-      // // Each metric has: { tags: string[], values: number[] }
-      // response.data.forEach((metric: { tags: string[]; values: number[] }) => {
-      //   // Build timeseries data points from values array
-      //   let timestamp = response.startTimestamp;
+        if (rows.length === 0) {
+          return [];
+        }
 
-      //   metric.values.forEach((value) => {
-      //     if (value !== null && value !== undefined) {
-      //       dataPoints.push({
-      //         timestamp: timestamp,
-      //         value: value,
-      //       });
-      //     }
-      //     timestamp += response.interval;
-      //   });
-      // });
+        // Transform rows to chart data format (with timestamp normalized)
+        const transformedData = transformRowsToChartData(rows, meta);
 
-      return dataPoints;
+        // Classify columns to find timestamp and metric columns
+        const allColumns = meta.length > 0 ? meta.map((m: { name: string }) => m.name) : Object.keys(transformedData[0]);
+        const { timestampKey, metricColumns } = classifyColumns(allColumns, meta, transformedData);
+
+        // Use the first metric column as the value for the minimap
+        const valueColumn = metricColumns[0] || "value";
+
+        // Build minimap data points
+        const dataPoints: MinimapDataPoint[] = [];
+        transformedData.forEach((row) => {
+          const timestamp = row[timestampKey] as number;
+          const value = row[valueColumn];
+
+          if (timestamp && value !== null && value !== undefined) {
+            // Convert value to number
+            let numValue: number;
+            if (typeof value === "number") {
+              numValue = value;
+            } else if (typeof value === "string") {
+              numValue = parseFloat(value);
+              if (isNaN(numValue)) return; // Skip invalid values
+            } else {
+              return; // Skip non-numeric values
+            }
+
+            dataPoints.push({
+              timestamp,
+              value: numValue,
+            });
+          }
+        });
+
+        // Sort by timestamp
+        dataPoints.sort((a, b) => a.timestamp - b.timestamp);
+
+        return dataPoints;
+      } catch (error) {
+        console.error("Error processing minimap data:", error);
+        return [];
+      }
     }, []);
 
     const calculateReducedValue = useCallback((data: MinimapDataPoint[], reducer: Reducer): number => {
@@ -323,6 +359,15 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
 
     const loadData = useCallback(
       async (_param: RefreshParameter, isOffset: boolean = false) => {
+        // Validate that we have a time span
+        if (!_param.selectedTimeSpan) {
+          console.error(`No timespan for stat [${descriptor.id}] in loadData`);
+          if (!isOffset) {
+            setError("Please choose time span.");
+          }
+          return;
+        }
+
         const showMinimap = shouldShowMinimap() && !isOffset;
 
         console.trace(
@@ -339,45 +384,27 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
         }
 
         try {
-          // For timeseries queries with minimap, we need the full response to build the minimap
+          // For queries with minimap, we need the full response to build the minimap
           if (showMinimap) {
             const query = descriptor.query;
             const thisQuery = Object.assign({}, query) as SQLQuery;
 
-            // Interval
-            // thisQuery.interval = {
-            //   // Keep the step property defined in the chart
-            //   step: query.interval?.step,
+            // Replace time span template parameters in SQL
+            const finalSql = replaceTimeSpanParams(thisQuery.sql, _param.selectedTimeSpan);
 
-            //   startISO8601: param.selectedTimeSpan.startISO8601,
-            //   endISO8601: param.selectedTimeSpan.endISO8601,
-            // };
-            // if (thisQuery.bucketCount) {
-            //   thisQuery.interval.bucketCount = thisQuery.bucketCount;
-            //   delete thisQuery.bucketCount;
-            // }
-            // if (!thisQuery.interval.step) {
-            //   thisQuery.interval.step = calculateIntervalStep(thisQuery.interval);
-            // }
+            console.trace(
+              `Loading minimap data for stat [${descriptor.id}], SQL: ${finalSql.substring(0, 100)}...`
+            );
 
             Api.create(selectedConnection!).executeSQL(
               {
-                sql: thisQuery.sql,
+                sql: finalSql,
                 params: {
                   default_format: "JSON",
                   output_format_json_quote_64bit_integers: 0,
                 },
               },
               (response) => {
-                // Use the streaming API for better performance with large datasets
-                //const streaming: StreamingResponse = await dataSourceApi.queryStream(thisQuery);
-                // Use transformBucketByTimestampStreamToQueryResponse to properly handle typed stream
-                // Let it auto-infer value columns from metadata (last non-_timestamp, non-groupBy column)
-                //const response: QueryResponse = await transformBucketByTimestampStreamToQueryResponse(
-                //  streaming,
-                //  thisQuery
-                //);
-
                 // Process the response into minimap data points
                 const minimapDataResult = getMinimapDataFromResponse(response);
 
@@ -390,7 +417,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
                 const reducedValue = calculateReducedValue(minimapDataResult, reducer);
 
                 console.trace(
-                  `Processed minimap data for stat [${descriptor.id}], points: ${minimapDataResult.length}, reducedValue: ${reducedValue}`
+                  `Calculated reduced value for stat [${descriptor.id}], points: ${minimapDataResult.length}, reducer: ${reducer}, reducedValue: ${reducedValue}`
                 );
 
                 // Update state with both the reduced value and minimap data
@@ -406,7 +433,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
                 );
               },
               (error) => {
-                console.error(error);
+                console.error("Error loading minimap data:", error);
                 setError(error.errorMessage || "Failed to load data");
                 setIsLoadingValue(false);
                 setIsLoadingMinimap(false);
@@ -416,9 +443,16 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
             // For non-timeseries or no minimap, use the original scalar fetcher
             const query = Object.assign({}, descriptor.query);
 
+            // Replace time span template parameters in SQL
+            const finalSql = replaceTimeSpanParams(query.sql, _param.selectedTimeSpan);
+
+            console.trace(
+              `Loading scalar data for stat [${descriptor.id}], SQL: ${finalSql.substring(0, 100)}...`
+            );
+
             Api.create(selectedConnection!).executeSQL(
               {
-                sql: query.sql,
+                sql: finalSql,
                 params: {
                   default_format: "JSONCompact",
                   output_format_json_quote_64bit_integers: 0,

@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import type { FieldOption, SQLQuery, TransposeTableDescriptor } from "./chart-utils";
 import { inferFieldFormat } from "./format-inference";
 import type { RefreshableComponent, RefreshParameter } from "./refreshable-component";
+import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
 import { useRefreshable } from "./use-refreshable";
 
@@ -99,10 +100,17 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
             };
           }
 
+          // Replace time span template parameters in SQL
+          const finalSql = param.selectedTimeSpan ? replaceTimeSpanParams(query.sql, param.selectedTimeSpan) : query.sql;
+
+          console.trace(
+            `Executing SQL for transposed table [${descriptor.id}]: ${finalSql.substring(0, 100)}...`
+          );
+
           const api = Api.create(selectedConnection);
           const canceller = api.executeSQL(
             {
-              sql: query.sql,
+              sql: finalSql,
               headers: query.headers,
               params: {
                 default_format: "JSON",

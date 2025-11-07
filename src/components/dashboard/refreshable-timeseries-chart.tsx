@@ -16,6 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/colla
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Skeleton } from "../ui/skeleton";
 import { Dialog } from "../use-dialog";
+import { isTimestampColumn as isTimestampColumnUtil, transformRowsToChartData } from "./chart-data-utils";
 import type {
   ChartDescriptor,
   FieldOption,
@@ -104,102 +105,6 @@ const DrilldownChartRendererWithRefresh: React.FC<{
   }
   return null;
 };
-
-// Transform API rows/meta into chart-friendly data points (file-local)
-function transformRowsToChartData(
-  inputRows: unknown[],
-  inputMeta: Array<{ name: string; type?: string }>
-): Record<string, unknown>[] {
-  const first = inputRows[0];
-  const arrayFormat = Array.isArray(first);
-
-  // Helper function to check if a column is a timestamp column (not a metric)
-  const isTimestampColumn = (colName: string, colType?: string): boolean => {
-    const lower = colName.toLowerCase();
-
-    // Exact matches for common timestamp column names
-    if (colName === "t" || colName === "timestamp" || lower === "time" || lower === "date") {
-      return true;
-    }
-
-    // Check by type if available (DateTime, Date, etc.)
-    if (colType) {
-      const typeLower = colType.toLowerCase();
-      if (typeLower.includes("datetime") || typeLower.includes("date") || typeLower.includes("timestamp")) {
-        return true;
-      }
-    }
-
-    // Check by naming pattern: ends with _time with specific prefixes, or contains timestamp
-    // But exclude metric columns like cpu_time, query_time, OSCPUVirtualTimeMicroseconds, etc.
-    if (
-      lower.endsWith("_time") &&
-      (lower.startsWith("event_") ||
-        lower.startsWith("start_") ||
-        lower.startsWith("end_") ||
-        lower.includes("timestamp"))
-    ) {
-      return true;
-    }
-    if (
-      lower.startsWith("time_") ||
-      (lower.includes("timestamp") &&
-        !lower.includes("microseconds") &&
-        !lower.includes("milliseconds") &&
-        !lower.includes("nanoseconds"))
-    ) {
-      return true;
-    }
-
-    return false;
-  };
-
-  return inputRows.map((row: unknown) => {
-    const dataPoint: Record<string, unknown> = {};
-
-    if (arrayFormat) {
-      const rowArray = row as unknown[];
-      inputMeta.forEach((colMeta: { name: string; type?: string }, index: number) => {
-        const value = rowArray[index];
-        const colName = colMeta.name;
-
-        if (isTimestampColumn(colName, colMeta.type)) {
-          if (typeof value === "string") {
-            dataPoint.timestamp = new Date(value).getTime();
-          } else if (typeof value === "number") {
-            dataPoint.timestamp = value > 1e10 ? value : value * 1000;
-          } else {
-            dataPoint.timestamp = new Date(String(value)).getTime();
-          }
-          dataPoint[colName] = dataPoint.timestamp;
-        } else {
-          dataPoint[colName] = value;
-        }
-      });
-    } else {
-      const rowObject = row as Record<string, unknown>;
-      Object.keys(rowObject).forEach((colName) => {
-        const value = rowObject[colName];
-        // Find the column type from meta if available
-        const colMeta = inputMeta.find((m) => m.name === colName);
-        if (isTimestampColumn(colName, colMeta?.type)) {
-          if (typeof value === "string") {
-            dataPoint.timestamp = new Date(value).getTime();
-          } else if (typeof value === "number") {
-            dataPoint.timestamp = value > 1e10 ? value : value * 1000;
-          } else {
-            dataPoint.timestamp = new Date(String(value)).getTime();
-          }
-          dataPoint[colName] = dataPoint.timestamp;
-        } else {
-          dataPoint[colName] = value;
-        }
-      });
-    }
-
-    return dataPoint;
-  });
-}
 
 interface RefreshableTimeseriesChartProps {
   // The timeseries descriptor configuration
@@ -433,38 +338,9 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
           if (name === timestampKey || name.toLowerCase() === timestampKey.toLowerCase()) {
             return true;
           }
-
-          const lower = name.toLowerCase();
-          // Exact matches for common timestamp column names
-          if (name === "t" || name === "timestamp" || lower === "time" || lower === "date") {
-            return true;
-          }
-
-          // Check by type if available
+          
           const metaType = meta.find((m) => m.name === name)?.type;
-          if (metaType) {
-            const typeLower = metaType.toLowerCase();
-            if (typeLower.includes("datetime") || typeLower.includes("date") || typeLower.includes("timestamp")) {
-              return true;
-            }
-          }
-
-          // Check by naming pattern: ends with _time with specific prefixes, or contains timestamp
-          // But exclude metric columns like cpu_time, query_time, etc.
-          if (
-            lower.endsWith("_time") &&
-            (lower.startsWith("event_") ||
-              lower.startsWith("start_") ||
-              lower.startsWith("end_") ||
-              lower.includes("timestamp"))
-          ) {
-            return true;
-          }
-          if (lower.startsWith("time_") || lower.includes("timestamp")) {
-            return true;
-          }
-
-          return false;
+          return isTimestampColumnUtil(name, metaType);
         };
         const isNumericType = (type?: string) => {
           if (!type) return false;
@@ -966,48 +842,12 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
                   // Find metric columns (exclude timestamp and label columns)
                   let metricColumns: string[];
 
-                  // Helper function to identify timestamp column
-                  // Common timestamp column names: t, timestamp, time, date, event_time, start_time, end_time, etc.
-                  const isTimestampColumn = (name: string, colType?: string): boolean => {
-                    const lower = name.toLowerCase();
-                    // Check by exact name first (most common cases)
-                    if (name === "t" || name === "timestamp" || lower === "time" || lower === "date") {
-                      return true;
-                    }
-                    // Check by type if available (DateTime, Date, etc.)
-                    if (colType) {
-                      const typeLower = colType.toLowerCase();
-                      if (
-                        typeLower.includes("datetime") ||
-                        typeLower.includes("date") ||
-                        typeLower.includes("timestamp")
-                      ) {
-                        return true;
-                      }
-                    }
-                    // Check by naming pattern: ends with _time, starts with time_, or contains timestamp
-                    // But exclude columns like cpu_time, query_time, etc. that are metrics
-                    if (
-                      lower.endsWith("_time") &&
-                      (lower.startsWith("event_") ||
-                        lower.startsWith("start_") ||
-                        lower.startsWith("end_") ||
-                        lower.includes("timestamp"))
-                    ) {
-                      return true;
-                    }
-                    if (lower.startsWith("time_") || lower.includes("timestamp")) {
-                      return true;
-                    }
-                    return false;
-                  };
-
                   if (isArrayFormat && meta.length > 0) {
                     // Use meta for array format - we have type information
                     const allColumns = meta.map((colMeta: { name: string; type?: string }) => colMeta.name);
                     // Identify timestamp column using both name and type
                     const timestampCol = meta.find((colMeta: { name: string; type?: string }) =>
-                      isTimestampColumn(colMeta.name, colMeta.type)
+                      isTimestampColumnUtil(colMeta.name, colMeta.type)
                     )?.name;
                     metricColumns = allColumns.filter((name: string) => name !== timestampCol);
                   } else if (rows.length > 0) {
@@ -1015,7 +855,7 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
                     const firstRowObj = rows[0] as Record<string, unknown>;
                     const allColumns = Object.keys(firstRowObj);
                     // Identify timestamp column by name only
-                    const timestampCol = allColumns.find((name: string) => isTimestampColumn(name));
+                    const timestampCol = allColumns.find((name: string) => isTimestampColumnUtil(name));
                     metricColumns = allColumns.filter((name: string) => name !== timestampCol);
                   } else {
                     // No rows available, set empty array
