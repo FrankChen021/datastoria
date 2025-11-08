@@ -3,7 +3,7 @@ import DashboardContainer, { type DashboardContainerRef } from "@/components/das
 import type { Dashboard } from "@/components/dashboard/dashboard-model";
 import { TabManager } from "@/components/tab-manager";
 import type { FormatName } from "@/lib/formatter";
-import { forwardRef, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import type { RefreshableTabViewRef } from "../table-tab/table-tab";
 
 export interface DatabaseTabProps {
@@ -19,19 +19,21 @@ interface TableInfo {
   total_bytes: number;
 }
 
-export const DatabaseTab = forwardRef<RefreshableTabViewRef, DatabaseTabProps>(({ database }, ref) => {
+const DatabaseTabComponent = forwardRef<RefreshableTabViewRef, DatabaseTabProps>(({ database }, ref) => {
   const dashboardContainerRef = useRef<DashboardContainerRef>(null);
+
+  const handleRefresh = useCallback(() => {
+    // Refresh the dashboard container (which includes both the database info and tables)
+    dashboardContainerRef.current?.refresh();
+  }, []);
 
   useImperativeHandle(
     ref,
     () => ({
-      refresh: () => {
-        // Refresh the dashboard container (which includes both the database info and tables)
-        dashboardContainerRef.current?.refresh();
-      },
+      refresh: handleRefresh,
       supportsTimeSpanSelector: false,
     }),
-    []
+    [handleRefresh]
   );
 
   // Create dashboard with both the database info and tables descriptors
@@ -285,4 +287,6 @@ ORDER BY on_disk_size DESC
   );
 });
 
-DatabaseTab.displayName = "DatabaseTab";
+DatabaseTabComponent.displayName = "DatabaseTab";
+
+export const DatabaseTab = memo(DatabaseTabComponent);

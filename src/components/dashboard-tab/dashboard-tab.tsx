@@ -9,7 +9,7 @@ import { Dialog } from "@/components/use-dialog";
 import { Api, type ApiResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { AlertTriangle, EllipsisVertical } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 const predefinedDashboard = {
   name: "metrics",
@@ -472,11 +472,12 @@ interface DashboardTabProps {
   host: string;
 }
 
-export function DashboardTab({ host }: DashboardTabProps) {
+const DashboardTabComponent = ({ host }: DashboardTabProps) => {
   const { selectedConnection } = useConnection();
   const [dashboard, setDashboard] = useState<Dashboard>(predefinedDashboard);
   const [error, setError] = useState<string | null>(null);
   const [skippedDashboards, setSkippedDashboards] = useState<SkippedDashboard[]>([]);
+  const previousConnectionRef = useRef<string | null>(null);
 
   const fetchDashboards = useCallback(
     (api: Api, hasMetricLogTable: boolean, hasAsynchronousMetricLogTable: boolean) => {
@@ -657,6 +658,13 @@ export function DashboardTab({ host }: DashboardTabProps) {
       return;
     }
 
+    // Skip if connection hasn't changed
+    const connectionId = selectedConnection.name;
+    if (previousConnectionRef.current === connectionId) {
+      return;
+    }
+    previousConnectionRef.current = connectionId;
+
     const api = Api.create(selectedConnection);
 
     // First, check if metric_log and asynchronous_metric_log tables exist
@@ -811,5 +819,7 @@ export function DashboardTab({ host }: DashboardTabProps) {
       </DashboardContainer>
     </div>
   );
-}
+};
+
+export const DashboardTab = memo(DashboardTabComponent);
 

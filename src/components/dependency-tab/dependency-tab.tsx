@@ -10,7 +10,7 @@ import { useConnection } from "@/lib/connection/ConnectionContext";
 import { StringUtils } from "@/lib/string-utils";
 import { toastManager } from "@/lib/toast";
 import { X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { DependencyBuilder } from "./DependencyBuilder";
 
@@ -112,7 +112,7 @@ export interface DependencyTabProps {
   tabId?: string;
 }
 
-export function DependencyTab({ database }: DependencyTabProps) {
+const DependencyTabComponent = ({ database }: DependencyTabProps) => {
   const { selectedConnection } = useConnection();
   const [queryResponse, setQueryResponse] = useState<{
     data?: unknown;
@@ -250,7 +250,7 @@ FROM system.tables`;
     return { graphviz: graphText, nodes: builder.getNodes() };
   }, [queryResponse, bgColor]);
 
-  const onGraphAction = (action: string, _x: number, _y: number, _type: string, key: string) => {
+  const onGraphAction = useCallback((action: string, _x: number, _y: number, _type: string, key: string) => {
     if (action !== "click") {
       return;
     }
@@ -261,12 +261,16 @@ FROM system.tables`;
     }
 
     setShowTableNode(graphNode);
-  };
+  }, [nodes]);
 
-  const handleOpenTableTab = () => {
+  const handleOpenTableTab = useCallback(() => {
     if (!showTableNode) return;
     TabManager.sendOpenTableTabRequest(showTableNode.database, showTableNode.name, showTableNode.engine);
-  };
+  }, [showTableNode]);
+
+  const handleCloseTableNode = useCallback(() => {
+    setShowTableNode(undefined);
+  }, []);
 
   if (!queryResponse && !isLoading) {
     return null;
@@ -300,7 +304,7 @@ FROM system.tables`;
                 >
                   <h4 className="truncate">{showTableNode.database + "." + showTableNode.name}</h4>
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => setShowTableNode(undefined)} className="h-8 w-8">
+                <Button variant="ghost" size="icon" onClick={handleCloseTableNode} className="h-8 w-8">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -326,4 +330,6 @@ FROM system.tables`;
       )}
     </PanelGroup>
   );
-}
+};
+
+export const DependencyTab = memo(DependencyTabComponent);

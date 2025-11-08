@@ -6,7 +6,7 @@ import TimeSpanSelector, {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DataSampleView } from "./data-sample-view";
 import { PartLogView } from "./part-log-view";
 import { PartitionSizeView } from "./partition-view";
@@ -46,20 +46,26 @@ const ENGINE_TABS_MAP = new Map<string, Set<string>>([
   // Default: all tabs available
 ]);
 
-export function TableTab({ database, table, engine }: TableTabProps) {
+const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
   // Hide Table Size and Partitions tabs if engine starts with "System"
-  const isSystemTable = (engine?.startsWith("System") || engine?.startsWith("MySQL")) ?? false;
+  const isSystemTable = useMemo(() => (engine?.startsWith("System") || engine?.startsWith("MySQL")) ?? false, [engine]);
 
   // Get available tabs for this engine, or default to all tabs
-  const baseAvailableTabs = engine
-    ? (ENGINE_TABS_MAP.get(engine) ??
-      new Set(["data-sample", "metadata", "table-size", "partitions", "query-log", "part-log"]))
-    : new Set(["data-sample", "metadata", "table-size", "partitions", "query-log", "part-log"]);
+  const baseAvailableTabs = useMemo(() => {
+    return engine
+      ? (ENGINE_TABS_MAP.get(engine) ??
+        new Set(["data-sample", "metadata", "table-size", "partitions", "query-log", "part-log"]))
+      : new Set(["data-sample", "metadata", "table-size", "partitions", "query-log", "part-log"]);
+  }, [engine]);
 
   // Remove table-size and partitions for System tables
-  const availableTabs = isSystemTable ? new Set(["data-sample", "metadata"]) : baseAvailableTabs;
+  const availableTabs = useMemo(() => {
+    return isSystemTable ? new Set(["data-sample", "metadata"]) : baseAvailableTabs;
+  }, [isSystemTable, baseAvailableTabs]);
 
-  const initialTab = availableTabs.has("table-size") ? "table-size" : "metadata";
+  const initialTab = useMemo(() => {
+    return availableTabs.has("table-size") ? "table-size" : "metadata";
+  }, [availableTabs]);
   const [currentTab, setCurrentTab] = useState<string>(initialTab);
 
   // Track which tabs have been loaded (to load data only once)
@@ -130,7 +136,7 @@ export function TableTab({ database, table, engine }: TableTabProps) {
     });
   }, [currentTab]);
 
-  const handleRefresh = (overrideTimeSpan?: TimeSpan) => {
+  const handleRefresh = useCallback((overrideTimeSpan?: TimeSpan) => {
     setIsRefreshing(true);
     // Reset refreshing state after a short delay to allow child components to update their loading state
     // The FloatingProgressBar will show the actual loading state
@@ -141,14 +147,14 @@ export function TableTab({ database, table, engine }: TableTabProps) {
       const timeSpan = overrideTimeSpan ?? (supportsTimeSpan ? selectedTimeSpan.getTimeSpan() : undefined);
       currentRef.refresh(timeSpan);
     }
-  };
+  }, [getCurrentRef, supportsTimeSpan, selectedTimeSpan]);
 
-  const handleTimeSpanChanged = (span: DisplayTimeSpan) => {
+  const handleTimeSpanChanged = useCallback((span: DisplayTimeSpan) => {
     setSelectedTimeSpan(span);
     // Trigger refresh when time span changes, passing the new timespan directly
     const timeSpan = span.getTimeSpan();
     handleRefresh(timeSpan);
-  };
+  }, [handleRefresh]);
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">
@@ -272,4 +278,6 @@ export function TableTab({ database, table, engine }: TableTabProps) {
       </Tabs>
     </div>
   );
-}
+};
+
+export const TableTab = memo(TableTabComponent);

@@ -7,7 +7,7 @@ import { TableTab } from "@/components/table-tab/table-tab";
 import { TabManager, type TabInfo } from "@/components/tab-manager";
 import { Tabs } from "@/components/ui/tabs";
 import { useConnection } from "@/lib/connection/ConnectionContext";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { MainPageTabList } from "./main-page-tab-list";
 
@@ -216,6 +216,67 @@ export function MainPage() {
     previousConnectionRef.current = currentConnectionName;
   }, [selectedConnection?.name, handleCloseAll]);
 
+  // Memoize sorted tabs to avoid re-sorting on every render
+  const sortedTabs = useMemo(() => {
+    const order: Record<string, number> = { dashboard: 1, database: 2, dependency: 3, table: 4 };
+    return [...tabs].sort((a, b) => (order[a.type] || 0) - (order[b.type] || 0));
+  }, [tabs]);
+
+  // Memoize tab content to prevent unnecessary re-renders
+  const tabContent = useMemo(() => {
+    return sortedTabs.map((tab) => {
+      if (tab.type === "dashboard") {
+        return (
+          <div
+            key={tab.id}
+            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
+            role="tabpanel"
+            aria-hidden={activeTab !== tab.id}
+          >
+            <DashboardTab host={tab.host} />
+          </div>
+        );
+      }
+      if (tab.type === "database") {
+        return (
+          <div
+            key={tab.id}
+            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
+            role="tabpanel"
+            aria-hidden={activeTab !== tab.id}
+          >
+            <DatabaseTab database={tab.database} />
+          </div>
+        );
+      }
+      if (tab.type === "dependency") {
+        return (
+          <div
+            key={tab.id}
+            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
+            role="tabpanel"
+            aria-hidden={activeTab !== tab.id}
+          >
+            <DependencyTab database={tab.database} />
+          </div>
+        );
+      }
+      if (tab.type === "table") {
+        return (
+          <div
+            key={tab.id}
+            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
+            role="tabpanel"
+            aria-hidden={activeTab !== tab.id}
+          >
+            <TableTab database={tab.database} table={tab.table} engine={tab.engine} />
+          </div>
+        );
+      }
+      return null;
+    });
+  }, [sortedTabs, activeTab]);
+
   return (
     <div className="h-full w-full flex min-w-0 overflow-hidden">
       <PanelGroup direction="horizontal" className="h-full w-full min-w-0">
@@ -249,57 +310,7 @@ export function MainPage() {
                 <QueryTab />
               </div>
               {/* All Tabs - Always mounted */}
-              {tabs.map((tab) => {
-                if (tab.type === "dashboard") {
-                  return (
-                    <div
-                      key={tab.id}
-                      className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-                      role="tabpanel"
-                      aria-hidden={activeTab !== tab.id}
-                    >
-                      <DashboardTab host={tab.host} />
-                    </div>
-                  );
-                }
-                if (tab.type === "database") {
-                  return (
-                    <div
-                      key={tab.id}
-                      className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-                      role="tabpanel"
-                      aria-hidden={activeTab !== tab.id}
-                    >
-                      <DatabaseTab database={tab.database} />
-                    </div>
-                  );
-                }
-                if (tab.type === "dependency") {
-                  return (
-                    <div
-                      key={tab.id}
-                      className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-                      role="tabpanel"
-                      aria-hidden={activeTab !== tab.id}
-                    >
-                      <DependencyTab database={tab.database} />
-                    </div>
-                  );
-                }
-                if (tab.type === "table") {
-                  return (
-                    <div
-                      key={tab.id}
-                      className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-                      role="tabpanel"
-                      aria-hidden={activeTab !== tab.id}
-                    >
-                      <TableTab database={tab.database} table={tab.table} engine={tab.engine} />
-                    </div>
-                  );
-                }
-                return null;
-              })}
+              {tabContent}
             </div>
           </Tabs>
         </Panel>

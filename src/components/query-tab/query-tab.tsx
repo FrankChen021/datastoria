@@ -3,21 +3,25 @@ import { QueryListView } from "@/components/query-tab/query-list-view";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { QueryControl } from "./query-control/query-control";
 import { useHasSelectedText } from "./query-control/use-query-state";
-import { useState } from "react";
+import { memo, useCallback, useState } from "react";
 
 export interface QueryTabProps {
   tabId?: string;
 }
 
-export function QueryTab({ tabId }: QueryTabProps) {
+const QueryTabComponent = ({ tabId }: QueryTabProps) => {
   const hasSelectedText = useHasSelectedText();
   const [isExecuting, setIsExecuting] = useState(false);
+
+  const handleExecutionStateChange = useCallback((executing: boolean) => {
+    setIsExecuting(executing);
+  }, []);
 
   return (
     <PanelGroup direction="vertical" className="h-full">
       {/* Top Panel: Query Response View */}
       <Panel defaultSize={60} minSize={20} className="border-b bg-background overflow-auto">
-        <QueryListView tabId={tabId} onExecutionStateChange={setIsExecuting} />
+        <QueryListView tabId={tabId} onExecutionStateChange={handleExecutionStateChange} />
       </Panel>
 
       <PanelResizeHandle className="h-0.5 bg-border hover:bg-border/80 transition-colors cursor-row-resize" />
@@ -31,5 +35,7 @@ export function QueryTab({ tabId }: QueryTabProps) {
       </Panel>
     </PanelGroup>
   );
-}
+};
+
+export const QueryTab = memo(QueryTabComponent);
 
