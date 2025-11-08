@@ -10,6 +10,7 @@ import { ExplainASTResponseView } from "./explain-ast-response-view";
 import { ExplainPipelineResponseView } from "./explain-pipeline-response-view";
 import { ExplainQueryResponseView } from "./explain-query-response-view";
 import { ExplainSyntaxResponseView } from "./explain-syntax-response-view";
+import { QueryExecutionTimer } from "./query-execution-timer";
 import { QueryRequestView } from "./query-request-view";
 import { ApiErrorView, type ApiErrorResponse as QueryApiErrorResponse } from "./query-response-view";
 import { QueryResponseView } from "./query-response-view";
@@ -294,7 +295,10 @@ export function QueryListItemView({
       {isExecuting && (
         <div className="flex items-center gap-2 mt-2 mb-2">
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Executing query...</span>
+          <span className="text-sm text-muted-foreground">
+            Executing query...
+            <QueryExecutionTimer isExecuting={isExecuting} />
+          </span>
         </div>
       )}
 
@@ -306,7 +310,12 @@ export function QueryListItemView({
             {queryRequest.traceId && `, Trace Id: ${queryRequest.traceId}`}
           </div>
         )}
-        <div className="text-xs text-muted-foreground">Request Server: {queryRequest.requestServer}</div>
+        {/* <div className="text-xs text-muted-foreground">Request Server: {queryRequest.requestServer}</div> */}
+        {queryResponse?.httpHeaders?.["x-clickhouse-server-display-name"] && (
+          <div className="text-xs text-muted-foreground">
+            Response Server: {queryResponse.httpHeaders["x-clickhouse-server-display-name"]}
+          </div>
+        )}
         <div className="text-xs text-muted-foreground">
           {queryResponse?.httpHeaders?.["x-clickhouse-summary"] && (
             <span>

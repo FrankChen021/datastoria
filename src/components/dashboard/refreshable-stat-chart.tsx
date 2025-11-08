@@ -247,6 +247,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
     const valueTextRef = useRef<HTMLDivElement>(null);
     const valueContainerRef = useRef<HTMLDivElement>(null);
     const [fontSize, setFontSize] = useState(3); // Start with 3rem (text-5xl equivalent)
+    const fontSizeRef = useRef(3); // Keep ref in sync for effect optimization
     const [offset] = useState(() =>
       descriptor.comparisonOption ? DateTimeExtension.parseOffsetExpression(descriptor.comparisonOption.offset) : 0
     );
@@ -550,6 +551,37 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
 
     // Auto-scale text to fit container
     useEffect(() => {
+      // Helper function to create a measurement element with given font size
+      const createMeasurementElement = (fontSize: string, textContent: string, textStyles: CSSStyleDeclaration): HTMLDivElement => {
+        const element = document.createElement("div");
+        element.style.position = "absolute";
+        element.style.visibility = "hidden";
+        element.style.top = "-9999px";
+        element.style.left = "-9999px";
+        element.style.whiteSpace = "nowrap";
+        element.style.fontSize = fontSize;
+        element.style.fontWeight = textStyles.fontWeight;
+        element.style.fontFamily = textStyles.fontFamily;
+        element.style.fontStyle = textStyles.fontStyle;
+        element.style.letterSpacing = textStyles.letterSpacing;
+        element.style.textTransform = textStyles.textTransform;
+        element.style.lineHeight = textStyles.lineHeight;
+        element.style.fontVariant = textStyles.fontVariant;
+        element.style.textRendering = textStyles.textRendering;
+        element.textContent = textContent;
+        return element;
+      };
+
+      // Helper function to measure text width at a given font size
+      const measureTextWidth = (fontSize: string, textContent: string, textStyles: CSSStyleDeclaration): number => {
+        const element = createMeasurementElement(fontSize, textContent, textStyles);
+        document.body.appendChild(element);
+        void element.offsetWidth; // Force reflow
+        const width = Math.max(element.scrollWidth, element.offsetWidth);
+        document.body.removeChild(element);
+        return width;
+      };
+
       const adjustFontSize = () => {
         if (!valueTextRef.current || !valueContainerRef.current) return;
         // Skip if loading and we don't have initial data yet (showing skeleton)
@@ -558,140 +590,93 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
         const container = valueContainerRef.current;
         const text = valueTextRef.current;
         
-        // Get computed styles to account for padding
+        // Get computed styles once and cache
         const containerStyles = getComputedStyle(container);
+        const textStyles = getComputedStyle(text);
+        
+        // Calculate available width (accounting for padding)
         const paddingLeft = parseFloat(containerStyles.paddingLeft) || 0;
         const paddingRight = parseFloat(containerStyles.paddingRight) || 0;
-        
-        // Use clientWidth which excludes padding, or calculate available width
         const containerWidth = container.clientWidth || (container.offsetWidth - paddingLeft - paddingRight);
         const containerHeight = container.offsetHeight;
 
         if (containerWidth <= 0 || containerHeight <= 0) return; // Not yet rendered
 
-        // Get the actual text content (skip if it's a skeleton)
-        // For React components like NumberFlow, textContent gives us the rendered text
+        // Get the actual text content
         const textContent = text.textContent?.trim() || "";
-        if (!textContent || textContent === "") return; // No text to measure
+        if (!textContent) return; // No text to measure
 
-        // Create a hidden measurement element with the same font properties
-        // This gives us accurate width measurement without affecting the actual element
-        const measureElement = document.createElement("div");
-        const textStyles = getComputedStyle(text);
-        
-        // Copy all font-related styles that affect width
-        measureElement.style.position = "absolute";
-        measureElement.style.visibility = "hidden";
-        measureElement.style.top = "-9999px";
-        measureElement.style.left = "-9999px";
-        measureElement.style.whiteSpace = "nowrap";
-        measureElement.style.fontSize = "3rem"; // Measure at base size (3rem)
-        measureElement.style.fontWeight = textStyles.fontWeight;
-        measureElement.style.fontFamily = textStyles.fontFamily;
-        measureElement.style.fontStyle = textStyles.fontStyle;
-        measureElement.style.letterSpacing = textStyles.letterSpacing;
-        measureElement.style.textTransform = textStyles.textTransform;
-        measureElement.style.lineHeight = textStyles.lineHeight;
-        measureElement.style.fontVariant = textStyles.fontVariant;
-        measureElement.style.textRendering = textStyles.textRendering;
-        measureElement.textContent = textContent; // Use the actual rendered text
-        
-        document.body.appendChild(measureElement);
-        
-        // Force a reflow to get accurate measurements
-        void measureElement.offsetWidth;
-
-        // Measure the natural width at 3rem
-        // Use both scrollWidth and offsetWidth for accuracy
-        const naturalWidth = Math.max(measureElement.scrollWidth, measureElement.offsetWidth);
-        const naturalHeight = measureElement.offsetHeight;
-
-        // Clean up
-        document.body.removeChild(measureElement);
-
-        // Use a more conservative safety margin to prevent any overflow
-        // 8px on each side (16px total) to account for:
-        // - Sub-pixel rendering differences
-        // - Font rendering variations
-        // - Browser rounding differences
-        // - Any potential layout shifts
-        const widthMargin = 16;
+        // Constants for safety margins
+        const widthMargin = 16; // 8px on each side
         const heightMargin = 4;
         const availableWidth = Math.max(0, containerWidth - widthMargin);
         const availableHeight = Math.max(0, containerHeight - heightMargin);
 
+        // Measure natural dimensions at 3rem (base size)
+        const measureElement = createMeasurementElement("3rem", textContent, textStyles);
+        document.body.appendChild(measureElement);
+        void measureElement.offsetWidth; // Force reflow
+        const naturalWidth = Math.max(measureElement.scrollWidth, measureElement.offsetWidth);
+        const naturalHeight = measureElement.offsetHeight;
+        document.body.removeChild(measureElement);
+
         // If text fits at 3rem, use default size
         if (naturalWidth <= availableWidth && naturalHeight <= availableHeight) {
-          if (fontSize !== 3) {
+          if (fontSizeRef.current !== 3) {
             setFontSize(3);
+            fontSizeRef.current = 3;
           }
           return;
         }
 
         // Calculate scale factor based on natural dimensions
-        // Ensure we don't divide by zero
-        if (naturalWidth <= 0 || naturalHeight <= 0) {
-          return;
-        }
+        if (naturalWidth <= 0 || naturalHeight <= 0) return;
         
         const widthScale = availableWidth / naturalWidth;
         const heightScale = availableHeight / naturalHeight;
         const scale = Math.min(widthScale, heightScale, 1); // Don't scale up, only down
 
-        // Calculate new font size (3rem is the base size)
-        // Apply an additional 3% reduction for extra safety
+        // Calculate new font size with safety margin (3% reduction)
         const safetyScale = 0.97;
-        let newFontSizeRem = Math.max(0.75, scale * 3 * safetyScale); // Minimum 0.75rem
+        let newFontSizeRem = Math.max(0.75, scale * 3 * safetyScale);
         
-        // Verify: measure again at the calculated size to ensure it fits
-        const verifyElement = document.createElement("div");
-        verifyElement.style.position = "absolute";
-        verifyElement.style.visibility = "hidden";
-        verifyElement.style.top = "-9999px";
-        verifyElement.style.left = "-9999px";
-        verifyElement.style.whiteSpace = "nowrap";
-        verifyElement.style.fontSize = `${newFontSizeRem}rem`;
-        verifyElement.style.fontWeight = textStyles.fontWeight;
-        verifyElement.style.fontFamily = textStyles.fontFamily;
-        verifyElement.style.fontStyle = textStyles.fontStyle;
-        verifyElement.style.letterSpacing = textStyles.letterSpacing;
-        verifyElement.style.textTransform = textStyles.textTransform;
-        verifyElement.style.lineHeight = textStyles.lineHeight;
-        verifyElement.style.fontVariant = textStyles.fontVariant;
-        verifyElement.style.textRendering = textStyles.textRendering;
-        verifyElement.textContent = textContent;
+        // Verify: measure at calculated size and adjust if needed
+        const verifiedWidth = measureTextWidth(`${newFontSizeRem}rem`, textContent, textStyles);
         
-        document.body.appendChild(verifyElement);
-        void verifyElement.offsetWidth;
-        const verifiedWidth = Math.max(verifyElement.scrollWidth, verifyElement.offsetWidth);
-        document.body.removeChild(verifyElement);
-        
-        // If still too wide, scale down further
+        // If still too wide, scale down further with additional 2% margin
         if (verifiedWidth > availableWidth) {
-          const additionalScale = availableWidth / verifiedWidth;
-          newFontSizeRem = Math.max(0.75, newFontSizeRem * additionalScale * 0.98); // Extra 2% margin
+          const additionalScale = (availableWidth / verifiedWidth) * 0.98;
+          newFontSizeRem = Math.max(0.75, newFontSizeRem * additionalScale);
         }
         
         // Only update if the change is significant (to avoid infinite loops and flickering)
-        if (Math.abs(newFontSizeRem - fontSize) > 0.05) {
+        if (Math.abs(newFontSizeRem - fontSizeRef.current) > 0.05) {
           setFontSize(newFontSizeRem);
+          fontSizeRef.current = newFontSizeRem;
         }
       };
 
-      // Use requestAnimationFrame to ensure DOM is updated and content is rendered
-      // Double rAF ensures that NumberFlow and other async components have rendered
-      let rafId2: number;
-      const rafId1 = requestAnimationFrame(() => {
-        rafId2 = requestAnimationFrame(() => {
-          adjustFontSize();
+      // Throttle adjustFontSize to prevent excessive calculations
+      let pendingAdjustment = false;
+      let rafId: number | null = null;
+      const scheduleAdjustment = () => {
+        if (pendingAdjustment) return;
+        pendingAdjustment = true;
+        rafId = requestAnimationFrame(() => {
+          rafId = requestAnimationFrame(() => {
+            // Double rAF ensures that NumberFlow and other async components have rendered
+            adjustFontSize();
+            pendingAdjustment = false;
+          });
         });
-      });
+      };
+
+      // Initial adjustment
+      scheduleAdjustment();
 
       // Watch for content changes in the text element (handles NumberFlow updates)
       const mutationObserver = new MutationObserver(() => {
-        requestAnimationFrame(() => {
-          adjustFontSize();
-        });
+        scheduleAdjustment();
       });
 
       if (valueTextRef.current) {
@@ -704,17 +689,16 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
 
       // Also adjust on container resize
       const resizeObserver = new ResizeObserver(() => {
-        requestAnimationFrame(() => {
-          adjustFontSize();
-        });
+        scheduleAdjustment();
       });
       if (valueContainerRef.current) {
         resizeObserver.observe(valueContainerRef.current);
       }
 
       return () => {
-        cancelAnimationFrame(rafId1);
-        cancelAnimationFrame(rafId2);
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+        }
         mutationObserver.disconnect();
         resizeObserver.disconnect();
       };

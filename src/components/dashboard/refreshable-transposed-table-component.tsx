@@ -457,7 +457,7 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
     const hasTitle = !!descriptor.titleOption?.title;
 
     return (
-      <Card ref={componentRef} className="@container/card relative">
+      <Card ref={componentRef} className="@container/card relative overflow-hidden">
         <FloatingProgressBar show={isLoading} />
         <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)}>
           {hasTitle && descriptor.titleOption && (
