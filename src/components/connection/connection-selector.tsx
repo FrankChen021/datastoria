@@ -177,8 +177,8 @@ export function ConnectionSelector(
                           value={conn.name}
                           onSelect={() => handleConnectionSelect(conn)}
                           className={cn(
-                            "flex items-center justify-between !rounded-none cursor-pointer !py-1 mb-1",
-                            isSelected && "bg-primary/10"
+                            "flex items-center justify-between !rounded-none cursor-pointer !py-1 mb-1 transition-colors hover:bg-muted",
+                            isSelected && "bg-muted/50"
                           )}
                           style={{ borderRadius: 0 }}
                         >
@@ -202,7 +202,8 @@ export function ConnectionSelector(
                           </div>
                           <Button
                             variant="ghost"
-                            className="h-5 w-5 shrink-0 p-0.5 [&_svg]:!size-3 rounded border border-transparent hover:!border-foreground/30"
+                            size="icon"
+                            className="h-6 w-6 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20 shrink-0 [&_svg]:!size-3"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();

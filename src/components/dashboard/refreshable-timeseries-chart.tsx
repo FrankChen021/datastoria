@@ -1104,7 +1104,7 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
           className: "max-w-[50vw] h-[70vh]",
           disableContentScroll: true,
           mainContent: (
-            <div className="overflow-auto h-full bg-background">
+            <div className="flex-1 min-h-0 overflow-auto bg-background">
               <table className="w-full caption-bottom text-sm border-collapse">
                 <thead className="sticky top-0 z-10 bg-background [&_tr]:border-b">
                   <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">

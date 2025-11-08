@@ -474,7 +474,7 @@ ORDER BY t`,
 SELECT 
 ProfileEvents['OSCPUVirtualTimeMicroseconds'] as OSCPUVirtualTimeMicroseconds,
     *
-FROM merge('system', '^query_log')
+FROM system.query_log
 WHERE 
     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))

@@ -157,6 +157,8 @@ export interface ChartDescriptor {
   isCollapsed?: boolean;
 
   width: number;
+
+  // Table content height
   height?: number;
 
   query: SQLQuery;

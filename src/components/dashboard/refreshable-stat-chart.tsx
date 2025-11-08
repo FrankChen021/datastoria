@@ -63,6 +63,52 @@ interface StatMinimapProps {
 const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data, isLoading, minimap }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [isInViewport, setIsInViewport] = React.useState(false);
+  const [chartColor, setChartColor] = React.useState<string>("hsl(var(--chart-1))");
+
+  // Get the computed chart color value from CSS variable
+  // SVG elements don't support CSS variables, so we need to get the actual computed RGB color
+  React.useEffect(() => {
+    const updateChartColor = () => {
+      // Create a temporary element to get computed color
+      const tempEl = document.createElement("div");
+      tempEl.style.color = "var(--chart-1)";
+      tempEl.style.position = "absolute";
+      tempEl.style.visibility = "hidden";
+      document.body.appendChild(tempEl);
+
+      const computedColor = getComputedStyle(tempEl).color;
+      document.body.removeChild(tempEl);
+
+      if (computedColor && computedColor !== "rgba(0, 0, 0, 0)" && computedColor !== "rgb(0, 0, 0)") {
+        setChartColor(computedColor);
+      } else {
+        // Fallback: try primary color
+        tempEl.style.color = "var(--primary)";
+        document.body.appendChild(tempEl);
+        const fallbackColor = getComputedStyle(tempEl).color;
+        document.body.removeChild(tempEl);
+        if (fallbackColor && fallbackColor !== "rgba(0, 0, 0, 0)" && fallbackColor !== "rgb(0, 0, 0)") {
+          setChartColor(fallbackColor);
+        } else {
+          // Final fallback: use a visible color based on theme
+          const isDark = document.documentElement.classList.contains("dark");
+          setChartColor(isDark ? "rgb(120, 200, 150)" : "rgb(50, 150, 100)");
+        }
+      }
+    };
+
+    updateChartColor();
+    // Also update on theme change
+    const observer = new MutationObserver(updateChartColor);
+    if (document.documentElement) {
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   React.useEffect(() => {
     const currentElement = containerRef.current;
@@ -137,13 +183,17 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
           {isArea && (
             <defs>
               <linearGradient id={`gradient-${id}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="var(--color-value)" stopOpacity={0} />
+                <stop offset="5%" stopColor={chartColor} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
               </linearGradient>
             </defs>
           )}
           <XAxis dataKey="timestamp" hide type="number" domain={["dataMin", "dataMax"]} />
-          <YAxis width={30} tick={{ fontSize: 9 }} />
+          <YAxis
+            width={30}
+            tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+            axisLine={{ stroke: "hsl(var(--border))" }}
+          />
           <ChartTooltip
             content={({ active, payload }) => {
               if (!active || !payload || payload.length === 0) {
@@ -158,10 +208,7 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
                 <div className="rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
                   <div className="font-medium mb-1">{format(new Date(timestamp), "MM-dd HH:mm:ss")}</div>
                   <div className="flex items-center gap-2">
-                    <div
-                      className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
-                      style={{ backgroundColor: "var(--color-value)" }}
-                    />
+                    <div className="h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: chartColor }} />
                     <span className="tabular-nums">{value.toFixed(2)}</span>
                   </div>
                 </div>
@@ -172,8 +219,8 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
             <Area
               type="monotone"
               dataKey="value"
-              stroke="var(--color-value)"
-              strokeWidth={1.5}
+              stroke={chartColor}
+              strokeWidth={2}
               fill={`url(#gradient-${id})`}
               fillOpacity={1}
               isAnimationActive={false}
@@ -182,8 +229,8 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
             <Line
               type="monotone"
               dataKey="value"
-              stroke="var(--color-value)"
-              strokeWidth={1.5}
+              stroke={chartColor}
+              strokeWidth={2}
               fill="none"
               isAnimationActive={false}
               dot={false}
@@ -552,7 +599,11 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
     // Auto-scale text to fit container
     useEffect(() => {
       // Helper function to create a measurement element with given font size
-      const createMeasurementElement = (fontSize: string, textContent: string, textStyles: CSSStyleDeclaration): HTMLDivElement => {
+      const createMeasurementElement = (
+        fontSize: string,
+        textContent: string,
+        textStyles: CSSStyleDeclaration
+      ): HTMLDivElement => {
         const element = document.createElement("div");
         element.style.position = "absolute";
         element.style.visibility = "hidden";
@@ -589,15 +640,15 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
 
         const container = valueContainerRef.current;
         const text = valueTextRef.current;
-        
+
         // Get computed styles once and cache
         const containerStyles = getComputedStyle(container);
         const textStyles = getComputedStyle(text);
-        
+
         // Calculate available width (accounting for padding)
         const paddingLeft = parseFloat(containerStyles.paddingLeft) || 0;
         const paddingRight = parseFloat(containerStyles.paddingRight) || 0;
-        const containerWidth = container.clientWidth || (container.offsetWidth - paddingLeft - paddingRight);
+        const containerWidth = container.clientWidth || container.offsetWidth - paddingLeft - paddingRight;
         const containerHeight = container.offsetHeight;
 
         if (containerWidth <= 0 || containerHeight <= 0) return; // Not yet rendered
@@ -631,7 +682,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
 
         // Calculate scale factor based on natural dimensions
         if (naturalWidth <= 0 || naturalHeight <= 0) return;
-        
+
         const widthScale = availableWidth / naturalWidth;
         const heightScale = availableHeight / naturalHeight;
         const scale = Math.min(widthScale, heightScale, 1); // Don't scale up, only down
@@ -639,16 +690,16 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
         // Calculate new font size with safety margin (3% reduction)
         const safetyScale = 0.97;
         let newFontSizeRem = Math.max(0.75, scale * 3 * safetyScale);
-        
+
         // Verify: measure at calculated size and adjust if needed
         const verifiedWidth = measureTextWidth(`${newFontSizeRem}rem`, textContent, textStyles);
-        
+
         // If still too wide, scale down further with additional 2% margin
         if (verifiedWidth > availableWidth) {
           const additionalScale = (availableWidth / verifiedWidth) * 0.98;
           newFontSizeRem = Math.max(0.75, newFontSizeRem * additionalScale);
         }
-        
+
         // Only update if the change is significant (to avoid infinite loops and flickering)
         if (Math.abs(newFontSizeRem - fontSizeRef.current) > 0.05) {
           setFontSize(newFontSizeRem);
@@ -714,7 +765,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
     useEffect(() => {
       // Only show skeleton on initial load (when hasInitialData is false)
       const shouldShow = isLoadingValue && !hasInitialData;
-      
+
       if (shouldShow) {
         // Start showing skeleton only if not already showing
         if (skeletonStartTimeRef.current === null) {
@@ -731,9 +782,9 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
             clearTimeout(skeletonTimeoutRef.current);
             skeletonTimeoutRef.current = null;
           }
-          
+
           const elapsed = Date.now() - skeletonStartTimeRef.current;
-          
+
           if (elapsed < SKELETON_MIN_DISPLAY_TIME) {
             // Wait for minimum display time, then fade out
             const remainingTime = SKELETON_MIN_DISPLAY_TIME - elapsed;
@@ -807,13 +858,17 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
         };
       }
 
-      // Make table header sticky if it's a table
+      // Make table header sticky and set height for tables in dialog mode
       if (modifiedDescriptor.type === "table") {
         const tableDescriptor = modifiedDescriptor as TableDescriptor;
         tableDescriptor.headOption = {
           ...tableDescriptor.headOption,
           isSticky: true,
         };
+        // Set height for dialog mode (70vh matches the dialog height)
+        if (!tableDescriptor.height) {
+          tableDescriptor.height = 70; // 70vh
+        }
       }
 
       const title = modifiedDescriptor.titleOption?.title || "Drilldown";
@@ -932,10 +987,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
                 onClick={hasDrilldown() ? handleDrilldownClick : undefined}
               >
                 {shouldShowSkeleton ? (
-                  <div
-                    className="transition-opacity duration-150"
-                    style={{ opacity: skeletonOpacity }}
-                  >
+                  <div className="transition-opacity duration-150" style={{ opacity: skeletonOpacity }}>
                     <Skeleton className="w-20 h-10" />
                   </div>
                 ) : shouldUseNumberFlow(data) ? (

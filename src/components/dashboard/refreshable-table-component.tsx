@@ -13,7 +13,7 @@ import { Skeleton } from "../ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import type { ActionColumn, FieldOption, SQLQuery, TableDescriptor } from "./chart-utils";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
-import { inferFieldFormat } from "./format-inference";
+import { inferFormatFromMetaType } from "./format-inference";
 import type { RefreshableComponent, RefreshParameter } from "./refreshable-component";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
@@ -66,7 +66,6 @@ function replaceOrderByClause(
   }
 }
 
-
 const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTableComponentProps>(
   function RefreshableTableComponent(props, ref) {
     const { descriptor } = props;
@@ -98,7 +97,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
     // Normalize fieldOptions: convert Map/Record to array of FieldOption, handling position ordering
     const normalizeFieldOptions = useCallback((): Map<string, FieldOption> => {
       const fieldOptionsMap = new Map<string, FieldOption>();
-      
+
       if (descriptor.fieldOptions) {
         // Convert Record to Map if needed
         if (descriptor.fieldOptions instanceof Map) {
@@ -112,7 +111,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
           });
         }
       }
-      
+
       return fieldOptionsMap;
     }, [descriptor.fieldOptions]);
 
@@ -123,7 +122,6 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
       }
       return Array.isArray(descriptor.actions) ? descriptor.actions : [descriptor.actions];
     }, [descriptor.actions]);
-
 
     // Initialize columns from descriptor (will be updated when data loads)
     useEffect(() => {
@@ -139,7 +137,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
     // Skeleton timing logic: minimum display time + fade transition
     useEffect(() => {
       const shouldShow = isLoading && data.length === 0;
-      
+
       if (shouldShow) {
         // Start showing skeleton
         if (skeletonStartTimeRef.current === null) {
@@ -155,9 +153,9 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
             clearTimeout(skeletonTimeoutRef.current);
             skeletonTimeoutRef.current = null;
           }
-          
+
           const elapsed = Date.now() - skeletonStartTimeRef.current;
-          
+
           if (elapsed < SKELETON_MIN_DISPLAY_TIME) {
             // Wait for minimum display time, then fade out
             const remainingTime = SKELETON_MIN_DISPLAY_TIME - elapsed;
@@ -286,17 +284,17 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
             // First, build columns from server response in natural order, applying field options
             meta.forEach((colMeta: { name: string; type?: string }, originalIndex: number) => {
               const fieldOption = fieldOptionsMap.get(colMeta.name);
-              const column: FieldOption = fieldOption 
+              const column: FieldOption = fieldOption
                 ? { ...fieldOption, name: colMeta.name }
                 : ({ name: colMeta.name } as FieldOption);
-              
+
               // Store original index to preserve natural order for fields without position
               (column as FieldOption & { originalIndex: number }).originalIndex = originalIndex;
               finalColumns.push(column);
             });
 
             // Only reorder if there are fields with position property
-            const hasPositionedFields = finalColumns.some(col => col.position !== undefined);
+            const hasPositionedFields = finalColumns.some((col) => col.position !== undefined);
             if (hasPositionedFields) {
               // Separate columns with position from those without
               const columnsWithPosition: (FieldOption & { originalIndex: number })[] = [];
@@ -328,10 +326,19 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
               finalColumns.push(...columnsWithoutPosition);
             }
 
-            // Apply type inference to columns without format
+            // Apply type inference to columns without format based on meta information
+            // Create a map of column name to meta type for quick lookup
+            const metaTypeMap = new Map<string, string>();
+            meta.forEach((colMeta: { name: string; type?: string }) => {
+              if (colMeta.type) {
+                metaTypeMap.set(colMeta.name, colMeta.type);
+              }
+            });
+
             finalColumns.forEach((fieldOption) => {
               if (!fieldOption.format && fieldOption.name) {
-                const inferredFormat = inferFieldFormat(fieldOption.name, rows as Record<string, unknown>[]);
+                const typeString = metaTypeMap.get(fieldOption.name);
+                const inferredFormat = inferFormatFromMetaType(typeString, fieldOption.name);
                 if (inferredFormat) {
                   fieldOption.format = inferredFormat as FormatName;
                 }
@@ -397,7 +404,6 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
     // Internal refresh function
     const refreshInternal = useCallback(
       (param: RefreshParameter) => {
-
         if (!descriptor.query) {
           console.error(`No query defined for table [${descriptor.id}]`);
           setError("No query defined for this table component.");
@@ -465,7 +471,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
       // Apply format if specified
       if (fieldOption.format) {
         let formatted: string | React.ReactNode;
-        
+
         // Check if format is a function (ObjectFormatter) or a string (FormatName)
         if (typeof fieldOption.format === "function") {
           // It's an ObjectFormatter function - call it directly
@@ -476,7 +482,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
           // Pass args as params to the formatter (second parameter)
           formatted = formatter(value, fieldOption.formatArgs);
         }
-        
+
         // If formatter returns empty string, show '-'
         if (formatted === "" || (typeof formatted === "string" && formatted.trim() === "")) {
           return <span className="text-muted-foreground">-</span>;
@@ -627,18 +633,17 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
       return (
         <>
           {Array.from({ length: 1 }).map((_, index) => (
-            <TableRow 
-              key={index}
-              className="transition-opacity duration-150"
-              style={{ opacity: skeletonOpacity }}
-            >
+            <TableRow key={index} className="transition-opacity duration-150" style={{ opacity: skeletonOpacity }}>
               {descriptor.showIndexColumn && (
                 <TableCell className="text-center whitespace-nowrap !p-2">
                   <Skeleton className="h-5 w-full" />
                 </TableCell>
               )}
               {columns.map((fieldOption) => (
-                <TableCell key={fieldOption.name} className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap !p-2")}>
+                <TableCell
+                  key={fieldOption.name}
+                  className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap !p-2")}
+                >
                   <Skeleton className="h-5 w-full" />
                 </TableCell>
               ))}
@@ -669,13 +674,11 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
           {sortedData.map((row, rowIndex) => (
             <TableRow key={rowIndex}>
               {descriptor.showIndexColumn && (
-                <TableCell className="text-center whitespace-nowrap !p-2">
-                  {rowIndex + 1}
-                </TableCell>
+                <TableCell className="text-center whitespace-nowrap !p-2">{rowIndex + 1}</TableCell>
               )}
               {columns.map((fieldOption) => {
                 if (!fieldOption.name) return null;
-                
+
                 // Handle action columns
                 if (fieldOption.renderAction) {
                   return (
@@ -691,7 +694,10 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
                 // Regular data columns
                 const value = row[fieldOption.name];
                 return (
-                  <TableCell key={fieldOption.name} className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap !p-2")}>
+                  <TableCell
+                    key={fieldOption.name}
+                    className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap !p-2")}
+                  >
                     {formatCellValue(value, fieldOption)}
                   </TableCell>
                 );
@@ -700,7 +706,16 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
           ))}
         </>
       );
-    }, [error, data.length, shouldShowSkeleton, sortedData, columns, getCellAlignmentClass, formatCellValue, descriptor.showIndexColumn]);
+    }, [
+      error,
+      data.length,
+      shouldShowSkeleton,
+      sortedData,
+      columns,
+      getCellAlignmentClass,
+      formatCellValue,
+      descriptor.showIndexColumn,
+    ]);
 
     const hasTitle = !!descriptor.titleOption && descriptor.titleOption?.showTitle !== false;
     const isStickyHeader = descriptor.headOption?.isSticky === true;
@@ -727,8 +742,8 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
       return (
         <>
           {Array.from({ length: 1 }).map((_, index) => (
-            <tr 
-              key={index} 
+            <tr
+              key={index}
               className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted transition-opacity duration-150"
               style={{ opacity: skeletonOpacity }}
             >
@@ -771,13 +786,11 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
           {sortedData.map((row, rowIndex) => (
             <tr key={rowIndex} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
               {descriptor.showIndexColumn && (
-                <td className="p-4 align-middle text-center whitespace-nowrap !p-2">
-                  {rowIndex + 1}
-                </td>
+                <td className="p-4 align-middle text-center whitespace-nowrap !p-2">{rowIndex + 1}</td>
               )}
               {columns.map((fieldOption) => {
                 if (!fieldOption.name) return null;
-                
+
                 // Handle action columns
                 if (fieldOption.renderAction) {
                   return (
@@ -812,7 +825,16 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
           ))}
         </>
       );
-    }, [error, data.length, shouldShowSkeleton, sortedData, columns, getCellAlignmentClass, formatCellValue, descriptor.showIndexColumn]);
+    }, [
+      error,
+      data.length,
+      shouldShowSkeleton,
+      sortedData,
+      columns,
+      getCellAlignmentClass,
+      formatCellValue,
+      descriptor.showIndexColumn,
+    ]);
 
     return (
       <Card ref={componentRef} className="@container/card relative overflow-hidden">
@@ -846,11 +868,12 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
           )}
           <CollapsibleContent>
             <CardContent
-              className={cn(
-                "px-0 p-0",
-                !isStickyHeader && "overflow-auto",
-                isStickyHeader && "max-h-[60vh] overflow-auto"
-              )}
+              className={cn("px-0 p-0", !isStickyHeader && "overflow-auto", isStickyHeader && "overflow-auto")}
+              style={
+                descriptor.height
+                  ? ({ maxHeight: `${descriptor.height}vh` } as React.CSSProperties)
+                  : undefined
+              }
             >
               {isStickyHeader ? (
                 // Use direct table structure for sticky header to avoid nested scroll containers
@@ -860,16 +883,12 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
                       <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                         {descriptor.showIndexColumn && (
                           <th className="px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap h-10">
-                            {shouldShowSkeleton ? (
-                              <Skeleton className="h-5 w-20" />
-                            ) : (
-                              "#"
-                            )}
+                            {shouldShowSkeleton ? <Skeleton className="h-5 w-20" /> : "#"}
                           </th>
                         )}
                         {columns.map((fieldOption) => {
                           if (!fieldOption.name) return null;
-                          
+
                           const fieldName = fieldOption.name;
                           const isSortable = fieldOption.sortable !== false && fieldOption.renderAction === undefined;
                           return (
@@ -916,16 +935,12 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
                     <TableRow>
                       {descriptor.showIndexColumn && (
                         <TableHead className="px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap h-10">
-                          {shouldShowSkeleton ? (
-                            <Skeleton className="h-5 w-20" />
-                          ) : (
-                            "#"
-                          )}
+                          {shouldShowSkeleton ? <Skeleton className="h-5 w-20" /> : "#"}
                         </TableHead>
                       )}
                       {columns.map((fieldOption) => {
                         if (!fieldOption.name) return null;
-                        
+
                         const fieldName = fieldOption.name;
                         const isSortable = fieldOption.sortable !== false && fieldOption.renderAction === undefined;
                         return (
