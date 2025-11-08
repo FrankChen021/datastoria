@@ -79,7 +79,10 @@ const predefinedDashboard = {
           width: 1,
           description: "How long the server has been running",
           query: {
-            sql: "SELECT max(last_error_time) FROM system.errors",
+            sql: "SELECT toUnixTimestamp(max(last_error_time)) * 1000 FROM system.errors",
+          },
+          valueOption: {
+            format: "timeDiff"
           },
           drilldown: {
             warnings: {

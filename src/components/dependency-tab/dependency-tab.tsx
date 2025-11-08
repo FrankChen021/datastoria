@@ -1,7 +1,6 @@
 import FloatingProgressBar from "@/components/floating-progress-bar";
-import { GraphvizComponent } from "@/components/graphviz-component/GraphvizComponent";
+import { DependencyGraphFlow } from "./dependency-graph-flow";
 import { TabManager } from "@/components/tab-manager";
-import { useTheme } from "@/components/theme-provider";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
 import type { ApiErrorResponse, ApiResponse } from "@/lib/api";
@@ -12,64 +11,7 @@ import { toastManager } from "@/lib/toast";
 import { ExternalLink, X } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { DependencyBuilder } from "./DependencyBuilder";
-
-// Convert HSL color (from CSS variable) to hex
-function hslToHex(hsl: string): string {
-  // Parse HSL string like "222.2 84% 9%"
-  const match = hsl.match(/(\d+(?:\.\d+)?)\s+(\d+)%\s+(\d+(?:\.\d+)?)%/);
-  if (!match) return "#000000";
-
-  const h = parseFloat(match[1]);
-  const s = parseFloat(match[2]) / 100;
-  const l = parseFloat(match[3]) / 100;
-
-  const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const m = l - c / 2;
-
-  let r = 0,
-    g = 0,
-    b = 0;
-
-  if (0 <= h && h < 60) {
-    r = c;
-    g = x;
-    b = 0;
-  } else if (60 <= h && h < 120) {
-    r = x;
-    g = c;
-    b = 0;
-  } else if (120 <= h && h < 180) {
-    r = 0;
-    g = c;
-    b = x;
-  } else if (180 <= h && h < 240) {
-    r = 0;
-    g = x;
-    b = c;
-  } else if (240 <= h && h < 300) {
-    r = x;
-    g = 0;
-    b = c;
-  } else if (300 <= h && h < 360) {
-    r = c;
-    g = 0;
-    b = x;
-  }
-
-  r = Math.round((r + m) * 255);
-  g = Math.round((g + m) * 255);
-  b = Math.round((b + m) * 255);
-
-  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
-}
-
-// Get computed CSS variable value
-function getCSSVariable(name: string): string {
-  if (typeof window === "undefined") return "";
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-}
+import { DependencyBuilder, type DependencyGraphNode } from "./DependencyBuilder";
 
 // The response data object
 interface Table {
@@ -87,26 +29,6 @@ interface Table {
   isTargetDatabase: boolean;
 }
 
-interface DependencyGraphNode {
-  id: string;
-
-  type: "Internal" | "External";
-
-  database: string;
-  name: string;
-  engine: string;
-  query: string;
-
-  // ids of target nodes
-  targets: string[];
-}
-
-function toTableNode(node: DependencyGraphNode): string {
-  return node.engine === ""
-    ? `${node.id}[color=red,label="{NOT FOUND}|${node.database}|${node.name}"];\n`
-    : `${node.id}[label="{&lt;&lt;${node.engine}&gt;&gt;}|${node.database}|${node.name}" id="${node.id}" ];\n`;
-}
-
 export interface DependencyTabProps {
   database: string;
   tabId?: string;
@@ -122,36 +44,6 @@ const DependencyTabComponent = ({ database }: DependencyTabProps) => {
   const hasExecutedRef = useRef(false);
 
   const [showTableNode, setShowTableNode] = useState<DependencyGraphNode | undefined>(undefined);
-  const { theme } = useTheme();
-  
-  // Compute initial background color from theme
-  const [bgColor, setBgColor] = useState(() => {
-    if (typeof window === "undefined") return "#ffffff";
-    const isDark =
-      theme === "dark" ||
-      (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches) ||
-      document.documentElement.classList.contains("dark");
-    const bgHsl = getCSSVariable("--background");
-    return bgHsl ? hslToHex(bgHsl) : (isDark ? "#1a1a2e" : "#ffffff");
-  });
-
-  // Update background color based on current theme
-  useEffect(() => {
-    const isDark =
-      theme === "dark" ||
-      (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches) ||
-      (typeof window !== "undefined" && document.documentElement.classList.contains("dark"));
-
-    if (isDark) {
-      // Dark mode
-      const bgHsl = getCSSVariable("--background");
-      setBgColor(bgHsl ? hslToHex(bgHsl) : "#1a1a2e");
-    } else {
-      // Light mode
-      const bgHsl = getCSSVariable("--background");
-      setBgColor(bgHsl ? hslToHex(bgHsl) : "#ffffff");
-    }
-  }, [theme]);
 
   useEffect(() => {
     if (!selectedConnection) {
@@ -216,62 +108,38 @@ FROM system.tables`;
     };
   }, [selectedConnection, database]);
 
-  const { graphviz, nodes } = useMemo(() => {
+  const { nodes, edges } = useMemo(() => {
     if (!queryResponse) {
-      return { graphviz: "", nodes: new Map<string, DependencyGraphNode>() };
+      return { nodes: new Map<string, DependencyGraphNode>(), edges: [] };
     }
 
     const responseData = queryResponse.data as { data?: Table[] } | undefined;
     const tables = responseData?.data;
     if (!tables || tables.length === 0) {
-      return { graphviz: "", nodes: new Map<string, DependencyGraphNode>() };
+      return { nodes: new Map<string, DependencyGraphNode>(), edges: [] };
     }
 
     const builder = new DependencyBuilder(tables);
     builder.build();
 
     if (builder.getNodes().size === 0) {
-      return { graphviz: "", nodes: new Map<string, DependencyGraphNode>() };
+      return { nodes: new Map<string, DependencyGraphNode>(), edges: [] };
     }
 
-    //
-    // to GraphViz format
-    //
-    let graphText = "digraph struct {\n";
-    graphText += `bgcolor="${bgColor}"\n`;
-    graphText += 'fontsize="9"\n';
-    graphText += 'rankdir="LR";\n';
-    graphText += 'edge [arrowhead="oopen" fontsize="10" fontcolor="#D3E4E6" color="#839496"];\n';
-    graphText += 'node [shape=record fontsize="10" fontcolor="#D3E4E6" color="#839496"];\n';
+    return { nodes: builder.getNodes(), edges: builder.getEdges() };
+  }, [queryResponse]);
 
-    builder.getNodes().forEach((node) => {
-      graphText += toTableNode(node);
-    });
-
-    builder.getEdges().forEach((edge) => {
-      graphText += `${edge.source} -> ${edge.target}`;
-      if (edge.label !== undefined) {
-        graphText += `[label="${edge.label}"]`;
+  const onNodeClick = useCallback(
+    (nodeId: string) => {
+      const graphNode = nodes.get(nodeId);
+      if (graphNode === undefined) {
+        return;
       }
-      graphText += "\n";
-    });
-    graphText += "}";
 
-    return { graphviz: graphText, nodes: builder.getNodes() };
-  }, [queryResponse, bgColor]);
-
-  const onGraphAction = useCallback((action: string, _x: number, _y: number, _type: string, key: string) => {
-    if (action !== "click") {
-      return;
-    }
-
-    const graphNode = nodes.get(key);
-    if (graphNode === undefined) {
-      return;
-    }
-
-    setShowTableNode(graphNode);
-  }, [nodes]);
+      setShowTableNode(graphNode);
+    },
+    [nodes]
+  );
 
   const handleOpenTableTab = useCallback(() => {
     if (!showTableNode) return;
@@ -289,11 +157,16 @@ FROM system.tables`;
   return (
     <PanelGroup direction="horizontal" className="h-full w-full relative">
       <FloatingProgressBar show={isLoading} />
-      {graphviz.length > 0 && (
+      {nodes.size > 0 && (
         <>
           {/* Left Panel: Dependency View */}
           <Panel defaultSize={showTableNode ? 60 : 100} minSize={showTableNode ? 30 : 0} className="bg-background">
-            <GraphvizComponent dot={graphviz} style={{ width: "100%", height: "100%" }} onGraphAction={onGraphAction} />
+            <DependencyGraphFlow
+              nodes={nodes}
+              edges={edges}
+              onNodeClick={onNodeClick}
+              style={{ width: "100%", height: "100%" }}
+            />
           </Panel>
 
           {/* Splitter */}
@@ -301,7 +174,7 @@ FROM system.tables`;
             <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors cursor-col-resize" />
           )}
 
-          {/* Right Panel: DDL View */}
+          {/* Right Panel: Selected Table View */}
           {showTableNode && (
             <Panel defaultSize={40} minSize={5} maxSize={70} className="bg-background border-l shadow-lg flex flex-col">
               {/* Header with close button */}
@@ -334,7 +207,7 @@ FROM system.tables`;
           )}
         </>
       )}
-      {!isLoading && graphviz.length === 0 && (
+      {!isLoading && nodes.size === 0 && (
         <div className="h-full w-full flex items-center justify-center">
           <div className="text-sm text-muted-foreground">Tables under this database have no dependencies.</div>
         </div>

@@ -486,13 +486,8 @@ export function SchemaTreeView({ onExecuteQuery, tabId }: SchemaTreeViewProps) {
     const nodeData = node.data;
     if (!nodeData) return;
 
-    // Show context menu for database nodes and table nodes (if not materialized view)
-    if (nodeData.type === "database") {
-      event.preventDefault();
-      event.stopPropagation();
-      setContextMenuNode(node);
-      setContextMenuPosition({ x: event.clientX, y: event.clientY });
-    } else if (nodeData.type === "table") {
+    // Show context menu only for table nodes (if not materialized view)
+    if (nodeData.type === "table") {
       const tableData = nodeData as TableNodeData;
       // Only show context menu if table engine is not MaterializedView
       if (tableData.fullTableEngine !== "MaterializedView") {
@@ -534,18 +529,6 @@ export function SchemaTreeView({ onExecuteQuery, tabId }: SchemaTreeViewProps) {
     setContextMenuNode(null);
     setContextMenuPosition(null);
   }, [contextMenuNode, executeQuery]);
-
-
-  const handleShowDependency = useCallback(
-    (databaseName: string) => {
-      // Open dependency tab instead of executing query
-      TabManager.sendOpenDependencyTabRequest(databaseName, tabId);
-
-      setContextMenuNode(null);
-      setContextMenuPosition(null);
-    },
-    [tabId]
-  );
 
   const loadDatabases = useCallback(() => {
     if (!selectedConnection) {
@@ -830,55 +813,46 @@ ORDER BY lower(database), database, table, columnName`,
       {/* Context Menu */}
       {contextMenuNode &&
         contextMenuPosition &&
-        createPortal(
-          <div
-            className="fixed z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
-            style={{
-              left: `${contextMenuPosition.x}px`,
-              top: `${contextMenuPosition.y}px`,
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onContextMenu={(e) => e.preventDefault()}
-          >
-            {contextMenuNode.data?.type === "database" && (
-              <>
-                {(() => {
-                  const dbData = contextMenuNode.data as DatabaseNodeData;
-                  const hasChildren = contextMenuNode.children && contextMenuNode.children.length > 0;
-                  if (hasChildren) {
-                    return (
-                      <>
-                        <div
-                          className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground"
-                          onClick={() => handleShowDependency(dbData.name)}
-                        >
-                          Show table dependencies
-                        </div>
-                      </>
-                    );
-                  }
-                  return null;
-                })()}
-              </>
-            )}
-            {contextMenuNode.data?.type === "table" && (() => {
-              const tableData = contextMenuNode.data as TableNodeData;
-              // Only show drop table if engine is not 'Sys' (System tables)
-              if (tableData.tableEngine !== "Sys") {
-                return (
-                  <div
-                    className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground"
-                    onClick={handleDropTable}
-                  >
-                    Drop table
-                  </div>
-                );
-              }
-              return null;
-            })()}
-          </div>,
-          document.body
-        )}
+        (() => {
+          // Build menu items based on node type
+          const menuItems: React.ReactNode[] = [];
+
+          if (contextMenuNode.data?.type === "table") {
+            const tableData = contextMenuNode.data as TableNodeData;
+            // Only show drop table if engine is not 'Sys' (System tables)
+            if (tableData.tableEngine !== "Sys") {
+              menuItems.push(
+                <div
+                  key="drop-table"
+                  className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground"
+                  onClick={handleDropTable}
+                >
+                  Drop table
+                </div>
+              );
+            }
+          }
+
+          // Only render context menu if there are items to show
+          if (menuItems.length === 0) {
+            return null;
+          }
+
+          return createPortal(
+            <div
+              className="fixed z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+              style={{
+                left: `${contextMenuPosition.x}px`,
+                top: `${contextMenuPosition.y}px`,
+              }}
+              onClick={(e) => e.stopPropagation()}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              {menuItems}
+            </div>,
+            document.body
+          );
+        })()}
     </div>
   );
 }

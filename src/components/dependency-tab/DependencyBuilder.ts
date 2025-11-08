@@ -18,7 +18,7 @@ interface Table {
   isTargetDatabase: boolean;
 }
 
-interface DependencyGraphNode {
+export interface DependencyGraphNode {
   id: string;
 
   type: "Internal" | "External";
@@ -171,11 +171,17 @@ export class DependencyBuilder {
       this.nodes.set(targetTableId, targetNode);
     }
 
-    if (checkVersion && source.serverVersion < "23") {
-      /// Before 23 or some earlier version, ClickHouse returns the dependencies in reverse order
+    // if (checkVersion && source.serverVersion < "23") {
+    //   /// Before 23 or some earlier version, ClickHouse returns the dependencies in reverse order
+    //   const t = sourceNode;
+    //   sourceNode = targetNode;
+    //   targetNode = t;
+    // }
+    if (targetTable?.engine === "MaterializedView") {
       const t = sourceNode;
       sourceNode = targetNode;
       targetNode = t;
+      edgeLabel = 'Select From';
     }
 
     this.edges.push({
