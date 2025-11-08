@@ -493,7 +493,7 @@ class GraphvizComponentImpl extends React.Component<
         }}
         className={this.props.className}
         id={this.state.id}
-        style={{ touchAction: "none" }}
+        style={{ touchAction: "none", height: "100%" }}
       />
     );
   }
@@ -555,7 +555,8 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
       const svg = container.querySelector("svg");
       if (!svg) return;
 
-      // Only fix if width is unreasonably large (likely a bug)
+      // Remove fixed width/height attributes to let CSS and viewBox handle sizing
+      // This allows the SVG to fill its parent container
       const svgWidth = parseFloat(svg.getAttribute("width") || "0");
       if (svgWidth > 100000 || svgWidth === 0) {
         // Remove fixed width/height to let viewBox handle it
@@ -574,6 +575,15 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
           } catch {
             // getBBox might fail if SVG is not rendered yet, ignore
           }
+        }
+      } else {
+        // For normal-sized SVGs, remove height attribute to allow CSS height: 100% to work
+        // Keep width if it's reasonable, but remove height so it can expand
+        svg.removeAttribute("height");
+        // Also remove width to let CSS handle it, but preserve viewBox for aspect ratio
+        const viewBox = svg.getAttribute("viewBox");
+        if (viewBox) {
+          svg.removeAttribute("width");
         }
       }
     };
@@ -750,7 +760,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
           <div
             style={{
               minWidth: "100%",
-              minHeight: "100%",
+              height: "100%",
               position: "relative",
               display: "inline-block",
             }}
@@ -758,7 +768,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
             <div
               style={{
                 minWidth: "100%",
-                minHeight: "100%",
+                height: "100%",
                 position: "relative",
                 display: "inline-block",
               }}
@@ -766,17 +776,15 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
               {/* SVG styling */}
               <style>{`
                 [data-graphviz-container] svg {
-                  height: auto !important;
+                  height: 100% !important;
+                  width: 100% !important;
                   display: block !important;
-                }
-                [data-graphviz-container] svg[width] {
-                  width: auto !important;
                 }
               `}</style>
               <div 
                 ref={this.containerRef}
                 data-graphviz-container 
-                style={{ display: "inline-block", minWidth: "100%" }}
+                style={{ display: "inline-block", minWidth: "100%", height: "100%" }}
               >
                 <GraphvizComponentImpl
                   dot={this.props.dot}

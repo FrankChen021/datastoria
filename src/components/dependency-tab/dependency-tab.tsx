@@ -9,7 +9,7 @@ import { Api } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { StringUtils } from "@/lib/string-utils";
 import { toastManager } from "@/lib/toast";
-import { X } from "lucide-react";
+import { ExternalLink, X } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { DependencyBuilder } from "./DependencyBuilder";
@@ -123,7 +123,17 @@ const DependencyTabComponent = ({ database }: DependencyTabProps) => {
 
   const [showTableNode, setShowTableNode] = useState<DependencyGraphNode | undefined>(undefined);
   const { theme } = useTheme();
-  const [bgColor, setBgColor] = useState("#002B36");
+  
+  // Compute initial background color from theme
+  const [bgColor, setBgColor] = useState(() => {
+    if (typeof window === "undefined") return "#ffffff";
+    const isDark =
+      theme === "dark" ||
+      (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches) ||
+      document.documentElement.classList.contains("dark");
+    const bgHsl = getCSSVariable("--background");
+    return bgHsl ? hslToHex(bgHsl) : (isDark ? "#1a1a2e" : "#ffffff");
+  });
 
   // Update background color based on current theme
   useEffect(() => {
@@ -298,11 +308,12 @@ FROM system.tables`;
               <div className="flex items-center justify-between px-2 py-1 border-b flex-shrink-0">
                 <Button
                   variant="link"
-                  className="font-semibold truncate h-auto p-0 text-left"
+                  className="font-semibold h-auto p-0 text-left flex items-center"
                   onClick={handleOpenTableTab}
                   title={`Open table ${showTableNode.database}.${showTableNode.name}`}
                 >
                   <h4 className="truncate">{showTableNode.database + "." + showTableNode.name}</h4>
+                  <ExternalLink className="h-4 w-4 flex-shrink-0" />
                 </Button>
                 <Button variant="ghost" size="icon" onClick={handleCloseTableNode} className="h-8 w-8">
                   <X className="h-4 w-4" />

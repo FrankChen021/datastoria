@@ -97,7 +97,35 @@ export function MainPage() {
   }, [pendingTabId, tabs]);
 
 
-  // Helper function to get the previous tab ID
+  // Helper function to get the next tab ID, or previous if no next exists
+  const getNextOrPreviousTabId = useCallback((tabId: string, tabsList: TabInfo[]) => {
+    // Order: query, dashboard, database, dependency, table
+    const order: Record<string, number> = { dashboard: 1, database: 2, dependency: 3, table: 4 };
+    const orderedTabs = [...tabsList].sort((a, b) => (order[a.type] || 0) - (order[b.type] || 0));
+
+    // Create a full list including query tab at the beginning (query tab is always present)
+    const allTabIds = ["query", ...orderedTabs.map((t) => t.id)];
+
+    const currentIndex = allTabIds.findIndex((id) => id === tabId);
+    if (currentIndex === -1) {
+      return "query";
+    }
+
+    // Try to get the next tab
+    if (currentIndex < allTabIds.length - 1) {
+      return allTabIds[currentIndex + 1];
+    }
+
+    // If no next tab, get the previous tab
+    if (currentIndex > 0) {
+      return allTabIds[currentIndex - 1];
+    }
+
+    // Fallback to query tab
+    return "query";
+  }, []);
+
+  // Helper function to get the previous tab ID (kept for backward compatibility with other handlers)
   const getPreviousTabId = useCallback((tabId: string, tabsList: TabInfo[]) => {
     // Order: query, dashboard, database, dependency, table
     const orderedTabs = tabsList.sort((a, b) => {
@@ -121,19 +149,19 @@ export function MainPage() {
   const handleCloseTab = useCallback(
     (tabId: string, event?: React.MouseEvent) => {
       event?.stopPropagation();
-      // If the closed tab was active, find the previous tab
+      // If the closed tab was active, find the next tab (or previous if no next)
       if (activeTab === tabId) {
         setTabs((prevTabs) => {
-          const newTabs = prevTabs.filter((t) => t.id !== tabId);
-          const previousTabId = getPreviousTabId(tabId, newTabs);
-          setActiveTab(previousTabId);
-          return newTabs;
+          // Find the next/previous tab before removing the closed tab
+          const nextTabId = getNextOrPreviousTabId(tabId, prevTabs);
+          setActiveTab(nextTabId);
+          return prevTabs.filter((t) => t.id !== tabId);
         });
       } else {
         setTabs((prevTabs) => prevTabs.filter((t) => t.id !== tabId));
       }
     },
-    [activeTab, getPreviousTabId]
+    [activeTab, getNextOrPreviousTabId]
   );
 
   // Handle closing tabs to the right of a given tab

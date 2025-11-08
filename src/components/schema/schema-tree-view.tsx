@@ -246,6 +246,7 @@ export function SchemaTreeView({ onExecuteQuery, tabId }: SchemaTreeViewProps) {
   const isLoadingRef = useRef(false);
   const currentConnectionIdRef = useRef<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const hasOpenedServerTabRef = useRef(false);
 
   // Cancel API call on unmount
   useEffect(() => {
@@ -641,13 +642,30 @@ ORDER BY lower(database), database, table, columnName`,
   // Load databases when connection changes
   useEffect(() => {
     if (selectedConnection) {
+      // Reset the flag when connection changes
+      hasOpenedServerTabRef.current = false;
       loadDatabases();
     } else {
       setTreeData([]);
       setCompleteTree(null);
+      hasOpenedServerTabRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConnection]);
+
+  // Automatically open server tab when tree is first loaded
+  useEffect(() => {
+    if (
+      !isLoading &&
+      treeData.length > 0 &&
+      !hasOpenedServerTabRef.current &&
+      treeData[0]?.data?.type === "host"
+    ) {
+      const hostData = treeData[0].data as HostNodeData;
+      TabManager.sendOpenServerTabRequest(hostData.host, tabId);
+      hasOpenedServerTabRef.current = true;
+    }
+  }, [treeData, isLoading, tabId]);
 
   const handleDropTable = useCallback(() => {
     if (contextMenuNode?.data?.type === "table" && selectedConnection) {
@@ -824,19 +842,12 @@ ORDER BY lower(database), database, table, columnName`,
           >
             {contextMenuNode.data?.type === "database" && (
               <>
-                <div
-                  className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground"
-                  onClick={handleShowCreateDatabase}
-                >
-                  Show create database
-                </div>
                 {(() => {
                   const dbData = contextMenuNode.data as DatabaseNodeData;
                   const hasChildren = contextMenuNode.children && contextMenuNode.children.length > 0;
                   if (hasChildren) {
                     return (
                       <>
-                        <div className="h-px w-full bg-border my-1" />
                         <div
                           className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground"
                           onClick={() => handleShowDependency(dbData.name)}
