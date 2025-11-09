@@ -132,6 +132,88 @@ WITH FILL STEP {rounding:UInt32}
             },
           },
         } as StatDescriptor,
+
+        {
+          type: "stat",
+          id: `new-part-count-${database}-${table}`,
+          titleOption: {
+            title: "Number of New Part",
+            align: "center",
+          },
+          isCollapsed: false,
+          width: 2,
+          minimapOption: {
+            type: "line",
+          },
+          valueOption: {
+            reducer: "sum",
+            align: "center",
+            format: "comma_number",
+          },
+          query: {
+            sql: `
+SELECT 
+toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+count()
+FROM system.part_log
+WHERE 
+    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+    AND database = '${database}'
+    AND table = '${table}'
+    AND event_type = 'NewPart'
+GROUP BY t
+ORDER BY t
+WITH FILL STEP {rounding:UInt32}
+`,
+            headers: {
+              "Content-Type": "text/plain",
+            },
+          },
+        } as StatDescriptor,
+
+        {
+          type: "stat",
+          id: `new-part-count-${database}-${table}`,
+          titleOption: {
+            title: "Number of Removed Parts",
+            align: "center",
+          },
+          isCollapsed: false,
+          width: 2,
+          minimapOption: {
+            type: "line",
+          },
+          valueOption: {
+            reducer: "sum",
+            align: "center",
+            format: "comma_number",
+          },
+          query: {
+            sql: `
+SELECT 
+toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+count()
+FROM system.part_log
+WHERE 
+    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+    AND database = '${database}'
+    AND table = '${table}'
+    AND event_type = 'RemovePart'
+GROUP BY t
+ORDER BY t
+WITH FILL STEP {rounding:UInt32}
+`,
+            headers: {
+              "Content-Type": "text/plain",
+            },
+          },
+        } as StatDescriptor,
       ],
     };
   }, [database, table]);

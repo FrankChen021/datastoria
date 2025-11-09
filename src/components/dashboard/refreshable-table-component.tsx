@@ -28,6 +28,9 @@ interface RefreshableTableComponentProps {
 
   // Used for generating links
   searchParams?: URLSearchParams;
+
+  // Additional className for the Card component
+  className?: string;
 }
 
 // Replace ORDER BY clause in SQL query
@@ -297,20 +300,20 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
             const hasPositionedFields = finalColumns.some((col) => col.position !== undefined);
             if (hasPositionedFields) {
               // Separate columns with position from those without
-              const columnsWithPosition: (FieldOption & { originalIndex: number })[] = [];
-              const columnsWithoutPosition: (FieldOption & { originalIndex: number })[] = [];
+              const positionedColumns: (FieldOption & { originalIndex: number })[] = [];
+              const nonPositionedColumns: (FieldOption & { originalIndex: number })[] = [];
 
               finalColumns.forEach((col) => {
                 const colWithIndex = col as FieldOption & { originalIndex: number };
                 if (col.position !== undefined) {
-                  columnsWithPosition.push(colWithIndex);
+                  positionedColumns.push(colWithIndex);
                 } else {
-                  columnsWithoutPosition.push(colWithIndex);
+                  nonPositionedColumns.push(colWithIndex);
                 }
               });
 
-              // Sort columns with position by position value
-              columnsWithPosition.sort((a, b) => {
+              // Sort positioned columns by position value, then by original index if positions are equal
+              positionedColumns.sort((a, b) => {
                 const posA = a.position ?? Number.MAX_SAFE_INTEGER;
                 const posB = b.position ?? Number.MAX_SAFE_INTEGER;
                 if (posA !== posB) {
@@ -320,10 +323,67 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
                 return a.originalIndex - b.originalIndex;
               });
 
-              // Merge: positioned columns first (sorted by position), then non-positioned (in natural order)
+              // Sort non-positioned columns by their original index to maintain natural order
+              nonPositionedColumns.sort((a, b) => a.originalIndex - b.originalIndex);
+
+              // Build final column order: position means "desired column number" (1-indexed)
+              // Convert to 0-indexed for array operations: position 2 = index 1
+              const result: (FieldOption & { originalIndex: number })[] = [];
+              
+              // Create a map of position (1-indexed) -> column(s) for quick lookup
+              const positionMap = new Map<number, (FieldOption & { originalIndex: number })[]>();
+              positionedColumns.forEach((col) => {
+                const pos = col.position!;
+                if (!positionMap.has(pos)) {
+                  positionMap.set(pos, []);
+                }
+                positionMap.get(pos)!.push(col);
+              });
+
+              // Track which non-positioned columns we've used
+              const usedNonPositioned = new Set<(FieldOption & { originalIndex: number })>();
+              
+              // Determine the maximum position we need to consider
+              const maxPosition = positionedColumns.length > 0 
+                ? Math.max(...positionedColumns.map(c => c.position!)) 
+                : 0;
+              const totalNeeded = Math.max(maxPosition, finalColumns.length);
+
+              // Build result array: for each position from 1 to totalNeeded (1-indexed),
+              // check if there's a positioned column, otherwise use the next non-positioned column
+              for (let pos = 1; pos <= totalNeeded && result.length < finalColumns.length; pos++) {
+                const positionedCols = positionMap.get(pos);
+                if (positionedCols && positionedCols.length > 0) {
+                  // Place positioned column(s) at this position (1-indexed)
+                  result.push(...positionedCols);
+                } else {
+                  // Find the next unused non-positioned column in order
+                  const nextNonPositioned = nonPositionedColumns.find(
+                    (col) => !usedNonPositioned.has(col)
+                  );
+                  if (nextNonPositioned) {
+                    result.push(nextNonPositioned);
+                    usedNonPositioned.add(nextNonPositioned);
+                  }
+                }
+              }
+
+              // Add any remaining positioned columns that had positions beyond what we processed
+              positionedColumns.forEach((col) => {
+                if (!result.includes(col)) {
+                  result.push(col);
+                }
+              });
+
+              // Add any remaining non-positioned columns that weren't placed
+              nonPositionedColumns.forEach((col) => {
+                if (!usedNonPositioned.has(col)) {
+                  result.push(col);
+                }
+              });
+
               finalColumns.length = 0;
-              finalColumns.push(...columnsWithPosition);
-              finalColumns.push(...columnsWithoutPosition);
+              finalColumns.push(...result);
             }
 
             // Apply type inference to columns without format based on meta information
@@ -462,7 +522,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
     }, []);
 
     // Format cell value based on field option
-    const formatCellValue = useCallback((value: unknown, fieldOption: FieldOption): React.ReactNode => {
+    const formatCellValue = useCallback((value: unknown, fieldOption: FieldOption, context?: Record<string, unknown>): React.ReactNode => {
       // Handle empty values: null, undefined, or empty string
       if (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) {
         return <span className="text-muted-foreground">-</span>;
@@ -474,8 +534,8 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
 
         // Check if format is a function (ObjectFormatter) or a string (FormatName)
         if (typeof fieldOption.format === "function") {
-          // It's an ObjectFormatter function - call it directly
-          formatted = fieldOption.format(value, fieldOption.formatArgs);
+          // It's an ObjectFormatter function - call it directly with context (row object)
+          formatted = fieldOption.format(value, fieldOption.formatArgs, context);
         } else {
           // It's a FormatName string - use Formatter.getInstance()
           const formatter = Formatter.getInstance().getFormatter(fieldOption.format);
@@ -698,7 +758,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
                     key={fieldOption.name}
                     className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap !p-2")}
                   >
-                    {formatCellValue(value, fieldOption)}
+                    {formatCellValue(value, fieldOption, row)}
                   </TableCell>
                 );
               })}
@@ -817,7 +877,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
                       "!p-2"
                     )}
                   >
-                    {formatCellValue(value, fieldOption)}
+                    {formatCellValue(value, fieldOption, row)}
                   </td>
                 );
               })}
@@ -837,7 +897,10 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
     ]);
 
     return (
-      <Card ref={componentRef} className="@container/card relative overflow-hidden">
+      <Card
+        ref={componentRef}
+        className={cn("@container/card relative overflow-hidden", props.className)}
+      >
         <FloatingProgressBar show={isLoading} />
         <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)}>
           {hasTitle && descriptor.titleOption && (

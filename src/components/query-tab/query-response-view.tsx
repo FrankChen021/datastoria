@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircleIcon } from "lucide-react";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { QueryResponseHeaderView } from "./query-response-header-view";
 import type { QueryResponseViewModel } from "./query-view-model";
 
 interface QueryResponseViewProps {
@@ -104,7 +105,9 @@ export function ApiErrorView({ error, sql }: { error: ApiErrorResponse; sql?: st
         )}
         {errorLocation && (
           <div className="mb-3">
-            <div className="mb-2 font-medium">Error location (line {errorLocation.lineNumber}, col {errorLocation.columnNumber}):</div>
+            <div className="mb-2 font-medium">
+              Error location (line {errorLocation.lineNumber}, col {errorLocation.columnNumber}):
+            </div>
             <div className="font-mono text-sm bg-muted/50 dark:bg-muted/30 p-3 rounded border border-yellow-400/40 dark:border-yellow-700/40">
               {errorLocation.contextLines.map((line, index) => (
                 <div key={index}>
@@ -138,7 +141,6 @@ export function ApiErrorView({ error, sql }: { error: ApiErrorResponse; sql?: st
       </AlertDescription>
     </Alert>
   );
-
 }
 
 export function QueryResponseView({ queryResponse, isLoading = false, sql }: QueryResponseViewProps) {
@@ -190,32 +192,6 @@ export function QueryResponseView({ queryResponse, isLoading = false, sql }: Que
     }
   };
 
-  const renderResponseHeadersTab = () => {
-    const headers = queryResponse.httpHeaders;
-    if (!headers) {
-      return null;
-    }
-
-    return (
-      <table className="w-full border-collapse text-xs">
-        <thead>
-          <tr className="border-b">
-            <th className="text-left p-2 whitespace-nowrap">Name</th>
-            <th className="text-left p-2 whitespace-nowrap">Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {Object.entries(headers).map(([key, value], index) => (
-            <tr key={index} className="border-b">
-              <td className="p-2 whitespace-nowrap">{key}</td>
-              <td className="p-2">{String(value)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    );
-  };
-
   return (
     <Tabs value={selectedTab} onValueChange={setSelectedTab} className="mt-2">
       <div className="w-full border-b bg-background">
@@ -261,7 +237,7 @@ export function QueryResponseView({ queryResponse, isLoading = false, sql }: Que
 
       {queryResponse.httpHeaders && (
         <TabsContent value="headers" className="overflow-auto">
-          {renderResponseHeadersTab()}
+          <QueryResponseHeaderView headers={queryResponse.httpHeaders} />
         </TabsContent>
       )}
     </Tabs>

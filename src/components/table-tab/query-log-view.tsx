@@ -2,7 +2,9 @@ import type { ColumnDef, TableDescriptor } from "@/components/dashboard/chart-ut
 import DashboardContainer, { type DashboardContainerRef } from "@/components/dashboard/dashboard-container";
 import type { Dashboard, DashboardGroup } from "@/components/dashboard/dashboard-model";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
+import { TabManager } from "@/components/tab-manager";
 import { DateTimeExtension } from "@/lib/datetime-utils";
+import { ExternalLink } from "lucide-react";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 import type { RefreshableTabViewRef } from "./table-tab";
@@ -12,6 +14,32 @@ export interface QueryLogViewProps {
   table: string;
   autoLoad?: boolean;
 }
+
+// Shared format function for query log links (initial_query_id and query_id)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const formatQueryLogLink = (queryId: any, _params?: any[], context?: Record<string, unknown>): React.ReactNode => {
+  if (!queryId || typeof queryId !== "string") {
+    return String(queryId ?? "");
+  }
+  // Truncate to first 4 and last 4 characters if longer than 8
+  const displayValue =
+    queryId.length > 8 ? `${queryId.substring(0, 4)}...${queryId.substring(queryId.length - 4)}` : queryId;
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+
+        const eventDate = context?.event_date as string;
+        TabManager.sendOpenQueryLogTabRequest(queryId, eventDate);
+      }}
+      className="text-primary hover:underline cursor-pointer flex items-center gap-1"
+      title={queryId} // Show full value on hover
+    >
+      <span>{displayValue}</span>
+      <ExternalLink className="h-3 w-3" />
+    </button>
+  );
+};
 
 const QueryLogViewComponent = forwardRef<RefreshableTabViewRef, QueryLogViewProps>(({ database, table }, ref) => {
   const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | undefined>(undefined);
@@ -454,19 +482,29 @@ ORDER BY t`,
               id: "query-kind",
               width: 100,
               titleOption: {
-                title: "Query Kind",
+                title: "Top 100 Queries by CPU Time",
               },
               sortOption: {
                 initialSort: {
                   column: "OSCPUVirtualTimeMicroseconds",
                   direction: "desc",
-                },
+                }
               },
               fieldOptions: {
-                OSCPUVirtualTimeMicroseconds: { 
-                  title: "CPU Time (μs)", 
-                  format: "microsecond", 
-                  sortable: true 
+                OSCPUVirtualTimeMicroseconds: {
+                  title: "CPU Time",
+                  format: "microsecond",
+                  sortable: true,
+                },
+                initial_query_id: {
+                  title: "Initial Query ID",
+                  position: 2,
+                  format: formatQueryLogLink,
+                },
+                query_id: {
+                  title: "Query ID",
+                  position: 3,
+                  format: formatQueryLogLink,
                 },
               },
               query: {
@@ -484,9 +522,10 @@ WHERE
     AND has(tables, '${database}.${table}')
     AND type in ('QueryFinish')
 ORDER BY OSCPUVirtualTimeMicroseconds DESC
+LIMIT 50
                 `,
               },
-            },
+            } as TableDescriptor,
           },
         },
 

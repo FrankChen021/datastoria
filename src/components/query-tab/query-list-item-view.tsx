@@ -4,16 +4,16 @@ import type { ApiErrorResponse } from "@/lib/api";
 import { Api } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { format } from "date-fns";
-import { ChevronDown, ChevronUp, Loader2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, ExternalLink, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { QueryLogView } from "../query-log-tab/query-log-view";
 import { ExplainASTResponseView } from "./explain-ast-response-view";
 import { ExplainPipelineResponseView } from "./explain-pipeline-response-view";
 import { ExplainQueryResponseView } from "./explain-query-response-view";
 import { ExplainSyntaxResponseView } from "./explain-syntax-response-view";
 import { QueryExecutionTimer } from "./query-execution-timer";
 import { QueryRequestView } from "./query-request-view";
-import { ApiErrorView, type ApiErrorResponse as QueryApiErrorResponse } from "./query-response-view";
-import { QueryResponseView } from "./query-response-view";
+import { ApiErrorView, QueryResponseView, type ApiErrorResponse as QueryApiErrorResponse } from "./query-response-view";
 import type { QueryResponseViewModel, QueryViewProps } from "./query-view-model";
 
 interface QueryListItemViewProps extends QueryViewProps {
@@ -35,6 +35,7 @@ export function QueryListItemView({
   // Start as executing if we don't have a response yet (new query)
   const [isExecuting, setIsExecuting] = useState(true);
   const [queryResponse, setQueryResponse] = useState<QueryResponseViewModel | undefined>(undefined);
+  const [showQueryLog, setShowQueryLog] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
   const hasExecutedRef = useRef<string | null>(null);
@@ -71,9 +72,12 @@ export function QueryListItemView({
     // But if params are provided in viewArgs, use those instead (they override defaults)
     const defaultFormat = view === "dependency" ? "JSON" : "TabSeparated";
 
+    // Always include query_id, even if viewArgs.params is provided
+    // If viewArgs.params already contains query_id, preserve it; otherwise use queryRequest.queryId
     const params = viewArgs?.params
-      ? { ...viewArgs.params }
+      ? { ...viewArgs.params, query_id: viewArgs.params.query_id ?? queryRequest.queryId }
       : {
+          query_id: queryRequest.queryId,
           default_format: defaultFormat,
           output_format_json_quote_64bit_integers: view === "dependency" ? 0 : undefined,
         };
@@ -304,9 +308,16 @@ export function QueryListItemView({
 
       {/* Query Status */}
       <div ref={scrollPlaceholderRef} className="flex flex-col mt-1">
-        {queryRequest.queryId && (
+        {queryResponse && (queryResponse.queryId || queryRequest.queryId) && (
           <div className="text-xs text-muted-foreground">
-            Query Id: {queryRequest.queryId}
+            Query Id:{" "}
+            <button
+              onClick={() => setShowQueryLog(true)}
+              className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
+            >
+              {queryResponse.queryId || queryRequest.queryId}
+              <ExternalLink className="h-3 w-3" />
+            </button>
             {queryRequest.traceId && `, Trace Id: ${queryRequest.traceId}`}
           </div>
         )}
@@ -336,6 +347,15 @@ export function QueryListItemView({
           )}
         </div>
       </div>
+
+      {/* Full-screen Query Log Viewer */}
+      {showQueryLog && queryResponse && (queryResponse.queryId || queryRequest.queryId) && (
+        <QueryLogView
+          queryId={queryResponse.queryId || queryRequest.queryId || undefined}
+          onClose={() => setShowQueryLog(false)}
+          embedded={false}
+        />
+      )}
     </div>
   );
 }

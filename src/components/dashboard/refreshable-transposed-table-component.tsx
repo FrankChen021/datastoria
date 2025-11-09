@@ -28,6 +28,9 @@ interface RefreshableTransposedTableComponentProps {
 
   // Used for generating links
   searchParams?: URLSearchParams;
+
+  // Additional className for the Card component
+  className?: string;
 }
 
 const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, RefreshableTransposedTableComponentProps>(
@@ -457,7 +460,10 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
     const hasTitle = !!descriptor.titleOption?.title;
 
     return (
-      <Card ref={componentRef} className="@container/card relative overflow-hidden">
+      <Card
+        ref={componentRef}
+        className={cn("@container/card relative overflow-hidden", props.className)}
+      >
         <FloatingProgressBar show={isLoading} />
         <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)}>
           {hasTitle && descriptor.titleOption && (

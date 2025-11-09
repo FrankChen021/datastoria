@@ -9,9 +9,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { ConnectionSelector } from "./connection/connection-selector";
+import { TabManager } from "./tab-manager";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
-import { Database } from "lucide-react";
+import { Database, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTheme } from "./theme-provider";
 
@@ -48,6 +49,16 @@ export function AppSidebar() {
                 sideOffset={5}
                 side="right"
               />
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                tooltip="Search Query Log"
+                size="lg"
+                className="justify-center"
+                onClick={() => TabManager.sendOpenQueryLogTabRequest()}
+              >
+                <Search className="h-5 w-5" />
+              </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>

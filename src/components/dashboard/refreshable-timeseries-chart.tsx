@@ -65,6 +65,11 @@ const DrilldownChartRendererWithRefresh: React.FC<{
     prevTimeSpanRef.current = selectedTimeSpan;
   }, [selectedTimeSpan]);
 
+  // Don't render anything if no time span is selected
+  if (!selectedTimeSpan) {
+    return null;
+  }
+
   // Render with stable key (not including timeSpan) and ref
   if (descriptor.type === "stat") {
     return (
@@ -91,6 +96,7 @@ const DrilldownChartRendererWithRefresh: React.FC<{
         descriptor={descriptor as TableDescriptor}
         selectedTimeSpan={selectedTimeSpan}
         searchParams={searchParams}
+        className="rounded-none"
       />
     );
   } else if (descriptor.type === "transpose-table") {
@@ -100,6 +106,7 @@ const DrilldownChartRendererWithRefresh: React.FC<{
         descriptor={descriptor as TransposeTableDescriptor}
         selectedTimeSpan={selectedTimeSpan}
         searchParams={searchParams}
+        className="rounded-none"
       />
     );
   }

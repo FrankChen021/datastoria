@@ -68,11 +68,6 @@ export function QueryControl({
       params.max_execution_time = queryContext.maxExecutionTime;
     }
 
-    if (queryContext.isTracingEnabled) {
-      params.send_progress_in_http_headers = 1;
-      params.query_profiler_real_time_period_ns = 1000000000; // 1 second
-    }
-
     QueryExecutor.sendQueryRequest(text, { params });
   }, [onQuery, queryContext]);
 

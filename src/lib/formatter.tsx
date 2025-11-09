@@ -160,8 +160,10 @@ export type FormatName =
   | "truncatedText"; // For long text - shows truncated text with click-to-expand dialog, accepts truncation length via formatArgs
 
 // Formatter function interface - matches the signature used by Formatter class
+// Third parameter (context) is optional. For the formatter in a table, the context is the row object of a cell
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ObjectFormatter {
-  (v: any, params?: any[]): string | React.ReactNode;
+  (v: any, params?: any[], context?: Record<string, unknown>): string | React.ReactNode;
 }
 
 export class Formatter {

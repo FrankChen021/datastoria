@@ -2,7 +2,7 @@
  * Unified tab events for event-based communication between components
  */
 
-export type TabType = "query" | "table" | "dependency" | "database" | "server";
+export type TabType = "query" | "table" | "dependency" | "database" | "server" | "dashboard" | "query-log";
 
 export interface BaseTabInfo {
   id: string;
@@ -35,7 +35,13 @@ export interface DashboardTabInfo extends BaseTabInfo {
   host: string;
 }
 
-export type TabInfo = QueryTabInfo | TableTabInfo | DependencyTabInfo | DatabaseTabInfo | DashboardTabInfo;
+export interface QueryLogTabInfo extends BaseTabInfo {
+  type: "query-log";
+  queryId?: string;
+  eventDate?: string;
+}
+
+export type TabInfo = QueryTabInfo | TableTabInfo | DependencyTabInfo | DatabaseTabInfo | DashboardTabInfo | QueryLogTabInfo;
 
 export interface OpenTabEventDetail {
   type: TabType;
@@ -46,6 +52,9 @@ export interface OpenTabEventDetail {
   engine?: string;
   // Dashboard tab fields
   host?: string;
+  // Query log tab fields
+  queryId?: string;
+  eventDate?: string;
 }
 
 /**
@@ -95,6 +104,16 @@ export class TabManager {
   static sendOpenServerTabRequest(host: string, tabId?: string): void {
     const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
       detail: { type: "server", host, tabId },
+    });
+    window.dispatchEvent(event);
+  }
+
+  /**
+   * Emit an open query log tab event
+   */
+  static sendOpenQueryLogTabRequest(queryId?: string, eventDate?: string, tabId?: string): void {
+    const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
+      detail: { type: "query-log", queryId, eventDate, tabId },
     });
     window.dispatchEvent(event);
   }

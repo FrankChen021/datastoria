@@ -72,7 +72,8 @@ export class Api {
   }
 
   private static getConnectionUser(connection: Connection): string {
-    return connection.cluster.length > 0 ? `${connection.user}-${connection.cluster}` : connection.user;
+    return connection.user;
+    //return connection.cluster.length > 0 ? `${connection.user}-${connection.cluster}` : connection.user;
   }
 
   public executeSQL(
@@ -219,8 +220,8 @@ export class Api {
 
       // Check Content-Type header to determine if response is JSON
       const contentType = response.headers.get("content-type") || "";
-      const isJson = contentType.toLowerCase().includes("application/json") || 
-                     contentType.toLowerCase().includes("text/json");
+      const isJson =
+        contentType.toLowerCase().includes("application/json") || contentType.toLowerCase().includes("text/json");
 
       // Parse as JSON if Content-Type indicates JSON, otherwise use text
       let data: unknown;

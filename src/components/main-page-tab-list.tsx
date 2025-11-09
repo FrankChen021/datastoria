@@ -72,24 +72,27 @@ const MainPageTabListComponent = ({
   }, [checkScrollPosition]);
 
   // Prevent browser navigation gestures on horizontal scroll
-  const handleWheel = useCallback((e: WheelEvent) => {
-    const container = tabsScrollContainerRef.current;
-    if (!container) return;
+  const handleWheel = useCallback(
+    (e: WheelEvent) => {
+      const container = tabsScrollContainerRef.current;
+      if (!container) return;
 
-    // Check if this is a horizontal scroll
-    const isHorizontalScroll = Math.abs(e.deltaX) > Math.abs(e.deltaY);
-    
-    if (isHorizontalScroll) {
-      // Prevent default to stop browser back/forward navigation
-      e.preventDefault();
-      
-      // Manually scroll the container
-      container.scrollLeft += e.deltaX;
-      
-      // Trigger our scroll handler to update button states
-      handleScroll();
-    }
-  }, [handleScroll]);
+      // Check if this is a horizontal scroll
+      const isHorizontalScroll = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+
+      if (isHorizontalScroll) {
+        // Prevent default to stop browser back/forward navigation
+        e.preventDefault();
+
+        // Manually scroll the container
+        container.scrollLeft += e.deltaX;
+
+        // Trigger our scroll handler to update button states
+        handleScroll();
+      }
+    },
+    [handleScroll]
+  );
 
   // Update scroll button visibility on mount, resize, and tab changes
   useEffect(() => {
@@ -101,7 +104,7 @@ const MainPageTabListComponent = ({
       // Use requestAnimationFrame for resize to batch updates
       requestAnimationFrame(checkScrollPosition);
     });
-      resizeObserver.observe(container);
+    resizeObserver.observe(container);
 
     container.addEventListener("scroll", handleScroll, { passive: true });
     // Add wheel event listener to prevent browser navigation
@@ -163,26 +166,29 @@ const MainPageTabListComponent = ({
 
   const showNavigationButtons = canScrollLeft || canScrollRight;
 
-  // Memoize sorted tabs to avoid re-sorting on every render
+  // Tabs are kept in insertion order (no sorting) so new tabs appear at the end
   const sortedTabs = useMemo(() => {
-    const order: Record<string, number> = { dashboard: 1, database: 2, dependency: 3, table: 4 };
-    return [...tabs].sort((a, b) => (order[a.type] || 0) - (order[b.type] || 0));
+    return tabs; // Return tabs in insertion order (new tabs are appended)
   }, [tabs]);
 
   // Memoize tab labels to avoid recalculating on every render
   const tabLabels = useMemo(() => {
-    return sortedTabs.map((tab) => {
-      if (tab.type === "dashboard") {
-        return { id: tab.id, label: `Dashboard: ${tab.host}` };
-      } else if (tab.type === "database") {
-        return { id: tab.id, label: `Database: ${tab.database}` };
-      } else if (tab.type === "dependency") {
-        return { id: tab.id, label: `Dependencies: ${tab.database}` };
-      } else if (tab.type === "table") {
-        return { id: tab.id, label: `${tab.database}.${tab.table}` };
-      }
-      return null;
-    }).filter((item): item is { id: string; label: string } => item !== null);
+    return sortedTabs
+      .map((tab) => {
+        if (tab.type === "query-log") {
+          return { id: tab.id, label: tab.queryId || "Query Log Viewer" };
+        } else if (tab.type === "dashboard") {
+          return { id: tab.id, label: `Dashboard: ${tab.host}` };
+        } else if (tab.type === "database") {
+          return { id: tab.id, label: `Database: ${tab.database}` };
+        } else if (tab.type === "dependency") {
+          return { id: tab.id, label: `Dependencies: ${tab.database}` };
+        } else if (tab.type === "table") {
+          return { id: tab.id, label: `${tab.database}.${tab.table}` };
+        }
+        return null;
+      })
+      .filter((item): item is { id: string; label: string } => item !== null);
   }, [sortedTabs]);
 
   return (
@@ -214,23 +220,14 @@ const MainPageTabListComponent = ({
               </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
-              <ContextMenuItem
-                onClick={() => onCloseTabsToRight("query")}
-                disabled={tabs.length === 0}
-              >
+              <ContextMenuItem onClick={() => onCloseTabsToRight("query")} disabled={tabs.length === 0}>
                 Close to the right
               </ContextMenuItem>
               <ContextMenuSeparator />
-              <ContextMenuItem
-                onClick={() => onCloseOthers("query")}
-                disabled={tabs.length === 0}
-              >
+              <ContextMenuItem onClick={() => onCloseOthers("query")} disabled={tabs.length === 0}>
                 Close others
               </ContextMenuItem>
-              <ContextMenuItem
-                onClick={onCloseAll}
-                disabled={tabs.length === 0}
-              >
+              <ContextMenuItem onClick={onCloseAll} disabled={tabs.length === 0}>
                 Close all
               </ContextMenuItem>
             </ContextMenuContent>
@@ -277,23 +274,14 @@ const MainPageTabListComponent = ({
                   >
                     Close this tab
                   </ContextMenuItem>
-                  <ContextMenuItem
-                    onClick={() => onCloseTabsToRight(tab.id)}
-                    disabled={!hasTabsToRight}
-                  >
+                  <ContextMenuItem onClick={() => onCloseTabsToRight(tab.id)} disabled={!hasTabsToRight}>
                     Close to the right
                   </ContextMenuItem>
                   <ContextMenuSeparator />
-                  <ContextMenuItem
-                    onClick={() => onCloseOthers(tab.id)}
-                    disabled={!hasOtherTabs}
-                  >
+                  <ContextMenuItem onClick={() => onCloseOthers(tab.id)} disabled={!hasOtherTabs}>
                     Close others
                   </ContextMenuItem>
-                  <ContextMenuItem
-                    onClick={onCloseAll}
-                    disabled={tabs.length === 0}
-                  >
+                  <ContextMenuItem onClick={onCloseAll} disabled={tabs.length === 0}>
                     Close all
                   </ContextMenuItem>
                 </ContextMenuContent>
@@ -319,4 +307,3 @@ const MainPageTabListComponent = ({
 };
 
 export const MainPageTabList = memo(MainPageTabListComponent);
-
