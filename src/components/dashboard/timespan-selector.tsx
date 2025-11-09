@@ -428,7 +428,6 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
   }
 
   render() {
-
     const {
       isSelectorOpen,
       isCalendarOpen,
@@ -507,7 +506,7 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                       />
                     )}
                   </div>
-                  <div className="flex flex-col w-[330px] gap-2">
+                  <div className="flex flex-col w-[350px] gap-2">
                     <Input
                       onClick={() => {
                         if (!isCalendarOpen) {
@@ -559,7 +558,7 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                           });
                         }}
                       >
-                        {selectedTimeSpan.label === timeSpan.label && <Check className="mr-2 h-4 w-4" />}
+                        {selectedTimeSpan.label === timeSpan.label && <Check className="h-4 w-4" />}
                         {timeSpan.label}
                       </Button>
                     ))}
