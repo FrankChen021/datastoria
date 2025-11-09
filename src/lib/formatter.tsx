@@ -333,8 +333,8 @@ export class Formatter {
         return <span className="text-muted-foreground">-</span>;
       }
 
-      // Get truncation length from params (default: 200)
-      const truncateLength = (params && params[0]) || 200;
+      // Get truncation length from params (default: 64)
+      const truncateLength = (params && params[0]) || 64;
 
       const stringValue = typeof v === "object" ? JSON.stringify(v) : String(v);
 
@@ -348,15 +348,31 @@ export class Formatter {
         <span
           className="cursor-pointer hover:text-primary underline decoration-dotted"
           onClick={(e) => {
+            let displayValue: string;
+            let isJson = false;
+            try {
+              const jsonObj = JSON.parse(stringValue);
+              displayValue = JSON.stringify(jsonObj, null, 2);
+              isJson = true;
+            } catch {
+              displayValue = stringValue;
+              isJson = false;
+            }
             e.stopPropagation();
             Dialog.showDialog({
               title: "Full Text",
               description: "Complete text content",
               mainContent: (
                 <div className="overflow-auto">
-                  <div className="whitespace-pre-wrap break-words text-sm font-mono p-2 bg-muted rounded">
-                    {stringValue}
-                  </div>
+                  {isJson ? (
+                    <ThemedSyntaxHighlighter language="json" customStyle={{ fontSize: "14px", margin: 0 }}>
+                      {displayValue}
+                    </ThemedSyntaxHighlighter>
+                  ) : (
+                    <div className="whitespace-pre-wrap break-words text-sm font-mono p-2 bg-muted rounded">
+                      {displayValue}
+                    </div>
+                  )}
                 </div>
               ),
               className: "max-w-4xl max-h-[80vh]",

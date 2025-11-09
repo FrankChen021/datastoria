@@ -1,5 +1,5 @@
 import { DatabaseTab } from "@/components/database-tab/database-tab";
-import { DependencyTab } from "@/components/dependency-tab/dependency-tab";
+import { DependencyView } from "@/components/dependency-view/dependency-view";
 import { QueryTab } from "@/components/query-tab/query-tab";
 import { QueryLogTab } from "@/components/query-log-tab/query-log-tab";
 import { SchemaTreeView } from "@/components/schema/schema-tree-view";
@@ -51,6 +51,10 @@ export function MainPage() {
       let newTab: TabInfo | null = null;
 
       switch (type) {
+        case "query":
+          // Query tab is always present, just activate it
+          setActiveTab("query");
+          return;
         case "table":
           if (!database || !table) return;
           tabId = getTableTabId(database, table);
@@ -285,7 +289,7 @@ export function MainPage() {
             role="tabpanel"
             aria-hidden={activeTab !== tab.id}
           >
-            <DependencyTab database={tab.database} />
+            <DependencyView database={tab.database} />
           </div>
         );
       }

@@ -119,6 +119,16 @@ export class TabManager {
   }
 
   /**
+   * Emit an activate query tab event (query tab is always present, this just activates it)
+   */
+  static sendActivateQueryTabRequest(): void {
+    const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
+      detail: { type: "query" },
+    });
+    window.dispatchEvent(event);
+  }
+
+  /**
    * Add a listener for open tab events
    */
   static onOpenTab(handler: OpenTabEventHandler): () => void {

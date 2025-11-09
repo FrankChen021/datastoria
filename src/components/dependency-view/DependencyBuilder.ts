@@ -13,8 +13,6 @@ interface Table {
   dependenciesDatabase: string[];
   dependenciesTable: string[];
 
-  serverVersion: string;
-
   isTargetDatabase: boolean;
 }
 
@@ -47,25 +45,28 @@ export class DependencyBuilder {
 
   constructor(tables: Table[]) {
     this.tables = tables;
+    // Round 1, convert the row format into a map for later phase usage
     this.tables.forEach((table) => {
       this.tableMap.set(table.id, table);
     });
   }
 
   // Build dependency graph
-  public build() {
+  public build(database: string) {
+    // Round 2, build the dependency graph
     this.tables.forEach((source) => {
-      if (!source.isTargetDatabase) {
-        return;
-      }
+      // if (!source.isTargetDatabase) {
+      //   console.log("Skipping non-target database", source);
+      //   return;
+      // }
 
       // Handle dependencies_database and dependencies_table arrays
       if (Array.isArray(source.dependenciesDatabase) && Array.isArray(source.dependenciesTable)) {
         for (let i = 0; i < source.dependenciesDatabase.length; i++) {
-          const depDb = source.dependenciesDatabase[i];
-          const depTable = source.dependenciesTable[i];
-          if (depDb && depTable) {
-            this.addTableDependency(source, depDb, depTable, true);
+          const targetDatabase = source.dependenciesDatabase[i];
+          const targetTable = source.dependenciesTable[i];
+          if (targetDatabase && targetTable && targetDatabase === database) {
+            this.addTableDependency(source, targetDatabase, targetTable);
           }
         }
       } else if (source.dependenciesDatabase && source.dependenciesTable) {
@@ -73,7 +74,7 @@ export class DependencyBuilder {
         const depDb = typeof source.dependenciesDatabase === "string" ? source.dependenciesDatabase : "";
         const depTable = typeof source.dependenciesTable === "string" ? source.dependenciesTable : "";
         if (depDb && depTable) {
-          this.addTableDependency(source, depDb, depTable, true);
+          this.addTableDependency(source, depDb, depTable);
         }
       }
 
@@ -101,7 +102,7 @@ export class DependencyBuilder {
           const database = configuration.match(/DB *'([^']*)'/);
           const table = configuration.match(/TABLE *'([^']*)'/);
           if (database !== null && table !== null) {
-            this.addTableDependency(source, database[1], table[1], false, "Load From");
+            this.addTableDependency(source, database[1], table[1], "Load From");
           }
         }
       }
@@ -114,20 +115,20 @@ export class DependencyBuilder {
           const dot = sinkToFullName.indexOf(".");
           if (dot > -1) {
             const sinkToNames = sinkToFullName.split(".");
-            this.addTableDependency(source, sinkToNames[0], sinkToNames[1], false, "Sink To");
+            this.addTableDependency(source, sinkToNames[0], sinkToNames[1], "Sink To");
           } else {
-            this.addTableDependency(source, source.database, sinkToFullName, false, "Sink To");
+            this.addTableDependency(source, source.database, sinkToFullName, "Sink To");
           }
         }
       } else if (source.engine === "Distributed") {
         const matches = source.tableQuery.match(this.distributedRegExpr);
         if (matches !== null && matches[1] !== undefined && matches[2] !== undefined) {
-          this.addTableDependency(source, matches[1], matches[2], false);
+          this.addTableDependency(source, matches[1], matches[2]);
         }
       } else if (source.engine === "Buffer") {
         const matches = source.tableQuery.match(this.bufferEngineExpr);
         if (matches !== null && matches[1] !== undefined && matches[2] !== undefined) {
-          this.addTableDependency(source, matches[1], matches[2], false);
+          this.addTableDependency(source, matches[1], matches[2]);
         }
       }
     });
@@ -137,7 +138,6 @@ export class DependencyBuilder {
     source: Table,
     targetTableDb: string,
     targetTableName: string,
-    checkVersion: boolean,
     edgeLabel: string | null = null
   ) {
     let sourceNode = this.nodes.get(source.id);
@@ -181,7 +181,7 @@ export class DependencyBuilder {
       const t = sourceNode;
       sourceNode = targetNode;
       targetNode = t;
-      edgeLabel = 'Select From';
+      edgeLabel = "Select From";
     }
 
     this.edges.push({
@@ -190,7 +190,7 @@ export class DependencyBuilder {
       target: targetNode.id,
       label:
         edgeLabel === null
-          ? this.getDependencyDescription(targetNode.database, targetNode.name, sourceNode.engine, sourceNode.query)
+          ? this.getDependencyDescription(sourceNode.engine, sourceNode.query, targetNode.database, targetNode.name)
           : edgeLabel,
     });
     sourceNode.targets.push(targetNode.id);
@@ -237,10 +237,10 @@ export class DependencyBuilder {
   }
 
   private getDependencyDescription(
-    targetNodeDatabase: string,
-    targetNodeName: string,
     sourceTableEngine: string,
-    sourceTableQuery: string
+    sourceTableQuery: string,
+    targetNodeDatabase: string,
+    targetNodeName: string
   ) {
     if (sourceTableEngine === "MaterializedView") {
       const matches = sourceTableQuery.match(this.mvRegExpr);
@@ -266,4 +266,3 @@ export class DependencyBuilder {
     return this.nodes;
   }
 }
-

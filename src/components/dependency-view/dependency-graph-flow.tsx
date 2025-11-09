@@ -1,6 +1,7 @@
 import type { GraphEdge } from "@/components/graphviz-component/Graph";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TextHighlighter } from "@/lib/text-highlighter";
 import {
   BaseEdge,
@@ -220,8 +221,9 @@ const GraphControlPanel = ({
   }, [onClearSearch]);
 
   return (
-    <Panel position="top-right" className="!m-1">
-      <div className="flex items-start gap-1">
+    <TooltipProvider>
+      <Panel position="top-right" className="!m-1">
+        <div className="flex items-start gap-1">
         <div className="bg-background rounded-md shadow-lg">
           <div className="flex items-center gap-1">
             {showSearch && (
@@ -248,25 +250,39 @@ const GraphControlPanel = ({
                   }}
                 />
                 {searchQuery && (
-                  <button
-                    onClick={handleClearSearch}
-                    className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
-                    aria-label="Clear search"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={handleClearSearch}
+                        className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
+                        aria-label="Clear search"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Clear search</p>
+                    </TooltipContent>
+                  </Tooltip>
                 )}
               </>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSearchClick}
-              className="h-8 w-8 flex-shrink-0"
-              aria-label={showSearch ? "Hide search" : "Show search"}
-            >
-              <Search className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleSearchClick}
+                  className="h-8 w-8 flex-shrink-0"
+                  aria-label={showSearch ? "Hide search" : "Show search"}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{showSearch ? "Hide search" : "Show search"}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
           {showSearch && searchQuery && matchingNodeIds.size === 0 && (
             <div className="px-3 py-1.5 text-xs text-muted-foreground">No tables found</div>
@@ -286,18 +302,26 @@ const GraphControlPanel = ({
           )}
         </div>
         <div className="bg-background rounded-md shadow-lg">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleFullscreenToggle}
-            className="h-8 w-8"
-            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-          >
-            {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleFullscreenToggle}
+                className="h-8 w-8"
+                aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              >
+                {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </Panel>
+    </TooltipProvider>
   );
 };
 
@@ -306,6 +330,8 @@ const DependencyGraphFlowInner = ({ nodes, edges, onNodeClick, className, style 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const { fitView, getNode } = useReactFlow();
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasFittedViewRef = useRef(false);
+  const previousNodesSizeRef = useRef(0);
 
   // Convert edges to React Flow format
   const initialEdges: Edge[] = useMemo(() => {
@@ -426,6 +452,15 @@ const DependencyGraphFlowInner = ({ nodes, edges, onNodeClick, className, style 
       setFlowEdges([]);
     }
   }, [initialNodes, initialEdges, getLayoutedNodes, setFlowNodes, setFlowEdges]);
+
+  // Reset fit view flag when nodes change (e.g., database switch)
+  useEffect(() => {
+    const currentNodesSize = nodes.size;
+    if (currentNodesSize !== previousNodesSizeRef.current) {
+      hasFittedViewRef.current = false;
+      previousNodesSizeRef.current = currentNodesSize;
+    }
+  }, [nodes]);
 
   // Filter nodes based on search query (only match table name)
   const matchingNodeIds = useMemo(() => {

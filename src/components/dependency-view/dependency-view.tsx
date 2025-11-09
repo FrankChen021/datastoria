@@ -1,16 +1,17 @@
 import FloatingProgressBar from "@/components/floating-progress-bar";
-import { DependencyGraphFlow } from "./dependency-graph-flow";
-import { TabManager } from "@/components/tab-manager";
+import type { GraphEdge } from "@/components/graphviz-component/Graph";
+import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
-import type { ApiErrorResponse, ApiResponse } from "@/lib/api";
+import type { ApiErrorResponse } from "@/lib/api";
 import { Api } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { StringUtils } from "@/lib/string-utils";
 import { toastManager } from "@/lib/toast";
-import { ExternalLink, X } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { DependencyGraphFlow } from "./dependency-graph-flow";
 import { DependencyBuilder, type DependencyGraphNode } from "./DependencyBuilder";
 
 // The response data object
@@ -29,17 +30,15 @@ interface Table {
   isTargetDatabase: boolean;
 }
 
-export interface DependencyTabProps {
+export interface DependencyViewProps {
   database: string;
   tabId?: string;
 }
 
-const DependencyTabComponent = ({ database }: DependencyTabProps) => {
+const DependencyViewComponent = ({ database }: DependencyViewProps) => {
   const { selectedConnection } = useConnection();
-  const [queryResponse, setQueryResponse] = useState<{
-    data?: unknown;
-    errorMessage?: string | null;
-  } | null>(null);
+  const [nodes, setNodes] = useState<Map<string, DependencyGraphNode>>(new Map());
+  const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const hasExecutedRef = useRef(false);
 
@@ -58,7 +57,8 @@ const DependencyTabComponent = ({ database }: DependencyTabProps) => {
     hasExecutedRef.current = true;
 
     setIsLoading(true);
-    setQueryResponse(null);
+    setNodes(new Map());
+    setEdges([]);
 
     // Execute the dependency query directly (without version)
     const api = Api.create(selectedConnection);
@@ -70,64 +70,56 @@ SELECT
     engine,
     create_table_query AS tableQuery,
     dependencies_database AS dependenciesDatabase,
-    dependencies_table AS dependenciesTable,
-    database = '${database}' AS isTargetDatabase
-FROM system.tables`;
+    dependencies_table AS dependenciesTable
+FROM system.tables
+WHERE database = '${database}' OR has(dependencies_database, '${database}')
+`;
 
-    api.executeSQL(
-      {
-        sql: dependencySql,
-        params: {
-          default_format: "JSON",
-          output_format_json_quote_64bit_integers: 0,
-        },
-      },
-      (response: ApiResponse) => {
-        setQueryResponse({
-          data: response.data,
-          errorMessage: null,
+    (async () => {
+      try {
+        const response = await api.executeAsync({
+          sql: dependencySql,
+          params: {
+            default_format: "JSON",
+            output_format_json_quote_64bit_integers: 0,
+          },
         });
+
+        // Process the response data inline
+        const responseData = response.data as { data?: Table[] } | undefined;
+        const tables = responseData?.data;
+
+        if (tables && tables.length > 0) {
+          const builder = new DependencyBuilder(tables);
+          builder.build(database);
+
+          if (builder.getNodes().size > 0) {
+            setNodes(builder.getNodes());
+            setEdges(builder.getEdges());
+          } else {
+            setNodes(new Map());
+            setEdges([]);
+          }
+        } else {
+          setNodes(new Map());
+          setEdges([]);
+        }
+
         setIsLoading(false);
-      },
-      (error: ApiErrorResponse) => {
-        setQueryResponse({
-          data: error.data,
-          errorMessage: error.errorMessage || "Unknown error occurred",
-        });
+      } catch (error) {
+        const apiError = error as ApiErrorResponse;
+        setNodes(new Map());
+        setEdges([]);
         setIsLoading(false);
-        toastManager.show(`Dependency query failed: ${error.errorMessage}`, "error");
-      },
-      () => {
-        // Query execution finished
+        toastManager.show(`Dependency query failed: ${apiError.errorMessage}`, "error");
       }
-    );
+    })();
 
     // Reset the ref when database or connection changes
     return () => {
       hasExecutedRef.current = false;
     };
   }, [selectedConnection, database]);
-
-  const { nodes, edges } = useMemo(() => {
-    if (!queryResponse) {
-      return { nodes: new Map<string, DependencyGraphNode>(), edges: [] };
-    }
-
-    const responseData = queryResponse.data as { data?: Table[] } | undefined;
-    const tables = responseData?.data;
-    if (!tables || tables.length === 0) {
-      return { nodes: new Map<string, DependencyGraphNode>(), edges: [] };
-    }
-
-    const builder = new DependencyBuilder(tables);
-    builder.build();
-
-    if (builder.getNodes().size === 0) {
-      return { nodes: new Map<string, DependencyGraphNode>(), edges: [] };
-    }
-
-    return { nodes: builder.getNodes(), edges: builder.getEdges() };
-  }, [queryResponse]);
 
   const onNodeClick = useCallback(
     (nodeId: string) => {
@@ -136,26 +128,25 @@ FROM system.tables`;
         return;
       }
 
+      // Don't open the pane if the node is marked as "NOT FOUND"
+      // A node is "NOT FOUND" when engine is empty or query is "NOT FOUND"
+      const isNotFound = graphNode.engine === "" || graphNode.query === "NOT FOUND";
+      if (isNotFound) {
+        return;
+      }
+
       setShowTableNode(graphNode);
     },
     [nodes]
   );
 
-  const handleOpenTableTab = useCallback(() => {
-    if (!showTableNode) return;
-    TabManager.sendOpenTableTabRequest(showTableNode.database, showTableNode.name, showTableNode.engine);
-  }, [showTableNode]);
-
   const handleCloseTableNode = useCallback(() => {
     setShowTableNode(undefined);
   }, []);
 
-  if (!queryResponse && !isLoading) {
-    return null;
-  }
-
   return (
-    <PanelGroup direction="horizontal" className="h-full w-full relative">
+    <PanelGroup direction="horizontal" className="h-full w-full">
+      {/* The parent does not have 'relative', the relative is defined in the collapsible-dependency-view */}
       <FloatingProgressBar show={isLoading} />
       {nodes.size > 0 && (
         <>
@@ -179,15 +170,14 @@ FROM system.tables`;
             <Panel defaultSize={40} minSize={5} maxSize={70} className="bg-background border-l shadow-lg flex flex-col">
               {/* Header with close button */}
               <div className="flex items-center justify-between px-2 py-1 border-b flex-shrink-0">
-                <Button
-                  variant="link"
-                  className="font-semibold h-auto p-0 text-left flex items-center"
-                  onClick={handleOpenTableTab}
-                  title={`Open table ${showTableNode.database}.${showTableNode.name}`}
-                >
-                  <h4 className="truncate">{showTableNode.database + "." + showTableNode.name}</h4>
-                  <ExternalLink className="h-4 w-4 flex-shrink-0" />
-                </Button>
+                <OpenTableTabButton
+                  database={showTableNode.database}
+                  table={showTableNode.name}
+                  engine={showTableNode.engine}
+                  variant="shadcn-link"
+                  showDatabase={true}
+                  className="truncate"
+                />
                 <Button variant="ghost" size="icon" onClick={handleCloseTableNode} className="h-8 w-8">
                   <X className="h-4 w-4" />
                 </Button>
@@ -216,4 +206,4 @@ FROM system.tables`;
   );
 };
 
-export const DependencyTab = memo(DependencyTabComponent);
+export const DependencyView = memo(DependencyViewComponent);

@@ -121,7 +121,8 @@ export interface FieldOption {
   // Action column support: render custom action buttons for each row
   renderAction?: (row: Record<string, unknown>, rowIndex: number) => React.ReactNode;
 
-  // Position in the table (for ordering). If not provided, columns will be shown in data order
+  // Position in the table (for ordering). If not provided, columns will be shown in data order.
+  // If negative, the column will be hidden from the table.
   position?: number;
 }
 

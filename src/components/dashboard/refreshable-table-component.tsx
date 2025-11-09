@@ -297,19 +297,23 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
             });
 
             // Only reorder if there are fields with position property
-            const hasPositionedFields = finalColumns.some((col) => col.position !== undefined);
+            const hasPositionedFields = finalColumns.some((col) => col.position !== undefined && col.position >= 0);
             if (hasPositionedFields) {
               // Separate columns with position from those without
+              // Note: columns with negative positions are excluded from positioning logic
               const positionedColumns: (FieldOption & { originalIndex: number })[] = [];
               const nonPositionedColumns: (FieldOption & { originalIndex: number })[] = [];
 
               finalColumns.forEach((col) => {
                 const colWithIndex = col as FieldOption & { originalIndex: number };
-                if (col.position !== undefined) {
+                // Only include columns with non-negative positions in positioning logic
+                if (col.position !== undefined && col.position >= 0) {
                   positionedColumns.push(colWithIndex);
-                } else {
+                } else if (col.position === undefined) {
+                  // Only include columns without position (not negative positions)
                   nonPositionedColumns.push(colWithIndex);
                 }
+                // Columns with negative positions are excluded from both arrays
               });
 
               // Sort positioned columns by position value, then by original index if positions are equal
@@ -329,7 +333,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
               // Build final column order: position means "desired column number" (1-indexed)
               // Convert to 0-indexed for array operations: position 2 = index 1
               const result: (FieldOption & { originalIndex: number })[] = [];
-              
+
               // Create a map of position (1-indexed) -> column(s) for quick lookup
               const positionMap = new Map<number, (FieldOption & { originalIndex: number })[]>();
               positionedColumns.forEach((col) => {
@@ -341,12 +345,11 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
               });
 
               // Track which non-positioned columns we've used
-              const usedNonPositioned = new Set<(FieldOption & { originalIndex: number })>();
-              
+              const usedNonPositioned = new Set<FieldOption & { originalIndex: number }>();
+
               // Determine the maximum position we need to consider
-              const maxPosition = positionedColumns.length > 0 
-                ? Math.max(...positionedColumns.map(c => c.position!)) 
-                : 0;
+              const maxPosition =
+                positionedColumns.length > 0 ? Math.max(...positionedColumns.map((c) => c.position!)) : 0;
               const totalNeeded = Math.max(maxPosition, finalColumns.length);
 
               // Build result array: for each position from 1 to totalNeeded (1-indexed),
@@ -358,9 +361,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
                   result.push(...positionedCols);
                 } else {
                   // Find the next unused non-positioned column in order
-                  const nextNonPositioned = nonPositionedColumns.find(
-                    (col) => !usedNonPositioned.has(col)
-                  );
+                  const nextNonPositioned = nonPositionedColumns.find((col) => !usedNonPositioned.has(col));
                   if (nextNonPositioned) {
                     result.push(nextNonPositioned);
                     usedNonPositioned.add(nextNonPositioned);
@@ -418,7 +419,10 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
               finalColumns.push(actionFieldOption);
             });
 
-            setColumns(finalColumns);
+            // Filter out columns with negative positions (these should be hidden)
+            const visibleColumns = finalColumns.filter((col) => col.position === undefined || col.position >= 0);
+
+            setColumns(visibleColumns);
             setData(rows as Record<string, unknown>[]);
             setError("");
             setIsLoading(false);
@@ -522,47 +526,50 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
     }, []);
 
     // Format cell value based on field option
-    const formatCellValue = useCallback((value: unknown, fieldOption: FieldOption, context?: Record<string, unknown>): React.ReactNode => {
-      // Handle empty values: null, undefined, or empty string
-      if (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) {
-        return <span className="text-muted-foreground">-</span>;
-      }
-
-      // Apply format if specified
-      if (fieldOption.format) {
-        let formatted: string | React.ReactNode;
-
-        // Check if format is a function (ObjectFormatter) or a string (FormatName)
-        if (typeof fieldOption.format === "function") {
-          // It's an ObjectFormatter function - call it directly with context (row object)
-          formatted = fieldOption.format(value, fieldOption.formatArgs, context);
-        } else {
-          // It's a FormatName string - use Formatter.getInstance()
-          const formatter = Formatter.getInstance().getFormatter(fieldOption.format);
-          // Pass args as params to the formatter (second parameter)
-          formatted = formatter(value, fieldOption.formatArgs);
-        }
-
-        // If formatter returns empty string, show '-'
-        if (formatted === "" || (typeof formatted === "string" && formatted.trim() === "")) {
+    const formatCellValue = useCallback(
+      (value: unknown, fieldOption: FieldOption, context?: Record<string, unknown>): React.ReactNode => {
+        // Handle empty values: null, undefined, or empty string
+        if (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) {
           return <span className="text-muted-foreground">-</span>;
         }
-        return formatted;
-      }
 
-      // Default formatting
-      if (typeof value === "object") {
-        return <span className="font-mono text-xs">{JSON.stringify(value)}</span>;
-      }
+        // Apply format if specified
+        if (fieldOption.format) {
+          let formatted: string | React.ReactNode;
 
-      const stringValue = String(value);
-      // If string conversion results in empty, show '-'
-      if (stringValue.trim() === "") {
-        return <span className="text-muted-foreground">-</span>;
-      }
+          // Check if format is a function (ObjectFormatter) or a string (FormatName)
+          if (typeof fieldOption.format === "function") {
+            // It's an ObjectFormatter function - call it directly with context (row object)
+            formatted = fieldOption.format(value, fieldOption.formatArgs, context);
+          } else {
+            // It's a FormatName string - use Formatter.getInstance()
+            const formatter = Formatter.getInstance().getFormatter(fieldOption.format);
+            // Pass args as params to the formatter (second parameter)
+            formatted = formatter(value, fieldOption.formatArgs);
+          }
 
-      return <span>{stringValue}</span>;
-    }, []);
+          // If formatter returns empty string, show '-'
+          if (formatted === "" || (typeof formatted === "string" && formatted.trim() === "")) {
+            return <span className="text-muted-foreground">-</span>;
+          }
+          return formatted;
+        }
+
+        // Default formatting
+        if (typeof value === "object") {
+          return <span className="font-mono text-xs">{JSON.stringify(value)}</span>;
+        }
+
+        const stringValue = String(value);
+        // If string conversion results in empty, show '-'
+        if (stringValue.trim() === "") {
+          return <span className="text-muted-foreground">-</span>;
+        }
+
+        return <span>{stringValue}</span>;
+      },
+      []
+    );
 
     // Get cell alignment class
     const getCellAlignmentClass = useCallback((fieldOption: FieldOption): string => {
@@ -897,10 +904,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
     ]);
 
     return (
-      <Card
-        ref={componentRef}
-        className={cn("@container/card relative overflow-hidden", props.className)}
-      >
+      <Card ref={componentRef} className={cn("@container/card relative overflow-hidden", props.className)}>
         <FloatingProgressBar show={isLoading} />
         <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)}>
           {hasTitle && descriptor.titleOption && (
@@ -932,11 +936,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
           <CollapsibleContent>
             <CardContent
               className={cn("px-0 p-0", !isStickyHeader && "overflow-auto", isStickyHeader && "overflow-auto")}
-              style={
-                descriptor.height
-                  ? ({ maxHeight: `${descriptor.height}vh` } as React.CSSProperties)
-                  : undefined
-              }
+              style={descriptor.height ? ({ maxHeight: `${descriptor.height}vh` } as React.CSSProperties) : undefined}
             >
               {isStickyHeader ? (
                 // Use direct table structure for sticky header to avoid nested scroll containers

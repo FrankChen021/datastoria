@@ -2,6 +2,7 @@ import type { TableDescriptor } from "@/components/dashboard/chart-utils";
 import DashboardContainer, { type DashboardContainerRef } from "@/components/dashboard/dashboard-container";
 import type { Dashboard } from "@/components/dashboard/dashboard-model";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
+import { BUILT_IN_TIME_SPAN_LIST } from "@/components/dashboard/timespan-selector";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef } from "react";
 import type { RefreshableTabViewRef } from "./table-tab";
 
@@ -18,7 +19,10 @@ const TableSizeViewComponent = forwardRef<RefreshableTabViewRef, TableSizeViewPr
 
     useImperativeHandle(ref, () => ({
       refresh: (timeSpan?: TimeSpan) => {
-        dashboardContainerRef.current?.refresh(timeSpan);
+        // Stat charts require a timeSpan even if the queries don't use it
+        // Provide a default timeSpan if none is provided
+        const effectiveTimeSpan = timeSpan || BUILT_IN_TIME_SPAN_LIST[3].calculateAbsoluteTimeSpan();
+        dashboardContainerRef.current?.refresh(effectiveTimeSpan);
       },
     }));
 
@@ -216,7 +220,7 @@ ORDER BY
             id: `column-size-${database}-${table}`,
             isCollapsed: true,
             titleOption: {
-              title: "Size By Column",
+              title: "Column Size",
               align: "left",
             },
             width: 100,
@@ -304,10 +308,28 @@ ORDER BY
             id: `index-size-${database}-${table}`,
             isCollapsed: true,
             titleOption: {
-              title: "Size By Index",
+              title: "Index Size",
               align: "left",
             },
             width: 100,
+            fieldOptions: {
+              database: {
+                position: -1,
+              },
+              table: {
+                position: -1,
+              },
+              data_compressed_bytes: {
+                sortable: true,
+                align: "left",
+                format: "binary_size",
+              },
+              data_uncompressed_bytes: {
+                sortable: true,
+                align: "left",
+                format: "binary_size",
+              },
+            },
             query: {
               sql: `
 SELECT *
@@ -325,25 +347,13 @@ WHERE
                 direction: "desc",
               },
             },
-            fieldOptions: {
-              data_compressed_bytes: {
-                sortable: true,
-                align: "left",
-                format: "binary_size",
-              },
-              data_uncompressed_bytes: {
-                sortable: true,
-                align: "left",
-                format: "binary_size",
-              },
-            },
           } as TableDescriptor,
           {
             type: "table",
             id: `projection-size-${database}-${table}`,
             isCollapsed: true,
             titleOption: {
-              title: "Size By Projection",
+              title: "Projection Size",
               align: "left",
             },
             width: 100,
@@ -360,7 +370,9 @@ SELECT A.database,
   B.bytes_on_disk * 100 / B.parent_bytes_on_disk as percentage_of_parent,
   B.last_modified_time,
   A.query
-FROM system.projections AS A
+FROM (
+    SELECT * FROM system.projections WHERE database = '${database}' AND table = '${table}' 
+) AS A
 LEFT JOIN
 (
     SELECT 
@@ -390,6 +402,12 @@ ORDER BY 1, 2, 3`,
               },
             },
             fieldOptions: {
+              database: {
+                position: -1,
+              },
+              table: {
+                position: -1,
+              },
               bytes_on_disk: {
                 sortable: true,
                 align: "left",

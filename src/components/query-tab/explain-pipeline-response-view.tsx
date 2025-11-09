@@ -108,7 +108,7 @@ function cleanGraphviz(graph: string): string {
 }
 
 /**
- * Apply the same styling as dependency-tab.tsx to the graphviz dot string
+ * Apply the same styling as dependency-view.tsx to the graphviz dot string
  * Applies styling to both the main graph and all subgraphs for consistency
  */
 function applyGraphvizStyling(dot: string, bgColor: string): string {

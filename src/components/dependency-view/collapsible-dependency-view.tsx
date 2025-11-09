@@ -2,16 +2,22 @@ import { Card, CardDescription, CardHeader } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
+import { DependencyView } from "./dependency-view";
 
-export interface CollapsibleSectionProps {
-  title: string;
-  children: ReactNode;
+export interface CollapsibleDependencyViewProps {
+  database: string;
+  tabId?: string;
   defaultOpen?: boolean;
   className?: string;
 }
 
-export function CollapsibleSection({ title, children, defaultOpen = true, className }: CollapsibleSectionProps) {
+export function CollapsibleDependencyView({
+  database,
+  tabId,
+  defaultOpen = false,
+  className,
+}: CollapsibleDependencyViewProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
@@ -24,13 +30,22 @@ export function CollapsibleSection({ title, children, defaultOpen = true, classN
                 className={cn("h-4 w-4 transition-transform duration-200 shrink-0", isOpen && "rotate-90")}
               />
               <div className="flex-1 text-left">
-                <CardDescription className={cn("font-semibold text-foreground m-0")}>{title}</CardDescription>
+                <CardDescription className={cn("font-semibold text-foreground m-0")}>
+                  Table Dependencies
+                </CardDescription>
               </div>
             </div>
           </CollapsibleTrigger>
         </CardHeader>
-        <CollapsibleContent>{children}</CollapsibleContent>
+        <CollapsibleContent>
+          {isOpen && (
+            <div className="h-[800px]">
+              <DependencyView database={database} tabId={tabId} />
+            </div>
+          )}
+        </CollapsibleContent>
       </Collapsible>
     </Card>
   );
 }
+

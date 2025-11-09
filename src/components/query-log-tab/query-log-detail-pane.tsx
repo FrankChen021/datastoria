@@ -256,6 +256,7 @@ export const QueryLogDetailPane = memo(function QueryLogDetailPane({
         secondColumnHeader="Value"
         formatValue={formatSettingsValue}
         emptyMessage="No settings available"
+        maxHeight="500px"
       />
     );
   }, [selectedQueryLog]);
@@ -275,7 +276,7 @@ export const QueryLogDetailPane = memo(function QueryLogDetailPane({
         firstColumnHeader="Event"
         secondColumnHeader="Value"
         formatValue={formatProfileEventsValue}
-        maxHeight="400px"
+        maxHeight="600px"
         emptyMessage="No profile events available"
       />
     );
@@ -360,9 +361,9 @@ export const QueryLogDetailPane = memo(function QueryLogDetailPane({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto space-y-2">
+      <div className="flex-1 overflow-auto space-y-2 pb-16">
         {/* Overview Section */}
-        <CollapsibleSection title="Overview" className="border-0" defaultOpen={true}>
+        <CollapsibleSection title="Overview" className="border-0 rounded-none" defaultOpen={true}>
           <div className="px-3 py-1">
             {overviewData.length > 0 ? (
               <SortableKeyValueTable
@@ -379,7 +380,7 @@ export const QueryLogDetailPane = memo(function QueryLogDetailPane({
         </CollapsibleSection>
 
         {/* Query Section */}
-        <CollapsibleSection title="Query" className="border-0" defaultOpen={true}>
+        <CollapsibleSection title="Query" className="border-0 rounded-none" defaultOpen={true}>
           <div className="px-3 py-1">
             <div className="overflow-x-auto border rounded-md">
               <ThemedSyntaxHighlighter
@@ -394,17 +395,17 @@ export const QueryLogDetailPane = memo(function QueryLogDetailPane({
         </CollapsibleSection>
 
         {/* Query Log Section */}
-        <CollapsibleSection title="Query Log" className="border-0" defaultOpen={true}>
+        <CollapsibleSection title="Query Log" className="border-0 rounded-none" defaultOpen={true}>
           <div className="px-3 py-1">{renderMainQueryLogTable}</div>
         </CollapsibleSection>
 
         {/* Profile Events Section */}
-        <CollapsibleSection title="Profile Events" className="border-0" defaultOpen={true}>
+        <CollapsibleSection title="Profile Events" className="border-0 rounded-none" defaultOpen={true}>
           <div className="px-3 py-1">{renderProfileEventsTable}</div>
         </CollapsibleSection>
 
         {/* Settings Section */}
-        <CollapsibleSection title="Settings" className="border-0" defaultOpen={false}>
+        <CollapsibleSection title="Settings" className="border-0 rounded-none" defaultOpen={false}>
           <div className="px-3 py-1">{renderSettingsTable}</div>
         </CollapsibleSection>
       </div>

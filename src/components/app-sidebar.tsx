@@ -12,7 +12,7 @@ import { ConnectionSelector } from "./connection/connection-selector";
 import { TabManager } from "./tab-manager";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
-import { Database, Search } from "lucide-react";
+import { Database, Search, Terminal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTheme } from "./theme-provider";
 
@@ -39,7 +39,7 @@ export function AppSidebar() {
               <ConnectionSelector
                 trigger={
                   <SidebarMenuButton
-                    tooltip={selectedConnection ? `Current connection: ${selectedConnection.name}@${selectedConnection.url}` : "Select Connection"}
+                    tooltip={"Manage Connections"}
                     size="lg"
                     className="justify-center"
                   >
@@ -50,16 +50,30 @@ export function AppSidebar() {
                 side="right"
               />
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                tooltip="Search Query Log"
-                size="lg"
-                className="justify-center"
-                onClick={() => TabManager.sendOpenQueryLogTabRequest()}
-              >
-                <Search className="h-5 w-5" />
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            {selectedConnection && (
+              <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip="Query"
+                    size="lg"
+                    className="justify-center"
+                    onClick={() => TabManager.sendActivateQueryTabRequest()}
+                  >
+                    <Terminal className="h-5 w-5" />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip="Search Query Log"
+                    size="lg"
+                    className="justify-center"
+                    onClick={() => TabManager.sendOpenQueryLogTabRequest()}
+                  >
+                    <Search className="h-5 w-5" />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
+            )}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>

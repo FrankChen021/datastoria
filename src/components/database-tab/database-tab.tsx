@@ -1,13 +1,11 @@
 import type { TableDescriptor, TransposeTableDescriptor } from "@/components/dashboard/chart-utils";
 import DashboardContainer, { type DashboardContainerRef } from "@/components/dashboard/dashboard-container";
 import type { Dashboard } from "@/components/dashboard/dashboard-model";
-import { TabManager } from "@/components/tab-manager";
+import { CollapsibleDependencyView } from "@/components/dependency-view/collapsible-dependency-view";
+import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import type { FormatName } from "@/lib/formatter";
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import type { RefreshableTabViewRef } from "../table-tab/table-tab";
-import { CollapsibleSection } from "@/components/collapsible-section";
-import { DependencyTab } from "@/components/dependency-tab/dependency-tab";
-import { ExternalLink } from "lucide-react";
 
 export interface DatabaseTabProps {
   database: string;
@@ -221,13 +219,12 @@ ORDER BY on_disk_size DESC
               renderAction: (row: unknown) => {
                 const tableRow = row as TableInfo;
                 return (
-                  <button
-                    onClick={() => TabManager.sendOpenTableTabRequest(database, tableRow.name, tableRow.engine)}
-                    className="text-left text-primary underline decoration-dotted cursor-pointer flex items-center gap-1"
-                  >
-                    {tableRow.name}
-                    <ExternalLink className="h-4 w-4 flex-shrink-0" />
-                  </button>
+                  <OpenTableTabButton
+                    database={database}
+                    table={tableRow.name}
+                    engine={tableRow.engine}
+                    showDatabase={false}
+                  />
                 );
               },
             },
@@ -288,11 +285,7 @@ ORDER BY on_disk_size DESC
     <div className="h-full w-full flex flex-col overflow-hidden p-2 gap-2">
       <div className="flex-1 min-h-0">
         <DashboardContainer ref={dashboardContainerRef} dashboard={dashboard} hideTimeSpanSelector={true}>
-          <CollapsibleSection title="Table Dependencies" defaultOpen={false} className="flex-shrink-0">
-            <div className="h-[800px]">
-              <DependencyTab database={database} />
-            </div>
-          </CollapsibleSection>
+          <CollapsibleDependencyView database={database} defaultOpen={false} className="flex-shrink-0" />
         </DashboardContainer>
       </div>
     </div>

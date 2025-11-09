@@ -1,6 +1,7 @@
 import type { TableDescriptor } from "@/components/dashboard/chart-utils";
 import type { RefreshableComponent } from "@/components/dashboard/refreshable-component";
 import RefreshableTableComponent from "@/components/dashboard/refreshable-table-component";
+import type { TimeSpan } from "@/components/dashboard/timespan-selector";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef } from "react";
 import type { RefreshableTabViewRef } from "./table-tab";
@@ -23,7 +24,7 @@ const DataSampleViewComponent = forwardRef<RefreshableTabViewRef, DataSampleView
   // 2. Update the descriptor after the first data load with discovered column names
   const tableDescriptor = useMemo<TableDescriptor>(() => {
     const fullTableName = `${database}.${table}`;
-    
+
     return {
       type: "table",
       id: `data-sample-${database}-${table}`,
@@ -46,13 +47,20 @@ const DataSampleViewComponent = forwardRef<RefreshableTabViewRef, DataSampleView
     };
   }, [database, table]);
 
-  useImperativeHandle(ref, () => ({
-    refresh: () => {
-      if (tableComponentRef.current) {
-        tableComponentRef.current.refresh({});
-      }
-    },
-  }), []);
+  useImperativeHandle(
+    ref,
+    () => ({
+      refresh: (_timeSpan?: TimeSpan) => {
+        if (tableComponentRef.current) {
+          // Force refresh by passing a unique timestamp to bypass the parameter change check
+          // This ensures refresh always happens even if called multiple times with "same" parameters
+          const refreshParam = { inputFilter: `refresh_${Date.now()}` };
+          tableComponentRef.current.refresh(refreshParam);
+        }
+      },
+    }),
+    []
+  );
 
   if (!tableDescriptor) {
     return (

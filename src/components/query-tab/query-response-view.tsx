@@ -27,6 +27,10 @@ export function ApiErrorView({ error, sql }: { error: ApiErrorResponse; sql?: st
         ? error.data
         : null;
 
+        /*
+        * TODO: QueryId = 4199d73a-c844-42dc-9600-eecef6edb804, Check logs for this query at: http://monitor.olap.data-infra.shopee.io/v2/tracing/detail?_sidebar=collapsed&id=019a69245625d13da59307c1bd78f0ec Code: 206. DB::Exception: No alias for subquery or table function in JOIN (set joined_subquery_requires_alias=0 to disable restriction). While processing ' (SELECT * FROM system.tables AS B)'. (ALIAS_REQUIRED) (version vSClickhouse-22.3-011)
+        * extract while parsing xxxxx
+        */
   // Parse line and column for exception code 62
   const parseErrorLocation = () => {
     if (clickHouseErrorCode !== "62" || !detailMessage || !sql) {
@@ -103,10 +107,17 @@ export function ApiErrorView({ error, sql }: { error: ApiErrorResponse; sql?: st
             ClickHouse Exception Code: <code className=" font-mono font-semibold">{clickHouseErrorCode}</code>
           </div>
         )}
+        {detailMessage && detailMessage.length > 0 && (
+          <div>
+            <pre className="whitespace-pre-wrap overflow-x-auto font-mono text-sm bg-muted/50 dark:bg-muted/30 p-3 rounded border border-yellow-400/40 dark:border-yellow-700/40">
+              {detailMessage}
+            </pre>
+          </div>
+        )}
         {errorLocation && (
           <div className="mb-3">
-            <div className="mb-2 font-medium">
-              Error location (line {errorLocation.lineNumber}, col {errorLocation.columnNumber}):
+            <div className="my-2 font-medium">
+              Error Context: Line {errorLocation.lineNumber}, Col {errorLocation.columnNumber}:
             </div>
             <div className="font-mono text-sm bg-muted/50 dark:bg-muted/30 p-3 rounded border border-yellow-400/40 dark:border-yellow-700/40">
               {errorLocation.contextLines.map((line, index) => (
@@ -128,14 +139,6 @@ export function ApiErrorView({ error, sql }: { error: ApiErrorResponse; sql?: st
                 </div>
               ))}
             </div>
-          </div>
-        )}
-        {detailMessage && detailMessage.length > 0 && (
-          <div>
-            <div className="mb-2 font-medium">Complete Response:</div>
-            <pre className="whitespace-pre-wrap overflow-x-auto font-mono text-sm bg-muted/50 dark:bg-muted/30 p-3 rounded border border-yellow-400/40 dark:border-yellow-700/40">
-              {detailMessage}
-            </pre>
           </div>
         )}
       </AlertDescription>

@@ -8,8 +8,9 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Database, Monitor, Package, Search, Table as TableIcon, Terminal, X } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 
 interface MainPageTabListProps {
   activeTab: string;
@@ -171,24 +172,24 @@ const MainPageTabListComponent = ({
     return tabs; // Return tabs in insertion order (new tabs are appended)
   }, [tabs]);
 
-  // Memoize tab labels to avoid recalculating on every render
+  // Memoize tab labels and icons to avoid recalculating on every render
   const tabLabels = useMemo(() => {
     return sortedTabs
       .map((tab) => {
         if (tab.type === "query-log") {
-          return { id: tab.id, label: tab.queryId || "Query Log Viewer" };
+          return { id: tab.id, label: tab.queryId || "Query Log Viewer", icon: Search };
         } else if (tab.type === "dashboard") {
-          return { id: tab.id, label: `Dashboard: ${tab.host}` };
+          return { id: tab.id, label: `${tab.host}`, icon: Monitor };
         } else if (tab.type === "database") {
-          return { id: tab.id, label: `Database: ${tab.database}` };
+          return { id: tab.id, label: `${tab.database}`, icon: Database };
         } else if (tab.type === "dependency") {
-          return { id: tab.id, label: `Dependencies: ${tab.database}` };
+          return { id: tab.id, label: `${tab.database}`, icon: Package };
         } else if (tab.type === "table") {
-          return { id: tab.id, label: `${tab.database}.${tab.table}` };
+          return { id: tab.id, label: `${tab.database}.${tab.table}`, icon: TableIcon };
         }
         return null;
       })
-      .filter((item): item is { id: string; label: string } => item !== null);
+      .filter((item): item is { id: string; label: string; icon: LucideIcon } => item !== null);
   }, [sortedTabs]);
 
   return (
@@ -215,6 +216,7 @@ const MainPageTabListComponent = ({
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
                   onClick={() => onTabChange("query")}
                 >
+                  <Terminal className="h-4 w-4 mr-1.5" />
                   Query
                 </TabsTrigger>
               </div>
@@ -235,11 +237,13 @@ const MainPageTabListComponent = ({
           {sortedTabs.map((tab, index) => {
             const hasTabsToRight = index < sortedTabs.length - 1;
             const hasOtherTabs = tabs.length > 1;
-            const tabLabel = tabLabels.find((l) => l.id === tab.id)?.label;
+            const tabInfo = tabLabels.find((l) => l.id === tab.id);
 
-            if (!tabLabel) {
+            if (!tabInfo) {
               return null;
             }
+
+            const { label: tabLabel, icon: TabIcon } = tabInfo;
 
             return (
               <ContextMenu key={tab.id}>
@@ -250,6 +254,7 @@ const MainPageTabListComponent = ({
                       className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pr-8"
                       onClick={() => onTabChange(tab.id)}
                     >
+                      <TabIcon className="h-4 w-4 mr-1.5" />
                       <span>{tabLabel}</span>
                     </TabsTrigger>
                     <button

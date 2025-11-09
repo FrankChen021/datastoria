@@ -2,6 +2,8 @@ import type { StatDescriptor, TableDescriptor, TimeseriesDescriptor } from "@/co
 import DashboardContainer from "@/components/dashboard/dashboard-container";
 import { DashboardGroupSection } from "@/components/dashboard/dashboard-group-section";
 import type { Dashboard, DashboardGroup } from "@/components/dashboard/dashboard-model";
+import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
+import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,6 +127,10 @@ const predefinedDashboard = {
               fieldOptions: {
                 name: {
                   title: "Name",
+                  format: (name) => {
+                    const databaseName = name as string;
+                    return <OpenDatabaseTabButton database={databaseName} />;
+                  },
                 },
                 size: {
                   title: "Size",
@@ -198,10 +204,20 @@ ORDER BY B.size DESC`,
               width: 1,
               fieldOptions: {
                 database: {
-                  title: "Database",
+                  format: (database) => {
+                    return <OpenDatabaseTabButton database={database as string} />;
+                  },
                 },
                 table: {
-                  title: "Table",
+                  format: (table, _param: unknown, row: unknown) => {
+                    const rowData = row as Record<string, unknown>;
+                    const database = rowData.database as string;
+                    const engine = rowData.engine as string;
+                    const tableName = table as string;
+                    return (
+                      <OpenTableTabButton database={database} table={tableName} engine={engine} showDatabase={false} />
+                    );
+                  },
                 },
                 size: {
                   title: "Size",
@@ -221,23 +237,32 @@ ORDER BY B.size DESC`,
                 },
               },
               query: {
-                sql: `WITH (
-    SELECT sum(bytes_on_disk)
+                sql: `
+SELECT A.*, B.engine FROM 
+(
+    WITH (
+        SELECT sum(bytes_on_disk)
+        FROM system.parts
+        WHERE active = 1
+    ) AS total_size
+    SELECT
+        database,
+        table,
+        round(100 * sum(bytes_on_disk) / total_size, 2) AS pct_of_total,
+        sum(bytes_on_disk) AS size
     FROM system.parts
     WHERE active = 1
-) AS total_size
-SELECT
-    database,
-    table,
-    sum(bytes_on_disk) AS size,
-    round(100 * sum(bytes_on_disk) / total_size, 2) AS pct_of_total
-FROM system.parts
-WHERE active = 1
-GROUP BY
-    database,
-    table
-ORDER BY
-    size DESC;`,
+    GROUP BY
+        database,
+        table
+    ORDER BY
+        size DESC
+) AS A
+JOIN
+(
+    SELECT * FROM system.tables
+) AS B
+ON A.table = B.name`,
               },
             } as TableDescriptor,
           },
