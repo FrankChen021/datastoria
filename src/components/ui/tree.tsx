@@ -125,6 +125,8 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
     const [selectedItemId, setSelectedItemId] = React.useState<string | undefined>(initialSlelectedItemId);
     const [keyboardExpandedIds, setKeyboardExpandedIds] = React.useState<string[]>([]);
     const [userExpandedIds, setUserExpandedIds] = React.useState<Set<string>>(new Set());
+    // Track nodes that were auto-expanded by search but explicitly collapsed by user
+    const [searchCollapsedIds, setSearchCollapsedIds] = React.useState<Set<string>>(new Set());
     const parentRef = useRef<HTMLDivElement>(null);
 
     const handleSelectChange = React.useCallback(
@@ -207,6 +209,13 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
       return ids;
     }, [data, initialSlelectedItemId, expandAll, initialExpandedIds]);
 
+    // Reset search-collapsed IDs when search changes or is cleared
+    React.useEffect(() => {
+      if (!search || search.length === 0) {
+        setSearchCollapsedIds(new Set());
+      }
+    }, [search]);
+
     // When search is provided, filter data and compute expanded ids from _expanded flags
     const { dataToRender, expandedItemIds } = React.useMemo(() => {
       const asArray = (items: TreeDataItem[] | TreeDataItem): TreeDataItem[] =>
@@ -221,7 +230,10 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
         const traverse = (nodes?: TreeDataItem[]) => {
           if (!nodes) return;
           for (const n of nodes) {
-            if (n._expanded) expandedIds.push(n.id);
+            // Only include nodes with _expanded flag that haven't been explicitly collapsed by user
+            if (n._expanded && !searchCollapsedIds.has(n.id)) {
+              expandedIds.push(n.id);
+            }
             if (n.children) traverse(n.children);
           }
         };
@@ -233,7 +245,7 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
       // Merge base expanded IDs with keyboard-controlled and user-controlled expanded IDs
       const mergedIds = [...new Set([...baseExpandedItemIds, ...keyboardExpandedIds, ...Array.from(userExpandedIds)])];
       return { dataToRender: asArray(data), expandedItemIds: mergedIds };
-    }, [data, search, pathSeparator, highlighter, searchOptions, baseExpandedItemIds, keyboardExpandedIds, userExpandedIds]);
+    }, [data, search, pathSeparator, highlighter, searchOptions, baseExpandedItemIds, keyboardExpandedIds, userExpandedIds, searchCollapsedIds]);
 
     // Create expanded set for efficient lookup
     const expandedSet = useMemo(() => new Set(expandedItemIds), [expandedItemIds]);
@@ -252,16 +264,72 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
     });
 
     const toggleExpand = useCallback((nodeId: string) => {
-      setUserExpandedIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(nodeId)) {
-          next.delete(nodeId);
+      const isSearchMode = search && search.length > 0;
+      const isCurrentlyExpanded = expandedSet.has(nodeId);
+      const isInUserExpandedIds = userExpandedIds.has(nodeId);
+      const isInSearchCollapsedIds = searchCollapsedIds.has(nodeId);
+      
+      if (isSearchMode) {
+        // In search mode, handle auto-expanded nodes specially
+        if (isCurrentlyExpanded) {
+          // Node is currently expanded - user is collapsing it
+          if (!isInUserExpandedIds) {
+            // This was auto-expanded by search - just mark as collapsed
+            // Don't add to userExpandedIds, only manage searchCollapsedIds
+            setSearchCollapsedIds((prev) => {
+              const next = new Set(prev);
+              next.add(nodeId);
+              return next;
+            });
+          } else {
+            // This was manually expanded - remove from userExpandedIds
+            setUserExpandedIds((prev) => {
+              const next = new Set(prev);
+              next.delete(nodeId);
+              return next;
+            });
+          }
         } else {
-          next.add(nodeId);
+          // Node is currently collapsed - user is expanding it
+          if (isInSearchCollapsedIds) {
+            // This was auto-expanded but user collapsed it - now user wants to expand it manually
+            // Remove from searchCollapsedIds and add to userExpandedIds
+            setSearchCollapsedIds((prev) => {
+              const next = new Set(prev);
+              next.delete(nodeId);
+              return next;
+            });
+            setUserExpandedIds((prev) => {
+              const next = new Set(prev);
+              next.add(nodeId);
+              return next;
+            });
+          } else {
+            // Normal case - just toggle userExpandedIds
+            setUserExpandedIds((prev) => {
+              const next = new Set(prev);
+              if (next.has(nodeId)) {
+                next.delete(nodeId);
+              } else {
+                next.add(nodeId);
+              }
+              return next;
+            });
+          }
         }
-        return next;
-      });
-    }, []);
+      } else {
+        // Not in search mode - normal toggle behavior
+        setUserExpandedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(nodeId)) {
+            next.delete(nodeId);
+          } else {
+            next.add(nodeId);
+          }
+          return next;
+        });
+      }
+    }, [search, expandedSet, userExpandedIds, searchCollapsedIds]);
 
     // Handle keyboard navigation with virtualized list
     const handleKeyDown = React.useCallback(
@@ -379,10 +447,9 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
               <div
                 data-index={virtualRow.index}
                 className={cn(
-                  "relative flex items-center py-1 cursor-pointer transition-colors",
-                  "hover:before:opacity-100 before:absolute before:left-0 before:right-0 before:opacity-0 before:bg-muted/80 before:h-full before:-z-10",
-                  isSelected &&
-                    "before:opacity-100 before:bg-accent text-accent-foreground before:border-l-2 before:border-l-accent-foreground/50 dark:before:border-0"
+                  "relative flex items-center py-1 cursor-pointer transition-colors rounded-sm",
+                  !isSelected && "hover:bg-accent hover:text-accent-foreground",
+                  isSelected && "bg-accent text-accent-foreground border-l-2 border-l-accent-foreground/50 dark:border-0"
                 )}
                 style={{
                   position: "absolute",
