@@ -24,7 +24,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
-import { Maximize, Minimize, Search, X } from "lucide-react";
+import { Maximize, Maximize2, Minimize, Search, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DependencyGraphNode } from "./DependencyBuilder";
 
@@ -34,6 +34,7 @@ interface DependencyGraphFlowProps {
   onNodeClick?: (nodeId: string) => void;
   className?: string;
   style?: React.CSSProperties;
+  database: string; // Database name for unique ID generation
 }
 
 // Custom node component for table nodes
@@ -45,7 +46,7 @@ function TableNode({
   selected?: boolean;
 }) {
   const { node, searchQuery } = data;
-  const isNotFound = node.engine === "";
+  const isNotFound = node.category === "";
   const isExternal = node.type === "External";
 
   // Highlight table name if search query matches
@@ -76,10 +77,10 @@ function TableNode({
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
       <div className="px-3 py-2 border-b border-border text-center">
-        <div className="font-semibold text-sm text-foreground">{isNotFound ? "NOT FOUND" : `<<${node.engine}>>`}</div>
+        <div className="font-semibold text-sm text-foreground">{isNotFound ? "NOT FOUND" : `<<${node.category}>>`}</div>
       </div>
       <div className="px-3 py-2 text-center">
-        <div className="text-sm font-medium text-foreground">{node.database}</div>
+        <div className="text-sm font-medium text-foreground">{node.namespace}</div>
       </div>
       {node.name && <div className="px-3 py-2 border-t border-border text-center">{tableNameDisplay}</div>}
     </div>
@@ -145,6 +146,9 @@ interface GraphControlPanelProps {
   onNextMatch: () => void;
   onPreviousMatch: () => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onFitView: () => void;
 }
 
 const GraphControlPanel = ({
@@ -157,6 +161,9 @@ const GraphControlPanel = ({
   onNextMatch,
   onPreviousMatch,
   containerRef,
+  onZoomIn,
+  onZoomOut,
+  onFitView,
 }: GraphControlPanelProps) => {
   const [showSearch, setShowSearch] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -217,8 +224,11 @@ const GraphControlPanel = ({
 
   const handleClearSearch = useCallback(() => {
     onClearSearch();
+    // Only close search panel if there's no query
+    if (!searchQuery.trim()) {
     setShowSearch(false);
-  }, [onClearSearch]);
+    }
+  }, [onClearSearch, searchQuery]);
 
   return (
     <TooltipProvider>
@@ -246,6 +256,9 @@ const GraphControlPanel = ({
                     } else if (e.key === "Enter" && e.shiftKey) {
                       e.preventDefault();
                       onPreviousMatch();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      handleClearSearch();
                     }
                   }}
                 />
@@ -301,6 +314,56 @@ const GraphControlPanel = ({
             </>
           )}
         </div>
+        <div className="bg-background rounded-md shadow-lg flex items-center">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onZoomIn}
+                className="h-8 w-8"
+                aria-label="Zoom in"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Zoom in</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onZoomOut}
+                className="h-8 w-8"
+                aria-label="Zoom out"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Zoom out</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onFitView}
+                className="h-8 w-8"
+                aria-label="Fit view"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Fit view</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
         <div className="bg-background rounded-md shadow-lg">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -325,13 +388,15 @@ const GraphControlPanel = ({
   );
 };
 
-const DependencyGraphFlowInner = ({ nodes, edges, onNodeClick, className, style }: DependencyGraphFlowProps) => {
+const DependencyGraphFlowInner = ({ nodes, edges, onNodeClick, className, style, database }: DependencyGraphFlowProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const { fitView, getNode } = useReactFlow();
+  const { fitView, getNode, zoomIn, zoomOut } = useReactFlow();
   const containerRef = useRef<HTMLDivElement>(null);
   const hasFittedViewRef = useRef(false);
   const previousNodesSizeRef = useRef(0);
+  // Use database name for unique ID to prevent marker conflicts between multiple instances
+  const instanceId = `react-flow-dependency-${database}`;
 
   // Convert edges to React Flow format
   const initialEdges: Edge[] = useMemo(() => {
@@ -373,8 +438,8 @@ const DependencyGraphFlowInner = ({ nodes, edges, onNodeClick, className, style 
   const maxNameLength = useMemo(() => {
     let maxLength = 0;
     nodes.forEach((node) => {
-      const engineLength = node.engine?.length || 0;
-      const databaseLength = node.database?.length || 0;
+      const engineLength = node.category?.length || 0;
+      const databaseLength = node.namespace?.length || 0;
       const nameLength = node.name?.length || 0;
       maxLength = Math.max(maxLength, engineLength, databaseLength, nameLength);
     });
@@ -461,6 +526,27 @@ const DependencyGraphFlowInner = ({ nodes, edges, onNodeClick, className, style 
       previousNodesSizeRef.current = currentNodesSize;
     }
   }, [nodes]);
+
+  // Fit view when graph is initially loaded or when database changes
+  useEffect(() => {
+    if (flowNodes.length > 0 && flowEdges.length > 0 && !hasFittedViewRef.current) {
+      // Use requestAnimationFrame to ensure the layout is complete before fitting
+      // Double RAF ensures the DOM is fully updated and ReactFlow has calculated positions
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Add a small delay to ensure ReactFlow internal state is ready
+          setTimeout(() => {
+            try {
+              fitView({ padding: 0.2, duration: 300, maxZoom: 1.5, minZoom: 0.1 });
+              hasFittedViewRef.current = true;
+            } catch (error) {
+              console.warn("Failed to fit view:", error);
+            }
+          }, 200);
+        });
+      });
+    }
+  }, [flowNodes, flowEdges, fitView]);
 
   // Filter nodes based on search query (only match table name)
   const matchingNodeIds = useMemo(() => {
@@ -578,8 +664,9 @@ const DependencyGraphFlowInner = ({ nodes, edges, onNodeClick, className, style 
     }
   }, [matchingNodeIds, selectedNodeId, getNode, fitView]);
 
+
   return (
-    <div ref={containerRef} className={className} style={{ width: "100%", height: "100%", ...style }}>
+    <div ref={containerRef} className={className} style={{ width: "100%", height: "100%", position: "relative", ...style }}>
       <style>{`
         .react-flow__attribution {
           display: none !important;
@@ -591,6 +678,8 @@ const DependencyGraphFlowInner = ({ nodes, edges, onNodeClick, className, style 
         }
       `}</style>
       <ReactFlow
+        key={instanceId}
+        id={instanceId}
         nodes={flowNodesWithSelection}
         edges={flowEdges}
         nodeTypes={nodeTypes}
@@ -621,8 +710,16 @@ const DependencyGraphFlowInner = ({ nodes, edges, onNodeClick, className, style 
           onNextMatch={handleNextMatch}
           onPreviousMatch={handlePreviousMatch}
           containerRef={containerRef}
+          onZoomIn={() => zoomIn()}
+          onZoomOut={() => zoomOut()}
+          onFitView={() => fitView({ padding: 0.2 })}
         />
       </ReactFlow>
+      {flowEdges.length > 0 && (
+        <div className="absolute top-1 left-1 bg-background/95 backdrop-blur-sm shadow-lg text-xs text-muted-foreground pointer-events-none" style={{ zIndex: 1000 }}>
+          💡 Use scroll wheel or trackpad to zoom, drag to pan
+        </div>
+      )}
     </div>
   );
 };

@@ -28,6 +28,7 @@ interface QueryLogGraphFlowProps {
   className?: string;
   style?: React.CSSProperties;
   onControlsReady?: (controls: { zoomIn: () => void; zoomOut: () => void; fitView: () => void }) => void;
+  graphId?: string; // Unique identifier for this graph instance
 }
 
 // Custom node component for host/user nodes
@@ -135,6 +136,7 @@ const QueryLogGraphFlowInner = ({
   className,
   style,
   onControlsReady,
+  graphId = "query-log-graph",
 }: QueryLogGraphFlowProps) => {
   const { fitView, zoomIn, zoomOut } = useReactFlow();
 
@@ -346,6 +348,7 @@ const QueryLogGraphFlowInner = ({
         }
       `}</style>
       <ReactFlow
+        id={graphId}
         nodes={flowNodes}
         edges={flowEdges}
         nodeTypes={nodeTypes}

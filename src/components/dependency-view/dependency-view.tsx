@@ -14,8 +14,8 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { DependencyGraphFlow } from "./dependency-graph-flow";
 import { DependencyBuilder, type DependencyGraphNode } from "./DependencyBuilder";
 
-// The response data object
-interface Table {
+// The response data object from API
+interface TableResponse {
   /**
    * The id of the table, namely the database name and the table name
    */
@@ -36,7 +36,6 @@ interface Table {
 
 export interface DependencyViewProps {
   database: string;
-  tabId?: string;
 }
 
 const DependencyViewComponent = ({ database }: DependencyViewProps) => {
@@ -54,15 +53,13 @@ const DependencyViewComponent = ({ database }: DependencyViewProps) => {
       return;
     }
 
-    // Prevent duplicate execution
+    // Prevent duplicate execution - check if we already have data for this database
     if (hasExecutedRef.current) {
       return;
     }
     hasExecutedRef.current = true;
 
     setIsLoading(true);
-    setNodes(new Map());
-    setEdges([]);
 
     // Execute the dependency query directly (without version)
     const api = Api.create(selectedConnection);
@@ -90,11 +87,13 @@ WHERE database = '${database}' OR has(dependencies_database, '${database}')
         });
 
         // Process the response data inline
-        const responseData = response.data as { data?: Table[] } | undefined;
+        const responseData = response.data as { data?: TableResponse[] } | undefined;
         const tables = responseData?.data;
 
         if (tables && tables.length > 0) {
-          const builder = new DependencyBuilder(tables);
+          // Convert TableResponse to the format DependencyBuilder expects
+          const tablesWithInnerFlag = tables.map(t => ({ ...t, isInnerTable: false }));
+          const builder = new DependencyBuilder(tablesWithInnerFlag);
           builder.build(database);
 
           if (builder.getNodes().size > 0) {
@@ -134,8 +133,10 @@ WHERE database = '${database}' OR has(dependencies_database, '${database}')
 
       // Don't open the pane if the node is marked as "NOT FOUND"
       // A node is "NOT FOUND" when engine is empty or query is "NOT FOUND"
-      const isNotFound = graphNode.engine === "" || graphNode.query === "NOT FOUND";
-      if (isNotFound) {
+      const shouldReturn = graphNode.category === "" 
+      || graphNode.query === "NOT FOUND" 
+      || graphNode.category === 'Kafka';
+      if (shouldReturn) {
         return;
       }
 
@@ -161,6 +162,7 @@ WHERE database = '${database}' OR has(dependencies_database, '${database}')
               edges={edges}
               onNodeClick={onNodeClick}
               style={{ width: "100%", height: "100%" }}
+              database={database}
             />
           </Panel>
 
@@ -175,9 +177,9 @@ WHERE database = '${database}' OR has(dependencies_database, '${database}')
               {/* Header with close button */}
               <div className="flex items-center justify-between px-2 py-1 border-b flex-shrink-0">
                 <OpenTableTabButton
-                  database={showTableNode.database}
+                  database={showTableNode.namespace}
                   table={showTableNode.name}
-                  engine={showTableNode.engine}
+                  engine={showTableNode.category}
                   variant="shadcn-link"
                   showDatabase={true}
                   className="truncate"

@@ -7,14 +7,12 @@ import { DependencyView } from "./dependency-view";
 
 export interface CollapsibleDependencyViewProps {
   database: string;
-  tabId?: string;
   defaultOpen?: boolean;
   className?: string;
 }
 
 export function CollapsibleDependencyView({
   database,
-  tabId,
   defaultOpen = false,
   className,
 }: CollapsibleDependencyViewProps) {
@@ -40,7 +38,7 @@ export function CollapsibleDependencyView({
         <CollapsibleContent>
           {isOpen && (
             <div className="h-[800px]">
-              <DependencyView database={database} tabId={tabId} />
+              <DependencyView database={database} />
             </div>
           )}
         </CollapsibleContent>
