@@ -18,6 +18,7 @@ export function MainPage() {
   const [tabs, setTabs] = useState<TabInfo[]>([]);
   const [pendingTabId, setPendingTabId] = useState<string | null>(null);
   const previousConnectionRef = useRef<string | null>(null);
+  const previousConnectionKeyRef = useRef<string | null>(null);
 
   // Helper functions to generate tab IDs
   const getTableTabId = useCallback((database: string, table: string) => {
@@ -235,19 +236,32 @@ export function MainPage() {
     setActiveTab("query");
   }, []);
 
-  // Close all tabs when connection changes
+  // Close all tabs when connection changes or is updated
   useEffect(() => {
     const currentConnectionName = selectedConnection?.name ?? null;
     const previousConnectionName = previousConnectionRef.current;
 
-    // Only close tabs if connection actually changed (not on initial mount)
-    if (previousConnectionName !== null && previousConnectionName !== currentConnectionName) {
+    // Create a key that includes connection details that might change (name, url, user)
+    // This ensures tabs close when connection is saved/updated, even if name stays the same
+    const currentConnectionKey = selectedConnection
+      ? `${selectedConnection.name}-${selectedConnection.url}-${selectedConnection.user}`
+      : null;
+    const previousConnectionKey = previousConnectionKeyRef.current;
+
+    // Close tabs if:
+    // 1. Connection name changed (switching between different connections), OR
+    // 2. Connection key changed (connection was updated/saved, even if name is the same)
+    if (
+      previousConnectionName !== null &&
+      (previousConnectionName !== currentConnectionName || previousConnectionKey !== currentConnectionKey)
+    ) {
       handleCloseAll();
     }
 
-    // Update the ref to track the current connection
+    // Update the refs to track the current connection
     previousConnectionRef.current = currentConnectionName;
-  }, [selectedConnection?.name, handleCloseAll]);
+    previousConnectionKeyRef.current = currentConnectionKey;
+  }, [selectedConnection, handleCloseAll]);
 
   // Tabs are kept in insertion order (no sorting) so new tabs appear at the end
   const sortedTabs = useMemo(() => {

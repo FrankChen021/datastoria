@@ -1,12 +1,13 @@
 import FloatingProgressBar from "@/components/floating-progress-bar";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tree, type TreeDataItem } from "@/components/ui/tree";
 import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
-import { toastManager } from "@/lib/toast";
 import type { LucideIcon } from "lucide-react";
 import {
+  AlertCircle,
   Calculator,
   Calendar,
   Clock,
@@ -112,7 +113,7 @@ function getColumnIcon(typeString: string): LucideIcon | undefined {
 // Example: Enum8('NewPart' = 1, 'MergeParts' = 2) -> { baseType: 'Enum8', pairs: [['NewPart', '1'], ['MergeParts', '2']] }
 function parseEnumType(typeString: string): { baseType: string; pairs: Array<[string, string]> } | null {
   const type = String(typeString || "").trim();
-  
+
   // Match Enum8, Enum16, Enum, etc.
   const enumMatch = type.match(/^(Enum\d*)\s*\((.+)\)$/);
   if (!enumMatch) {
@@ -143,31 +144,30 @@ function parseEnumType(typeString: string): { baseType: string; pairs: Array<[st
 function toColumnTreeNode(column: { name: string; type: string }): TreeDataItem {
   const columnName = String(column.name || "Unknown");
   const columnType = String(column.type || "");
-  
+
   // Check if it's an Enum type
   const enumInfo = parseEnumType(columnType);
-  
+
   // Create the tag - show base type for Enum, full type for others
   const tagContent = enumInfo ? enumInfo.baseType : columnType;
-  const tag = (
-    <span className="ml-2 text-[10px] text-muted-foreground">{tagContent}</span>
-  );
+  const tag = <span className="ml-2 text-[10px] text-muted-foreground">{tagContent}</span>;
 
   // Create hover card content if it's an Enum with pairs
-  const hoverCardContent = enumInfo && enumInfo.pairs.length > 0 ? (
-    <div className="space-y-1">
-      <div className="font-semibold text-sm">{enumInfo.baseType}</div>
+  const hoverCardContent =
+    enumInfo && enumInfo.pairs.length > 0 ? (
       <div className="space-y-1">
-        {enumInfo.pairs.map(([key, value], index) => (
-          <div key={index} className="text-xs font-mono">
-            <span className="text-muted-foreground">{key}</span>
-            <span className="mx-2">=</span>
-            <span>{value}</span>
-          </div>
-        ))}
+        <div className="font-semibold text-sm">{enumInfo.baseType}</div>
+        <div className="space-y-1">
+          {enumInfo.pairs.map(([key, value], index) => (
+            <div key={index} className="text-xs font-mono">
+              <span className="text-muted-foreground">{key}</span>
+              <span className="mx-2">=</span>
+              <span>{value}</span>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-  ) : undefined;
+    ) : undefined;
 
   return {
     id: `column:${column.name}`,
@@ -237,6 +237,7 @@ export function SchemaTreeView({ tabId }: SchemaTreeViewProps) {
   const [treeData, setTreeData] = useState<TreeDataItem[]>([]);
   const [completeTree, setCompleteTree] = useState<TreeDataItem | null>(null);
   const [search, setSearch] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [apiCanceller, setApiCanceller] = useState<ApiCanceller | null>(null);
   const isLoadingRef = useRef(false);
   const currentConnectionIdRef = useRef<string | null>(null);
@@ -502,6 +503,7 @@ export function SchemaTreeView({ tabId }: SchemaTreeViewProps) {
   const loadDatabases = useCallback(() => {
     if (!selectedConnection) {
       setTreeData([]);
+      setError(null);
       isLoadingRef.current = false;
       currentConnectionIdRef.current = null;
       return;
@@ -523,6 +525,7 @@ export function SchemaTreeView({ tabId }: SchemaTreeViewProps) {
     isLoadingRef.current = true;
     currentConnectionIdRef.current = connectionId;
     setIsLoading(true);
+    setError(null); // Clear any previous errors
 
     const api = Api.create(selectedConnection);
     const canceller = api.executeSQL(
@@ -563,13 +566,12 @@ ORDER BY lower(database), database, table, columnName`,
 
           setCompleteTree(hostNode);
           setTreeData([hostNode]);
+          setError(null); // Clear error on success
         } catch (err) {
           console.error("Error processing database response:", err);
           console.error("Response data:", response);
-          toastManager.show(
-            `Failed to process database response: ${err instanceof Error ? err.message : String(err)}`,
-            "error"
-          );
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          setError(`Failed to process database response: ${errorMessage}`);
         }
       },
       (error: ApiErrorResponse) => {
@@ -580,7 +582,22 @@ ORDER BY lower(database), database, table, columnName`,
           headers: error.httpHeaders,
           data: error.data,
         });
-        toastManager.show(`Failed to load databases: ${error.errorMessage}`, "error");
+        // Build detailed error message
+        let errorMessage = `Failed to load databases: ${error.errorMessage}`;
+        if (error.httpStatus) {
+          errorMessage += ` (HTTP ${error.httpStatus})`;
+        }
+        // Add detail message if available
+        const detailMessage =
+          typeof error?.data == "object"
+            ? error.data?.message
+              ? error.data.message
+              : JSON.stringify(error.data, null, 2)
+            : error?.data;
+        if (detailMessage) {
+          errorMessage += `\n${detailMessage}`;
+        }
+        setError(errorMessage);
       },
       () => {
         isLoadingRef.current = false;
@@ -594,25 +611,37 @@ ORDER BY lower(database), database, table, columnName`,
   // Load databases when connection changes
   useEffect(() => {
     if (selectedConnection) {
+      // Clear tree data first to ensure fresh reload
+      setTreeData([]);
+      setCompleteTree(null);
+      setError(null); // Clear errors when connection changes
       // Reset the flag when connection changes
       hasOpenedServerTabRef.current = false;
+      // Reset connection tracking to force reload even if connectionId is the same
+      // This handles the case where connection details (URL, password) changed but name/user/cluster didn't
+      currentConnectionIdRef.current = null;
+      isLoadingRef.current = false;
+      // Cancel any pending requests
+      if (apiCanceller) {
+        apiCanceller.cancel();
+        setApiCanceller(null);
+      }
+      // Load databases for the new/updated connection
       loadDatabases();
     } else {
       setTreeData([]);
       setCompleteTree(null);
+      setError(null);
       hasOpenedServerTabRef.current = false;
+      currentConnectionIdRef.current = null;
+      isLoadingRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConnection]);
 
   // Automatically open server tab when tree is first loaded
   useEffect(() => {
-    if (
-      !isLoading &&
-      treeData.length > 0 &&
-      !hasOpenedServerTabRef.current &&
-      treeData[0]?.data?.type === "host"
-    ) {
+    if (!isLoading && treeData.length > 0 && !hasOpenedServerTabRef.current && treeData[0]?.data?.type === "host") {
       const hostData = treeData[0].data as HostNodeData;
       TabManager.sendOpenServerTabRequest(hostData.host, tabId);
       hasOpenedServerTabRef.current = true;
@@ -763,19 +792,35 @@ ORDER BY lower(database), database, table, columnName`,
 
       <div className="flex-1 overflow-hidden relative">
         <FloatingProgressBar show={isLoading} />
-        {treeData.length > 0 && (
-          <Tree
-            data={treeData}
-            search={search}
-            onSelectChange={handleNodeExpand}
-            onNodeContextMenu={handleContextMenu}
-            folderIcon={Database}
-            itemIcon={TableIcon}
-            className="h-full"
-            pathSeparator="."
-            initialExpandedIds={["host"]}
-            searchOptions={{ startLevel: 1 }}
-          />
+        {error ? (
+          <div className="h-full overflow-y-auto">
+            <Alert variant="destructive" className="border-0 p-3 bg-destructive/10 dark:bg-destructive/20">
+              <div className="flex items-start gap-2 w-full">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <AlertTitle className="text-sm">Error loading schema</AlertTitle>
+                  <AlertDescription className="mt-1 break-words overflow-wrap-anywhere whitespace-pre-wrap text-xs">
+                    {error}
+                  </AlertDescription>
+                </div>
+              </div>
+            </Alert>
+          </div>
+        ) : (
+          treeData.length > 0 && (
+            <Tree
+              data={treeData}
+              search={search}
+              onSelectChange={handleNodeExpand}
+              onNodeContextMenu={handleContextMenu}
+              folderIcon={Database}
+              itemIcon={TableIcon}
+              className="h-full"
+              pathSeparator="."
+              initialExpandedIds={["host"]}
+              searchOptions={{ startLevel: 1 }}
+            />
+          )
         )}
       </div>
 

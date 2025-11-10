@@ -344,6 +344,7 @@ function ConnectionEditDialogWrapper({
     // Update the selected connection to the newly saved/edited connection
     // This will also initialize the connection runtime and save it as the last selected
     setSelectedConnection(savedConnection);
+
     if (onSave) {
       onSave(savedConnection);
     }
