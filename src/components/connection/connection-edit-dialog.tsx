@@ -1,4 +1,3 @@
-import FloatingProgressBar from "@/components/floating-progress-bar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +12,6 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { FieldDescription } from "@/components/ui/field-description";
 import { Input } from "@/components/ui/input";
-import { Dialog } from "@/components/use-dialog";
 import type { ApiCanceller, ApiErrorResponse } from "@/lib/api";
 import { Api } from "@/lib/api";
 import type { Connection } from "@/lib/connection/Connection";
@@ -21,13 +19,106 @@ import { ensureConnectionRuntimeInitialized } from "@/lib/connection/Connection"
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { ConnectionManager } from "@/lib/connection/ConnectionManager";
 import axios from "axios";
-import { AlertCircle, CheckCircle2, Eye, EyeOff, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactDOM from "react-dom/client";
 
 export interface ConnectionEditDialogProps {
   connection: Connection | null;
   onClose: () => void;
+}
+
+// Type for bottom section content
+type BottomSectionContent =
+  | { type: "test-success"; message: string }
+  | { type: "error"; message: string }
+  | { type: "delete-confirmation" }
+  | null;
+
+// Sub-components for bottom section
+function TestSuccessMessage({ message }: { message: string }) {
+  return (
+    <Card className="w-full rounded-t-none border-t-0">
+      <CardContent className="p-0">
+        <Alert
+          variant="default"
+          className="border-0 rounded-t-none p-3 flex items-start bg-green-500/10 dark:bg-green-500/20"
+        >
+          <div className="flex items-start gap-2 w-full">
+            <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <AlertTitle className="text-sm">Connection Test Successful</AlertTitle>
+              <AlertDescription className="mt-1 break-words overflow-wrap-anywhere whitespace-pre-wrap text-xs">
+                {message}
+              </AlertDescription>
+            </div>
+          </div>
+        </Alert>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ErrorMessage({ message, title }: { message: string; title?: string }) {
+  return (
+    <Card className="w-full rounded-t-none border-t-0 max-h-[140px] flex flex-col">
+      <CardContent className="p-0 flex-1 min-h-0 overflow-hidden">
+        <Alert
+          variant="destructive"
+          className="border-0 rounded-t-none p-3 h-full flex items-start bg-destructive/10 dark:bg-destructive/20"
+        >
+          <div className="flex items-start gap-2 w-full h-full min-h-0">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+              <AlertTitle className="text-sm shrink-0">{title || "Error"}</AlertTitle>
+              <AlertDescription className="mt-1 break-words overflow-wrap-anywhere whitespace-pre-wrap text-xs overflow-y-auto flex-1 min-h-0">
+                {message}
+              </AlertDescription>
+            </div>
+          </div>
+        </Alert>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DeleteConfirmation({
+  onConfirm,
+  onCancel,
+  disabled,
+}: {
+  onConfirm: () => void;
+  onCancel: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <Card className="w-full rounded-t-none border-t-0">
+      <CardContent className="p-0">
+        <Alert
+          variant="destructive"
+          className="border-0 rounded-t-none px-6 py-3 flex items-start bg-destructive/10 dark:bg-destructive/20"
+        >
+          <div className="flex items-start gap-2 w-full">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <AlertTitle className="text-sm">Confirm deletion</AlertTitle>
+              <AlertDescription className="mt-2 break-words overflow-wrap-anywhere text-xs">
+                Are you sure you want to delete this connection? This action cannot be undone.
+              </AlertDescription>
+              <div className="flex justify-end gap-2 mt-3">
+                <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={disabled}>
+                  Cancel
+                </Button>
+                <Button type="button" variant="destructive" size="sm" onClick={onConfirm} disabled={disabled}>
+                  Delete
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Alert>
+      </CardContent>
+    </Card>
+  );
 }
 
 export interface ShowConnectionEditDialogOptions {
@@ -66,6 +157,15 @@ function ConnectionEditDialogWrapper({
   const [editable, setEditable] = useState(connection ? connection.editable : true);
   const [currentSelectedConnection, setCurrentSelectedConnection] = useState<Connection | null>(connection);
 
+  // Initialize isNameManuallyEdited: true if editing existing connection, false for new connection
+  useEffect(() => {
+    if (connection) {
+      setIsNameManuallyEdited(true); // Existing connection name is pre-set
+    } else {
+      setIsNameManuallyEdited(false); // New connection, allow auto-fill
+    }
+  }, [connection]);
+
   const [apiCanceller, setApiCanceller] = useState<ApiCanceller>();
   const [connectionTemplates, setConnectionTemplates] = useState<Connection[]>(
     isAddMode ? [] : ConnectionManager.getInstance().getConnections()
@@ -75,11 +175,11 @@ function ConnectionEditDialogWrapper({
   const [isShowPassword, setShowPassword] = useState(false);
   const [isLoadingTemplates, setLoadingTemplates] = useState(false);
   const [loadingTemplateError, setLoadingTemplateError] = useState<ApiErrorResponse | undefined>();
+  const [bottomSectionContent, setBottomSectionContent] = useState<BottomSectionContent>(null);
 
   // Error and message state
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [testResult, setTestResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [isNameManuallyEdited, setIsNameManuallyEdited] = useState(false);
 
   useEffect(() => {
     if (!isAddMode || !hasProvider) return;
@@ -138,7 +238,7 @@ function ConnectionEditDialogWrapper({
 
   const clearFieldErrors = useCallback(() => {
     setFieldErrors({});
-    setGeneralError(null);
+    setBottomSectionContent(null);
   }, []);
 
   const setFieldError = useCallback((field: string, error: string) => {
@@ -200,7 +300,7 @@ function ConnectionEditDialogWrapper({
     }
 
     clearFieldErrors();
-    setGeneralError(null);
+    setBottomSectionContent(null);
 
     const manager = ConnectionManager.getInstance();
 
@@ -234,7 +334,10 @@ function ConnectionEditDialogWrapper({
     // Get the saved connection from manager to ensure consistency
     const savedConnection = manager.getConnections().find((conn) => conn.name === editingConnection.name);
     if (!savedConnection) {
-      setGeneralError("Failed to retrieve saved connection from ConnectionManager.");
+      setBottomSectionContent({
+        type: "error",
+        message: "Failed to retrieve saved connection from ConnectionManager.",
+      });
       return false; // Keep dialog open
     }
 
@@ -262,26 +365,59 @@ function ConnectionEditDialogWrapper({
     };
   }, [apiCanceller]);
 
-  // Memoize template selection handler
-  const handleTemplateSelect = useCallback((conn: Connection) => {
-    setCurrentSelectedConnection(conn);
-    setCluster(conn.cluster);
-    setEditable(conn.editable);
-    setName(conn.name);
-    setUrl(conn.url);
-    setUser(conn.user);
-    setPassword(conn.password);
+  // Helper function to get auto-generated name from URL
+  const getAutoGeneratedName = useCallback((urlValue: string): string => {
+    try {
+      const urlObj = new URL(urlValue.trim());
+      return urlObj.hostname;
+    } catch {
+      return "";
+    }
   }, []);
+
+  // Memoize template selection handler
+  const handleTemplateSelect = useCallback(
+    (conn: Connection) => {
+      setCurrentSelectedConnection(conn);
+      setCluster(conn.cluster);
+      setEditable(conn.editable);
+      setName(conn.name);
+      setUrl(conn.url);
+      setUser(conn.user);
+      setPassword(conn.password);
+      setIsNameManuallyEdited(true); // Template names are pre-set, so mark as manually edited
+    },
+    []
+  );
 
   // Memoize input onChange handlers to prevent unnecessary re-renders
   const handleUrlChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setUrl(e.target.value);
+      const newUrl = e.target.value;
+      setUrl(newUrl);
       if (fieldErrors.url) {
         setFieldError("url", "");
       }
+
+      // Auto-fill name from URL hostname if:
+      // 1. Name hasn't been manually edited, OR
+      // 2. Name is empty, OR
+      // 3. Name matches the previous auto-generated value
+      const previousAutoName = getAutoGeneratedName(url);
+      if (!isNameManuallyEdited || name.trim() === "" || name === previousAutoName) {
+        try {
+          const urlObj = new URL(newUrl.trim());
+          const hostname = urlObj.hostname;
+          // Use hostname as connection name
+          const autoName = hostname;
+          setName(autoName);
+          setIsNameManuallyEdited(false); // Reset flag since we're auto-filling
+        } catch {
+          // Invalid URL, don't update name
+        }
+      }
     },
-    [fieldErrors.url, setFieldError]
+    [fieldErrors.url, setFieldError, isNameManuallyEdited, name, url, getAutoGeneratedName]
   );
 
   const handleUserChange = useCallback(
@@ -301,6 +437,7 @@ function ConnectionEditDialogWrapper({
   const handleNameChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setName(e.target.value);
+      setIsNameManuallyEdited(true); // Mark as manually edited
       if (fieldErrors.name) {
         setFieldError("name", "");
       }
@@ -322,7 +459,11 @@ function ConnectionEditDialogWrapper({
         {!isLoadingTemplates && loadingTemplateError === undefined && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-full justify-start">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                disabled={bottomSectionContent?.type === "delete-confirmation"}
+              >
                 {currentSelectedConnection ? currentSelectedConnection.name : "Select a template..."}
               </Button>
             </DropdownMenuTrigger>
@@ -347,6 +488,7 @@ function ConnectionEditDialogWrapper({
     currentSelectedConnection,
     connectionTemplates,
     handleTemplateSelect,
+    bottomSectionContent,
   ]);
 
   // Test handler that manages testing state
@@ -356,9 +498,8 @@ function ConnectionEditDialogWrapper({
       return;
     }
 
-    // Clear previous test results
-    setTestResult(null);
-    setGeneralError(null);
+    // Clear previous bottom section content
+    setBottomSectionContent(null);
 
     // Set testing state to true
     setIsTesting(true);
@@ -367,8 +508,11 @@ function ConnectionEditDialogWrapper({
     const setTestResultWithDelay = (result: { type: "success" | "error"; message: string }) => {
       setTimeout(() => {
         setIsTesting(false);
-        setTestResult(result);
-        // Popover will open automatically via useEffect when testResult is set
+        if (result.type === "success") {
+          setBottomSectionContent({ type: "test-success", message: result.message });
+        } else {
+          setBottomSectionContent({ type: "error", message: result.message });
+        }
       }, 300); // 300ms delay for smooth UI transition
     };
 
@@ -502,32 +646,23 @@ function ConnectionEditDialogWrapper({
     handleCancel();
   }, [handleCancel]);
 
-  const handleDelete = useCallback(() => {
-    Dialog.confirm({
-      title: "Confirm deletion",
-      mainContent: "Are you sure you want to delete this connection? This action cannot be undone.",
-      dialogButtons: [
-        {
-          text: "Delete",
-          default: true,
-          onClick: async () => {
-            if (connection) {
-              ConnectionManager.getInstance().remove(connection.name.trim());
-              if (onDelete) {
-                onDelete();
-              }
-            }
-            return true;
-          },
-        },
-        {
-          text: "Cancel",
-          default: false,
-          onClick: async () => true,
-        },
-      ],
-    });
+  const handleDeleteClick = useCallback(() => {
+    setBottomSectionContent({ type: "delete-confirmation" });
+  }, []);
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (connection) {
+      ConnectionManager.getInstance().remove(connection.name.trim());
+      setBottomSectionContent(null);
+      if (onDelete) {
+        onDelete();
+      }
+    }
   }, [connection, onDelete]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setBottomSectionContent(null);
+  }, []);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -547,12 +682,16 @@ function ConnectionEditDialogWrapper({
     <div className="fixed inset-0 z-[9999] bg-background flex flex-col">
       {/* Main Content - Centered */}
       <div className="flex-1 overflow-y-auto flex items-center justify-center p-8 relative">
-        <div className="w-full max-w-3xl flex flex-col">
-          <Card className={`w-full ${testResult ? "rounded-b-none" : ""} relative`}>
-            {/* Floating Progress Bar - positioned at top of Card */}
-            <FloatingProgressBar show={isTesting || isSaving} />
+        <div className="w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden">
+          <Card className={`w-full ${bottomSectionContent ? "rounded-b-none" : ""} relative flex-shrink-0`}>
             {/* Close Button - Top Right inside Card */}
-            <Button variant="ghost" size="icon" onClick={handleClose} className="absolute top-2 right-2 h-8 w-8 z-10">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleClose}
+              disabled={bottomSectionContent?.type === "delete-confirmation"}
+              className="absolute top-2 right-2 h-8 w-8 z-10"
+            >
               <X className="h-4 w-4" />
             </Button>
             <CardHeader>
@@ -625,6 +764,7 @@ function ConnectionEditDialogWrapper({
                         size="icon"
                         className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                         onClick={() => setShowPassword((prev) => !prev)}
+                        disabled={bottomSectionContent?.type === "delete-confirmation"}
                       >
                         {isShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
@@ -673,81 +813,60 @@ function ConnectionEditDialogWrapper({
                           type="button"
                           variant="outline"
                           onClick={handleTestConnection}
-                          disabled={isTesting || isSaving}
+                          disabled={isTesting || isSaving || bottomSectionContent?.type === "delete-confirmation"}
                         >
-                          {isTesting ? "Testing" : "Test Connection"}
+                          {isTesting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                          Test Connection
                         </Button>
                         {!isAddMode && onDelete && (
-                          <Button type="button" variant="destructive" onClick={handleDelete}>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={handleDeleteClick}
+                            disabled={isTesting || isSaving || bottomSectionContent?.type === "delete-confirmation"}
+                          >
                             Delete
                           </Button>
                         )}
-                        <Button type="button" variant="outline" onClick={handleCancel} disabled={isTesting || isSaving}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleCancel}
+                          disabled={isTesting || isSaving || bottomSectionContent?.type === "delete-confirmation"}
+                        >
                           Cancel
                         </Button>
-                        <Button type="submit" disabled={isTesting || isSaving}>
+                        <Button
+                          type="submit"
+                          disabled={isTesting || isSaving || bottomSectionContent?.type === "delete-confirmation"}
+                        >
                           Save
                         </Button>
                       </div>
                     </Field>
                   </FieldGroup>
-
-                  {/* Alert Area - Below buttons, aligned with inputs (only for general errors, not test results) */}
-                  {generalError && (
-                    <Field className="grid grid-cols-[128px_1fr] gap-x-2 gap-y-1">
-                      <div></div>
-                      <Alert variant="destructive" className="border-0 p-3 bg-destructive/10 dark:bg-destructive/20">
-                        <AlertCircle className="h-4 w-4 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <AlertTitle className="text-sm">Error</AlertTitle>
-                          <AlertDescription className="mt-1 break-words overflow-wrap-anywhere max-h-32 overflow-y-auto text-xs">
-                            {generalError}
-                          </AlertDescription>
-                        </div>
-                      </Alert>
-                    </Field>
-                  )}
                 </FieldGroup>
               </form>
             </CardContent>
           </Card>
 
-          {/* Test Result Area - Fixed height below Card (always reserved space) */}
-          <div className="h-24 relative overflow-hidden">
+          {/* Bottom Section Area - Fixed height container, content adapts inside */}
+          <div className="h-[140px] relative overflow-hidden flex items-start">
             <div
-              className={`absolute inset-0 transition-all duration-300 ease-in-out ${
-                testResult ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
+              className={`w-full transition-all duration-300 ease-in-out ${
+                bottomSectionContent ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
               }`}
             >
-              {testResult && (
-                <Card className="w-full rounded-t-none border-t-0 h-full">
-                  <CardContent className="p-0 h-full overflow-hidden">
-                    <Alert
-                      variant={testResult.type === "error" ? "destructive" : "default"}
-                      className={`border-0 rounded-t-none p-3 h-full flex items-start ${
-                        testResult.type === "error"
-                          ? "bg-destructive/10 dark:bg-destructive/20"
-                          : "bg-green-500/10 dark:bg-green-500/20"
-                      }`}
-                    >
-                      <div className="flex items-start gap-2 w-full">
-                        {testResult.type === "error" ? (
-                          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                        ) : (
-                          <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0 overflow-y-auto">
-                          <AlertTitle className="text-sm">
-                            {testResult.type === "error" ? "Connection Test Failed" : "Connection Test Successful"}
-                          </AlertTitle>
-                          <AlertDescription className="mt-1 break-words overflow-wrap-anywhere whitespace-pre-wrap text-xs">
-                            {testResult.message}
-                          </AlertDescription>
-                        </div>
-                      </div>
-                    </Alert>
-                  </CardContent>
-                </Card>
+              {bottomSectionContent?.type === "test-success" && (
+                <TestSuccessMessage message={bottomSectionContent.message} />
+              )}
+              {bottomSectionContent?.type === "error" && <ErrorMessage message={bottomSectionContent.message} />}
+              {bottomSectionContent?.type === "delete-confirmation" && (
+                <DeleteConfirmation
+                  onConfirm={handleDeleteConfirm}
+                  onCancel={handleDeleteCancel}
+                  disabled={isTesting || isSaving}
+                />
               )}
             </div>
           </div>

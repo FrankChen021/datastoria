@@ -56,21 +56,31 @@ export function ConnectionSelector(
   const [connections, setConnections] = useState<Connection[]>([]);
 
   // Load connections
-  useEffect(() => {
+  const reloadConnections = () => {
     const manager = ConnectionManager.getInstance();
     setConnections(manager.getConnections());
+  };
+
+  useEffect(() => {
+    reloadConnections();
   }, []); // Load connections on mount
+
+  // Reload connections when popover opens
+  useEffect(() => {
+    if (isCommandOpen) {
+      reloadConnections();
+    }
+  }, [isCommandOpen]);
 
   const handleOpenAddDialog = () => {
     showConnectionEditDialog({
       connection: null,
-      onSave: (savedConnection) => {
-        // Reload connections after save
-        const manager = ConnectionManager.getInstance();
-        setConnections(manager.getConnections());
-        // Ensure the newly saved connection is selected in the context
-        setSelectedConnection(savedConnection);
-      },
+        onSave: (savedConnection) => {
+          // Reload connections after save
+          reloadConnections();
+          // Ensure the newly saved connection is selected in the context
+          setSelectedConnection(savedConnection);
+        },
     });
     setIsCommandOpen(false);
   };
@@ -87,11 +97,23 @@ export function ConnectionSelector(
         connection: connectionToEdit,
         onSave: (savedConnection) => {
           // Reload connections after save
-          const manager = ConnectionManager.getInstance();
-          setConnections(manager.getConnections());
+          reloadConnections();
           // Update the selected connection if it was the one being edited or if it was renamed
           if (!selectedConnection || selectedConnection.name === connectionToEdit.name) {
             setSelectedConnection(savedConnection);
+          }
+        },
+        onDelete: () => {
+          // Reload connections after delete
+          const updatedConnections = ConnectionManager.getInstance().getConnections();
+          setConnections(updatedConnections);
+          // Clear selected connection if it was the one deleted, or select the first available
+          if (selectedConnection?.name === connectionToEdit.name) {
+            if (updatedConnections.length > 0) {
+              setSelectedConnection(updatedConnections[0]);
+            } else {
+              setSelectedConnection(null);
+            }
           }
         },
       });
@@ -133,7 +155,24 @@ export function ConnectionSelector(
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            showConnectionEditDialog({ connection: selectedConnection, onSave: () => {} });
+            if (selectedConnection) {
+              showConnectionEditDialog({
+                connection: selectedConnection,
+                onSave: () => {
+                  reloadConnections();
+                },
+                onDelete: () => {
+                  const updatedConnections = ConnectionManager.getInstance().getConnections();
+                  setConnections(updatedConnections);
+                  // Select the first available connection or clear selection
+                  if (updatedConnections.length > 0) {
+                    setSelectedConnection(updatedConnections[0]);
+                  } else {
+                    setSelectedConnection(null);
+                  }
+                },
+              });
+            }
           }}
           title="Edit Connection"
         >
