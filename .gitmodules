@@ -1,0 +1,3 @@
+[submodule "number-flow"]
+	path = external/number-flow
+	url = https://github.com/barvian/number-flow.git

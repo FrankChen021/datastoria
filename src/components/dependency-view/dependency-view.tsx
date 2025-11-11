@@ -92,7 +92,8 @@ WHERE database = '${database}' OR has(dependencies_database, '${database}')
 
         if (tables && tables.length > 0) {
           // Convert TableResponse to the format DependencyBuilder expects
-          const tablesWithInnerFlag = tables.map(t => ({ ...t, isInnerTable: false }));
+          // innerTable: 0 = not inner table, 1 = .inner., 2 = .inner_id.
+          const tablesWithInnerFlag = tables.map(t => ({ ...t, innerTable: 0 }));
           const builder = new DependencyBuilder(tablesWithInnerFlag);
           builder.build(database);
 

@@ -902,10 +902,10 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
         }
 
         // Use NumberFlow for supported formats, otherwise use Formatter
-        // Supported formats: compact_number, short_number, comma_number, percentage, percentage_0_1
+        // Supported formats: compact_number, short_number, comma_number, percentage, percentage_0_1, binary_size
         // Note: NumberFlow only supports Intl.NumberFormatOptions, not custom formatter functions
         const formatStr = formatName as string;
-        const supportedFormats = ["compact_number", "short_number", "comma_number", "percentage", "percentage_0_1"];
+        const supportedFormats = ["compact_number", "short_number", "comma_number", "percentage", "percentage_0_1", "binary_size"];
         return supportedFormats.includes(formatStr);
       },
       [descriptor.valueOption?.format]
@@ -1015,6 +1015,9 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
                       // This format expects values in [0,1] range (e.g., 0.5 = 50%)
                       // NumberFlow with style: "percent" multiplies by 100, so we pass as-is
                       numberFlowFormat = { style: "percent", minimumFractionDigits: 0, maximumFractionDigits: 2 };
+                    } else if (formatStr === "binary_size") {
+                      // binary_size format converts bytes to binary units (KB, MB, GB, etc.)
+                      numberFlowFormat = { notation: "binary_size" };
                     } else {
                       numberFlowFormat = undefined;
                     }
@@ -1032,6 +1035,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
                         value={displayValue}
                         format={numberFlowFormat as Parameters<typeof NumberFlow>[0]["format"]}
                         locales="en-GB"
+                        className={cn(hasDrilldown() ? "underline" : "")}
                       />
                     );
                   })()
