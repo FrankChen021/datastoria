@@ -31,6 +31,9 @@ interface RefreshableTableComponentProps {
 
   // Additional className for the Card component
   className?: string;
+
+  // Initial loading state (useful for drilldown dialogs)
+  initialLoading?: boolean;
 }
 
 // Replace ORDER BY clause in SQL query
@@ -77,7 +80,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
     // State
     const [data, setData] = useState<Record<string, unknown>[]>([]);
     const [columns, setColumns] = useState<FieldOption[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(props.initialLoading ?? false);
     const [error, setError] = useState("");
     const [sort, setSort] = useState<{ column: string | null; direction: "asc" | "desc" | null }>({
       column: descriptor.sortOption?.initialSort?.column || null,

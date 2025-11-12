@@ -31,6 +31,9 @@ interface RefreshableTransposedTableComponentProps {
 
   // Additional className for the Card component
   className?: string;
+
+  // Initial loading state (useful for drilldown dialogs)
+  initialLoading?: boolean;
 }
 
 const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, RefreshableTransposedTableComponentProps>(
@@ -40,7 +43,7 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
 
     // State
     const [data, setData] = useState<Record<string, unknown> | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(props.initialLoading ?? false);
     const [error, setError] = useState("");
     // Store inferred formats for fields that don't have explicit formats
     const [inferredFormats, setInferredFormats] = useState<Map<string, FormatName>>(new Map());

@@ -123,6 +123,9 @@ interface RefreshableTimeseriesChartProps {
 
   // Used for generating links
   searchParams?: URLSearchParams;
+
+  // Initial loading state (useful for drilldown dialogs)
+  initialLoading?: boolean;
 }
 
 const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableTimeseriesChartProps>(
@@ -147,7 +150,7 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
     const [data, setData] = useState<Record<string, unknown>[]>([]);
     const [detectedColumns, setDetectedColumns] = useState<string[]>([]);
     const [meta, setMeta] = useState<Array<{ name: string; type?: string }>>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(props.initialLoading ?? false);
     const [error, setError] = useState("");
     const [selectedTimeRange, setSelectedTimeRange] = useState<TimeSpan | null>(null);
 

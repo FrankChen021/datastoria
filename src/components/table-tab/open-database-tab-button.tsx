@@ -1,5 +1,6 @@
 import { TabManager } from "@/components/tab-manager";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/use-dialog";
 import { ExternalLink } from "lucide-react";
 import { memo, useMemo } from "react";
 
@@ -48,6 +49,7 @@ export const OpenDatabaseTabButton = memo(
   ({ database, maxLength = 24, className = "" }: OpenDatabaseTabButtonProps) => {
     const handleClick = () => {
       TabManager.sendOpenDatabaseTabRequest(database);
+      Dialog.close(); // Automatically close any parent dialog
     };
 
     const displayText = useMemo(() => {

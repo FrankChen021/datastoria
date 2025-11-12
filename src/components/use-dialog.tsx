@@ -12,7 +12,7 @@ import {
 import { ConnectionProvider } from "@/lib/connection/ConnectionContext";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 
 export interface DialogButton {
@@ -50,10 +50,30 @@ export interface DialogProps {
 
 interface InternalDialogProps extends DialogProps {
   dispose: () => void;
+  registerClose?: (closeFn: () => void) => void;
 }
 
 const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
   const [open, setOpen] = useState(true);
+  const closeFnRef = useRef<(() => void) | null>(null);
+
+  // Register the close function with the parent
+  useEffect(() => {
+    const closeFn = () => setOpen(false);
+    closeFnRef.current = closeFn;
+    
+    if (dialogProps.registerClose) {
+      dialogProps.registerClose(closeFn);
+    }
+    
+    // Cleanup: remove the close callback when dialog unmounts
+    return () => {
+      if (closeFnRef.current) {
+        Dialog._unregisterCloseCallback(closeFnRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -62,7 +82,7 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
         dialogProps.dispose();
       }, 100);
     }
-  }, [open]);
+  }, [open, dialogProps]);
 
   const handleOpenChange = (newOpen: boolean) => {
     // If closing and disableClose callback returns true, prevent closing
@@ -149,6 +169,41 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
 };
 
 export class Dialog {
+  private static closeCallbacks: (() => void)[] = [];
+
+  /**
+   * Closes the most recently opened dialog.
+   */
+  public static close() {
+    const closeFn = Dialog.closeCallbacks.pop();
+    if (closeFn) {
+      closeFn();
+    }
+  }
+
+  /**
+   * Closes all open dialogs.
+   */
+  public static closeAll() {
+    while (Dialog.closeCallbacks.length > 0) {
+      const closeFn = Dialog.closeCallbacks.pop();
+      if (closeFn) {
+        closeFn();
+      }
+    }
+  }
+
+  /**
+   * Internal method to unregister a close callback.
+   * @internal
+   */
+  public static _unregisterCloseCallback(closeFn: () => void) {
+    const index = Dialog.closeCallbacks.indexOf(closeFn);
+    if (index > -1) {
+      Dialog.closeCallbacks.splice(index, 1);
+    }
+  }
+
   public static alert(dialogProps: DialogProps) {
     const dialogButtons = dialogProps.dialogButtons ?? [{ text: "OK", onClick: async () => true, default: true }];
     Dialog.showDialog({ ...dialogProps, dialogButtons: dialogButtons });
@@ -172,6 +227,10 @@ export class Dialog {
       if (rootElement.parentNode) {
         rootElement.parentNode.removeChild(rootElement);
       }
+    };
+
+    const registerClose = (closeFn: () => void) => {
+      Dialog.closeCallbacks.push(closeFn);
     };
 
     // Get current theme from document to match the existing theme state
@@ -199,7 +258,7 @@ export class Dialog {
         disableTransitionOnChange={false}
       >
         <ConnectionProvider>
-          <AlertDialogComponent {...dialogProps} dispose={dispose} />
+          <AlertDialogComponent {...dialogProps} dispose={dispose} registerClose={registerClose} />
         </ConnectionProvider>
       </ThemeProvider>
     );

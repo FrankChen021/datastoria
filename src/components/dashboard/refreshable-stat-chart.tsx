@@ -45,6 +45,9 @@ interface RefreshableStatComponentProps {
 
   // Used for generating links
   searchParams?: URLSearchParams;
+
+  // Initial loading state (useful for drilldown dialogs)
+  initialLoading?: boolean;
 }
 
 interface MinimapDataPoint {
@@ -254,6 +257,7 @@ const DrilldownChartRenderer: React.FC<{
         descriptor={descriptor as StatDescriptor}
         selectedTimeSpan={selectedTimeSpan}
         searchParams={searchParams}
+        initialLoading={true}
       />
     );
   } else if (descriptor.type === "line" || descriptor.type === "bar" || descriptor.type === "area") {
@@ -262,6 +266,7 @@ const DrilldownChartRenderer: React.FC<{
         descriptor={descriptor as TimeseriesDescriptor}
         selectedTimeSpan={selectedTimeSpan}
         searchParams={searchParams}
+        initialLoading={true}
       />
     );
   } else if (descriptor.type === "table") {
@@ -270,6 +275,7 @@ const DrilldownChartRenderer: React.FC<{
         descriptor={descriptor as TableDescriptor}
         selectedTimeSpan={selectedTimeSpan}
         searchParams={searchParams}
+        initialLoading={true}
       />
     );
   } else if (descriptor.type === "transpose-table") {
@@ -278,6 +284,7 @@ const DrilldownChartRenderer: React.FC<{
         descriptor={descriptor as TransposeTableDescriptor}
         selectedTimeSpan={selectedTimeSpan}
         searchParams={searchParams}
+        initialLoading={true}
       />
     );
   }
@@ -301,7 +308,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
     const [offsetData] = useState(0);
     const [minimapData, setMinimapData] = useState<MinimapDataPoint[]>([]);
     const [isLoadingMinimap, setIsLoadingMinimap] = useState(false);
-    const [isLoadingValue, setIsLoadingValue] = useState(false);
+    const [isLoadingValue, setIsLoadingValue] = useState(props.initialLoading ?? false);
     const [isLoadingOffset, setIsLoadingOffset] = useState(false);
     const [offsetError, setOffsetError] = useState("");
     const [error, setError] = useState("");
@@ -879,7 +886,11 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
         description,
         className: "max-w-[60vw] h-[70vh]",
         disableContentScroll: false,
-        mainContent: <div className="w-full h-full overflow-auto">{renderDrilldownComponent(modifiedDescriptor)}</div>,
+        mainContent: (
+          <div className="w-full h-full overflow-auto">
+            {renderDrilldownComponent(modifiedDescriptor)}
+          </div>
+        ),
       });
     }, [getFirstDrilldownDescriptor, renderDrilldownComponent]);
 
@@ -890,7 +901,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
 
     // Check if we should use NumberFlow for rendering
     const shouldUseNumberFlow = useCallback(
-      (_dataValue: number): boolean => {
+      (): boolean => {
         // Temporarily set to disable number flow because it doest not fit the view and it's too complicated
         return false;
         /*
@@ -994,7 +1005,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
                   <div className="transition-opacity duration-150" style={{ opacity: skeletonOpacity }}>
                     <Skeleton className="w-20 h-10" />
                   </div>
-                ) : shouldUseNumberFlow(data) ? (
+                ) : shouldUseNumberFlow() ? (
                   (() => {
                     // Default to 'compact_number' if no format is specified
                     const originalFormatName = descriptor.valueOption?.format;
