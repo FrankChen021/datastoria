@@ -186,28 +186,22 @@ export function searchTree(
     return [...currentPath, nodeName];
   }
 
-  function searchNode(node: TreeDataItem, currentPath: string[] = []): TreeDataItem | null {
-    // Calculate actual depth: if currentPath is empty at startLevel, depth = startLevel
-    // Otherwise, if we're building from startLevel, depth = startLevel + currentPath.length
-    const nodeDepth = startLevel > 0 && currentPath.length === 0 
-      ? startLevel  // At startLevel
-      : startLevel > 0 
-        ? startLevel + currentPath.length  // Past startLevel
-        : currentPath.length;  // No startLevel, use path length
+  function searchNode(node: TreeDataItem, currentPath: string[] = [], depth: number = 0): TreeDataItem | null {
     const nodeName = String(node.displayText || node.text);
     
     // If this node is before the start level, just pass through and search children
-    if (nodeDepth < startLevel) {
+    // Don't match the node itself, but include it if it has matching children
+    if (depth < startLevel) {
       const children: TreeDataItem[] = [];
       if (node.children) {
         for (const child of node.children) {
-          // When traversing from a node before startLevel, we need to ensure the path
-          // is built correctly. If the child will be at startLevel, the path should
-          // start fresh from there. Otherwise, continue building the path.
-          const childPath = nodeDepth + 1 === startLevel
+          // Build path for children: if we're at depth < startLevel, continue building path
+          // When we reach startLevel, the path should start fresh from there
+          const childDepth = depth + 1;
+          const childPath = childDepth === startLevel
             ? []  // Child is at startLevel, path starts from here
             : [...currentPath, nodeName];  // Continue building path
-          const childResult = searchNode(child, childPath);
+          const childResult = searchNode(child, childPath, childDepth);
           if (childResult) {
             children.push(childResult);
           }
@@ -358,8 +352,9 @@ export function searchTree(
     if (node.children) {
       // Build the path for children - this is the currentPath + this node's name
       const childCurrentPath = [...currentPath, displayText];
+      const childDepth = depth + 1;
       for (const child of node.children) {
-        const childResult = searchNode(child, childCurrentPath);
+        const childResult = searchNode(child, childCurrentPath, childDepth);
         if (childResult) {
           children.push(childResult);
         } else if (hasTrailingDot && matches) {
@@ -419,18 +414,22 @@ export function searchTree(
         } else {
           if (segments.length > 1) {
             // Multi-segment: expand if this node matches the path (all segments except last)
+            // This expands parents to reveal the matched child, but the matched child itself
+            // will not be expanded (its state remains unchanged)
             const allButLastSegments = segments.slice(0, -1);
             if (nodePath.length === allButLastSegments.length) {
               const pathMatch = matchesPath(nodePath, allButLastSegments, true);
               shouldExpand = pathMatch.matches;
             } else {
-              // Also expand if this node directly matches a search segment
+              // Also expand if this node directly matches a search segment (parent expansion)
               const directlyMatchesSegment = segments.some((segment) => substringMatch(displayText, segment).matches);
               shouldExpand = directlyMatchesSegment;
             }
           } else {
-            // Single segment: expand only folders that directly match the segment
-            shouldExpand = isFolderNode && substringMatch(displayText, lastSegment).matches;
+            // Single segment: do NOT expand the matched node itself
+            // The matched node should remain in its current expanded/collapsed state
+            // Only expand if it has matching children that need to be shown
+            shouldExpand = false;
           }
         }
       }
@@ -439,14 +438,21 @@ export function searchTree(
       if (!matches && children.length > 0) {
         // Always expand nodes that have matching children, regardless of search type
         // This ensures users can see the matched nodes (e.g., host node when searching "system.")
+        // or when searching "level" to show collapsed children "level1" and "level2"
+        shouldExpand = true;
+      }
+      
+      // Special case: if a matched node has matching children that are collapsed,
+      // we need to expand it to show them (e.g., searching "level" to show "level1" and "level2")
+      if (matches && children.length > 0 && isSingleSegment) {
+        // The node itself matches, and it has matching children
+        // We need to expand it to show the matching children
         shouldExpand = true;
       }
 
-      // Special case: for single-segment and folder direct match, show direct children (collapsed)
+      // For single-segment search, only return matching children (not all children)
+      // This preserves the expanded state when there are no matching children (rule 2.1)
       let returnedChildren = children;
-      if (isSingleSegment && isFolderNode && substringMatch(displayText, lastSegment).matches) {
-        returnedChildren = node.children ?? [];
-      }
       
       // For trailing dot searches where this node matches, include all children
       if (hasTrailingDot && matches && isFolderNode && node.children) {
@@ -487,7 +493,8 @@ export function searchTree(
 
   const result: TreeDataItem[] = [];
   for (const node of tree) {
-    const nodeResult = searchNode(node, []);
+    // Start from depth 0 for root nodes
+    const nodeResult = searchNode(node, [], 0);
     if (nodeResult) {
       result.push(nodeResult);
     }

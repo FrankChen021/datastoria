@@ -129,7 +129,7 @@ const predefinedDashboard = {
                   title: "Name",
                   format: (name) => {
                     const databaseName = name as string;
-                    return <OpenDatabaseTabButton database={databaseName} />;
+                    return <OpenDatabaseTabButton variant="shadcn-link" database={databaseName} />;
                   },
                 },
                 size: {

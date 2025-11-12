@@ -38,6 +38,7 @@ interface TreeDataItem {
 type TreeProps = React.HTMLAttributes<HTMLDivElement> & {
   data: TreeDataItem[] | TreeDataItem;
   initialSlelectedItemId?: string;
+  selectedItemId?: string; // Controlled selection prop
   onSelectChange?: (item: TreeDataItem | undefined) => void;
   expandAll?: boolean;
   initialExpandedIds?: string[];
@@ -104,6 +105,7 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
     {
       data,
       initialSlelectedItemId,
+      selectedItemId: controlledSelectedItemId,
       onSelectChange,
       expandAll,
       initialExpandedIds,
@@ -122,21 +124,32 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
     },
     _ref
   ) => {
-    const [selectedItemId, setSelectedItemId] = React.useState<string | undefined>(initialSlelectedItemId);
-    const [keyboardExpandedIds, setKeyboardExpandedIds] = React.useState<string[]>([]);
+    // Use controlled prop if provided, otherwise use internal state
+    const [internalSelectedItemId, setInternalSelectedItemId] = React.useState<string | undefined>(initialSlelectedItemId);
+    const selectedItemId = controlledSelectedItemId !== undefined ? controlledSelectedItemId : internalSelectedItemId;
+    // Simplified state management:
+    // - userExpandedIds: all user-controlled expansions (keyboard + clicks)
+    // - searchAutoExpandedIds: nodes auto-expanded by search (from _expanded flag)
+    // - userCollapsedIds: nodes user explicitly collapsed (overrides search auto-expand)
     const [userExpandedIds, setUserExpandedIds] = React.useState<Set<string>>(new Set());
-    // Track nodes that were auto-expanded by search but explicitly collapsed by user
-    const [searchCollapsedIds, setSearchCollapsedIds] = React.useState<Set<string>>(new Set());
+    const [userCollapsedIds, setUserCollapsedIds] = React.useState<Set<string>>(new Set());
     const parentRef = useRef<HTMLDivElement>(null);
+    // Track the last selectedItemId we auto-expanded for, to prevent re-expanding when user collapses
+    const lastAutoExpandedSelectedIdRef = useRef<string | undefined>(undefined);
+    // Track the index of the node that was clicked (for accurate scrolling to the clicked instance)
+    const clickedNodeIndexRef = useRef<number | null>(null);
 
     const handleSelectChange = React.useCallback(
       (item: TreeDataItem | undefined) => {
-        setSelectedItemId(item?.id);
+        // Only update internal state if not controlled
+        if (controlledSelectedItemId === undefined) {
+          setInternalSelectedItemId(item?.id);
+        }
         if (onSelectChange) {
           onSelectChange(item);
         }
       },
-      [onSelectChange]
+      [onSelectChange, controlledSelectedItemId]
     );
 
     // Find a tree item by ID
@@ -209,10 +222,10 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
       return ids;
     }, [data, initialSlelectedItemId, expandAll, initialExpandedIds]);
 
-    // Reset search-collapsed IDs when search changes or is cleared
+    // Reset user-collapsed IDs when search is cleared (clean slate for new search)
     React.useEffect(() => {
       if (!search || search.length === 0) {
-        setSearchCollapsedIds(new Set());
+        setUserCollapsedIds(new Set());
       }
     }, [search]);
 
@@ -226,26 +239,43 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
           highlighter,
           startLevel: searchOptions?.startLevel,
         });
-        const expandedIds: string[] = [];
+        // Collect nodes auto-expanded by search (from _expanded flag)
+        const searchAutoExpandedIds: string[] = [];
+        // Also track which nodes exist in the filtered tree to preserve their original expanded state
+        const filteredNodeIds = new Set<string>();
         const traverse = (nodes?: TreeDataItem[]) => {
           if (!nodes) return;
           for (const n of nodes) {
-            // Only include nodes with _expanded flag that haven't been explicitly collapsed by user
-            if (n._expanded && !searchCollapsedIds.has(n.id)) {
-              expandedIds.push(n.id);
+            filteredNodeIds.add(n.id);
+            if (n._expanded) {
+              searchAutoExpandedIds.push(n.id);
             }
             if (n.children) traverse(n.children);
           }
         };
         traverse(filtered);
-        // Merge with keyboard-controlled and user-controlled expanded IDs
-        const mergedIds = [...new Set([...expandedIds, ...keyboardExpandedIds, ...Array.from(userExpandedIds)])];
-        return { dataToRender: filtered, expandedItemIds: mergedIds };
+        
+        // Preserve original expanded state for nodes that are in filtered tree but don't have _expanded flag
+        // This is important for nodes before startLevel that are passed through
+        const originallyExpandedIds = new Set([...baseExpandedItemIds, ...Array.from(userExpandedIds)]);
+        originallyExpandedIds.forEach((id) => {
+          // If node is in filtered tree and was originally expanded, but search didn't set _expanded,
+          // preserve its expanded state
+          if (filteredNodeIds.has(id) && !searchAutoExpandedIds.includes(id)) {
+            searchAutoExpandedIds.push(id);
+          }
+        });
+        
+        // Final expanded state: (searchAutoExpandedIds ∪ userExpandedIds) \ userCollapsedIds
+        const merged = new Set([...searchAutoExpandedIds, ...Array.from(userExpandedIds)]);
+        userCollapsedIds.forEach((id) => merged.delete(id));
+        return { dataToRender: filtered, expandedItemIds: Array.from(merged) };
       }
-      // Merge base expanded IDs with keyboard-controlled and user-controlled expanded IDs
-      const mergedIds = [...new Set([...baseExpandedItemIds, ...keyboardExpandedIds, ...Array.from(userExpandedIds)])];
-      return { dataToRender: asArray(data), expandedItemIds: mergedIds };
-    }, [data, search, pathSeparator, highlighter, searchOptions, baseExpandedItemIds, keyboardExpandedIds, userExpandedIds, searchCollapsedIds]);
+      // No search: merge base expanded IDs with user-controlled expanded IDs, remove user-collapsed
+      const merged = new Set([...baseExpandedItemIds, ...Array.from(userExpandedIds)]);
+      userCollapsedIds.forEach((id) => merged.delete(id));
+      return { dataToRender: asArray(data), expandedItemIds: Array.from(merged) };
+    }, [data, search, pathSeparator, highlighter, searchOptions, baseExpandedItemIds, userExpandedIds, userCollapsedIds]);
 
     // Create expanded set for efficient lookup
     const expandedSet = useMemo(() => new Set(expandedItemIds), [expandedItemIds]);
@@ -263,26 +293,110 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
       overscan,
     });
 
+    // Scroll selected item into view when selectedItemId changes
+    React.useEffect(() => {
+      if (!selectedItemId || flatNodes.length === 0) return;
+
+      // If we have a clicked node index (user clicked a node), use that for accurate scrolling
+      // Otherwise, find the first occurrence of the selected node
+      let selectedIndex: number;
+      if (clickedNodeIndexRef.current !== null && clickedNodeIndexRef.current < flatNodes.length) {
+        // Verify the clicked index still matches the selected ID (tree might have changed)
+        if (flatNodes[clickedNodeIndexRef.current]?.node.id === selectedItemId) {
+          selectedIndex = clickedNodeIndexRef.current;
+          // Clear the ref after using it
+          clickedNodeIndexRef.current = null;
+        } else {
+          // Clicked index is stale, fall back to finding by ID
+          selectedIndex = flatNodes.findIndex((fn) => fn.node.id === selectedItemId);
+        }
+      } else {
+        // No clicked index, find the first occurrence
+        selectedIndex = flatNodes.findIndex((fn) => fn.node.id === selectedItemId);
+      }
+
+      if (selectedIndex !== -1) {
+        // Check if the item is already visible in the viewport
+        const virtualItems = rowVirtualizer.getVirtualItems();
+        const isAlreadyVisible = virtualItems.some((item) => item.index === selectedIndex);
+        
+        // Only scroll if the item is not already visible
+        if (!isAlreadyVisible) {
+          requestAnimationFrame(() => {
+            rowVirtualizer.scrollToIndex(selectedIndex, {
+              align: "start",
+              behavior: "smooth",
+            });
+          });
+        }
+        // Reset the ref since item is now visible
+        lastAutoExpandedSelectedIdRef.current = selectedItemId;
+      } else {
+        // Selected item is not in flatNodes - likely because parent nodes are collapsed
+        // Only auto-expand if this is a new selection (not if user manually collapsed after auto-expand)
+        const isNewSelection = lastAutoExpandedSelectedIdRef.current !== selectedItemId;
+        
+        if (isNewSelection) {
+          // Find the item in the full tree and expand parent nodes to make it visible
+          const findAndExpandParents = (items: TreeDataItem[] | TreeDataItem, targetId: string, path: string[] = []): boolean => {
+            const itemsArray = items instanceof Array ? items : [items];
+            for (const item of itemsArray) {
+              if (item.id === targetId) {
+                // Found the target - expand all parent nodes in the path
+                const parentsToExpand: string[] = [];
+                path.forEach((parentId) => {
+                  if (!expandedSet.has(parentId)) {
+                    parentsToExpand.push(parentId);
+                  }
+                });
+                
+                // Expand all parents at once
+                if (parentsToExpand.length > 0) {
+                  setUserExpandedIds((prev) => {
+                    const next = new Set(prev);
+                    parentsToExpand.forEach((id) => next.add(id));
+                    return next;
+                  });
+                }
+                // Mark that we've auto-expanded for this selection
+                lastAutoExpandedSelectedIdRef.current = selectedItemId;
+                return true;
+              }
+              if (item.children) {
+                if (findAndExpandParents(item.children, targetId, [...path, item.id])) {
+                  return true;
+                }
+              }
+            }
+            return false;
+          };
+
+          // Try to find and expand parents
+          findAndExpandParents(data, selectedItemId);
+        }
+        // If isNewSelection is false, user has manually collapsed parents - don't re-expand
+      }
+    }, [selectedItemId, flatNodes, rowVirtualizer, data, expandedSet]);
+
     const toggleExpand = useCallback((nodeId: string) => {
       const isSearchMode = search && search.length > 0;
       const isCurrentlyExpanded = expandedSet.has(nodeId);
       const isInUserExpandedIds = userExpandedIds.has(nodeId);
-      const isInSearchCollapsedIds = searchCollapsedIds.has(nodeId);
+      const isInUserCollapsedIds = userCollapsedIds.has(nodeId);
       
       if (isSearchMode) {
         // In search mode, handle auto-expanded nodes specially
         if (isCurrentlyExpanded) {
           // Node is currently expanded - user is collapsing it
           if (!isInUserExpandedIds) {
-            // This was auto-expanded by search - just mark as collapsed
-            // Don't add to userExpandedIds, only manage searchCollapsedIds
-            setSearchCollapsedIds((prev) => {
+            // This was auto-expanded by search - mark as user-collapsed
+            setUserCollapsedIds((prev) => {
               const next = new Set(prev);
               next.add(nodeId);
               return next;
             });
           } else {
-            // This was manually expanded - remove from userExpandedIds
+            // This was user-expanded - remove from userExpandedIds
             setUserExpandedIds((prev) => {
               const next = new Set(prev);
               next.delete(nodeId);
@@ -291,10 +405,10 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
           }
         } else {
           // Node is currently collapsed - user is expanding it
-          if (isInSearchCollapsedIds) {
-            // This was auto-expanded but user collapsed it - now user wants to expand it manually
-            // Remove from searchCollapsedIds and add to userExpandedIds
-            setSearchCollapsedIds((prev) => {
+          if (isInUserCollapsedIds) {
+            // This was auto-expanded by search but user collapsed it - now user wants to expand it manually
+            // Remove from userCollapsedIds and add to userExpandedIds
+            setUserCollapsedIds((prev) => {
               const next = new Set(prev);
               next.delete(nodeId);
               return next;
@@ -305,14 +419,10 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
               return next;
             });
           } else {
-            // Normal case - just toggle userExpandedIds
+            // Normal case - just add to userExpandedIds
             setUserExpandedIds((prev) => {
               const next = new Set(prev);
-              if (next.has(nodeId)) {
-                next.delete(nodeId);
-              } else {
-                next.add(nodeId);
-              }
+              next.add(nodeId);
               return next;
             });
           }
@@ -329,7 +439,7 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
           return next;
         });
       }
-    }, [search, expandedSet, userExpandedIds, searchCollapsedIds]);
+    }, [search, expandedSet, userExpandedIds, userCollapsedIds]);
 
     // Handle keyboard navigation with virtualized list
     const handleKeyDown = React.useCallback(
@@ -365,12 +475,6 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
             if (currentFlatNode.hasChildren) {
               if (!expandedSet.has(selectedItemId)) {
                 toggleExpand(selectedItemId);
-                setKeyboardExpandedIds((prev) => {
-                  if (!prev.includes(selectedItemId)) {
-                    return [...prev, selectedItemId];
-                  }
-                  return prev;
-                });
               } else if (currentIndex < flatNodes.length - 1) {
                 // Already expanded, move to first child
                 const nextNode = flatNodes[currentIndex + 1].node;
@@ -385,7 +489,6 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
             if (currentFlatNode.hasChildren && expandedSet.has(selectedItemId)) {
               // Collapse if expanded
               toggleExpand(selectedItemId);
-              setKeyboardExpandedIds((prev) => prev.filter((id) => id !== selectedItemId));
             } else if (currentFlatNode.depth > 0) {
               // Move to parent
               for (let i = currentIndex - 1; i >= 0; i--) {
@@ -414,7 +517,6 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
         handleSelectChange,
         toggleExpand,
         rowVirtualizer,
-        setKeyboardExpandedIds,
       ]
     );
 
@@ -462,7 +564,11 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
                   paddingRight: "0.5rem",
                   minHeight: `${rowHeight}px`,
                 }}
-                onClick={() => handleSelectChange(node)}
+                onClick={() => {
+                  // Track the index of the clicked node for accurate scrolling
+                  clickedNodeIndexRef.current = virtualRow.index;
+                  handleSelectChange(node);
+                }}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();

@@ -89,6 +89,14 @@ export function MainPage() {
     }
   }, [pendingTabId, tabs]);
 
+  // Emit active tab change events
+  useEffect(() => {
+    if (activeTab) {
+      const tabInfo = tabs.find((t) => t.id === activeTab) || null;
+      TabManager.sendActiveTabChange(activeTab, tabInfo);
+    }
+  }, [activeTab, tabs]);
+
   // Helper function to get the next tab ID, or previous if no next exists
   const getNextOrPreviousTabId = useCallback((tabId: string, tabsList: TabInfo[]) => {
     // Tabs are in insertion order, so we just use them as-is
@@ -138,6 +146,8 @@ export function MainPage() {
         setTabs((prevTabs) => {
           // Find the next/previous tab before removing the closed tab
           const nextTabId = getNextOrPreviousTabId(tabId, prevTabs);
+          // Emit event for tab closure (tabInfo: null) - SchemaTreeView will ignore this
+          TabManager.sendActiveTabChange(tabId, null);
           if (nextTabId) {
             setActiveTab(nextTabId);
           } else {
@@ -147,6 +157,7 @@ export function MainPage() {
           return prevTabs.filter((t) => t.id !== tabId);
         });
       } else {
+        // Non-active tab closed - no need to emit event, SchemaTreeView only cares about active tab
         setTabs((prevTabs) => prevTabs.filter((t) => t.id !== tabId));
       }
     },
@@ -197,9 +208,11 @@ export function MainPage() {
 
   // Handle closing all tabs
   const handleCloseAll = useCallback(() => {
-    // Keep only the query tab
-    setTabs([{ id: "query", type: "query" }]);
-    setActiveTab("query");
+    // Close all tabs including the query tab
+    setTabs([]);
+    setActiveTab("");
+    // Emit event for tab closure (tabInfo: null) - SchemaTreeView will ignore this
+    TabManager.sendActiveTabChange("", null);
   }, []);
 
   // Close all tabs when connection changes or is updated

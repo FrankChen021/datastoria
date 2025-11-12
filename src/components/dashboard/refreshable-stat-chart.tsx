@@ -890,7 +890,10 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
 
     // Check if we should use NumberFlow for rendering
     const shouldUseNumberFlow = useCallback(
-      (dataValue: number): boolean => {
+      (_dataValue: number): boolean => {
+        // Temporarily set to disable number flow because it doest not fit the view and it's too complicated
+        return false;
+        /*
         if (typeof dataValue !== "number") {
           return false;
         }
@@ -907,8 +910,9 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
         const formatStr = formatName as string;
         const supportedFormats = ["compact_number", "short_number", "comma_number", "percentage", "percentage_0_1", "binary_size"];
         return supportedFormats.includes(formatStr);
+        */
       },
-      [descriptor.valueOption?.format]
+      []
     );
 
     // Render comparison helper

@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { TabManager } from "../tab-manager";
+import { TabManager, type TabInfo } from "../tab-manager";
 import { showDropTableConfirmationDialog } from "./drop-table-confirmation-dialog";
 
 // Shared badge component for schema tree nodes
@@ -239,10 +239,15 @@ export function SchemaTreeView({ tabId }: SchemaTreeViewProps) {
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [apiCanceller, setApiCanceller] = useState<ApiCanceller | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
   const isLoadingRef = useRef(false);
   const currentConnectionIdRef = useRef<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const hasOpenedServerTabRef = useRef(false);
+  // Track the last active tab info to sync when search is cleared
+  const lastActiveTabInfoRef = useRef<TabInfo | null>(null);
+  // Track if we were in search mode to detect when search is cleared
+  const wasInSearchModeRef = useRef(false);
 
   // Cancel API call on unmount
   useEffect(() => {
@@ -648,6 +653,75 @@ ORDER BY lower(database), database, table, columnName`,
     }
   }, [treeData, isLoading, tabId]);
 
+  // Helper function to sync tree selection to a tab info
+  const syncToTabInfo = useCallback((tabInfo: TabInfo | null) => {
+    if (!tabInfo) {
+      return;
+    }
+
+    // Calculate the target node ID based on tab type
+    let targetNodeId: string | undefined;
+    if (tabInfo.type === "database") {
+      targetNodeId = `db:${tabInfo.database}`;
+    } else if (tabInfo.type === "table") {
+      targetNodeId = `table:${tabInfo.database}.${tabInfo.table}`;
+    } else if (tabInfo.type === "dashboard") {
+      targetNodeId = "host";
+    } else {
+      // For other tab types (query, dependency, query-log), clear selection
+      targetNodeId = undefined;
+    }
+
+    // Only update if the node ID has changed
+    setSelectedNodeId((currentNodeId) => {
+      if (currentNodeId === targetNodeId) {
+        return currentNodeId; // No change needed
+      }
+      return targetNodeId;
+    });
+  }, []);
+
+  // Listen to active tab changes and sync tree selection (only when not in search mode)
+  useEffect(() => {
+    const handler = (event: CustomEvent<{ tabId: string; tabInfo: TabInfo | null }>) => {
+      const { tabInfo } = event.detail;
+      const isSearchMode = search.length > 0;
+
+      // Case 1: Tab is closed (tabInfo is null) - do nothing
+      if (tabInfo === null) {
+        lastActiveTabInfoRef.current = null;
+        return;
+      }
+
+      // Always track the last active tab info
+      lastActiveTabInfoRef.current = tabInfo;
+
+      // Case 2: Only sync to active tab when not in search mode
+      if (!isSearchMode) {
+        syncToTabInfo(tabInfo);
+      }
+    };
+
+    const unsubscribe = TabManager.onActiveTabChange(handler);
+    return unsubscribe;
+  }, [search, syncToTabInfo]);
+
+  // Sync to active tab when search is cleared (exiting search mode)
+  useEffect(() => {
+    // Track when we enter search mode
+    if (search.length > 0) {
+      wasInSearchModeRef.current = true;
+      return;
+    }
+
+    // When search is cleared (search.length === 0) and we were previously in search mode,
+    // sync to the last active tab
+    if (wasInSearchModeRef.current && lastActiveTabInfoRef.current) {
+      syncToTabInfo(lastActiveTabInfoRef.current);
+      wasInSearchModeRef.current = false;
+    }
+  }, [search, syncToTabInfo]);
+
   const handleDropTable = useCallback(() => {
     if (contextMenuNode?.data?.type === "table" && selectedConnection) {
       const tableData = contextMenuNode.data as TableNodeData;
@@ -727,6 +801,11 @@ ORDER BY lower(database), database, table, columnName`,
     (item: TreeDataItem | undefined) => {
       if (!item?.data) return;
 
+      // Always update the selected node ID for visual highlighting (works in both search and non-search modes)
+      setSelectedNodeId(item.id);
+
+      // Always open tabs when nodes are clicked (user interaction)
+      // Tab changes from external sources won't sync to tree in search mode (handled by the active tab change listener)
       // If a host node is clicked, open the dashboard tab
       if (item.data.type === "host") {
         const hostData = item.data as HostNodeData;
@@ -811,6 +890,7 @@ ORDER BY lower(database), database, table, columnName`,
             <Tree
               data={treeData}
               search={search}
+              selectedItemId={selectedNodeId}
               onSelectChange={handleNodeExpand}
               onNodeContextMenu={handleContextMenu}
               folderIcon={Database}

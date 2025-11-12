@@ -58,9 +58,22 @@ export interface OpenTabEventDetail {
 }
 
 /**
+ * Event detail for active tab changes
+ */
+export interface ActiveTabChangeEventDetail {
+  tabId: string;
+  tabInfo: TabInfo | null; // null when tab is closed
+}
+
+/**
  * Type-safe event listener for tab requests
  */
 export type OpenTabEventHandler = (event: CustomEvent<OpenTabEventDetail>) => void;
+
+/**
+ * Type-safe event listener for active tab changes
+ */
+export type ActiveTabChangeEventHandler = (event: CustomEvent<ActiveTabChangeEventDetail>) => void;
 
 /**
  * Unified TabManager class for handling all tab events
@@ -137,6 +150,29 @@ export class TabManager {
     };
     window.addEventListener(TabManager.OPEN_TAB_EVENT, wrappedHandler);
     return () => window.removeEventListener(TabManager.OPEN_TAB_EVENT, wrappedHandler);
+  }
+
+  private static readonly ACTIVE_TAB_CHANGE_EVENT = "ACTIVE_TAB_CHANGE";
+
+  /**
+   * Emit an active tab change event
+   */
+  static sendActiveTabChange(tabId: string, tabInfo: TabInfo | null): void {
+    const event = new CustomEvent<ActiveTabChangeEventDetail>(TabManager.ACTIVE_TAB_CHANGE_EVENT, {
+      detail: { tabId, tabInfo },
+    });
+    window.dispatchEvent(event);
+  }
+
+  /**
+   * Add a listener for active tab change events
+   */
+  static onActiveTabChange(handler: ActiveTabChangeEventHandler): () => void {
+    const wrappedHandler = (e: Event) => {
+      handler(e as CustomEvent<ActiveTabChangeEventDetail>);
+    };
+    window.addEventListener(TabManager.ACTIVE_TAB_CHANGE_EVENT, wrappedHandler);
+    return () => window.removeEventListener(TabManager.ACTIVE_TAB_CHANGE_EVENT, wrappedHandler);
   }
 }
 

@@ -45,7 +45,7 @@ function truncateText(text: string, maxLength: number): string {
  * Automatically truncates long names to show first and last parts.
  */
 export const OpenDatabaseTabButton = memo(
-  ({ database, maxLength = 24, className = "", variant = "link" }: OpenDatabaseTabButtonProps) => {
+  ({ database, maxLength = 24, className = "" }: OpenDatabaseTabButtonProps) => {
     const handleClick = () => {
       TabManager.sendOpenDatabaseTabRequest(database);
     };
@@ -56,33 +56,18 @@ export const OpenDatabaseTabButton = memo(
 
     const title = `Open database ${database}`;
 
-    if (variant === "shadcn-link") {
-      return (
-        <Button
-          variant="link"
-          className={`font-semibold h-auto p-0 text-left flex items-center ${className}`}
-          onClick={handleClick}
-          title={title}
-        >
-          {displayText}
-          <ExternalLink className="h-4 w-4 flex-shrink-0" />
-        </Button>
-      );
-    }
-
-    // Default variant: link (plain button with underline)
     return (
-      <button
+      <Button
+        variant="link"
+        className={`font-semibold h-auto p-0 text-left flex items-center gap-1 ${className}`}
         onClick={handleClick}
-        className={`text-left text-primary underline decoration-dotted cursor-pointer flex items-center gap-1 ${className}`}
         title={title}
       >
         {displayText}
-        <ExternalLink className="h-4 w-4 flex-shrink-0" />
-      </button>
+        <ExternalLink className="!h-3 !w-3 flex-shrink-0" />
+      </Button>
     );
   }
 );
 
 OpenDatabaseTabButton.displayName = "OpenDatabaseTabButton";
-
