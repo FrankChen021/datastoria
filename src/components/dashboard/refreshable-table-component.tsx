@@ -236,6 +236,9 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
           if (descriptor.sortOption?.serverSideSorting && sortRef.current.column && sortRef.current.direction) {
             finalSql = replaceOrderByClause(finalSql, sortRef.current.column, sortRef.current.direction);
           }
+          if (selectedConnection.cluster.length > 0) {
+            finalSql = finalSql.replace("{cluster}", selectedConnection.cluster);
+          }
 
           // Create AbortController for cancellation
           const abortController = new AbortController();
@@ -491,7 +494,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
 
     const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
       componentId: descriptor.id,
-      initialCollapsed: descriptor.isCollapsed ?? false,
+      initialCollapsed: descriptor.collapsed ?? false,
       refreshInternal,
       getInitialParams,
     });

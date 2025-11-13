@@ -206,7 +206,7 @@ const PartitionSizeViewComponent = forwardRef<RefreshableTabViewRef, PartitionVi
           title: " Partitions",
           align: "left",
         },
-        isCollapsed: false,
+        collapsed: false,
         width: 100,
         showIndexColumn: true,
         query: {

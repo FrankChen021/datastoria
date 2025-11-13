@@ -184,7 +184,7 @@ LIMIT 10`;
         title: "Top 10 Queries by CPU Time",
         align: "left",
       },
-      isCollapsed: false,
+      collapsed: false,
       width: 100,
       query: {
         sql: sql,
@@ -224,7 +224,7 @@ LIMIT 10`;
             title: "Query Numbers",
             align: "left",
           },
-          isCollapsed: false,
+          collapsed: false,
           width: 2,
           query: {
             sql: `
@@ -253,7 +253,7 @@ ORDER BY t`,
             title: "Error Queries",
             align: "left",
           },
-          isCollapsed: false,
+          collapsed: false,
           width: 2,
           query: {
             sql: `
@@ -286,7 +286,7 @@ ORDER BY t`,
                 title: "Read Rows",
                 align: "left",
               },
-              isCollapsed: false,
+              collapsed: false,
               width: 1,
               query: {
                 sql: `
@@ -314,7 +314,7 @@ ORDER BY t`,
                 title: "Read Bytes",
                 align: "left",
               },
-              isCollapsed: false,
+              collapsed: false,
               width: 1,
               query: {
                 sql: `
@@ -342,7 +342,7 @@ ORDER BY t`,
                 title: "Written Rows",
                 align: "left",
               },
-              isCollapsed: false,
+              collapsed: false,
               width: 1,
               query: {
                 sql: `
@@ -370,7 +370,7 @@ ORDER BY t`,
                 title: "Written Bytes",
                 align: "left",
               },
-              isCollapsed: false,
+              collapsed: false,
               width: 1,
               query: {
                 sql: `
@@ -398,7 +398,7 @@ ORDER BY t`,
                 title: "Result Rows",
                 align: "left",
               },
-              isCollapsed: false,
+              collapsed: false,
               width: 2,
               query: {
                 sql: `
@@ -426,7 +426,7 @@ ORDER BY t`,
                 title: "Result Bytes",
                 align: "left",
               },
-              isCollapsed: false,
+              collapsed: false,
               width: 2,
               query: {
                 sql: `
@@ -456,7 +456,7 @@ ORDER BY t`,
             title: "CPU Time",
             align: "left",
           },
-          isCollapsed: false,
+          collapsed: false,
           width: 4,
           query: {
             sql: `

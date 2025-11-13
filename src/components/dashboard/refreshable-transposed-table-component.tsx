@@ -218,7 +218,7 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
 
     const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
       componentId: descriptor.id,
-      initialCollapsed: descriptor.isCollapsed ?? false,
+      initialCollapsed: descriptor.collapsed ?? false,
       refreshInternal,
       getInitialParams,
     });

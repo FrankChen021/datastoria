@@ -164,7 +164,7 @@ const DashboardTableComponent = ({ database, table }: DashboardTableComponentPro
                     title: chartTitle,
                   },
                   width: 1, // Default width
-                  isCollapsed: false,
+                  collapsed: false,
                   yAxis: [{}], // Default y-axis
                   query: {
                     sql: row.query,

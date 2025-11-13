@@ -52,7 +52,7 @@ const TableDDLView = memo(function TableDDLView({
         title: "Table Metadata",
         align: "left",
       },
-      isCollapsed: false,
+      collapsed: false,
       width: 100,
       query: {
         sql: sql,
@@ -144,7 +144,7 @@ const TableStructureView = memo(function TableStructureView({
         title: "Table Structure",
         align: "left",
       },
-      isCollapsed: false,
+      collapsed: false,
       width: 100,
       query: {
         sql: sql,

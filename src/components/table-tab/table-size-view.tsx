@@ -41,7 +41,7 @@ const TableSizeViewComponent = forwardRef<RefreshableTabViewRef, TableSizeViewPr
               title: "Total Size",
               align: "center",
             },
-            isCollapsed: false,
+            collapsed: false,
             width: 1,
             query: {
               sql: `
@@ -64,7 +64,7 @@ WHERE
               title: "Total Rows",
               align: "center",
             },
-            isCollapsed: false,
+            collapsed: false,
             width: 1,
             query: {
               sql: `
@@ -84,7 +84,7 @@ WHERE
               title: "Part Count",
               align: "center",
             },
-            isCollapsed: false,
+            collapsed: false,
             width: 1,
             query: {
               sql: `
@@ -110,7 +110,7 @@ WHERE
               title: "Size Percentage of All Disks",
               align: "center",
             },
-            isCollapsed: false,
+            collapsed: false,
             width: 1,
             query: {
               sql: `
@@ -131,7 +131,7 @@ WHERE
           {
             type: "table",
             id: `table-${database}-${table}`,
-            isCollapsed: true,
+            collapsed: true,
             titleOption: {
               title: "Overall Size",
               align: "left",
@@ -218,7 +218,7 @@ ORDER BY
           {
             type: "table",
             id: `column-size-${database}-${table}`,
-            isCollapsed: true,
+            collapsed: true,
             titleOption: {
               title: "Column Size",
               align: "left",
@@ -306,7 +306,7 @@ ORDER BY
           {
             type: "table",
             id: `index-size-${database}-${table}`,
-            isCollapsed: true,
+            collapsed: true,
             titleOption: {
               title: "Index Size",
               align: "left",
@@ -351,7 +351,7 @@ WHERE
           {
             type: "table",
             id: `projection-size-${database}-${table}`,
-            isCollapsed: true,
+            collapsed: true,
             titleOption: {
               title: "Projection Size",
               align: "left",

@@ -449,8 +449,10 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
             const thisQuery = Object.assign({}, query) as SQLQuery;
 
             // Replace time span template parameters in SQL
-            const finalSql = replaceTimeSpanParams(thisQuery.sql, _param.selectedTimeSpan);
-
+            let finalSql = replaceTimeSpanParams(thisQuery.sql, _param.selectedTimeSpan);
+            if (selectedConnection!.cluster.length > 0) {
+              finalSql = finalSql.replace("{cluster}", selectedConnection!.cluster);
+            }
             Api.create(selectedConnection!).executeSQL(
               {
                 sql: finalSql,
@@ -491,7 +493,10 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
             const query = Object.assign({}, descriptor.query);
 
             // Replace time span template parameters in SQL
-            const finalSql = replaceTimeSpanParams(query.sql, _param.selectedTimeSpan);
+            let finalSql = replaceTimeSpanParams(query.sql, _param.selectedTimeSpan);
+            if (selectedConnection!.cluster.length > 0) {
+              finalSql = finalSql.replace("{cluster}", selectedConnection!.cluster);
+            }
 
             Api.create(selectedConnection!).executeSQL(
               {
@@ -886,11 +891,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
         description,
         className: "max-w-[60vw] h-[70vh]",
         disableContentScroll: false,
-        mainContent: (
-          <div className="w-full h-full overflow-auto">
-            {renderDrilldownComponent(modifiedDescriptor)}
-          </div>
-        ),
+        mainContent: <div className="w-full h-full overflow-auto">{renderDrilldownComponent(modifiedDescriptor)}</div>,
       });
     }, [getFirstDrilldownDescriptor, renderDrilldownComponent]);
 
@@ -900,11 +901,10 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
     }, [descriptor.drilldown]);
 
     // Check if we should use NumberFlow for rendering
-    const shouldUseNumberFlow = useCallback(
-      (): boolean => {
-        // Temporarily set to disable number flow because it doest not fit the view and it's too complicated
-        return false;
-        /*
+    const shouldUseNumberFlow = useCallback((): boolean => {
+      // Temporarily set to disable number flow because it doest not fit the view and it's too complicated
+      return false;
+      /*
         if (typeof dataValue !== "number") {
           return false;
         }
@@ -922,9 +922,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
         const supportedFormats = ["compact_number", "short_number", "comma_number", "percentage", "percentage_0_1", "binary_size"];
         return supportedFormats.includes(formatStr);
         */
-      },
-      []
-    );
+    }, []);
 
     // Render comparison helper
     const renderComparison = () => {

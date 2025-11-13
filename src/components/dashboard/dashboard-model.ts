@@ -122,9 +122,6 @@ export type DashboardGroup = {
 };
 
 export type Dashboard = {
-  name: string;
-  folder: string;
-  title: string;
   filter: DashboardFilter;
   charts: (any | DashboardGroup)[];
 };

@@ -58,7 +58,7 @@ const PartLogViewComponent = forwardRef<RefreshableTabViewRef, PartLogViewProps>
             title: "Number of Merges",
             align: "center",
           },
-          isCollapsed: false,
+          collapsed: false,
           width: 2,
           minimapOption: {
             type: "line",
@@ -99,7 +99,7 @@ WITH FILL STEP {rounding:UInt32}
             title: "Number of Mutations",
             align: "center",
           },
-          isCollapsed: false,
+          collapsed: false,
           width: 2,
           minimapOption: {
             type: "line",
@@ -140,7 +140,7 @@ WITH FILL STEP {rounding:UInt32}
             title: "Number of New Part",
             align: "center",
           },
-          isCollapsed: false,
+          collapsed: false,
           width: 2,
           minimapOption: {
             type: "line",
@@ -181,7 +181,7 @@ WITH FILL STEP {rounding:UInt32}
             title: "Number of Removed Parts",
             align: "center",
           },
-          isCollapsed: false,
+          collapsed: false,
           width: 2,
           minimapOption: {
             type: "line",

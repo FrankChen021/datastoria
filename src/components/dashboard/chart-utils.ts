@@ -155,7 +155,7 @@ export interface ChartDescriptor {
   titleOption?: TitleOption;
 
   // If not given, it defaults to false
-  isCollapsed?: boolean;
+  collapsed?: boolean;
 
   width: number;
 
@@ -246,7 +246,7 @@ export interface StatDescriptor extends ChartDescriptor {
 
   // Value reducer option for stat chart
   valueOption?: {
-    reducer: Reducer;
+    reducer?: Reducer;
 
     // Style
     textSize?: number;
@@ -271,6 +271,10 @@ export interface TimeseriesDescriptor extends ChartDescriptor {
 
   // Legend configuration
   legend?: LegendSpec;
+
+  tooltipOption?: {
+    sortValue: "asc" | "desc" | "none";
+  }
 }
 
 // Factory function to get the appropriate option builder

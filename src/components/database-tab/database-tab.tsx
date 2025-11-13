@@ -56,7 +56,7 @@ const DatabaseTabComponent = forwardRef<RefreshableTabViewRef, DatabaseTabProps>
             title: "Size of Database",
             align: "center",
           },
-          isCollapsed: false,
+          collapsed: false,
           width: 1,
           query: {
             sql: `
@@ -81,7 +81,7 @@ WHERE
             title: "Number of Tables",
             align: "center",
           },
-          isCollapsed: false,
+          collapsed: false,
           width: 1,
           query: {
             sql: `
@@ -102,7 +102,7 @@ WHERE
             title: "Size Percentage of All Disks",
             align: "center",
           },
-          isCollapsed: false,
+          collapsed: false,
           width: 1,
           query: {
             sql: `
@@ -126,7 +126,7 @@ WHERE
             title: "Size Percentage of All Databases",
             align: "center",
           },
-          isCollapsed: false,
+          collapsed: false,
           width: 1,
           query: {
             sql: `
@@ -156,7 +156,7 @@ FROM (
             title: "Database Metadata",
             align: "left",
           },
-          isCollapsed: true,
+          collapsed: true,
           width: 100,
           query: {
             sql: `
@@ -174,7 +174,7 @@ where database = '${database}'
             title: "Tables",
             align: "left",
           },
-          isCollapsed: true,
+          collapsed: true,
           width: 100,
           query: {
             sql: `

@@ -587,7 +587,27 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
               const timestamp = firstParam.axisValue;
               let result = `<div style="margin-bottom: 4px;">${timestamp}</div>`;
 
-              params.forEach((param: { value: number | null; seriesName: string; color: string }) => {
+              // Get tooltip sort option, default to 'none'
+              const sortValue = descriptor.tooltipOption?.sortValue || "none";
+
+              // Create a copy of params array for sorting
+              const sortedParams = [...params] as Array<{ value: number | null; seriesName: string; color: string }>;
+
+              // Sort params based on tooltipOption.sortValue
+              if (sortValue !== "none") {
+                sortedParams.sort((a, b) => {
+                  const valueA = a.value ?? -Infinity;
+                  const valueB = b.value ?? -Infinity;
+                  if (sortValue === "asc") {
+                    return valueA - valueB;
+                  } else {
+                    // sortValue === "desc"
+                    return valueB - valueA;
+                  }
+                });
+              }
+
+              sortedParams.forEach((param: { value: number | null; seriesName: string; color: string }) => {
                 const value = param.value;
                 if (value !== null && value !== undefined) {
                   // Find the metric column for this series
@@ -762,7 +782,10 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
           const query = Object.assign({}, descriptor.query) as SQLQuery;
 
           // Replace time span template parameters in SQL
-          const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan);
+          let finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan);
+          if (selectedConnection!.cluster.length > 0) {
+            finalSql = finalSql.replace("{cluster}", selectedConnection!.cluster);
+          }
 
           // Check if there are any remaining old-style placeholders (for backward compatibility)
           if (finalSql.includes("{rounding}") || finalSql.includes("{seconds}")) {
@@ -930,7 +953,7 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
 
     const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
       componentId: descriptor.id,
-      initialCollapsed: descriptor.isCollapsed ?? false,
+      initialCollapsed: descriptor.collapsed ?? false,
       refreshInternal,
       getInitialParams,
     });
