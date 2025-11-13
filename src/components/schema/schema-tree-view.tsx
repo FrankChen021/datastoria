@@ -15,15 +15,14 @@ import {
   FileText,
   Hash,
   List,
-  Loader2,
   Map as MapIcon,
   Monitor,
   Package,
-  RefreshCw,
+  RotateCw,
   Search,
   Table as TableIcon,
   Type,
-  X,
+  X
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -865,7 +864,7 @@ ORDER BY lower(database), database, table, columnName`,
           disabled={isLoading || !selectedConnection}
           title="Refresh schema"
         >
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          <RotateCw className="h-4 w-4" />
         </Button>
       </div>
 

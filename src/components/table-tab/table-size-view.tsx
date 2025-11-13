@@ -1,4 +1,4 @@
-import type { TableDescriptor } from "@/components/dashboard/chart-utils";
+import type { StatDescriptor, TableDescriptor } from "@/components/dashboard/chart-utils";
 import DashboardContainer, { type DashboardContainerRef } from "@/components/dashboard/dashboard-container";
 import type { Dashboard } from "@/components/dashboard/dashboard-model";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
@@ -66,6 +66,9 @@ WHERE
             },
             collapsed: false,
             width: 1,
+            valueOption: {
+              format: "comma_number",
+            },
             query: {
               sql: `
 SELECT sum(rows) as rows
@@ -76,7 +79,7 @@ WHERE
     AND table = '${table}'
     AND active = 1`,
             },
-          },
+          } as StatDescriptor,
           {
             type: "stat",
             id: `table-size-stat-${database}-${table}`,
@@ -86,6 +89,9 @@ WHERE
             },
             collapsed: false,
             width: 1,
+            valueOption: {
+              format: "comma_number",
+            },
             query: {
               sql: `
 SELECT count(1) as part_count
@@ -102,7 +108,7 @@ WHERE
                 format: "binary_size",
               },
             },
-          },
+          } as StatDescriptor,
           {
             type: "stat",
             id: `table-size-stat-${database}-${table}`,
