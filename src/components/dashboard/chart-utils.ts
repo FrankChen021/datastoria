@@ -148,6 +148,15 @@ export interface JsonQuery extends SQLQuery {
   window?: any;
 }
 
+// Grid position for version 3+ dashboards (Grafana-style layout)
+// x, y are optional for auto-positioning; if provided, use manual positioning
+export interface GridPos {
+  x?: number; // Column position (0-23), optional for auto-positioning
+  y?: number; // Row position (0+), optional for auto-positioning
+  w: number; // Width in columns (1-24)
+  h: number; // Height in flexible row units (similar to ch-ui's rowSpan)
+}
+
 export interface ChartDescriptor {
   type: string; // "line" | "bar" | "pie" | "scatter" | "heatmap" | "table" | "map" | "custom" | "stat"
   id?: string;
@@ -157,10 +166,16 @@ export interface ChartDescriptor {
   // If not given, it defaults to false
   collapsed?: boolean;
 
-  width: number;
+  // Legacy width property (version 1-2)
+  // For version 3+, use gridPos instead
+  width?: number;
 
-  // Table content height
+  // Table content height (legacy)
   height?: number;
+
+  // Grid position for version 3+ (Grafana-style layout)
+  // If provided, takes precedence over width
+  gridPos?: GridPos;
 
   query: SQLQuery;
 

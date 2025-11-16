@@ -122,7 +122,7 @@ export type DashboardGroup = {
 };
 
 export type Dashboard = {
-  version?: number; // Dashboard version: 1 = 4-column system, 2 = 24-column system, default to 1 if missing
+  version?: number; // Dashboard version: 1 = 4-column system, 2 = 24-column system, 3 = gridPos system, default to 1 if missing
   filter: DashboardFilter;
   charts: (any | DashboardGroup)[];
 };

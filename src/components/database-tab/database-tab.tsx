@@ -40,6 +40,7 @@ const DatabaseTabComponent = forwardRef<RefreshableTabViewRef, DatabaseTabProps>
   // Create dashboard with both the database info and tables descriptors
   const dashboard = useMemo<Dashboard>(() => {
     return {
+      version: 2,
       name: `database-${database}`,
       folder: "",
       title: "Database",
@@ -57,7 +58,7 @@ const DatabaseTabComponent = forwardRef<RefreshableTabViewRef, DatabaseTabProps>
             align: "center",
           },
           collapsed: false,
-          width: 1,
+          width: 6,
           query: {
             sql: `
 SELECT
@@ -82,7 +83,7 @@ WHERE
             align: "center",
           },
           collapsed: false,
-          width: 1,
+          width: 6,
           query: {
             sql: `
 SELECT
@@ -103,7 +104,7 @@ WHERE
             align: "center",
           },
           collapsed: false,
-          width: 1,
+          width: 6,
           query: {
             sql: `
 SELECT
@@ -127,7 +128,7 @@ WHERE
             align: "center",
           },
           collapsed: false,
-          width: 1,
+          width: 6,
           query: {
             sql: `
 SELECT
@@ -157,7 +158,7 @@ FROM (
             align: "left",
           },
           collapsed: true,
-          width: 100,
+          width: 24,
           query: {
             sql: `
 select 
@@ -175,7 +176,7 @@ where database = '${database}'
             align: "left",
           },
           collapsed: true,
-          width: 100,
+          width: 24,
           query: {
             sql: `
 SELECT

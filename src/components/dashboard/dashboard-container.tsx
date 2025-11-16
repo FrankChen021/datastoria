@@ -4,6 +4,7 @@ import { connect } from "echarts";
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import type {
   ChartDescriptor,
+  GridPos,
   StatDescriptor,
   TableDescriptor,
   TimeseriesDescriptor,
@@ -57,44 +58,287 @@ function getAllCharts(dashboard: Dashboard): ChartDescriptor[] {
   return allCharts;
 }
 
-// Helper function to upgrade dashboard from version 1 to version 2
+// Helper function to get default height based on chart type
+function getDefaultHeight(chart: ChartDescriptor): number {
+  if (chart.type === "table" || chart.type === "transpose-table") {
+    return 6; // Tables need more height
+  }
+  if (chart.type === "stat") {
+    return 2; // Stats are compact
+  }
+  return 4; // Default for charts (line, bar, area, etc.)
+}
+
+// Helper function to get gridPos from chart, with fallback to width-based system
+function getGridPos(chart: ChartDescriptor): GridPos {
+  // If gridPos exists, use it
+  if (chart.gridPos) {
+    return chart.gridPos;
+  }
+
+  // Fallback: create gridPos from width (for backward compatibility)
+  // Clamp width to valid range (1-24)
+  const rawWidth = chart.width ?? 24;
+  const width = Math.max(1, Math.min(24, rawWidth));
+  const height = getDefaultHeight(chart);
+  return {
+    w: width,
+    h: height,
+    // x and y are undefined for auto-positioning
+  };
+}
+
+// Helper function to calculate auto-positioning for charts without x, y
+// Uses a simple row-based algorithm: place items left-to-right, top-to-bottom
+function calculateAutoPositions(
+  charts: ChartDescriptor[],
+  startY: number = 0
+): Array<{ chart: ChartDescriptor; gridPos: GridPos; y: number }> {
+  const result: Array<{ chart: ChartDescriptor; gridPos: GridPos; y: number }> = [];
+  let currentY = startY;
+  let currentX = 0;
+
+  for (const chart of charts) {
+    const gridPos = getGridPos(chart);
+    const w = gridPos.w;
+    const h = gridPos.h;
+
+    // If manual positioning is specified, use it
+    if (gridPos.x !== undefined && gridPos.y !== undefined) {
+      result.push({ chart, gridPos, y: gridPos.y });
+      // Update currentY to be after this manually positioned item
+      currentY = Math.max(currentY, gridPos.y + h);
+      currentX = 0; // Reset X for next auto-positioned item
+      continue;
+    }
+
+    // Auto-positioning: check if item fits on current row
+    if (currentX + w > 24) {
+      // Move to next row - find the tallest item in current row
+      const currentRowItems = result.filter((r) => r.y === currentY);
+      const maxHeightInRow = currentRowItems.length > 0
+        ? Math.max(...currentRowItems.map((r) => getGridPos(r.chart).h))
+        : 1;
+      currentY += maxHeightInRow;
+      currentX = 0;
+    }
+
+    // Place item at current position
+    result.push({
+      chart,
+      gridPos: {
+        ...gridPos,
+        x: currentX,
+        y: currentY,
+      },
+      y: currentY,
+    });
+
+    // Move X position for next item
+    currentX += w;
+  }
+
+  return result;
+}
+
+// Helper function to render chart component (extracted for reuse)
+function renderChartComponent(
+  chart: ChartDescriptor,
+  index: number,
+  onSubComponentUpdated: (subComponent: RefreshableComponent | null, index: number) => void,
+  getCurrentTimeSpan: () => TimeSpan,
+  inputFilter?: string,
+  searchParams?: URLSearchParams
+): React.ReactNode {
+  if (chart.type === "line" || chart.type === "bar" || chart.type === "area") {
+    return (
+      <RefreshableTimeseriesChart
+        ref={(el) => {
+          onSubComponentUpdated(el, index);
+        }}
+        descriptor={chart as TimeseriesDescriptor}
+        selectedTimeSpan={getCurrentTimeSpan()}
+        inputFilter={inputFilter}
+        searchParams={searchParams}
+      />
+    );
+  }
+  if (chart.type === "stat") {
+    return (
+      <RefreshableStatComponent
+        ref={(el) => {
+          onSubComponentUpdated(el, index);
+        }}
+        descriptor={chart as StatDescriptor}
+        selectedTimeSpan={getCurrentTimeSpan()}
+        searchParams={searchParams}
+      />
+    );
+  }
+  if (chart.type === "table") {
+    return (
+      <RefreshableTableComponent
+        ref={(el) => {
+          onSubComponentUpdated(el, index);
+        }}
+        descriptor={chart as TableDescriptor}
+        selectedTimeSpan={getCurrentTimeSpan()}
+        searchParams={searchParams}
+      />
+    );
+  }
+  if (chart.type === "transpose-table") {
+    return (
+      <RefreshableTransposedTableComponent
+        ref={(el) => {
+          onSubComponentUpdated(el, index);
+        }}
+        descriptor={chart as TransposeTableDescriptor}
+        selectedTimeSpan={getCurrentTimeSpan()}
+        searchParams={searchParams}
+      />
+    );
+  }
+  return null;
+}
+
+// Helper function to upgrade dashboard versions
 // Version 1: 4-column system (width: 1-4)
 // Version 2: 24-column system (width: 1-24)
-// Upgrades by multiplying width by 6 (1->6, 2->12, 3->18, 4->24)
+// Version 3: gridPos system (gridPos with optional x, y, required w, h)
 function upgradeDashboard(dashboard: Dashboard): Dashboard {
   const version = dashboard.version ?? 1;
 
-  // If already version 2 or higher, return as-is (leave room for future versions)
-  if (version >= 2) {
+  // If already version 3 or higher, return as-is
+  if (version >= 3) {
     return dashboard;
   }
 
-  // Upgrade from version 1 to version 2
-  if (version === 1) {
+  // Upgrade from version 2 to version 3 (convert width to gridPos)
+  if (version === 2) {
     const upgradedCharts = dashboard.charts.map((item) => {
       if (isDashboardGroup(item)) {
         // Upgrade charts within groups
-        const upgradedGroupCharts = item.charts.map((chart: ChartDescriptor) => ({
-          ...chart,
-          width: chart.width * 6, // Multiply by 6 to convert from 4-column to 24-column
-        }));
+        const upgradedGroupCharts = item.charts.map((chart: ChartDescriptor) => {
+          // Ensure we have a chart descriptor with width property
+          const chartWithWidth = chart as ChartDescriptor & { width?: number };
+          const defaultHeight = getDefaultHeight(chart);
+          // For version 2, width should be 1-24, clamp to valid range
+          const rawWidth = chartWithWidth.width ?? 24;
+          const chartWidth = Math.max(1, Math.min(24, rawWidth));
+          
+          // Only add gridPos if it doesn't already exist
+          if (chart.gridPos) {
+            return chart;
+          }
+          
+          return {
+            ...chart,
+            gridPos: {
+              w: chartWidth, // Use existing width from version 2 (clamped to 1-24)
+              h: defaultHeight,
+              // x and y are optional - will use auto-positioning
+            },
+            // Keep width for backward compatibility but gridPos takes precedence
+          };
+        });
         return {
           ...item,
           charts: upgradedGroupCharts,
         };
       } else {
         // Upgrade standalone charts
-        const chart = item as ChartDescriptor;
+        const chart = item as ChartDescriptor & { width?: number };
+        const defaultHeight = getDefaultHeight(chart);
+        // For version 2, width should be 1-24, clamp to valid range
+        const rawWidth = chart.width ?? 24;
+        const chartWidth = Math.max(1, Math.min(24, rawWidth));
+        
+        // Only add gridPos if it doesn't already exist
+        if (chart.gridPos) {
+          return chart;
+        }
+        
         return {
           ...chart,
-          width: chart.width * 6, // Multiply by 6 to convert from 4-column to 24-column
+          gridPos: {
+            w: chartWidth, // Use existing width from version 2 (clamped to 1-24)
+            h: defaultHeight,
+            // x and y are optional - will use auto-positioning
+          },
+          // Keep width for backward compatibility but gridPos takes precedence
         };
       }
     });
 
     return {
       ...dashboard,
-      version: 2,
+      version: 3,
+      charts: upgradedCharts,
+    };
+  }
+
+  // Upgrade from version 1 to version 2, then to version 3
+  if (version === 1) {
+    // First upgrade to version 2
+    const v2Charts = dashboard.charts.map((item) => {
+      if (isDashboardGroup(item)) {
+        const upgradedGroupCharts = item.charts.map((chart: ChartDescriptor) => {
+          const chartWidth = chart.width ?? 1; // Default to 1 if width is missing
+          return {
+            ...chart,
+            width: chartWidth * 6, // Multiply by 6 to convert from 4-column to 24-column
+          };
+        });
+        return {
+          ...item,
+          charts: upgradedGroupCharts,
+        };
+      } else {
+        const chart = item as ChartDescriptor;
+        const chartWidth = chart.width ?? 1; // Default to 1 if width is missing
+        return {
+          ...chart,
+          width: chartWidth * 6, // Multiply by 6 to convert from 4-column to 24-column
+        };
+      }
+    });
+
+    // Then upgrade to version 3
+    const upgradedCharts = v2Charts.map((item) => {
+      if (isDashboardGroup(item)) {
+        const upgradedGroupCharts = item.charts.map((chart: ChartDescriptor) => {
+          const defaultHeight = getDefaultHeight(chart);
+          const chartWidth = chart.width ?? 24;
+          return {
+            ...chart,
+            gridPos: {
+              w: chartWidth,
+              h: defaultHeight,
+            },
+          };
+        });
+        return {
+          ...item,
+          charts: upgradedGroupCharts,
+        };
+      } else {
+        const chart = item as ChartDescriptor;
+        const defaultHeight = getDefaultHeight(chart);
+        const chartWidth = chart.width ?? 24;
+        return {
+          ...chart,
+          gridPos: {
+            w: chartWidth,
+            h: defaultHeight,
+          },
+        };
+      }
+    });
+
+    return {
+      ...dashboard,
+      version: 3,
       charts: upgradedCharts,
     };
   }
@@ -110,7 +354,7 @@ const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>
     const filterRef = useRef<TimeSpanSelector | null>(null);
 
     // Upgrade dashboard version if needed (version 1 -> version 2)
-    const upgradedDashboard = useMemo(() => upgradeDashboard(dashboard), [dashboard]);
+    const upgradedDashboard : Dashboard = useMemo(() => upgradeDashboard(dashboard), [dashboard]);
 
     // Function to connect all chart instances together
     const connectAllCharts = useCallback(() => {
@@ -241,6 +485,265 @@ const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>
           {upgradedDashboard &&
             upgradedDashboard.charts &&
             (() => {
+              const dashboardVersion = upgradedDashboard.version ?? 1;
+              const useGridLayout = dashboardVersion >= 3;
+
+              // For version 3+, use CSS Grid layout
+              if (useGridLayout) {
+                // Flatten all charts (including groups) for grid layout
+                const allChartsWithPositions: Array<{
+                  chart: ChartDescriptor;
+                  gridPos: GridPos;
+                  y: number;
+                  isInGroup: boolean;
+                  groupTitle?: string;
+                  groupIndex?: number;
+                }> = [];
+
+                let currentY = 0;
+                let groupIndex = 0;
+
+                // Process items and store processed data by original index
+                // Map from original chart index to processed data
+                const processedItems = new Map<
+                  number,
+                  | {
+                      type: "standalone";
+                      charts: Array<{
+                        chart: ChartDescriptor;
+                        gridPos: GridPos;
+                        y: number;
+                      }>;
+                    }
+                  | {
+                      type: "group";
+                      groupIndex: number;
+                      group: DashboardGroup;
+                      charts: Array<{
+                        chart: ChartDescriptor;
+                        gridPos: GridPos;
+                        y: number;
+                      }>;
+                    }
+                >();
+
+                // Collect consecutive standalone charts to position them together
+                let consecutiveStandaloneCharts: ChartDescriptor[] = [];
+                let standaloneStartIndex = -1;
+
+                const processStandaloneCharts = (charts: ChartDescriptor[], startIndex: number) => {
+                  if (charts.length > 0) {
+                    const positionedCharts = calculateAutoPositions(charts, currentY);
+                    const batch: Array<{
+                      chart: ChartDescriptor;
+                      gridPos: GridPos;
+                      y: number;
+                    }> = [];
+                    positionedCharts.forEach(({ chart, gridPos, y }) => {
+                      allChartsWithPositions.push({
+                        chart,
+                        gridPos,
+                        y,
+                        isInGroup: false,
+                      });
+                      batch.push({ chart, gridPos, y });
+                    });
+                    processedItems.set(startIndex, { type: "standalone", charts: batch });
+                    // Update currentY to be after the tallest item in this batch
+                    const maxY = Math.max(...positionedCharts.map((pc) => pc.y + getGridPos(pc.chart).h), currentY);
+                    currentY = maxY + 1; // Add spacing
+                  }
+                };
+
+                upgradedDashboard.charts.forEach((item, index) => {
+                  if (isDashboardGroup(item)) {
+                    // Process any accumulated standalone charts before this group
+                    if (consecutiveStandaloneCharts.length > 0) {
+                      processStandaloneCharts(consecutiveStandaloneCharts, standaloneStartIndex);
+                      consecutiveStandaloneCharts = [];
+                      standaloneStartIndex = -1;
+                    }
+
+                    const group = item;
+                    // Calculate positions for charts in this group
+                    const groupCharts = calculateAutoPositions(group.charts, currentY);
+                    const batch: Array<{
+                      chart: ChartDescriptor;
+                      gridPos: GridPos;
+                      y: number;
+                    }> = [];
+                    groupCharts.forEach(({ chart, gridPos, y }) => {
+                      allChartsWithPositions.push({
+                        chart,
+                        gridPos,
+                        y,
+                        isInGroup: true,
+                        groupTitle: group.title,
+                        groupIndex,
+                      });
+                      batch.push({ chart, gridPos, y });
+                    });
+                    processedItems.set(index, {
+                      type: "group",
+                      groupIndex,
+                      group,
+                      charts: batch,
+                    });
+                    // Update currentY to be after the tallest item in this group
+                    const maxY = Math.max(...groupCharts.map((gc) => gc.y + getGridPos(gc.chart).h), currentY);
+                    currentY = maxY + 1; // Add spacing between groups
+                    groupIndex++;
+                  } else {
+                    // Collect consecutive standalone charts to position them together
+                    if (consecutiveStandaloneCharts.length === 0) {
+                      standaloneStartIndex = index;
+                    }
+                    consecutiveStandaloneCharts.push(item as ChartDescriptor);
+                  }
+                });
+
+                // Process any remaining standalone charts at the end
+                if (consecutiveStandaloneCharts.length > 0) {
+                  processStandaloneCharts(consecutiveStandaloneCharts, standaloneStartIndex);
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {/* Render items directly from upgradedDashboard.charts in order */}
+                    {upgradedDashboard.charts.map((_item, index) => {
+                      const processed = processedItems.get(index);
+                      if (!processed) return null;
+
+                      if (processed.type === "standalone") {
+                        const { charts } = processed;
+                        if (charts.length === 0) return null;
+
+                        // Calculate min and max Y for this batch
+                        const minY = Math.min(...charts.map((b) => b.y));
+                        const maxYInBatch = Math.max(...charts.map((b) => b.y + b.gridPos.h)) - minY;
+
+                        return (
+                          <div
+                            key={`standalone-${index}`}
+                            className="grid gap-x-2 gap-y-2"
+                            style={{
+                              gridTemplateColumns: "repeat(24, minmax(0, 1fr))",
+                              gridAutoRows: "minmax(88px, auto)",
+                              minHeight: `${Math.max(maxYInBatch, 1) * 88 + (Math.max(maxYInBatch, 1) - 1) * 4}px`,
+                            }}
+                          >
+                            {charts.map(({ chart, gridPos }, batchIndex) => {
+                              const gridStyle: React.CSSProperties = {};
+
+                              // Make Y position relative to this batch
+                              const relativeY = gridPos.y !== undefined ? gridPos.y - minY + 1 : undefined;
+
+                              // Set grid column span and start position
+                              if (gridPos.x !== undefined) {
+                                gridStyle.gridColumnStart = gridPos.x + 1;
+                                gridStyle.gridColumnEnd = gridPos.x + 1 + gridPos.w;
+                              } else {
+                                gridStyle.gridColumn = `span ${gridPos.w}`;
+                              }
+
+                              // Set grid row span and start position
+                              if (relativeY !== undefined) {
+                                gridStyle.gridRowStart = relativeY;
+                                gridStyle.gridRowEnd = relativeY + gridPos.h;
+                              } else {
+                                gridStyle.gridRow = `span ${gridPos.h}`;
+                              }
+
+                              return (
+                                <div key={`chart-${batchIndex}`} style={gridStyle} className="w-full">
+                                  {renderChartComponent(
+                                    chart,
+                                    batchIndex,
+                                    onSubComponentUpdated,
+                                    getCurrentTimeSpan,
+                                    inputFilterRef.current?.value,
+                                    searchParams instanceof URLSearchParams ? searchParams : undefined
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      } else {
+                        // Render group
+                        const { group, charts: groupCharts } = processed;
+                        if (groupCharts.length === 0) return null;
+
+                        // Calculate grid positions for this group - use relative Y positions within the group
+                        const minYInGroup = Math.min(...groupCharts.map((gc) => gc.y));
+                        const groupMaxY = Math.max(...groupCharts.map((gc) => gc.y + gc.gridPos.h)) - minYInGroup;
+
+                        return (
+                          <DashboardGroupSection
+                            key={`group-${index}`}
+                            title={group.title}
+                            defaultOpen={!group.collapsed}
+                          >
+                            <div
+                              className="grid gap-x-2 gap-y-2"
+                              style={{
+                                gridTemplateColumns: "repeat(24, minmax(0, 1fr))",
+                                gridAutoRows: "minmax(88px, auto)",
+                                minHeight: `${Math.max(groupMaxY, 1) * 88 + (Math.max(groupMaxY, 1) - 1) * 4}px`,
+                              }}
+                            >
+                              {groupCharts.map(({ chart, gridPos }, chartIndex) => {
+                                // Make Y position relative to the group (CSS Grid is 1-indexed)
+                                const relativeY = gridPos.y !== undefined ? gridPos.y - minYInGroup + 1 : undefined;
+                                const relativeX = gridPos.x !== undefined ? gridPos.x + 1 : undefined;
+
+                                const gridStyle: React.CSSProperties = {};
+
+                                // Set grid column span and start position
+                                if (relativeX !== undefined) {
+                                  // Explicit positioning: set both start and span
+                                  gridStyle.gridColumnStart = relativeX;
+                                  gridStyle.gridColumnEnd = relativeX + gridPos.w;
+                                } else {
+                                  // Auto-positioning: just set span
+                                  gridStyle.gridColumn = `span ${gridPos.w}`;
+                                }
+
+                                // Set grid row span and start position
+                                if (relativeY !== undefined) {
+                                  // Explicit positioning: set both start and span
+                                  gridStyle.gridRowStart = relativeY;
+                                  gridStyle.gridRowEnd = relativeY + gridPos.h;
+                                } else {
+                                  // Auto-positioning: just set span
+                                  gridStyle.gridRow = `span ${gridPos.h}`;
+                                }
+
+                                return (
+                                  <div key={`chart-${chartIndex}`} style={gridStyle} className="w-full">
+                                    {renderChartComponent(
+                                      chart,
+                                      chartIndex,
+                                      onSubComponentUpdated,
+                                      getCurrentTimeSpan,
+                                      inputFilterRef.current?.value,
+                                      searchParams instanceof URLSearchParams ? searchParams : undefined
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </DashboardGroupSection>
+                        );
+                      }
+                    })}
+
+                    {children}
+                  </div>
+                );
+              }
+
+              // For version 1-2, use legacy flexbox layout
               let globalChartIndex = 0;
 
               // Group consecutive non-grouped charts together
@@ -309,12 +812,12 @@ const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>
                               // For 24 columns with 23 gaps of 0.25rem each, we need to account for the gap space
                               // Formula: calc(percentage - (number_of_gaps * gap_size) / number_of_items)
                               // For width=6 (25%): calc(25% - 5.75rem / 24) = calc(25% - 0.2396rem)
-                              const widthPercent = chart.width >= 24 ? 100 : (chart.width / 24) * 100;
+                              const widthPercent = (chart.width ?? 24) >= 24 ? 100 : ((chart.width ?? 24) / 24) * 100;
                               // For a row of 24 charts, there are 23 gaps. Each chart accounts for its share of gap space
                               // Number of gaps in a full row = 23, so each chart accounts for 23/24 of a gap
-                              const gapAdjustment = chart.width >= 24 ? 0 : (23 * 0.25) / 24; // ~0.2396rem per chart
+                              const gapAdjustment = (chart.width ?? 24) >= 24 ? 0 : (23 * 0.25) / 24; // ~0.2396rem per chart
                               const widthStyle =
-                                chart.width >= 24 ? "100%" : `calc(${widthPercent}% - ${gapAdjustment}rem)`;
+                                (chart.width ?? 24) >= 24 ? "100%" : `calc(${widthPercent}% - ${gapAdjustment}rem)`;
                               return (
                                 <div
                                   key={`chart-${chartIndex}`}
@@ -322,47 +825,7 @@ const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>
                                     width: widthStyle,
                                   }}
                                 >
-                                  {(chart.type === "line" || chart.type === "bar" || chart.type === "area") && (
-                                    <RefreshableTimeseriesChart
-                                      ref={(el) => {
-                                        onSubComponentUpdated(el, currentIndex);
-                                      }}
-                                      descriptor={chart as TimeseriesDescriptor}
-                                      selectedTimeSpan={getCurrentTimeSpan()}
-                                      inputFilter={inputFilterRef.current?.value}
-                                      searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
-                                    />
-                                  )}
-                                  {chart.type === "stat" && (
-                                    <RefreshableStatComponent
-                                      ref={(el) => {
-                                        onSubComponentUpdated(el, currentIndex);
-                                      }}
-                                      descriptor={chart as StatDescriptor}
-                                      selectedTimeSpan={getCurrentTimeSpan()}
-                                      searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
-                                    />
-                                  )}
-                                  {chart.type === "table" && (
-                                    <RefreshableTableComponent
-                                      ref={(el) => {
-                                        onSubComponentUpdated(el, currentIndex);
-                                      }}
-                                      descriptor={chart as TableDescriptor}
-                                      selectedTimeSpan={getCurrentTimeSpan()}
-                                      searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
-                                    />
-                                  )}
-                                  {chart.type === "transpose-table" && (
-                                    <RefreshableTransposedTableComponent
-                                      ref={(el) => {
-                                        onSubComponentUpdated(el, currentIndex);
-                                      }}
-                                      descriptor={chart as TransposeTableDescriptor}
-                                      selectedTimeSpan={getCurrentTimeSpan()}
-                                      searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
-                                    />
-                                  )}
+                                  {renderChartComponent(chart, currentIndex, onSubComponentUpdated, getCurrentTimeSpan)}
                                 </div>
                               );
                             })}
@@ -381,10 +844,10 @@ const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>
                             const currentIndex = globalChartIndex++;
                             // Calculate width accounting for gaps (same logic as groups)
                             // For 24 columns with 23 gaps of 0.25rem each
-                            const widthPercent = chart.width >= 24 ? 100 : (chart.width / 24) * 100;
-                            const gapAdjustment = chart.width >= 24 ? 0 : (23 * 0.25) / 24; // ~0.2396rem per chart
+                            const widthPercent = (chart.width ?? 24) >= 24 ? 100 : ((chart.width ?? 24) / 24) * 100;
+                            const gapAdjustment = (chart.width ?? 24) >= 24 ? 0 : (23 * 0.25) / 24; // ~0.2396rem per chart
                             const widthStyle =
-                              chart.width >= 24 ? "100%" : `calc(${widthPercent}% - ${gapAdjustment}rem)`;
+                              (chart.width ?? 24) >= 24 ? "100%" : `calc(${widthPercent}% - ${gapAdjustment}rem)`;
                             return (
                               <div
                                 key={`chart-${chartIndex}`}
@@ -392,47 +855,7 @@ const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>
                                   width: widthStyle,
                                 }}
                               >
-                                {(chart.type === "line" || chart.type === "bar" || chart.type === "area") && (
-                                  <RefreshableTimeseriesChart
-                                    ref={(el) => {
-                                      onSubComponentUpdated(el, currentIndex);
-                                    }}
-                                    descriptor={chart as TimeseriesDescriptor}
-                                    selectedTimeSpan={getCurrentTimeSpan()}
-                                    inputFilter={inputFilterRef.current?.value}
-                                    searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
-                                  />
-                                )}
-                                {chart.type === "stat" && (
-                                  <RefreshableStatComponent
-                                    ref={(el) => {
-                                      onSubComponentUpdated(el, currentIndex);
-                                    }}
-                                    descriptor={chart as StatDescriptor}
-                                    selectedTimeSpan={getCurrentTimeSpan()}
-                                    searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
-                                  />
-                                )}
-                                {chart.type === "table" && (
-                                  <RefreshableTableComponent
-                                    ref={(el) => {
-                                      onSubComponentUpdated(el, currentIndex);
-                                    }}
-                                    descriptor={chart as TableDescriptor}
-                                    selectedTimeSpan={getCurrentTimeSpan()}
-                                    searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
-                                  />
-                                )}
-                                {chart.type === "transpose-table" && (
-                                  <RefreshableTransposedTableComponent
-                                    ref={(el) => {
-                                      onSubComponentUpdated(el, currentIndex);
-                                    }}
-                                    descriptor={chart as TransposeTableDescriptor}
-                                    selectedTimeSpan={getCurrentTimeSpan()}
-                                    searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
-                                  />
-                                )}
+                                {renderChartComponent(chart, currentIndex, onSubComponentUpdated, getCurrentTimeSpan)}
                               </div>
                             );
                           })}

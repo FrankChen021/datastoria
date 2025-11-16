@@ -86,7 +86,7 @@ export function DashboardCardLayout({
   };
 
   // Render header with title (collapsible if enabled)
-  const renderHeaderWithTitle = () => {
+  const renderHeaderWithTitle = (wrapInTrigger = false) => {
     if (!showTitle || !titleOption) return null;
 
     const headerContent = (
@@ -112,10 +112,10 @@ export function DashboardCardLayout({
       </div>
     );
 
-    return (
+    const headerElement = (
       <CardHeader className={cn("p-0", headerClassName)}>
         <div className="flex items-center">
-          {isCollapsible ? (
+          {wrapInTrigger ? (
             <CollapsibleTrigger className="flex-1">{headerContent}</CollapsibleTrigger>
           ) : (
             <div className="flex-1">{headerContent}</div>
@@ -124,6 +124,8 @@ export function DashboardCardLayout({
         </div>
       </CardHeader>
     );
+
+    return headerElement;
   };
 
   // Render header with description only (no title)
@@ -171,25 +173,29 @@ export function DashboardCardLayout({
     );
   };
 
-  const cardContent = (
-    <>
+  return (
+    <Card ref={componentRef} className={cn("@container/card relative overflow-hidden", className)} style={style}>
       <FloatingProgressBar show={isLoading} />
-      {renderHeaderWithTitle()}
-      {renderHeaderWithDescription()}
-      {renderMinimalHeader()}
       {isCollapsible ? (
         <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed?.(!open)}>
+          {renderHeaderWithTitle(true)}
           <CollapsibleContent>{children}</CollapsibleContent>
         </Collapsible>
       ) : (
-        children
+        <>
+          {renderHeaderWithTitle(false)}
+          {renderHeaderWithDescription()}
+          {renderMinimalHeader()}
+          {children}
+        </>
       )}
-    </>
-  );
-
-  return (
-    <Card ref={componentRef} className={cn("@container/card relative overflow-hidden", className)} style={style}>
-      {cardContent}
+      {/* Description and minimal headers are always outside Collapsible */}
+      {isCollapsible && (
+        <>
+          {renderHeaderWithDescription()}
+          {renderMinimalHeader()}
+        </>
+      )}
     </Card>
   );
 }

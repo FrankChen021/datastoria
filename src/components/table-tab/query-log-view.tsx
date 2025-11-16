@@ -185,7 +185,7 @@ LIMIT 10`;
         align: "left",
       },
       collapsed: false,
-      width: 100,
+      width: 24,
       query: {
         sql: sql,
         headers: {
@@ -210,6 +210,7 @@ LIMIT 10`;
       name: `query-log-${database}-${table}`,
       folder: "",
       title: "Query Log",
+      version: 2,
       filter: {
         showFilterInput: false,
         showTimeSpanSelector: false,
@@ -225,7 +226,7 @@ LIMIT 10`;
             align: "left",
           },
           collapsed: false,
-          width: 2,
+          width: 12,
           query: {
             sql: `
 SELECT 
@@ -254,7 +255,7 @@ ORDER BY t`,
             align: "left",
           },
           collapsed: false,
-          width: 2,
+          width: 12,
           query: {
             sql: `
 SELECT 
@@ -287,7 +288,7 @@ ORDER BY t`,
                 align: "left",
               },
               collapsed: false,
-              width: 1,
+              width: 6,
               query: {
                 sql: `
 SELECT 
@@ -315,7 +316,7 @@ ORDER BY t`,
                 align: "left",
               },
               collapsed: false,
-              width: 1,
+              width: 6,
               query: {
                 sql: `
 SELECT 
@@ -343,7 +344,7 @@ ORDER BY t`,
                 align: "left",
               },
               collapsed: false,
-              width: 1,
+              width: 6,
               query: {
                 sql: `
 SELECT 
@@ -371,7 +372,7 @@ ORDER BY t`,
                 align: "left",
               },
               collapsed: false,
-              width: 1,
+              width: 6,
               query: {
                 sql: `
 SELECT 
@@ -399,7 +400,7 @@ ORDER BY t`,
                 align: "left",
               },
               collapsed: false,
-              width: 2,
+              width: 12,
               query: {
                 sql: `
 SELECT 
@@ -427,7 +428,7 @@ ORDER BY t`,
                 align: "left",
               },
               collapsed: false,
-              width: 2,
+              width: 12,
               query: {
                 sql: `
 SELECT 
@@ -457,7 +458,7 @@ ORDER BY t`,
             align: "left",
           },
           collapsed: false,
-          width: 4,
+          width: 24,
           query: {
             sql: `
 SELECT 
@@ -480,7 +481,7 @@ ORDER BY t`,
             cpu: {
               type: "table",
               id: "query-kind",
-              width: 100,
+              width: 24,
               titleOption: {
                 title: "Top 100 Queries by CPU Time",
               },

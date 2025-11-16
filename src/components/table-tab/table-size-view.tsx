@@ -32,6 +32,7 @@ const TableSizeViewComponent = forwardRef<RefreshableTabViewRef, TableSizeViewPr
         name: `table-size-${database}-${table}`,
         folder: "table-size",
         title: "Table Size",
+        version: 2,
         filter: {},
         charts: [
           {
@@ -42,7 +43,7 @@ const TableSizeViewComponent = forwardRef<RefreshableTabViewRef, TableSizeViewPr
               align: "center",
             },
             collapsed: false,
-            width: 1,
+            width: 6,
             query: {
               sql: `
 SELECT sum(bytes_on_disk) as bytes_on_disk
@@ -65,7 +66,7 @@ WHERE
               align: "center",
             },
             collapsed: false,
-            width: 1,
+            width: 6,
             valueOption: {
               format: "comma_number",
             },
@@ -88,7 +89,7 @@ WHERE
               align: "center",
             },
             collapsed: false,
-            width: 1,
+            width: 6,
             valueOption: {
               format: "comma_number",
             },
@@ -117,7 +118,7 @@ WHERE
               align: "center",
             },
             collapsed: false,
-            width: 1,
+            width: 6,
             query: {
               sql: `
 SELECT sum(bytes_on_disk) / (SELECT sum(total_space-keep_free_space) from system.disks) as bytes_on_disk
@@ -142,7 +143,7 @@ WHERE
               title: "Overall Size",
               align: "left",
             },
-            width: 100,
+            width: 24,
             query: {
               sql: `
 SELECT 
@@ -229,7 +230,7 @@ ORDER BY
               title: "Column Size",
               align: "left",
             },
-            width: 100,
+            width: 24,
             query: {
               sql: `
 SELECT 
@@ -317,7 +318,7 @@ ORDER BY
               title: "Index Size",
               align: "left",
             },
-            width: 100,
+            width: 24,
             fieldOptions: {
               database: {
                 position: -1,
@@ -362,7 +363,7 @@ WHERE
               title: "Projection Size",
               align: "left",
             },
-            width: 100,
+            width: 24,
             query: {
               sql: `
 SELECT A.database, 
