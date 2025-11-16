@@ -12,7 +12,7 @@ const serverStatusDashboard = [
     titleOption: {
       title: "Server Version",
     },
-    width: 1,
+    width: 4,
     description: "The version of the server",
     query: {
       sql: "SELECT version()",
@@ -23,7 +23,7 @@ const serverStatusDashboard = [
     titleOption: {
       title: "Server UP Time",
     },
-    width: 1,
+    width: 4,
     description: "How long the server has been running",
     query: {
       sql: "SELECT uptime() * 1000",
@@ -38,7 +38,7 @@ const serverStatusDashboard = [
     titleOption: {
       title: "Warnings",
     },
-    width: 1,
+    width: 4,
     description: "How long the server has been running",
     query: {
       sql: "SELECT count() FROM system.warnings",
@@ -62,7 +62,7 @@ const serverStatusDashboard = [
     titleOption: {
       title: "Last Error",
     },
-    width: 1,
+    width: 4,
     description: "How long the server has been running",
     query: {
       sql: "SELECT toUnixTimestamp(max(last_error_time)) * 1000 FROM system.errors",
@@ -95,7 +95,7 @@ const serverStatusDashboard = [
     titleOption: {
       title: "Databases",
     },
-    width: 1,
+    width: 4,
     description: "The number of databases on the server",
     query: {
       sql: "SELECT count() FROM system.databases",
@@ -107,7 +107,7 @@ const serverStatusDashboard = [
           title: "Databases",
           description: "The number of databases on the server",
         },
-        width: 1,
+        width: 4,
         fieldOptions: {
           name: {
             title: "Name",
@@ -158,7 +158,7 @@ ORDER BY B.size DESC`,
     titleOption: {
       title: "Tables",
     },
-    width: 1,
+    width: 4,
     description: "The number of databases on the server",
     query: {
       sql: "SELECT count() FROM system.tables",
@@ -170,7 +170,7 @@ ORDER BY B.size DESC`,
     titleOption: {
       title: "Total Size of tables",
     },
-    width: 1,
+    width: 4,
     description: "Total size of all active parts",
     query: {
       sql: `SELECT sum(bytes_on_disk) FROM system.parts WHERE active = 1`,
@@ -185,7 +185,7 @@ ORDER BY B.size DESC`,
           title: "Table Size",
           description: "The size of all tables",
         },
-        width: 1,
+        width: 4,
         fieldOptions: {
           database: {
             format: (database) => {
@@ -254,7 +254,7 @@ ON A.table = B.name`,
     titleOption: {
       title: "Used Storage",
     },
-    width: 1,
+    width: 4,
     description: "The number of databases on the server",
     query: {
       sql: `SELECT round((1 - sum(free_space) / sum(total_space)) * 100, 2) AS used_percent
@@ -270,7 +270,7 @@ ON A.table = B.name`,
           title: "Used Storage",
           description: "The used storage of all disks",
         },
-        width: 1,
+        width: 4,
         fieldOptions: {
           name: {
             title: "Name",
@@ -296,7 +296,7 @@ ON A.table = B.name`,
     titleOption: {
       title: "Ongoing Merges",
     },
-    width: 1,
+    width: 4,
     description: "The number of ongoing merges",
     query: {
       sql: `SELECT count() FROM system.merges`,
@@ -308,7 +308,7 @@ ON A.table = B.name`,
           title: "Ongoing Merges",
           description: "The ongoing merges",
         },
-        width: 1,
+        width: 4,
         fieldOptions: {
           table: {
             title: "Table",
@@ -396,7 +396,7 @@ ORDER BY elapsed DESC
     titleOption: {
       title: "Ongoing Mutations",
     },
-    width: 1,
+    width: 4,
     description: "The number of ongoing mutations",
     query: {
       sql: `SELECT count() FROM system.mutations WHERE is_done = 0`,
@@ -408,7 +408,7 @@ ORDER BY elapsed DESC
           title: "Ongoing Mutations",
           description: "The number of ongoing mutations",
         },
-        width: 1,
+        width: 4,
         fieldOptions: {
           database: {
             title: "Database",
@@ -455,7 +455,7 @@ ORDER BY elapsed DESC
     titleOption: {
       title: "Running queries",
     },
-    width: 1,
+    width: 4,
     description: "The number of running queries",
     query: {
       sql: `SELECT count() FROM system.processes`,
@@ -467,7 +467,7 @@ ORDER BY elapsed DESC
           title: "Running Queries",
           description: "The running queries",
         },
-        width: 1,
+        width: 4,
         fieldOptions: {
           query_kind: {
             align: "center",
@@ -525,7 +525,7 @@ const clusterStatusDashboard = [
     titleOption: {
       title: "Shards",
     },
-    width: 1,
+    width: 4,
     description: "Number of shards in the cluster",
     query: {
       sql: `
@@ -545,7 +545,7 @@ WHERE cluster = '{cluster}'
     titleOption: {
       title: "Server Count",
     },
-    width: 1,
+    width: 4,
     description: "Number of servers in the cluster",
     query: {
       sql: `
@@ -562,7 +562,7 @@ SETTINGS skip_unavailable_shards=1
         titleOption: {
           title: "Server Count",
         },
-        width: 1,
+        width: 4,
         showIndexColumn: true,
         query: {
           sql: `SELECT * FROM system.clusters WHERE cluster = '{cluster}'`,
@@ -584,7 +584,7 @@ SETTINGS skip_unavailable_shards=1
     titleOption: {
       title: "Total Data Size",
     },
-    width: 1,
+    width: 4,
     description: "Total data size in the cluster",
     query: {
       sql: `
@@ -605,7 +605,7 @@ SETTINGS skip_unavailable_shards=1
         titleOption: {
           title: "Disk Space Usage By Server",
         },
-        width: 1,
+        width: 4,
         description: "Number of servers in the cluster",
         query: {
           sql: `
@@ -644,7 +644,7 @@ SETTINGS skip_unavailable_shards=1
     titleOption: {
       title: "Disk Quota",
     },
-    width: 1,
+    width: 4,
     description: "Total data size in the cluster",
     query: {
       sql: `
@@ -660,7 +660,7 @@ SELECT sum(total_space) FROM clusterAllReplicas('{cluster}', system.disks)
         titleOption: {
           title: "Disk Quota",
         },
-        width: 1,
+        width: 4,
         query: {
           sql: `SELECT FQDN() as server, round(free_space * 100 / total_space, 2) as free_percentage, * FROM clusterAllReplicas('{cluster}', system.disks) ORDER BY server`,
         },
@@ -695,7 +695,7 @@ SELECT sum(total_space) FROM clusterAllReplicas('{cluster}', system.disks)
     titleOption: {
       title: "Utilized Disk Space",
     },
-    width: 1,
+    width: 4,
     description: "The percentage of utilized disk space of the cluster",
     query: {
       sql: `
@@ -718,7 +718,7 @@ const clusterMetricsDashboard = [
       title: "Insert Queries Per Second",
       align: "center",
     },
-    width: 2,
+    width: 12,
     description: "Insert Queries Per Second",
     query: {
       sql: `
@@ -746,7 +746,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32} SETTINGS skip_unavailable_shards = 1
       title: "Select Queries Per Second",
       align: "center",
     },
-    width: 2,
+    width: 12,
     description: "Select Queries Per Second",
     tooltipOption: {
       sortValue: "desc",
@@ -777,7 +777,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32} SETTINGS skip_unavailable_shards = 1
       title: "Failed Queries Per Second",
       align: "center",
     },
-    width: 2,
+    width: 12,
     description: "Failed Queries Per Second",
     tooltipOption: {
       sortValue: "none",
@@ -808,7 +808,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32} SETTINGS skip_unavailable_shards = 1
       title: "Insert Bytes Per Second",
       align: "center",
     },
-    width: 2,
+    width: 12,
     description: "Insert Bytes Per Second",
     tooltipOption: {
       sortValue: "none",
@@ -844,7 +844,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32} SETTINGS skip_unavailable_shards = 1
       title: "Insert Rows Per Second",
       align: "center",
     },
-    width: 2,
+    width: 12,
     description: "Insert Rows Per Second",
     tooltipOption: {
       sortValue: "none",
@@ -881,6 +881,7 @@ const ServerTabComponent = (_props: ServerTabProps) => {
   const connection = useConnection();
 
   const dashboard = {
+    version: 2,
     charts: [
       {
         title: "Server Status",

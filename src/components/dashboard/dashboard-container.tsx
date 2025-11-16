@@ -57,11 +57,60 @@ function getAllCharts(dashboard: Dashboard): ChartDescriptor[] {
   return allCharts;
 }
 
+// Helper function to upgrade dashboard from version 1 to version 2
+// Version 1: 4-column system (width: 1-4)
+// Version 2: 24-column system (width: 1-24)
+// Upgrades by multiplying width by 6 (1->6, 2->12, 3->18, 4->24)
+function upgradeDashboard(dashboard: Dashboard): Dashboard {
+  const version = dashboard.version ?? 1;
+
+  // If already version 2 or higher, return as-is (leave room for future versions)
+  if (version >= 2) {
+    return dashboard;
+  }
+
+  // Upgrade from version 1 to version 2
+  if (version === 1) {
+    const upgradedCharts = dashboard.charts.map((item) => {
+      if (isDashboardGroup(item)) {
+        // Upgrade charts within groups
+        const upgradedGroupCharts = item.charts.map((chart: ChartDescriptor) => ({
+          ...chart,
+          width: chart.width * 6, // Multiply by 6 to convert from 4-column to 24-column
+        }));
+        return {
+          ...item,
+          charts: upgradedGroupCharts,
+        };
+      } else {
+        // Upgrade standalone charts
+        const chart = item as ChartDescriptor;
+        return {
+          ...chart,
+          width: chart.width * 6, // Multiply by 6 to convert from 4-column to 24-column
+        };
+      }
+    });
+
+    return {
+      ...dashboard,
+      version: 2,
+      charts: upgradedCharts,
+    };
+  }
+
+  // For any other version, return as-is (future-proofing)
+  return dashboard;
+}
+
 const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>(
   ({ dashboard, searchParams = {}, headerActions, hideTimeSpanSelector = false, externalTimeSpan, children }, ref) => {
     const inputFilterRef = useRef<HTMLInputElement>(undefined);
     const subComponentRefs = useRef<(RefreshableComponent | null)[]>([]);
     const filterRef = useRef<TimeSpanSelector | null>(null);
+
+    // Upgrade dashboard version if needed (version 1 -> version 2)
+    const upgradedDashboard = useMemo(() => upgradeDashboard(dashboard), [dashboard]);
 
     // Function to connect all chart instances together
     const connectAllCharts = useCallback(() => {
@@ -81,13 +130,13 @@ const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>
         return;
       }
 
-      const allCharts = getAllCharts(dashboard);
+      const allCharts = getAllCharts(upgradedDashboard);
       const chartNumber = allCharts.filter((chart: ChartDescriptor) => chart.type !== "table").length;
       if (chartInstances.length === chartNumber) {
         // Connect all echarts together on this page
         connect(chartInstances);
       }
-    }, [dashboard]);
+    }, [upgradedDashboard]);
 
     // Callback when the sub component is mounted or unmounted
     // Charts are now responsible for their own initial loading via props
@@ -189,8 +238,8 @@ const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>
 
         {/* Dashboard section - scrollable */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          {dashboard &&
-            dashboard.charts &&
+          {upgradedDashboard &&
+            upgradedDashboard.charts &&
             (() => {
               let globalChartIndex = 0;
 
@@ -203,7 +252,7 @@ const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>
               let currentCharts: ChartDescriptor[] = [];
               let currentChartsStartIndex = -1;
 
-              dashboard.charts.forEach((item, itemIndex) => {
+              upgradedDashboard.charts.forEach((item, itemIndex) => {
                 if (isDashboardGroup(item)) {
                   // If we have collected charts, add them as a group
                   if (currentCharts.length > 0) {
@@ -257,15 +306,15 @@ const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>
                               const currentIndex = groupStartIndex + chartIndex;
                               globalChartIndex++;
                               // Calculate width accounting for gaps
-                              // For 4 columns with 3 gaps of 0.25rem each, we need to account for the gap space
+                              // For 24 columns with 23 gaps of 0.25rem each, we need to account for the gap space
                               // Formula: calc(percentage - (number_of_gaps * gap_size) / number_of_items)
-                              // For width=1 (25%): calc(25% - 0.75rem / 4) = calc(25% - 0.1875rem)
-                              const widthPercent = chart.width >= 4 ? 100 : (chart.width / 4) * 100;
-                              // For a row of 4 charts, there are 3 gaps. Each chart should account for its share of gap space
-                              // Number of gaps in a full row = 3, so each chart accounts for 3/4 = 0.75 of a gap
-                              const gapAdjustment = chart.width >= 4 ? 0 : (3 * 0.25) / 4; // 0.1875rem per chart
+                              // For width=6 (25%): calc(25% - 5.75rem / 24) = calc(25% - 0.2396rem)
+                              const widthPercent = chart.width >= 24 ? 100 : (chart.width / 24) * 100;
+                              // For a row of 24 charts, there are 23 gaps. Each chart accounts for its share of gap space
+                              // Number of gaps in a full row = 23, so each chart accounts for 23/24 of a gap
+                              const gapAdjustment = chart.width >= 24 ? 0 : (23 * 0.25) / 24; // ~0.2396rem per chart
                               const widthStyle =
-                                chart.width >= 4 ? "100%" : `calc(${widthPercent}% - ${gapAdjustment}rem)`;
+                                chart.width >= 24 ? "100%" : `calc(${widthPercent}% - ${gapAdjustment}rem)`;
                               return (
                                 <div
                                   key={`chart-${chartIndex}`}
@@ -331,10 +380,11 @@ const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>
                           {charts.map((chart: ChartDescriptor, chartIndex) => {
                             const currentIndex = globalChartIndex++;
                             // Calculate width accounting for gaps (same logic as groups)
-                            const widthPercent = chart.width >= 4 ? 100 : (chart.width / 4) * 100;
-                            const gapAdjustment = chart.width >= 4 ? 0 : (3 * 0.25) / 4; // 0.1875rem per chart
+                            // For 24 columns with 23 gaps of 0.25rem each
+                            const widthPercent = chart.width >= 24 ? 100 : (chart.width / 24) * 100;
+                            const gapAdjustment = chart.width >= 24 ? 0 : (23 * 0.25) / 24; // ~0.2396rem per chart
                             const widthStyle =
-                              chart.width >= 4 ? "100%" : `calc(${widthPercent}% - ${gapAdjustment}rem)`;
+                              chart.width >= 24 ? "100%" : `calc(${widthPercent}% - ${gapAdjustment}rem)`;
                             return (
                               <div
                                 key={`chart-${chartIndex}`}
