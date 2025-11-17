@@ -840,20 +840,6 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
       return descriptor.drilldown[firstKey];
     }, [descriptor.drilldown]);
 
-    // Render drilldown component based on descriptor type
-    const renderDrilldownComponent = useCallback(
-      (drilldownDescriptor: PanelDescriptor) => {
-        return (
-          <DrilldownChartRenderer
-            descriptor={drilldownDescriptor}
-            selectedTimeSpan={selectedTimeSpan}
-            searchParams={props.searchParams}
-          />
-        );
-      },
-      [props.searchParams, selectedTimeSpan]
-    );
-
     // Handle drilldown click
     const handleDrilldownClick = useCallback(() => {
       const drilldownDescriptor = getFirstDrilldownDescriptor();
@@ -871,6 +857,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
           showTitle: false,
         };
       }
+      modifiedDescriptor.collapsed = false;
 
       // Make table header sticky and set height for tables in dialog mode
       if (modifiedDescriptor.type === "table") {
@@ -893,9 +880,17 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
         description,
         className: "max-w-[60vw] h-[70vh]",
         disableContentScroll: false,
-        mainContent: <div className="w-full h-full overflow-auto">{renderDrilldownComponent(modifiedDescriptor)}</div>,
+        mainContent: (
+          <div className="w-full h-full overflow-auto">
+            <DrilldownChartRenderer
+              descriptor={modifiedDescriptor}
+              selectedTimeSpan={selectedTimeSpan}
+              searchParams={props.searchParams}
+            />
+          </div>
+        ),
       });
-    }, [getFirstDrilldownDescriptor, renderDrilldownComponent]);
+    }, [getFirstDrilldownDescriptor, props.searchParams, selectedTimeSpan]);
 
     // Check if drilldown is available
     const hasDrilldown = useCallback((): boolean => {

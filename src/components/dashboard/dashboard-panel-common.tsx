@@ -196,18 +196,10 @@ export function DashboardPanelLayout({
       ) : (
         <>
           {renderHeaderWithTitle(false)}
-          {renderHeaderWithDescription()}
-          {renderMinimalHeader()}
           {children}
         </>
       )}
       {/* Description and minimal headers are always outside Collapsible */}
-      {isCollapsible && (
-        <>
-          {renderHeaderWithDescription()}
-          {renderMinimalHeader()}
-        </>
-      )}
     </Card>
   );
 }

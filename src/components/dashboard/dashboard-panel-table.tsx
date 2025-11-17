@@ -10,12 +10,12 @@ import { CardContent } from "../ui/card";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { Skeleton } from "../ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import type { ActionColumn, FieldOption, SQLQuery, TableDescriptor } from "./dashboard-model";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
-import { DashboardPanelLayout } from "./dashboard-panel-common";
 import { showQueryDialog } from "./dashboard-dialog-utils";
-import { inferFormatFromMetaType } from "./format-inference";
+import type { ActionColumn, FieldOption, SQLQuery, TableDescriptor } from "./dashboard-model";
 import type { RefreshableComponent, RefreshParameter } from "./dashboard-panel-common";
+import { DashboardPanelLayout } from "./dashboard-panel-common";
+import { inferFormatFromMetaType } from "./format-inference";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
 import { useRefreshable } from "./use-refreshable";
@@ -801,9 +801,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
 
     // Build dropdown menu items
     const dropdownItems = (
-      <>
-        {descriptor.query?.sql && <DropdownMenuItem onClick={handleShowQuery}>Show query</DropdownMenuItem>}
-      </>
+      <>{descriptor.query?.sql && <DropdownMenuItem onClick={handleShowQuery}>Show query</DropdownMenuItem>}</>
     );
 
     // Render functions for direct table structure (when sticky header is enabled)
@@ -934,116 +932,116 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
         dropdownItems={dropdownItems}
       >
         <CardContent
-              className={cn("px-0 p-0", !isStickyHeader && "overflow-auto", isStickyHeader && "overflow-auto")}
-              style={descriptor.height ? ({ maxHeight: `${descriptor.height}vh` } as React.CSSProperties) : undefined}
-            >
-              {isStickyHeader ? (
-                // Use direct table structure for sticky header to avoid nested scroll containers
-                <div className="relative w-full">
-                  <table className="w-full caption-bottom text-sm">
-                    <thead className={cn("[&_tr]:border-b sticky top-0 z-10 bg-background")}>
-                      <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                        {descriptor.showIndexColumn && (
-                          <th className="px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap h-10">
-                            {shouldShowSkeleton ? <Skeleton className="h-5 w-20" /> : "#"}
-                          </th>
+          className={cn("px-0 p-0", !isStickyHeader && "overflow-auto", isStickyHeader && "overflow-auto")}
+          style={descriptor.height ? ({ maxHeight: `${descriptor.height}vh` } as React.CSSProperties) : undefined}
+        >
+          {isStickyHeader ? (
+            // Use direct table structure for sticky header to avoid nested scroll containers
+            <div className="relative w-full">
+              <table className="w-full caption-bottom text-sm">
+                <thead className={cn("[&_tr]:border-b sticky top-0 z-10 bg-background")}>
+                  <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                    {descriptor.showIndexColumn && (
+                      <th className="px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap h-10">
+                        {shouldShowSkeleton ? <Skeleton className="h-5 w-20" /> : "#"}
+                      </th>
+                    )}
+                    {columns.map((fieldOption) => {
+                      if (!fieldOption.name) return null;
+
+                      const fieldName = fieldOption.name;
+                      const isSortable = fieldOption.sortable !== false && fieldOption.renderAction === undefined;
+                      return (
+                        <th
+                          key={fieldName}
+                          className={cn(
+                            "px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+                            getCellAlignmentClass(fieldOption),
+                            fieldOption.width && `w-[${fieldOption.width}px]`,
+                            fieldOption.minWidth && `min-w-[${fieldOption.minWidth}px]`,
+                            "whitespace-nowrap",
+                            isSortable && "cursor-pointer hover:bg-muted/50 select-none h-10"
+                          )}
+                          style={{
+                            width: fieldOption.width ? `${fieldOption.width}px` : undefined,
+                            minWidth: fieldOption.minWidth ? `${fieldOption.minWidth}px` : undefined,
+                          }}
+                          onClick={() => isSortable && handleSort(fieldName)}
+                        >
+                          {shouldShowSkeleton ? (
+                            <Skeleton className="h-5 w-20" />
+                          ) : (
+                            <>
+                              {fieldOption.title || fieldName}
+                              {isSortable && getSortIcon(fieldName)}
+                            </>
+                          )}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody className="[&_tr:last-child]:border-0">
+                  {renderErrorDirect()}
+                  {renderLoadingDirect()}
+                  {renderNoDataDirect()}
+                  {renderDataDirect()}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {descriptor.showIndexColumn && (
+                    <TableHead className="px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap h-10">
+                      {shouldShowSkeleton ? <Skeleton className="h-5 w-20" /> : "#"}
+                    </TableHead>
+                  )}
+                  {columns.map((fieldOption) => {
+                    if (!fieldOption.name) return null;
+
+                    const fieldName = fieldOption.name;
+                    const isSortable = fieldOption.sortable !== false && fieldOption.renderAction === undefined;
+                    return (
+                      <TableHead
+                        key={fieldName}
+                        className={cn(
+                          "px-4 align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+                          getCellAlignmentClass(fieldOption),
+                          fieldOption.width && `w-[${fieldOption.width}px]`,
+                          fieldOption.minWidth && `min-w-[${fieldOption.minWidth}px]`,
+                          "whitespace-nowrap",
+                          isSortable && "cursor-pointer hover:bg-muted/50 select-none h-10"
                         )}
-                        {columns.map((fieldOption) => {
-                          if (!fieldOption.name) return null;
-
-                          const fieldName = fieldOption.name;
-                          const isSortable = fieldOption.sortable !== false && fieldOption.renderAction === undefined;
-                          return (
-                            <th
-                              key={fieldName}
-                              className={cn(
-                                "px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
-                                getCellAlignmentClass(fieldOption),
-                                fieldOption.width && `w-[${fieldOption.width}px]`,
-                                fieldOption.minWidth && `min-w-[${fieldOption.minWidth}px]`,
-                                "whitespace-nowrap",
-                                isSortable && "cursor-pointer hover:bg-muted/50 select-none h-10"
-                              )}
-                              style={{
-                                width: fieldOption.width ? `${fieldOption.width}px` : undefined,
-                                minWidth: fieldOption.minWidth ? `${fieldOption.minWidth}px` : undefined,
-                              }}
-                              onClick={() => isSortable && handleSort(fieldName)}
-                            >
-                              {shouldShowSkeleton ? (
-                                <Skeleton className="h-5 w-20" />
-                              ) : (
-                                <>
-                                  {fieldOption.title || fieldName}
-                                  {isSortable && getSortIcon(fieldName)}
-                                </>
-                              )}
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody className="[&_tr:last-child]:border-0">
-                      {renderErrorDirect()}
-                      {renderLoadingDirect()}
-                      {renderNoDataDirect()}
-                      {renderDataDirect()}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {descriptor.showIndexColumn && (
-                        <TableHead className="px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap h-10">
-                          {shouldShowSkeleton ? <Skeleton className="h-5 w-20" /> : "#"}
-                        </TableHead>
-                      )}
-                      {columns.map((fieldOption) => {
-                        if (!fieldOption.name) return null;
-
-                        const fieldName = fieldOption.name;
-                        const isSortable = fieldOption.sortable !== false && fieldOption.renderAction === undefined;
-                        return (
-                          <TableHead
-                            key={fieldName}
-                            className={cn(
-                              "px-4 align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
-                              getCellAlignmentClass(fieldOption),
-                              fieldOption.width && `w-[${fieldOption.width}px]`,
-                              fieldOption.minWidth && `min-w-[${fieldOption.minWidth}px]`,
-                              "whitespace-nowrap",
-                              isSortable && "cursor-pointer hover:bg-muted/50 select-none h-10"
-                            )}
-                            style={{
-                              width: fieldOption.width ? `${fieldOption.width}px` : undefined,
-                              minWidth: fieldOption.minWidth ? `${fieldOption.minWidth}px` : undefined,
-                            }}
-                            onClick={() => isSortable && handleSort(fieldName)}
-                          >
-                            {shouldShowSkeleton ? (
-                              <Skeleton className="h-5 w-20" />
-                            ) : (
-                              <>
-                                {fieldOption.title || fieldName}
-                                {isSortable && getSortIcon(fieldName)}
-                              </>
-                            )}
-                          </TableHead>
-                        );
-                      })}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {renderError()}
-                    {renderLoading()}
-                    {renderNoData()}
-                    {renderData()}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
+                        style={{
+                          width: fieldOption.width ? `${fieldOption.width}px` : undefined,
+                          minWidth: fieldOption.minWidth ? `${fieldOption.minWidth}px` : undefined,
+                        }}
+                        onClick={() => isSortable && handleSort(fieldName)}
+                      >
+                        {shouldShowSkeleton ? (
+                          <Skeleton className="h-5 w-20" />
+                        ) : (
+                          <>
+                            {fieldOption.title || fieldName}
+                            {isSortable && getSortIcon(fieldName)}
+                          </>
+                        )}
+                      </TableHead>
+                    );
+                  })}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {renderError()}
+                {renderLoading()}
+                {renderNoData()}
+                {renderData()}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
       </DashboardPanelLayout>
     );
   }
