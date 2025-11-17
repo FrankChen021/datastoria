@@ -157,7 +157,7 @@ export interface GridPos {
   h: number; // Height in flexible row units (similar to ch-ui's rowSpan)
 }
 
-export interface ChartDescriptor {
+export interface PanelDescriptor {
   type: string; // "line" | "bar" | "pie" | "scatter" | "heatmap" | "table" | "map" | "custom" | "stat"
   id?: string;
 
@@ -182,7 +182,7 @@ export interface ChartDescriptor {
   /**
    * key - for table, the key is column name. If it's '_row', then a action column is added
    */
-  drilldown?: Record<string, ChartDescriptor>;
+  drilldown?: Record<string, PanelDescriptor>;
 }
 
 export interface SortOption {
@@ -212,7 +212,7 @@ export interface ActionColumn {
   renderAction: (row: Record<string, unknown>, rowIndex: number) => React.ReactNode;
 }
 
-export interface TableDescriptor extends ChartDescriptor {
+export interface TableDescriptor extends PanelDescriptor {
   type: "table";
 
   // Field options as Map or Record, where key is the field name
@@ -232,7 +232,7 @@ export interface TableDescriptor extends ChartDescriptor {
   showIndexColumn?: boolean;
 }
 
-export interface TransposeTableDescriptor extends ChartDescriptor {
+export interface TransposeTableDescriptor extends PanelDescriptor {
   type: "transpose-table";
 
   // Field options as Map or Record, where key is the field name
@@ -251,7 +251,7 @@ export type ComparisonOption = {
   offset: string;
 };
 
-export interface StatDescriptor extends ChartDescriptor {
+export interface StatDescriptor extends PanelDescriptor {
   type: "stat";
 
   // Minimap style for stat chart
@@ -274,7 +274,7 @@ export interface StatDescriptor extends ChartDescriptor {
   };
 }
 
-export interface TimeseriesDescriptor extends ChartDescriptor {
+export interface TimeseriesDescriptor extends PanelDescriptor {
   type: "line" | "bar" | "area";
 
   // Field options as Map or Record, where key is the field name
@@ -305,7 +305,7 @@ function getChartOptionBuilder(chartType: string): ChartOptionBuilder {
   }
 }
 
-export function toEChartOption(chartDescriptor: ChartDescriptor): ChartOption {
+export function toEChartOption(chartDescriptor: PanelDescriptor): ChartOption {
   // Use the option builder pattern for different chart types
   const optionBuilder = getChartOptionBuilder(chartDescriptor.type);
   return optionBuilder.build(chartDescriptor);
@@ -325,7 +325,7 @@ export function getChartRenderer(chartType: string): ChartRenderer {
 }
 
 export function toEChartSeriesOption(
-  chartDescriptor: ChartDescriptor,
+  chartDescriptor: PanelDescriptor,
   yAxisFormatters: FormatterFn[],
   columnMap: Map<string, FieldOption>,
   queryResponse: QueryResponse
@@ -416,6 +416,6 @@ export function toChartDescriptor(expr: AlertExpression): TimeseriesDescriptor {
     // They are preserved here for backward compatibility but not type-checked
     threshold: threshold,
     details: toDetailTableDescriptor(expr),
-  } as TimeseriesDescriptor & { threshold?: ThresholdSpec; details?: ChartDescriptor };
+  } as TimeseriesDescriptor & { threshold?: ThresholdSpec; details?: PanelDescriptor };
   return chartDescriptor;
 }

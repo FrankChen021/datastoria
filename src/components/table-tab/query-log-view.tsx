@@ -1,7 +1,8 @@
 import type { ColumnDef, TableDescriptor } from "@/components/dashboard/chart-utils";
-import DashboardContainer, { type DashboardContainerRef } from "@/components/dashboard/dashboard-container";
 import type { Dashboard, DashboardGroup } from "@/components/dashboard/dashboard-model";
+import DashboardPanels, { type DashboardPanelsRef } from "@/components/dashboard/dashboard-panels";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
+import { BUILT_IN_TIME_SPAN_LIST } from "@/components/dashboard/timespan-selector";
 import { TabManager } from "@/components/tab-manager";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { ExternalLink } from "lucide-react";
@@ -43,28 +44,30 @@ const formatQueryLogLink = (queryId: any, _params?: any[], context?: Record<stri
 
 const QueryLogViewComponent = forwardRef<RefreshableTabViewRef, QueryLogViewProps>(({ database, table }, ref) => {
   const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | undefined>(undefined);
-  const dashboardContainerRef = useRef<DashboardContainerRef>(null);
+  const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
+  const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan(), []);
+
+  // Calculate current time span (use selected if available, otherwise default)
+  const currentTimeSpan = selectedTimeSpan ?? defaultTimeSpan;
 
   useImperativeHandle(
     ref,
     () => ({
       refresh: (timeSpan?: TimeSpan) => {
         if (timeSpan) {
+          // Update state - prop change will trigger automatic refresh in DashboardPanels
           setSelectedTimeSpan(timeSpan);
-          // Use the provided timeSpan for refresh immediately
-          setTimeout(() => {
-            dashboardContainerRef.current?.refresh(timeSpan);
-          }, 10);
         } else {
-          // Use current selectedTimeSpan or trigger refresh with undefined
+          // No timeSpan provided - explicitly refresh with current time span
+          // This handles the case when clicking refresh without changing the time range
           setTimeout(() => {
-            dashboardContainerRef.current?.refresh(selectedTimeSpan);
+            dashboardPanelsRef.current?.refresh(currentTimeSpan);
           }, 10);
         }
       },
       supportsTimeSpanSelector: true,
     }),
-    [selectedTimeSpan]
+    [currentTimeSpan]
   );
 
   // Create table descriptor
@@ -489,7 +492,7 @@ ORDER BY t`,
                 initialSort: {
                   column: "OSCPUVirtualTimeMicroseconds",
                   direction: "desc",
-                }
+                },
               },
               fieldOptions: {
                 OSCPUVirtualTimeMicroseconds: {
@@ -535,14 +538,7 @@ LIMIT 50
     };
   }, [tableDescriptor, database, table]);
 
-  return (
-    <DashboardContainer
-      ref={dashboardContainerRef}
-      dashboard={dashboard}
-      hideTimeSpanSelector={true}
-      externalTimeSpan={selectedTimeSpan}
-    />
-  );
+  return <DashboardPanels ref={dashboardPanelsRef} dashboard={dashboard} selectedTimeSpan={currentTimeSpan} />;
 });
 
 QueryLogViewComponent.displayName = "QueryLogView";

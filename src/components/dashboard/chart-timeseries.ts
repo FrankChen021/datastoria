@@ -1,6 +1,6 @@
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { Formatter, type ObjectFormatter } from "@/lib/formatter";
-import type { ChartDescriptor, ColumnDef, FormatterFn, QueryResponse, TimeseriesDescriptor } from "./chart-utils";
+import type { PanelDescriptor, ColumnDef, FormatterFn, QueryResponse, TimeseriesDescriptor } from "./chart-utils";
 
 // Type guard to check if format is an ObjectFormatter
 function isObjectFormatter(format: string | ObjectFormatter): format is ObjectFormatter {
@@ -10,7 +10,7 @@ function isObjectFormatter(format: string | ObjectFormatter): format is ObjectFo
 // Base interfaces
 export interface ChartRenderer {
   renderSeries(
-    chartDescriptor: ChartDescriptor,
+    chartDescriptor: PanelDescriptor,
     yAxisFormatters: FormatterFn[],
     columnMap: Map<string, ColumnDef>,
     queryResponse: QueryResponse
@@ -18,13 +18,13 @@ export interface ChartRenderer {
 }
 
 export interface ChartOptionBuilder {
-  build(chartDescriptor: ChartDescriptor): { yAxisFormatters: FormatterFn[]; option: any };
+  build(chartDescriptor: PanelDescriptor): { yAxisFormatters: FormatterFn[]; option: any };
 }
 
 // Time series renderer for line, bar, and area charts
 export class TimeSeriesRenderer implements ChartRenderer {
   renderSeries(
-    chartDescriptor: ChartDescriptor,
+    chartDescriptor: PanelDescriptor,
     yAxisFormatters: FormatterFn[],
     columnMap: Map<string, ColumnDef>,
     queryResponse: QueryResponse
@@ -155,7 +155,7 @@ export class TimeSeriesRenderer implements ChartRenderer {
 
 // Time series chart option builder
 export class TimeSeriesChartBuilder implements ChartOptionBuilder {
-  build(chartDescriptor: ChartDescriptor): { yAxisFormatters: FormatterFn[]; option: any } {
+  build(chartDescriptor: PanelDescriptor): { yAxisFormatters: FormatterFn[]; option: any } {
     const yAxisFormatters: FormatterFn[] = [];
     const legendOption: { name: string; icon: string }[] = [];
 

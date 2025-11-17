@@ -11,9 +11,9 @@ import { DataSampleView } from "./data-sample-view";
 import { PartLogView } from "./part-log-view";
 import { PartitionSizeView } from "./partition-view";
 import { QueryLogView } from "./query-log-view";
+import { getSystemTableTabs } from "./system-table/system-table-registry";
 import { TableMetadataView } from "./table-metadata-view";
 import { TableSizeView } from "./table-size-view";
-import { getSystemTableTabs } from "./system-table/system-table-registry";
 
 export interface TableTabProps {
   database: string;
@@ -64,7 +64,7 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
   const baseAvailableTabs = useMemo(() => {
     return engine
       ? (ENGINE_TABS_MAP.get(engine) ??
-        new Set(["data-sample", "metadata", "table-size", "partitions", "query-log", "part-log"]))
+          new Set(["data-sample", "metadata", "table-size", "partitions", "query-log", "part-log"]))
       : new Set(["data-sample", "metadata", "table-size", "partitions", "query-log", "part-log"]);
   }, [engine]);
 
@@ -151,30 +151,37 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
     });
   }, [currentTab]);
 
-  const handleRefresh = useCallback((overrideTimeSpan?: TimeSpan) => {
-    setIsRefreshing(true);
-    // Reset refreshing state after a short delay to allow child components to update their loading state
-    // The FloatingProgressBar will show the actual loading state
-    setTimeout(() => setIsRefreshing(false), 100);
+  const handleRefresh = useCallback(
+    (overrideTimeSpan?: TimeSpan) => {
+      setIsRefreshing(true);
+      // Reset refreshing state after a short delay to allow child components to update their loading state
+      // The FloatingProgressBar will show the actual loading state
+      setTimeout(() => setIsRefreshing(false), 100);
 
-    const currentRef = getCurrentRef();
-    if (hasRefreshCapability(currentRef)) {
-      const timeSpan = overrideTimeSpan ?? (supportsTimeSpan ? selectedTimeSpan.getTimeSpan() : undefined);
-      currentRef.refresh(timeSpan);
-    }
-  }, [getCurrentRef, supportsTimeSpan, selectedTimeSpan]);
+      const currentRef = getCurrentRef();
+      if (hasRefreshCapability(currentRef)) {
+        const timeSpan =
+          overrideTimeSpan ?? (supportsTimeSpan ? selectedTimeSpan.calculateAbsoluteTimeSpan() : undefined);
+        currentRef.refresh(timeSpan);
+      }
+    },
+    [getCurrentRef, supportsTimeSpan, selectedTimeSpan]
+  );
 
-  const handleTimeSpanChanged = useCallback((span: DisplayTimeSpan) => {
-    setSelectedTimeSpan(span);
-    // Trigger refresh when time span changes, passing the new timespan directly
-    const timeSpan = span.getTimeSpan();
-    handleRefresh(timeSpan);
-  }, [handleRefresh]);
+  const handleTimeSpanChanged = useCallback(
+    (span: DisplayTimeSpan) => {
+      setSelectedTimeSpan(span);
+      // Trigger refresh when time span changes, passing the new timespan directly
+      const timeSpan = span.calculateAbsoluteTimeSpan();
+      handleRefresh(timeSpan);
+    },
+    [handleRefresh]
+  );
 
   // If custom system tabs exist, render them
   if (customSystemTabs && customSystemTabs.length > 0) {
     const hasMultipleTabs = customSystemTabs.length > 1;
-    
+
     return (
       <div className="h-full w-full flex flex-col overflow-hidden">
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="flex flex-col flex-1 overflow-hidden">
@@ -211,7 +218,7 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
 
   // Default rendering for non-custom system tables
   const hasMultipleTabs = availableTabs.size > 1;
-  
+
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">
       <Tabs value={currentTab} onValueChange={setCurrentTab} className="flex flex-col flex-1 overflow-hidden">

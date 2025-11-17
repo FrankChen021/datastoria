@@ -285,7 +285,7 @@ ORDER BY on_disk_size DESC
   return (
     <div className="h-full w-full flex flex-col overflow-hidden p-2 gap-2">
       <div className="flex-1 min-h-0">
-        <DashboardContainer ref={dashboardContainerRef} dashboard={dashboard} hideTimeSpanSelector={true}>
+        <DashboardContainer ref={dashboardContainerRef} dashboard={dashboard}>
           <CollapsibleDependencyView database={database} defaultOpen={false} className="flex-shrink-0" />
         </DashboardContainer>
       </div>

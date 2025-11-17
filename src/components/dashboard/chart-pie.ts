@@ -1,5 +1,5 @@
 import { Formatter, type ObjectFormatter } from "@/lib/formatter";
-import type { ChartDescriptor, ColumnDef, FieldOption, FormatterFn, QueryResponse, TimeseriesDescriptor } from "./chart-utils";
+import type { PanelDescriptor, ColumnDef, FieldOption, FormatterFn, QueryResponse, TimeseriesDescriptor } from "./chart-utils";
 
 // Type guard to check if format is an ObjectFormatter
 function isObjectFormatter(format: string | ObjectFormatter): format is ObjectFormatter {
@@ -9,7 +9,7 @@ function isObjectFormatter(format: string | ObjectFormatter): format is ObjectFo
 // Base interfaces
 export interface ChartRenderer {
   renderSeries(
-    chartDescriptor: ChartDescriptor,
+    chartDescriptor: PanelDescriptor,
     yAxisFormatters: FormatterFn[],
     columnMap: Map<string, ColumnDef>,
     queryResponse: QueryResponse
@@ -17,13 +17,13 @@ export interface ChartRenderer {
 }
 
 export interface ChartOptionBuilder {
-  build(chartDescriptor: ChartDescriptor): { yAxisFormatters: FormatterFn[]; option: any };
+  build(chartDescriptor: PanelDescriptor): { yAxisFormatters: FormatterFn[]; option: any };
 }
 
 // Pie chart renderer for pie charts
 export class PieChartRenderer implements ChartRenderer {
   renderSeries(
-    chartDescriptor: ChartDescriptor,
+    chartDescriptor: PanelDescriptor,
     yAxisFormatters: FormatterFn[],
     columnMap: Map<string, ColumnDef>,
     queryResponse: QueryResponse
@@ -119,7 +119,7 @@ export class PieChartRenderer implements ChartRenderer {
 
 // Pie chart option builder
 export class PieChartOptionBuilder implements ChartOptionBuilder {
-  build(chartDescriptor: ChartDescriptor): { yAxisFormatters: FormatterFn[]; option: any } {
+  build(chartDescriptor: PanelDescriptor): { yAxisFormatters: FormatterFn[]; option: any } {
     const yAxisFormatters: FormatterFn[] = [];
     const legendOption: { name: string; icon: string }[] = [];
 

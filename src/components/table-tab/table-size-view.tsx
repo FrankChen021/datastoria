@@ -443,7 +443,7 @@ ORDER BY 1, 2, 3`,
 
     return (
       <div className="h-full flex flex-col" style={{ height: "calc(100vh - 49px)" }}>
-        <DashboardContainer ref={dashboardContainerRef} dashboard={dashboard} hideTimeSpanSelector={true} />
+        <DashboardContainer ref={dashboardContainerRef} dashboard={dashboard} />
       </div>
     );
   }

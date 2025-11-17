@@ -149,6 +149,7 @@ export type FormatName =
   | "MMddHHmmssSSS"
   | "timeDuration"
   | "timeDiff"
+  | "days"
   | "index" // For compability, SHOULD not be used
   | "binary_byte" // For compatibility only, use binary_size instead
   | "time" // For compatibility only, use DateTime formatter above instead
@@ -269,6 +270,7 @@ export class Formatter {
 
     this._formatters["timeDuration"] = (v) => v.formatTimeDuration();
     this._formatters["timeDiff"] = (v) => this.timeDifference(v);
+    this._formatters["days"] = (v) => v.formatDays();
     this._formatters["template"] = (_v, params) => {
       // Template formatter - params[0] should be the template object
       const template = params && params[0];

@@ -13,7 +13,7 @@ import { Skeleton } from "../ui/skeleton";
 import { Dialog } from "../use-dialog";
 import { isTimestampColumn as isTimestampColumnUtil, transformRowsToChartData } from "./chart-data-utils";
 import type {
-  ChartDescriptor,
+  PanelDescriptor,
   FieldOption,
   SQLQuery,
   StatDescriptor,
@@ -34,7 +34,7 @@ import { useRefreshable } from "./use-refreshable";
 // Wrapper component that uses imperative refresh instead of remounting
 // This prevents the drilldown component from losing its state when the time span changes
 const DrilldownChartRendererWithRefresh: React.FC<{
-  descriptor: ChartDescriptor;
+  descriptor: PanelDescriptor;
   selectedTimeSpan?: TimeSpan;
   searchParams?: URLSearchParams;
 }> = ({ descriptor, selectedTimeSpan, searchParams }) => {
@@ -1071,7 +1071,7 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
     }, []);
 
     // Get the first drilldown descriptor if available
-    const getFirstDrilldownDescriptor = useCallback((): ChartDescriptor | null => {
+    const getFirstDrilldownDescriptor = useCallback((): PanelDescriptor | null => {
       if (!descriptor.drilldown || Object.keys(descriptor.drilldown).length === 0) {
         return null;
       }
@@ -1083,10 +1083,10 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
     // Render drilldown component based on descriptor type
     // Use stable key and imperative refresh to prevent remounting
     const renderDrilldownComponent = useCallback(
-      (drilldownDescriptor: ChartDescriptor, timeSpan: TimeSpan) => {
+      (drilldownDescriptor: PanelDescriptor, timeSpan: TimeSpan) => {
         // Create a modified copy of the descriptor for drilldown
         // Always hide title in drilldown by explicitly setting showTitle to false
-        const modifiedDescriptor: ChartDescriptor = {
+        const modifiedDescriptor: PanelDescriptor = {
           ...drilldownDescriptor,
           titleOption: drilldownDescriptor.titleOption
             ? {

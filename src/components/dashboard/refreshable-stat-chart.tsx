@@ -18,7 +18,7 @@ import { Skeleton } from "../ui/skeleton";
 import { Dialog } from "../use-dialog";
 import { classifyColumns, transformRowsToChartData } from "./chart-data-utils";
 import type {
-  ChartDescriptor,
+  PanelDescriptor,
   MinimapOption,
   Reducer,
   SQLQuery,
@@ -249,7 +249,7 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
 
 // Helper component to render drilldown charts (avoids forwardRef recursion issues)
 const DrilldownChartRenderer: React.FC<{
-  descriptor: ChartDescriptor;
+  descriptor: PanelDescriptor;
   selectedTimeSpan?: TimeSpan;
   searchParams?: URLSearchParams;
 }> = ({ descriptor, selectedTimeSpan, searchParams }) => {
@@ -831,7 +831,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
     }, [isLoadingValue, hasInitialData]);
 
     // Get the first drilldown descriptor if available
-    const getFirstDrilldownDescriptor = useCallback((): ChartDescriptor | null => {
+    const getFirstDrilldownDescriptor = useCallback((): PanelDescriptor | null => {
       if (!descriptor.drilldown || Object.keys(descriptor.drilldown).length === 0) {
         return null;
       }
@@ -842,7 +842,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
 
     // Render drilldown component based on descriptor type
     const renderDrilldownComponent = useCallback(
-      (drilldownDescriptor: ChartDescriptor) => {
+      (drilldownDescriptor: PanelDescriptor) => {
         return (
           <DrilldownChartRenderer
             descriptor={drilldownDescriptor}
@@ -862,7 +862,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
       }
 
       // Create a modified copy of the descriptor for drilldown
-      const modifiedDescriptor: ChartDescriptor = { ...drilldownDescriptor };
+      const modifiedDescriptor: PanelDescriptor = { ...drilldownDescriptor };
 
       // Hide title in drilldown dialog
       if (modifiedDescriptor.titleOption) {

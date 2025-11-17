@@ -29,7 +29,7 @@ const serverStatusDashboard = [
       sql: "SELECT uptime() * 1000",
     },
     valueOption: {
-      format: "timeDuration",
+      format: "days",
     },
   },
 

@@ -5,6 +5,7 @@ declare global {
     formatBinarySize(): string;
     formatCompactNumber(): string;
     formatWithNoTrailingZeros(fraction: number): string;
+    formatDays(): string;
   }
 }
 
@@ -119,4 +120,35 @@ Number.prototype.formatTimeDiff = function () {
   }
   const year = Math.floor(day / 365);
   return year + "y ago";
+};
+
+/**
+ * value in milli-second
+ * Shows only the largest non-zero unit (days, hours, minutes, or seconds)
+ * @returns {string}
+ */
+Number.prototype.formatDays = function () {
+  const duration = +this.valueOf();
+
+  let seconds = Math.floor(duration / 1000);
+
+  const days = Math.floor(seconds / (24 * 3600));
+  seconds = seconds % (24 * 3600); // get the left seconds for hours
+
+  const hours = Math.floor(seconds / 3600);
+  seconds = seconds % 3600; // get the left seconds for minutes
+
+  const minutes = Math.floor(seconds / 60);
+  seconds = seconds % 60; // left seconds
+
+  if (days > 0) {
+    return days + " days";
+  }
+  if (hours > 0) {
+    return hours + " hours";
+  }
+  if (minutes > 0) {
+    return minutes + " mins";
+  }
+  return seconds + " sec";
 };
