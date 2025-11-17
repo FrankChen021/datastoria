@@ -1,4 +1,4 @@
-import type { StatDescriptor } from "@/components/dashboard/chart-utils";
+import type { StatDescriptor } from "@/components/dashboard/dashboard-model";
 import type { Dashboard } from "@/components/dashboard/dashboard-model";
 import DashboardPanels, { type DashboardPanelsRef } from "@/components/dashboard/dashboard-panels";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";

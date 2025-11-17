@@ -10,12 +10,12 @@ import { CardContent } from "../ui/card";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { Skeleton } from "../ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import type { ActionColumn, FieldOption, SQLQuery, TableDescriptor } from "./chart-utils";
+import type { ActionColumn, FieldOption, SQLQuery, TableDescriptor } from "./dashboard-model";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
-import { DashboardCardLayout } from "./dashboard-card-layout";
+import { DashboardPanelLayout } from "./dashboard-panel-common";
 import { showQueryDialog } from "./dashboard-dialog-utils";
 import { inferFormatFromMetaType } from "./format-inference";
-import type { RefreshableComponent, RefreshParameter } from "./refreshable-component";
+import type { RefreshableComponent, RefreshParameter } from "./dashboard-panel-common";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
 import { useRefreshable } from "./use-refreshable";
@@ -923,7 +923,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
     ]);
 
     return (
-      <DashboardCardLayout
+      <DashboardPanelLayout
         componentRef={componentRef}
         className={props.className}
         isLoading={isLoading}
@@ -1044,7 +1044,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
                 </Table>
               )}
             </CardContent>
-      </DashboardCardLayout>
+      </DashboardPanelLayout>
     );
   }
 );

@@ -26,14 +26,14 @@ import type {
   TableDescriptor,
   TimeseriesDescriptor,
   TransposeTableDescriptor,
-} from "./chart-utils";
+} from "./dashboard-model";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
-import { DashboardCardLayout } from "./dashboard-card-layout";
+import { DashboardPanelLayout } from "./dashboard-panel-common";
 import { showQueryDialog } from "./dashboard-dialog-utils";
-import type { RefreshableComponent, RefreshParameter } from "./refreshable-component";
-import RefreshableTableComponent from "./refreshable-table-component";
-import RefreshableTimeseriesChart from "./refreshable-timeseries-chart";
-import RefreshableTransposedTableComponent from "./refreshable-transposed-table-component";
+import type { RefreshableComponent, RefreshParameter } from "./dashboard-panel-common";
+import RefreshableTableComponent from "./dashboard-panel-table";
+import RefreshableTimeseriesChart from "./dashboard-panel-timeseries";
+import RefreshableTransposedTableComponent from "./dashboard-panel-tranposd-table";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
 import { useRefreshable } from "./use-refreshable";
@@ -992,7 +992,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
     );
 
     return (
-      <DashboardCardLayout
+      <DashboardPanelLayout
         componentRef={componentRef}
         className=""
         style={{ height: `${cardHeight}px` }}
@@ -1103,7 +1103,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
             )}
           </CardFooter>
         )}
-      </DashboardCardLayout>
+      </DashboardPanelLayout>
     );
   }
 );

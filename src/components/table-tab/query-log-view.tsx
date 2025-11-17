@@ -1,4 +1,4 @@
-import type { ColumnDef, TableDescriptor } from "@/components/dashboard/chart-utils";
+import type { ColumnDef, TableDescriptor } from "@/components/dashboard/dashboard-model";
 import type { Dashboard, DashboardGroup } from "@/components/dashboard/dashboard-model";
 import DashboardPanels, { type DashboardPanelsRef } from "@/components/dashboard/dashboard-panels";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";

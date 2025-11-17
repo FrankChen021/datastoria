@@ -8,9 +8,21 @@ import { Button } from "../ui/button";
 import { Card, CardDescription, CardHeader } from "../ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
-import type { TitleOption } from "./chart-utils";
+import type { TitleOption } from "./dashboard-model";
+import type { TimeSpan } from "./timespan-selector";
 
-export interface DashboardCardLayoutProps {
+export type RefreshParameter = {
+  inputFilter?: string;
+  selectedTimeSpan?: TimeSpan;
+};
+
+export interface RefreshableComponent {
+  refresh(param: RefreshParameter): void;
+
+  getLastRefreshParameter(): RefreshParameter;
+}
+
+export interface DashboardPanelLayoutProps {
   // Card props
   componentRef?: React.RefObject<HTMLDivElement | null>;
   className?: string;
@@ -42,7 +54,7 @@ export interface DashboardCardLayoutProps {
  * Common layout component for dashboard cards
  * Handles Card wrapper, FloatingProgressBar, Collapsible, Header, and DropdownMenu
  */
-export function DashboardCardLayout({
+export function DashboardPanelLayout({
   componentRef,
   className,
   style,
@@ -55,7 +67,7 @@ export function DashboardCardLayout({
   children,
   headerClassName,
   headerBackground = false,
-}: DashboardCardLayoutProps) {
+}: DashboardPanelLayoutProps) {
   const isCollapsible = isCollapsed !== undefined && setIsCollapsed !== undefined;
   const showTitle = hasTitle && titleOption?.title && titleOption?.showTitle !== false;
 

@@ -184,7 +184,7 @@ UNION ALL
     //
     api.executeSQL(
       {
-        sql: `SELECT database, name FROM system.tables WHERE NOT startsWith(tables.name, '.inner') ORDER BY database, name`,
+        sql: `SELECT database, name, comment FROM system.tables WHERE NOT startsWith(tables.name, '.inner') ORDER BY database, name`,
         params: {
           default_format: 'JSONCompact',
         },
@@ -197,6 +197,12 @@ UNION ALL
         returnList.forEach((eachRowObject) => {
           const database = eachRowObject[0];
           const table = eachRowObject[1];
+          const comment = eachRowObject[2] || '';
+
+          // Build docHTML with comment if available
+          const docHTML = comment
+            ? ['<b>', table, '</b>', '<hr />', comment].join('')
+            : undefined;
 
           if (!this.tableCompletion.has(database)) {
             this.tableCompletion.set(database, []);
@@ -207,6 +213,7 @@ UNION ALL
             value: table,
             meta: 'table',
             score: 100,
+            docHTML: docHTML,
           });
 
           // Add qualified table name (database.table) to miscCompletion
@@ -216,6 +223,7 @@ UNION ALL
             value: qualifiedName,
             meta: 'table',
             score: 100,
+            docHTML: docHTML,
           });
         });
         
@@ -240,7 +248,7 @@ UNION ALL
     //
     api.executeSQL(
       {
-        sql: `SELECT table, name, type FROM system.columns WHERE NOT startsWith(table, '.inner') ORDER BY table, name`,
+        sql: `SELECT table, name, type, comment FROM system.columns WHERE NOT startsWith(table, '.inner') ORDER BY table, name`,
         params: {
           default_format: 'JSONCompact',
         },
@@ -253,6 +261,14 @@ UNION ALL
           const table = eachRowObject[0];
           const column = eachRowObject[1];
           const type = eachRowObject[2];
+          const comment = eachRowObject[3] || '';
+
+          // Build docHTML with type and comment if available
+          const docHTMLParts = ['<b>', column, '</b>', '<hr />', 'type: ', type];
+          if (comment) {
+            docHTMLParts.push('<hr />', comment);
+          }
+          const docHTML = docHTMLParts.join('');
 
           if (!this.columnCompletion.has(table)) {
             this.columnCompletion.set(table, []);
@@ -263,7 +279,7 @@ UNION ALL
             value: column,
             meta: 'column',
             score: 100,
-            docHTML: ['<b>', column, '</b>', '<hr />', 'type: ', type].join(''),
+            docHTML: docHTML,
           });
         });
       },

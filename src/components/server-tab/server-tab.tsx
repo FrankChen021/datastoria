@@ -1,4 +1,4 @@
-import type { StatDescriptor, TableDescriptor, TimeseriesDescriptor } from "@/components/dashboard/chart-utils";
+import type { StatDescriptor, TableDescriptor, TimeseriesDescriptor } from "@/components/dashboard/dashboard-model";
 import DashboardContainer from "@/components/dashboard/dashboard-container";
 import type { Dashboard, DashboardGroup } from "@/components/dashboard/dashboard-model";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";

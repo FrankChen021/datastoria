@@ -1,4 +1,4 @@
-import type { TableDescriptor, TransposeTableDescriptor } from "@/components/dashboard/chart-utils";
+import type { TableDescriptor, TransposeTableDescriptor } from "@/components/dashboard/dashboard-model";
 import DashboardContainer, { type DashboardContainerRef } from "@/components/dashboard/dashboard-container";
 import type { Dashboard } from "@/components/dashboard/dashboard-model";
 import { CollapsibleDependencyView } from "@/components/dependency-view/collapsible-dependency-view";

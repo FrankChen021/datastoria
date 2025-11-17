@@ -1,6 +1,6 @@
-import type { FieldOption, TableDescriptor } from "@/components/dashboard/chart-utils";
-import type { RefreshableComponent } from "@/components/dashboard/refreshable-component";
-import RefreshableTableComponent from "@/components/dashboard/refreshable-table-component";
+import type { FieldOption, TableDescriptor } from "@/components/dashboard/dashboard-model";
+import type { RefreshableComponent } from "@/components/dashboard/dashboard-panel-common";
+import RefreshableTableComponent from "@/components/dashboard/dashboard-panel-table";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
 import { Button } from "@/components/ui/button";
 import { Api, type ApiErrorResponse } from "@/lib/api";

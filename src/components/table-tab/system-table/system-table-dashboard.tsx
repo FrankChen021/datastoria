@@ -1,4 +1,4 @@
-import type { TimeseriesDescriptor } from "@/components/dashboard/chart-utils";
+import type { TimeseriesDescriptor } from "@/components/dashboard/dashboard-model";
 import DashboardContainer from "@/components/dashboard/dashboard-container";
 import { DashboardGroupSection } from "@/components/dashboard/dashboard-group-section";
 import type { Dashboard, DashboardGroup } from "@/components/dashboard/dashboard-model";

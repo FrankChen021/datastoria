@@ -10,13 +10,13 @@ import type {
   TableDescriptor,
   TimeseriesDescriptor,
   TransposeTableDescriptor,
-} from "./chart-utils";
+} from "./dashboard-model";
 import type { Dashboard, DashboardGroup } from "./dashboard-model";
-import type { RefreshableComponent, RefreshParameter } from "./refreshable-component";
-import RefreshableStatComponent from "./refreshable-stat-chart";
-import RefreshableTableComponent from "./refreshable-table-component";
-import RefreshableTimeseriesChart from "./refreshable-timeseries-chart";
-import RefreshableTransposedTableComponent from "./refreshable-transposed-table-component";
+import type { RefreshableComponent, RefreshParameter } from "./dashboard-panel-common";
+import RefreshableStatComponent from "./dashboard-panel-stat";
+import RefreshableTableComponent from "./dashboard-panel-table";
+import RefreshableTimeseriesChart from "./dashboard-panel-timeseries";
+import RefreshableTransposedTableComponent from "./dashboard-panel-tranposd-table";
 import type { TimeSpan } from "./timespan-selector";
 
 export interface DashboardPanelsRef {

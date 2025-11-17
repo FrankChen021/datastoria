@@ -20,13 +20,13 @@ import type {
   TableDescriptor,
   TimeseriesDescriptor,
   TransposeTableDescriptor,
-} from "./chart-utils";
-import { DashboardCardLayout } from "./dashboard-card-layout";
+} from "./dashboard-model";
+import { DashboardPanelLayout } from "./dashboard-panel-common";
 import { showQueryDialog } from "./dashboard-dialog-utils";
-import type { RefreshableComponent, RefreshParameter } from "./refreshable-component";
-import RefreshableStatComponent from "./refreshable-stat-chart";
-import RefreshableTableComponent from "./refreshable-table-component";
-import RefreshableTransposedTableComponent from "./refreshable-transposed-table-component";
+import type { RefreshableComponent, RefreshParameter } from "./dashboard-panel-common";
+import RefreshableStatComponent from "./dashboard-panel-stat";
+import RefreshableTableComponent from "./dashboard-panel-table";
+import RefreshableTransposedTableComponent from "./dashboard-panel-tranposd-table";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
 import { useRefreshable } from "./use-refreshable";
@@ -1219,7 +1219,7 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
     }, [hasDrilldown, selectedTimeRange, getFirstDrilldownDescriptor, renderDrilldownComponent]);
 
     return (
-      <DashboardCardLayout
+      <DashboardPanelLayout
         componentRef={componentRef}
         className=""
         isLoading={isLoading}
@@ -1255,7 +1255,7 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
                 </>
               )}
             </CardContent>
-      </DashboardCardLayout>
+      </DashboardPanelLayout>
     );
   }
 );

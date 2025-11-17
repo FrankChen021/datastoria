@@ -1,5 +1,5 @@
 import { Formatter, type ObjectFormatter } from "@/lib/formatter";
-import type { PanelDescriptor, ColumnDef, FieldOption, FormatterFn, QueryResponse, TimeseriesDescriptor } from "./chart-utils";
+import type { PanelDescriptor, ColumnDef, FieldOption, FormatterFn, QueryResponse, TimeseriesDescriptor } from "./dashboard-model";
 
 // Type guard to check if format is an ObjectFormatter
 function isObjectFormatter(format: string | ObjectFormatter): format is ObjectFormatter {

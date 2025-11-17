@@ -665,7 +665,10 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
                         </Badge>
                       )}
                     </span>,
-                    node.textTooltip
+                    node.textTooltip,
+                    {
+                      className: "w-auto min-w-[150px] max-w-[350px] p-2",
+                    }
                   )}
                   {/* Tag */}
                   {renderTooltip(

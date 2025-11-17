@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { RefreshParameter } from "./refreshable-component";
+import type { RefreshParameter } from "./dashboard-panel-common";
 
 interface UseRefreshableOptions {
   componentId?: string;

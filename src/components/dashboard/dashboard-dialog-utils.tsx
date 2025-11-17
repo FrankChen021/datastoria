@@ -1,5 +1,5 @@
 import { Dialog } from "../use-dialog";
-import type { SQLQuery } from "./chart-utils";
+import type { SQLQuery } from "./dashboard-model";
 
 /**
  * Shows a dialog displaying the SQL query

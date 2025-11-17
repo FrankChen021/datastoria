@@ -1,6 +1,6 @@
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { Formatter, type ObjectFormatter } from "@/lib/formatter";
-import type { PanelDescriptor, ColumnDef, FormatterFn, QueryResponse, TimeseriesDescriptor } from "./chart-utils";
+import type { PanelDescriptor, ColumnDef, FormatterFn, QueryResponse, TimeseriesDescriptor } from "./dashboard-model";
 
 // Type guard to check if format is an ObjectFormatter
 function isObjectFormatter(format: string | ObjectFormatter): format is ObjectFormatter {

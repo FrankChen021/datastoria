@@ -1,7 +1,7 @@
-import type { FieldOption, TableDescriptor, TransposeTableDescriptor } from "@/components/dashboard/chart-utils";
-import type { RefreshableComponent } from "@/components/dashboard/refreshable-component";
-import RefreshableTableComponent from "@/components/dashboard/refreshable-table-component";
-import RefreshableTransposedTableComponent from "@/components/dashboard/refreshable-transposed-table-component";
+import type { FieldOption, TableDescriptor, TransposeTableDescriptor } from "@/components/dashboard/dashboard-model";
+import type { RefreshableComponent } from "@/components/dashboard/dashboard-panel-common";
+import RefreshableTableComponent from "@/components/dashboard/dashboard-panel-table";
+import RefreshableTransposedTableComponent from "@/components/dashboard/dashboard-panel-tranposd-table";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { StringUtils } from "@/lib/string-utils";
