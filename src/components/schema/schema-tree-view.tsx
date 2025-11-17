@@ -22,7 +22,7 @@ import {
   Search,
   Table as TableIcon,
   Type,
-  X
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -152,48 +152,51 @@ function toColumnTreeNode(column: { name: string; type: string; comment?: string
   const tagContent = enumInfo ? enumInfo.baseType : columnType;
   const tag = <span className="ml-2 text-[10px] text-muted-foreground">{tagContent}</span>;
 
-  // Use nodeTooltip for Enum types (complex content with multiple items)
-  const textTooltip =
-    enumInfo && enumInfo.pairs.length > 0
-      ? (() => {
-          // If there's a comment, show it in the tooltip along with Enum pairs
-          if (columnComment) {
-            return (
-              <div className="space-y-1">
-                <div className="font-semibold text-sm">{columnName}</div>
-                <div className="text-xs text-muted-foreground whitespace-pre-wrap">{columnComment}</div>
-                <div className="mt-2 pt-2 border-t space-y-1">
-                  <div className="font-semibold text-xs">{enumInfo.baseType}</div>
-                  <div className="space-y-1">
-                    {enumInfo.pairs.map(([key, value], index) => (
-                      <div key={index} className="text-xs font-mono">
-                        <span className="text-muted-foreground">{key}</span>
-                        <span className="mx-2">=</span>
-                        <span>{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            );
-          }
-          // Just Enum pairs
-          return (
+  // Tooltip structure: column name, column type, enum info (if available), comment (if available)
+  const textTooltip = (() => {
+    const hasEnumPairs = enumInfo && enumInfo.pairs.length > 0;
+    const hasComment = !!columnComment;
+
+    // Only show tooltip if there's enum info or comment
+    if (!hasEnumPairs && !hasComment) {
+      return undefined;
+    }
+
+    return (
+      <div className="space-y-1 max-w-[300px]">
+        {/* Column name */}
+        <div className="font-semibold text-sm break-words">{columnName}</div>
+
+        {/* Column type */}
+        <div className="text-xs text-muted-foreground break-words">
+          <span className="font-mono">{columnType}</span>
+        </div>
+
+        {/* Enum info */}
+        {hasEnumPairs && (
+          <div className="mt-2 pt-2 border-t space-y-1">
+            <div className="font-semibold text-xs break-words">{enumInfo.baseType}</div>
             <div className="space-y-1">
-              <div className="font-semibold text-sm">{enumInfo.baseType}</div>
-              <div className="space-y-1">
-                {enumInfo.pairs.map(([key, value], index) => (
-                  <div key={index} className="text-xs font-mono">
-                    <span className="text-muted-foreground">{key}</span>
-                    <span className="mx-2">=</span>
-                    <span>{value}</span>
-                  </div>
-                ))}
-              </div>
+              {enumInfo.pairs.map(([key, value], index) => (
+                <div key={index} className="text-xs font-mono break-words">
+                  <span className="text-muted-foreground break-all">{key}</span>
+                  <span className="mx-2">=</span>
+                  <span className="break-all">{value}</span>
+                </div>
+              ))}
             </div>
-          );
-        })()
-      : undefined;
+          </div>
+        )}
+
+        {/* Comment */}
+        {hasComment && (
+          <div className={hasEnumPairs ? "mt-2 pt-2 border-t" : ""}>
+            <div className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{columnComment}</div>
+          </div>
+        )}
+      </div>
+    );
+  })();
 
   return {
     id: `column:${column.name}`,
