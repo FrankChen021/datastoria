@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { RefreshParameter } from "./dashboard-panel-common";
+import type { RefreshOptions } from "./dashboard-panel-layout";
 
 interface UseRefreshableOptions {
   componentId?: string;
   initialCollapsed?: boolean;
-  refreshInternal: (param: RefreshParameter) => void;
+  refreshInternal: (param: RefreshOptions) => void;
   // Provide initial parameters so the hook can trigger the first refresh automatically
   // Components should memoize this function with useCallback and include their dependencies
-  getInitialParams?: () => RefreshParameter | undefined;
+  getInitialParams?: () => RefreshOptions | undefined;
 }
 
 interface UseRefreshableReturn {
   componentRef: React.RefObject<HTMLDivElement | null>;
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
-  refresh: (param: RefreshParameter) => void;
-  getLastRefreshParameter: () => RefreshParameter;
+  refresh: (param: RefreshOptions) => void;
+  getLastRefreshParameter: () => RefreshOptions;
 }
 
 /**
@@ -39,8 +39,8 @@ export function useRefreshable({
   // Refs
   const componentRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const refreshParameterRef = useRef<RefreshParameter | undefined>(undefined);
-  const lastRefreshParamRef = useRef<RefreshParameter | undefined>(undefined);
+  const refreshParameterRef = useRef<RefreshOptions | undefined>(undefined);
+  const lastRefreshParamRef = useRef<RefreshOptions | undefined>(undefined);
 
   // Check if component is actually visible (not hidden by collapsed parents, and in viewport)
   const isComponentInView = useCallback((): boolean => {
@@ -103,7 +103,7 @@ export function useRefreshable({
 
   // Public refresh method
   const refresh = useCallback(
-    (param: RefreshParameter) => {
+    (param: RefreshOptions) => {
       // Check if the parameters have actually changed
       // Skip refresh if we already have data with the same parameters (avoid unnecessary API calls)
       if (lastRefreshParamRef.current && JSON.stringify(lastRefreshParamRef.current) === JSON.stringify(param)) {
@@ -132,7 +132,7 @@ export function useRefreshable({
     [componentId, isCollapsed, isComponentInView, refreshInternal]
   );
 
-  const getLastRefreshParameter = useCallback((): RefreshParameter => {
+  const getLastRefreshParameter = useCallback((): RefreshOptions => {
     return refreshParameterRef.current || {};
   }, []);
 

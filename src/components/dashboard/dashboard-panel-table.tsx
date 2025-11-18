@@ -13,22 +13,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
 import { showQueryDialog } from "./dashboard-dialog-utils";
 import type { ActionColumn, FieldOption, SQLQuery, TableDescriptor } from "./dashboard-model";
-import type { RefreshableComponent, RefreshParameter } from "./dashboard-panel-common";
-import { DashboardPanelLayout } from "./dashboard-panel-common";
+import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
+import { DashboardPanelLayout } from "./dashboard-panel-layout";
 import { inferFormatFromMetaType } from "./format-inference";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
 import { useRefreshable } from "./use-refreshable";
 
-interface RefreshableTableComponentProps {
+interface DashboardPanelTableProps {
   // The table descriptor configuration
   descriptor: TableDescriptor;
 
   // Runtime
   selectedTimeSpan?: TimeSpan;
-
-  // Used for generating links
-  searchParams?: URLSearchParams;
 
   // Additional className for the Card component
   className?: string;
@@ -73,8 +70,8 @@ function replaceOrderByClause(
   }
 }
 
-const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTableComponentProps>(
-  function RefreshableTableComponent(props, ref) {
+const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTableProps>(
+  function DashboardPanelTable(props, ref) {
     const { descriptor } = props;
     const { selectedConnection } = useConnection();
 
@@ -196,7 +193,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
 
     // Load data from API
     const loadData = useCallback(
-      async (param: RefreshParameter) => {
+      async (param: RefreshOptions) => {
         if (!selectedConnection) {
           setError("No connection selected");
           return;
@@ -474,7 +471,7 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
 
     // Internal refresh function
     const refreshInternal = useCallback(
-      (param: RefreshParameter) => {
+      (param: RefreshOptions) => {
         if (!descriptor.query) {
           console.error(`No query defined for table [${descriptor.id}]`);
           setError("No query defined for this table component.");
@@ -489,8 +486,8 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
     // Use shared refreshable hook
     const getInitialParams = useCallback(() => {
       return props.selectedTimeSpan
-        ? ({ selectedTimeSpan: props.selectedTimeSpan } as RefreshParameter)
-        : ({} as RefreshParameter);
+        ? ({ selectedTimeSpan: props.selectedTimeSpan } as RefreshOptions)
+        : ({} as RefreshOptions);
     }, [props.selectedTimeSpan]);
 
     const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
@@ -506,20 +503,11 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
       refreshRef.current = refresh;
     }, [refresh]);
 
-    // Preserve inputFilter behavior: refresh when it changes
-    useEffect(() => {
-      const inputFilter =
-        props.searchParams instanceof URLSearchParams ? props.searchParams.get("filter")?.toString() || "" : "";
-      if (inputFilter) {
-        refresh({ inputFilter, selectedTimeSpan: props.selectedTimeSpan });
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [props.searchParams]);
-
     // Expose methods via ref
     useImperativeHandle(ref, () => ({
       refresh,
       getLastRefreshParameter,
+      getLastRefreshOptions: getLastRefreshParameter, // Alias for compatibility
     }));
 
     // Cleanup API canceller on unmount
@@ -1045,7 +1033,6 @@ const RefreshableTableComponent = forwardRef<RefreshableComponent, RefreshableTa
   }
 );
 
-RefreshableTableComponent.displayName = "RefreshableTableComponent";
+DashboardPanelTable.displayName = "DashboardPanelTable";
 
-export default RefreshableTableComponent;
-export type { RefreshableTableComponentProps };
+export default DashboardPanelTable;

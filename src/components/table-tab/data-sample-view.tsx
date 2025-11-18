@@ -1,6 +1,6 @@
 import type { TableDescriptor } from "@/components/dashboard/dashboard-model";
-import type { RefreshableComponent } from "@/components/dashboard/dashboard-panel-common";
-import RefreshableTableComponent from "@/components/dashboard/dashboard-panel-table";
+import type { DashboardPanelComponent } from "@/components/dashboard/dashboard-panel-layout";
+import DashboardPanelTable from "@/components/dashboard/dashboard-panel-table";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef } from "react";
@@ -14,7 +14,7 @@ export interface DataSampleViewProps {
 
 const DataSampleViewComponent = forwardRef<RefreshableTabViewRef, DataSampleViewProps>(({ database, table }, ref) => {
   useConnection(); // Ensure connection context is available
-  const tableComponentRef = useRef<RefreshableComponent | null>(null);
+  const tableComponentRef = useRef<DashboardPanelComponent | null>(null);
 
   // Create table descriptor - RefreshableTableComponent will discover columns from meta
   // Note: Formatters are not applied here because we don't know column names until data loads.
@@ -72,7 +72,7 @@ const DataSampleViewComponent = forwardRef<RefreshableTabViewRef, DataSampleView
 
   return (
     <div className="h-full relative">
-      <RefreshableTableComponent
+      <DashboardPanelTable
         ref={(r) => {
           if (r) {
             tableComponentRef.current = r;

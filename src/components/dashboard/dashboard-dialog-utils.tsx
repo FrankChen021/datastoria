@@ -1,3 +1,4 @@
+import { ThemedSyntaxHighlighter } from "../themed-syntax-highlighter";
 import { Dialog } from "../use-dialog";
 import type { SQLQuery } from "./dashboard-model";
 
@@ -16,11 +17,10 @@ export function showQueryDialog(query: SQLQuery | undefined, title?: string): vo
     disableContentScroll: false,
     mainContent: (
       <div className="w-full h-full overflow-auto">
-        <pre className="p-4 bg-muted rounded-md text-sm font-mono whitespace-pre-wrap break-words">
-          {query.sql}
-        </pre>
+        <ThemedSyntaxHighlighter language="sql" showLineNumbers={true}>
+          {query.sql.trim()}
+        </ThemedSyntaxHighlighter>
       </div>
     ),
   });
 }
-

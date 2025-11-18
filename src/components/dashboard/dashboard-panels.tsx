@@ -3,20 +3,9 @@
 import { connect } from "echarts";
 import { ChevronRight } from "lucide-react";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import type {
-  PanelDescriptor,
-  GridPos,
-  StatDescriptor,
-  TableDescriptor,
-  TimeseriesDescriptor,
-  TransposeTableDescriptor,
-} from "./dashboard-model";
-import type { Dashboard, DashboardGroup } from "./dashboard-model";
-import type { RefreshableComponent, RefreshParameter } from "./dashboard-panel-common";
-import RefreshableStatComponent from "./dashboard-panel-stat";
-import RefreshableTableComponent from "./dashboard-panel-table";
-import RefreshableTimeseriesChart from "./dashboard-panel-timeseries";
-import RefreshableTransposedTableComponent from "./dashboard-panel-tranposd-table";
+import type { Dashboard, DashboardGroup, GridPos, PanelDescriptor } from "./dashboard-model";
+import { DashboardPanelFactory } from "./dashboard-panel-factory";
+import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
 import type { TimeSpan } from "./timespan-selector";
 
 export interface DashboardPanelsRef {
@@ -234,7 +223,7 @@ interface DashboardPanelProps {
   descriptor: PanelDescriptor;
   panelIndex: number;
   isVisible: boolean;
-  onSubComponentUpdated: (subComponent: RefreshableComponent | null, index: number) => void;
+  onSubComponentUpdated: (subComponent: DashboardPanelComponent | null, index: number) => void;
   selectedTimeSpan: TimeSpan;
   searchParams?: URLSearchParams;
 }
@@ -264,57 +253,14 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
     gridStyle.gridRowEnd = gridPos.y + 1 + gridPos.h;
   }
 
-  // Render chart component based on type
-  let panelComponent: React.ReactNode = null;
-  if (chart.type === "line" || chart.type === "bar" || chart.type === "area") {
-    panelComponent = (
-      <RefreshableTimeseriesChart
-        ref={(el) => {
-          onSubComponentUpdated(el, panelIndex);
-        }}
-        descriptor={chart as TimeseriesDescriptor}
-        selectedTimeSpan={selectedTimeSpan}
-        searchParams={searchParams}
-      />
-    );
-  } else if (chart.type === "stat") {
-    panelComponent = (
-      <RefreshableStatComponent
-        ref={(el) => {
-          onSubComponentUpdated(el, panelIndex);
-        }}
-        descriptor={chart as StatDescriptor}
-        selectedTimeSpan={selectedTimeSpan}
-        searchParams={searchParams}
-      />
-    );
-  } else if (chart.type === "table") {
-    panelComponent = (
-      <RefreshableTableComponent
-        ref={(el) => {
-          onSubComponentUpdated(el, panelIndex);
-        }}
-        descriptor={chart as TableDescriptor}
-        selectedTimeSpan={selectedTimeSpan}
-        searchParams={searchParams}
-      />
-    );
-  } else if (chart.type === "transpose-table") {
-    panelComponent = (
-      <RefreshableTransposedTableComponent
-        ref={(el) => {
-          onSubComponentUpdated(el, panelIndex);
-        }}
-        descriptor={chart as TransposeTableDescriptor}
-        selectedTimeSpan={selectedTimeSpan}
-        searchParams={searchParams}
-      />
-    );
-  }
-
   return (
     <div style={gridStyle} className="w-full">
-      {panelComponent}
+      <DashboardPanelFactory
+        descriptor={chart}
+        selectedTimeSpan={selectedTimeSpan}
+        searchParams={searchParams}
+        onRef={(el) => onSubComponentUpdated(el, panelIndex)}
+      />
     </div>
   );
 };
@@ -323,7 +269,7 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
   ({ dashboard, selectedTimeSpan, searchParams = {}, children }, ref) => {
     // Track group collapse states at component level
     const [groupCollapseStates, setGroupCollapseStates] = useState<Map<number, boolean>>(new Map());
-    const subComponentRefs = useRef<(RefreshableComponent | null)[]>([]);
+    const subComponentRefs = useRef<(DashboardPanelComponent | null)[]>([]);
 
     // Upgrade dashboard version if needed and memoize only the charts array
     const panels = useMemo(() => {
@@ -433,7 +379,7 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
     const connectAllCharts = useCallback(() => {
       const chartInstances: echarts.ECharts[] = subComponentRefs.current
         .filter(
-          (ref): ref is RefreshableComponent =>
+          (ref): ref is DashboardPanelComponent =>
             ref !== null &&
             typeof (ref as unknown as { getEChartInstance?: () => echarts.ECharts }).getEChartInstance === "function"
         )
@@ -457,7 +403,7 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
 
     // Callback when the sub component is mounted or unmounted
     const onSubComponentUpdated = useCallback(
-      (subComponent: RefreshableComponent | null, index: number) => {
+      (subComponent: DashboardPanelComponent | null, index: number) => {
         subComponentRefs.current[index] = subComponent;
         connectAllCharts();
       },
@@ -470,7 +416,7 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
 
         // Always include inputFilter to force refresh even when timeSpan hasn't changed
         // This ensures that clicking refresh button multiple times with the same timeSpan will still trigger refresh
-        const refreshParam: RefreshParameter = timeSpan
+        const refreshParam: RefreshOptions = timeSpan
           ? { selectedTimeSpan: timeSpan, inputFilter: `refresh_${Date.now()}` }
           : { inputFilter: `refresh_${Date.now()}` };
 

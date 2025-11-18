@@ -1,6 +1,6 @@
 import type { FieldOption, TableDescriptor } from "@/components/dashboard/dashboard-model";
-import type { RefreshableComponent } from "@/components/dashboard/dashboard-panel-common";
-import RefreshableTableComponent from "@/components/dashboard/dashboard-panel-table";
+import type { DashboardPanelComponent } from "@/components/dashboard/dashboard-panel-layout";
+import DashboardPanelTable from "@/components/dashboard/dashboard-panel-table";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
 import { Button } from "@/components/ui/button";
 import { Api, type ApiErrorResponse } from "@/lib/api";
@@ -148,7 +148,7 @@ export interface PartitionViewProps {
 const PartitionSizeViewComponent = forwardRef<RefreshableTabViewRef, PartitionViewProps>(
   ({ database, table, autoLoad = false }, ref) => {
     const { selectedConnection } = useConnection();
-    const tableComponentRef = useRef<RefreshableComponent>(null);
+    const tableComponentRef = useRef<DashboardPanelComponent>(null);
     const isMountedRef = useRef(true);
 
     useImperativeHandle(ref, () => ({
@@ -308,7 +308,7 @@ ORDER BY
       };
     }, [database, table, handleDropPartitionClick]);
 
-    return <RefreshableTableComponent ref={tableComponentRef} descriptor={tableDescriptor} />;
+    return <DashboardPanelTable ref={tableComponentRef} descriptor={tableDescriptor} />;
   }
 );
 

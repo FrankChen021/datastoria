@@ -11,15 +11,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dr
 import type { TitleOption } from "./dashboard-model";
 import type { TimeSpan } from "./timespan-selector";
 
-export type RefreshParameter = {
+export type RefreshOptions = {
   inputFilter?: string;
   selectedTimeSpan?: TimeSpan;
 };
 
-export interface RefreshableComponent {
-  refresh(param: RefreshParameter): void;
+export interface DashboardPanelComponent {
+  refresh(param: RefreshOptions): void;
 
-  getLastRefreshParameter(): RefreshParameter;
+  getLastRefreshOptions(): RefreshOptions;
 }
 
 export interface DashboardPanelLayoutProps {
@@ -155,3 +155,4 @@ export function DashboardPanelLayout({
     </Card>
   );
 }
+

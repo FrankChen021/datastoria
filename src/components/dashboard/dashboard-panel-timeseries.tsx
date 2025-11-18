@@ -6,43 +6,32 @@ import { DateTimeExtension } from "@/lib/datetime-utils";
 import * as echarts from "echarts";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Formatter, type FormatName } from "../../lib/formatter";
-import { useTheme } from "../theme-provider";
 import { CardContent } from "../ui/card";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { Skeleton } from "../ui/skeleton";
 import { Dialog } from "../use-dialog";
-import { isTimestampColumn as isTimestampColumnUtil, transformRowsToChartData } from "./chart-data-utils";
-import type {
-  PanelDescriptor,
-  FieldOption,
-  SQLQuery,
-  StatDescriptor,
-  TableDescriptor,
-  TimeseriesDescriptor,
-  TransposeTableDescriptor,
-} from "./dashboard-model";
-import { DashboardPanelLayout } from "./dashboard-panel-common";
+import { isTimestampColumn as isTimestampColumnUtil, transformRowsToChartData } from "./dashboard-data-utils";
+import type { PanelDescriptor, FieldOption, SQLQuery, TimeseriesDescriptor } from "./dashboard-model";
+import { DashboardPanelLayout } from "./dashboard-panel-layout";
+import { DashboardPanelFactory } from "./dashboard-panel-factory";
 import { showQueryDialog } from "./dashboard-dialog-utils";
-import type { RefreshableComponent, RefreshParameter } from "./dashboard-panel-common";
-import RefreshableStatComponent from "./dashboard-panel-stat";
-import RefreshableTableComponent from "./dashboard-panel-table";
-import RefreshableTransposedTableComponent from "./dashboard-panel-tranposd-table";
+import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
 import { useRefreshable } from "./use-refreshable";
+import useIsDarkTheme from "./use-is-dark-theme";
 
 // Wrapper component that uses imperative refresh instead of remounting
 // This prevents the drilldown component from losing its state when the time span changes
 const DrilldownChartRendererWithRefresh: React.FC<{
   descriptor: PanelDescriptor;
   selectedTimeSpan?: TimeSpan;
-  searchParams?: URLSearchParams;
-}> = ({ descriptor, selectedTimeSpan, searchParams }) => {
-  const componentRef = useRef<RefreshableComponent | null>(null);
+}> = ({ descriptor, selectedTimeSpan }) => {
+  const componentRef = useRef<DashboardPanelComponent | null>(null);
   const prevTimeSpanRef = useRef<TimeSpan | undefined>(selectedTimeSpan);
 
   // Callback ref to capture the component instance
-  const setComponentRef = useCallback((instance: RefreshableComponent | null) => {
+  const setComponentRef = useCallback((instance: DashboardPanelComponent | null) => {
     componentRef.current = instance;
   }, []);
 
@@ -68,80 +57,25 @@ const DrilldownChartRendererWithRefresh: React.FC<{
   }
 
   // Render with stable key (not including timeSpan) and ref
-  if (descriptor.type === "stat") {
-    return (
-      <RefreshableStatComponent
-        ref={setComponentRef}
-        descriptor={descriptor as StatDescriptor}
-        selectedTimeSpan={selectedTimeSpan}
-        searchParams={searchParams}
-      />
-    );
-  } else if (descriptor.type === "line" || descriptor.type === "bar" || descriptor.type === "area") {
-    return (
-      <RefreshableTimeseriesChart
-        ref={setComponentRef}
-        descriptor={descriptor as TimeseriesDescriptor}
-        selectedTimeSpan={selectedTimeSpan}
-        searchParams={searchParams}
-      />
-    );
-  } else if (descriptor.type === "table") {
-    return (
-      <RefreshableTableComponent
-        ref={setComponentRef}
-        descriptor={descriptor as TableDescriptor}
-        selectedTimeSpan={selectedTimeSpan}
-        searchParams={searchParams}
-        className="rounded-none"
-      />
-    );
-  } else if (descriptor.type === "transpose-table") {
-    return (
-      <RefreshableTransposedTableComponent
-        ref={setComponentRef}
-        descriptor={descriptor as TransposeTableDescriptor}
-        selectedTimeSpan={selectedTimeSpan}
-        searchParams={searchParams}
-        className="rounded-none"
-      />
-    );
-  }
-  return null;
+  return <DashboardPanelFactory descriptor={descriptor} selectedTimeSpan={selectedTimeSpan} onRef={setComponentRef} />;
 };
 
-interface RefreshableTimeseriesChartProps {
+interface DashboardPanelTimeseriesProps {
   // The timeseries descriptor configuration
   descriptor: TimeseriesDescriptor;
 
   // Runtime
   selectedTimeSpan?: TimeSpan;
-  inputFilter?: string;
-
-  // Used for generating links
-  searchParams?: URLSearchParams;
 
   // Initial loading state (useful for drilldown dialogs)
   initialLoading?: boolean;
 }
 
-const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableTimeseriesChartProps>(
-  function RefreshableTimeseriesChart(props, ref) {
-    const { descriptor, selectedTimeSpan: propSelectedTimeSpan, inputFilter: propInputFilter } = props;
+const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPanelTimeseriesProps>(
+  function DashboardPanelTimeseries(props, ref) {
+    const { descriptor, selectedTimeSpan: propSelectedTimeSpan } = props;
     const { selectedConnection } = useConnection();
-    const { theme } = useTheme();
-
-    // Debug logging
-    useEffect(() => {
-      console.log(`[RefreshableTimeseriesChart] Component mounted with descriptor:`, {
-        id: descriptor.id,
-        type: descriptor.type,
-        titleOption: descriptor.titleOption,
-        hasTitle: !!descriptor.titleOption?.title,
-        title: descriptor.titleOption?.title,
-        query: descriptor.query?.sql?.substring(0, 100),
-      });
-    }, [descriptor]);
+    const isDark = useIsDarkTheme();
 
     // State
     const [data, setData] = useState<Record<string, unknown>[]>([]);
@@ -150,51 +84,6 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
     const [isLoading, setIsLoading] = useState(props.initialLoading ?? false);
     const [error, setError] = useState("");
     const [selectedTimeRange, setSelectedTimeRange] = useState<TimeSpan | null>(null);
-
-    // Track dark mode state
-    const [isDark, setIsDark] = useState(() => {
-      if (typeof window !== "undefined") {
-        return window.document.documentElement.classList.contains("dark");
-      }
-      return false;
-    });
-
-    // Watch for theme changes
-    useEffect(() => {
-      const checkTheme = () => {
-        if (typeof window !== "undefined") {
-          const root = window.document.documentElement;
-          setIsDark(root.classList.contains("dark"));
-        }
-      };
-
-      // Initial check
-      checkTheme();
-
-      // Watch for theme changes via DOM class changes
-      const observer = new MutationObserver(checkTheme);
-      if (typeof window !== "undefined") {
-        observer.observe(window.document.documentElement, {
-          attributes: true,
-          attributeFilter: ["class"],
-        });
-      }
-
-      // Also update when theme context changes
-      if (theme === "dark") {
-        setIsDark(true);
-      } else if (theme === "light") {
-        setIsDark(false);
-      } else if (theme === "system") {
-        // For system theme, check the actual rendered theme
-        if (typeof window !== "undefined") {
-          const root = window.document.documentElement;
-          setIsDark(root.classList.contains("dark"));
-        }
-      }
-
-      return () => observer.disconnect();
-    }, [theme]);
 
     // Refs
     const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -345,7 +234,7 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
           if (name === timestampKey || name.toLowerCase() === timestampKey.toLowerCase()) {
             return true;
           }
-          
+
           const metaType = meta.find((m) => m.name === name)?.type;
           return isTimestampColumnUtil(name, metaType);
         };
@@ -740,11 +629,11 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
     }, [data, descriptor, detectedColumns, meta, inferFormatFromMetricName, hasDrilldown]);
 
     // Track last successfully loaded parameters to avoid duplicate API calls
-    const lastLoadedParamsRef = useRef<RefreshParameter | null>(null);
+    const lastLoadedParamsRef = useRef<RefreshOptions | null>(null);
 
     // Load data from API
     const loadData = useCallback(
-      async (param: RefreshParameter) => {
+      async (param: RefreshOptions) => {
         if (!selectedConnection) {
           setError("No connection selected");
           return;
@@ -832,17 +721,18 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
                   const timeseriesDescriptor = descriptor as TimeseriesDescriptor;
                   if (timeseriesDescriptor.fieldOptions) {
                     // Convert Map/Record to array, sorted by position if available
-                    const fieldOptionsArray = timeseriesDescriptor.fieldOptions instanceof Map
-                      ? Array.from(timeseriesDescriptor.fieldOptions.entries())
-                      : Object.entries(timeseriesDescriptor.fieldOptions);
-                    
+                    const fieldOptionsArray =
+                      timeseriesDescriptor.fieldOptions instanceof Map
+                        ? Array.from(timeseriesDescriptor.fieldOptions.entries())
+                        : Object.entries(timeseriesDescriptor.fieldOptions);
+
                     // Sort by position if available
                     fieldOptionsArray.sort((a, b) => {
                       const posA = a[1].position ?? Number.MAX_SAFE_INTEGER;
                       const posB = b[1].position ?? Number.MAX_SAFE_INTEGER;
                       return posA - posB;
                     });
-                    
+
                     columns = fieldOptionsArray.map(([key, value]) => ({ ...value, name: key }));
                   }
                 }
@@ -927,8 +817,7 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
 
     // Internal refresh function
     const refreshInternal = useCallback(
-      (param: RefreshParameter) => {
-
+      (param: RefreshOptions) => {
         if (!descriptor.query) {
           console.error(`No query defined for chart [${descriptor.id}]`);
           setError("No query defined for this chart component.");
@@ -943,10 +832,8 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
 
     // Use shared refreshable hook
     const getInitialParams = useCallback(() => {
-      return propSelectedTimeSpan
-        ? ({ inputFilter: propInputFilter, selectedTimeSpan: propSelectedTimeSpan } as RefreshParameter)
-        : undefined;
-    }, [propSelectedTimeSpan, propInputFilter]);
+      return propSelectedTimeSpan ? ({ selectedTimeSpan: propSelectedTimeSpan } as RefreshOptions) : undefined;
+    }, [propSelectedTimeSpan]);
 
     const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
       componentId: descriptor.id,
@@ -1057,6 +944,7 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
     useImperativeHandle(ref, () => ({
       refresh,
       getLastRefreshParameter,
+      getLastRefreshOptions: getLastRefreshParameter, // Alias for compatibility
       getEChartInstance: () => chartInstanceRef.current || undefined,
     }));
 
@@ -1082,33 +970,29 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
 
     // Render drilldown component based on descriptor type
     // Use stable key and imperative refresh to prevent remounting
-    const renderDrilldownComponent = useCallback(
-      (drilldownDescriptor: PanelDescriptor, timeSpan: TimeSpan) => {
-        // Create a modified copy of the descriptor for drilldown
-        // Always hide title in drilldown by explicitly setting showTitle to false
-        const modifiedDescriptor: PanelDescriptor = {
-          ...drilldownDescriptor,
-          titleOption: drilldownDescriptor.titleOption
-            ? {
-                ...drilldownDescriptor.titleOption,
-                showTitle: false, // Explicitly set to false to hide title
-                // Keep title and description for potential future use, but hide it
-              }
-            : undefined, // If no titleOption, keep it undefined
-        };
+    const renderDrilldownComponent = useCallback((drilldownDescriptor: PanelDescriptor, timeSpan: TimeSpan) => {
+      // Create a modified copy of the descriptor for drilldown
+      // Always hide title in drilldown by explicitly setting showTitle to false
+      const modifiedDescriptor: PanelDescriptor = {
+        ...drilldownDescriptor,
+        titleOption: drilldownDescriptor.titleOption
+          ? {
+              ...drilldownDescriptor.titleOption,
+              showTitle: false, // Explicitly set to false to hide title
+              // Keep title and description for potential future use, but hide it
+            }
+          : undefined, // If no titleOption, keep it undefined
+      };
 
-        // Use stable key (not including timeSpan) and wrapper that calls refresh imperatively
-        return (
-          <DrilldownChartRendererWithRefresh
-            key={`drilldown-${modifiedDescriptor.id || "default"}`}
-            descriptor={modifiedDescriptor}
-            selectedTimeSpan={timeSpan}
-            searchParams={props.searchParams}
-          />
-        );
-      },
-      [props.searchParams]
-    );
+      // Use stable key (not including timeSpan) and wrapper that calls refresh imperatively
+      return (
+        <DrilldownChartRendererWithRefresh
+          key={`drilldown-${modifiedDescriptor.id || "default"}`}
+          descriptor={modifiedDescriptor}
+          selectedTimeSpan={timeSpan}
+        />
+      );
+    }, []);
 
     // Show raw data dialog
     const showRawDataDialog = useCallback(
@@ -1190,8 +1074,6 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
       [data, descriptor.titleOption?.title]
     );
 
-    const hasTitle = !!descriptor.titleOption?.title && descriptor.titleOption?.showTitle !== false;
-
     // Handler for showing query dialog
     const handleShowQuery = useCallback(() => {
       showQueryDialog(descriptor.query, descriptor.titleOption?.title);
@@ -1230,36 +1112,35 @@ const RefreshableTimeseriesChart = forwardRef<RefreshableComponent, RefreshableT
         headerBackground={true}
       >
         <CardContent className="px-0 p-0">
-              {error ? (
-                <div className="flex flex-col items-center justify-center h-[300px] gap-2 text-destructive p-8">
-                  <p className="font-semibold">Error loading chart data:</p>
-                  <p className="text-sm">{error}</p>
-                </div>
-              ) : isLoading && data.length === 0 ? (
-                <div className="h-[300px] flex items-center justify-center">
-                  <Skeleton className="h-full w-full" />
-                </div>
-              ) : (
-                <>
-                  <div
-                    ref={chartContainerRef}
-                    className="h-[300px] w-full"
-                    style={{
-                      minHeight: descriptor.height ? `${descriptor.height}px` : undefined,
-                      width: "100%",
-                      minWidth: 0, // Ensure flex children can shrink
-                    }}
-                  />
-                  {drilldownComponent && <div>{drilldownComponent}</div>}
-                </>
-              )}
-            </CardContent>
+          {error ? (
+            <div className="flex flex-col items-center justify-center h-[300px] gap-2 text-destructive p-8">
+              <p className="font-semibold">Error loading chart data:</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          ) : isLoading && data.length === 0 ? (
+            <div className="h-[300px] flex items-center justify-center">
+              <Skeleton className="h-full w-full" />
+            </div>
+          ) : (
+            <>
+              <div
+                ref={chartContainerRef}
+                className="h-[300px] w-full"
+                style={{
+                  minHeight: descriptor.height ? `${descriptor.height}px` : undefined,
+                  width: "100%",
+                  minWidth: 0, // Ensure flex children can shrink
+                }}
+              />
+              {drilldownComponent && <div>{drilldownComponent}</div>}
+            </>
+          )}
+        </CardContent>
       </DashboardPanelLayout>
     );
   }
 );
 
-RefreshableTimeseriesChart.displayName = "RefreshableTimeseriesChart";
+DashboardPanelTimeseries.displayName = "DashboardPanelTimeseries";
 
-export default RefreshableTimeseriesChart;
-export type { RefreshableTimeseriesChartProps };
+export default DashboardPanelTimeseries;

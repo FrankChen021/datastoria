@@ -1,14 +1,6 @@
 import type React from "react";
 import type { FormatName, ObjectFormatter } from "@/lib/formatter";
 
-interface DashboardConfig {
-  // Define the structure of your dashboard config here
-  text: string;
-  value: string;
-  folder: string;
-  // ... other properties
-}
-
 export type SelectorUI = {
   type: string;
   name: string;
@@ -111,8 +103,6 @@ export interface FieldOption {
   position?: number;
 }
 
-// Legacy type alias for backward compatibility
-export type ColumnDef = FieldOption;
 
 // Grid position for version 3+ dashboards (Grafana-style layout)
 // x, y are optional for auto-positioning; if provided, use manual positioning
@@ -126,7 +116,6 @@ export interface GridPos {
 // Panel Descriptor base interface
 export interface PanelDescriptor {
   type: string; // "line" | "bar" | "pie" | "scatter" | "heatmap" | "table" | "map" | "custom" | "stat"
-  id?: string;
 
   titleOption?: TitleOption;
 
@@ -278,53 +267,6 @@ export type DashboardFilter = {
   showAutoRefresh?: boolean;
 };
 
-export type QueryPrecondition = {
-  filters?: string[];
-};
-
-// Base interface for common query properties
-export interface BaseQuery {
-  type: "list" | "timeseries" | "groupBy" | "http";
-  // Common UI properties
-  precondition?: QueryPrecondition;
-}
-
-export interface JsonQueryRequest {
-  dataSource?: string;
-  filterExpression?: string;
-  fields?: any[];
-  interval?: {
-    startISO8601: string;
-    endISO8601: string;
-    step: number;
-    bucketCount?: number;
-  };
-  limit?: number;
-  orderBy?: { name: string; order: string };
-  groupBy?: any[];
-  window?: any;
-}
-
-export type JsonQuery = JsonQueryRequest &
-  BaseQuery & {
-    filter?: string;
-    bucketCount?: number;
-  };
-
-export type HttpQuery = BaseQuery & {
-  url: string;
-  method: string;
-  headers: Record<string, string>;
-  body: string;
-
-  // For response
-  responseDataField: string;
-  responseDataFormat: "object" | "array";
-};
-
-// Union type for all query types
-export type DashboardQuery = JsonQuery | HttpQuery;
-
 export type DashboardGroup = {
   title: string;
   charts: any[];
@@ -336,15 +278,3 @@ export type Dashboard = {
   filter: DashboardFilter;
   charts: (any | DashboardGroup)[];
 };
-
-export type DashboardFilterV2 = {
-  id?: string;
-  search?: string;
-  folder?: string;
-  page: number;
-  size: number;
-  sort: string;
-  order: string;
-};
-
-export type { DashboardConfig };

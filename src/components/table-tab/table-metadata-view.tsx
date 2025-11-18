@@ -1,7 +1,7 @@
 import type { FieldOption, TableDescriptor, TransposeTableDescriptor } from "@/components/dashboard/dashboard-model";
-import type { RefreshableComponent } from "@/components/dashboard/dashboard-panel-common";
-import RefreshableTableComponent from "@/components/dashboard/dashboard-panel-table";
-import RefreshableTransposedTableComponent from "@/components/dashboard/dashboard-panel-tranposd-table";
+import type { DashboardPanelComponent } from "@/components/dashboard/dashboard-panel-layout";
+import DashboardPanelTable from "@/components/dashboard/dashboard-panel-table";
+import DashboardPanelTransposedTable from "@/components/dashboard/dashboard-panel-tranposd-table";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { StringUtils } from "@/lib/string-utils";
@@ -20,7 +20,7 @@ const TableDDLView = memo(function TableDDLView({
   refreshTrigger,
   autoLoad = false,
 }: TableMetadataViewProps & { refreshTrigger?: number; autoLoad?: boolean }) {
-  const tableComponentRef = useRef<RefreshableComponent>(null);
+  const tableComponentRef = useRef<DashboardPanelComponent>(null);
   const isMountedRef = useRef(true);
 
   // Create transposed table descriptor
@@ -83,7 +83,7 @@ const TableDDLView = memo(function TableDDLView({
     };
   }, [autoLoad, refreshTrigger]);
 
-  return <RefreshableTransposedTableComponent ref={tableComponentRef} descriptor={tableDescriptor} />;
+  return <DashboardPanelTransposedTable ref={tableComponentRef} descriptor={tableDescriptor} />;
 });
 
 const TableStructureView = memo(function TableStructureView({
@@ -92,7 +92,7 @@ const TableStructureView = memo(function TableStructureView({
   refreshTrigger,
   autoLoad = false,
 }: TableMetadataViewProps & { refreshTrigger?: number; autoLoad?: boolean }) {
-  const tableComponentRef = useRef<RefreshableComponent>(null);
+  const tableComponentRef = useRef<DashboardPanelComponent>(null);
   const isMountedRef = useRef(true);
 
   // Create table descriptor
@@ -172,7 +172,7 @@ const TableStructureView = memo(function TableStructureView({
     };
   }, [autoLoad, refreshTrigger]);
 
-  return <RefreshableTableComponent ref={tableComponentRef} descriptor={tableDescriptor} />;
+  return <DashboardPanelTable ref={tableComponentRef} descriptor={tableDescriptor} />;
 });
 
 const TableMetadataViewComponent = forwardRef<RefreshableTabViewRef, TableMetadataViewProps>(

@@ -6,17 +6,16 @@ import { DateTimeExtension } from "@/lib/datetime-utils";
 import { cn } from "@/lib/utils";
 import NumberFlow from "@number-flow/react";
 import { format } from "date-fns";
+import * as echarts from "echarts";
 import { CircleAlert, TrendingDown, TrendingUpIcon } from "lucide-react";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Area, AreaChart, Brush, Line, LineChart, XAxis, YAxis } from "recharts";
 import { Formatter } from "../../lib/formatter";
 import { Button } from "../ui/button";
 import { CardContent, CardFooter, CardTitle } from "../ui/card";
-import { ChartContainer, ChartTooltip } from "../ui/chart";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { Skeleton } from "../ui/skeleton";
 import { Dialog } from "../use-dialog";
-import { classifyColumns, transformRowsToChartData } from "./chart-data-utils";
+import { classifyColumns, transformRowsToChartData } from "./dashboard-data-utils";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
 import { showQueryDialog } from "./dashboard-dialog-utils";
 import type {
@@ -26,27 +25,21 @@ import type {
   SQLQuery,
   StatDescriptor,
   TableDescriptor,
-  TimeseriesDescriptor,
-  TransposeTableDescriptor,
 } from "./dashboard-model";
-import type { RefreshableComponent, RefreshParameter } from "./dashboard-panel-common";
-import { DashboardPanelLayout } from "./dashboard-panel-common";
-import RefreshableTableComponent from "./dashboard-panel-table";
-import RefreshableTimeseriesChart from "./dashboard-panel-timeseries";
-import RefreshableTransposedTableComponent from "./dashboard-panel-tranposd-table";
+import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
+import { DashboardPanelLayout } from "./dashboard-panel-layout";
+import { DashboardPanelFactory } from "./dashboard-panel-factory";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
+import useIsDarkTheme from "./use-is-dark-theme";
 import { useRefreshable } from "./use-refreshable";
 
-interface RefreshableStatComponentProps {
+interface DashboardPanelStatProps {
   // The stat descriptor configuration
   descriptor: StatDescriptor;
 
   // Runtime
   selectedTimeSpan?: TimeSpan;
-
-  // Used for generating links
-  searchParams?: URLSearchParams;
 
   // Initial loading state (useful for drilldown dialogs)
   initialLoading?: boolean;
@@ -62,21 +55,19 @@ interface StatMinimapProps {
   id: string;
   data: MinimapDataPoint[];
   isLoading: boolean;
-  minimap: MinimapOption;
+  option: MinimapOption;
   onBrushChange?: (startTimestamp: number, endTimestamp: number) => void;
 }
 
-const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data, isLoading, minimap, onBrushChange }) {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const [isInViewport, setIsInViewport] = React.useState(false);
+const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data, isLoading, option, onBrushChange }) {
+  const chartContainerRef = React.useRef<HTMLDivElement>(null);
+  const chartInstanceRef = React.useRef<echarts.ECharts | null>(null);
+  const brushHandlerRef = React.useRef<((params: unknown) => void) | null>(null);
   const [chartColor, setChartColor] = React.useState<string>("hsl(var(--chart-1))");
-  const brushChangeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDark = useIsDarkTheme();
 
-  // Get the computed chart color value from CSS variable
-  // SVG elements don't support CSS variables, so we need to get the actual computed RGB color
   React.useEffect(() => {
     const updateChartColor = () => {
-      // Create a temporary element to get computed color
       const tempEl = document.createElement("div");
       tempEl.style.color = "var(--chart-1)";
       tempEl.style.position = "absolute";
@@ -89,7 +80,6 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
       if (computedColor && computedColor !== "rgba(0, 0, 0, 0)" && computedColor !== "rgb(0, 0, 0)") {
         setChartColor(computedColor);
       } else {
-        // Fallback: try primary color
         tempEl.style.color = "var(--primary)";
         document.body.appendChild(tempEl);
         const fallbackColor = getComputedStyle(tempEl).color;
@@ -97,15 +87,13 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
         if (fallbackColor && fallbackColor !== "rgba(0, 0, 0, 0)" && fallbackColor !== "rgb(0, 0, 0)") {
           setChartColor(fallbackColor);
         } else {
-          // Final fallback: use a visible color based on theme
-          const isDark = document.documentElement.classList.contains("dark");
-          setChartColor(isDark ? "rgb(120, 200, 150)" : "rgb(50, 150, 100)");
+          const dark = document.documentElement.classList.contains("dark");
+          setChartColor(dark ? "rgb(120, 200, 150)" : "rgb(50, 150, 100)");
         }
       }
     };
 
     updateChartColor();
-    // Also update on theme change
     const observer = new MutationObserver(updateChartColor);
     if (document.documentElement) {
       observer.observe(document.documentElement, {
@@ -117,224 +105,301 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
     return () => observer.disconnect();
   }, []);
 
+  // Initialize echarts instance with theme support (separate from data updates)
   React.useEffect(() => {
-    const currentElement = containerRef.current;
-    if (!currentElement) return;
+    const chartDom = chartContainerRef.current;
+    if (!chartDom) {
+      return;
+    }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          setIsInViewport(entry.isIntersecting);
-        });
-      },
-      {
-        root: null,
-        rootMargin: "100px", // Load slightly before entering viewport
-        threshold: 0.01,
+    // Dispose existing instance if theme changed
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.dispose();
+      chartInstanceRef.current = null;
+    }
+
+    // Initialize chart with theme (matching timeseries chart pattern)
+    const chartTheme = isDark ? "dark" : undefined;
+    const chart = echarts.init(chartDom, chartTheme);
+    chartInstanceRef.current = chart;
+
+    const handleResize = () => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.resize();
       }
-    );
+    };
 
-    observer.observe(currentElement);
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", handleResize);
+    }
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => {
+            if (chartInstanceRef.current) {
+              requestAnimationFrame(() => {
+                if (chartInstanceRef.current) {
+                  chartInstanceRef.current.resize();
+                }
+              });
+            }
+          })
+        : null;
+    if (resizeObserver && chartDom) {
+      resizeObserver.observe(chartDom);
+    }
+
+    // Initial resize after a short delay
+    const initialResizeTimeout = setTimeout(() => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.resize();
+      }
+    }, 100);
 
     return () => {
-      observer.unobserve(currentElement);
-      if (brushChangeTimeoutRef.current) {
-        clearTimeout(brushChangeTimeoutRef.current);
-        brushChangeTimeoutRef.current = null;
+      clearTimeout(initialResizeTimeout);
+      if (resizeObserver && chartDom) {
+        resizeObserver.unobserve(chartDom);
+      }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("resize", handleResize);
+      }
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.dispose();
+        chartInstanceRef.current = null;
+      }
+    };
+  }, [isDark]);
+
+  // Update chart when data changes (separate from initialization)
+  React.useEffect(() => {
+    const chart = chartInstanceRef.current;
+    if (!chart || data.length === 0) {
+      return;
+    }
+
+    const xAxisData = data.map((point) => format(new Date(point.timestamp), "MM-dd HH:mm:ss"));
+    const seriesData = data.map((point) => point.value);
+
+    const chartOption: echarts.EChartsOption = {
+      backgroundColor: "transparent",
+      animation: false,
+      grid: {
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        containLabel: false,
+      },
+      tooltip: {
+        trigger: "axis",
+        axisPointer: {
+          type: "line",
+        },
+        appendToBody: true,
+        // Prevent tooltip from capturing pointer events which causes chart to flicker/disappear
+        extraCssText: "pointer-events: none; z-index: 9999;",
+        position: (point, _params, _dom, _rect, size) => {
+          // Position tooltip above the point to avoid overlapping the chart area
+          return [point[0] - size.contentSize[0] / 2, point[1] - size.contentSize[1] - 10];
+        },
+        formatter: (params) => {
+          if (!Array.isArray(params) || params.length === 0) {
+            return "";
+          }
+          const firstParam = params[0] as { dataIndex: number };
+          const point = data[firstParam.dataIndex];
+          if (!point) {
+            return "";
+          }
+
+          const timestampLabel = format(new Date(point.timestamp), "MM-dd HH:mm:ss");
+          return `
+            <div style="margin-bottom: 4px;">${timestampLabel}</div>
+            <div style="margin-top: 2px; white-space: nowrap;">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background-color:${chartColor};margin-right:5px;"></span>
+              <strong>${Number(point.value).toFixed(2)}</strong>
+      </div>
+          `;
+        },
+      },
+      xAxis: {
+        type: "category",
+        boundaryGap: false,
+        data: xAxisData,
+        show: false,
+      },
+      yAxis: {
+        type: "value",
+        show: false,
+        scale: true,
+      },
+      brush: onBrushChange
+        ? {
+            xAxisIndex: "all",
+            brushLink: "all",
+            brushMode: "single",
+            brushStyle: {
+              color: "rgba(120,120,120,0.15)",
+            },
+          }
+        : undefined,
+      toolbox: {
+        show: false,
+      },
+      series: [
+        {
+          type: "line",
+          data: seriesData,
+          smooth: true,
+          showSymbol: false,
+          // Disable hover/emphasis state changes but allow brush interaction
+          silent: !onBrushChange, // Only silent when brush is not enabled
+          emphasis: {
+            disabled: true,
+          },
+          blur: {
+            lineStyle: {
+              width: 1.5,
+              color: chartColor,
+              opacity: 1,
+            },
+          },
+          lineStyle: {
+            width: 1.5,
+            color: chartColor,
+          },
+          areaStyle:
+            option.type === "area"
+              ? {
+                  color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    { offset: 0, color: chartColor },
+                    { offset: 1, color: "rgba(255,255,255,0)" },
+                  ]),
+                }
+              : undefined,
+        },
+      ],
+    };
+
+    // Use notMerge: false to merge options instead of replacing them completely
+    // This prevents the chart from being completely redrawn on every update
+    chart.setOption(chartOption, false, false);
+
+    if (onBrushChange) {
+      // Remove old handlers
+      if (brushHandlerRef.current) {
+        chart.off("brushEnd", brushHandlerRef.current);
+      }
+
+      const handler = (params: unknown) => {
+        const brushParams = params as {
+          batch?: Array<{ areas?: Array<{ coordRange?: [number, number] | number[] }> }>;
+          brushComponents?: Array<{ coordRange?: [number, number] | number[] }>;
+          areas?: Array<{ coordRange?: [number, number] | number[] }>;
+        };
+
+        let brushAreas: Array<{ coordRange?: [number, number] | number[] }> = [];
+        if (brushParams.batch && brushParams.batch.length > 0 && brushParams.batch[0].areas) {
+          brushAreas = brushParams.batch[0].areas ?? [];
+        } else if (brushParams.brushComponents) {
+          brushAreas = brushParams.brushComponents;
+        } else if (brushParams.areas) {
+          brushAreas = brushParams.areas;
+        }
+
+        if (brushAreas.length === 0) {
+          return;
+        }
+
+        const brushArea = brushAreas[0];
+        if (!brushArea.coordRange || brushArea.coordRange.length < 2) {
+          return;
+        }
+
+        const [startIndex, endIndex] = brushArea.coordRange;
+        const clampedStart = Math.max(0, Math.min(data.length - 1, Math.floor(startIndex)));
+        const clampedEnd = Math.max(0, Math.min(data.length - 1, Math.ceil(endIndex)));
+        if (clampedStart === clampedEnd) {
+          return;
+        }
+
+        const startPoint = data[Math.min(clampedStart, clampedEnd)];
+        const endPoint = data[Math.max(clampedStart, clampedEnd)];
+        if (!startPoint || !endPoint) {
+          return;
+        }
+
+        onBrushChange(startPoint.timestamp, endPoint.timestamp);
+      };
+
+      brushHandlerRef.current = handler;
+      chart.on("brushEnd", handler);
+
+      // Enable brush mode
+      chart.dispatchAction({
+        type: "takeGlobalCursor",
+        key: "brush",
+        brushOption: {
+          brushType: "lineX",
+          brushMode: "single",
+        },
+      });
+    } else if (brushHandlerRef.current) {
+      chart.off("brushEnd", brushHandlerRef.current);
+      brushHandlerRef.current = null;
+    }
+
+    // Resize chart after setting option to ensure proper rendering
+    requestAnimationFrame(() => {
+      if (chart) {
+        chart.resize();
+      }
+    });
+
+    return () => {
+      if (chart && brushHandlerRef.current) {
+        chart.off("brushEnd", brushHandlerRef.current);
+        brushHandlerRef.current = null;
+      }
+    };
+  }, [data, option.type, chartColor, onBrushChange]);
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      const chart = chartInstanceRef.current;
+      if (chart) {
+        const cleanup = (chart as unknown as { _cleanup?: () => void })._cleanup;
+        if (cleanup) {
+          cleanup();
+        } else {
+          chart.dispose();
+          chartInstanceRef.current = null;
+        }
       }
     };
   }, []);
 
-  // Show skeleton only while actively loading (not when we have no data after load completes)
-  if (isLoading && data.length === 0) {
-    return (
-      <div ref={containerRef} className="w-full mt-2">
-        <Skeleton className="h-[50px] w-full" />
-      </div>
-    );
-  }
-
-  // Don't render chart if not in viewport (performance optimization)
-  if (!isInViewport) {
-    return (
-      <div ref={containerRef} className="w-full mt-2">
-        <div className="h-[50px]" />
-      </div>
-    );
-  }
-
-  // If we had data before but now empty during reload, keep showing the old chart structure
-  if (data.length === 0) {
-    return (
-      <div ref={containerRef} className="w-full mt-2">
-        <div className="h-[50px]" />
-      </div>
-    );
-  }
-
-  const chartConfig = {
-    value: {
-      label: "Value",
-      color: "hsl(var(--chart-1))",
-    },
-  };
-
-  const isArea = minimap.type === "area";
-  const ChartComponent = isArea ? AreaChart : LineChart;
-
   return (
-    <div ref={containerRef} className="w-full mt-2">
-      <ChartContainer
-        config={chartConfig}
-        className={`h-[45px] w-full aspect-auto transition-opacity duration-300 ${
-          isLoading ? "opacity-50" : "opacity-100"
-        }`}
-      >
-        <ChartComponent data={data} margin={{ top: 0, right: 5, left: 0, bottom: 0 }}>
-          {isArea && (
-            <defs>
-              <linearGradient id={`gradient-${id}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={chartColor} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-          )}
-          <XAxis dataKey="timestamp" hide type="number" domain={["dataMin", "dataMax"]} />
-          <YAxis
-            width={30}
-            tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
-            axisLine={{ stroke: "hsl(var(--border))" }}
-          />
-          <ChartTooltip
-            content={({ active, payload }) => {
-              if (!active || !payload || payload.length === 0) {
-                return null;
-              }
-
-              const data = payload[0].payload as MinimapDataPoint;
-              const timestamp = data.timestamp;
-              const value = data.value;
-
-              return (
-                <div className="rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
-                  <div className="font-medium mb-1">{format(new Date(timestamp), "MM-dd HH:mm:ss")}</div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: chartColor }} />
-                    <span className="tabular-nums">{value.toFixed(2)}</span>
-                  </div>
-                </div>
-              );
-            }}
-          />
-          {isArea ? (
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke={chartColor}
-              strokeWidth={2}
-              fill={`url(#gradient-${id})`}
-              fillOpacity={1}
-              isAnimationActive={false}
-            />
-          ) : (
-            <Line
-              type="monotone"
-              dataKey="value"
-              stroke={chartColor}
-              strokeWidth={2}
-              fill="none"
-              isAnimationActive={false}
-              dot={false}
-            />
-          )}
-          {onBrushChange && data.length > 0 && (
-            <Brush
-              dataKey="timestamp"
-              height={15}
-              stroke={chartColor}
-              fill={`${chartColor}40`}
-              onChange={(brushData: { startIndex?: number; endIndex?: number }) => {
-                // Clear any pending brush change
-                if (brushChangeTimeoutRef.current) {
-                  clearTimeout(brushChangeTimeoutRef.current);
-                  brushChangeTimeoutRef.current = null;
-                }
-
-                // Debounce the brush change to avoid triggering multiple times during dragging
-                if (brushData && brushData.startIndex !== undefined && brushData.endIndex !== undefined) {
-                  const startIndex = brushData.startIndex;
-                  const endIndex = brushData.endIndex;
-                  if (
-                    startIndex >= 0 &&
-                    endIndex >= 0 &&
-                    startIndex < data.length &&
-                    endIndex < data.length &&
-                    startIndex !== endIndex
-                  ) {
-                    brushChangeTimeoutRef.current = setTimeout(() => {
-                      const startTimestamp = data[startIndex].timestamp;
-                      const endTimestamp = data[endIndex].timestamp;
-                      onBrushChange(startTimestamp, endTimestamp);
-                      brushChangeTimeoutRef.current = null;
-                    }, 300); // 300ms debounce
-                  }
-                }
-              }}
-            />
-          )}
-        </ChartComponent>
-      </ChartContainer>
+    <div className="w-full mt-2">
+      {isLoading && data.length === 0 ? (
+        <Skeleton className="h-[50px] w-full" />
+      ) : data.length === 0 ? (
+        <div className="h-[45px]" />
+      ) : (
+        <div
+          ref={chartContainerRef}
+          className={`h-[45px] w-full transition-opacity duration-300 ${isLoading ? "opacity-50" : "opacity-100"}`}
+          style={{ pointerEvents: "auto", position: "relative" }}
+          data-minimap-id={id}
+        />
+      )}
     </div>
   );
 });
 
-// Helper component to render drilldown charts (avoids forwardRef recursion issues)
-const DrilldownChartRenderer: React.FC<{
-  descriptor: PanelDescriptor;
-  selectedTimeSpan?: TimeSpan;
-  searchParams?: URLSearchParams;
-}> = ({ descriptor, selectedTimeSpan, searchParams }) => {
-  if (descriptor.type === "stat") {
-    return (
-      <RefreshableStatComponent
-        descriptor={descriptor as StatDescriptor}
-        selectedTimeSpan={selectedTimeSpan}
-        searchParams={searchParams}
-        initialLoading={true}
-      />
-    );
-  } else if (descriptor.type === "line" || descriptor.type === "bar" || descriptor.type === "area") {
-    return (
-      <RefreshableTimeseriesChart
-        descriptor={descriptor as TimeseriesDescriptor}
-        selectedTimeSpan={selectedTimeSpan}
-        searchParams={searchParams}
-        initialLoading={true}
-      />
-    );
-  } else if (descriptor.type === "table") {
-    return (
-      <RefreshableTableComponent
-        descriptor={descriptor as TableDescriptor}
-        selectedTimeSpan={selectedTimeSpan}
-        searchParams={searchParams}
-        initialLoading={true}
-      />
-    );
-  } else if (descriptor.type === "transpose-table") {
-    return (
-      <RefreshableTransposedTableComponent
-        descriptor={descriptor as TransposeTableDescriptor}
-        selectedTimeSpan={selectedTimeSpan}
-        searchParams={searchParams}
-        initialLoading={true}
-      />
-    );
-  }
-  return null;
-};
-
-const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableStatComponentProps>(
+const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelStatProps>(
   function RefreshableStatComponent(props, ref) {
     const { descriptor, selectedTimeSpan } = props;
     const { selectedConnection } = useConnection();
@@ -464,7 +529,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
     }, []);
 
     const loadData = useCallback(
-      async (_param: RefreshParameter, isOffset: boolean = false) => {
+      async (_param: RefreshOptions, isOffset: boolean = false) => {
         // Validate that we have a time span
         if (!_param.selectedTimeSpan) {
           console.error(`No timespan for stat [${descriptor.id}] in loadData`);
@@ -598,7 +663,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
 
     // Internal refresh function
     const refreshInternal = useCallback(
-      (param: RefreshParameter) => {
+      (param: RefreshOptions) => {
         if (!descriptor.query) {
           console.error(`No query defined for stat [${descriptor.id}]`);
           setError("No query defined for this stat component.");
@@ -628,7 +693,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
               ) || "",
           };
 
-          const offsetParam: RefreshParameter = {
+          const offsetParam: RefreshOptions = {
             ...param,
             selectedTimeSpan: offsetTimeSpan,
           };
@@ -641,7 +706,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
 
     // Use shared refreshable hook (stat chart doesn't have collapse, but uses viewport checking)
     const getInitialParams = React.useCallback(() => {
-      return props.selectedTimeSpan ? ({ selectedTimeSpan: props.selectedTimeSpan } as RefreshParameter) : undefined;
+      return props.selectedTimeSpan ? ({ selectedTimeSpan: props.selectedTimeSpan } as RefreshOptions) : undefined;
     }, [props.selectedTimeSpan]);
 
     const { componentRef, refresh, getLastRefreshParameter } = useRefreshable({
@@ -814,6 +879,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
     useImperativeHandle(ref, () => ({
       refresh,
       getLastRefreshParameter,
+      getLastRefreshOptions: getLastRefreshParameter, // Alias for compatibility
     }));
 
     // Skeleton timing logic: minimum display time + fade transition
@@ -911,17 +977,17 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
         description,
         className: "max-w-[60vw] h-[70vh]",
         disableContentScroll: false,
-        mainContent: (
-          <div className="w-full h-full overflow-auto">
-            <DrilldownChartRenderer
-              descriptor={modifiedDescriptor}
-              selectedTimeSpan={selectedTimeSpan}
-              searchParams={props.searchParams}
-            />
-          </div>
-        ),
+           mainContent: (
+             <div className="w-full h-full overflow-auto">
+               <DashboardPanelFactory
+                 descriptor={modifiedDescriptor}
+                 selectedTimeSpan={selectedTimeSpan}
+                 initialLoading={true}
+               />
+             </div>
+           ),
       });
-    }, [descriptor.drilldown, props.searchParams, selectedTimeSpan]);
+    }, [descriptor.drilldown, selectedTimeSpan]);
 
     // Handle minimap drilldown with selected time range
     const handleMinimapDrilldown = useCallback(
@@ -972,16 +1038,16 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
           disableContentScroll: false,
           mainContent: (
             <div className="w-full h-full overflow-auto">
-              <DrilldownChartRenderer
+              <DashboardPanelFactory
                 descriptor={modifiedDescriptor}
                 selectedTimeSpan={selectedTimeSpan}
-                searchParams={props.searchParams}
+                initialLoading={true}
               />
             </div>
           ),
         });
       },
-      [descriptor.drilldown, props.searchParams]
+      [descriptor.drilldown]
     );
 
     // Check if main drilldown is available
@@ -1184,7 +1250,7 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
                 id={descriptor.id || "stat"}
                 data={minimapData}
                 isLoading={isLoadingMinimap}
-                minimap={descriptor.minimapOption!}
+                option={descriptor.minimapOption!}
                 onBrushChange={hasMinimapDrilldown ? handleMinimapDrilldown : undefined}
               />
             )}
@@ -1195,7 +1261,6 @@ const RefreshableStatComponent = forwardRef<RefreshableComponent, RefreshableSta
   }
 );
 
-RefreshableStatComponent.displayName = "RefreshableStatComponent";
+DashboardPanelStat.displayName = "DashboardPanelStat";
 
-export default RefreshableStatComponent;
-export type { RefreshableStatComponentProps };
+export default DashboardPanelStat;

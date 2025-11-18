@@ -8,25 +8,22 @@ import { CardContent } from "../ui/card";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { Skeleton } from "../ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import type { FieldOption, SQLQuery, TransposeTableDescriptor } from "./dashboard-model";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
-import { DashboardPanelLayout } from "./dashboard-panel-common";
 import { showQueryDialog } from "./dashboard-dialog-utils";
+import type { FieldOption, SQLQuery, TransposeTableDescriptor } from "./dashboard-model";
+import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
+import { DashboardPanelLayout } from "./dashboard-panel-layout";
 import { inferFieldFormat } from "./format-inference";
-import type { RefreshableComponent, RefreshParameter } from "./dashboard-panel-common";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
 import { useRefreshable } from "./use-refreshable";
 
-interface RefreshableTransposedTableComponentProps {
+interface DashboardPanelTransposedTableProps {
   // The transposed table descriptor configuration
   descriptor: TransposeTableDescriptor;
 
   // Runtime
   selectedTimeSpan?: TimeSpan;
-
-  // Used for generating links
-  searchParams?: URLSearchParams;
 
   // Additional className for the Card component
   className?: string;
@@ -35,8 +32,8 @@ interface RefreshableTransposedTableComponentProps {
   initialLoading?: boolean;
 }
 
-const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, RefreshableTransposedTableComponentProps>(
-  function RefreshableTransposedTableComponent(props, ref) {
+const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, DashboardPanelTransposedTableProps>(
+  function DashboardPanelTransposedTable(props, ref) {
     const { descriptor } = props;
     const { selectedConnection } = useConnection();
 
@@ -75,7 +72,7 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
 
     // Load data from API
     const loadData = useCallback(
-      async (param: RefreshParameter) => {
+      async (param: RefreshOptions) => {
         if (!selectedConnection) {
           setError("No connection selected");
           return;
@@ -109,7 +106,9 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
           }
 
           // Replace time span template parameters in SQL
-          const finalSql = param.selectedTimeSpan ? replaceTimeSpanParams(query.sql, param.selectedTimeSpan) : query.sql;
+          const finalSql = param.selectedTimeSpan
+            ? replaceTimeSpanParams(query.sql, param.selectedTimeSpan)
+            : query.sql;
 
           const api = Api.create(selectedConnection);
           const canceller = api.executeSQL(
@@ -140,7 +139,7 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
                   // Infer formats for fields that don't have explicit formats
                   const formats = new Map<string, FormatName>();
                   const sampleRows = rows as Record<string, unknown>[];
-                  
+
                   Object.keys(rowData).forEach((key) => {
                     const fieldOption = getFieldOption(key);
                     // Only infer if no format is specified in the descriptor
@@ -151,7 +150,7 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
                       }
                     }
                   });
-                  
+
                   setInferredFormats(formats);
                 } else {
                   setData(null);
@@ -196,7 +195,7 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
 
     // Internal refresh function
     const refreshInternal = useCallback(
-      (param: RefreshParameter) => {
+      (param: RefreshOptions) => {
         if (!descriptor.query) {
           console.error(`No query defined for transposed table [${descriptor.id}]`);
           setError("No query defined for this transposed table component.");
@@ -211,8 +210,8 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
     // Use shared refreshable hook
     const getInitialParams = useCallback(() => {
       return props.selectedTimeSpan
-        ? ({ selectedTimeSpan: props.selectedTimeSpan } as RefreshParameter)
-        : ({} as RefreshParameter);
+        ? ({ selectedTimeSpan: props.selectedTimeSpan } as RefreshOptions)
+        : ({} as RefreshOptions);
     }, [props.selectedTimeSpan]);
 
     const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
@@ -226,12 +225,13 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
     useImperativeHandle(ref, () => ({
       refresh,
       getLastRefreshParameter,
+      getLastRefreshOptions: getLastRefreshParameter, // Alias for compatibility
     }));
 
     // Skeleton timing logic: minimum display time + fade transition
     useEffect(() => {
       const shouldShow = isLoading && data === null;
-      
+
       if (shouldShow) {
         // Start showing skeleton
         if (skeletonStartTimeRef.current === null) {
@@ -243,7 +243,7 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
         // Data loaded or loading stopped
         if (skeletonStartTimeRef.current !== null) {
           const elapsed = Date.now() - skeletonStartTimeRef.current;
-          
+
           if (elapsed < SKELETON_MIN_DISPLAY_TIME) {
             // Wait for minimum display time, then fade out
             const remainingTime = SKELETON_MIN_DISPLAY_TIME - elapsed;
@@ -297,10 +297,10 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
         const fieldOption = getFieldOption(key);
         // Use explicit format from field option, or inferred format, or no format
         const format = fieldOption?.format || inferredFormats.get(key);
-        
+
         if (format) {
           let formatted: string | React.ReactNode;
-          
+
           // Check if format is a function (ObjectFormatter) or a string (FormatName)
           if (typeof format === "function") {
             // It's an ObjectFormatter function - call it directly
@@ -310,7 +310,7 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
             const formatter = Formatter.getInstance().getFormatter(format);
             formatted = formatter(value, fieldOption?.formatArgs);
           }
-          
+
           // If formatter returns empty string, show '-'
           if (formatted === "" || (typeof formatted === "string" && formatted.trim() === "")) {
             return <span className="text-muted-foreground">-</span>;
@@ -334,7 +334,7 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
             </div>
           );
         }
-        
+
         // Handle objects (non-array)
         if (typeof value === "object") {
           return <span className="font-mono text-xs">{JSON.stringify(value)}</span>;
@@ -372,11 +372,7 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
       return (
         <>
           {Array.from({ length: 3 }).map((_, index) => (
-            <TableRow 
-              key={index}
-              className="transition-opacity duration-150"
-              style={{ opacity: skeletonOpacity }}
-            >
+            <TableRow key={index} className="transition-opacity duration-150" style={{ opacity: skeletonOpacity }}>
               <TableCell className="whitespace-nowrap !p-2">
                 <Skeleton className="h-5 w-32" />
               </TableCell>
@@ -423,7 +419,7 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
         // If both have positions (not MAX_SAFE_INTEGER), sort by position
         const aHasPosition = a.position !== Number.MAX_SAFE_INTEGER;
         const bHasPosition = b.position !== Number.MAX_SAFE_INTEGER;
-        
+
         if (aHasPosition && bHasPosition) {
           // Both have positions: sort by position
           if (a.position !== b.position) {
@@ -459,8 +455,6 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
       );
     }, [error, data, shouldShowSkeleton, formatCellValue, getFieldOption]);
 
-    const hasTitle = !!descriptor.titleOption?.title;
-
     // Handler for showing query dialog
     const handleShowQuery = useCallback(() => {
       showQueryDialog(descriptor.query, descriptor.titleOption?.title);
@@ -468,9 +462,7 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
 
     // Build dropdown menu items
     const dropdownItems = (
-      <>
-        {descriptor.query?.sql && <DropdownMenuItem onClick={handleShowQuery}>Show query</DropdownMenuItem>}
-      </>
+      <>{descriptor.query?.sql && <DropdownMenuItem onClick={handleShowQuery}>Show query</DropdownMenuItem>}</>
     );
 
     return (
@@ -484,27 +476,26 @@ const RefreshableTransposedTableComponent = forwardRef<RefreshableComponent, Ref
         dropdownItems={dropdownItems}
       >
         <CardContent className="px-0 pb-0 overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-muted/50 select-none h-10">
-                    <TableHead className="text-left whitespace-nowrap p-2">Name</TableHead>
-                    <TableHead className="text-left whitespace-nowrap p-2">Value</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {renderError()}
-                  {renderLoading()}
-                  {renderNoData()}
-                  {renderData()}
-                </TableBody>
-              </Table>
-            </CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-muted/50 select-none h-10">
+                <TableHead className="text-left whitespace-nowrap p-2">Name</TableHead>
+                <TableHead className="text-left whitespace-nowrap p-2">Value</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {renderError()}
+              {renderLoading()}
+              {renderNoData()}
+              {renderData()}
+            </TableBody>
+          </Table>
+        </CardContent>
       </DashboardPanelLayout>
     );
   }
 );
 
-RefreshableTransposedTableComponent.displayName = "RefreshableTransposedTableComponent";
+DashboardPanelTransposedTable.displayName = "DashboardPanelTransposedTable";
 
-export default RefreshableTransposedTableComponent;
-export type { RefreshableTransposedTableComponentProps };
+export default DashboardPanelTransposedTable;

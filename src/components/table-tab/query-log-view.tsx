@@ -1,5 +1,4 @@
-import type { ColumnDef, TableDescriptor } from "@/components/dashboard/dashboard-model";
-import type { Dashboard, DashboardGroup } from "@/components/dashboard/dashboard-model";
+import type { Dashboard, DashboardGroup, FieldOption, TableDescriptor } from "@/components/dashboard/dashboard-model";
 import DashboardPanels, { type DashboardPanelsRef } from "@/components/dashboard/dashboard-panels";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
 import { BUILT_IN_TIME_SPAN_LIST } from "@/components/dashboard/timespan-selector";
@@ -99,7 +98,7 @@ const QueryLogViewComponent = forwardRef<RefreshableTabViewRef, QueryLogViewProp
       eventDateFilter = `event_date = today()`;
     }
 
-    const columns: ColumnDef[] = [
+    const columns: FieldOption[] = [
       // {
       //   name: "normalized_query_hash",
       //   title: "Query Hash",
