@@ -30,6 +30,9 @@ interface DashboardPanelTransposedTableProps {
 
   // Initial loading state (useful for drilldown dialogs)
   initialLoading?: boolean;
+
+  // Callback when collapsed state changes
+  onCollapsedChange?: (isCollapsed: boolean) => void;
 }
 
 const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, DashboardPanelTransposedTableProps>(
@@ -215,10 +218,10 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
     }, [props.selectedTimeSpan]);
 
     const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
-      componentId: descriptor.id,
       initialCollapsed: descriptor.collapsed ?? false,
       refreshInternal,
       getInitialParams,
+      onCollapsedChange: props.onCollapsedChange,
     });
 
     // Expose methods via ref

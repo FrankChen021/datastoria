@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { ChevronRight, EllipsisVertical } from "lucide-react";
+import { EllipsisVertical } from "lucide-react";
 import React from "react";
 import FloatingProgressBar from "../floating-progress-bar";
 import { Button } from "../ui/button";
@@ -69,12 +69,12 @@ export function DashboardPanelLayout({
   const isCollapsible = isCollapsed !== undefined && setIsCollapsed !== undefined;
   const showTitle = !!titleOption?.title && titleOption?.showTitle !== false;
 
-  // Render dropdown menu button
+  // Render dropdown menu button (absolutely positioned)
   const renderDropdownMenu = () => {
     if (!dropdownItems) return null;
 
     return (
-      <div className="pr-2">
+      <div className="absolute right-2 z-10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -100,38 +100,33 @@ export function DashboardPanelLayout({
     if (!showTitle || !titleOption) return null;
 
     const headerContent = (
-      <div className={cn("flex items-center p-2 transition-colors gap-2", headerBackground && "bg-muted/50")}>
-        {isCollapsible && (
-          <ChevronRight
-            className={cn("h-4 w-4 transition-transform duration-200 shrink-0", !isCollapsed && "rotate-90")}
-          />
-        )}
-        <div className="flex-1 text-left">
+      <div className={cn("flex items-center p-2 transition-colors", headerBackground && "bg-muted/50")}>
+        <div className="flex-1 text-left min-w-0">
           <CardDescription
             className={cn(
               titleOption.align ? "text-" + titleOption.align : isCollapsible ? "text-left" : "text-center",
-              "font-semibold text-muted-foreground m-0"
+              "font-semibold text-muted-foreground m-0 truncate"
             )}
           >
             {titleOption.title}
           </CardDescription>
           {titleOption.description && (
-            <CardDescription className="text-xs mt-1 m-0">{titleOption.description}</CardDescription>
+            <CardDescription className="text-xs mt-1 m-0 truncate">{titleOption.description}</CardDescription>
           )}
         </div>
       </div>
     );
 
+    const hoverClasses = isCollapsible ? "hover:bg-muted cursor-pointer" : "";
+
     const headerElement = (
-      <CardHeader className={cn("p-0", headerClassName)}>
-        <div className="flex items-center">
-          {wrapInTrigger ? (
-            <CollapsibleTrigger className="flex-1">{headerContent}</CollapsibleTrigger>
-          ) : (
-            <div className="flex-1">{headerContent}</div>
-          )}
-          {renderDropdownMenu()}
-        </div>
+      <CardHeader className={cn("p-0 relative", headerClassName)}>
+        {wrapInTrigger ? (
+          <CollapsibleTrigger className={cn("w-full transition-all", hoverClasses)}>{headerContent}</CollapsibleTrigger>
+        ) : (
+          <div className={cn("w-full", hoverClasses)}>{headerContent}</div>
+        )}
+        {renderDropdownMenu()}
       </CardHeader>
     );
 
@@ -139,7 +134,7 @@ export function DashboardPanelLayout({
   };
 
   return (
-    <Card ref={componentRef} className={cn("@container/card relative overflow-hidden", className)} style={style}>
+    <Card ref={componentRef} className={cn("@container/card rounded-sm relative overflow-hidden", className)} style={style}>
       <FloatingProgressBar show={isLoading} />
       {isCollapsible ? (
         <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed?.(!open)}>
@@ -155,4 +150,3 @@ export function DashboardPanelLayout({
     </Card>
   );
 }
-

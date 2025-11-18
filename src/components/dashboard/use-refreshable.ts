@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefreshOptions } from "./dashboard-panel-layout";
 
 interface UseRefreshableOptions {
-  componentId?: string;
   initialCollapsed?: boolean;
   refreshInternal: (param: RefreshOptions) => void;
   // Provide initial parameters so the hook can trigger the first refresh automatically
   // Components should memoize this function with useCallback and include their dependencies
   getInitialParams?: () => RefreshOptions | undefined;
+  // Callback when collapsed state changes (called only when user toggles, not on prop changes)
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
 interface UseRefreshableReturn {
@@ -27,14 +28,23 @@ interface UseRefreshableReturn {
  * - Deferred refresh when component expands
  */
 export function useRefreshable({
-  componentId,
   initialCollapsed = false,
   refreshInternal,
   getInitialParams,
+  onCollapsedChange,
 }: UseRefreshableOptions): UseRefreshableReturn {
   // State
-  const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
+  const [isCollapsed, setIsCollapsedInternal] = useState(initialCollapsed);
   const [needRefresh, setNeedRefresh] = useState(false);
+
+  // Wrapper around setIsCollapsed that also calls the callback
+  const setIsCollapsed = useCallback(
+    (collapsed: boolean) => {
+      setIsCollapsedInternal(collapsed);
+      onCollapsedChange?.(collapsed);
+    },
+    [onCollapsedChange]
+  );
 
   // Refs
   const componentRef = useRef<HTMLDivElement>(null);
@@ -129,7 +139,7 @@ export function useRefreshable({
         setNeedRefresh(true);
       }
     },
-    [componentId, isCollapsed, isComponentInView, refreshInternal]
+    [isCollapsed, isComponentInView, refreshInternal]
   );
 
   const getLastRefreshParameter = useCallback((): RefreshOptions => {
@@ -164,7 +174,7 @@ export function useRefreshable({
         setNeedRefresh(false);
       }
     }
-  }, [isCollapsed, needRefresh, shouldRefresh, componentId, refreshInternal]);
+  }, [isCollapsed, needRefresh, shouldRefresh, refreshInternal]);
 
   // IntersectionObserver setup
   useEffect(() => {
@@ -209,7 +219,7 @@ export function useRefreshable({
         observerRef.current.unobserve(currentComponent);
       }
     };
-  }, [componentId, needRefresh, shouldRefresh, refreshInternal, isComponentInView]);
+  }, [needRefresh, shouldRefresh, refreshInternal, isComponentInView]);
 
   return {
     componentRef,

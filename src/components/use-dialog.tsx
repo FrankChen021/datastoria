@@ -16,12 +16,12 @@ import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 
 export interface DialogButton {
-  text: string;
+  text?: string;
+  icon?: React.ReactNode;
   default: boolean;
   onClick: () => Promise<boolean>;
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  content?: React.ReactNode | (() => React.ReactNode); // Custom content to render instead of text (e.g., spinner + text)
-  disabled?: boolean; // Explicitly control button disabled state
+  disabled?: boolean; // Control button disabled state
 }
 
 export interface DialogProps {
@@ -140,16 +140,31 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
           <DialogFooter className="mt-auto">
             {dialogProps.dialogButtons.map((button, index) => {
               const variant = button.variant || (button.default ? "default" : "outline");
-              const content = button.content !== undefined 
-                ? (typeof button.content === 'function' ? button.content() : button.content)
-                : button.text;
-              // Use explicit disabled prop if provided, otherwise disable if content is defined (for loading state)
-              const isDisabled = button.disabled !== undefined ? button.disabled : (button.content !== undefined);
+              
+              // Determine button content: icon + text, icon only, or text only
+              let content: React.ReactNode;
+              if (button.icon && button.text) {
+                // Icon + text combination
+                content = (
+                  <>
+                    {button.icon}
+                    {button.text}
+                  </>
+                );
+              } else if (button.icon) {
+                // Icon only
+                content = button.icon;
+              } else {
+                // Text only (fallback)
+                content = button.text;
+              }
+              
               return (
                 <Button
                   key={index}
                   variant={variant}
-                  disabled={isDisabled}
+                  disabled={button.disabled}
+                  className="px-3"
                   onClick={async () => {
                     const shouldClose = await button.onClick();
                     if (shouldClose) {

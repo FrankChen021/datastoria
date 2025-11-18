@@ -33,6 +33,9 @@ interface DashboardPanelTableProps {
 
   // Initial loading state (useful for drilldown dialogs)
   initialLoading?: boolean;
+
+  // Callback when collapsed state changes
+  onCollapsedChange?: (isCollapsed: boolean) => void;
 }
 
 // Replace ORDER BY clause in SQL query
@@ -499,10 +502,10 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
     }, [props.selectedTimeSpan]);
 
     const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
-      componentId: descriptor.id,
       initialCollapsed: descriptor.collapsed ?? false,
       refreshInternal,
       getInitialParams,
+      onCollapsedChange: props.onCollapsedChange,
     });
 
     // Store refresh function in ref for use in handleSort

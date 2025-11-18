@@ -225,7 +225,7 @@ LIMIT 10`;
           id: "query-numbers",
           titleOption: {
             title: "Query Numbers",
-            align: "left",
+            align: "center",
           },
           collapsed: false,
           width: 12,

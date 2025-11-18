@@ -13,22 +13,24 @@ import DashboardPanelTimeseries from "./dashboard-panel-timeseries";
 import DashboardPanelTransposedTable from "./dashboard-panel-tranposd-table";
 import type { TimeSpan } from "./timespan-selector";
 
-interface DashboardPanelFactoryProps {
+interface DashboardPanelProps {
   descriptor: PanelDescriptor;
   selectedTimeSpan?: TimeSpan;
   initialLoading?: boolean;
   onRef?: (ref: DashboardPanelComponent | null) => void;
+  onCollapsedChange?: (isCollapsed: boolean) => void;
 }
 
 /**
  * Factory component to render different panel types
  * Used for both main dashboard panels and drilldown panels
  */
-export const DashboardPanelFactory: React.FC<DashboardPanelFactoryProps> = ({
+export const DashboardPanel: React.FC<DashboardPanelProps> = ({
   descriptor,
   selectedTimeSpan,
   initialLoading,
   onRef,
+  onCollapsedChange,
 }) => {
   if (descriptor.type === "stat") {
     return (
@@ -37,6 +39,7 @@ export const DashboardPanelFactory: React.FC<DashboardPanelFactoryProps> = ({
         descriptor={descriptor as StatDescriptor}
         selectedTimeSpan={selectedTimeSpan}
         initialLoading={initialLoading}
+        onCollapsedChange={onCollapsedChange}
       />
     );
   }
@@ -48,6 +51,7 @@ export const DashboardPanelFactory: React.FC<DashboardPanelFactoryProps> = ({
         descriptor={descriptor as TimeseriesDescriptor}
         selectedTimeSpan={selectedTimeSpan}
         initialLoading={initialLoading}
+        onCollapsedChange={onCollapsedChange}
       />
     );
   }
@@ -59,6 +63,7 @@ export const DashboardPanelFactory: React.FC<DashboardPanelFactoryProps> = ({
         descriptor={descriptor as TableDescriptor}
         selectedTimeSpan={selectedTimeSpan}
         initialLoading={initialLoading}
+        onCollapsedChange={onCollapsedChange}
       />
     );
   }
@@ -70,6 +75,7 @@ export const DashboardPanelFactory: React.FC<DashboardPanelFactoryProps> = ({
         descriptor={descriptor as TransposeTableDescriptor}
         selectedTimeSpan={selectedTimeSpan}
         initialLoading={initialLoading}
+        onCollapsedChange={onCollapsedChange}
       />
     );
   }

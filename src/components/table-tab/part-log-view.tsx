@@ -1,5 +1,4 @@
-import type { StatDescriptor, TableDescriptor } from "@/components/dashboard/dashboard-model";
-import type { Dashboard } from "@/components/dashboard/dashboard-model";
+import type { Dashboard, StatDescriptor, TableDescriptor } from "@/components/dashboard/dashboard-model";
 import DashboardPanels, { type DashboardPanelsRef } from "@/components/dashboard/dashboard-panels";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
 import { BUILT_IN_TIME_SPAN_LIST } from "@/components/dashboard/timespan-selector";
@@ -54,93 +53,13 @@ const PartLogViewComponent = forwardRef<RefreshableTabViewRef, PartLogViewProps>
         showAutoRefresh: false,
       },
       charts: [
+        //
+        // New Part
+        //
         {
           type: "stat",
-          id: `merge-count-${database}-${table}`,
           titleOption: {
-            title: "Number of Merges",
-            align: "center",
-          },
-          collapsed: false,
-          width: 2,
-          minimapOption: {
-            type: "line",
-          },
-          valueOption: {
-            reducer: "sum",
-            align: "center",
-            format: "comma_number",
-          },
-          query: {
-            sql: `
-SELECT 
-toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
-count()
-FROM system.part_log
-WHERE 
-    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
-    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
-    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
-    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
-    AND database = '${database}'
-    AND table = '${table}'
-    AND event_type = 'MergeParts'
-GROUP BY t
-ORDER BY t
-WITH FILL STEP {rounding:UInt32}
-`,
-            headers: {
-              "Content-Type": "text/plain",
-            },
-          },
-        } as StatDescriptor,
-
-        {
-          type: "stat",
-          id: `mutation-count-${database}-${table}`,
-          titleOption: {
-            title: "Number of Mutations",
-            align: "center",
-          },
-          collapsed: false,
-          width: 2,
-          minimapOption: {
-            type: "line",
-          },
-          valueOption: {
-            reducer: "sum",
-            align: "center",
-            format: "comma_number",
-          },
-          query: {
-            sql: `
-SELECT 
-toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
-count()
-FROM system.part_log
-WHERE 
-    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
-    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
-    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
-    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
-    AND database = '${database}'
-    AND table = '${table}'
-    AND event_type = 'MutatePart'
-GROUP BY t
-ORDER BY t
-WITH FILL STEP {rounding:UInt32}
-`,
-            headers: {
-              "Content-Type": "text/plain",
-            },
-          },
-        } as StatDescriptor,
-
-        {
-          type: "stat",
-          id: `new-part-count-${database}-${table}`,
-          titleOption: {
-            title: "Number of New Part",
+            title: "New Part",
             align: "center",
           },
           collapsed: false,
@@ -171,17 +90,241 @@ GROUP BY t
 ORDER BY t
 WITH FILL STEP {rounding:UInt32}
 `,
-            headers: {
-              "Content-Type": "text/plain",
-            },
+          },
+
+          drilldown: {
+            minimap: {
+              type: "table",
+              titleOption: {
+                title: "Merge Log",
+              },
+              query: {
+                sql: `
+                SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
+                AND 
+                    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+                    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+                    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+                    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+                    AND event_type = 'NewPart'
+                ORDER BY event_time DESC
+                `,
+              },
+              sortOption: {
+                initialSort: {
+                  column: "event_time",
+                  direction: "desc",
+                },
+              },
+            } as TableDescriptor,
+          },
+        } as StatDescriptor,
+
+        //
+        // Download Part
+        //
+        {
+          type: "stat",
+          titleOption: {
+            title: "Replication Part",
+            align: "center",
+          },
+          collapsed: false,
+          width: 2,
+          minimapOption: {
+            type: "line",
+          },
+          valueOption: {
+            reducer: "sum",
+            align: "center",
+            format: "comma_number",
+          },
+          query: {
+            sql: `
+SELECT 
+toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+count()
+FROM system.part_log
+WHERE 
+    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+    AND database = '${database}'
+    AND table = '${table}'
+    AND event_type = 'DownloadPart'
+GROUP BY t
+ORDER BY t
+WITH FILL STEP {rounding:UInt32}
+`,
+          },
+
+          drilldown: {
+            minimap: {
+              type: "table",
+              titleOption: {
+                title: "Merge Log",
+              },
+              query: {
+                sql: `
+                SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
+                AND 
+                    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+                    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+                    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+                    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+                    AND event_type = 'DownloadPart'
+                ORDER BY event_time DESC
+                `,
+              },
+              sortOption: {
+                initialSort: {
+                  column: "event_time",
+                  direction: "desc",
+                },
+              },
+            } as TableDescriptor,
+          },
+        } as StatDescriptor,
+
+        //
+        // Merges
+        //
+        {
+          type: "stat",
+          titleOption: {
+            title: "Merges",
+            align: "center",
+          },
+          collapsed: false,
+          width: 2,
+          minimapOption: {
+            type: "line",
+          },
+          valueOption: {
+            reducer: "sum",
+            align: "center",
+            format: "comma_number",
+          },
+          query: {
+            sql: `
+SELECT 
+toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+count()
+FROM system.part_log
+WHERE 
+    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+    AND database = '${database}'
+    AND table = '${table}'
+    AND event_type = 'MergeParts'
+GROUP BY t
+ORDER BY t
+WITH FILL STEP {rounding:UInt32}
+`,
+          },
+
+          drilldown: {
+            minimap: {
+              type: "table",
+              titleOption: {
+                title: "Merge Log",
+              },
+              query: {
+                sql: `
+                SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
+                AND 
+                    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+                    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+                    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+                    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+                    AND event_type = 'MergeParts'
+                ORDER BY event_time DESC
+                `,
+              },
+              sortOption: {
+                initialSort: {
+                  column: "event_time",
+                  direction: "desc",
+                },
+              },
+            } as TableDescriptor,
+          },
+        } as StatDescriptor,
+
+        //
+        // Mutations
+        //
+        {
+          type: "stat",
+          titleOption: {
+            title: "Mutations",
+            align: "center",
+          },
+          collapsed: false,
+          width: 2,
+          minimapOption: {
+            type: "line",
+          },
+          valueOption: {
+            reducer: "sum",
+            align: "center",
+            format: "comma_number",
+          },
+          query: {
+            sql: `
+SELECT 
+toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+count()
+FROM system.part_log
+WHERE 
+    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+    AND database = '${database}'
+    AND table = '${table}'
+    AND event_type = 'MutatePart'
+GROUP BY t
+ORDER BY t
+WITH FILL STEP {rounding:UInt32}
+`,
+          },
+
+          drilldown: {
+            minimap: {
+              type: "table",
+              titleOption: {
+                title: "Merge Log",
+              },
+              query: {
+                sql: `
+                SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
+                AND 
+                    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+                    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+                    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+                    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+                    AND event_type = 'MutatePart'
+                ORDER BY event_time DESC
+                `,
+              },
+              sortOption: {
+                initialSort: {
+                  column: "event_time",
+                  direction: "desc",
+                },
+              },
+            } as TableDescriptor,
           },
         } as StatDescriptor,
 
         {
           type: "stat",
-          id: `new-part-count-${database}-${table}`,
           titleOption: {
-            title: "Number of Removed Parts",
+            title: "Removed Parts",
             align: "center",
           },
           collapsed: false,
@@ -212,14 +355,10 @@ GROUP BY t
 ORDER BY t
 WITH FILL STEP {rounding:UInt32}
 `,
-            headers: {
-              "Content-Type": "text/plain",
-            },
           },
           drilldown: {
             minimap: {
               type: "table",
-              id: `part-log-${database}-${table}`,
               titleOption: {
                 title: "Remove Part Log",
               },
@@ -234,9 +373,6 @@ WITH FILL STEP {rounding:UInt32}
                     AND event_type = 'RemovePart'
                 ORDER BY event_time DESC
                 `,
-                headers: {
-                  "Content-Type": "text/plain",
-                },
               },
               sortOption: {
                 initialSort: {

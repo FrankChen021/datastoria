@@ -9,6 +9,7 @@ import "ace-builds/src-noconflict/theme-solarized_dark";
 import "./ace-setup";
 import "./completion/clickhouse-sql";
 
+import { TabManager } from "@/components/tab-manager";
 import { useTheme } from "@/components/theme-provider";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { QueryExecutor } from "../query-execution/query-executor";
@@ -26,6 +27,52 @@ let globalEditor: ExtendedEditor | undefined;
 
 export function QueryInputView() {
   const { selectedConnection } = useConnection();
+
+  // Listen for query tab activation events with query data
+  useEffect(() => {
+    const handler = (event: CustomEvent<import("@/components/tab-manager").OpenTabEventDetail>) => {
+      if (event.detail.type === "query" && event.detail.query) {
+        const { query, mode = "replace" } = event.detail;
+        
+        if (globalEditor) {
+          const session = globalEditor.getSession();
+          
+          if (mode === "replace") {
+            // Replace all text
+            globalEditor.setValue(query);
+            // Clear selection and move cursor to end
+            globalEditor.clearSelection();
+            const lines = session.getLength();
+            if (lines > 0) {
+              const lastLine = session.getLine(lines - 1);
+              globalEditor.moveCursorTo(lines - 1, lastLine.length);
+            }
+          } else if (mode === "insert") {
+            // Insert at the beginning (index 0)
+            const currentValue = globalEditor.getValue();
+            const newValue = currentValue ? `${query}\n\n${currentValue}` : query;
+            globalEditor.setValue(newValue);
+            
+            // Select the inserted text
+            // Calculate how many lines the query has
+            const queryLines = query.split('\n').length;
+            globalEditor.selection.setRange({
+              start: { row: 0, column: 0 },
+              end: { row: queryLines - 1, column: query.split('\n')[queryLines - 1].length }
+            });
+            
+            // Focus the editor
+            globalEditor.focus();
+          }
+          // Save to localStorage
+          QueryInputLocalStorage.saveInput(globalEditor.getValue());
+        }
+      }
+    };
+
+    const unsubscribe = TabManager.onOpenTab(handler);
+    return unsubscribe;
+  }, []);
   const { theme } = useTheme();
   const editorRef = useRef<ExtendedEditor | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);

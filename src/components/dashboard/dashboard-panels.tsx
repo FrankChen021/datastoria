@@ -4,7 +4,7 @@ import { connect } from "echarts";
 import { ChevronRight } from "lucide-react";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { Dashboard, DashboardGroup, GridPos, PanelDescriptor } from "./dashboard-model";
-import { DashboardPanelFactory } from "./dashboard-panel-factory";
+import { DashboardPanel } from "./dashboard-panel";
 import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
 import type { TimeSpan } from "./timespan-selector";
 
@@ -15,7 +15,6 @@ export interface DashboardPanelsRef {
 interface DashboardPanelsProps {
   dashboard: Dashboard;
   selectedTimeSpan: TimeSpan;
-  searchParams?: Record<string, unknown> | URLSearchParams;
   children?: React.ReactNode;
 }
 
@@ -219,28 +218,34 @@ function upgradeDashboard(dashboard: Dashboard): Dashboard {
 }
 
 // Component to render a panel with grid styling
-interface DashboardPanelProps {
+interface DashboardGridPanelProps {
   descriptor: PanelDescriptor;
   panelIndex: number;
   isVisible: boolean;
   onSubComponentUpdated: (subComponent: DashboardPanelComponent | null, index: number) => void;
   selectedTimeSpan: TimeSpan;
-  searchParams?: URLSearchParams;
+  isCollapsed: boolean;
+  onCollapsedChange: (isCollapsed: boolean) => void;
 }
 
-const DashboardPanel: React.FC<DashboardPanelProps> = ({
+const DashboardGridPanel: React.FC<DashboardGridPanelProps> = ({
   descriptor: chart,
   panelIndex,
   isVisible,
   onSubComponentUpdated,
   selectedTimeSpan,
-  searchParams,
+  isCollapsed,
+  onCollapsedChange,
 }) => {
   const gridPos = getGridPos(chart);
+  
+  // Use minimal row span (1) when collapsed, full height when expanded
+  const effectiveRowSpan = isCollapsed ? 1 : gridPos.h;
+  
   const gridStyle: React.CSSProperties = {
     display: isVisible ? "block" : "none",
     gridColumn: `span ${gridPos.w}`,
-    gridRow: `span ${gridPos.h}`,
+    gridRow: `span ${effectiveRowSpan}`,
   };
 
   // Use explicit positioning only if x/y are specified
@@ -250,25 +255,27 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   }
   if (gridPos.y !== undefined) {
     gridStyle.gridRowStart = gridPos.y + 1;
-    gridStyle.gridRowEnd = gridPos.y + 1 + gridPos.h;
+    gridStyle.gridRowEnd = gridPos.y + 1 + effectiveRowSpan;
   }
 
   return (
     <div style={gridStyle} className="w-full">
-      <DashboardPanelFactory
+      <DashboardPanel
         descriptor={chart}
         selectedTimeSpan={selectedTimeSpan}
-        searchParams={searchParams}
         onRef={(el) => onSubComponentUpdated(el, panelIndex)}
+        onCollapsedChange={onCollapsedChange}
       />
     </div>
   );
 };
 
 const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
-  ({ dashboard, selectedTimeSpan, searchParams = {}, children }, ref) => {
+  ({ dashboard, selectedTimeSpan, children }, ref) => {
     // Track group collapse states at component level
     const [groupCollapseStates, setGroupCollapseStates] = useState<Map<number, boolean>>(new Map());
+    // Track individual panel collapse states
+    const [panelCollapseStates, setPanelCollapseStates] = useState<Map<number, boolean>>(new Map());
     const subComponentRefs = useRef<(DashboardPanelComponent | null)[]>([]);
 
     // Upgrade dashboard version if needed and memoize only the charts array
@@ -344,10 +351,31 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
       });
     }, [groups, groupCollapseStates]);
 
+    // Initialize panel collapse states from descriptors
+    useEffect(() => {
+      allPanels.forEach((item, index) => {
+        if (!panelCollapseStates.has(index)) {
+          setPanelCollapseStates((prev) => {
+            const next = new Map(prev);
+            next.set(index, item.panel.collapsed ?? false);
+            return next;
+          });
+        }
+      });
+    }, [allPanels, panelCollapseStates]);
+
     const toggleGroup = useCallback((groupIndex: number) => {
       setGroupCollapseStates((prev) => {
         const next = new Map(prev);
         next.set(groupIndex, !(next.get(groupIndex) ?? false));
+        return next;
+      });
+    }, []);
+
+    const onPanelCollapsedChange = useCallback((panelIndex: number, isCollapsed: boolean) => {
+      setPanelCollapseStates((prev) => {
+        const next = new Map(prev);
+        next.set(panelIndex, isCollapsed);
         return next;
       });
     }, []);
@@ -483,7 +511,7 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
                           >
                             <div
                               onClick={() => toggleGroup(groupInfo.groupIndex)}
-                              className="flex items-center p-2 transition-colors gap-1 cursor-pointer hover:bg-muted/50"
+                              className="flex rounded-sm items-center p-2 transition-colors gap-1 cursor-pointer hover:bg-muted/50"
                               style={{
                                 backgroundColor: isCollapsed ? "var(--muted)" : "transparent",
                               }}
@@ -501,16 +529,18 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
                           {group.charts.map((chart: PanelDescriptor, chartIndex) => {
                             const panelIndex = groupInfo.startPanelIndex + chartIndex;
                             const isVisible = isPanelVisible(panelIndex) && !isCollapsed;
+                            const isPanelCollapsed = panelCollapseStates.get(panelIndex) ?? (chart.collapsed ?? false);
 
                             return (
-                              <DashboardPanel
+                              <DashboardGridPanel
                                 key={`panel-${panelIndex}`}
                                 descriptor={chart}
                                 panelIndex={panelIndex}
                                 isVisible={isVisible}
                                 onSubComponentUpdated={onSubComponentUpdated}
                                 selectedTimeSpan={memoizedTimeSpan}
-                                searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
+                                isCollapsed={isPanelCollapsed}
+                                onCollapsedChange={(collapsed) => onPanelCollapsedChange(panelIndex, collapsed)}
                               />
                             );
                           })}
@@ -524,16 +554,19 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
 
                       const isVisible = isPanelVisible(panelIndex);
                       if (!isVisible) return null;
+                      
+                      const isPanelCollapsed = panelCollapseStates.get(panelIndex) ?? (panelDescriptor.collapsed ?? false);
 
                       return (
-                        <DashboardPanel
+                        <DashboardGridPanel
                           key={`panel-${panelIndex}`}
                           descriptor={panelDescriptor}
                           panelIndex={panelIndex}
                           isVisible={isVisible}
                           onSubComponentUpdated={onSubComponentUpdated}
                           selectedTimeSpan={memoizedTimeSpan}
-                          searchParams={searchParams instanceof URLSearchParams ? searchParams : undefined}
+                          isCollapsed={isPanelCollapsed}
+                          onCollapsedChange={(collapsed) => onPanelCollapsedChange(panelIndex, collapsed)}
                         />
                       );
                     }

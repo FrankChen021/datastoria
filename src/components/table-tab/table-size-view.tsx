@@ -1,9 +1,8 @@
-import type { StatDescriptor, TableDescriptor } from "@/components/dashboard/dashboard-model";
-import DashboardContainer, { type DashboardContainerRef } from "@/components/dashboard/dashboard-container";
-import type { Dashboard } from "@/components/dashboard/dashboard-model";
+import type { Dashboard, StatDescriptor, TableDescriptor } from "@/components/dashboard/dashboard-model";
+import DashboardPanels, { type DashboardPanelsRef } from "@/components/dashboard/dashboard-panels";
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
 import { BUILT_IN_TIME_SPAN_LIST } from "@/components/dashboard/timespan-selector";
-import { forwardRef, memo, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { RefreshableTabViewRef } from "./table-tab";
 
 export interface TableSizeViewProps {
@@ -15,16 +14,32 @@ export interface TableSizeViewProps {
 const TableSizeViewComponent = forwardRef<RefreshableTabViewRef, TableSizeViewProps>(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ({ database, table, autoLoad: _autoLoad }, ref) => {
-    const dashboardContainerRef = useRef<DashboardContainerRef>(null);
+    const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | undefined>(undefined);
+    const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
+    const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan(), []);
 
-    useImperativeHandle(ref, () => ({
-      refresh: (timeSpan?: TimeSpan) => {
-        // Stat charts require a timeSpan even if the queries don't use it
-        // Provide a default timeSpan if none is provided
-        const effectiveTimeSpan = timeSpan || BUILT_IN_TIME_SPAN_LIST[3].calculateAbsoluteTimeSpan();
-        dashboardContainerRef.current?.refresh(effectiveTimeSpan);
-      },
-    }));
+    // Calculate current time span (use selected if available, otherwise default)
+    const currentTimeSpan = selectedTimeSpan ?? defaultTimeSpan;
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        refresh: (timeSpan?: TimeSpan) => {
+          if (timeSpan) {
+            // Update state - prop change will trigger automatic refresh in DashboardPanels
+            setSelectedTimeSpan(timeSpan);
+          } else {
+            // No timeSpan provided - explicitly refresh with current time span
+            // This handles the case when clicking refresh without changing the time range
+            setTimeout(() => {
+              dashboardPanelsRef.current?.refresh(currentTimeSpan);
+            }, 10);
+          }
+        },
+        supportsTimeSpanSelector: true,
+      }),
+      [currentTimeSpan]
+    );
 
     // Create dashboard with all table descriptors
     const dashboard = useMemo<Dashboard>(() => {
@@ -33,7 +48,12 @@ const TableSizeViewComponent = forwardRef<RefreshableTabViewRef, TableSizeViewPr
         folder: "table-size",
         title: "Table Size",
         version: 2,
-        filter: {},
+        filter: {
+          showFilterInput: false,
+          showTimeSpanSelector: false,
+          showRefresh: false,
+          showAutoRefresh: false,
+        },
         charts: [
           {
             type: "stat",
@@ -441,11 +461,7 @@ ORDER BY 1, 2, 3`,
       };
     }, [database, table]);
 
-    return (
-      <div className="h-full flex flex-col" style={{ height: "calc(100vh - 49px)" }}>
-        <DashboardContainer ref={dashboardContainerRef} dashboard={dashboard} />
-      </div>
-    );
+    return <DashboardPanels ref={dashboardPanelsRef} dashboard={dashboard} selectedTimeSpan={currentTimeSpan} />;
   }
 );
 

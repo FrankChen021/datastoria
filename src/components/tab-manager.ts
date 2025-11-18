@@ -55,6 +55,9 @@ export interface OpenTabEventDetail {
   // Query log tab fields
   queryId?: string;
   eventDate?: string;
+  // Query tab fields
+  query?: string;
+  mode?: "replace" | "insert";
 }
 
 /**
@@ -134,9 +137,13 @@ export class TabManager {
   /**
    * Emit an activate query tab event (query tab is always present, this just activates it)
    */
-  static sendActivateQueryTabRequest(): void {
+  static sendActivateQueryTabRequest(options?: { query?: string; mode?: "replace" | "insert" }): void {
     const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
-      detail: { type: "query" },
+      detail: { 
+        type: "query",
+        query: options?.query,
+        mode: options?.mode,
+      },
     });
     window.dispatchEvent(event);
   }

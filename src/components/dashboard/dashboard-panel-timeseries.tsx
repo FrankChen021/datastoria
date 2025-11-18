@@ -11,15 +11,15 @@ import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { Skeleton } from "../ui/skeleton";
 import { Dialog } from "../use-dialog";
 import { isTimestampColumn as isTimestampColumnUtil, transformRowsToChartData } from "./dashboard-data-utils";
-import type { PanelDescriptor, FieldOption, SQLQuery, TimeseriesDescriptor } from "./dashboard-model";
-import { DashboardPanelLayout } from "./dashboard-panel-layout";
-import { DashboardPanelFactory } from "./dashboard-panel-factory";
 import { showQueryDialog } from "./dashboard-dialog-utils";
+import type { FieldOption, PanelDescriptor, SQLQuery, TimeseriesDescriptor } from "./dashboard-model";
+import { DashboardPanel } from "./dashboard-panel";
 import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
+import { DashboardPanelLayout } from "./dashboard-panel-layout";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
-import { useRefreshable } from "./use-refreshable";
 import useIsDarkTheme from "./use-is-dark-theme";
+import { useRefreshable } from "./use-refreshable";
 
 // Wrapper component that uses imperative refresh instead of remounting
 // This prevents the drilldown component from losing its state when the time span changes
@@ -57,7 +57,7 @@ const DrilldownChartRendererWithRefresh: React.FC<{
   }
 
   // Render with stable key (not including timeSpan) and ref
-  return <DashboardPanelFactory descriptor={descriptor} selectedTimeSpan={selectedTimeSpan} onRef={setComponentRef} />;
+  return <DashboardPanel descriptor={descriptor} selectedTimeSpan={selectedTimeSpan} onRef={setComponentRef} />;
 };
 
 interface DashboardPanelTimeseriesProps {
@@ -69,6 +69,9 @@ interface DashboardPanelTimeseriesProps {
 
   // Initial loading state (useful for drilldown dialogs)
   initialLoading?: boolean;
+
+  // Callback when collapsed state changes
+  onCollapsedChange?: (isCollapsed: boolean) => void;
 }
 
 const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPanelTimeseriesProps>(
@@ -836,10 +839,10 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
     }, [propSelectedTimeSpan]);
 
     const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
-      componentId: descriptor.id,
       initialCollapsed: descriptor.collapsed ?? false,
       refreshInternal,
       getInitialParams,
+      onCollapsedChange: props.onCollapsedChange,
     });
 
     // Initial load when component mounts or when props change
@@ -1103,7 +1106,6 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
     return (
       <DashboardPanelLayout
         componentRef={componentRef}
-        className=""
         isLoading={isLoading}
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}

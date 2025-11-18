@@ -15,8 +15,8 @@ import { CardContent, CardFooter, CardTitle } from "../ui/card";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { Skeleton } from "../ui/skeleton";
 import { Dialog } from "../use-dialog";
-import { classifyColumns, transformRowsToChartData } from "./dashboard-data-utils";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
+import { classifyColumns, transformRowsToChartData } from "./dashboard-data-utils";
 import { showQueryDialog } from "./dashboard-dialog-utils";
 import type {
   MinimapOption,
@@ -26,9 +26,9 @@ import type {
   StatDescriptor,
   TableDescriptor,
 } from "./dashboard-model";
+import { DashboardPanel } from "./dashboard-panel";
 import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
 import { DashboardPanelLayout } from "./dashboard-panel-layout";
-import { DashboardPanelFactory } from "./dashboard-panel-factory";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
 import useIsDarkTheme from "./use-is-dark-theme";
@@ -43,6 +43,9 @@ interface DashboardPanelStatProps {
 
   // Initial loading state (useful for drilldown dialogs)
   initialLoading?: boolean;
+
+  // Callback when collapsed state changes
+  onCollapsedChange?: (isCollapsed: boolean) => void;
 }
 
 interface MinimapDataPoint {
@@ -709,11 +712,11 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
       return props.selectedTimeSpan ? ({ selectedTimeSpan: props.selectedTimeSpan } as RefreshOptions) : undefined;
     }, [props.selectedTimeSpan]);
 
-    const { componentRef, refresh, getLastRefreshParameter } = useRefreshable({
-      componentId: descriptor.id,
+    const { componentRef, isCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
       initialCollapsed: false, // Stat chart is always "expanded"
       refreshInternal,
       getInitialParams,
+      onCollapsedChange: props.onCollapsedChange,
     });
 
     // Auto-scale text to fit container
@@ -979,7 +982,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
         disableContentScroll: false,
            mainContent: (
              <div className="w-full h-full overflow-auto">
-               <DashboardPanelFactory
+               <DashboardPanel
                  descriptor={modifiedDescriptor}
                  selectedTimeSpan={selectedTimeSpan}
                  initialLoading={true}
@@ -1038,7 +1041,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
           disableContentScroll: false,
           mainContent: (
             <div className="w-full h-full overflow-auto">
-              <DashboardPanelFactory
+              <DashboardPanel
                 descriptor={modifiedDescriptor}
                 selectedTimeSpan={selectedTimeSpan}
                 initialLoading={true}
