@@ -237,8 +237,14 @@ WITH FILL STEP {rounding:UInt32}
                 headers: {
                   "Content-Type": "text/plain",
                 },
-              }
-            } as TableDescriptor
+              },
+              sortOption: {
+                initialSort: {
+                  column: "event_time",
+                  direction: "desc",
+                },
+              },
+            } as TableDescriptor,
           },
         } as StatDescriptor,
       ],

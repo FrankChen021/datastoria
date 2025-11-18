@@ -3,6 +3,7 @@
 import { Api, type ApiCanceller, type ApiErrorResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { cn } from "@/lib/utils";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Formatter, type FormatName } from "../../lib/formatter";
@@ -97,6 +98,13 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
     // Refs for skeleton timing
     const skeletonStartTimeRef = useRef<number | null>(null);
     const skeletonTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Ref for virtualization scroll container
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Virtualization constants
+    const VIRTUALIZATION_THRESHOLD = 500;
+    const ESTIMATED_ROW_HEIGHT = 33; // Height of a table row in pixels
+    const OVERSCAN_COUNT = 50; // Render extra rows above/below viewport for smoother scrolling
 
     // Normalize fieldOptions: convert Map/Record to array of FieldOption, handling position ordering
     const normalizeFieldOptions = useCallback((): Map<string, FieldOption> => {
@@ -673,6 +681,23 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
       });
     }, [data, sort, descriptor.sortOption]);
 
+    // Determine if virtualization should be used
+    const useVirtualization = sortedData.length > VIRTUALIZATION_THRESHOLD;
+
+    // Setup virtualizer for large datasets
+    const rowVirtualizer = useVirtualizer({
+      count: sortedData.length,
+      getScrollElement: () => scrollContainerRef.current,
+      estimateSize: () => ESTIMATED_ROW_HEIGHT,
+      overscan: OVERSCAN_COUNT,
+      enabled: useVirtualization,
+      // Improve scrolling performance
+      measureElement:
+        typeof window !== "undefined" && navigator.userAgent.includes("Firefox")
+          ? undefined
+          : (element) => element.getBoundingClientRect().height,
+    });
+
     // Render functions for TableBody
     const renderError = useCallback(() => {
       if (!error) return null;
@@ -731,6 +756,77 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
       // Don't show data while skeleton is visible (during minimum display time)
       // Don't hide data during refresh - keep showing existing data until new data arrives
       if (error || data.length === 0 || shouldShowSkeleton) return null;
+
+      // Use virtualization for large datasets
+      if (useVirtualization) {
+        const virtualItems = rowVirtualizer.getVirtualItems();
+        const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
+        const paddingBottom =
+          virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
+
+        return (
+          <>
+            {paddingTop > 0 && (
+              <TableRow style={{ height: `${paddingTop}px` }}>
+                <TableCell colSpan={columns.length + (descriptor.showIndexColumn ? 1 : 0)} className="!p-0 !border-0" />
+              </TableRow>
+            )}
+            {virtualItems.map((virtualRow) => {
+              const rowIndex = virtualRow.index;
+              const row = sortedData[rowIndex];
+              if (!row) return null;
+
+              return (
+                <TableRow
+                  key={virtualRow.key}
+                  data-index={virtualRow.index}
+                  style={{
+                    contain: "layout style paint",
+                    contentVisibility: "auto",
+                  }}
+                >
+                  {descriptor.showIndexColumn && (
+                    <TableCell className="text-center whitespace-nowrap !p-2">{rowIndex + 1}</TableCell>
+                  )}
+                  {columns.map((fieldOption) => {
+                    if (!fieldOption.name) return null;
+
+                    // Handle action columns
+                    if (fieldOption.renderAction) {
+                      return (
+                        <TableCell
+                          key={fieldOption.name}
+                          className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap !p-2")}
+                        >
+                          {fieldOption.renderAction(row, rowIndex)}
+                        </TableCell>
+                      );
+                    }
+
+                    // Regular data columns
+                    const value = row[fieldOption.name];
+                    return (
+                      <TableCell
+                        key={fieldOption.name}
+                        className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap !p-2")}
+                      >
+                        {formatCellValue(value, fieldOption, row)}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              );
+            })}
+            {paddingBottom > 0 && (
+              <TableRow style={{ height: `${paddingBottom}px` }}>
+                <TableCell colSpan={columns.length + (descriptor.showIndexColumn ? 1 : 0)} className="!p-0 !border-0" />
+              </TableRow>
+            )}
+          </>
+        );
+      }
+
+      // Standard rendering for smaller datasets
       return (
         <>
           {sortedData.map((row, rowIndex) => (
@@ -777,6 +873,8 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
       getCellAlignmentClass,
       formatCellValue,
       descriptor.showIndexColumn,
+      useVirtualization,
+      rowVirtualizer,
     ]);
 
     const isStickyHeader = descriptor.headOption?.isSticky === true;
@@ -852,6 +950,84 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
     const renderDataDirect = useCallback(() => {
       // Don't show data while skeleton is visible (during minimum display time)
       if (error || data.length === 0 || shouldShowSkeleton) return null;
+
+      // Use virtualization for large datasets
+      if (useVirtualization) {
+        const virtualItems = rowVirtualizer.getVirtualItems();
+        const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
+        const paddingBottom =
+          virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
+
+        return (
+          <>
+            {paddingTop > 0 && (
+              <tr>
+                <td colSpan={columns.length + (descriptor.showIndexColumn ? 1 : 0)} style={{ height: paddingTop }} />
+              </tr>
+            )}
+            {virtualItems.map((virtualRow) => {
+              const rowIndex = virtualRow.index;
+              const row = sortedData[rowIndex];
+              if (!row) return null;
+
+              return (
+                <tr
+                  key={virtualRow.key}
+                  className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                >
+                  {descriptor.showIndexColumn && (
+                    <td className="p-4 align-middle text-center whitespace-nowrap !p-2">{rowIndex + 1}</td>
+                  )}
+                  {columns.map((fieldOption) => {
+                    if (!fieldOption.name) return null;
+
+                    // Handle action columns
+                    if (fieldOption.renderAction) {
+                      return (
+                        <td
+                          key={fieldOption.name}
+                          className={cn(
+                            "p-4 align-middle",
+                            getCellAlignmentClass(fieldOption),
+                            "whitespace-nowrap !p-2"
+                          )}
+                        >
+                          {fieldOption.renderAction(row, rowIndex)}
+                        </td>
+                      );
+                    }
+
+                    // Regular data columns
+                    const value = row[fieldOption.name];
+                    // For percentage_bar format, don't apply whitespace-nowrap to allow the bar to render properly
+                    const shouldWrap = fieldOption.format === "percentage_bar";
+                    return (
+                      <td
+                        key={fieldOption.name}
+                        className={cn(
+                          "p-4 align-middle",
+                          getCellAlignmentClass(fieldOption),
+                          !shouldWrap && "whitespace-nowrap",
+                          "!p-2"
+                        )}
+                      >
+                        {formatCellValue(value, fieldOption, row)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+            {paddingBottom > 0 && (
+              <tr>
+                <td colSpan={columns.length + (descriptor.showIndexColumn ? 1 : 0)} style={{ height: paddingBottom }} />
+              </tr>
+            )}
+          </>
+        );
+      }
+
+      // Standard rendering for smaller datasets
       return (
         <>
           {sortedData.map((row, rowIndex) => (
@@ -905,6 +1081,8 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
       getCellAlignmentClass,
       formatCellValue,
       descriptor.showIndexColumn,
+      useVirtualization,
+      rowVirtualizer,
     ]);
 
     return (
@@ -918,6 +1096,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
         dropdownItems={dropdownItems}
       >
         <CardContent
+          ref={scrollContainerRef}
           className={cn("px-0 p-0", !isStickyHeader && "overflow-auto", isStickyHeader && "overflow-auto")}
           style={descriptor.height ? ({ maxHeight: `${descriptor.height}vh` } as React.CSSProperties) : undefined}
         >
