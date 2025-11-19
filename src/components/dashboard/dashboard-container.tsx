@@ -12,13 +12,12 @@ export interface DashboardContainerRef {
 
 interface DashboardViewProps {
   dashboard: Dashboard;
-  searchParams?: Record<string, unknown> | URLSearchParams;
   headerActions?: React.ReactNode;
   children?: React.ReactNode;
 }
 
 const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>(
-  ({ dashboard, searchParams = {}, headerActions, children }, ref) => {
+  ({ dashboard, headerActions, children }, ref) => {
     const filterRef = useRef<TimeSpanSelector | null>(null);
     const panelsRef = useRef<DashboardPanelsRef>(null);
     const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | null>(null);
@@ -111,7 +110,6 @@ const DashboardContainer = forwardRef<DashboardContainerRef, DashboardViewProps>
           ref={panelsRef}
           dashboard={dashboard}
           selectedTimeSpan={currentTimeSpan}
-          searchParams={searchParams}
           children={children}
         />
       </div>

@@ -572,7 +572,15 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
                     }
                   })}
 
-                  {children}
+                  {children && (
+                    <div
+                      style={{
+                        gridColumn: "1 / -1",
+                      }}
+                    >
+                      {children}
+                    </div>
+                  )}
                 </div>
               );
             })()}

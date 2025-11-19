@@ -226,7 +226,7 @@ const GraphControlPanel = ({
     onClearSearch();
     // Only close search panel if there's no query
     if (!searchQuery.trim()) {
-    setShowSearch(false);
+      setShowSearch(false);
     }
   }, [onClearSearch, searchQuery]);
 
@@ -234,161 +234,148 @@ const GraphControlPanel = ({
     <TooltipProvider>
       <Panel position="top-right" className="!m-1">
         <div className="flex items-start gap-1">
-        <div className="bg-background rounded-md shadow-lg">
-          <div className="flex items-center gap-1">
-            {showSearch && (
-              <>
-                <Input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search tables..."
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  className="border-0 border-b rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 h-8 px-2 bg-transparent flex-1"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      if (selectedNodeId) {
-                        onNextMatch();
-                      } else {
-                        onFocusFirstMatch();
+          <div className="bg-background rounded-md shadow-lg">
+            <div className="flex items-center gap-1">
+              {showSearch && (
+                <>
+                  <Input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Search tables..."
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    className="border-0 border-b rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 h-8 px-2 bg-transparent flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        if (selectedNodeId) {
+                          onNextMatch();
+                        } else {
+                          onFocusFirstMatch();
+                        }
+                      } else if (e.key === "Enter" && e.shiftKey) {
+                        e.preventDefault();
+                        onPreviousMatch();
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        handleClearSearch();
                       }
-                    } else if (e.key === "Enter" && e.shiftKey) {
-                      e.preventDefault();
-                      onPreviousMatch();
-                    } else if (e.key === "Escape") {
-                      e.preventDefault();
-                      handleClearSearch();
-                    }
-                  }}
-                />
-                {searchQuery && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={handleClearSearch}
-                        className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
-                        aria-label="Clear search"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Clear search</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
+                    }}
+                  />
+                  {searchQuery && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={handleClearSearch}
+                          className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
+                          aria-label="Clear search"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Clear search</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleSearchClick}
+                    className="h-8 w-8 flex-shrink-0"
+                    aria-label={showSearch ? "Hide search" : "Show search"}
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{showSearch ? "Hide search" : "Show search"}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            {showSearch && searchQuery && matchingNodeIds.size === 0 && (
+              <div className="px-3 py-1.5 text-xs text-muted-foreground">No tables found</div>
+            )}
+            {showSearch && searchQuery && matchingNodeIds.size > 0 && (
+              <>
+                <div className="px-3 min-h-[2rem] flex items-center text-xs text-muted-foreground">
+                  {selectedNodeId
+                    ? `${Array.from(matchingNodeIds).indexOf(selectedNodeId) + 1}/${matchingNodeIds.size} `
+                    : `${matchingNodeIds.size} tables found. `}
+                  Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Enter</kbd>/
+                  <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Shift+Enter</kbd> to locate
+                </div>
               </>
             )}
+          </div>
+          <div className="bg-background rounded-md shadow-lg flex items-center">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={onZoomIn} className="h-8 w-8" aria-label="Zoom in">
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Zoom in</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={onZoomOut} className="h-8 w-8" aria-label="Zoom out">
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Zoom out</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={onFitView} className="h-8 w-8" aria-label="Fit view">
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Fit view</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <div className="bg-background rounded-md shadow-lg">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={handleSearchClick}
-                  className="h-8 w-8 flex-shrink-0"
-                  aria-label={showSearch ? "Hide search" : "Show search"}
+                  onClick={handleFullscreenToggle}
+                  className="h-8 w-8"
+                  aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
                 >
-                  <Search className="h-4 w-4" />
+                  {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{showSearch ? "Hide search" : "Show search"}</p>
+                <p>{isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}</p>
               </TooltipContent>
             </Tooltip>
           </div>
-          {showSearch && searchQuery && matchingNodeIds.size === 0 && (
-            <div className="px-3 py-1.5 text-xs text-muted-foreground">No tables found</div>
-          )}
-          {showSearch && searchQuery && matchingNodeIds.size > 0 && (
-            <>
-              <div className="px-3 min-h-[2rem] flex items-center text-xs text-muted-foreground">
-                {selectedNodeId
-                  ? `${Array.from(matchingNodeIds).indexOf(selectedNodeId) + 1}/${matchingNodeIds.size}`
-                  : `${matchingNodeIds.size} tables found.`}
-              </div>
-              <div className="px-3 min-h-[2rem] flex items-center text-xs text-muted-foreground">
-                Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Enter</kbd>/
-                <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Shift+Enter</kbd> to locate
-              </div>
-            </>
-          )}
         </div>
-        <div className="bg-background rounded-md shadow-lg flex items-center">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onZoomIn}
-                className="h-8 w-8"
-                aria-label="Zoom in"
-              >
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Zoom in</p>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onZoomOut}
-                className="h-8 w-8"
-                aria-label="Zoom out"
-              >
-                <ZoomOut className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Zoom out</p>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onFitView}
-                className="h-8 w-8"
-                aria-label="Fit view"
-              >
-                <Maximize2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Fit view</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-        <div className="bg-background rounded-md shadow-lg">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleFullscreenToggle}
-                className="h-8 w-8"
-                aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-              >
-                {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-    </Panel>
+      </Panel>
     </TooltipProvider>
   );
 };
 
-const DependencyGraphFlowInner = ({ nodes, edges, onNodeClick, className, style, database }: DependencyGraphFlowProps) => {
+const DependencyGraphFlowInner = ({
+  nodes,
+  edges,
+  onNodeClick,
+  className,
+  style,
+  database,
+}: DependencyGraphFlowProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const { fitView, getNode, zoomIn, zoomOut } = useReactFlow();
@@ -664,9 +651,12 @@ const DependencyGraphFlowInner = ({ nodes, edges, onNodeClick, className, style,
     }
   }, [matchingNodeIds, selectedNodeId, getNode, fitView]);
 
-
   return (
-    <div ref={containerRef} className={className} style={{ width: "100%", height: "100%", position: "relative", ...style }}>
+    <div
+      ref={containerRef}
+      className={className}
+      style={{ width: "100%", height: "100%", position: "relative", ...style }}
+    >
       <style>{`
         .react-flow__attribution {
           display: none !important;
@@ -716,7 +706,10 @@ const DependencyGraphFlowInner = ({ nodes, edges, onNodeClick, className, style,
         />
       </ReactFlow>
       {flowEdges.length > 0 && (
-        <div className="absolute top-1 left-1 bg-background/95 backdrop-blur-sm shadow-lg text-xs text-muted-foreground pointer-events-none" style={{ zIndex: 1000 }}>
+        <div
+          className="absolute top-1 left-1 bg-background/95 backdrop-blur-sm shadow-lg text-xs text-muted-foreground pointer-events-none"
+          style={{ zIndex: 1000 }}
+        >
           💡 Use scroll wheel or trackpad to zoom, drag to pan
         </div>
       )}

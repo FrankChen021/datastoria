@@ -483,12 +483,15 @@ export function SchemaTreeView({ tabId }: SchemaTreeViewProps) {
 
       // Ensure responseServer is a string
       const serverName = String(responseServer || "Unknown");
+      
+      // Strip the Kubernetes cluster suffix if present
+      const displayName = serverName.replace(/\.svc\.cluster\.local$/, "");
 
       const [totalTables, databaseNodes] = toDatabaseTreeNodes(tables);
 
       const hostNode: TreeDataItem = {
         id: "host",
-        text: serverName,
+        text: displayName,
         search: serverName.toLowerCase(),
         icon: Monitor,
         type: "folder",

@@ -1,297 +1,171 @@
-import type { TableDescriptor, TransposeTableDescriptor } from "@/components/dashboard/dashboard-model";
-import DashboardContainer, { type DashboardContainerRef } from "@/components/dashboard/dashboard-container";
-import type { Dashboard } from "@/components/dashboard/dashboard-model";
-import { CollapsibleDependencyView } from "@/components/dependency-view/collapsible-dependency-view";
-import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
-import type { FormatName } from "@/lib/formatter";
-import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
+import TimeSpanSelector, {
+  type DisplayTimeSpan,
+  type TimeSpan,
+  BUILT_IN_TIME_SPAN_LIST,
+} from "@/components/dashboard/timespan-selector";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RefreshCw } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DependencyView } from "../dependency-view/dependency-view";
 import type { RefreshableTabViewRef } from "../table-tab/table-tab";
+import { DatabaseOverview } from "./database-overview";
+import type { DashboardPanelsRef } from "@/components/dashboard/dashboard-panels";
 
 export interface DatabaseTabProps {
   database: string;
   tabId?: string;
 }
 
-interface TableInfo {
-  database: string;
-  name: string;
-  engine: string;
-  total_rows: number;
-  total_bytes: number;
+interface TabMetadata {
+  loaded: boolean;
+  supportRefresh: boolean;
+  supportsTimeSpan: boolean;
 }
 
-const DatabaseTabComponent = forwardRef<RefreshableTabViewRef, DatabaseTabProps>(({ database }, ref) => {
-  const dashboardContainerRef = useRef<DashboardContainerRef>(null);
+const DatabaseTabComponent = ({ database }: DatabaseTabProps) => {
+  const [activeTab, setActiveTab] = useState<string>("overview");
+  const [tabsMetadata, setTabsMetadata] = useState<Map<string, TabMetadata>>(
+    new Map([
+      ["overview", { loaded: true, supportRefresh: true, supportsTimeSpan: false }],
+    ])
+  );
+  const [selectedTimeSpan, setSelectedTimeSpan] = useState<DisplayTimeSpan>(
+    BUILT_IN_TIME_SPAN_LIST[3] // Default to "Last 15 Mins"
+  );
 
-  const handleRefresh = useCallback(() => {
-    // Refresh the dashboard container (which includes both the database info and tables)
-    dashboardContainerRef.current?.refresh();
-  }, []);
+  // Refs for each tab view
+  const overviewRef = useRef<DashboardPanelsRef>(null);
+  const dependencyRef = useRef<RefreshableTabViewRef>(null);
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      refresh: handleRefresh,
-      supportsTimeSpanSelector: false,
-    }),
+  // Helper function to get the current ref based on active tab
+  const getCurrentRef = useCallback((): DashboardPanelsRef | RefreshableTabViewRef | null => {
+    switch (activeTab) {
+      case "overview":
+        return overviewRef.current;
+      case "dependency":
+        return dependencyRef.current;
+      default:
+        return null;
+    }
+  }, [activeTab]);
+
+  // Update tab metadata when tab changes
+  useEffect(() => {
+    const rafId = requestAnimationFrame(() => {
+      const ref = getCurrentRef();
+      const hasRefreshCap = ref !== null && "refresh" in ref && typeof ref.refresh === "function";
+
+      setTabsMetadata((prev) => {
+        const next = new Map(prev);
+        const existing = next.get(activeTab);
+        
+        // Initialize or update tab metadata
+        // Keep existing supportsTimeSpan value if already set
+        next.set(activeTab, {
+          loaded: true, // Mark as loaded when accessed
+          supportRefresh: hasRefreshCap,
+          supportsTimeSpan: existing?.supportsTimeSpan ?? false,
+        });
+        
+        return next;
+      });
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [activeTab, getCurrentRef]);
+
+  const handleRefresh = useCallback(
+    (overrideTimeSpan?: TimeSpan) => {
+      const currentRef = getCurrentRef();
+      if (currentRef && "refresh" in currentRef && typeof currentRef.refresh === "function") {
+        const metadata = tabsMetadata.get(activeTab);
+        const timeSpan =
+          overrideTimeSpan ?? (metadata?.supportsTimeSpan ? selectedTimeSpan.getTimeSpan() : undefined);
+        currentRef.refresh(timeSpan);
+      }
+    },
+    [getCurrentRef, tabsMetadata, activeTab, selectedTimeSpan]
+  );
+
+  const handleTimeSpanChanged = useCallback(
+    (span: DisplayTimeSpan) => {
+      setSelectedTimeSpan(span);
+      const timeSpan = span.calculateAbsoluteTimeSpan();
+      handleRefresh(timeSpan);
+    },
     [handleRefresh]
   );
 
-  // Create dashboard with both the database info and tables descriptors
-  const dashboard = useMemo<Dashboard>(() => {
-    return {
-      version: 2,
-      name: `database-${database}`,
-      folder: "",
-      title: "Database",
-      filter: {
-        showFilterInput: false,
-        showTimeSpanSelector: false,
-        showRefresh: false,
-        showAutoRefresh: false,
-      },
-      charts: [
-        {
-          type: "stat",
-          titleOption: {
-            title: "Size of Database",
-            align: "center",
-          },
-          collapsed: false,
-          width: 6,
-          query: {
-            sql: `
-SELECT
-  sum(bytes_on_disk)
-FROM
-  system.parts 
-WHERE
-  active 
-  AND database = '${database}'
-`,
-          },
-          valueOption: {
-            format: "binary_size",
-          },
-        },
+  // Memoize the calculated timeSpan to prevent unnecessary refreshes
+  const calculatedTimeSpan = useMemo(
+    () => selectedTimeSpan.calculateAbsoluteTimeSpan(),
+    [selectedTimeSpan]
+  );
 
-        // Number of tables in the database
-        {
-          type: "stat",
-          titleOption: {
-            title: "Number of Tables",
-            align: "center",
-          },
-          collapsed: false,
-          width: 6,
-          query: {
-            sql: `
-SELECT
-  count()
-FROM
-  system.tables
-WHERE
-  database = '${database}'
-`,
-          },
-        },
-
-        // Number of tables in the database
-        {
-          type: "stat",
-          titleOption: {
-            title: "Size Percentage of All Disks",
-            align: "center",
-          },
-          collapsed: false,
-          width: 6,
-          query: {
-            sql: `
-SELECT
-    sum(bytes_on_disk) / (SELECT sum(total_space-keep_free_space) from system.disks) as size_percentage
-FROM
-  system.parts
-WHERE
-  database = '${database}'
-  AND active = 1
-`,
-          },
-          valueOption: {
-            format: "percentage_0_1",
-          },
-        },
-
-        {
-          type: "stat",
-          titleOption: {
-            title: "Size Percentage of All Databases",
-            align: "center",
-          },
-          collapsed: false,
-          width: 6,
-          query: {
-            sql: `
-SELECT
-  database_size / total_size as size_percentage
-FROM (
-  SELECT
-      sum(bytes_on_disk) as total_size,
-      sumIf(bytes_on_disk, database = '${database}') as database_size
-  FROM
-    system.parts
-  WHERE
-    active = 1
-)
-`,
-          },
-          valueOption: {
-            format: "percentage_0_1",
-          },
-        },
-
-        // Database metadata
-        {
-          type: "transpose-table",
-          id: `database-info-${database}`,
-          titleOption: {
-            title: "Database Metadata",
-            align: "left",
-          },
-          collapsed: true,
-          width: 24,
-          query: {
-            sql: `
-select 
-  *
-from system.databases
-where database = '${database}'
-`,
-          },
-        } as TransposeTableDescriptor,
-        {
-          type: "table",
-          id: `database-tables-${database}`,
-          titleOption: {
-            title: "Tables",
-            align: "left",
-          },
-          collapsed: true,
-          width: 24,
-          query: {
-            sql: `
-SELECT
-    T.name, 
-    part.part_count, 
-    part.rows, 
-    part.on_disk_size, 
-    part.uncompressed_size, 
-    part.size_percent,
-    T.engine, 
-    T.metadata_modification_time,
-    part.last_modification_time
-FROM 
-    system.tables AS T
-LEFT JOIN
-(
-    SELECT 
-        table,
-        max(modification_time) as last_modification_time,
-        count(1) as part_count,
-        sum(rows) as rows,
-        sum(bytes_on_disk) AS on_disk_size,
-        sum(data_uncompressed_bytes) AS uncompressed_size,
-        on_disk_size * 100 / (SELECT sum(bytes_on_disk) FROM system.parts WHERE database = '${database}') AS size_percent
-    FROM
-        system.parts
-    WHERE database = '${database}'
-    AND active
-    GROUP BY table
-) AS part
-ON T.table = part.table
-WHERE T.database = '${database}'
-ORDER BY on_disk_size DESC
-`,
-          },
-          fieldOptions: {
-            name: {
-              title: "Table Name",
-              sortable: true,
-              align: "left" as const,
-              renderAction: (row: unknown) => {
-                const tableRow = row as TableInfo;
-                return (
-                  <OpenTableTabButton
-                    database={database}
-                    table={tableRow.name}
-                    engine={tableRow.engine}
-                    showDatabase={false}
-                  />
-                );
-              },
-            },
-            engine: {
-              title: "Engine",
-              sortable: true,
-              align: "left" as const,
-            },
-            metadata_modification_time: {
-              title: "Metadata Modified At",
-              sortable: true,
-              align: "left" as const,
-              format: "yyyyMMddHHmmss" as FormatName,
-            },
-            last_modification_time: {
-              title: "Data Modified At",
-              sortable: true,
-              align: "left" as const,
-              format: "yyyyMMddHHmmss" as FormatName,
-            },
-            size_percent: {
-              title: "Size Distribution in This Database",
-              sortable: true,
-              align: "left" as const,
-              format: "percentage_bar" as FormatName,
-            },
-            part_count: {
-              title: "Part Count",
-              sortable: true,
-              align: "center" as const,
-              format: "comma_number" as FormatName,
-            },
-            on_disk_size: {
-              title: "Size On Disk",
-              sortable: true,
-              align: "center" as const,
-              format: "binary_size" as FormatName,
-            },
-            uncompressed_size: {
-              title: "Uncompressed Size",
-              sortable: true,
-              align: "center" as const,
-              format: "binary_size" as FormatName,
-            },
-          },
-          sortOption: {
-            initialSort: {
-              column: "on_disk_size",
-              direction: "desc",
-            },
-          },
-        } as TableDescriptor,
-      ],
-    };
-  }, [database]);
+  const currentMetadata = tabsMetadata.get(activeTab);
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden p-2 gap-2">
-      <div className="flex-1 min-h-0">
-        <DashboardContainer ref={dashboardContainerRef} dashboard={dashboard}>
-          <CollapsibleDependencyView database={database} defaultOpen={false} className="flex-shrink-0" />
-        </DashboardContainer>
-      </div>
+    <div className="h-full w-full flex flex-col overflow-hidden">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex justify-between items-center gap-2 m-2">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="dependency">Database Dependency</TabsTrigger>
+          </TabsList>
+          {currentMetadata?.supportRefresh && (
+            <div className="flex items-center gap-2">
+              {currentMetadata?.supportsTimeSpan && (
+                <TimeSpanSelector
+                  defaultTimeSpan={selectedTimeSpan}
+                  showTimeSpanSelector={true}
+                  showRefresh={false}
+                  showAutoRefresh={false}
+                  size="sm"
+                  onSelectedSpanChanged={handleTimeSpanChanged}
+                />
+              )}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleRefresh()}
+                className="h-9 w-9"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+        <div className="flex-1 relative overflow-hidden">
+          {/* Overview tab */}
+          <div
+            className={`absolute inset-0 overflow-auto px-2 ${activeTab === "overview" ? "block" : "hidden"}`}
+            role="tabpanel"
+            aria-hidden={activeTab !== "overview"}
+          >
+            {tabsMetadata.get("overview")?.loaded && (
+              <DatabaseOverview
+                ref={overviewRef}
+                database={database}
+                selectedTimeSpan={calculatedTimeSpan}
+              />
+            )}
+          </div>
+          {/* Database Dependency tab */}
+          <div
+            className={`absolute inset-0 overflow-auto px-2 ${activeTab === "dependency" ? "block" : "hidden"}`}
+            role="tabpanel"
+            aria-hidden={activeTab !== "dependency"}
+          >
+            {tabsMetadata.get("dependency")?.loaded && (
+              <DependencyView database={database} />
+            )}
+          </div>
+        </div>
+      </Tabs>
     </div>
   );
-});
+};
 
 DatabaseTabComponent.displayName = "DatabaseTab";
 

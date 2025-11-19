@@ -261,7 +261,6 @@ export interface TimeseriesDescriptor extends PanelDescriptor {
 
 export type DashboardFilter = {
   selectors?: SelectorUI[];
-  showFilterInput?: boolean;
   showTimeSpanSelector?: boolean;
   showRefresh?: boolean;
   showAutoRefresh?: boolean;
