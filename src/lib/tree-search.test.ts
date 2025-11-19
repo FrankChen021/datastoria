@@ -7,14 +7,13 @@ import { searchTree } from "./tree-search";
  */
 function createNode(
   id: string,
-  text: string,
+  labelContent: string,
   children?: TreeDataItem[]
 ): TreeDataItem {
   return {
     id,
-    text,
-    search: text.toLowerCase(),
-    displayText: text,
+    labelContent,
+    search: labelContent.toLowerCase(),
     children,
   };
 }
@@ -25,12 +24,51 @@ function createNode(
  */
 function getStructure(
   nodes: TreeDataItem[]
-): Array<{ text: string; expanded: boolean; children?: ReturnType<typeof getStructure> }> {
-  return nodes.map((node) => ({
-    text: node.text,
-    expanded: node._expanded ?? false,
-    children: node.children ? getStructure(node.children) : undefined,
-  }));
+): Array<{ labelContent: string; expanded: boolean; children?: ReturnType<typeof getStructure> }> {
+  return nodes.map((node) => {
+    // Extract original text - for non-highlighted nodes it's the labelContent itself,
+    // for highlighted nodes we reconstruct from the React element or use the search field
+    let labelText: string;
+    if (typeof node.labelContent === "string") {
+      labelText = node.labelContent;
+    } else if (node._originalLabel) {
+      // @ts-expect-error - _originalLabel is added by search function for testing
+      labelText = node._originalLabel;
+    } else {
+      // For React nodes without _originalLabel, try to extract from props or use id as fallback
+      // This handles cases like empty strings that become React fragments
+      const reactNode = node.labelContent as React.ReactElement;
+      if (reactNode && typeof reactNode === "object" && "props" in reactNode) {
+        // Try to get text from React element children
+        const props = reactNode.props as { children?: unknown };
+        if (Array.isArray(props.children)) {
+          // For fragments with array children, concat the text
+          labelText = props.children
+            .map((child: unknown) => {
+              if (typeof child === "string") return child;
+              if (child && typeof child === "object" && "props" in child) {
+                return (child as { props: { children?: string } }).props.children || "";
+              }
+              return "";
+            })
+            .join("");
+        } else if (typeof props.children === "string") {
+          labelText = props.children;
+        } else {
+          labelText = node.id;
+        }
+      } else {
+        // Fallback to id or empty string
+        labelText = typeof reactNode === "string" ? reactNode : node.id;
+      }
+    }
+    
+    return {
+      labelContent: labelText,
+      expanded: node._expanded ?? false,
+      children: node.children ? getStructure(node.children) : undefined,
+    };
+  });
 }
 
 describe("tree-search", () => {
@@ -59,19 +97,19 @@ describe("tree-search", () => {
       // Should only match system -> query (not system -> processes -> query)
       expect(structure).toEqual([
         {
-          text: "system",
+          labelContent: "system",
           expanded: true,
         children: [
           {
-              text: "query",
+              labelContent: "query",
               expanded: true,
             children: [
-                { text: "query_log", expanded: false, children: undefined },
-                { text: "query_cache", expanded: false, children: undefined },
+                { labelContent: "query_log", expanded: false, children: undefined },
+                { labelContent: "query_cache", expanded: false, children: undefined },
               ],
               },
-            ],
-          },
+          ],
+        },
       ]);
     });
 
@@ -82,19 +120,19 @@ describe("tree-search", () => {
       // Should only match system -> processes
       expect(structure).toEqual([
         {
-          text: "system",
+          labelContent: "system",
           expanded: true,
             children: [
               {
-              text: "processes",
+              labelContent: "processes",
               expanded: true,
               children: [
-                { text: "query", expanded: false, children: undefined },
-                { text: "mutations", expanded: false, children: undefined },
+                { labelContent: "query", expanded: false, children: undefined },
+                { labelContent: "mutations", expanded: false, children: undefined },
               ],
               },
             ],
-          },
+        },
       ]);
     });
 
@@ -106,22 +144,22 @@ describe("tree-search", () => {
       // Should match: system -> query, system -> query's children, AND system -> processes -> query
       expect(structure).toEqual([
         {
-          text: "system",
+          labelContent: "system",
           expanded: true,
           children: [
             {
-              text: "query",
+              labelContent: "query",
               expanded: true,
               children: [
-                { text: "query_log", expanded: true, children: undefined },
-                { text: "query_cache", expanded: true, children: undefined },
+                { labelContent: "query_log", expanded: true, children: undefined },
+                { labelContent: "query_cache", expanded: true, children: undefined },
               ],
             },
             {
-              text: "processes",
+              labelContent: "processes",
               expanded: true,
               children: [
-                { text: "query", expanded: true, children: undefined },
+                { labelContent: "query", expanded: true, children: undefined },
               ],
           },
         ],
@@ -136,8 +174,8 @@ describe("tree-search", () => {
       // Trailing dot makes it exact match - only system -> query (not system -> processes -> query)
       const systemNode = structure[0];
       expect(systemNode.children).toHaveLength(1);
-      expect(systemNode.children?.[0].text).toBe("query");
-      expect(systemNode.children?.[0].text).not.toBe("processes");
+      expect(systemNode.children?.[0].labelContent).toBe("query");
+      expect(systemNode.children?.[0].labelContent).not.toBe("processes");
     });
 
     it("should demonstrate difference: 'system.query' vs 'system.query.'", () => {
@@ -154,7 +192,7 @@ describe("tree-search", () => {
       
       // Should find ONLY system->query
       expect(exactStructure[0].children?.length).toBe(1); // only query branch
-      expect(exactStructure[0].children?.[0].text).toBe("query");
+      expect(exactStructure[0].children?.[0].labelContent).toBe("query");
     });
 
     it("should match only default -> query for 'default.query.'", () => {
@@ -163,11 +201,11 @@ describe("tree-search", () => {
 
       expect(structure).toEqual([
         {
-          text: "default",
+          labelContent: "default",
           expanded: true,
         children: [
           {
-              text: "query",
+              labelContent: "query",
               expanded: true,
               children: undefined,
           },
@@ -202,11 +240,11 @@ describe("tree-search", () => {
 
       expect(structure).toEqual([
         {
-          text: "system",
+          labelContent: "system",
           expanded: true,
           children: [
-            { text: "query_log", expanded: true, children: undefined },
-            { text: "query_cache", expanded: true, children: undefined },
+            { labelContent: "query_log", expanded: true, children: undefined },
+            { labelContent: "query_cache", expanded: true, children: undefined },
           ],
         },
       ]);
@@ -218,11 +256,11 @@ describe("tree-search", () => {
 
       expect(structure).toEqual([
         {
-          text: "system",
+          labelContent: "system",
           expanded: true,
           children: [
-            { text: "query_log", expanded: true, children: undefined },
-            { text: "metric_log", expanded: true, children: undefined },
+            { labelContent: "query_log", expanded: true, children: undefined },
+            { labelContent: "metric_log", expanded: true, children: undefined },
           ],
         },
       ]);
@@ -246,7 +284,7 @@ describe("tree-search", () => {
       // Single segment fuzzy match - node matches but children don't, so no children shown
       expect(structure).toEqual([
         {
-          text: "system",
+          labelContent: "system",
           expanded: true,
           children: undefined,
         },
@@ -259,7 +297,7 @@ describe("tree-search", () => {
 
       expect(structure).toEqual([
         {
-          text: "information_schema",
+          labelContent: "information_schema",
           expanded: true,
           children: undefined,
         },
@@ -281,11 +319,11 @@ describe("tree-search", () => {
 
       expect(structure).toEqual([
         {
-          text: "system",
+          labelContent: "system",
           expanded: true,
           children: [
-            { text: "query_log", expanded: false, children: undefined },
-            { text: "metric_log", expanded: false, children: undefined },
+            { labelContent: "query_log", expanded: false, children: undefined },
+            { labelContent: "metric_log", expanded: false, children: undefined },
           ],
         },
       ]);
@@ -318,18 +356,18 @@ describe("tree-search", () => {
       // Should only match a -> b -> c (not a -> b -> x -> c or a -> y -> b -> c)
       expect(structure).toEqual([
         {
-          text: "a",
+          labelContent: "a",
           expanded: true,
           children: [
             {
-              text: "b",
+              labelContent: "b",
               expanded: true,
               children: [
                 {
-                  text: "c",
+                  labelContent: "c",
                   expanded: true,
                   children: [
-                    { text: "d", expanded: false, children: undefined },
+                    { labelContent: "d", expanded: false, children: undefined },
                   ],
                 },
               ],
@@ -345,9 +383,9 @@ describe("tree-search", () => {
 
       const aNode = structure[0];
       const bNode = aNode.children?.[0];
-      expect(bNode?.text).toBe("b");
+      expect(bNode?.labelContent).toBe("b");
       expect(bNode?.children).toHaveLength(1);
-      expect(bNode?.children?.[0].text).toBe("c");
+      expect(bNode?.children?.[0].labelContent).toBe("c");
     });
 
     it("should NOT match a -> y -> b -> c for 'a.b.c.'", () => {
@@ -356,8 +394,8 @@ describe("tree-search", () => {
 
       const aNode = structure[0];
       expect(aNode.children).toHaveLength(1);
-      expect(aNode.children?.[0].text).toBe("b");
-      expect(aNode.children?.[0].text).not.toBe("y");
+      expect(aNode.children?.[0].labelContent).toBe("b");
+      expect(aNode.children?.[0].labelContent).not.toBe("y");
     });
   });
 
@@ -374,10 +412,10 @@ describe("tree-search", () => {
 
       expect(structure).toEqual([
         {
-          text: "System",
+          labelContent: "System",
           expanded: true,
           children: [
-            { text: "Query", expanded: true, children: undefined },
+            { labelContent: "Query", expanded: true, children: undefined },
           ],
         },
       ]);
@@ -389,10 +427,10 @@ describe("tree-search", () => {
 
       expect(structure).toEqual([
         {
-          text: "System",
+          labelContent: "System",
           expanded: true,
           children: [
-            { text: "Query", expanded: true, children: undefined },
+            { labelContent: "Query", expanded: true, children: undefined },
           ],
         },
       ]);
@@ -463,8 +501,9 @@ describe("tree-search", () => {
       // a..c → ["a", "", "c"] → WILL match a -> "" -> c (empty node matches empty segment)
       const results2 = searchTree(tree, "a..c");
       expect(results2).toHaveLength(1);
-      expect(results2[0].children?.[0].text).toBe(""); // Empty node
-      expect(results2[0].children?.[0].children?.[0].text).toBe("c");
+      const structure2 = getStructure(results2);
+      expect(structure2[0].children?.[0].labelContent).toBe(""); // Empty node
+      expect(structure2[0].children?.[0].children?.[0].labelContent).toBe("c");
       
       // Most real trees won't have empty-named nodes, so a..anything typically matches nothing
       const normalTree: TreeDataItem[] = [

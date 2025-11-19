@@ -159,7 +159,7 @@ function toColumnTreeNode(column: { name: string; type: string; comment?: string
   const tag = <span className="ml-2 text-[10px] text-muted-foreground">{tagContent}</span>;
 
   // Tooltip structure: column name, column type, enum info (if available), comment (if available)
-  const textTooltip = (() => {
+  const labelTooltip = (() => {
     const hasEnumPairs = enumInfo && enumInfo.pairs.length > 0;
     const hasComment = !!columnComment;
 
@@ -206,12 +206,12 @@ function toColumnTreeNode(column: { name: string; type: string; comment?: string
 
   return {
     id: `column:${column.name}`,
-    text: columnName,
+    labelContent: columnName,
     search: columnName.toLowerCase(),
     type: "leaf" as const,
     icon: getColumnIcon(columnType),
     tag: tag,
-    textTooltip: textTooltip,
+    labelTooltip: labelTooltip,
     data: {
       type: "column",
       name: columnName,
@@ -620,10 +620,11 @@ export function SchemaTreeView({ tabId }: SchemaTreeViewProps) {
 
       const hostNode: TreeDataItem = {
         id: "host",
-        text: displayName,
-        displayText: selectedConnection?.cluster ? (
+        labelContent: selectedConnection?.cluster ? (
           <HostSelector clusterName={selectedConnection.cluster} displayName={displayName} />
-        ) : undefined,
+        ) : (
+          displayName
+        ),
         search: serverName.toLowerCase(),
         icon: Monitor,
         type: "folder",
@@ -932,7 +933,7 @@ ORDER BY lower(database), database, table, columnName`,
     const dbName = String(db.name || "Unknown");
     return {
       id: `db:${dbName}`,
-      text: dbName,
+      labelContent: dbName,
       search: dbName.toLowerCase(),
       icon: Database,
       type: "folder",
@@ -965,20 +966,20 @@ ORDER BY lower(database), database, table, columnName`,
     const fullName = `${databaseName}.${tableName}`;
     const tableComment = table.tableComment || null;
 
-    // Use textTooltip for table comment
-    const textTooltip = tableComment ? (
+    // Use labelTooltip for table comment
+    const labelTooltip = tableComment ? (
       <div className="text-xs text-muted-foreground whitespace-pre-wrap">{tableComment}</div>
     ) : undefined;
 
     return {
       id: `table:${fullName}`,
-      text: tableName,
+      labelContent: tableName,
       search: tableName.toLowerCase(),
       icon: TableIcon,
       type: "folder", // Has columns as children
       children: [],
       tag: <SchemaTreeBadge>{table.tableEngine || ""}</SchemaTreeBadge>,
-      textTooltip: textTooltip,
+      labelTooltip: labelTooltip,
       data: {
         type: "table",
         database: databaseName,

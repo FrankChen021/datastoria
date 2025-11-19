@@ -15,10 +15,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "./hover-card";
 
 interface TreeDataItem {
   id: string;
-  text: string;
-
-  // If it's not set, use name
-  displayText?: React.ReactNode;
+  labelContent: React.ReactNode;
   search: string;
   icon?: LucideIcon;
   children?: TreeDataItem[];
@@ -29,10 +26,10 @@ interface TreeDataItem {
   type?: "folder" | "leaf";
   // Used by searchTree to suggest expansion
   _expanded?: boolean;
-  // Custom tag/badge to render alongside the node text
+  // Custom tag/badge to render alongside the node label
   tag?: React.ReactNode | (() => React.ReactNode);
-  // Tooltip for the node text
-  textTooltip?: React.ReactNode;
+  // Tooltip for the node label
+  labelTooltip?: React.ReactNode;
   // Tooltip for the tag/badge
   tagTooltip?: React.ReactNode;
   // Tooltip for the entire node - if provided, the entire row will be wrapped in a HoverCard
@@ -658,14 +655,14 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
                 <span className="flex items-center justify-between flex-grow min-w-0">
                   {renderTooltip(
                     <span className="text-sm truncate">
-                      {node.displayText || node.text}
+                      {node.labelContent}
                       {showChildCount && hasChildren && (
                         <Badge variant="secondary" className="ml-2 rounded-sm px-1 font-normal whitespace-nowrap">
                           {childCount}
                         </Badge>
                       )}
                     </span>,
-                    node.textTooltip,
+                    node.labelTooltip,
                     {
                       className: "w-auto min-w-[150px] max-w-[350px] p-2",
                     }

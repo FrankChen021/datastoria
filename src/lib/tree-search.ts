@@ -92,23 +92,23 @@ function searchNodes(
 ): TreeDataItem | null {
   const { segments, highlight } = context;
   const isFolderNode = node.type ? node.type === "folder" : node.children !== undefined && node.children.length > 0;
-  const displayText = String(node.displayText || node.text);
+  const labelText = String(node.labelContent);
 
   // Check if we're at the last segment
   const isLastSegment = position === segments.length - 1;
   const currentSegment = segments[position];
 
   let matches = false;
-  let highlightedText: React.ReactNode = displayText;
+  let highlightedLabel: React.ReactNode = labelText;
 
   // Non-terminal segment: require exact match
   if (!isLastSegment) {
     // Check if current node matches the segment exactly (case-insensitive)
-    const exactMatch = displayText.toLowerCase() === currentSegment.toLowerCase();
+    const exactMatch = labelText.toLowerCase() === currentSegment.toLowerCase();
 
     if (exactMatch) {
       matches = true;
-      highlightedText = highlight(displayText, 0, displayText.length);
+      highlightedLabel = highlight(labelText, 0, labelText.length);
 
       // Check if next segment is empty AND it's the last segment (trailing dot case)
       const nextSegment = segments[position + 1];
@@ -121,30 +121,31 @@ function searchNodes(
         if (node.children) {
           const unprocessedChildren = node.children.map((child) => ({
             ...child,
-            displayText: child.text, // Always use original text, never highlighted displayText
             _expanded: false, // Children should not be expanded
           }));
 
           return {
             ...node,
-            displayText: highlightedText,
+            labelContent: highlightedLabel,
+            _originalLabel: labelText,
             children: unprocessedChildren,
             _expanded: true, // Only the matched parent is expanded
-          };
+          } as TreeDataItem;
         }
 
         return {
           ...node,
-          displayText: highlightedText,
+          labelContent: highlightedLabel,
+          _originalLabel: labelText,
           children: node.children ? [] : undefined,
           _expanded: true,
-        };
+        } as TreeDataItem;
       }
 
       // Recurse to children with next position
       const children: TreeDataItem[] = [];
       if (node.children) {
-        const childCurrentPath = [...currentPath, displayText];
+        const childCurrentPath = [...currentPath, labelText];
         for (const child of node.children) {
           const childResult = searchNodes(child, context, position + 1, childCurrentPath);
           if (childResult) {
@@ -157,10 +158,11 @@ function searchNodes(
       if (children.length > 0) {
         return {
           ...node,
-          displayText: highlightedText,
+          labelContent: highlightedLabel,
+          _originalLabel: labelText,
           children,
           _expanded: true, // Expand nodes that match non-terminal segments
-        };
+        } as TreeDataItem;
       }
 
       // Node matches but has no matching children - return null for non-terminal segments
@@ -184,22 +186,21 @@ function searchNodes(
     // Children should be shown but NOT highlighted or expanded
     if (isFolderNode && node.children) {
       matches = true;
-      highlightedText = highlight(displayText, 0, displayText.length);
+      highlightedLabel = highlight(labelText, 0, labelText.length);
 
       // Include all children without searching them, ensuring they are not highlighted or expanded
-      // Always use the original text property, never displayText (which might be highlighted)
       const unprocessedChildren = node.children.map((child) => ({
         ...child,
-        displayText: child.text, // Always use original text, never highlighted displayText
         _expanded: false, // Children should not be expanded
       }));
 
       return {
         ...node,
-        displayText: highlightedText,
+        labelContent: highlightedLabel,
+        _originalLabel: labelText,
         children: unprocessedChildren,
         _expanded: true, // Only the matched parent is expanded
-      };
+      } as TreeDataItem;
     }
 
     // For leaf nodes with trailing dot, check if parent path matches
@@ -214,14 +215,14 @@ function searchNodes(
 
   if (fuzzyMatch.matches) {
     matches = true;
-    highlightedText = highlight(displayText, fuzzyMatch.start, fuzzyMatch.end);
+    highlightedLabel = highlight(labelText, fuzzyMatch.start, fuzzyMatch.end);
   }
 
   // For last segment fuzzy matching, recursively search ALL descendants
   // This allows matching deep paths like system -> metric -> query for "system.query"
   const children: TreeDataItem[] = [];
   if (node.children) {
-    const childCurrentPath = [...currentPath, displayText];
+    const childCurrentPath = [...currentPath, labelText];
     for (const child of node.children) {
       // Recursively search children with same position (fuzzy search continues)
       const childResult = searchNodes(child, context, position, childCurrentPath);
@@ -236,9 +237,10 @@ function searchNodes(
     return {
       ...node,
       _expanded: matches || children.length > 0,
-      displayText: matches ? highlightedText : displayText,
+      labelContent: matches ? highlightedLabel : labelText,
+      _originalLabel: matches ? labelText : undefined,
       children: children.length > 0 ? children : undefined,
-    };
+    } as TreeDataItem;
   }
 
   return null;
