@@ -235,7 +235,8 @@ SELECT
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
     query_kind, 
     count()
-FROM merge('system', '^query_log')
+-- old version like 22 has problem with merge('system', '^query_log') function
+FROM system.query_log
 WHERE 
     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
@@ -264,7 +265,8 @@ SELECT
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
     query_kind, 
     count()
-FROM merge('system', '^query_log')
+-- old version like 22 has problem with merge('system', '^query_log') function
+FROM system.query_log
 WHERE 
     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
@@ -296,7 +298,8 @@ ORDER BY t`,
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
     sum(read_rows)
-FROM merge('system', '^query_log')
+-- old version like 22 has problem with merge('system', '^query_log') function
+FROM system.query_log
 WHERE 
     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
@@ -324,7 +327,8 @@ ORDER BY t`,
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
     sum(read_bytes)
-FROM merge('system', '^query_log')
+-- old version like 22 has problem with merge('system', '^query_log') function
+FROM system.query_log
 WHERE 
     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
@@ -352,7 +356,8 @@ ORDER BY t`,
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
     sum(written_rows)
-FROM merge('system', '^query_log')
+-- old version like 22 has problem with merge('system', '^query_log') function
+FROM system.query_log
 WHERE 
     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
@@ -380,7 +385,8 @@ ORDER BY t`,
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
     sum(written_bytes)
-FROM merge('system', '^query_log')
+-- old version like 22 has problem with merge('system', '^query_log') function
+FROM system.query_log
 WHERE 
     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
@@ -408,7 +414,8 @@ ORDER BY t`,
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
     sum(result_rows)
-FROM merge('system', '^query_log')
+-- old version like 22 has problem with merge('system', '^query_log') function
+FROM system.query_log
 WHERE 
     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
@@ -436,7 +443,8 @@ ORDER BY t`,
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
     sum(result_bytes)
-FROM merge('system', '^query_log')
+-- old version like 22 has problem with merge('system', '^query_log') function
+FROM system.query_log
 WHERE 
     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
@@ -467,7 +475,8 @@ SELECT
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
     query_kind,
     sum(ProfileEvents['OSCPUVirtualTimeMicroseconds']) as OSCPUVirtualTimeMicroseconds
-FROM merge('system', '^query_log')
+-- old version like 22 has problem with merge('system', '^query_log') function
+FROM system.query_log
 WHERE 
     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
