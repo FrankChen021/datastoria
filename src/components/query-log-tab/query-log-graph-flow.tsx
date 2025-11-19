@@ -25,6 +25,7 @@ interface QueryLogGraphFlowProps {
   nodes: Map<string, GraphNode>;
   edges: GraphEdge[];
   onEdgeClick?: (edgeId: string) => void;
+  onNodeClick?: (nodeId: string) => void;
   className?: string;
   style?: React.CSSProperties;
   onControlsReady?: (controls: { zoomIn: () => void; zoomOut: () => void; fitView: () => void }) => void;
@@ -133,6 +134,7 @@ const QueryLogGraphFlowInner = ({
   nodes,
   edges,
   onEdgeClick,
+  onNodeClick,
   className,
   style,
   onControlsReady,
@@ -315,6 +317,16 @@ const QueryLogGraphFlowInner = ({
     [onEdgeClick]
   );
 
+  // Handle node click
+  const onNodeClickHandler = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (onNodeClick) {
+        onNodeClick(node.id);
+      }
+    },
+    [onNodeClick]
+  );
+
   // Expose control methods to parent
   useEffect(() => {
     if (onControlsReady) {
@@ -356,6 +368,7 @@ const QueryLogGraphFlowInner = ({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onEdgeClick={onEdgeClickHandler}
+        onNodeClick={onNodeClickHandler}
         defaultEdgeOptions={{
           markerEnd: {
             type: MarkerType.ArrowClosed,

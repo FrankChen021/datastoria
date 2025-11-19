@@ -45,10 +45,26 @@ class QueryLogUtils {
   }
 }
 
+export interface NodeDetails {
+  id: string;
+  label: string;
+  incomingEdges: Array<{
+    source: string;
+    sourceLabel: string;
+    queryLog: any;
+  }>;
+  outgoingEdges: Array<{
+    target: string;
+    targetLabel: string;
+    queryLog: any;
+  }>;
+}
+
 // Sub-component: Graph Content
 interface QueryLogGraphProps {
   queryLogs: any[];
   onQueryLogSelected: (queryLog: any, sourceNode?: string, targetNode?: string) => void;
+  onNodeClick?: (nodeDetails: NodeDetails) => void;
 }
 
 export const QueryLogGraph = forwardRef<GraphControlsRef, QueryLogGraphProps>(
@@ -56,6 +72,7 @@ export const QueryLogGraph = forwardRef<GraphControlsRef, QueryLogGraphProps>(
     {
       queryLogs,
       onQueryLogSelected,
+      onNodeClick,
     },
     ref
   ) => {
@@ -219,6 +236,52 @@ export const QueryLogGraph = forwardRef<GraphControlsRef, QueryLogGraphProps>(
       [queryMap, graphNodes, edgeMap, onQueryLogSelected]
     );
 
+    const handleNodeClick = useCallback(
+      (nodeId: string) => {
+        if (!onNodeClick) return;
+
+        const node = graphNodes.get(nodeId);
+        if (!node) return;
+
+        const incomingEdges: NodeDetails["incomingEdges"] = [];
+        const outgoingEdges: NodeDetails["outgoingEdges"] = [];
+
+        graphEdges.forEach((edge) => {
+          if (edge.target === nodeId) {
+            const sourceNode = graphNodes.get(edge.source);
+            const queryLog = queryMap?.get(edge.id);
+            if (queryLog) {
+              incomingEdges.push({
+                source: edge.source,
+                sourceLabel: sourceNode?.label || edge.source,
+                queryLog,
+              });
+            }
+          }
+
+          if (edge.source === nodeId) {
+            const targetNode = graphNodes.get(edge.target);
+            const queryLog = queryMap?.get(edge.id);
+            if (queryLog) {
+              outgoingEdges.push({
+                target: edge.target,
+                targetLabel: targetNode?.label || edge.target,
+                queryLog,
+              });
+            }
+          }
+        });
+
+        onNodeClick({
+          id: nodeId,
+          label: node.label,
+          incomingEdges,
+          outgoingEdges,
+        });
+      },
+      [graphNodes, graphEdges, queryMap, onNodeClick]
+    );
+
     return (
       <div className="flex-1 min-h-0 flex flex-col">
         {(graphNodes.size > 0 || graphEdges.length > 0) && (
@@ -227,6 +290,7 @@ export const QueryLogGraph = forwardRef<GraphControlsRef, QueryLogGraphProps>(
               nodes={graphNodes}
               edges={graphEdges}
               onEdgeClick={handleEdgeClick}
+              onNodeClick={handleNodeClick}
               className="w-full h-full"
               onControlsReady={handleControlsReady}
             />

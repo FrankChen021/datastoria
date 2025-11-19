@@ -12,7 +12,8 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { ApiErrorView } from "../query-tab/query-response-view";
 import { QueryLogDetailPane } from "./query-log-detail-pane";
-import { QueryLogGraph, type GraphControlsRef } from "./query-log-graph";
+import { QueryLogGraph, type GraphControlsRef, type NodeDetails } from "./query-log-graph";
+import { QueryLogNodePane } from "./query-log-node-pane";
 
 interface QueryLogViewProps {
   queryId?: string;
@@ -264,6 +265,7 @@ export function QueryLogView({
   const [queryLogs, setQueryLogs] = useState<any[]>([]);
   const [loadError, setQueryLogLoadError] = useState<ApiErrorResponse | null>(null);
   const [selectedQueryLog, setSelectedQueryLog] = useState<any>(undefined);
+  const [selectedNode, setSelectedNode] = useState<NodeDetails | undefined>(undefined);
   const [sourceNode, setSourceNode] = useState<string | undefined>(undefined);
   const [targetNode, setTargetNode] = useState<string | undefined>(undefined);
   const graphControlsRef = useRef<GraphControlsRef>(null);
@@ -313,8 +315,17 @@ export function QueryLogView({
   // Handle query log selection from GraphContent
   const handleQueryLogSelected = useCallback((queryLog: any, sourceNode?: string, targetNode?: string) => {
     setSelectedQueryLog(queryLog);
+    setSelectedNode(undefined); // Clear node selection
     setSourceNode(sourceNode);
     setTargetNode(targetNode);
+  }, []);
+
+  // Handle node selection from GraphContent
+  const handleNodeClick = useCallback((nodeDetails: NodeDetails) => {
+    setSelectedNode(nodeDetails);
+    setSelectedQueryLog(undefined); // Clear query log selection
+    setSourceNode(undefined);
+    setTargetNode(undefined);
   }, []);
 
   const loadQueryLog = useCallback(async () => {
@@ -385,9 +396,13 @@ export function QueryLogView({
     setTargetNode(undefined);
   }, []);
 
+  const handleCloseNodeDetail = useCallback(() => {
+    setSelectedNode(undefined);
+  }, []);
+
   // Fit view after detail pane is shown (layout has adjusted)
   useEffect(() => {
-    if (selectedQueryLog && graphControlsRef.current) {
+    if ((selectedQueryLog || selectedNode) && graphControlsRef.current) {
       // Use double requestAnimationFrame to ensure DOM layout has fully updated
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -395,7 +410,7 @@ export function QueryLogView({
         });
       });
     }
-  }, [selectedQueryLog]);
+  }, [selectedQueryLog, selectedNode]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -435,12 +450,12 @@ export function QueryLogView({
             showGraphControl={queryLogs.length > 0}
           />
 
-          {/* Bottom: Graph and Query Log Details (Horizontal Split) */}
-          <PanelGroup direction="horizontal" className="flex-1 min-h-0">
-            {/* Left Panel: Graph View */}
+          {/* Bottom: Graph and Query Log Details (Horizontal Split for Query Log, Vertical for Node) */}
+          <PanelGroup direction={selectedNode ? "vertical" : "horizontal"} className="flex-1 min-h-0">
+            {/* Left/Top Panel: Graph View */}
             <Panel
-              defaultSize={selectedQueryLog ? 60 : 100}
-              minSize={selectedQueryLog ? 30 : 0}
+              defaultSize={selectedQueryLog || selectedNode ? 60 : 100}
+              minSize={selectedQueryLog || selectedNode ? 30 : 0}
               className="bg-background flex flex-col"
             >
               {loadError ? (
@@ -463,31 +478,39 @@ export function QueryLogView({
                   ref={graphControlsRef}
                   queryLogs={queryLogs}
                   onQueryLogSelected={handleQueryLogSelected}
+                  onNodeClick={handleNodeClick}
                 />
               )}
             </Panel>
 
             {/* Splitter */}
-            {selectedQueryLog && (
-              <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors cursor-col-resize" />
+            {(selectedQueryLog || selectedNode) && (
+              <PanelResizeHandle
+                className={`${selectedNode ? "h-0.5 w-full cursor-row-resize" : "w-0.5 h-full cursor-col-resize"
+                  } bg-border hover:bg-border/80 transition-colors`}
+              />
             )}
 
-            {/* Right Panel: Query Log Details */}
-            <QueryLogDetailPane
-              selectedQueryLog={selectedQueryLog}
-              onClose={handleCloseQueryLog}
-              sourceNode={sourceNode}
-              targetNode={targetNode}
-            />
+            {/* Right/Bottom Panel: Query Log Details or Node Details */}
+            {selectedQueryLog ? (
+              <QueryLogDetailPane
+                selectedQueryLog={selectedQueryLog}
+                onClose={handleCloseQueryLog}
+                sourceNode={sourceNode}
+                targetNode={targetNode}
+              />
+            ) : selectedNode ? (
+              <QueryLogNodePane selectedNode={selectedNode} onClose={handleCloseNodeDetail} />
+            ) : null}
           </PanelGroup>
         </>
       ) : (
-        // Full-screen mode: Left/Right layout
-        <PanelGroup direction="horizontal" className="flex-1 min-h-0">
-          {/* Left Panel: Header Controls + Graph View */}
+        // Full-screen mode: Left/Right layout (or Top/Bottom for Node)
+        <PanelGroup direction={selectedNode ? "vertical" : "horizontal"} className="flex-1 min-h-0">
+          {/* Left/Top Panel: Header Controls + Graph View */}
           <Panel
-            defaultSize={selectedQueryLog ? 60 : 100}
-            minSize={selectedQueryLog ? 30 : 0}
+            defaultSize={selectedQueryLog || selectedNode ? 60 : 100}
+            minSize={selectedQueryLog || selectedNode ? 30 : 0}
             className="bg-background flex flex-col"
           >
             <HeaderControlsFullScreenMode
@@ -513,22 +536,30 @@ export function QueryLogView({
                 ref={graphControlsRef}
                 queryLogs={queryLogs}
                 onQueryLogSelected={handleQueryLogSelected}
+                onNodeClick={handleNodeClick}
               />
             )}
           </Panel>
 
           {/* Splitter */}
-          {selectedQueryLog && (
-            <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors cursor-col-resize" />
+          {(selectedQueryLog || selectedNode) && (
+            <PanelResizeHandle
+              className={`${selectedNode ? "h-0.5 w-full cursor-row-resize" : "w-0.5 h-full cursor-col-resize"
+                } bg-border hover:bg-border/80 transition-colors`}
+            />
           )}
 
-          {/* Right Panel: Query Log Details */}
-          <QueryLogDetailPane
-            selectedQueryLog={selectedQueryLog}
-            onClose={handleCloseQueryLog}
-            sourceNode={sourceNode}
-            targetNode={targetNode}
-          />
+          {/* Right/Bottom Panel: Query Log Details or Node Details */}
+          {selectedQueryLog ? (
+            <QueryLogDetailPane
+              selectedQueryLog={selectedQueryLog}
+              onClose={handleCloseQueryLog}
+              sourceNode={sourceNode}
+              targetNode={targetNode}
+            />
+          ) : selectedNode ? (
+            <QueryLogNodePane selectedNode={selectedNode} onClose={handleCloseNodeDetail} />
+          ) : null}
         </PanelGroup>
       )}
     </div>
