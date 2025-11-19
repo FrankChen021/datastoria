@@ -242,11 +242,33 @@ const DashboardGridPanel: React.FC<DashboardGridPanelProps> = ({
   // Use minimal row span (1) when collapsed, full height when expanded
   const effectiveRowSpan = isCollapsed ? 1 : gridPos.h;
   
+  // Calculate max height based on grid rows: each row is 32px min + 8px gap between rows
+  // This ensures the panel doesn't grow beyond its intended height even with gridAutoRows: auto
+  const ROW_HEIGHT = 36; // minmax(32px, auto) plus title padding
+  const GAP_SIZE = 8; // gap-y-2 = 0.5rem = 8px
+  const maxHeight = effectiveRowSpan * ROW_HEIGHT + (effectiveRowSpan - 1) * GAP_SIZE;
+  
+  // Tables need overflow: hidden to prevent content from expanding grid rows
+  // Other components (stat, chart) should use overflow: visible for proper rendering
+  const isTableType = chart.type === "table" || chart.type === "transpose-table";
+  
   const gridStyle: React.CSSProperties = {
     display: isVisible ? "block" : "none",
     gridColumn: `span ${gridPos.w}`,
     gridRow: `span ${effectiveRowSpan}`,
+    minHeight: 0, // Allow grid item to shrink below content size
   };
+
+  // Only constrain height for tables to force them to scroll instead of expanding
+  // For other panels (stats, charts), let the grid rows expand to fit content (preventing overlaps)
+  if (isTableType) {
+    gridStyle.maxHeight = `${maxHeight}px`;
+    gridStyle.overflow = "hidden";
+  } else {
+    // For non-table panels, let them grow if needed, but use at least the grid height
+    // overflow: visible is default, but being explicit doesn't hurt
+    gridStyle.overflow = "visible"; 
+  }
 
   // Use explicit positioning only if x/y are specified
   if (gridPos.x !== undefined) {
@@ -585,7 +607,7 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
               );
             })()}
 
-          <div className="h-[100px]">{/* Margin for scroll */}</div>
+          <div className="h-[200px]">{/* Margin for scroll */}</div>
         </div>
       </div>
     );

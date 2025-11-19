@@ -47,7 +47,6 @@ const PartLogViewComponent = forwardRef<RefreshableTabViewRef, PartLogViewProps>
       folder: "",
       title: "Part Log",
       filter: {
-        showFilterInput: false,
         showTimeSpanSelector: false,
         showRefresh: false,
         showAutoRefresh: false,

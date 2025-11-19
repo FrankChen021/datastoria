@@ -126,10 +126,16 @@ export interface PanelDescriptor {
   // For version 3+, use gridPos instead
   width?: number;
 
-  // Table content height (legacy)
+  // Table content height in viewport units (vh) - DEPRECATED for normal dashboards
+  // This property is legacy and should NOT be used for regular dashboard panels.
+  // Instead, use gridPos.h to control panel height - the table will automatically
+  // scroll within its container.
+  // Only use this for special cases like drilldown dialogs where explicit vh height is needed.
   height?: number;
 
   // Grid position for version 3+ (Grafana-style layout)
+  // Controls both panel container size and table scrolling behavior
+  // gridPos.h determines the panel height - tables will scroll if content exceeds this
   // If provided, takes precedence over width
   gridPos?: GridPos;
 

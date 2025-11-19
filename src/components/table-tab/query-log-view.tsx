@@ -214,7 +214,6 @@ LIMIT 10`;
       title: "Query Log",
       version: 2,
       filter: {
-        showFilterInput: false,
         showTimeSpanSelector: false,
         showRefresh: false,
         showAutoRefresh: false,

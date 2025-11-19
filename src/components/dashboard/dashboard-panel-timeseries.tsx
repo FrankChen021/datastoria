@@ -464,10 +464,13 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
             : undefined,
           tooltip: {
             trigger: "axis",
+            confine: true,
+            enterable: true,
             axisPointer: {
               type: "line",
             },
             appendToBody: true,
+            extraCssText: "max-height: 80vh; overflow-y: auto;",
             formatter: (params: unknown) => {
               if (!Array.isArray(params)) {
                 return "";

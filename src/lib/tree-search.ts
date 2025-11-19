@@ -25,13 +25,18 @@
  * 1. **Non-terminal segments** (position < length - 1):
  *    - Require exact match (case-insensitive)
  *    - If current node matches exactly, recurse to children with position + 1
+ *    - If current node doesn't match, return null (no children search)
+ *    - Only include nodes that have matching children (enforce complete path)
  *    - Example: For "system.metric", position 0 requires exact match of "system"
  *
  * 2. **Last segment** (position === length - 1):
- *    - If empty string: Expand matched parent node (show all children)
- *      - Example: "system." → matches "system" exactly, then expands to show all children
- *    - If not empty: Perform fuzzy (substring) search on current node and children
- *      - Example: "system.metric" → matches "system" exactly, then fuzzy matches "metric" in children
+ *    - If empty string (trailing dot): The previous segment was matched exactly, expand to show all children
+ *      - Example: "system.query." → matches "system" AND "query" exactly, then expands "query" to show all children
+ *      - The trailing dot converts the last non-empty segment to exact match mode
+ *    - If not empty: Perform fuzzy (substring) search recursively on ALL descendants
+ *      - Searches the entire subtree below the matched path
+ *      - Example: "system.query" → matches "system" exactly, then fuzzy matches "query" in all descendants
+ *      - This will match: system->query, system->query_log, system->metric->query, etc.
  *
  * ### Examples:
  *
@@ -105,11 +110,12 @@ function searchNodes(
       matches = true;
       highlightedText = highlight(displayText, 0, displayText.length);
 
-      // Check if next segment is empty (trailing dot case)
+      // Check if next segment is empty AND it's the last segment (trailing dot case)
       const nextSegment = segments[position + 1];
       const isNextSegmentEmpty = nextSegment === "";
+      const isNextSegmentLast = position + 1 === segments.length - 1;
 
-      if (isNextSegmentEmpty) {
+      if (isNextSegmentEmpty && isNextSegmentLast) {
         // Trailing dot: show all children without processing them
         // Only the current node should be highlighted and expanded
         if (node.children) {
@@ -147,7 +153,7 @@ function searchNodes(
         }
       }
 
-      // Include node if it matches or has matching children
+      // Include node only if it has matching children
       if (children.length > 0) {
         return {
           ...node,
@@ -157,35 +163,14 @@ function searchNodes(
         };
       }
 
-      // Node matches but has no matching children - still include it
-      return {
-        ...node,
-        displayText: highlightedText,
-        children: node.children ? [] : undefined,
-      };
+      // Node matches but has no matching children - return null for non-terminal segments
+      // This ensures that paths like "system.nonexistent." don't match
+      return null;
     }
 
-    // Current node doesn't match - check children
-    const children: TreeDataItem[] = [];
-    if (node.children) {
-      const childCurrentPath = [...currentPath, displayText];
-      for (const child of node.children) {
-        const childResult = searchNodes(child, context, position, childCurrentPath);
-        if (childResult) {
-          children.push(childResult);
-        }
-      }
-    }
-
-    // Include node if it has matching children
-    if (children.length > 0) {
-      return {
-        ...node,
-        children,
-        _expanded: true,
-      };
-    }
-
+    // Current node doesn't match at non-terminal position
+    // For exact path matching, we should NOT search children
+    // If the path segment doesn't match, this branch is invalid
     return null;
   }
 
@@ -224,7 +209,7 @@ function searchNodes(
     };
   }
 
-  // Last segment is not empty: perform fuzzy (substring) search
+  // Last segment is not empty: perform fuzzy (substring) search recursively
   const fuzzyMatch = context.match(node, currentSegment);
 
   if (fuzzyMatch.matches) {
@@ -232,12 +217,13 @@ function searchNodes(
     highlightedText = highlight(displayText, fuzzyMatch.start, fuzzyMatch.end);
   }
 
-  // Process children for fuzzy matching
+  // For last segment fuzzy matching, recursively search ALL descendants
+  // This allows matching deep paths like system -> metric -> query for "system.query"
   const children: TreeDataItem[] = [];
   if (node.children) {
     const childCurrentPath = [...currentPath, displayText];
     for (const child of node.children) {
-      // For last segment, also search children with the same position (fuzzy search)
+      // Recursively search children with same position (fuzzy search continues)
       const childResult = searchNodes(child, context, position, childCurrentPath);
       if (childResult) {
         children.push(childResult);
@@ -245,26 +231,13 @@ function searchNodes(
     }
   }
 
-  // Additional highlighting: if node doesn't match but has matching children,
-  // check if it's a complete word match (to highlight parent nodes in path)
-  if (!matches && isFolderNode && children.length > 0) {
-    const completeMatch = context.match(node, currentSegment);
-    if (completeMatch.matches && completeMatch.start === 0 && completeMatch.end === displayText.length) {
-      matches = true;
-      highlightedText = highlight(displayText, completeMatch.start, completeMatch.end);
-    }
-  }
-
   // Include node if it matches or has matching children
   if (matches || children.length > 0) {
-    // Determine expansion: expand if node matches or has matching children
-    const shouldExpand = matches || children.length > 0;
-
     return {
       ...node,
-      _expanded: shouldExpand,
-      displayText: matches ? highlightedText : node.displayText,
-      children: children.length > 0 ? children : node.children ? [] : undefined,
+      _expanded: matches || children.length > 0,
+      displayText: matches ? highlightedText : displayText,
+      children: children.length > 0 ? children : undefined,
     };
   }
 
@@ -348,19 +321,21 @@ export function searchTree(
       };
     });
 
-  // Split by separator and only filter leading empty strings
+  // Split by separator: skip only leading empty strings, preserve all others
   const rawSegments = search.split(pathSeparator);
   const segments: string[] = [];
-  let foundNonEmpty = false;
+  
+  // Skip leading empty strings, but preserve all middle and trailing empty strings
+  let foundFirstNonEmpty = false;
   for (const segment of rawSegments) {
     if (segment.trim() !== "") {
-      foundNonEmpty = true;
+      foundFirstNonEmpty = true;
       segments.push(segment);
-    } else if (foundNonEmpty) {
-      // Only preserve trailing empty strings (after we've seen non-empty)
+    } else if (foundFirstNonEmpty) {
+      // After finding first non-empty, preserve ALL empty strings (middle and trailing)
       segments.push("");
     }
-    // Skip leading empty strings (before we've seen non-empty)
+    // Skip only leading empty strings
   }
 
   const hasTrailingDot = search.endsWith(pathSeparator);
@@ -380,3 +355,4 @@ export function searchTree(
   // (when currentLevel < startLevel is false, it searches normally)
   return searchTreeFromGivenLevel(tree, context, startLevel);
 }
+

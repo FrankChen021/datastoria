@@ -13,7 +13,7 @@ import { PartitionSizeView } from "./partition-view";
 import { QueryLogView } from "./query-log-view";
 import { getSystemTableTabs } from "./system-table/system-table-registry";
 import { TableMetadataView } from "./table-metadata-view";
-import { TableSizeView } from "./table-size-view";
+import { TableOverviewView } from "./table-overview-view";
 
 export interface TableTabProps {
   database: string;
@@ -40,7 +40,7 @@ function hasRefreshCapability(ref: unknown): ref is RefreshableTabViewRef {
 
 // Map of engine types to their available tabs
 const ENGINE_TABS_MAP = new Map<string, Set<string>>([
-  ["MaterializedView", new Set(["metadata", "table-size", "partitions"])],
+  ["MaterializedView", new Set(["metadata", "overview", "partitions"])],
   ["Kafka", new Set(["metadata"])],
   ["URL", new Set(["metadata"])],
   ["Distributed", new Set(["data-sample", "metadata", "query-log"])],
@@ -57,18 +57,18 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
     return undefined;
   }, [isSystemDatabase, table]);
 
-  // Hide Table Size and Partitions tabs if engine starts with "System"
+  // Hide Overview and Partitions tabs if engine starts with "System"
   const isSystemTable = useMemo(() => (engine?.startsWith("System") || engine?.startsWith("MySQL")) ?? false, [engine]);
 
   // Get available tabs for this engine, or default to all tabs
   const baseAvailableTabs = useMemo(() => {
     return engine
       ? (ENGINE_TABS_MAP.get(engine) ??
-          new Set(["data-sample", "metadata", "table-size", "partitions", "query-log", "part-log"]))
-      : new Set(["data-sample", "metadata", "table-size", "partitions", "query-log", "part-log"]);
+          new Set(["data-sample", "metadata", "overview", "partitions", "query-log", "part-log"]))
+      : new Set(["data-sample", "metadata", "overview", "partitions", "query-log", "part-log"]);
   }, [engine]);
 
-  // Remove table-size and partitions for System tables
+  // Remove overview and partitions for System tables
   const availableTabs = useMemo(() => {
     return isSystemTable ? new Set(["data-sample", "metadata"]) : baseAvailableTabs;
   }, [isSystemTable, baseAvailableTabs]);
@@ -78,7 +78,7 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
     if (customSystemTabs && customSystemTabs.length > 0) {
       return `custom-${0}`;
     }
-    return availableTabs.has("table-size") ? "table-size" : "metadata";
+    return availableTabs.has("overview") ? "overview" : "metadata";
   }, [availableTabs, customSystemTabs]);
   const [currentTab, setCurrentTab] = useState<string>(initialTab);
 
@@ -96,7 +96,7 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
   // Refs for each tab view
   const dataSampleRef = useRef<RefreshableTabViewRef>(null);
   const metadataRef = useRef<RefreshableTabViewRef>(null);
-  const tableSizeRef = useRef<RefreshableTabViewRef>(null);
+  const tableOverviewRef = useRef<RefreshableTabViewRef>(null);
   const partitionRef = useRef<RefreshableTabViewRef>(null);
   const queryLogRef = useRef<RefreshableTabViewRef>(null);
   const partLogRef = useRef<RefreshableTabViewRef>(null);
@@ -109,8 +109,8 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
         return dataSampleRef.current;
       case "metadata":
         return metadataRef.current;
-      case "table-size":
-        return tableSizeRef.current;
+      case "overview":
+        return tableOverviewRef.current;
       case "partitions":
         return partitionRef.current;
       case "query-log":
@@ -225,9 +225,9 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
         {hasMultipleTabs && (
           <div className="flex justify-between items-center gap-2 m-2">
             <TabsList>
-              {availableTabs.has("table-size") && <TabsTrigger value="table-size">Table Size</TabsTrigger>}
-              {availableTabs.has("data-sample") && <TabsTrigger value="data-sample">Data Sample</TabsTrigger>}
+              {availableTabs.has("overview") && <TabsTrigger value="overview">Overview</TabsTrigger>}
               {availableTabs.has("metadata") && <TabsTrigger value="metadata">Metadata</TabsTrigger>}
+              {availableTabs.has("data-sample") && <TabsTrigger value="data-sample">Data Sample</TabsTrigger>}
               {availableTabs.has("partitions") && <TabsTrigger value="partitions">Partitions</TabsTrigger>}
               {availableTabs.has("query-log") && <TabsTrigger value="query-log">Query Log</TabsTrigger>}
               {availableTabs.has("part-log") && <TabsTrigger value="part-log">Part Log</TabsTrigger>}
@@ -282,17 +282,17 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
         )}
         <div className="flex-1 relative overflow-hidden">
           {/* All tabs are always mounted, visibility controlled by CSS */}
-          {availableTabs.has("table-size") && (
+          {availableTabs.has("overview") && (
             <div
-              className={`absolute inset-0 overflow-auto px-2 ${currentTab === "table-size" ? "block" : "hidden"}`}
+              className={`absolute inset-0 overflow-auto px-2 ${currentTab === "overview" ? "block" : "hidden"}`}
               role="tabpanel"
-              aria-hidden={currentTab !== "table-size"}
+              aria-hidden={currentTab !== "overview"}
             >
-              <TableSizeView
-                ref={tableSizeRef}
+              <TableOverviewView
+                ref={tableOverviewRef}
                 database={database}
                 table={table}
-                autoLoad={loadedTabs.has("table-size")}
+                autoLoad={loadedTabs.has("overview")}
               />
             </div>
           )}

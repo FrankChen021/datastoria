@@ -1101,13 +1101,16 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
         <CardContent
           ref={scrollContainerRef}
           className={cn("px-0 p-0 h-full overflow-auto")}
+          // Support descriptor.height for special cases like drilldown dialogs (uses vh units)
+          // For normal dashboard panels, height is controlled by gridPos.h instead
           style={descriptor.height ? ({ maxHeight: `${descriptor.height}vh` } as React.CSSProperties) : undefined}
         >
           {isStickyHeader ? (
             // Use direct table structure for sticky header to avoid nested scroll containers
             <div className="relative w-full">
               <table className="w-full caption-bottom text-sm">
-                <thead className={cn("[&_tr]:border-b sticky top-0 z-10 bg-background")}>
+                {/* Use bg-card to match the card background instead of bg-background which might be different */}
+                <thead className={cn("[&_tr]:border-b sticky top-0 z-10 bg-card")}>
                   <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                     {descriptor.showIndexColumn && (
                       <th className="px-4 text-center align-middle font-medium text-muted-foreground whitespace-nowrap h-10">

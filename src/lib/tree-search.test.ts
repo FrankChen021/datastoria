@@ -1,373 +1,523 @@
-import { describe, it, expect } from 'vitest';
-import { searchTree } from './tree-search';
-import type { TreeDataItem } from '@/components/ui/tree';
+import { describe, expect, it } from "vitest";
+import type { TreeDataItem } from "@/components/ui/tree";
+import { searchTree } from "./tree-search";
 
-// Helper to create a test tree structure similar to schema tree
-function createTestTree(): TreeDataItem[] {
-  const hostNode: TreeDataItem = {
-    id: 'host',
-    text: 'Host1',
-    search: 'host1',
-    type: 'folder',
-    children: [
-      {
-        id: 'db:system',
-        text: 'system',
-        search: 'system',
-        type: 'folder',
-        children: [
-          {
-            id: 'table:system.query_log',
-            text: 'query_log',
-            search: 'query_log',
-            type: 'folder',
-            children: [
-              {
-                id: 'table:system.query_log.col1',
-                text: 'col1',
-                search: 'col1',
-                type: 'leaf',
-              },
-            ],
-          },
-          {
-            id: 'table:system.metric_log',
-            text: 'metric_log',
-            search: 'metric_log',
-            type: 'folder',
-            children: [
-              {
-                id: 'table:system.metric_log.timestamp',
-                text: 'timestamp',
-                search: 'timestamp',
-                type: 'leaf',
-              },
-              {
-                id: 'table:system.metric_log.value',
-                text: 'value',
-                search: 'value',
-                type: 'leaf',
-              },
-            ],
-          },
-          {
-            id: 'table:system.metrics',
-            text: 'metrics',
-            search: 'metrics',
-            type: 'folder',
-            children: [],
-          },
-          {
-            id: 'table:system.tables',
-            text: 'tables',
-            search: 'tables',
-            type: 'folder',
-            children: [],
-          },
-        ],
-      },
-      {
-        id: 'db:default',
-        text: 'default',
-        search: 'default',
-        type: 'folder',
-        children: [
-          {
-            id: 'table:default.users',
-            text: 'users',
-            search: 'users',
-            type: 'folder',
-            children: [],
-          },
-        ],
-      },
-    ],
+/**
+ * Helper function to create a tree node
+ */
+function createNode(
+  id: string,
+  text: string,
+  children?: TreeDataItem[]
+): TreeDataItem {
+  return {
+    id,
+    text,
+    search: text.toLowerCase(),
+    displayText: text,
+    children,
   };
-
-  return [hostNode];
 }
 
-describe('tree-search', () => {
-  describe('trailing dot search', () => {
-    it('should show system node with all children when searching "system."', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'system.');
+/**
+ * Helper function to extract the structure of search results (without React nodes)
+ * This makes assertions easier to read and write
+ */
+function getStructure(
+  nodes: TreeDataItem[]
+): Array<{ text: string; expanded: boolean; children?: ReturnType<typeof getStructure> }> {
+  return nodes.map((node) => ({
+    text: node.text,
+    expanded: node._expanded ?? false,
+    children: node.children ? getStructure(node.children) : undefined,
+  }));
+}
 
-      // Should find the system database node
-      const systemNode = result[0]?.children?.find((node) => node.text === 'system');
-      expect(systemNode).toBeDefined();
-      expect(systemNode?.text).toBe('system');
+describe("tree-search", () => {
+  describe("exact path matching for non-terminal segments", () => {
+    const tree: TreeDataItem[] = [
+      createNode("system", "system", [
+        createNode("query", "query", [
+          createNode("query_log", "query_log"),
+          createNode("query_cache", "query_cache"),
+        ]),
+        createNode("processes", "processes", [
+          createNode("query", "query"),
+          createNode("mutations", "mutations"),
+        ]),
+        createNode("metrics", "metrics"),
+      ]),
+      createNode("default", "default", [
+        createNode("query", "query"),
+      ]),
+    ];
 
-      // System node should be highlighted
-      const systemDisplayText = systemNode?.displayText;
-      expect(systemDisplayText).toBeDefined();
-      const systemIsHighlighted = typeof systemDisplayText === 'object' && systemDisplayText !== null;
-      expect(systemIsHighlighted).toBe(true);
+    it("should match exact path: system.query.", () => {
+      const results = searchTree(tree, "system.query.");
+      const structure = getStructure(results);
 
-      // System node should be expanded
-      expect(systemNode?._expanded).toBe(true);
-
-      // Should include all children of system
-      expect(systemNode?.children?.length).toBe(4);
-      expect(systemNode?.children?.map((c) => c.text)).toEqual(
-        expect.arrayContaining(['query_log', 'metric_log', 'metrics', 'tables'])
-      );
-
-      // Children should NOT be highlighted (displayText should be plain string, not React element)
-      for (const child of systemNode?.children || []) {
-        const childDisplayText = child.displayText;
-        const childIsHighlighted = typeof childDisplayText === 'object' && childDisplayText !== null;
-        expect(childIsHighlighted).toBe(false);
-        // Children should have their original text as displayText
-        expect(childDisplayText).toBe(child.text);
-      }
-
-      // Children should NOT be expanded
-      for (const child of systemNode?.children || []) {
-        expect(child._expanded).toBe(false);
-      }
+      // Should only match system -> query (not system -> processes -> query)
+      expect(structure).toEqual([
+        {
+          text: "system",
+          expanded: true,
+        children: [
+          {
+              text: "query",
+              expanded: true,
+            children: [
+                { text: "query_log", expanded: false, children: undefined },
+                { text: "query_cache", expanded: false, children: undefined },
+              ],
+              },
+            ],
+          },
+      ]);
     });
 
-    it('should highlight both system and query_log when searching "system.query_log."', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'system.query_log.');
+    it("should match exact path: system.processes.", () => {
+      const results = searchTree(tree, "system.processes.");
+      const structure = getStructure(results);
 
-      // Should find the system database node
-      const systemNode = result[0]?.children?.find((node) => node.text === 'system');
-      expect(systemNode).toBeDefined();
-      expect(systemNode?.text).toBe('system');
-      
-      // System node should be highlighted (displayText should be a React element, not plain string)
-      const systemDisplayText = systemNode?.displayText;
-      expect(systemDisplayText).toBeDefined();
-      // If it's highlighted, displayText will be an object (React element), not a plain string
-      const systemIsHighlighted = typeof systemDisplayText === 'object' && systemDisplayText !== null;
-      expect(systemIsHighlighted).toBe(true);
-      
-      // CRITICAL: When searching "system.query_log.", system should only have query_log as a child
-      // (not all children like metric_log, metrics, tables)
-      expect(systemNode?.children?.length).toBe(1);
-      expect(systemNode?.children?.[0]?.text).toBe('query_log');
-      
-      // Should find the query_log table node
-      const queryLogNode = systemNode?.children?.find((node) => node.text === 'query_log');
-      expect(queryLogNode).toBeDefined();
-      expect(queryLogNode?.text).toBe('query_log');
-      
-      // Query_log node should be highlighted
-      const queryLogDisplayText = queryLogNode?.displayText;
-      expect(queryLogDisplayText).toBeDefined();
-      const queryLogIsHighlighted = typeof queryLogDisplayText === 'object' && queryLogDisplayText !== null;
-      expect(queryLogIsHighlighted).toBe(true);
-      
-      // Query_log should be expanded (show children)
-      expect(queryLogNode?._expanded).toBe(true);
-      expect(queryLogNode?.children?.length).toBe(1);
-      expect(queryLogNode?.children?.[0]?.text).toBe('col1');
+      // Should only match system -> processes
+      expect(structure).toEqual([
+        {
+          text: "system",
+          expanded: true,
+            children: [
+              {
+              text: "processes",
+              expanded: true,
+              children: [
+                { text: "query", expanded: false, children: undefined },
+                { text: "mutations", expanded: false, children: undefined },
+              ],
+              },
+            ],
+          },
+      ]);
     });
 
-    it('should expand query_log when searching "system.query_log." even if system is not expanded', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'system.query_log.');
+    it("should recursively match 'system.query' in all descendants", () => {
+      const results = searchTree(tree, "system.query");
+      const structure = getStructure(results);
 
-      // Should find the system database node
-      const systemNode = result[0]?.children?.find((node) => node.text === 'system');
-      expect(systemNode).toBeDefined();
-      
-      // Should find the query_log table node
-      const queryLogNode = systemNode?.children?.find((node) => node.text === 'query_log');
-      expect(queryLogNode).toBeDefined();
-      
-      // Query_log should be expanded to show its children
-      expect(queryLogNode?._expanded).toBe(true);
-      expect(queryLogNode?.children?.length).toBe(1);
-      expect(queryLogNode?.children?.[0]?.text).toBe('col1');
+      // Fuzzy last segment searches recursively through ALL descendants
+      // Should match: system -> query, system -> query's children, AND system -> processes -> query
+      expect(structure).toEqual([
+        {
+          text: "system",
+          expanded: true,
+          children: [
+            {
+              text: "query",
+              expanded: true,
+              children: [
+                { text: "query_log", expanded: true, children: undefined },
+                { text: "query_cache", expanded: true, children: undefined },
+              ],
+            },
+            {
+              text: "processes",
+              expanded: true,
+              children: [
+                { text: "query", expanded: true, children: undefined },
+              ],
+          },
+        ],
+      },
+      ]);
     });
 
-    it('should show system node with all children when searching "system." with startLevel=1', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'system.', { startLevel: 1 });
+    it("should NOT match system -> processes -> query for 'system.query.' (exact match with trailing dot)", () => {
+      const results = searchTree(tree, "system.query.");
+      const structure = getStructure(results);
 
-      // Should find the host node (included because it has matching children)
-      expect(result.length).toBeGreaterThan(0);
-      expect(result[0]?.text).toBe('Host1');
-
-      // Should find the system database node
-      const systemNode = result[0]?.children?.find((node) => node.text === 'system');
-      expect(systemNode).toBeDefined();
-      expect(systemNode?.text).toBe('system');
-
-      // Should include all children of system
-      expect(systemNode?.children?.length).toBe(4);
-      expect(systemNode?.children?.map((c) => c.text)).toEqual(
-        expect.arrayContaining(['query_log', 'metric_log', 'metrics', 'tables'])
-      );
+      // Trailing dot makes it exact match - only system -> query (not system -> processes -> query)
+      const systemNode = structure[0];
+      expect(systemNode.children).toHaveLength(1);
+      expect(systemNode.children?.[0].text).toBe("query");
+      expect(systemNode.children?.[0].text).not.toBe("processes");
     });
 
-    it('should show nothing when searching "nonexistent."', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'nonexistent.');
-      expect(result.length).toBe(0);
-    });
-  });
-
-  describe('multi-segment search', () => {
-    it('should show system node with children matching "m" when searching "system.m"', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'system.m');
-
-      // Should find the system database node
-      const systemNode = result[0]?.children?.find((node) => node.text === 'system');
-      expect(systemNode).toBeDefined();
-      expect(systemNode?.text).toBe('system');
-
-      // Should show children that match "m" as substring
-      expect(systemNode?.children?.length).toBeGreaterThan(0);
-      const childrenNames = systemNode?.children?.map((c) => c.text) || [];
+    it("should demonstrate difference: 'system.query' vs 'system.query.'", () => {
+      // Without trailing dot: fuzzy recursive search
+      const fuzzyResults = searchTree(tree, "system.query");
+      const fuzzyStructure = getStructure(fuzzyResults);
       
-      // metric_log and metrics should match (both contain "m")
-      expect(childrenNames).toContain('metric_log');
-      expect(childrenNames).toContain('metrics');
+      // Should find both system->query AND system->processes->query
+      expect(fuzzyStructure[0].children?.length).toBe(2); // query and processes branches
       
-      // tables should NOT match (doesn't contain "m")
-      expect(childrenNames).not.toContain('tables');
+      // With trailing dot: exact match only
+      const exactResults = searchTree(tree, "system.query.");
+      const exactStructure = getStructure(exactResults);
+      
+      // Should find ONLY system->query
+      expect(exactStructure[0].children?.length).toBe(1); // only query branch
+      expect(exactStructure[0].children?.[0].text).toBe("query");
     });
 
-    it('should show system node with metric_log when searching "system.metric"', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'system.metric');
+    it("should match only default -> query for 'default.query.'", () => {
+      const results = searchTree(tree, "default.query.");
+      const structure = getStructure(results);
 
-      // Should have the host node in result (because it has matching children)
-      expect(result.length).toBeGreaterThan(0);
-      const hostNode = result[0];
-      expect(hostNode?.text).toBe('Host1');
-      
-      // Should find the system database node
-      const systemNode = hostNode?.children?.find((node) => node.text === 'system');
-      expect(systemNode).toBeDefined();
-
-      // Should show metric_log (contains "metric") and metrics (contains "metric")
-      const childrenNames = systemNode?.children?.map((c) => c.text) || [];
-      expect(childrenNames.length).toBeGreaterThan(0);
-      expect(childrenNames).toContain('metric_log');
-      expect(childrenNames).toContain('metrics');
+      expect(structure).toEqual([
+        {
+          text: "default",
+          expanded: true,
+        children: [
+          {
+              text: "query",
+              expanded: true,
+              children: undefined,
+          },
+        ],
+      },
+      ]);
     });
 
-    it('should show metric_log table with matching columns when searching "system.metric_log.t"', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'system.metric_log.t');
-
-      // Navigate to system -> metric_log
-      const systemNode = result[0]?.children?.find((node) => node.text === 'system');
-      expect(systemNode).toBeDefined();
-
-      const metricLogNode = systemNode?.children?.find((node) => node.text === 'metric_log');
-      expect(metricLogNode).toBeDefined();
-
-      // Should show columns that match "t" as substring
-      const childrenNames = metricLogNode?.children?.map((c) => c.text) || [];
-      expect(childrenNames).toContain('timestamp'); // contains "t"
-      expect(childrenNames).not.toContain('value'); // doesn't contain "t"
+    it("should not match anything for non-existent path 'system.nonexistent.'", () => {
+      const results = searchTree(tree, "system.nonexistent.");
+      expect(results).toEqual([]);
     });
 
-    it('should show system node with query_log when searching "system.q"', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'system.q');
-
-      // Should have the host node in result (because it has matching children)
-      expect(result.length).toBeGreaterThan(0);
-      const hostNode = result[0];
-      expect(hostNode?.text).toBe('Host1');
-      
-      // Should find the system database node
-      const systemNode = hostNode?.children?.find((node) => node.text === 'system');
-      expect(systemNode).toBeDefined();
-
-      // Should show query_log (contains "q" as substring)
-      const childrenNames = systemNode?.children?.map((c) => c.text) || [];
-      expect(childrenNames.length).toBeGreaterThan(0);
-      expect(childrenNames).toContain('query_log');
-      
-      // Should NOT show other children that don't match "q"
-      expect(childrenNames).not.toContain('metric_log');
-      expect(childrenNames).not.toContain('metrics');
-      expect(childrenNames).not.toContain('tables');
+    it("should not match anything for 'nonexistent.query.'", () => {
+      const results = searchTree(tree, "nonexistent.query.");
+      expect(results).toEqual([]);
     });
   });
 
-  describe('single segment search', () => {
-    it('should show nodes matching "system" when searching "system"', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'system');
+  describe("fuzzy matching on last segment", () => {
+    const tree: TreeDataItem[] = [
+      createNode("system", "system", [
+        createNode("query_log", "query_log"),
+        createNode("query_cache", "query_cache"),
+        createNode("metric_log", "metric_log"),
+      ]),
+    ];
 
-      // Should find nodes containing "system"
-      expect(result.length).toBeGreaterThan(0);
-      const systemNode = result[0]?.children?.find((node) => node.text === 'system');
-      expect(systemNode).toBeDefined();
+    it("should fuzzy match 'system.query' to query_log and query_cache", () => {
+      const results = searchTree(tree, "system.query");
+      const structure = getStructure(results);
+
+      expect(structure).toEqual([
+        {
+          text: "system",
+          expanded: true,
+          children: [
+            { text: "query_log", expanded: true, children: undefined },
+            { text: "query_cache", expanded: true, children: undefined },
+          ],
+        },
+      ]);
     });
 
-    it('should show nodes matching "system" when searching "system" with startLevel=1', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'system', { startLevel: 1 });
+    it("should fuzzy match 'system.log' to query_log and metric_log", () => {
+      const results = searchTree(tree, "system.log");
+      const structure = getStructure(results);
 
-      // Should find nodes containing "system"
-      expect(result.length).toBeGreaterThan(0);
-      const hostNode = result[0];
-      expect(hostNode?.text).toBe('Host1');
-      
-      const systemNode = hostNode?.children?.find((node) => node.text === 'system');
-      expect(systemNode).toBeDefined();
-      expect(systemNode?.text).toBe('system');
-    });
-  });
-
-  describe('edge cases', () => {
-    it('should return empty array for empty search', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, '');
-      // Empty search should return original tree
-      expect(result.length).toBeGreaterThan(0);
-    });
-
-    it('should handle case-insensitive matching', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'SYSTEM.');
-      
-      const systemNode = result[0]?.children?.find((node) => node.text === 'system');
-      expect(systemNode).toBeDefined();
-      expect(systemNode?.children?.length).toBe(4);
+      expect(structure).toEqual([
+        {
+          text: "system",
+          expanded: true,
+          children: [
+            { text: "query_log", expanded: true, children: undefined },
+            { text: "metric_log", expanded: true, children: undefined },
+          ],
+        },
+      ]);
     });
   });
 
-  describe('startLevel option', () => {
-    it('should skip root level when startLevel is 1', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'system.', { startLevel: 1 });
+  describe("single segment search", () => {
+    const tree: TreeDataItem[] = [
+      createNode("system", "system", [
+        createNode("query", "query"),
+      ]),
+      createNode("information_schema", "information_schema", [
+        createNode("tables", "tables"),
+      ]),
+    ];
 
-      // Should still find the host node (it's included because it has matching children)
-      expect(result.length).toBeGreaterThan(0);
-      expect(result[0]?.text).toBe('Host1');
-      
-      // Should find the system database node
-      const systemNode = result[0]?.children?.find((node) => node.text === 'system');
-      expect(systemNode).toBeDefined();
-      expect(systemNode?.children?.length).toBe(4);
+    it("should fuzzy match 'sys' to system", () => {
+      const results = searchTree(tree, "sys");
+      const structure = getStructure(results);
+
+      // Single segment fuzzy match - node matches but children don't, so no children shown
+      expect(structure).toEqual([
+        {
+          text: "system",
+          expanded: true,
+          children: undefined,
+        },
+      ]);
     });
 
-    it('should work with multi-segment search and startLevel', () => {
-      const tree = createTestTree();
-      const result = searchTree(tree, 'system.metric', { startLevel: 1 });
+    it("should fuzzy match 'schema' to information_schema", () => {
+      const results = searchTree(tree, "schema");
+      const structure = getStructure(results);
 
-      // Host node should be included (has matching children)
-      expect(result.length).toBeGreaterThan(0);
-      const systemNode = result[0]?.children?.find((node) => node.text === 'system');
-      expect(systemNode).toBeDefined();
+      expect(structure).toEqual([
+        {
+          text: "information_schema",
+          expanded: true,
+          children: undefined,
+        },
+      ]);
+    });
+  });
+
+  describe("trailing dot expansion", () => {
+    const tree: TreeDataItem[] = [
+      createNode("system", "system", [
+        createNode("query_log", "query_log"),
+        createNode("metric_log", "metric_log"),
+      ]),
+    ];
+
+    it("should expand 'system.' to show all children", () => {
+      const results = searchTree(tree, "system.");
+      const structure = getStructure(results);
+
+      expect(structure).toEqual([
+        {
+          text: "system",
+          expanded: true,
+          children: [
+            { text: "query_log", expanded: false, children: undefined },
+            { text: "metric_log", expanded: false, children: undefined },
+          ],
+        },
+      ]);
+    });
+  });
+
+  describe("deep nesting", () => {
+    const tree: TreeDataItem[] = [
+      createNode("a", "a", [
+        createNode("b", "b", [
+          createNode("c", "c", [
+            createNode("d", "d"),
+          ]),
+          createNode("x", "x", [
+            createNode("c", "c"),
+          ]),
+        ]),
+        createNode("y", "y", [
+          createNode("b", "b", [
+            createNode("c", "c"),
+          ]),
+        ]),
+      ]),
+    ];
+
+    it("should match exact path: a.b.c.", () => {
+      const results = searchTree(tree, "a.b.c.");
+      const structure = getStructure(results);
+
+      // Should only match a -> b -> c (not a -> b -> x -> c or a -> y -> b -> c)
+      expect(structure).toEqual([
+        {
+          text: "a",
+          expanded: true,
+          children: [
+            {
+              text: "b",
+              expanded: true,
+              children: [
+                {
+                  text: "c",
+                  expanded: true,
+                  children: [
+                    { text: "d", expanded: false, children: undefined },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("should NOT match a -> b -> x -> c for 'a.b.c.'", () => {
+      const results = searchTree(tree, "a.b.c.");
+      const structure = getStructure(results);
+
+      const aNode = structure[0];
+      const bNode = aNode.children?.[0];
+      expect(bNode?.text).toBe("b");
+      expect(bNode?.children).toHaveLength(1);
+      expect(bNode?.children?.[0].text).toBe("c");
+    });
+
+    it("should NOT match a -> y -> b -> c for 'a.b.c.'", () => {
+      const results = searchTree(tree, "a.b.c.");
+      const structure = getStructure(results);
+
+      const aNode = structure[0];
+      expect(aNode.children).toHaveLength(1);
+      expect(aNode.children?.[0].text).toBe("b");
+      expect(aNode.children?.[0].text).not.toBe("y");
+    });
+  });
+
+  describe("case sensitivity", () => {
+    const tree: TreeDataItem[] = [
+      createNode("System", "System", [
+        createNode("Query", "Query"),
+      ]),
+    ];
+
+    it("should match 'system.query' case-insensitively for exact segments", () => {
+      const results = searchTree(tree, "system.query");
+      const structure = getStructure(results);
+
+      expect(structure).toEqual([
+        {
+          text: "System",
+          expanded: true,
+          children: [
+            { text: "Query", expanded: true, children: undefined },
+          ],
+        },
+      ]);
+    });
+
+    it("should match 'SYSTEM.QUERY.' case-insensitively", () => {
+      const results = searchTree(tree, "SYSTEM.QUERY.");
+      const structure = getStructure(results);
+
+      expect(structure).toEqual([
+        {
+          text: "System",
+          expanded: true,
+          children: [
+            { text: "Query", expanded: true, children: undefined },
+          ],
+        },
+      ]);
+    });
+  });
+
+  describe("empty search", () => {
+    const tree: TreeDataItem[] = [
+      createNode("system", "system", [
+        createNode("query", "query"),
+      ]),
+    ];
+
+    it("should return original tree for empty search", () => {
+      const results = searchTree(tree, "");
+      expect(results).toEqual(tree);
+    });
+  });
+
+  describe("edge cases", () => {
+    it("should handle undefined tree", () => {
+      const results = searchTree(undefined, "system");
+      expect(results).toEqual([]);
+    });
+
+    it("should handle empty tree", () => {
+      const results = searchTree([], "system");
+      expect(results).toEqual([]);
+    });
+
+    it("should handle search with only dots", () => {
+      const tree: TreeDataItem[] = [
+        createNode("system", "system"),
+      ];
+      const results = searchTree(tree, "...");
+      // All empty segments are filtered out, returning original tree (same as empty search)
+      expect(results).toEqual(tree);
+    });
+
+    it("should handle middle empty segments (e.g., 'system..sys')", () => {
+      const tree: TreeDataItem[] = [
+        createNode("system", "system", [
+          createNode("query", "query"),
+          createNode("processes", "processes"),
+        ]),
+      ];
+      const results = searchTree(tree, "system..sys");
       
-      // Should show metric_log and metrics
-      const childrenNames = systemNode?.children?.map((c) => c.text) || [];
-      expect(childrenNames).toContain('metric_log');
-      expect(childrenNames).toContain('metrics');
+      // Middle empty strings are preserved: "system..sys" → ["system", "", "sys"]
+      // This means: match "system", then match empty (which fails), so no results
+      expect(results).toEqual([]);
+    });
+
+    it("should handle empty-named nodes with middle empty segments", () => {
+      const tree: TreeDataItem[] = [
+        createNode("a", "a", [
+          createNode("", "", [  // Empty-named node
+            createNode("c", "c"),
+          ]),
+          createNode("b", "b"),
+        ]),
+      ];
+      
+      // a.b → ["a", "b"] → should match a -> b (direct child)
+      const results1 = searchTree(tree, "a.b");
+      expect(results1).toHaveLength(1);
+      
+      // a..c → ["a", "", "c"] → WILL match a -> "" -> c (empty node matches empty segment)
+      const results2 = searchTree(tree, "a..c");
+      expect(results2).toHaveLength(1);
+      expect(results2[0].children?.[0].text).toBe(""); // Empty node
+      expect(results2[0].children?.[0].children?.[0].text).toBe("c");
+      
+      // Most real trees won't have empty-named nodes, so a..anything typically matches nothing
+      const normalTree: TreeDataItem[] = [
+        createNode("system", "system", [
+          createNode("query", "query"),
+        ]),
+      ];
+      expect(searchTree(normalTree, "system..query")).toEqual([]);
+    });
+
+    it("should distinguish 'system..' vs 'system.'", () => {
+      const tree: TreeDataItem[] = [
+        createNode("system", "system", [
+          createNode("query", "query"),
+        ]),
+      ];
+      
+      // system. → ["system", ""] → expand system to show children
+      const results1 = searchTree(tree, "system.");
+      expect(results1).toHaveLength(1);
+      expect(results1[0].children).toHaveLength(1);
+      
+      // system.. → ["system", "", ""] → match system, then try to match empty in children (fails)
+      const results2 = searchTree(tree, "system..");
+      expect(results2).toEqual([]);
+    });
+
+    it("should handle multiple trailing dots correctly", () => {
+      const tree: TreeDataItem[] = [
+        createNode("system", "system", [
+          createNode("query", "query", [
+            createNode("query_log", "query_log"),
+          ]),
+        ]),
+      ];
+      
+      // One dot: expand
+      expect(searchTree(tree, "system.")).toHaveLength(1);
+      expect(searchTree(tree, "system.")[0].children).toHaveLength(1);
+      
+      // Two dots: no match (try to match empty string in children)
+      expect(searchTree(tree, "system..")).toEqual([]);
+      
+      // Three dots: no match
+      expect(searchTree(tree, "system...")).toEqual([]);
+      
+      // system.query. → expand query
+      const resultsQuery = searchTree(tree, "system.query.");
+      expect(resultsQuery).toHaveLength(1);
+      expect(resultsQuery[0].children?.[0].children).toHaveLength(1);
+      
+      // system.query.. → no match (try to match empty after query)
+      expect(searchTree(tree, "system.query..")).toEqual([]);
     });
   });
 });
-

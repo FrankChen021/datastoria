@@ -1,4 +1,9 @@
-import type { StatDescriptor, TableDescriptor, TimeseriesDescriptor } from "@/components/dashboard/dashboard-model";
+import type {
+  StatDescriptor,
+  TableDescriptor,
+  TimeseriesDescriptor,
+  TransposeTableDescriptor,
+} from "@/components/dashboard/dashboard-model";
 import DashboardContainer from "@/components/dashboard/dashboard-container";
 import type { Dashboard, DashboardGroup } from "@/components/dashboard/dashboard-model";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
@@ -7,6 +12,9 @@ import { useConnection } from "@/lib/connection/ConnectionContext";
 import { memo } from "react";
 
 const serverStatusDashboard = [
+  //
+  // Server Version
+  //
   {
     type: "stat",
     titleOption: {
@@ -17,7 +25,19 @@ const serverStatusDashboard = [
     query: {
       sql: "SELECT version()",
     },
+    drilldown: {
+      main: {
+        type: "table",
+        titleOption: {
+          title: "system.build_options",
+        },
+        query: {
+          sql: "SELECT * FROM system.build_options",
+        },
+      } as TableDescriptor,
+    },
   },
+
   {
     type: "stat",
     titleOption: {
@@ -78,7 +98,12 @@ const serverStatusDashboard = [
           description: "The number of warnings on the server",
         },
         query: {
-          sql: "SELECT * FROM system.errors ORDER BY last_error_time DESC",
+          sql: `
+WITH arrayMap(x -> demangle(addressToSymbol(x)), last_error_trace) AS all 
+SELECT *, arrayStringConcat(all, '\n') AS last_error_stack_trace
+FROM system.errors ORDER BY last_error_time DESC
+SETTINGS allow_introspection_functions = 1
+`,
         },
         sortOption: {
           initialSort: {
