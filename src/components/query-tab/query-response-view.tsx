@@ -1,5 +1,6 @@
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { parseErrorLocation, type ErrorLocation } from "@/lib/clickhouse-error-parser";
 import { AlertCircleIcon } from "lucide-react";
 import { memo, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
@@ -18,38 +19,35 @@ export interface ApiErrorResponse {
   httpHeaders?: Record<string, string>;
 }
 
-interface ErrorLocation {
-  lineNumber: number;
-  columnNumber: number;
-  contextLines: Array<{ lineNum: number; content: string; isErrorLine: boolean }>;
-  caretPosition: number;
-}
-
 interface ErrorLocationViewProps {
   errorLocation: ErrorLocation;
 }
 
 const ErrorLocationView = memo(function ErrorLocationView({ errorLocation }: ErrorLocationViewProps) {
+  const codeString = useMemo(() => {
+    return errorLocation.contextLines
+      .map((line) => {
+        const linePrefix = `${String(line.lineNum).padStart(4, " ")} | `;
+        let text = `${linePrefix}${line.content}`;
+        if (line.isErrorLine) {
+          const pointerPrefix = `${" ".repeat(4)} | `;
+          const pointer = `${" ".repeat(errorLocation.caretPosition)}^${errorLocation.message ? ` ${errorLocation.message}` : ""}`;
+          text += `\n${pointerPrefix}${pointer}`;
+        }
+        return text;
+      })
+      .join("\n");
+  }, [errorLocation]);
+
   return (
     <div className="mb-3">
       <div className="my-2 font-medium">
         Error Context: Line {errorLocation.lineNumber}, Col {errorLocation.columnNumber}:
       </div>
-      <div className="font-mono text-sm bg-muted/50 dark:bg-muted/30 p-3 rounded border border-yellow-400/40 dark:border-yellow-700/40">
-        {errorLocation.contextLines.map((line, index) => (
-          <div key={index}>
-            <div className="whitespace-pre">
-              <span className="text-muted-foreground mr-2 select-none">{String(line.lineNum).padStart(4, " ")} |</span>
-              <span className={line.isErrorLine ? "text-destructive" : ""}>{line.content}</span>
-            </div>
-            {line.isErrorLine && (
-              <div className="whitespace-pre text-destructive">
-                <span className="text-muted-foreground mr-2 select-none">{"".padStart(4, " ")} |</span>
-                <span>{" ".repeat(errorLocation.caretPosition)}^</span>
-              </div>
-            )}
-          </div>
-        ))}
+      <div className="font-mono text-sm rounded overflow-hidden">
+        <ThemedSyntaxHighlighter language="sql" customStyle={{ margin: 0, padding: "0.75rem", fontSize: "0.875rem" }}>
+          {codeString}
+        </ThemedSyntaxHighlighter>
       </div>
     </div>
   );
@@ -69,84 +67,9 @@ export function ApiErrorView({ error, sql }: { error: ApiErrorResponse; sql?: st
     return null;
   }, [error.data]);
 
-  /*
-   * TODO: QueryId = 4199d73a-c844-42dc-9600-eecef6edb804, Check logs for this query at: http://monitor.olap.data-infra.shopee.io/v2/tracing/detail?_sidebar=collapsed&id=019a69245625d13da59307c1bd78f0ec Code: 206. DB::Exception: No alias for subquery or table function in JOIN (set joined_subquery_requires_alias=0 to disable restriction). While processing ' (SELECT * FROM system.tables AS B)'. (ALIAS_REQUIRED) (version vSClickhouse-22.3-011)
-   * extract while parsing xxxxx
-   */
   // Parse line and column for exception code 62 - memoized to avoid recalculation
   const errorLocation = useMemo(() => {
-    if (clickHouseErrorCode !== "62" || !detailMessage || !sql) {
-      return null;
-    }
-
-    // Extract line and column from pattern: (line 12, col 4)
-    let match = detailMessage.match(/\(line\s+(\d+),\s*col\s+(\d+)\)/i);
-    let lineNumber: number;
-    let columnNumber: number;
-
-    if (match) {
-      lineNumber = parseInt(match[1], 10);
-      columnNumber = parseInt(match[2], 10);
-    } else {
-      // Fallback: try pattern "failed at position yyy" where yyy is a number
-      match = detailMessage.match(/failed at position\s+(\d+)/i);
-      if (!match) {
-        return null;
-      }
-      // For this pattern, line number is 1, column is the captured position
-      lineNumber = 1;
-      columnNumber = parseInt(match[1], 10);
-    }
-
-    if (isNaN(lineNumber) || isNaN(columnNumber) || lineNumber < 1 || columnNumber < 1) {
-      return null;
-    }
-
-    // Get the SQL lines
-    const sqlLines = sql.split("\n");
-    if (lineNumber > sqlLines.length) {
-      return null;
-    }
-
-    // Calculate start line (3 lines before error line, or line 1 if error is too early)
-    const startLine = Math.max(1, lineNumber - 3);
-    // Calculate end line (3 lines after error line, or last line if error is too late)
-    const endLine = Math.min(sqlLines.length, lineNumber + 3);
-
-    // Build context lines with line numbers
-    const contextLines: Array<{ lineNum: number; content: string; isErrorLine: boolean }> = [];
-    let errorLineContent = "";
-    for (let i = startLine; i <= endLine; i++) {
-      const lineIndex = i - 1; // Convert to 0-based index
-      const lineContent = sqlLines[lineIndex] || "";
-      const isErrorLine = i === lineNumber;
-
-      // For error line, show only first 50 characters if column is smaller than 50
-      let displayContent = lineContent;
-      if (isErrorLine && columnNumber <= 50) {
-        displayContent = lineContent.substring(0, 50);
-      }
-
-      if (isErrorLine) {
-        errorLineContent = displayContent;
-      }
-
-      contextLines.push({
-        lineNum: i,
-        content: displayContent,
-        isErrorLine,
-      });
-    }
-
-    // Calculate caret position for error line - use tracked errorLineContent instead of find
-    const caretPosition = Math.min(columnNumber - 1, errorLineContent.length - 1);
-
-    return {
-      lineNumber,
-      columnNumber,
-      contextLines,
-      caretPosition,
-    };
+    return parseErrorLocation(clickHouseErrorCode, detailMessage, sql);
   }, [clickHouseErrorCode, detailMessage, sql]);
 
   const [showFullDetailMessage, setShowFullDetailMessage] = useState(false);
