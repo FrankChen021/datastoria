@@ -1,15 +1,20 @@
 import FloatingProgressBar from "@/components/floating-progress-bar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tree, type TreeDataItem } from "@/components/ui/tree";
 import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
+import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertCircle,
   Calculator,
   Calendar,
+  Check,
   Clock,
   Database,
   FileText,
@@ -26,6 +31,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { CommandItemCount, HighlightableCommandItem } from "../cmdk-extension/cmdk-extension";
 import { TabManager, type TabInfo } from "../tab-manager";
 import { showDropTableConfirmationDialog } from "./drop-table-confirmation-dialog";
 
@@ -261,6 +267,129 @@ interface HostNodeData {
   host: string;
 }
 
+type SchemaNodeData = DatabaseNodeData | TableNodeData | ColumnNodeData | HostNodeData;
+
+interface HostInfo {
+  name: string;
+  address: string;
+  shard: number;
+  replica: number;
+}
+
+function HostSelector({ clusterName, displayName }: { clusterName: string; displayName: string }) {
+  const { selectedConnection } = useConnection();
+  const [isOpen, setIsOpen] = useState(false);
+  const [data, setData] = useState<HostInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen && data.length === 0 && !loading && selectedConnection) {
+      setLoading(true);
+      const api = Api.create(selectedConnection);
+      api.executeSQL(
+        {
+          sql: `
+SELECT 
+  host_name AS name, 
+  host_address AS address, 
+  shard_num AS shard, 
+  replica_num AS replica 
+FROM system.clusters 
+WHERE cluster ='${clusterName}'
+ORDER BY shard, replica`,
+          params: { default_format: "JSON" },
+        },
+        (response) => {
+          try {
+            setData((response.data.data || []) as HostInfo[]);
+            setError(null);
+          } catch {
+            setError("Failed to parse response");
+          }
+        },
+        (err) => {
+          setError(err.errorMessage || "Failed to load cluster info");
+        },
+        () => {
+          setLoading(false);
+        }
+      );
+    }
+  }, [isOpen, selectedConnection, clusterName, data.length, loading]);
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <span
+          className="cursor-pointer hover:underline"
+          onClick={() => {
+            // We don't stop propagation so the tree node gets selected,
+            // but we handle the popover opening.
+            setIsOpen(true);
+          }}
+        >
+          {displayName}
+        </span>
+      </PopoverTrigger>
+      <PopoverContent className="w-[500px] p-0" align="start">
+        <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]]:!rounded-none [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
+          <CommandInput placeholder="Search hosts..." className="!h-10" />
+          <CommandItemCount />
+          <CommandList className="!rounded-none max-h-[400px] overflow-y-auto overflow-x-hidden">
+            <CommandEmpty className="p-3 text-center">{error || "No hosts found."}</CommandEmpty>
+            {loading ? (
+              <div className="p-4 text-sm text-center text-muted-foreground">Loading...</div>
+            ) : (
+              data.length > 0 && (
+                <CommandGroup className="!py-1 !px-1 !rounded-none">
+                  {data.map((node, idx) => {
+                    const isSelected = node.name === displayName || node.address === displayName;
+                    return (
+                      <CommandItem
+                        key={idx}
+                        value={`${node.name}`}
+                        className={cn(
+                          "flex items-center !rounded-none cursor-pointer !py-1 mb-1 transition-colors",
+                          isSelected && "bg-muted/50"
+                        )}
+                        onSelect={() => {
+                          // TODO: Set the host as selected and reload tree from this host
+                          setIsOpen(false);
+                        }}
+                      >
+                        <div className="flex items-center gap-2 w-full min-w-0">
+                          <div className="w-4 shrink-0 flex items-center justify-center">
+                            {isSelected && <Check className="h-3 w-3 text-primary" />}
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+                            <span className={cn("text-sm truncate block", isSelected && "text-primary font-medium")}>
+                              <HighlightableCommandItem text={node.name} />
+                            </span>
+                            <span className="text-xs text-muted-foreground truncate block">{node.address}</span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Badge variant="secondary" className="rounded-none px-1 whitespace-nowrap">
+                              Shard {String(node.shard).padStart(2, "0")}
+                            </Badge>
+                            <Badge variant="secondary" className="rounded-none px-1 whitespace-nowrap">
+                              Replica {String(node.replica).padStart(2, "0")}
+                            </Badge>
+                          </div>
+                        </div>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              )
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export interface SchemaTreeViewProps {
   tabId?: string; // Optional tab ID for multi-tab support
 }
@@ -483,7 +612,7 @@ export function SchemaTreeView({ tabId }: SchemaTreeViewProps) {
 
       // Ensure responseServer is a string
       const serverName = String(responseServer || "Unknown");
-      
+
       // Strip the Kubernetes cluster suffix if present
       const displayName = serverName.replace(/\.svc\.cluster\.local$/, "");
 
@@ -492,6 +621,9 @@ export function SchemaTreeView({ tabId }: SchemaTreeViewProps) {
       const hostNode: TreeDataItem = {
         id: "host",
         text: displayName,
+        displayText: selectedConnection?.cluster ? (
+          <HostSelector clusterName={selectedConnection.cluster} displayName={displayName} />
+        ) : undefined,
         search: serverName.toLowerCase(),
         icon: Monitor,
         type: "folder",
@@ -516,7 +648,7 @@ export function SchemaTreeView({ tabId }: SchemaTreeViewProps) {
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
 
   const handleContextMenu = useCallback((node: TreeDataItem, event: React.MouseEvent) => {
-    const nodeData = node.data;
+    const nodeData = node.data as SchemaNodeData | undefined;
     if (!nodeData) return;
 
     // Show context menu only for table nodes (if not materialized view)
@@ -693,7 +825,12 @@ ORDER BY lower(database), database, table, columnName`,
 
   // Automatically open server tab when tree is first loaded
   useEffect(() => {
-    if (!isLoading && treeData.length > 0 && !hasOpenedServerTabRef.current && treeData[0]?.data?.type === "host") {
+    if (
+      !isLoading &&
+      treeData.length > 0 &&
+      !hasOpenedServerTabRef.current &&
+      (treeData[0]?.data as SchemaNodeData)?.type === "host"
+    ) {
       const hostData = treeData[0].data as HostNodeData;
       TabManager.sendOpenServerTabRequest(hostData.host, tabId);
       hasOpenedServerTabRef.current = true;
@@ -770,8 +907,8 @@ ORDER BY lower(database), database, table, columnName`,
   }, [search, syncToTabInfo]);
 
   const handleDropTable = useCallback(() => {
-    if (contextMenuNode?.data?.type === "table" && selectedConnection) {
-      const tableData = contextMenuNode.data as TableNodeData;
+    if ((contextMenuNode?.data as SchemaNodeData)?.type === "table" && selectedConnection) {
+      const tableData = contextMenuNode!.data as TableNodeData;
       showDropTableConfirmationDialog({
         table: tableData,
         connection: selectedConnection,
@@ -858,28 +995,33 @@ ORDER BY lower(database), database, table, columnName`,
     (item: TreeDataItem | undefined) => {
       if (!item?.data) return;
 
+      const data = item.data as SchemaNodeData;
+
       // Always update the selected node ID for visual highlighting (works in both search and non-search modes)
       setSelectedNodeId(item.id);
 
       // Always open tabs when nodes are clicked (user interaction)
       // Tab changes from external sources won't sync to tree in search mode (handled by the active tab change listener)
       // If a host node is clicked, open the dashboard tab
-      if (item.data.type === "host") {
-        const hostData = item.data as HostNodeData;
-        TabManager.sendOpenServerTabRequest(hostData.host, tabId);
+      if (data.type === "host") {
+        // In cluster mode, we show the popover (handled by the component), so don't open the tab
+        if (!selectedConnection?.cluster) {
+          const hostData = data as HostNodeData;
+          TabManager.sendOpenServerTabRequest(hostData.host, tabId);
+        }
       }
       // If a database node is clicked, open the database tab
-      else if (item.data.type === "database") {
-        const databaseData = item.data as DatabaseNodeData;
+      else if (data.type === "database") {
+        const databaseData = data as DatabaseNodeData;
         TabManager.sendOpenDatabaseTabRequest(databaseData.name, tabId);
       }
       // If a table node is clicked, open the table tab
-      else if (item.data.type === "table") {
-        const tableData = item.data as TableNodeData;
+      else if (data.type === "table") {
+        const tableData = data as TableNodeData;
         TabManager.sendOpenTableTabRequest(tableData.database, tableData.table, tableData.fullTableEngine, tabId);
       }
     },
-    [tabId]
+    [tabId, selectedConnection]
   );
 
   if (!selectedConnection) {
@@ -968,7 +1110,7 @@ ORDER BY lower(database), database, table, columnName`,
           // Build menu items based on node type
           const menuItems: React.ReactNode[] = [];
 
-          if (contextMenuNode.data?.type === "table") {
+          if ((contextMenuNode.data as SchemaNodeData)?.type === "table") {
             const tableData = contextMenuNode.data as TableNodeData;
             // Only show drop table if engine is not 'Sys' (System tables)
             if (tableData.tableEngine !== "Sys") {

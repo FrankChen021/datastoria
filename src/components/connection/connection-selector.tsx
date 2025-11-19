@@ -4,24 +4,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { Connection } from "@/lib/connection/Connection";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { ConnectionManager } from "@/lib/connection/ConnectionManager";
-import { TextHighlighter } from "@/lib/text-highlighter";
 import { cn } from "@/lib/utils";
-import { useCommandState } from "@frankchen029/cmdk";
 import { Check, Pencil, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Input } from "../ui/input";
 import { Separator } from "../ui/separator";
 import { showConnectionEditDialog } from "./connection-edit-dialog";
-
-interface HighlightItemProps {
-  text: string;
-}
-
-export const HighlightableCommandItem: React.FC<HighlightItemProps> = ({ text }) => {
-  const search = useCommandState((state) => state.search);
-  return TextHighlighter.highlight(text, search, "text-yellow-500");
-};
+import { HighlightableCommandItem } from "../cmdk-extension/cmdk-extension";
 
 interface ConnectionSelectorProps {
   /**
