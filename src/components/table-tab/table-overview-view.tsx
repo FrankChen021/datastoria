@@ -8,6 +8,7 @@ import DashboardPanels, { type DashboardPanelsRef } from "@/components/dashboard
 import type { TimeSpan } from "@/components/dashboard/timespan-selector";
 import { BUILT_IN_TIME_SPAN_LIST } from "@/components/dashboard/timespan-selector";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { useConnection } from "@/lib/connection/ConnectionContext";
 import type { RefreshableTabViewRef } from "./table-tab";
 
 export interface TableOverviewViewProps {
@@ -22,6 +23,7 @@ const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOvervi
     const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | undefined>(undefined);
     const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
     const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan(), []);
+    const { selectedConnection } = useConnection();
 
     // Calculate current time span (use selected if available, otherwise default)
     const currentTimeSpan = selectedTimeSpan ?? defaultTimeSpan;
@@ -48,6 +50,7 @@ const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOvervi
 
     // Create dashboard with all table descriptors
     const dashboard = useMemo<Dashboard>(() => {
+      const isClusterMode = selectedConnection?.cluster && selectedConnection.cluster.length > 0;
       return {
         name: `table-overview-${database}-${table}`,
         folder: "table-overview",
@@ -173,36 +176,37 @@ LIMIT 1
           } as StatDescriptor,
 
           //
-          // Cluster
+          // Cluster - only available in cluster mode
           //
-          {
-            title: "Cluster",
-            charts: [
-              {
-                type: "stat",
-                titleOption: {
-                  title: "Cluster Size",
-                },
-                width: 5,
-                query: {
-                  sql: `
+          ...(isClusterMode ? [
+            {
+              title: "Cluster",
+              charts: [
+                {
+                  type: "stat",
+                  titleOption: {
+                    title: "Cluster Size",
+                  },
+                  width: 5,
+                  query: {
+                    sql: `
 SELECT sum(bytes_on_disk) as bytes_on_disk
 FROM clusterAllReplicas('{cluster}', system.parts)
 WHERE database = '${database}' AND table = '${table}' AND active = 1
 `,
-                },
-                valueOption: {
-                  format: "binary_size",
-                },
-              } as StatDescriptor,
-              {
-                type: "table",
-                titleOption: {
-                  title: "Table Size On Cluster",
-                  align: "center",
-                },
-                query: {
-                  sql: `
+                  },
+                  valueOption: {
+                    format: "binary_size",
+                  },
+                } as StatDescriptor,
+                {
+                  type: "table",
+                  titleOption: {
+                    title: "Table Size On Cluster",
+                    align: "center",
+                  },
+                  query: {
+                    sql: `
 SELECT
   FQDN() as host, 
   count() as part_count, 
@@ -214,24 +218,25 @@ AND active
 GROUP BY host
 ORDER BY host
 `,
-                },
-                fieldOptions: {
-                  bytes_on_disk: {
-                    format: "binary_size",
                   },
-                  rows: {
-                    format: "comma_number",
+                  fieldOptions: {
+                    bytes_on_disk: {
+                      format: "binary_size",
+                    },
+                    rows: {
+                      format: "comma_number",
+                    },
                   },
-                },
-                sortOption: {
-                  initialSort: {
-                    column: "host",
-                    direction: "asc",
+                  sortOption: {
+                    initialSort: {
+                      column: "host",
+                      direction: "asc",
+                    },
                   },
-                },
-              } as TableDescriptor,
-            ],
-          } as DashboardGroup,
+                } as TableDescriptor,
+              ],
+            } as DashboardGroup,
+          ] : []),
 
           //
           // Sizes
@@ -536,7 +541,7 @@ ORDER BY 1, 2, 3`,
           } as DashboardGroup,
         ],
       };
-    }, [database, table]);
+    }, [database, table, selectedConnection]);
 
     return <DashboardPanels ref={dashboardPanelsRef} dashboard={dashboard} selectedTimeSpan={currentTimeSpan} />;
   }
