@@ -9,17 +9,22 @@ export interface CollapsibleSectionProps {
   children: ReactNode;
   defaultOpen?: boolean;
   className?: string;
+  fullHeight?: boolean;
 }
 
-export function CollapsibleSection({ title, children, defaultOpen = true, className }: CollapsibleSectionProps) {
+export function CollapsibleSection({ title, children, defaultOpen = true, className, fullHeight }: CollapsibleSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <Card className={cn("@container/card relative overflow-hidden", className)}>
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <Card className={cn("@container/card relative overflow-hidden", fullHeight ? (isOpen ? "flex flex-col flex-1 min-h-0" : "flex-none") : "", className)}>
+      <Collapsible
+        open={isOpen}
+        onOpenChange={setIsOpen}
+        className={cn(fullHeight && "flex-1 flex flex-col min-h-0")}
+      >
         <CardHeader className="p-0">
           <CollapsibleTrigger className="w-full">
-            <div className={cn("flex items-center p-3 bg-muted/50 transition-colors gap-2 hover:bg-muted")}>
+            <div className={cn("flex items-center p-2 bg-muted/50 transition-colors gap-2 hover:bg-muted")}>
               <ChevronRight
                 className={cn("h-4 w-4 transition-transform duration-200 shrink-0", isOpen && "rotate-90")}
               />
@@ -29,7 +34,9 @@ export function CollapsibleSection({ title, children, defaultOpen = true, classN
             </div>
           </CollapsibleTrigger>
         </CardHeader>
-        <CollapsibleContent>{children}</CollapsibleContent>
+        <CollapsibleContent className={cn(fullHeight && "flex-1 flex flex-col min-h-0")}>
+          {children}
+        </CollapsibleContent>
       </Collapsible>
     </Card>
   );

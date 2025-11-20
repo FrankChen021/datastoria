@@ -275,6 +275,9 @@ interface TimeSpanSelectorProps {
 
   // Callback prop to notify the caller
   onSelectedSpanChanged: (span: DisplayTimeSpan) => void;
+
+  // Custom class for the trigger button
+  buttonClassName?: string;
 }
 
 interface TimeSpanSelectorState {
@@ -439,7 +442,7 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
       userTimeSpans,
     } = this.state;
 
-    const { showTimeSpanSelector = true, showRefresh = true, showAutoRefresh = true, size = "default" } = this.props;
+    const { showTimeSpanSelector = true, showRefresh = true, showAutoRefresh = true, size = "default", buttonClassName } = this.props;
 
     // If no components are visible, render nothing
     if (!showTimeSpanSelector && !showRefresh && !showAutoRefresh) {
@@ -462,7 +465,7 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
               <Button
                 variant="outline"
                 size={size}
-                className={cn("rounded-none", showRefresh || showAutoRefresh ? "rounded-l" : "rounded")}
+                className={cn("rounded-none", showRefresh || showAutoRefresh ? "rounded-l" : "rounded", buttonClassName)}
               >
                 {selectedTimeSpan.label} {/* Display the label of the selected range */}
               </Button>

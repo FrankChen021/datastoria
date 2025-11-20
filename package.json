@@ -17,6 +17,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@frankchen029/cmdk": "^1.0.8",
     "@mui/material": "^7.3.4",
     "@number-flow/react": "file:./external/number-flow/packages/react",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -45,7 +46,6 @@
     "axios": "^1.13.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "@frankchen029/cmdk": "^1.0.8",
     "crypto-js": "^4.2.0",
     "d3-graphviz": "^5.0.2",
     "d3-selection": "^3.0.0",
@@ -67,6 +67,7 @@
     "sql-formatter": "^15.4.4",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
+    "use-debounce": "^10.0.6",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

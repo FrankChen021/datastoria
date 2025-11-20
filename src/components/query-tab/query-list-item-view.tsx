@@ -6,7 +6,7 @@ import { useConnection } from "@/lib/connection/ConnectionContext";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, ExternalLink, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { QueryLogView } from "../query-log-tab/query-log-view";
+import { TabManager } from "../tab-manager";
 import { ExplainASTResponseView } from "./explain-ast-response-view";
 import { ExplainPipelineResponseView } from "./explain-pipeline-response-view";
 import { ExplainQueryResponseView } from "./explain-query-response-view";
@@ -35,7 +35,6 @@ export function QueryListItemView({
   // Start as executing if we don't have a response yet (new query)
   const [isExecuting, setIsExecuting] = useState(true);
   const [queryResponse, setQueryResponse] = useState<QueryResponseViewModel | undefined>(undefined);
-  const [showQueryLog, setShowQueryLog] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
   const hasExecutedRef = useRef<string | null>(null);
@@ -77,10 +76,10 @@ export function QueryListItemView({
     const params = viewArgs?.params
       ? { ...viewArgs.params, query_id: viewArgs.params.query_id ?? queryRequest.queryId }
       : {
-          query_id: queryRequest.queryId,
-          default_format: defaultFormat,
-          output_format_json_quote_64bit_integers: view === "dependency" ? 0 : undefined,
-        };
+        query_id: queryRequest.queryId,
+        default_format: defaultFormat,
+        output_format_json_quote_64bit_integers: view === "dependency" ? 0 : undefined,
+      };
 
     // Execute query asynchronously
     (async () => {
@@ -312,7 +311,7 @@ export function QueryListItemView({
           <div className="text-xs text-muted-foreground">
             Query Id:{" "}
             <button
-              onClick={() => setShowQueryLog(true)}
+              onClick={() => TabManager.sendOpenQueryLogTabRequest(queryResponse.queryId || queryRequest.queryId)}
               className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
             >
               {queryResponse.queryId || queryRequest.queryId}
@@ -348,14 +347,6 @@ export function QueryListItemView({
         </div>
       </div>
 
-      {/* Full-screen Query Log Viewer */}
-      {showQueryLog && queryResponse && (queryResponse.queryId || queryRequest.queryId) && (
-        <QueryLogView
-          queryId={queryResponse.queryId || queryRequest.queryId || undefined}
-          onClose={() => setShowQueryLog(false)}
-          embedded={false}
-        />
-      )}
     </div>
   );
 }

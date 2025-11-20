@@ -237,7 +237,7 @@ const MainPageTabListComponent = ({
                   <div className="relative inline-flex items-center flex-shrink-0">
                     <TabsTrigger
                       value={tab.id}
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pr-8"
+                      className="rounded-none border-t-[1px] border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pr-8"
                       onClick={() => onTabChange(tab.id)}
                     >
                       <TabIcon className="h-4 w-4 mr-1.5" />

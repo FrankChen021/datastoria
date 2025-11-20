@@ -1,13 +1,139 @@
-import { BUILT_IN_TIME_SPAN_LIST, DisplayTimeSpan } from "@/components/dashboard/timespan-selector";
-import { QueryLogView } from "@/components/query-log-tab/query-log-view";
+import TimeSpanSelector, { BUILT_IN_TIME_SPAN_LIST, DisplayTimeSpan } from "@/components/dashboard/timespan-selector";
+import FloatingProgressBar from "@/components/floating-progress-bar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Api, type ApiErrorResponse } from "@/lib/api";
+import { useConnection } from "@/lib/connection/ConnectionContext";
 import { DateTimeExtension } from "@/lib/datetime-utils";
+import { toastManager } from "@/lib/toast";
 import { endOfDay, parseISO, startOfDay } from "date-fns";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Maximize2, RotateCw, Search, ZoomIn, ZoomOut } from "lucide-react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ApiErrorView } from "../query-tab/query-response-view";
+import { QueryLogGraphView, type GraphControlsRef } from "./query-log-graph-view";
+import { QueryLogTableView } from "./query-log-table-view";
+import { transformQueryLogsToTree } from "./query-log-timeline-types";
+import QueryLogTimelineView from "./query-log-timeline-view";
+
 
 interface QueryLogTabProps {
   initialQueryId?: string;
   initialEventDate?: string;
 }
+
+
+// Sub-component: Unified Header
+interface HeaderControlsProps {
+  initialQueryId?: string;
+  onSearch: (queryId: string, timeSpan: DisplayTimeSpan) => void;
+  isLoading: boolean;
+  onRefresh: () => void;
+}
+
+const HeaderControls = memo(function HeaderControls({
+  initialQueryId,
+  onSearch,
+  isLoading,
+  onRefresh,
+}: HeaderControlsProps) {
+  // Local state for the search input
+  const [searchQueryId, setSearchQueryId] = useState<string>(initialQueryId || "");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Local state for the time span
+  const [selectedTimeSpan, setSelectedTimeSpan] = useState<DisplayTimeSpan>(() => {
+    return BUILT_IN_TIME_SPAN_LIST[12]; // Default to "Today"
+  });
+
+  // Update local state when initialQueryId changes
+  useEffect(() => {
+    setSearchQueryId(initialQueryId || "");
+  }, [initialQueryId]);
+
+  // Auto-focus the input on mount
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
+  // Default time span - always use "Today" as default
+  const defaultTimeSpan = useMemo(() => {
+    return BUILT_IN_TIME_SPAN_LIST[12]; // Default to "Today"
+  }, []);
+
+  // Handle search action - calls onSearch with both queryId and timeSpan
+  const handleSearch = useCallback(() => {
+    const trimmedId = searchQueryId.trim();
+    if (trimmedId) {
+      onSearch(trimmedId, selectedTimeSpan);
+    }
+  }, [searchQueryId, selectedTimeSpan, onSearch]);
+
+  // Handle time span change - update local state and trigger search if queryId exists
+  const handleTimeSpanChange = useCallback(
+    (timeSpan: DisplayTimeSpan) => {
+      setSelectedTimeSpan(timeSpan);
+      const trimmedId = searchQueryId.trim();
+      if (trimmedId) {
+        onSearch(trimmedId, timeSpan);
+      }
+    },
+    [searchQueryId, onSearch]
+  );
+
+  // Handle Enter key
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        handleSearch();
+      }
+    },
+    [handleSearch]
+  );
+
+  return (
+    <div className="relative flex-shrink-0 flex items-center px-2 py-2 bg-background">
+      <div className="relative flex-1">
+        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          ref={inputRef}
+          type="text"
+          placeholder="Enter Query ID to search..."
+          value={searchQueryId}
+          onChange={(e) => setSearchQueryId(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="pl-8 h-9 rounded-sm w-full rounded-r-none"
+        />
+      </div>
+
+      <div className="flex items-center">
+        <TimeSpanSelector
+          key="default"
+          defaultTimeSpan={defaultTimeSpan}
+          showTimeSpanSelector={true}
+          showRefresh={false}
+          showAutoRefresh={false}
+          size="sm"
+          onSelectedSpanChanged={handleTimeSpanChange}
+          buttonClassName="rounded-none border-l-0 border-r-0 h-9"
+        />
+        <Button
+          disabled={isLoading}
+          variant="outline"
+          size="icon"
+          onClick={onRefresh}
+          className="h-9 w-9 hover:bg-muted rounded-l-none"
+        >
+          <RotateCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+        </Button>
+      </div>
+    </div>
+  );
+});
+
+
 
 // Helper function to create a DisplayTimeSpan for a specific date
 function createTimeSpanForDate(eventDate: string): DisplayTimeSpan {
@@ -40,22 +166,46 @@ function createTimeSpanForDate(eventDate: string): DisplayTimeSpan {
   }
 }
 
-export function QueryLogTab({ initialQueryId, initialEventDate }: QueryLogTabProps = {}) {
+export function QueryLogTab({
+  initialQueryId,
+  initialEventDate,
+}: QueryLogTabProps) {
+  // Internal State
+  const { selectedConnection } = useConnection();
+  const [isLoading, setLoading] = useState(false);
+  const [queryLogs, setQueryLogs] = useState<any[]>([]);
+  const [meta, setMeta] = useState<{ name: string; type?: string }[]>([]);
+  const [loadError, setQueryLogLoadError] = useState<ApiErrorResponse | null>(null);
+  const graphControlsRef = useRef<GraphControlsRef | null>(null);
+
+  // Tab state - default to Timeline
+  const [activeTab, setActiveTab] = useState<string>("timeline");
+
+  // Timeline data transformation
+  const timelineData = useMemo(() => {
+    if (!queryLogs || queryLogs.length === 0) {
+      return { tree: [], flatList: [], stats: { totalNodes: 0, minTimestamp: 0, maxTimestamp: 0 } };
+    }
+    return transformQueryLogsToTree(queryLogs);
+  }, [queryLogs]);
+
+
+  // Active query ID state
   const [activeQueryId, setActiveQueryId] = useState<string | undefined>(initialQueryId);
 
-  // Create initial time span based on eventDate if provided, otherwise default to "Today"
-  const initialTimeSpan = useMemo(() => {
+  // Create initial time span based on eventDate if provided, otherwise use prop or default to "Today"
+  const initialTimeSpanValue = useMemo(() => {
     if (initialEventDate) {
       return createTimeSpanForDate(initialEventDate);
     }
     return BUILT_IN_TIME_SPAN_LIST[12]; // Default to "Today"
   }, [initialEventDate]);
 
-  const [selectedTimeSpan, setSelectedTimeSpan] = useState<DisplayTimeSpan>(initialTimeSpan);
+  const [selectedTimeSpan, setSelectedTimeSpan] = useState<DisplayTimeSpan>(initialTimeSpanValue);
 
-  // Update activeQueryId when initialQueryId changes (e.g., when tab becomes active with a new query ID)
+  // Update activeQueryId when initialQueryId changes
   useEffect(() => {
-    if (initialQueryId) {
+    if (initialQueryId !== undefined) {
       setActiveQueryId(initialQueryId);
     }
   }, [initialQueryId]);
@@ -68,24 +218,181 @@ export function QueryLogTab({ initialQueryId, initialEventDate }: QueryLogTabPro
     }
   }, [initialEventDate]);
 
-  const handleQueryIdChange = useCallback((queryId: string | undefined) => {
-    setActiveQueryId(queryId);
-  }, []);
+  // Handle search - called when user wants to search for a query ID with a time span
+  const handleSearch = useCallback(
+    (queryId: string, timeSpan: DisplayTimeSpan) => {
+      setActiveQueryId(queryId);
+      setSelectedTimeSpan(timeSpan);
+    },
+    []
+  );
 
-  const handleTimeSpanChange = useCallback((timeSpan: DisplayTimeSpan) => {
-    setSelectedTimeSpan(timeSpan);
-  }, []);
+  // Load query log data
+  const loadQueryLog = useCallback(async () => {
+    if (activeQueryId === null || activeQueryId === undefined) {
+      return;
+    }
+
+    const connection = selectedConnection;
+    if (connection === null) {
+      toastManager.show("No connection selected.", "error");
+      return;
+    }
+
+    const queryTable =
+      connection.cluster.length > 0
+        ? `clusterAllReplicas('${connection.cluster}', system, query_log)`
+        : "system.query_log";
+
+    setLoading(true);
+
+    const api = Api.create(connection);
+    try {
+      // Build WHERE clause with timespan if available
+      let whereClause = `initial_query_id = '${activeQueryId}'`;
+
+      if (selectedTimeSpan) {
+        const timeSpan = selectedTimeSpan.getTimeSpan();
+        if (timeSpan.startISO8601 && timeSpan.endISO8601) {
+          // Parse ISO8601 to ClickHouse date format
+          const startDate = timeSpan.startISO8601.split("T")[0];
+          const endDate = timeSpan.endISO8601.split("T")[0];
+          whereClause += ` AND event_date >= '${startDate}' AND event_date <= '${endDate}' AND type <> 'QueryStart'`;
+        }
+      } else {
+        // Default to yesterday if no timespan selector
+        whereClause += ` AND event_date > yesterday() AND type <> 'QueryStart'`;
+      }
+
+      const response = await api.executeAsync({
+        // Sort the result properly so that the finish event will overwrite the start event in the later event processing
+        sql: `SELECT FQDN() as host, toUnixTimestamp64Micro(query_start_time_microseconds) as query_start_time, * 
+          FROM ${queryTable} 
+          WHERE ${whereClause}`,
+        params: {
+          default_format: "JSON",
+        },
+      });
+
+      const responseData = response.data as any;
+      const queryLogsData = responseData?.data || [];
+      const metaData = responseData?.meta || [];
+      setQueryLogs(queryLogsData);
+      setMeta(metaData);
+      setQueryLogLoadError(null);
+    } catch (error) {
+      setQueryLogs([]);
+      setQueryLogLoadError(error as ApiErrorResponse);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeQueryId, selectedConnection, selectedTimeSpan]);
+
+  useEffect(() => {
+    loadQueryLog();
+  }, [loadQueryLog]);
 
   return (
-    <div className="h-full w-full flex flex-col">
-      <QueryLogView
-        queryId={activeQueryId}
-        embedded={true}
-        onQueryIdChange={handleQueryIdChange}
-        initialTimeSpan={selectedTimeSpan}
-        onTimeSpanChange={handleTimeSpanChange}
-        initialEventDate={initialEventDate}
+    <div className="h-full w-full bg-background flex flex-col">
+      <FloatingProgressBar show={isLoading} />
+      {/* Unified Header */}
+      <HeaderControls
+        initialQueryId={initialQueryId}
+        onSearch={handleSearch}
+        isLoading={isLoading}
+        onRefresh={loadQueryLog}
       />
+
+      {loadError ? (
+        <div className="p-4">
+          <ApiErrorView error={loadError} />
+        </div>
+      ) : !activeQueryId ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-2">
+          <div className="text-sm text-muted-foreground">Enter a Query ID to search query logs</div>
+        </div>
+      ) : queryLogs.length === 0 ? (
+        isLoading ? null : (
+          <div className="flex-1 flex flex-col items-center justify-center gap-2">
+            <div className="text-sm text-muted-foreground">No query log data available</div>
+            <div className="text-sm text-muted-foreground">
+              If the query was submitted just now, please wait for a few seconds to refresh.
+            </div>
+          </div>
+        )
+      ) : (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
+          <div className="flex justify-between items-center ml-2 mr-2">
+            <TabsList>
+              <TabsTrigger value="timeline">Timeline</TabsTrigger>
+              <TabsTrigger value="table">Table</TabsTrigger>
+              <TabsTrigger value="topo">Topo</TabsTrigger>
+            </TabsList>
+            {activeTab === "topo" && graphControlsRef.current && queryLogs.length > 0 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => graphControlsRef.current?.zoomIn()}
+                  className="h-8 w-8"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => graphControlsRef.current?.zoomOut()}
+                  className="h-8 w-8"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => graphControlsRef.current?.fitView()}
+                  className="h-8 w-8"
+                  title="Fit View"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="flex-1 relative overflow-hidden">
+            <div
+              className={`absolute inset-0 overflow-auto px-2 ${activeTab === "timeline" ? "block" : "hidden"}`}
+              role="tabpanel"
+              aria-hidden={activeTab !== "timeline"}
+            >
+              <QueryLogTimelineView
+                inputNodeTree={timelineData.tree}
+                inputNodeList={timelineData.flatList}
+                timelineStats={timelineData.stats}
+                isActive={activeTab === "timeline"}
+              />
+            </div>
+            <div
+              className={`absolute inset-0 overflow-auto px-2 ${activeTab === "table" ? "block" : "hidden"}`}
+              role="tabpanel"
+              aria-hidden={activeTab !== "table"}
+            >
+              <QueryLogTableView queryLogs={queryLogs} meta={meta} />
+            </div>
+            <div
+              className={`absolute inset-0 overflow-auto px-2 ${activeTab === "topo" ? "block" : "hidden"}`}
+              role="tabpanel"
+              aria-hidden={activeTab !== "topo"}
+            >
+              <QueryLogGraphView
+                ref={graphControlsRef}
+                queryLogs={queryLogs}
+              />
+            </div>
+          </div>
+        </Tabs>
+      )}
     </div>
   );
 }

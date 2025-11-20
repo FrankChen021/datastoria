@@ -4,7 +4,7 @@ import { Formatter } from "@/lib/formatter";
 import { ArrowDown, ArrowUp, ArrowUpDown, X } from "lucide-react";
 import { memo, useCallback, useMemo, useState } from "react";
 import { Panel } from "react-resizable-panels";
-import type { NodeDetails } from "./query-log-graph";
+import type { NodeDetails } from "./query-log-graph-view";
 
 // Reusable table component for edges
 interface EdgeTableProps {
@@ -211,15 +211,15 @@ function EdgeTable({ edges, type, emptyMessage = "No query available" }: EdgeTab
   );
 }
 
-interface QueryLogNodePaneProps {
+interface QueryLogGraphNodePaneProps {
   selectedNode: NodeDetails;
   onClose: () => void;
 }
 
-export const QueryLogNodePane = memo(function QueryLogNodePane({
+export const QueryLogGraphNodePane = memo(function QueryLogGraphNodePane({
   selectedNode,
   onClose,
-}: QueryLogNodePaneProps) {
+}: QueryLogGraphNodePaneProps) {
   if (!selectedNode) return null;
 
   return (
