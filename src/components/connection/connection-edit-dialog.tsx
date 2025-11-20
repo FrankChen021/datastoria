@@ -16,7 +16,6 @@ import type { ApiCanceller, ApiErrorResponse } from "@/lib/api";
 import { Api } from "@/lib/api";
 import type { Connection } from "@/lib/connection/Connection";
 import { ensureConnectionRuntimeInitialized } from "@/lib/connection/Connection";
-import { useConnection } from "@/lib/connection/ConnectionContext";
 import { ConnectionManager } from "@/lib/connection/ConnectionManager";
 import axios from "axios";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, X } from "lucide-react";
@@ -144,7 +143,6 @@ function ConnectionEditDialogWrapper({
 }) {
   const [isTesting, setIsTesting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const { setSelectedConnection } = useConnection();
 
   const hasProvider = import.meta.env.VITE_CONSOLE_CONNECTION_PROVIDER_ENABLED === "true";
 
@@ -341,10 +339,8 @@ function ConnectionEditDialogWrapper({
       return false; // Keep dialog open
     }
 
-    // Update the selected connection to the newly saved/edited connection
-    // This will also initialize the connection runtime and save it as the last selected
-    setSelectedConnection(savedConnection);
-
+    // Call onSave with the saved connection
+    // The caller (e.g., wizard) will handle setting it as the selected connection
     if (onSave) {
       onSave(savedConnection);
     }
@@ -354,7 +350,6 @@ function ConnectionEditDialogWrapper({
     currentSelectedConnection,
     isAddMode,
     onSave,
-    setSelectedConnection,
     clearFieldErrors,
     setFieldError,
   ]);
@@ -581,9 +576,8 @@ function ConnectionEditDialogWrapper({
           setApiCanceller(undefined);
           setTestResultWithDelay({
             type: "error",
-            message: `Successfully connected to ClickHouse server. But unable to determine if the cluster [${testConnection.name}] exists on the server. You can still save the connection to continue. ${
-              error.httpStatus !== 404 ? error.errorMessage : ""
-            }`,
+            message: `Successfully connected to ClickHouse server. But unable to determine if the cluster [${testConnection.name}] exists on the server. You can still save the connection to continue. ${error.httpStatus !== 404 ? error.errorMessage : ""
+              }`,
           });
         }
       } catch (error: unknown) {
@@ -854,9 +848,8 @@ function ConnectionEditDialogWrapper({
           {/* Bottom Section Area - Fixed height container, content adapts inside */}
           <div className="h-[140px] relative overflow-hidden flex items-start">
             <div
-              className={`w-full transition-all duration-300 ease-in-out ${
-                bottomSectionContent ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
-              }`}
+              className={`w-full transition-all duration-300 ease-in-out ${bottomSectionContent ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
+                }`}
             >
               {bottomSectionContent?.type === "test-success" && (
                 <TestSuccessMessage message={bottomSectionContent.message} />

@@ -1,3 +1,4 @@
+import { ConnectionWizard } from "@/components/connection/connection-wizard";
 import { DatabaseTab } from "@/components/database-tab/database-tab";
 import { DependencyView } from "@/components/dependency-view/dependency-view";
 import { QueryLogTab } from "@/components/query-log-tab/query-log-tab";
@@ -13,12 +14,27 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { MainPageTabList } from "./main-page-tab-list";
 
 export function MainPage() {
-  const { selectedConnection } = useConnection();
+  const { selectedConnection, hasAnyConnections } = useConnection();
   const [activeTab, setActiveTab] = useState<string>("query");
-  const [tabs, setTabs] = useState<TabInfo[]>([{ id: "query", type: "query" }]);
+  const [tabs, setTabs] = useState<TabInfo[]>([]);
   const [pendingTabId, setPendingTabId] = useState<string | null>(null);
   const previousConnectionRef = useRef<string | null>(null);
   const previousConnectionKeyRef = useRef<string | null>(null);
+  const hasInitializedQueryTab = useRef<boolean>(false);
+
+  // Initialize query tab when connection becomes available
+  useEffect(() => {
+    if (selectedConnection && !hasInitializedQueryTab.current) {
+      setTabs([{ id: "query", type: "query" }]);
+      setActiveTab("query");
+      hasInitializedQueryTab.current = true;
+    } else if (!selectedConnection && hasInitializedQueryTab.current) {
+      // Reset when connection is removed
+      setTabs([]);
+      setActiveTab("");
+      hasInitializedQueryTab.current = false;
+    }
+  }, [selectedConnection]);
 
   // Handle open tab events (unified handler)
   useEffect(() => {
@@ -327,6 +343,11 @@ export function MainPage() {
       return null;
     });
   }, [sortedTabs, activeTab]);
+
+  // Show wizard if no connections exist
+  if (!hasAnyConnections) {
+    return <ConnectionWizard />;
+  }
 
   return (
     <div className="h-full w-full flex min-w-0 overflow-hidden">

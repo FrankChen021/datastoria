@@ -18,7 +18,7 @@ import { TabManager } from "./tab-manager";
 import { useTheme } from "./theme-provider";
 
 export function AppSidebar() {
-  const { selectedConnection } = useConnection();
+  const { selectedConnection, hasAnyConnections } = useConnection();
 
   return (
     <Sidebar collapsible="icon">
@@ -34,17 +34,19 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <ConnectionSelector
-                trigger={
-                  <SidebarMenuButton tooltip={"Manage Connections"} size="lg" className="justify-center">
-                    <Database className="h-5 w-5" />
-                  </SidebarMenuButton>
-                }
-                sideOffset={5}
-                side="right"
-              />
-            </SidebarMenuItem>
+            {hasAnyConnections && (
+              <SidebarMenuItem>
+                <ConnectionSelector
+                  trigger={
+                    <SidebarMenuButton tooltip={"Manage Connections"} size="lg" className="justify-center">
+                      <Database className="h-5 w-5" />
+                    </SidebarMenuButton>
+                  }
+                  sideOffset={5}
+                  side="right"
+                />
+              </SidebarMenuItem>
+            )}
             {selectedConnection && (
               <>
                 <SidebarMenuItem>
