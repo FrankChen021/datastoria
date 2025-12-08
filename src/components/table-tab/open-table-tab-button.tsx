@@ -51,7 +51,7 @@ function truncateText(text: string, maxLength: number): string {
 export const OpenTableTabButton = memo(
   ({ database, table, engine, showDatabase = false, maxLength = 40, className = "" }: OpenTableTabButtonProps) => {
     const handleClick = () => {
-      TabManager.sendOpenTableTabRequest(database, table, engine);
+      TabManager.openTableTab(database, table, engine);
       Dialog.close(); // Automatically close any parent dialog
     };
 

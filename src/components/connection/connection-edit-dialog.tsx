@@ -710,6 +710,7 @@ function ConnectionEditDialogWrapper({
 
                     <Input
                       id="url"
+                      autoFocus
                       placeholder="http(s)://"
                       value={url}
                       onChange={handleUrlChange}
@@ -788,7 +789,6 @@ function ConnectionEditDialogWrapper({
                     </FieldLabel>
                     <Input
                       id="name"
-                      autoFocus
                       value={name}
                       onChange={handleNameChange}
                       className={fieldErrors.name ? "border-destructive" : ""}

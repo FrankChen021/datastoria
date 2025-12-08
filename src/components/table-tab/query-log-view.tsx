@@ -30,7 +30,7 @@ const formatQueryLogLink = (queryId: any, _params?: any[], context?: Record<stri
         e.stopPropagation();
 
         const eventDate = context?.event_date as string;
-        TabManager.sendOpenQueryLogTabRequest(queryId, eventDate);
+        TabManager.openQueryLogTab(queryId, eventDate);
       }}
       className="text-primary hover:underline cursor-pointer flex items-center gap-1"
       title={queryId} // Show full value on hover

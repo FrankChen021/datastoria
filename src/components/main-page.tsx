@@ -1,6 +1,8 @@
 import { ConnectionWizard } from "@/components/connection/connection-wizard";
 import { DatabaseTab } from "@/components/database-tab/database-tab";
 import { DependencyView } from "@/components/dependency-view/dependency-view";
+import { MainPageEmptyState } from "@/components/main-page-empty-state";
+import type { AppInitStatus } from "@/components/main-page-empty-state";
 import { QueryLogTab } from "@/components/query-log-tab/query-log-tab";
 import { QueryTab } from "@/components/query-tab/query-tab";
 import { SchemaTreeView } from "@/components/schema/schema-tree-view";
@@ -15,24 +17,28 @@ import { MainPageTabList } from "./main-page-tab-list";
 
 export function MainPage() {
   const { selectedConnection, hasAnyConnections } = useConnection();
-  const [activeTab, setActiveTab] = useState<string>("query");
+  const [activeTab, setActiveTab] = useState<string>("");
   const [tabs, setTabs] = useState<TabInfo[]>([]);
   const [pendingTabId, setPendingTabId] = useState<string | null>(null);
   const previousConnectionRef = useRef<string | null>(null);
   const previousConnectionKeyRef = useRef<string | null>(null);
-  const hasInitializedQueryTab = useRef<boolean>(false);
+  
+  // State for global initialization status (driven by SchemaTreeView)
+  const [initStatus, setInitStatus] = useState<AppInitStatus>("initializing");
+  const [initError, setInitError] = useState<string | null>(null);
 
-  // Initialize query tab when connection becomes available
+  // Memoize the status change callback to prevent unnecessary re-renders
+  const handleStatusChange = useCallback((status: AppInitStatus, error?: string) => {
+    setInitStatus(status);
+    setInitError(error || null);
+  }, []);
+
+  // Reset when connection is removed
   useEffect(() => {
-    if (selectedConnection && !hasInitializedQueryTab.current) {
-      setTabs([{ id: "query", type: "query" }]);
-      setActiveTab("query");
-      hasInitializedQueryTab.current = true;
-    } else if (!selectedConnection && hasInitializedQueryTab.current) {
-      // Reset when connection is removed
+    if (!selectedConnection) {
+      setInitStatus("ready");
       setTabs([]);
       setActiveTab("");
-      hasInitializedQueryTab.current = false;
     }
   }, [selectedConnection]);
 
@@ -250,9 +256,8 @@ export function MainPage() {
       previousConnectionName !== null &&
       (previousConnectionName !== currentConnectionName || previousConnectionKey !== currentConnectionKey)
     ) {
-      // Reset to just the query tab
-      setTabs([{ id: "query", type: "query" }]);
-      setActiveTab("query");
+      setTabs([]);
+      setActiveTab("");
     }
 
     // Update the refs to track the current connection
@@ -354,7 +359,9 @@ export function MainPage() {
       <PanelGroup direction="horizontal" className="h-full w-full min-w-0">
         {/* Left Panel: Schema Tree View */}
         <Panel defaultSize={20} minSize={10} className="border-r bg-background">
-          <SchemaTreeView />
+          <SchemaTreeView 
+            onStatusChange={handleStatusChange}
+          />
         </Panel>
 
         <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors cursor-col-resize" />
@@ -362,17 +369,28 @@ export function MainPage() {
         {/* Right Panel Group: Tabs for Query and Table Views */}
         <Panel defaultSize={80} minSize={50} className="bg-background">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full w-full flex flex-col">
-            <MainPageTabList
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              tabs={tabs}
-              onCloseTab={handleCloseTab}
-              onCloseTabsToRight={handleCloseTabsToRight}
-              onCloseOthers={handleCloseOthers}
-              onCloseAll={handleCloseAll}
-              getPreviousTabId={getPreviousTabId}
-            />
+            {tabs.length > 0 && (
+              <MainPageTabList
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                tabs={tabs}
+                onCloseTab={handleCloseTab}
+                onCloseTabsToRight={handleCloseTabsToRight}
+                onCloseOthers={handleCloseOthers}
+                onCloseAll={handleCloseAll}
+                getPreviousTabId={getPreviousTabId}
+              />
+            )}
             <div className="flex-1 overflow-hidden relative">
+              {/* Show Smart Empty State when no tabs exist */}
+              {tabs.length === 0 && (
+                <MainPageEmptyState 
+                  status={initStatus} 
+                  error={initError}
+                  onRetry={() => window.location.reload()}
+                />
+              )}
+
               {/* All Tabs - Always mounted */}
               {tabContent}
             </div>

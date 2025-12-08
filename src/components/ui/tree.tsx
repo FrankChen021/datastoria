@@ -60,6 +60,15 @@ type TreeProps = React.HTMLAttributes<HTMLDivElement> & {
   overscan?: number; // Number of items to render outside viewport (default: 5)
 };
 
+export interface TreeRef {
+  /**
+   * Scroll to a specific node by ID
+   * @param nodeId The ID of the node to scroll to
+   * @param options Scroll options
+   */
+  scrollToNode: (nodeId: string, options?: { align?: "start" | "center" | "end" | "auto"; behavior?: "auto" | "smooth" }) => void;
+}
+
 interface FlatNode {
   node: TreeDataItem;
   depth: number;
@@ -130,7 +139,7 @@ const renderTooltip = (
   );
 };
 
-const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
+const Tree = React.forwardRef<TreeRef, TreeProps>(
   (
     {
       data,
@@ -152,8 +161,7 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
       showChildCount = false,
       ...props
     },
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _ref
+    ref
   ) => {
     // Use controlled prop if provided, otherwise use internal state
     const [internalSelectedItemId, setInternalSelectedItemId] = React.useState<string | undefined>(
@@ -394,89 +402,81 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
       overscan,
     });
 
-    // Scroll selected item into view when selectedItemId changes
-    // Skip scrolling during search mode to keep search functionality independent of selection
-    React.useEffect(() => {
-      if (!selectedItemId || flatNodes.length === 0) return;
-      // Don't scroll during search mode - search should be independent of selection
-      if (search && search.length > 0) return;
+    // Expose imperative handle for scrolling
+    React.useImperativeHandle(ref, () => ({
+      scrollToNode: (nodeId: string, options?: { align?: "start" | "center" | "end" | "auto"; behavior?: "auto" | "smooth" }) => {
+        // Find the item in flatNodes
+        const selectedIndex = flatNodes.findIndex((fn) => fn.node.id === nodeId);
 
-      // If we have a clicked node index (user clicked a node), use that for accurate scrolling
-      // Otherwise, find the first occurrence of the selected node
-      let selectedIndex: number;
-      if (clickedNodeIndexRef.current !== null && clickedNodeIndexRef.current < flatNodes.length) {
-        // Verify the clicked index still matches the selected ID (tree might have changed)
-        if (flatNodes[clickedNodeIndexRef.current]?.node.id === selectedItemId) {
-          selectedIndex = clickedNodeIndexRef.current;
-          // Clear the ref after using it
-          clickedNodeIndexRef.current = null;
-        } else {
-          // Clicked index is stale, fall back to finding by ID
-          selectedIndex = flatNodes.findIndex((fn) => fn.node.id === selectedItemId);
-        }
-      } else {
-        // No clicked index, find the first occurrence
-        selectedIndex = flatNodes.findIndex((fn) => fn.node.id === selectedItemId);
-      }
+        if (selectedIndex !== -1) {
+          // Check if the item is already visible in the viewport
+          const virtualItems = rowVirtualizer.getVirtualItems();
+          const isAlreadyVisible = virtualItems.some((item) => item.index === selectedIndex);
 
-      if (selectedIndex !== -1) {
-        // Check if the item is already visible in the viewport
-        const virtualItems = rowVirtualizer.getVirtualItems();
-        const isAlreadyVisible = virtualItems.some((item) => item.index === selectedIndex);
-
-        // Only scroll if the item is not already visible
-        if (!isAlreadyVisible) {
-          requestAnimationFrame(() => {
-            rowVirtualizer.scrollToIndex(selectedIndex, {
-              align: "start",
-              behavior: "smooth",
-            });
-          });
-        }
-      } else {
-        // Selected item is not in flatNodes - likely because parent nodes are collapsed
-        // Find the item in the full tree and expand parent nodes to make it visible
-        // Only expand if user hasn't explicitly collapsed them
-        const findAndExpandParents = (
-          items: TreeDataItem[] | TreeDataItem,
-          targetId: string,
-          path: string[] = []
-        ): boolean => {
-          const itemsArray = items instanceof Array ? items : [items];
-          for (const item of itemsArray) {
-            if (item.id === targetId) {
-              // Found the target - expand all parent nodes in the path
-              // Only expand if user hasn't explicitly collapsed them
-              const parentsToExpand: string[] = [];
-              path.forEach((parentId) => {
-                if (!expandedSet.has(parentId) && userOverrides.get(parentId) !== false) {
-                  parentsToExpand.push(parentId);
-                }
+          // Only scroll if the item is not already visible
+          if (!isAlreadyVisible) {
+            requestAnimationFrame(() => {
+              rowVirtualizer.scrollToIndex(selectedIndex, {
+                align: options?.align || "start",
+                behavior: options?.behavior || "smooth",
               });
-
-              // Expand all parents at once
-              if (parentsToExpand.length > 0) {
-                setUserOverrides((prev) => {
-                  const next = new Map(prev);
-                  parentsToExpand.forEach((id) => next.set(id, true));
-                  return next;
+            });
+          }
+        } else {
+          // Selected item is not in flatNodes - likely because parent nodes are collapsed
+          // Find the item in the full tree and expand parent nodes to make it visible
+          const findAndExpandParents = (
+            items: TreeDataItem[] | TreeDataItem,
+            targetId: string,
+            path: string[] = []
+          ): boolean => {
+            const itemsArray = items instanceof Array ? items : [items];
+            for (const item of itemsArray) {
+              if (item.id === targetId) {
+                // Found the target - expand all parent nodes in the path
+                const parentsToExpand: string[] = [];
+                path.forEach((parentId) => {
+                  if (!expandedSet.has(parentId) && userOverrides.get(parentId) !== false) {
+                    parentsToExpand.push(parentId);
+                  }
                 });
-              }
-              return true;
-            }
-            if (item.children) {
-              if (findAndExpandParents(item.children, targetId, [...path, item.id])) {
+
+                // Expand all parents at once
+                if (parentsToExpand.length > 0) {
+                  setUserOverrides((prev) => {
+                    const next = new Map(prev);
+                    parentsToExpand.forEach((id) => next.set(id, true));
+                    return next;
+                  });
+
+                  // After expanding, scroll to the node
+                  // Use a timeout to allow the tree to re-render with expanded nodes
+                  setTimeout(() => {
+                    const newIndex = flatNodes.findIndex((fn) => fn.node.id === targetId);
+                    if (newIndex !== -1) {
+                      rowVirtualizer.scrollToIndex(newIndex, {
+                        align: options?.align || "start",
+                        behavior: options?.behavior || "smooth",
+                      });
+                    }
+                  }, 100);
+                }
                 return true;
               }
+              if (item.children) {
+                if (findAndExpandParents(item.children, targetId, [...path, item.id])) {
+                  return true;
+                }
+              }
             }
-          }
-          return false;
-        };
+            return false;
+          };
 
-        // Try to find and expand parents
-        findAndExpandParents(data, selectedItemId);
-      }
-    }, [selectedItemId, flatNodes, rowVirtualizer, data, expandedSet, userOverrides, search]);
+          // Try to find and expand parents
+          findAndExpandParents(data, nodeId);
+        }
+      },
+    }), [flatNodes, rowVirtualizer, data, expandedSet, userOverrides]);
 
     const toggleExpand = useCallback(
       (nodeId: string) => {
@@ -696,4 +696,4 @@ const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
 );
 Tree.displayName = "Tree";
 
-export { Tree, type TreeDataItem };
+export { Tree, type TreeDataItem, type TreeRef };

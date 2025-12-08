@@ -311,7 +311,7 @@ export function QueryListItemView({
           <div className="text-xs text-muted-foreground">
             Query Id:{" "}
             <button
-              onClick={() => TabManager.sendOpenQueryLogTabRequest(queryResponse.queryId || queryRequest.queryId)}
+              onClick={() => TabManager.openQueryLogTab(queryResponse.queryId || queryRequest.queryId)}
               className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
             >
               {queryResponse.queryId || queryRequest.queryId}

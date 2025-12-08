@@ -1,649 +1,208 @@
 import FloatingProgressBar from "@/components/floating-progress-bar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tree, type TreeDataItem } from "@/components/ui/tree";
-import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
+import { Tree, type TreeDataItem, type TreeRef } from "@/components/ui/tree";
 import { useConnection } from "@/lib/connection/ConnectionContext";
-import { cn } from "@/lib/utils";
-import type { LucideIcon } from "lucide-react";
+import type { AppInitStatus } from "@/components/main-page-empty-state";
 import {
   AlertCircle,
-  Calculator,
-  Calendar,
-  Check,
-  Clock,
   Database,
-  FileText,
-  Hash,
-  List,
-  Map as MapIcon,
-  Monitor,
-  Package,
   RotateCw,
   Search,
   Table as TableIcon,
-  Type,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { CommandItemCount, HighlightableCommandItem } from "../cmdk-extension/cmdk-extension";
 import { TabManager, type TabInfo } from "../tab-manager";
 import { showDropTableConfirmationDialog } from "./drop-table-confirmation-dialog";
-
-// Shared badge component for schema tree nodes
-function SchemaTreeBadge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="ml-2 text-[10px] text-muted-foreground">{children}</span>
-    // <Badge variant="secondary" className="ml-2 text-[10px] whitespace-nowrap rounded-sm font-normal">
-    //   {children}
-    // </Badge>
-  );
-}
-
-// Map column types to appropriate icons
-function getColumnIcon(typeString: string): LucideIcon | undefined {
-  const type = String(typeString || "").toLowerCase();
-
-  // String types
-  if (type.includes("string") || type.includes("char")) {
-    return FileText;
-  }
-
-  // Integer types (UInt8, Int32, etc.)
-  if (
-    type.includes("uint") ||
-    type.includes("int") ||
-    type.includes("int8") ||
-    type.includes("int16") ||
-    type.includes("int32") ||
-    type.includes("int64")
-  ) {
-    return Hash;
-  }
-
-  // UUID types - use same icon as numbers
-  if (type === "uuid") {
-    return Hash;
-  }
-
-  // Float types
-  if (type.includes("float") || type.includes("double") || type.includes("decimal")) {
-    return Calculator;
-  }
-
-  // Date/DateTime types
-  if (type.includes("date") || type.includes("datetime")) {
-    if (type.includes("time")) {
-      return Clock;
-    }
-    return Calendar;
-  }
-
-  // Array types
-  if (type.startsWith("array") || type.includes("array(")) {
-    return List;
-  }
-
-  // Tuple types
-  if (type.startsWith("tuple") || type.includes("tuple(")) {
-    return Package;
-  }
-
-  // Map types
-  if (type.startsWith("map") || type.includes("map(")) {
-    return MapIcon;
-  }
-
-  // Enum types
-  if (type.includes("enum")) {
-    return Type;
-  }
-
-  // Nullable types - use the underlying type
-  if (type.startsWith("nullable(")) {
-    const innerType = type.replace(/^nullable\(/, "").replace(/\)$/, "");
-    return getColumnIcon(innerType);
-  }
-
-  // Default: no icon
-  return undefined;
-}
-
-// Parse Enum type to extract base type and key-value pairs
-// Example: Enum8('NewPart' = 1, 'MergeParts' = 2) -> { baseType: 'Enum8', pairs: [['NewPart', '1'], ['MergeParts', '2']] }
-function parseEnumType(typeString: string): { baseType: string; pairs: Array<[string, string]> } | null {
-  const type = String(typeString || "").trim();
-
-  // Match Enum8, Enum16, Enum, etc.
-  const enumMatch = type.match(/^(Enum\d*)\s*\((.+)\)$/);
-  if (!enumMatch) {
-    return null;
-  }
-
-  const baseType = enumMatch[1];
-  const content = enumMatch[2];
-  const pairs: Array<[string, string]> = [];
-
-  // Parse key-value pairs: 'NewPart' = 1, 'MergeParts' = 2
-  // Handle quoted strings and numbers
-  const pairRegex = /'([^']+)'\s*=\s*(\d+)/g;
-  let match;
-  while ((match = pairRegex.exec(content)) !== null) {
-    // Remove single quotes from key if present
-    let key = match[1];
-    key = key.replace(/^'|'$/g, "");
-    // Keep value as string
-    const value = match[2];
-    pairs.push([key, value]);
-  }
-
-  return { baseType, pairs };
-}
-
-// Create a column tree node
-function toColumnTreeNode(column: { name: string; type: string; comment?: string | null }): TreeDataItem {
-  const columnName = String(column.name || "Unknown");
-  const columnType = String(column.type || "");
-  const columnComment = column.comment || null;
-
-  // Check if it's an Enum type
-  const enumInfo = parseEnumType(columnType);
-
-  // Create the tag - show base type for Enum, full type for others
-  const tagContent = enumInfo ? enumInfo.baseType : columnType;
-  const tag = <span className="ml-2 text-[10px] text-muted-foreground">{tagContent}</span>;
-
-  // Tooltip structure: column name, column type, enum info (if available), comment (if available)
-  const labelTooltip = (() => {
-    const hasEnumPairs = enumInfo && enumInfo.pairs.length > 0;
-    const hasComment = !!columnComment;
-
-    // Only show tooltip if there's enum info or comment
-    if (!hasEnumPairs && !hasComment) {
-      return undefined;
-    }
-
-    return (
-      <div className="space-y-1 max-w-[300px]">
-        {/* Column name */}
-        <div className="font-semibold text-sm break-words">{columnName}</div>
-
-        {/* Column type */}
-        <div className="text-xs text-muted-foreground break-words">
-          <span className="font-mono">{columnType}</span>
-        </div>
-
-        {/* Enum info */}
-        {hasEnumPairs && (
-          <div className="mt-2 pt-2 border-t space-y-1">
-            <div className="font-semibold text-xs break-words">{enumInfo.baseType}</div>
-            <div className="space-y-1">
-              {enumInfo.pairs.map(([key, value], index) => (
-                <div key={index} className="text-xs font-mono break-words">
-                  <span className="text-muted-foreground break-all">{key}</span>
-                  <span className="mx-2">=</span>
-                  <span className="break-all">{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Comment */}
-        {hasComment && (
-          <div className={hasEnumPairs ? "mt-2 pt-2 border-t" : ""}>
-            <div className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{columnComment}</div>
-          </div>
-        )}
-      </div>
-    );
-  })();
-
-  return {
-    id: `column:${column.name}`,
-    labelContent: columnName,
-    search: columnName.toLowerCase(),
-    type: "leaf" as const,
-    icon: getColumnIcon(columnType),
-    tag: tag,
-    labelTooltip: labelTooltip,
-    data: {
-      type: "column",
-      name: columnName,
-      typeString: columnType,
-      enumPairs: enumInfo?.pairs || undefined,
-      columnComment: columnComment || undefined,
-    } as ColumnNodeData,
-  };
-}
-
-interface TableItemDO {
-  database: string;
-  dbEngine: string;
-  table: string | null;
-  tableEngine: string | null;
-  tableComment: string | null;
-  columnName: string | null;
-  columnType: string | null;
-  columnComment: string | null;
-  version: string;
-}
-
-interface DatabaseNodeData {
-  type: "database";
-  name: string;
-  engine: string;
-  tableCount: number;
-  hasDistributedTable: boolean;
-  hasReplicatedTable: boolean;
-}
-
-interface TableNodeData {
-  type: "table";
-  database: string;
-  table: string;
-  fullName: string;
-  tableEngine: string; // Shortened version for display
-  fullTableEngine: string; // Full engine name for logic
-  tableComment?: string | null;
-  isLoading?: boolean;
-}
-
-interface ColumnNodeData {
-  type: "column";
-  name: string;
-  typeString: string;
-  enumPairs?: Array<[string, string]>; // Key-value pairs for Enum types
-  columnComment?: string | null;
-}
-
-interface HostNodeData {
-  type: "host";
-  host: string;
-}
-
-type SchemaNodeData = DatabaseNodeData | TableNodeData | ColumnNodeData | HostNodeData;
-
-interface HostInfo {
-  name: string;
-  address: string;
-  shard: number;
-  replica: number;
-}
-
-function HostSelector({ clusterName, displayName }: { clusterName: string; displayName: string }) {
-  const { selectedConnection } = useConnection();
-  const [isOpen, setIsOpen] = useState(false);
-  const [data, setData] = useState<HostInfo[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isOpen && data.length === 0 && !loading && selectedConnection) {
-      setLoading(true);
-      const api = Api.create(selectedConnection);
-      api.executeSQL(
-        {
-          sql: `
-SELECT 
-  host_name AS name, 
-  host_address AS address, 
-  shard_num AS shard, 
-  replica_num AS replica 
-FROM system.clusters 
-WHERE cluster ='${clusterName}'
-ORDER BY shard, replica`,
-          params: { default_format: "JSON" },
-        },
-        (response) => {
-          try {
-            setData((response.data.data || []) as HostInfo[]);
-            setError(null);
-          } catch {
-            setError("Failed to parse response");
-          }
-        },
-        (err) => {
-          setError(err.errorMessage || "Failed to load cluster info");
-        },
-        () => {
-          setLoading(false);
-        }
-      );
-    }
-  }, [isOpen, selectedConnection, clusterName, data.length, loading]);
-
-  return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <span
-          className="cursor-pointer hover:underline"
-          onClick={(e) => {
-            // Stop propagation to prevent tree node click when opening popover
-            e.stopPropagation();
-            setIsOpen(true);
-          }}
-        >
-          {displayName}
-        </span>
-      </PopoverTrigger>
-      <PopoverContent className="w-[500px] p-0" align="start">
-        <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]]:!rounded-none [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
-          <CommandInput placeholder="Search hosts..." className="!h-10" />
-          <CommandItemCount />
-          <CommandList className="!rounded-none max-h-[400px] overflow-y-auto overflow-x-hidden">
-            <CommandEmpty className="p-3 text-center">{error || "No hosts found."}</CommandEmpty>
-            {loading ? (
-              <div className="p-4 text-sm text-center text-muted-foreground">Loading...</div>
-            ) : (
-              data.length > 0 && (
-                <CommandGroup className="!py-1 !px-1 !rounded-none">
-                  {data.map((node, idx) => {
-                    const isSelected = node.name === displayName || node.address === displayName;
-                    return (
-                      <CommandItem
-                        key={idx}
-                        value={`${node.name}`}
-                        className={cn(
-                          "flex items-center !rounded-none cursor-pointer !py-1 mb-1 transition-colors",
-                          isSelected && "bg-muted/50"
-                        )}
-                        onSelect={() => {
-                          // TODO: Set the host as selected and reload tree from this host
-                          setIsOpen(false);
-                        }}
-                      >
-                        <div className="flex items-center gap-2 w-full min-w-0">
-                          <div className="w-4 shrink-0 flex items-center justify-center">
-                            {isSelected && <Check className="h-3 w-3 text-primary" />}
-                          </div>
-                          <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
-                            <span className={cn("text-sm truncate block", isSelected && "text-primary font-medium")}>
-                              <HighlightableCommandItem text={node.name} />
-                            </span>
-                            <span className="text-xs text-muted-foreground truncate block">{node.address}</span>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Badge variant="secondary" className="rounded-none px-1 whitespace-nowrap">
-                              Shard {String(node.shard).padStart(2, "0")}
-                            </Badge>
-                            <Badge variant="secondary" className="rounded-none px-1 whitespace-nowrap">
-                              Replica {String(node.replica).padStart(2, "0")}
-                            </Badge>
-                          </div>
-                        </div>
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              )
-            )}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
+import { 
+  SchemaTreeLoader,
+  type DatabaseNodeData, 
+  type HostNodeData, 
+  type SchemaNodeData, 
+  type TableNodeData 
+} from "./schema-tree-loader";
 
 export interface SchemaTreeViewProps {
   tabId?: string; // Optional tab ID for multi-tab support
+  onStatusChange?: (status: AppInitStatus, error?: string) => void;
 }
 
-export function SchemaTreeView({ tabId }: SchemaTreeViewProps) {
+export function SchemaTreeView({ 
+  tabId,
+  onStatusChange
+}: SchemaTreeViewProps) {
   const { selectedConnection } = useConnection();
   const [isLoading, setIsLoading] = useState(false);
   const [treeData, setTreeData] = useState<TreeDataItem[]>([]);
   const [completeTree, setCompleteTree] = useState<TreeDataItem | null>(null);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [apiCanceller, setApiCanceller] = useState<ApiCanceller | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
-  const isLoadingRef = useRef(false);
-  const currentConnectionIdRef = useRef<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const hasOpenedServerTabRef = useRef(false);
+  const loaderRef = useRef(new SchemaTreeLoader());
+  const treeRef = useRef<TreeRef>(null);
+  
   // Track the last active tab info to sync when search is cleared
   const lastActiveTabInfoRef = useRef<TabInfo | null>(null);
   // Track if we were in search mode to detect when search is cleared
   const wasInSearchModeRef = useRef(false);
 
-  // Cancel API call on unmount
+  // Load databases when connection changes
   useEffect(() => {
-    return () => {
-      if (apiCanceller) {
-        apiCanceller.cancel();
+    if (!selectedConnection) {
+      setTreeData([]);
+      setCompleteTree(null);
+      setError(null);
+      setIsLoading(false);
+      hasOpenedServerTabRef.current = false;
+      onStatusChange?.("ready");
+      return;
+    }
+
+    const loadData = async () => {
+      setIsLoading(true);
+      setError(null);
+      onStatusChange?.("initializing");
+      
+      try {
+        const result = await loaderRef.current.load(selectedConnection);
+        setTreeData(result.treeData);
+        setCompleteTree(result.completeTree);
+        setError(null);
+        onStatusChange?.("ready");
+        
+        // Auto-open Server Dashboard if we have a host node
+        if (!hasOpenedServerTabRef.current && result.treeData.length > 0) {
+          const firstNodeData = result.treeData[0]?.data as SchemaNodeData | undefined;
+          if (firstNodeData?.type === 'host') {
+            const hostData = firstNodeData as HostNodeData;
+            TabManager.openServerTab(hostData.host, tabId);
+            hasOpenedServerTabRef.current = true;
+          }
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+        onStatusChange?.("error", errorMessage);
+      } finally {
+        setIsLoading(false);
       }
     };
-  }, [apiCanceller]);
 
-  const toDatabaseTreeNodes = useCallback((rows: TableItemDO[]): [number, TreeDataItem[]] => {
-    if (rows.length === 0) {
-      return [0, []];
+    loadData();
+
+    return () => {
+      loaderRef.current.cancel();
+    };
+  }, [selectedConnection, tabId, onStatusChange]);
+
+  const loadDatabases = useCallback(() => {
+    if (!selectedConnection) return;
+
+    const loadData = async () => {
+      setIsLoading(true);
+      setError(null);
+      onStatusChange?.("initializing");
+      
+      try {
+        const result = await loaderRef.current.load(selectedConnection);
+        setTreeData(result.treeData);
+        setCompleteTree(result.completeTree);
+        setError(null);
+        onStatusChange?.("ready");
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+        onStatusChange?.("error", errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [selectedConnection, onStatusChange]);
+
+  // Helper function to sync tree selection to a tab info
+  const scrollToNode = useCallback((tabInfo: TabInfo | null) => {
+    if (!tabInfo) {
+      return;
     }
 
-    const databaseNodes: TreeDataItem[] = [];
-    let currentDatabase: string | null = null;
-    let currentDbEngine = "";
-    let currentTable: string | null = null;
-    let currentTableEngine = "";
-    let currentFullTableEngine = "";
-    let currentTableComment: string | null = null;
-    let tableNodes: TreeDataItem[] = [];
-    let columnNodes: TreeDataItem[] = [];
-    let hasDistributedTable = false;
-    let hasReplicatedTable = false;
-    let totalTables = 0;
-
-    // Process each row and group by database -> table -> columns
-    for (const row of rows) {
-      const database = String(row.database || "");
-      if (!database) continue;
-
-      // New database encountered
-      if (database !== currentDatabase) {
-        // Finalize previous table if exists
-        if (currentTable && currentDatabase) {
-          const tableNode = toTableTreeNode({
-            database: currentDatabase,
-            table: currentTable,
-            tableEngine: currentTableEngine,
-            fullTableEngine: currentFullTableEngine,
-            tableComment: currentTableComment,
-          });
-          tableNode.children = columnNodes;
-          tableNodes.push(tableNode);
-          columnNodes = [];
-        }
-
-        // Finalize previous database if exists
-        if (currentDatabase) {
-          const databaseNode = toDatabaseTreeNode({
-            name: currentDatabase,
-            engine: currentDbEngine,
-            tableCount: tableNodes.length,
-            hasDistributedTable,
-            hasReplicatedTable,
-          });
-          databaseNode.children = tableNodes;
-          (databaseNode.data as DatabaseNodeData).tableCount = tableNodes.length;
-
-          if (currentDatabase === "system") {
-            databaseNodes.unshift(databaseNode);
-          } else {
-            databaseNodes.push(databaseNode);
-          }
-
-          totalTables += tableNodes.length;
-        }
-
-        // Start new database
-        currentDatabase = database;
-        currentDbEngine = String(row.dbEngine || "");
-        tableNodes = [];
-        hasDistributedTable = false;
-        hasReplicatedTable = false;
-        currentTable = null;
-        currentTableEngine = "";
-        currentFullTableEngine = "";
-        currentTableComment = null;
-        columnNodes = [];
-      }
-
-      const tableName = row.table ? String(row.table) : null;
-
-      // New table encountered
-      if (tableName !== currentTable) {
-        // Finalize previous table if exists
-        if (currentTable && currentDatabase) {
-          const tableNode = toTableTreeNode({
-            database: currentDatabase,
-            table: currentTable,
-            tableEngine: currentTableEngine,
-            fullTableEngine: currentFullTableEngine,
-            tableComment: currentTableComment,
-          });
-          tableNode.children = columnNodes;
-          tableNodes.push(tableNode);
-          columnNodes = [];
-        }
-
-        // Start new table (if table exists)
-        if (tableName) {
-          currentTable = tableName;
-          currentFullTableEngine = String(row.tableEngine || "");
-          currentTableEngine = currentFullTableEngine;
-          currentTableComment = row.tableComment ? String(row.tableComment) : null;
-
-          // Shorten engine names for display
-          const len = "MergeTree".length;
-          if (currentTableEngine.length > len && currentTableEngine.endsWith("MergeTree")) {
-            currentTableEngine = currentTableEngine.substring(0, currentTableEngine.length - len);
-          } else if (currentTableEngine === "MaterializedView") {
-            currentTableEngine = "MV";
-          } else if (currentTableEngine.startsWith("System")) {
-            currentTableEngine = "Sys";
-          }
-
-          // Check for distributed/replicated tables
-          if (row.tableEngine === "Distributed") {
-            hasDistributedTable = true;
-          }
-          if (row.tableEngine && String(row.tableEngine).startsWith("Replicated")) {
-            hasReplicatedTable = true;
-          }
-        } else {
-          currentTable = null;
-          currentTableEngine = "";
-          currentFullTableEngine = "";
-          currentTableComment = null;
-        }
-      }
-
-      // Add column if exists
-      if (tableName && row.columnName) {
-        const columnName = String(row.columnName);
-        const columnType = String(row.columnType || "");
-        const columnComment = row.columnComment ? String(row.columnComment) : null;
-        const columnNode = toColumnTreeNode({ name: columnName, type: columnType, comment: columnComment });
-        columnNode.id = `table:${currentDatabase}.${tableName}.${columnName}`;
-        columnNodes.push(columnNode);
-      }
-
-      // Update database engine if changed
-      if (row.dbEngine) {
-        currentDbEngine = String(row.dbEngine);
-      }
+    // Calculate the target node ID based on tab type
+    let targetNodeId: string | undefined;
+    if (tabInfo.type === "database") {
+      targetNodeId = `db:${tabInfo.database}`;
+    } else if (tabInfo.type === "table") {
+      targetNodeId = `table:${tabInfo.database}.${tabInfo.table}`;
+    } else if (tabInfo.type === "dashboard") {
+      targetNodeId = "host";
+    } else {
+      // For other tab types (query, dependency, query-log), clear selection
+      targetNodeId = undefined;
     }
 
-    // Finalize last table
-    if (currentTable && currentDatabase) {
-      const tableNode = toTableTreeNode({
-        database: currentDatabase,
-        table: currentTable,
-        tableEngine: currentTableEngine,
-        fullTableEngine: currentFullTableEngine,
-        tableComment: currentTableComment,
-      });
-      tableNode.children = columnNodes;
-      tableNodes.push(tableNode);
-    }
-
-    // Finalize last database
-    if (currentDatabase) {
-      const databaseNode = toDatabaseTreeNode({
-        name: currentDatabase,
-        engine: currentDbEngine,
-        tableCount: tableNodes.length,
-        hasDistributedTable,
-        hasReplicatedTable,
-      });
-      databaseNode.children = tableNodes;
-      (databaseNode.data as DatabaseNodeData).tableCount = tableNodes.length;
-
-      if (currentDatabase === "system") {
-        databaseNodes.unshift(databaseNode);
-      } else {
-        databaseNodes.push(databaseNode);
+    // Only update if the node ID has changed
+    setSelectedNodeId((currentNodeId) => {
+      if (currentNodeId === targetNodeId) {
+        return currentNodeId; // No change needed
       }
-
-      totalTables += tableNodes.length;
-    }
-
-    return [totalTables, databaseNodes];
+      
+      // Scroll to the new node when tab changes
+      if (targetNodeId && treeRef.current) {
+        // Use setTimeout to ensure the tree has updated with the new selection
+        setTimeout(() => {
+          treeRef.current?.scrollToNode(targetNodeId);
+        }, 0);
+      }
+      
+      return targetNodeId;
+    });
   }, []);
 
-  const toHostTreeNode = useCallback(
-    (response: ApiResponse, tables: TableItemDO[]): TreeDataItem => {
-      let responseServer = response.httpHeaders?.["x-clickhouse-server-display-name"];
-      const canSwitchServer = selectedConnection!.cluster.length > 0;
+  // Listen to active tab changes and sync tree selection (only when not in search mode)
+  useEffect(() => {
+    const onActiveTabChange = (event: CustomEvent<{ tabId: string; tabInfo: TabInfo | null }>) => {
+      const { tabInfo } = event.detail;
+      const isSearchMode = search.length > 0;
 
-      if (!responseServer || responseServer === undefined) {
-        if (canSwitchServer) {
-          responseServer = "Host";
-        } else {
-          responseServer = selectedConnection?.name || "Unknown";
-        }
+      // Case 1: Tab is closed (tabInfo is null) - do nothing
+      if (tabInfo === null) {
+        lastActiveTabInfoRef.current = null;
+        return;
       }
 
-      // Ensure responseServer is a string
-      const serverName = String(responseServer || "Unknown");
+      // Always track the last active tab info
+      lastActiveTabInfoRef.current = tabInfo;
 
-      // Strip the Kubernetes cluster suffix if present
-      const displayName = serverName.replace(/\.svc\.cluster\.local$/, "");
+      // Case 2: Only sync to active tab when not in search mode
+      if (!isSearchMode) {
+        scrollToNode(tabInfo);
+      }
+    };
 
-      const [totalTables, databaseNodes] = toDatabaseTreeNodes(tables);
+    const unsubscribe = TabManager.onActiveTabChange(onActiveTabChange);
+    return unsubscribe;
+  }, [search, scrollToNode]);
 
-      const hostNode: TreeDataItem = {
-        id: "host",
-        labelContent: selectedConnection?.cluster ? (
-          <HostSelector clusterName={selectedConnection.cluster} displayName={displayName} />
-        ) : (
-          displayName
-        ),
-        search: serverName.toLowerCase(),
-        icon: Monitor,
-        type: "folder",
-        children: databaseNodes,
-        tag: (
-          <SchemaTreeBadge>
-            {databaseNodes.length} DBs | {totalTables} Tables
-          </SchemaTreeBadge>
-        ),
-        data: {
-          type: "host",
-          host: serverName,
-        } as HostNodeData,
-      };
+  // Sync to active tab when search is cleared (exiting search mode)
+  useEffect(() => {
+    // Track when we enter search mode
+    if (search.length > 0) {
+      wasInSearchModeRef.current = true;
+      return;
+    }
 
-      return hostNode;
-    },
-    [selectedConnection, toDatabaseTreeNodes]
-  );
+    // When search is cleared (search.length === 0) and we were previously in search mode,
+    // sync to the last active tab and scroll to it
+    if (wasInSearchModeRef.current && lastActiveTabInfoRef.current) {
+      scrollToNode(lastActiveTabInfoRef.current);
+      wasInSearchModeRef.current = false;
+    }
+  }, [search, scrollToNode]);
 
   const [contextMenuNode, setContextMenuNode] = useState<TreeDataItem | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
@@ -683,230 +242,6 @@ export function SchemaTreeView({ tabId }: SchemaTreeViewProps) {
     }
   }, [contextMenuNode]);
 
-  const loadDatabases = useCallback(() => {
-    if (!selectedConnection) {
-      setTreeData([]);
-      setError(null);
-      isLoadingRef.current = false;
-      currentConnectionIdRef.current = null;
-      return;
-    }
-
-    // Get a unique ID for this connection
-    const connectionId = `${selectedConnection.name}-${selectedConnection.user}-${selectedConnection.cluster}`;
-
-    // Prevent duplicate calls for the same connection
-    if (isLoadingRef.current && currentConnectionIdRef.current === connectionId) {
-      return;
-    }
-
-    // Cancel previous request if any
-    if (apiCanceller) {
-      apiCanceller.cancel();
-    }
-
-    isLoadingRef.current = true;
-    currentConnectionIdRef.current = connectionId;
-    setIsLoading(true);
-    setError(null); // Clear any previous errors
-
-    const api = Api.create(selectedConnection);
-    const canceller = api.executeSQL(
-      {
-        sql: `SELECT 
-    databases.name AS database,
-    databases.engine AS dbEngine,
-    tables.name AS table,
-    tables.engine AS tableEngine,
-    tables.comment AS tableComment,
-    columns.name AS columnName,
-    columns.type AS columnType,
-    columns.comment AS columnComment,
-    (SELECT value FROM system.build_options WHERE name = 'VERSION_INTEGER') AS version
-FROM
-    system.databases
-LEFT JOIN 
-    system.tables
-ON 
-    databases.name = tables.database
-LEFT JOIN
-    system.columns
-ON
-    tables.database = columns.database AND tables.name = columns.table
-WHERE
-    (tables.name IS NULL OR (NOT startsWith(tables.name, '.inner.') AND NOT startsWith(tables.name, '.inner_id.')))
-ORDER BY lower(database), database, table, columnName`,
-        headers: {
-          "Content-Type": "text/plain",
-        },
-        params: {
-          default_format: "JSON",
-          output_format_json_quote_64bit_integers: 0,
-        },
-      },
-      (response: ApiResponse) => {
-        try {
-          const rows = (response.data.data || []) as TableItemDO[];
-          const hostNode = toHostTreeNode(response, rows);
-
-          setCompleteTree(hostNode);
-          setTreeData([hostNode]);
-          setError(null); // Clear error on success
-        } catch (err) {
-          console.error("Error processing database response:", err);
-          console.error("Response data:", response);
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          setError(`Failed to process database response: ${errorMessage}`);
-        }
-      },
-      (error: ApiErrorResponse) => {
-        console.error("API Error:", error);
-        console.error("Error details:", {
-          message: error.errorMessage,
-          status: error.httpStatus,
-          headers: error.httpHeaders,
-          data: error.data,
-        });
-        // Build detailed error message
-        let errorMessage = `Failed to load databases: ${error.errorMessage}`;
-        if (error.httpStatus) {
-          errorMessage += ` (HTTP ${error.httpStatus})`;
-        }
-        // Add detail message if available
-        const detailMessage =
-          typeof error?.data == "object"
-            ? error.data?.message
-              ? error.data.message
-              : JSON.stringify(error.data, null, 2)
-            : error?.data;
-        if (detailMessage) {
-          errorMessage += `\n${detailMessage}`;
-        }
-        setError(errorMessage);
-      },
-      () => {
-        isLoadingRef.current = false;
-        setIsLoading(false);
-      }
-    );
-
-    setApiCanceller(canceller);
-  }, [selectedConnection, toHostTreeNode, apiCanceller]);
-
-  // Load databases when connection changes
-  useEffect(() => {
-    if (selectedConnection) {
-      // Clear tree data first to ensure fresh reload
-      setTreeData([]);
-      setCompleteTree(null);
-      setError(null); // Clear errors when connection changes
-      // Reset the flag when connection changes
-      hasOpenedServerTabRef.current = false;
-      // Reset connection tracking to force reload even if connectionId is the same
-      // This handles the case where connection details (URL, password) changed but name/user/cluster didn't
-      currentConnectionIdRef.current = null;
-      isLoadingRef.current = false;
-      // Cancel any pending requests
-      if (apiCanceller) {
-        apiCanceller.cancel();
-        setApiCanceller(null);
-      }
-      // Load databases for the new/updated connection
-      loadDatabases();
-    } else {
-      setTreeData([]);
-      setCompleteTree(null);
-      setError(null);
-      hasOpenedServerTabRef.current = false;
-      currentConnectionIdRef.current = null;
-      isLoadingRef.current = false;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedConnection]);
-
-  // Automatically open server tab when tree is first loaded
-  useEffect(() => {
-    if (
-      !isLoading &&
-      treeData.length > 0 &&
-      !hasOpenedServerTabRef.current &&
-      (treeData[0]?.data as SchemaNodeData)?.type === "host"
-    ) {
-      const hostData = treeData[0].data as HostNodeData;
-      TabManager.sendOpenServerTabRequest(hostData.host, tabId);
-      hasOpenedServerTabRef.current = true;
-    }
-  }, [treeData, isLoading, tabId]);
-
-  // Helper function to sync tree selection to a tab info
-  const syncToTabInfo = useCallback((tabInfo: TabInfo | null) => {
-    if (!tabInfo) {
-      return;
-    }
-
-    // Calculate the target node ID based on tab type
-    let targetNodeId: string | undefined;
-    if (tabInfo.type === "database") {
-      targetNodeId = `db:${tabInfo.database}`;
-    } else if (tabInfo.type === "table") {
-      targetNodeId = `table:${tabInfo.database}.${tabInfo.table}`;
-    } else if (tabInfo.type === "dashboard") {
-      targetNodeId = "host";
-    } else {
-      // For other tab types (query, dependency, query-log), clear selection
-      targetNodeId = undefined;
-    }
-
-    // Only update if the node ID has changed
-    setSelectedNodeId((currentNodeId) => {
-      if (currentNodeId === targetNodeId) {
-        return currentNodeId; // No change needed
-      }
-      return targetNodeId;
-    });
-  }, []);
-
-  // Listen to active tab changes and sync tree selection (only when not in search mode)
-  useEffect(() => {
-    const handler = (event: CustomEvent<{ tabId: string; tabInfo: TabInfo | null }>) => {
-      const { tabInfo } = event.detail;
-      const isSearchMode = search.length > 0;
-
-      // Case 1: Tab is closed (tabInfo is null) - do nothing
-      if (tabInfo === null) {
-        lastActiveTabInfoRef.current = null;
-        return;
-      }
-
-      // Always track the last active tab info
-      lastActiveTabInfoRef.current = tabInfo;
-
-      // Case 2: Only sync to active tab when not in search mode
-      if (!isSearchMode) {
-        syncToTabInfo(tabInfo);
-      }
-    };
-
-    const unsubscribe = TabManager.onActiveTabChange(handler);
-    return unsubscribe;
-  }, [search, syncToTabInfo]);
-
-  // Sync to active tab when search is cleared (exiting search mode)
-  useEffect(() => {
-    // Track when we enter search mode
-    if (search.length > 0) {
-      wasInSearchModeRef.current = true;
-      return;
-    }
-
-    // When search is cleared (search.length === 0) and we were previously in search mode,
-    // sync to the last active tab
-    if (wasInSearchModeRef.current && lastActiveTabInfoRef.current) {
-      syncToTabInfo(lastActiveTabInfoRef.current);
-      wasInSearchModeRef.current = false;
-    }
-  }, [search, syncToTabInfo]);
-
   const handleDropTable = useCallback(() => {
     if ((contextMenuNode?.data as SchemaNodeData)?.type === "table" && selectedConnection) {
       const tableData = contextMenuNode!.data as TableNodeData;
@@ -923,75 +258,6 @@ ORDER BY lower(database), database, table, columnName`,
     setContextMenuPosition(null);
   }, [contextMenuNode, selectedConnection, loadDatabases]);
 
-  const toDatabaseTreeNode = (db: {
-    name: string;
-    engine: string;
-    tableCount: number;
-    hasDistributedTable: boolean;
-    hasReplicatedTable: boolean;
-  }): TreeDataItem => {
-    const dbName = String(db.name || "Unknown");
-    return {
-      id: `db:${dbName}`,
-      labelContent: dbName,
-      search: dbName.toLowerCase(),
-      icon: Database,
-      type: "folder",
-      children: [],
-      tag: (
-        <SchemaTreeBadge>
-          {db.engine || ""} | {db.tableCount}
-        </SchemaTreeBadge>
-      ),
-      data: {
-        type: "database",
-        name: dbName,
-        engine: db.engine || "",
-        tableCount: db.tableCount,
-        hasDistributedTable: db.hasDistributedTable,
-        hasReplicatedTable: db.hasReplicatedTable,
-      } as DatabaseNodeData,
-    };
-  };
-
-  const toTableTreeNode = (table: {
-    database: string;
-    table: string;
-    tableEngine: string;
-    fullTableEngine: string;
-    tableComment?: string | null;
-  }): TreeDataItem => {
-    const tableName = String(table.table || "Unknown");
-    const databaseName = String(table.database || "Unknown");
-    const fullName = `${databaseName}.${tableName}`;
-    const tableComment = table.tableComment || null;
-
-    // Use labelTooltip for table comment
-    const labelTooltip = tableComment ? (
-      <div className="text-xs text-muted-foreground whitespace-pre-wrap">{tableComment}</div>
-    ) : undefined;
-
-    return {
-      id: `table:${fullName}`,
-      labelContent: tableName,
-      search: tableName.toLowerCase(),
-      icon: TableIcon,
-      type: "folder", // Has columns as children
-      children: [],
-      tag: <SchemaTreeBadge>{table.tableEngine || ""}</SchemaTreeBadge>,
-      labelTooltip: labelTooltip,
-      data: {
-        type: "table",
-        database: databaseName,
-        table: tableName,
-        fullName: fullName,
-        tableEngine: table.tableEngine || "",
-        fullTableEngine: table.fullTableEngine || "",
-        tableComment: tableComment || undefined,
-      } as TableNodeData,
-    };
-  };
-
   const onTreeNodeSelected = useCallback(
     (item: TreeDataItem | undefined) => {
       if (!item?.data) return;
@@ -1006,20 +272,20 @@ ORDER BY lower(database), database, table, columnName`,
       // If a host node is clicked, open the dashboard tab
       if (data.type === "host") {
         const hostData = data as HostNodeData;
-        TabManager.sendOpenServerTabRequest(hostData.host, tabId);
+        TabManager.openServerTab(hostData.host, tabId);
       }
       // If a database node is clicked, open the database tab
       else if (data.type === "database") {
         const databaseData = data as DatabaseNodeData;
-        TabManager.sendOpenDatabaseTabRequest(databaseData.name, tabId);
+        TabManager.openDatabaseTab(databaseData.name, tabId);
       }
       // If a table node is clicked, open the table tab
       else if (data.type === "table") {
         const tableData = data as TableNodeData;
-        TabManager.sendOpenTableTabRequest(tableData.database, tableData.table, tableData.fullTableEngine, tabId);
+        TabManager.openTableTab(tableData.database, tableData.table, tableData.fullTableEngine, tabId);
       }
     },
-    [tabId, selectedConnection]
+    [tabId]
   );
 
   if (!selectedConnection) {
@@ -1085,6 +351,7 @@ ORDER BY lower(database), database, table, columnName`,
         ) : (
           treeData.length > 0 && (
             <Tree
+              ref={treeRef}
               data={treeData}
               search={search}
               selectedItemId={selectedNodeId}

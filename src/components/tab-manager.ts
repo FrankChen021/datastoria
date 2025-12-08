@@ -87,7 +87,7 @@ export class TabManager {
   /**
    * Emit an open table tab event
    */
-  static sendOpenTableTabRequest(database: string, table: string, engine?: string, tabId?: string): void {
+  static openTableTab(database: string, table: string, engine?: string, tabId?: string): void {
     const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
       detail: { type: "table", database, table, engine, tabId },
     });
@@ -97,7 +97,7 @@ export class TabManager {
   /**
    * Emit an open dependency tab event
    */
-  static sendOpenDependencyTabRequest(database: string, tabId?: string): void {
+  static openDependencyTab(database: string, tabId?: string): void {
     const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
       detail: { type: "dependency", database, tabId },
     });
@@ -107,7 +107,7 @@ export class TabManager {
   /**
    * Emit an open database tab event
    */
-  static sendOpenDatabaseTabRequest(database: string, tabId?: string): void {
+  static openDatabaseTab(database: string, tabId?: string): void {
     const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
       detail: { type: "database", database, tabId },
     });
@@ -115,9 +115,9 @@ export class TabManager {
   }
 
   /**
-   * Emit an open dashboard tab event
+   * Emit an open server tab event
    */
-  static sendOpenServerTabRequest(host: string, tabId?: string): void {
+  static openServerTab(host: string, tabId?: string): void {
     const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
       detail: { type: "server", host, tabId },
     });
@@ -127,7 +127,7 @@ export class TabManager {
   /**
    * Emit an open query log tab event
    */
-  static sendOpenQueryLogTabRequest(queryId?: string, eventDate?: string, tabId?: string): void {
+  static openQueryLogTab(queryId?: string, eventDate?: string, tabId?: string): void {
     const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
       detail: { type: "query-log", queryId, eventDate, tabId },
     });
@@ -137,7 +137,7 @@ export class TabManager {
   /**
    * Emit an activate query tab event (query tab is always present, this just activates it)
    */
-  static sendActivateQueryTabRequest(options?: { query?: string; mode?: "replace" | "insert" }): void {
+  static activateQueryTab(options?: { query?: string; mode?: "replace" | "insert" }): void {
     const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
       detail: { 
         type: "query",

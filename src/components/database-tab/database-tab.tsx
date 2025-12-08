@@ -110,7 +110,7 @@ const DatabaseTabComponent = ({ database }: DatabaseTabProps) => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 overflow-hidden">
         <div className="flex justify-between items-center gap-2 m-2">
           <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="overview">Database Overview</TabsTrigger>
             <TabsTrigger value="dependency">Database Dependency</TabsTrigger>
           </TabsList>
           {currentMetadata?.supportRefresh && (

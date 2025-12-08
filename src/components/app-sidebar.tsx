@@ -54,7 +54,7 @@ export function AppSidebar() {
                     tooltip="Query"
                     size="lg"
                     className="justify-center"
-                    onClick={() => TabManager.sendActivateQueryTabRequest()}
+                    onClick={() => TabManager.activateQueryTab()}
                   >
                     <Terminal className="h-5 w-5" />
                   </SidebarMenuButton>
@@ -64,7 +64,7 @@ export function AppSidebar() {
                     tooltip="Search Query Log"
                     size="lg"
                     className="justify-center"
-                    onClick={() => TabManager.sendOpenQueryLogTabRequest()}
+                    onClick={() => TabManager.openQueryLogTab()}
                   >
                     <Search className="h-5 w-5" />
                   </SidebarMenuButton>

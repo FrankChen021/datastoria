@@ -32,7 +32,7 @@ export function showQueryDialog(query: SQLQuery | undefined, title?: string): vo
         variant: "outline",
         onClick: async () => {
           // Activate the query tab and set the SQL query
-          TabManager.sendActivateQueryTabRequest({
+          TabManager.activateQueryTab({
             query: query.sql,
             mode: "insert",
           });
