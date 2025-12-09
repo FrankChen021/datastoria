@@ -23,7 +23,7 @@
 /* Override default style */
 .ace_placeholder {
   /* Default: 0 */
-  margin-top: 10px;
+  margin-top: 5px;
 
   /* Default: 0.7 */
   opacity: 1;
@@ -50,6 +50,6 @@
  * Increase the width of the autocomplete suggestion dialog
  */
 .ace_autocomplete {
-  /* Default: 280px, increased to 600px */
+  /* Default: 280px, increased to 400px */
   width: 400px !important;
 }

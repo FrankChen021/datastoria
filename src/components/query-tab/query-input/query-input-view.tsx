@@ -33,10 +33,10 @@ export function QueryInputView() {
     const handler = (event: CustomEvent<import("@/components/tab-manager").OpenTabEventDetail>) => {
       if (event.detail.type === "query" && event.detail.query) {
         const { query, mode = "replace" } = event.detail;
-        
+
         if (globalEditor) {
           const session = globalEditor.getSession();
-          
+
           if (mode === "replace") {
             // Replace all text
             globalEditor.setValue(query);
@@ -52,7 +52,7 @@ export function QueryInputView() {
             const currentValue = globalEditor.getValue();
             const newValue = currentValue ? `${query}\n\n${currentValue}` : query;
             globalEditor.setValue(newValue);
-            
+
             // Select the inserted text
             // Calculate how many lines the query has
             const queryLines = query.split('\n').length;
@@ -60,7 +60,7 @@ export function QueryInputView() {
               start: { row: 0, column: 0 },
               end: { row: queryLines - 1, column: query.split('\n')[queryLines - 1].length }
             });
-            
+
             // Focus the editor
             globalEditor.focus();
           }
@@ -175,7 +175,7 @@ export function QueryInputView() {
   const handleEditorLoad = useCallback((editor: Ace.Editor) => {
     const extendedEditor = editor as ExtendedEditor;
     editor.setValue(QueryInputLocalStorage.getInput());
-    editor.renderer.setScrollMargin(10, 10, 0, 0);
+    editor.renderer.setScrollMargin(5, 10, 0, 0);
     editor.completers = QueryCompletionManager.getInstance().getCompleters(editor.completers);
 
     // Clear any selection and move cursor to end of text
