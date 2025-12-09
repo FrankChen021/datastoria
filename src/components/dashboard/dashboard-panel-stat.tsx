@@ -535,7 +535,6 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
       async (_param: RefreshOptions, isOffset: boolean = false) => {
         // Validate that we have a time span
         if (!_param.selectedTimeSpan) {
-          console.error(`No timespan for stat [${descriptor.id}] in loadData`);
           if (!isOffset) {
             setError("Please choose time span.");
           }
@@ -593,8 +592,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
                 setIsLoadingMinimap(false);
               },
               (error) => {
-                console.error("Error loading minimap data:", error);
-                setError(error.errorMessage || "Failed to load data");
+                setError(error.data || error.errorMessage || "Failed to load data");
                 setIsLoadingValue(false);
                 setIsLoadingMinimap(false);
               }
@@ -643,7 +641,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
                 }
               },
               (error) => {
-                setError(error.errorMessage || "Failed to load data");
+                setError(error.data || error.errorMessage || "Failed to load data");
                 setIsLoadingValue(false);
                 setIsLoadingMinimap(false);
               }
@@ -657,7 +655,6 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
             setError((error as Error).message);
             setIsLoadingValue(false);
             setIsLoadingMinimap(false);
-            console.error(error);
           }
         }
       },
@@ -668,13 +665,11 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
     const refreshInternal = useCallback(
       (param: RefreshOptions) => {
         if (!descriptor.query) {
-          console.error(`No query defined for stat [${descriptor.id}]`);
           setError("No query defined for this stat component.");
           return;
         }
 
         if (!param.selectedTimeSpan) {
-          console.error(`No timespan for stat [${descriptor.id}]`);
           setError("Please choose time span.");
           return;
         }
@@ -980,15 +975,11 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
         description,
         className: "max-w-[60vw] h-[70vh]",
         disableContentScroll: false,
-           mainContent: (
-             <div className="w-full h-full overflow-auto">
-               <DashboardPanel
-                 descriptor={modifiedDescriptor}
-                 selectedTimeSpan={selectedTimeSpan}
-                 initialLoading={true}
-               />
-             </div>
-           ),
+        mainContent: (
+          <div className="w-full h-full overflow-auto">
+            <DashboardPanel descriptor={modifiedDescriptor} selectedTimeSpan={selectedTimeSpan} initialLoading={true} />
+          </div>
+        ),
       });
     }, [descriptor.drilldown, selectedTimeSpan]);
 
@@ -1164,78 +1155,81 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
               "font-semibold tabular-nums"
             )}
           >
-            <div ref={valueContainerRef} className="h-16 flex items-center justify-center overflow-hidden px-2">
-              <div
-                ref={valueTextRef}
-                className={cn(
-                  "leading-none whitespace-nowrap",
-                  hasMainDrilldown && "cursor-pointer underline transition-all"
-                )}
-                style={{
-                  fontSize: `${fontSize}rem`,
-                }}
-                onClick={hasMainDrilldown ? handleDrilldownClick : undefined}
-              >
-                {shouldShowSkeleton ? (
-                  <div className="transition-opacity duration-150" style={{ opacity: skeletonOpacity }}>
-                    <Skeleton className="w-20 h-10" />
-                  </div>
-                ) : shouldUseNumberFlow() ? (
-                  (() => {
-                    // Default to 'compact_number' if no format is specified
-                    const originalFormatName = descriptor.valueOption?.format;
-                    const formatName = originalFormatName || "compact_number";
+            {error && <div key="error" className="text-destructive text-xs">{error}</div>}
+            {!error && (
+              <div ref={valueContainerRef} className="h-16 flex items-center justify-center overflow-hidden px-2">
+                <div
+                  ref={valueTextRef}
+                  className={cn(
+                    "leading-none whitespace-nowrap",
+                    hasMainDrilldown && "cursor-pointer underline transition-all"
+                  )}
+                  style={{
+                    fontSize: `${fontSize}rem`,
+                  }}
+                  onClick={hasMainDrilldown ? handleDrilldownClick : undefined}
+                >
+                  {shouldShowSkeleton ? (
+                    <div className="transition-opacity duration-150" style={{ opacity: skeletonOpacity }}>
+                      <Skeleton className="w-20 h-10" />
+                    </div>
+                  ) : shouldUseNumberFlow() ? (
+                    (() => {
+                      // Default to 'compact_number' if no format is specified
+                      const originalFormatName = descriptor.valueOption?.format;
+                      const formatName = originalFormatName || "compact_number";
 
-                    // Map format names to NumberFlow format options (inline)
-                    // Note: NumberFlow supports Intl.NumberFormatOptions through the format prop
-                    // It does not support custom formatter functions, only standard Intl.NumberFormat options
-                    let numberFlowFormat: Record<string, unknown> | undefined;
-                    // Handle format names (including "compact_number" which is an alias for "short_number")
-                    // Cast to string to handle "compact_number" which is not in FormatName type but is used in practice
-                    const formatStr = formatName as string;
-                    if (formatStr === "compact_number" || formatStr === "short_number") {
-                      numberFlowFormat = { notation: "compact", compactDisplay: "short" };
-                    } else if (formatStr === "comma_number") {
-                      numberFlowFormat = { useGrouping: true };
-                    } else if (formatStr === "percentage") {
-                      // percentage format expects values already as percentages (e.g., 50 = 50%)
-                      // NumberFlow with style: "percent" multiplies by 100, so we need to divide by 100 first
-                      numberFlowFormat = { style: "percent", minimumFractionDigits: 0, maximumFractionDigits: 2 };
-                    } else if (formatStr === "percentage_0_1") {
-                      // This format expects values in [0,1] range (e.g., 0.5 = 50%)
-                      // NumberFlow with style: "percent" multiplies by 100, so we pass as-is
-                      numberFlowFormat = { style: "percent", minimumFractionDigits: 0, maximumFractionDigits: 2 };
-                    } else if (formatStr === "binary_size") {
-                      // binary_size format converts bytes to binary units (KB, MB, GB, etc.)
-                      numberFlowFormat = { notation: "binary_size" };
-                    } else {
-                      numberFlowFormat = undefined;
-                    }
+                      // Map format names to NumberFlow format options (inline)
+                      // Note: NumberFlow supports Intl.NumberFormatOptions through the format prop
+                      // It does not support custom formatter functions, only standard Intl.NumberFormat options
+                      let numberFlowFormat: Record<string, unknown> | undefined;
+                      // Handle format names (including "compact_number" which is an alias for "short_number")
+                      // Cast to string to handle "compact_number" which is not in FormatName type but is used in practice
+                      const formatStr = formatName as string;
+                      if (formatStr === "compact_number" || formatStr === "short_number") {
+                        numberFlowFormat = { notation: "compact", compactDisplay: "short" };
+                      } else if (formatStr === "comma_number") {
+                        numberFlowFormat = { useGrouping: true };
+                      } else if (formatStr === "percentage") {
+                        // percentage format expects values already as percentages (e.g., 50 = 50%)
+                        // NumberFlow with style: "percent" multiplies by 100, so we need to divide by 100 first
+                        numberFlowFormat = { style: "percent", minimumFractionDigits: 0, maximumFractionDigits: 2 };
+                      } else if (formatStr === "percentage_0_1") {
+                        // This format expects values in [0,1] range (e.g., 0.5 = 50%)
+                        // NumberFlow with style: "percent" multiplies by 100, so we pass as-is
+                        numberFlowFormat = { style: "percent", minimumFractionDigits: 0, maximumFractionDigits: 2 };
+                      } else if (formatStr === "binary_size") {
+                        // binary_size format converts bytes to binary units (KB, MB, GB, etc.)
+                        numberFlowFormat = { notation: "binary_size" };
+                      } else {
+                        numberFlowFormat = undefined;
+                      }
 
-                    // Handle percentage formats: NumberFlow with style: "percent" multiplies by 100
-                    // - percentage: value is already a percentage (e.g., 50 = 50%), so divide by 100
-                    // - percentage_0_1: value is in [0,1] range (e.g., 0.5 = 50%), pass as-is
-                    let displayValue = data;
-                    if (originalFormatName === "percentage") {
-                      displayValue = data / 100;
-                    }
+                      // Handle percentage formats: NumberFlow with style: "percent" multiplies by 100
+                      // - percentage: value is already a percentage (e.g., 50 = 50%), so divide by 100
+                      // - percentage_0_1: value is in [0,1] range (e.g., 0.5 = 50%), pass as-is
+                      let displayValue = data;
+                      if (originalFormatName === "percentage") {
+                        displayValue = data / 100;
+                      }
 
-                    return (
-                      <NumberFlow
-                        value={displayValue}
-                        format={numberFlowFormat as Parameters<typeof NumberFlow>[0]["format"]}
-                        locales="en-GB"
-                        className={cn(hasMainDrilldown ? "underline" : "")}
-                      />
-                    );
-                  })()
-                ) : descriptor.valueOption?.format ? (
-                  Formatter.getInstance().getFormatter(descriptor.valueOption.format)(data)
-                ) : (
-                  data
-                )}
+                      return (
+                        <NumberFlow
+                          value={displayValue}
+                          format={numberFlowFormat as Parameters<typeof NumberFlow>[0]["format"]}
+                          locales="en-GB"
+                          className={cn(hasMainDrilldown ? "underline" : "")}
+                        />
+                      );
+                    })()
+                  ) : descriptor.valueOption?.format ? (
+                    Formatter.getInstance().getFormatter(descriptor.valueOption.format)(data)
+                  ) : (
+                    data
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </CardTitle>
 
           {renderComparison()}
@@ -1250,7 +1244,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
               </div>
             ) : (
               <StatMinimap
-                id={descriptor.id || "stat"}
+                id={"stat"}
                 data={minimapData}
                 isLoading={isLoadingMinimap}
                 option={descriptor.minimapOption!}

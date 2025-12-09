@@ -134,45 +134,36 @@ SETTINGS allow_introspection_functions = 1
         width: 4,
         fieldOptions: {
           name: {
-            title: "Name",
             format: (name) => {
               const databaseName = name as string;
               return <OpenDatabaseTabButton variant="shadcn-link" database={databaseName} />;
             },
           },
           size: {
-            title: "Size",
             format: "binary_size",
           },
           rows: {
-            title: "Rows",
             format: "comma_number",
           },
           percentage: {
-            title: "Size Percentage of Total",
+            title: "Size Percentage of All Tables",
             format: "percentage_bar",
             formatArgs: [100, 16],
             width: 100,
           },
         },
         query: {
-          sql: `SELECT 
-    A.name, B.size, B.rows, B.percentage
-FROM system.databases AS A
-LEFT JOIN (
-    SELECT
-        database,
-        sum(bytes_on_disk) AS size,
-        sum(rows) as rows,
-        round(100 * size / (SELECT sum(bytes_on_disk) FROM system.parts WHERE active=1), 2) as percentage
-    FROM system.parts
-    WHERE active = 1
-    GROUP BY
-        database
-    )
-AS B
-ON A.name = B.database
-ORDER BY B.size DESC`,
+          sql: `
+SELECT
+    database as name,
+    sum(total_bytes) AS size,
+    sum(total_rows) as rows,
+    round(100 * size / (SELECT sum(total_bytes) FROM system.tables), 2) as percentage
+FROM system.tables
+GROUP BY
+    database
+ORDER BY size DESC
+`,
         },
       } as TableDescriptor,
     },
@@ -192,12 +183,11 @@ ORDER BY B.size DESC`,
   {
     type: "stat",
     titleOption: {
-      title: "Total Size of tables",
+      title: "Size of all tables",
     },
     width: 4,
-    description: "Total size of all active parts",
     query: {
-      sql: `SELECT sum(bytes_on_disk) FROM system.parts WHERE active = 1`,
+      sql: `SELECT sum(total_bytes) FROM system.tables`,
     },
     valueOption: {
       format: "binary_size",
@@ -244,31 +234,18 @@ ORDER BY B.size DESC`,
         },
         query: {
           sql: `
-SELECT A.*, B.engine FROM 
-(
-    WITH (
-        SELECT sum(bytes_on_disk)
-        FROM system.parts
-        WHERE active = 1
-    ) AS total_size
-    SELECT
-        database,
-        table,
-        round(100 * sum(bytes_on_disk) / total_size, 2) AS pct_of_total,
-        sum(bytes_on_disk) AS size
-    FROM system.parts
-    WHERE active = 1
-    GROUP BY
-        database,
-        table
-    ORDER BY
-        size DESC
-) AS A
-JOIN
-(
-    SELECT * FROM system.tables
-) AS B
-ON A.table = B.name`,
+WITH (
+    SELECT sum(total_bytes) FROM system.tables
+) AS total_size
+SELECT
+    database,
+    table,
+    engine,
+    round(100 * total_bytes / total_size, 2) AS pct_of_total,
+    total_bytes AS size
+FROM system.tables
+ORDER BY size DESC
+`,
         },
       } as TableDescriptor,
     },

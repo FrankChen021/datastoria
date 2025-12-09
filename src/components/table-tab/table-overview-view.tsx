@@ -72,13 +72,13 @@ const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOvervi
             width: 5,
             query: {
               sql: `
-SELECT sum(bytes_on_disk) as bytes_on_disk
+SELECT sum(total_bytes) as total_bytes
 FROM
-    system.parts
+    system.tables
 WHERE 
     database = '${database}' 
     AND table = '${table}'
-    AND active = 1`,
+`,
             },
             valueOption: {
               format: "binary_size",
@@ -97,13 +97,13 @@ WHERE
             },
             query: {
               sql: `
-SELECT sum(rows) as rows
+SELECT sum(total_rows) as total_bytes
 FROM
-    system.parts
+    system.tables
 WHERE 
     database = '${database}' 
     AND table = '${table}'
-    AND active = 1`,
+`,
             },
           } as StatDescriptor,
           {
@@ -144,13 +144,13 @@ WHERE
             width: 5,
             query: {
               sql: `
-SELECT sum(bytes_on_disk) / (SELECT sum(total_space-keep_free_space) from system.disks) as bytes_on_disk
+SELECT sum(total_bytes) / (SELECT sum(total_space - keep_free_space) from system.disks) as bytes_on_disk
 FROM
-    system.parts
+    system.tables
 WHERE 
     database = '${database}' 
     AND table = '${table}'
-    AND active = 1`,
+`,
             },
             valueOption: {
               format: "percentage_0_1",
@@ -190,9 +190,9 @@ LIMIT 1
                   width: 5,
                   query: {
                     sql: `
-SELECT sum(bytes_on_disk) as bytes_on_disk
-FROM clusterAllReplicas('{cluster}', system.parts)
-WHERE database = '${database}' AND table = '${table}' AND active = 1
+SELECT sum(total_bytes) as total_bytes
+FROM clusterAllReplicas('{cluster}', system.tables)
+WHERE database = '${database}' AND name = '${table}'
 `,
                   },
                   valueOption: {

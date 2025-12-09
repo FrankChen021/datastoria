@@ -79,12 +79,11 @@ where database = '${database}'
                 query: {
                   sql: `
 SELECT
-  sum(bytes_on_disk)
+  sum(total_bytes)
 FROM
-  system.parts 
+  system.tables 
 WHERE
-  active 
-  AND database = '${database}'
+  database = '${database}'
 `,
                 },
                 valueOption: {
@@ -125,12 +124,11 @@ WHERE
                 query: {
                   sql: `
 SELECT
-    sum(bytes_on_disk) / (SELECT sum(total_space-keep_free_space) from system.disks) as size_percentage
+    sum(total_bytes) / (SELECT sum(total_space-keep_free_space) from system.disks) as size_percentage
 FROM
-  system.parts
+  system.tables
 WHERE
   database = '${database}'
-  AND active = 1
     `,
                 },
                 valueOption: {
@@ -149,17 +147,15 @@ WHERE
                 width: 6,
                 query: {
                   sql: `
-    SELECT
-      database_size / total_size as size_percentage
-    FROM (
-      SELECT
-          sum(bytes_on_disk) as total_size,
-          sumIf(bytes_on_disk, database = '${database}') as database_size
-      FROM
-        system.parts
-      WHERE
-        active = 1
-    )
+SELECT
+  database_size / total_size as size_percentage
+FROM (
+  SELECT
+      sum(total_bytes) as total_size,
+      sumIf(total_bytes, database = '${database}') as database_size
+  FROM
+    system.tables
+)
     `,
                 },
                 valueOption: {

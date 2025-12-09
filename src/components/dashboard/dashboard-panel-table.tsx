@@ -208,8 +208,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
                 return;
               }
 
-              console.error("API Error:", apiError);
-              setError(errorMessage);
+              setError(apiError.data);
               setIsLoading(false);
             } else {
               // Handle other errors

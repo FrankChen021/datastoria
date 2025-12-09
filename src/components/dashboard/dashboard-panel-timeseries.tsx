@@ -781,7 +781,6 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
                 // Mark that we successfully loaded with these parameters
                 lastLoadedParamsRef.current = param;
               } catch (err) {
-                console.error("Error processing chart response:", err);
                 const errorMessage = err instanceof Error ? err.message : String(err);
                 setError(errorMessage);
               } finally {
@@ -796,14 +795,7 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
                 return;
               }
 
-              console.error(`[TimeseriesChart ${descriptor.id}] API Error:`, error);
-              console.error(`[TimeseriesChart ${descriptor.id}] SQL that failed:`, executedSql);
-              console.error(`[TimeseriesChart ${descriptor.id}] Error details:`, {
-                httpStatus: error.httpStatus,
-                errorMessage: error.errorMessage,
-                data: error.data,
-              });
-              setError(errorMessage);
+              setError(error.data);
               setIsLoading(false);
             },
             () => {
@@ -1118,7 +1110,7 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
       >
         <CardContent className="px-0 p-0">
           {error ? (
-            <div className="flex flex-col items-center justify-center h-[300px] gap-2 text-destructive p-8">
+            <div key="error" className="flex flex-col items-center justify-center h-[300px] gap-2 text-destructive p-8">
               <p className="font-semibold">Error loading chart data:</p>
               <p className="text-sm">{error}</p>
             </div>

@@ -95,6 +95,8 @@ export function SchemaTreeView({
       }
     };
 
+    hasOpenedNodeTabRef.current = false;
+
     loadData();
 
     return () => {
