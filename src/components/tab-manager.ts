@@ -2,7 +2,7 @@
  * Unified tab events for event-based communication between components
  */
 
-export type TabType = "query" | "table" | "dependency" | "database" | "server" | "dashboard" | "query-log";
+export type TabType = "query" | "table" | "dependency" | "database" | "node" | "dashboard" | "query-log";
 
 export interface BaseTabInfo {
   id: string;
@@ -117,11 +117,11 @@ export class TabManager {
   }
 
   /**
-   * Emit an open server tab event
+   * Emit an open node tab event
    */
-  static openServerTab(host: string, tabId?: string): void {
+  static openNodeTab(host: string, tabId?: string): void {
     const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
-      detail: { type: "server", host, tabId },
+      detail: { type: "node", host, tabId },
     });
     window.dispatchEvent(event);
   }

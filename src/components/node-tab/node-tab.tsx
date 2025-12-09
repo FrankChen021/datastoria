@@ -1,11 +1,10 @@
+import DashboardContainer from "@/components/dashboard/dashboard-container";
 import type {
+  Dashboard, DashboardGroup,
   StatDescriptor,
   TableDescriptor,
-  TimeseriesDescriptor,
-  TransposeTableDescriptor,
+  TimeseriesDescriptor
 } from "@/components/dashboard/dashboard-model";
-import DashboardContainer from "@/components/dashboard/dashboard-container";
-import type { Dashboard, DashboardGroup } from "@/components/dashboard/dashboard-model";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { useConnection } from "@/lib/connection/ConnectionContext";
@@ -897,19 +896,19 @@ ORDER BY t WITH FILL STEP {rounding:UInt32} SETTINGS skip_unavailable_shards = 1
   } as TimeseriesDescriptor,
 ];
 
-interface ServerTabProps {
+interface NodeTabProps {
   host: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const ServerTabComponent = (_props: ServerTabProps) => {
+const NodeTabComponent = (_props: NodeTabProps) => {
   const connection = useConnection();
 
   const dashboard = {
     version: 2,
     charts: [
       {
-        title: "Server Status",
+        title: "Node Status",
         collapsed: false,
         charts: serverStatusDashboard,
       } as DashboardGroup,
@@ -942,4 +941,4 @@ const ServerTabComponent = (_props: ServerTabProps) => {
   );
 };
 
-export const ServerTab = memo(ServerTabComponent);
+export const NodeTab = memo(NodeTabComponent);

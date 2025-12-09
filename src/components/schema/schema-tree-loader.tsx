@@ -33,7 +33,6 @@ interface TableItemDO {
   columnName: string | null;
   columnType: string | null;
   columnComment: string | null;
-  version: string;
 }
 
 export interface DatabaseNodeData {
@@ -337,7 +336,7 @@ export class SchemaTreeLoader {
       this.cancel(); // Cancel previous
 
       const api = Api.create(connection);
-      
+
       const sql = `SELECT 
     databases.name AS database,
     databases.engine AS dbEngine,
@@ -346,8 +345,7 @@ export class SchemaTreeLoader {
     tables.comment AS tableComment,
     columns.name AS columnName,
     columns.type AS columnType,
-    columns.comment AS columnComment,
-    (SELECT value FROM system.build_options WHERE name = 'VERSION_INTEGER') AS version
+    columns.comment AS columnComment
 FROM
     system.databases
 LEFT JOIN 
@@ -372,7 +370,7 @@ ORDER BY lower(database), database, table, columnName`;
           try {
             const rows = (response.data.data || []) as TableItemDO[];
             const hostNode = this.buildTree(connection, response, rows);
-            
+
             resolve({
               treeData: [hostNode],
               completeTree: hostNode,
@@ -383,20 +381,20 @@ ORDER BY lower(database), database, table, columnName`;
           }
         },
         (error: ApiErrorResponse) => {
-            let errorMessage = `Failed to load databases: ${error.errorMessage}`;
-            if (error.httpStatus) {
-              errorMessage += ` (HTTP ${error.httpStatus})`;
-            }
-            const detailMessage =
-              typeof error?.data == "object"
-                ? error.data?.message
-                  ? error.data.message
-                  : JSON.stringify(error.data, null, 2)
-                : error?.data;
-            if (detailMessage) {
-              errorMessage += `\n${detailMessage}`;
-            }
-            reject(new Error(errorMessage));
+          let errorMessage = `Failed to load databases: ${error.errorMessage}`;
+          if (error.httpStatus) {
+            errorMessage += ` (HTTP ${error.httpStatus})`;
+          }
+          const detailMessage =
+            typeof error?.data == "object"
+              ? error.data?.message
+                ? error.data.message
+                : JSON.stringify(error.data, null, 2)
+              : error?.data;
+          if (detailMessage) {
+            errorMessage += `\n${detailMessage}`;
+          }
+          reject(new Error(errorMessage));
         },
         () => {
           this.apiCanceller = null;
@@ -582,48 +580,48 @@ ORDER BY lower(database), database, table, columnName`;
   }
 
   private buildTree(connection: Connection, response: ApiResponse, rows: TableItemDO[]): TreeDataItem {
-      let responseServer = response.httpHeaders?.["x-clickhouse-server-display-name"];
-      const canSwitchServer = connection.cluster.length > 0;
+    let responseServer = response.httpHeaders?.["x-clickhouse-server-display-name"];
+    const canSwitchServer = connection.cluster.length > 0;
 
-      if (!responseServer || responseServer === undefined) {
-        if (canSwitchServer) {
-          responseServer = "Host";
-        } else {
-          responseServer = connection.name || "Unknown";
-        }
+    if (!responseServer || responseServer === undefined) {
+      if (canSwitchServer) {
+        responseServer = "Host";
+      } else {
+        responseServer = connection.name || "Unknown";
       }
+    }
 
-      // Ensure responseServer is a string
-      const serverName = String(responseServer || "Unknown");
+    // Ensure responseServer is a string
+    const serverName = String(responseServer || "Unknown");
 
-      // Strip the Kubernetes cluster suffix if present
-      const displayName = serverName.replace(/\.svc\.cluster\.local$/, "");
+    // Strip the Kubernetes cluster suffix if present
+    const displayName = serverName.replace(/\.svc\.cluster\.local$/, "");
 
-      const [totalTables, databaseNodes] = this.toDatabaseTreeNodes(rows);
+    const [totalTables, databaseNodes] = this.toDatabaseTreeNodes(rows);
 
-      const hostNode: TreeDataItem = {
-        id: "host",
-        labelContent: connection.cluster ? (
-          <HostSelector clusterName={connection.cluster} displayName={displayName} />
-        ) : (
-          displayName
-        ),
-        search: serverName.toLowerCase(),
-        icon: Monitor,
-        type: "folder",
-        children: databaseNodes,
-        tag: (
-          <SchemaTreeBadge>
-            {databaseNodes.length} DBs | {totalTables} Tables
-          </SchemaTreeBadge>
-        ),
-        data: {
-          type: "host",
-          host: serverName,
-        } as HostNodeData,
-      };
+    const hostNode: TreeDataItem = {
+      id: "host",
+      labelContent: connection.cluster ? (
+        <HostSelector clusterName={connection.cluster} displayName={displayName} />
+      ) : (
+        displayName
+      ),
+      search: serverName.toLowerCase(),
+      icon: Monitor,
+      type: "folder",
+      children: databaseNodes,
+      tag: (
+        <SchemaTreeBadge>
+          {databaseNodes.length} DBs | {totalTables} Tables
+        </SchemaTreeBadge>
+      ),
+      data: {
+        type: "host",
+        host: serverName,
+      } as HostNodeData,
+    };
 
-      return hostNode;
+    return hostNode;
   }
 }
 

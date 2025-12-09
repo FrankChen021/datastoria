@@ -17,12 +17,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { TabManager, type TabInfo } from "../tab-manager";
 import { showDropTableConfirmationDialog } from "./drop-table-confirmation-dialog";
-import { 
+import {
   SchemaTreeLoader,
-  type DatabaseNodeData, 
-  type HostNodeData, 
-  type SchemaNodeData, 
-  type TableNodeData 
+  type DatabaseNodeData,
+  type HostNodeData,
+  type SchemaNodeData,
+  type TableNodeData
 } from "./schema-tree-loader";
 
 export interface SchemaTreeViewProps {
@@ -30,7 +30,7 @@ export interface SchemaTreeViewProps {
   onStatusChange?: (status: AppInitStatus, error?: string) => void;
 }
 
-export function SchemaTreeView({ 
+export function SchemaTreeView({
   tabId,
   onStatusChange
 }: SchemaTreeViewProps) {
@@ -42,10 +42,10 @@ export function SchemaTreeView({
   const [error, setError] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const hasOpenedServerTabRef = useRef(false);
+  const hasOpenedNodeTabRef = useRef(false);
   const loaderRef = useRef(new SchemaTreeLoader());
   const treeRef = useRef<TreeRef>(null);
-  
+
   // Track the last active tab info to sync when search is cleared
   const lastActiveTabInfoRef = useRef<TabInfo | null>(null);
   // Track if we were in search mode to detect when search is cleared
@@ -58,7 +58,7 @@ export function SchemaTreeView({
       setCompleteTree(null);
       setError(null);
       setIsLoading(false);
-      hasOpenedServerTabRef.current = false;
+      hasOpenedNodeTabRef.current = false;
       onStatusChange?.("ready");
       return;
     }
@@ -67,7 +67,7 @@ export function SchemaTreeView({
       setIsLoading(true);
       setError(null);
       onStatusChange?.("initializing");
-      
+
       try {
         const result = await loaderRef.current.load(selectedConnection);
         setTreeData(result.treeData);
@@ -76,14 +76,14 @@ export function SchemaTreeView({
         onStatusChange?.("ready");
 
         TabManager.activateQueryTab();
-        
-        // Auto-open Server Dashboard if we have a host node
-        if (!hasOpenedServerTabRef.current && result.treeData.length > 0) {
+
+        // Auto-open Node Dashboard if we have a host node
+        if (!hasOpenedNodeTabRef.current && result.treeData.length > 0) {
           const firstNodeData = result.treeData[0]?.data as SchemaNodeData | undefined;
           if (firstNodeData?.type === 'host') {
             const hostData = firstNodeData as HostNodeData;
-            TabManager.openServerTab(hostData.host, tabId);
-            hasOpenedServerTabRef.current = true;
+            TabManager.openNodeTab(hostData.host, tabId);
+            hasOpenedNodeTabRef.current = true;
           }
         }
       } catch (err) {
@@ -109,7 +109,7 @@ export function SchemaTreeView({
       setIsLoading(true);
       setError(null);
       onStatusChange?.("initializing");
-      
+
       try {
         const result = await loaderRef.current.load(selectedConnection);
         setTreeData(result.treeData);
@@ -152,7 +152,7 @@ export function SchemaTreeView({
       if (currentNodeId === targetNodeId) {
         return currentNodeId; // No change needed
       }
-      
+
       // Scroll to the new node when tab changes
       if (targetNodeId && treeRef.current) {
         // Use setTimeout to ensure the tree has updated with the new selection
@@ -160,7 +160,7 @@ export function SchemaTreeView({
           treeRef.current?.scrollToNode(targetNodeId);
         }, 0);
       }
-      
+
       return targetNodeId;
     });
   }, []);
@@ -274,7 +274,7 @@ export function SchemaTreeView({
       // If a host node is clicked, open the dashboard tab
       if (data.type === "host") {
         const hostData = data as HostNodeData;
-        TabManager.openServerTab(hostData.host, tabId);
+        TabManager.openNodeTab(hostData.host, tabId);
       }
       // If a database node is clicked, open the database tab
       else if (data.type === "database") {
