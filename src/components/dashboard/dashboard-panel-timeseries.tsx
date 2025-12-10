@@ -674,136 +674,131 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
           const query = Object.assign({}, descriptor.query) as SQLQuery;
 
           // Replace time span template parameters in SQL
-          let finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan);
-          if (selectedConnection!.cluster.length > 0) {
-            finalSql = finalSql.replace("{cluster}", selectedConnection!.cluster);
-          }
-
-          // Check if there are any remaining old-style placeholders (for backward compatibility)
-          if (finalSql.includes("{rounding}") || finalSql.includes("{seconds}")) {
-            console.warn(
-              `[TimeseriesChart ${descriptor.id}] Warning: Old-style placeholders found in SQL (use {param_rounding:UInt32} and {param_seconds:UInt32})`
-            );
-          }
-
-          // Store finalSql in a variable accessible to error handler
-          const executedSql = finalSql;
-
+          const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan);
           const api = Api.create(selectedConnection);
-          const canceller = api.executeSQL(
+          const { response, abortController } = api.executeAsyncOnNode(
+            selectedConnection.runtime?.targetNode,
+            finalSql,
             {
-              sql: finalSql,
-              headers: {
-                "Content-Type": "text/plain",
-                ...query.headers,
-              },
-              params: {
-                default_format: "JSON",
-                output_format_json_quote_64bit_integers: 0,
-                ...query.params,
-              },
+              default_format: "JSON",
+              output_format_json_quote_64bit_integers: 0,
+              ...query.params,
             },
-            (response: ApiResponse) => {
-              try {
-                const responseData = response.data;
+            {
+              "Content-Type": "text/plain",
+              ...query.headers,
+            }
+          );
 
-                // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
-                const rows = responseData.data || [];
-                const meta = responseData.meta || [];
+          apiCancellerRef.current = {
+            cancel: () => abortController.abort(),
+          };
 
-                // Check if rows are arrays or objects
-                const firstRow = rows[0];
-                const isArrayFormat = Array.isArray(firstRow);
+          (async () => {
+            try {
+              const apiResponse = await response;
 
-                const transformedData = transformRowsToChartData(rows, meta);
-
-                // Store meta for later use in chart rendering
-                setMeta(meta);
-
-                // Auto-detect columns if not specified in descriptor
-                // Convert fieldOptions to array format for backward compatibility
-                let columns: (string | FieldOption)[] = [];
-                if (descriptor.type === "line" || descriptor.type === "bar" || descriptor.type === "area") {
-                  const timeseriesDescriptor = descriptor as TimeseriesDescriptor;
-                  if (timeseriesDescriptor.fieldOptions) {
-                    // Convert Map/Record to array, sorted by position if available
-                    const fieldOptionsArray =
-                      timeseriesDescriptor.fieldOptions instanceof Map
-                        ? Array.from(timeseriesDescriptor.fieldOptions.entries())
-                        : Object.entries(timeseriesDescriptor.fieldOptions);
-
-                    // Sort by position if available
-                    fieldOptionsArray.sort((a, b) => {
-                      const posA = a[1].position ?? Number.MAX_SAFE_INTEGER;
-                      const posB = b[1].position ?? Number.MAX_SAFE_INTEGER;
-                      return posA - posB;
-                    });
-
-                    columns = fieldOptionsArray.map(([key, value]) => ({ ...value, name: key }));
-                  }
-                }
-                if (
-                  columns.length === 0 ||
-                  (columns.length === 1 && typeof columns[0] === "string" && columns[0] === "value")
-                ) {
-                  // Find metric columns (exclude timestamp and label columns)
-                  let metricColumns: string[];
-
-                  if (isArrayFormat && meta.length > 0) {
-                    // Use meta for array format - we have type information
-                    const allColumns = meta.map((colMeta: { name: string; type?: string }) => colMeta.name);
-                    // Identify timestamp column using both name and type
-                    const timestampCol = meta.find((colMeta: { name: string; type?: string }) =>
-                      isTimestampColumnUtil(colMeta.name, colMeta.type)
-                    )?.name;
-                    metricColumns = allColumns.filter((name: string) => name !== timestampCol);
-                  } else if (rows.length > 0) {
-                    // Use object keys for object format - no type info, rely on naming
-                    const firstRowObj = rows[0] as Record<string, unknown>;
-                    const allColumns = Object.keys(firstRowObj);
-                    // Identify timestamp column by name only
-                    const timestampCol = allColumns.find((name: string) => isTimestampColumnUtil(name));
-                    metricColumns = allColumns.filter((name: string) => name !== timestampCol);
-                  } else {
-                    // No rows available, set empty array
-                    metricColumns = [];
-                  }
-
-                  if (metricColumns.length > 0) {
-                    setDetectedColumns(metricColumns);
-                  }
-                } else {
-                  setDetectedColumns([]);
-                }
-
-                setData(transformedData);
-                setError("");
-                // Mark that we successfully loaded with these parameters
-                lastLoadedParamsRef.current = param;
-              } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                setError(errorMessage);
-              } finally {
+              // Check if request was aborted
+              if (abortController.signal.aborted) {
                 setIsLoading(false);
+                return;
               }
-            },
-            (error: ApiErrorResponse) => {
-              const errorMessage = error.errorMessage || "Unknown error occurred";
+
+              const responseData = apiResponse.data;
+
+              // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
+              const rows = responseData.data || [];
+              const meta = responseData.meta || [];
+
+              // Check if rows are arrays or objects
+              const firstRow = rows[0];
+              const isArrayFormat = Array.isArray(firstRow);
+
+              const transformedData = transformRowsToChartData(rows, meta);
+
+              // Store meta for later use in chart rendering
+              setMeta(meta);
+
+              // Auto-detect columns if not specified in descriptor
+              // Convert fieldOptions to array format for backward compatibility
+              let columns: (string | FieldOption)[] = [];
+              if (descriptor.type === "line" || descriptor.type === "bar" || descriptor.type === "area") {
+                const timeseriesDescriptor = descriptor as TimeseriesDescriptor;
+                if (timeseriesDescriptor.fieldOptions) {
+                  // Convert Map/Record to array, sorted by position if available
+                  const fieldOptionsArray =
+                    timeseriesDescriptor.fieldOptions instanceof Map
+                      ? Array.from(timeseriesDescriptor.fieldOptions.entries())
+                      : Object.entries(timeseriesDescriptor.fieldOptions);
+
+                  // Sort by position if available
+                  fieldOptionsArray.sort((a, b) => {
+                    const posA = a[1].position ?? Number.MAX_SAFE_INTEGER;
+                    const posB = b[1].position ?? Number.MAX_SAFE_INTEGER;
+                    return posA - posB;
+                  });
+
+                  columns = fieldOptionsArray.map(([key, value]) => ({ ...value, name: key }));
+                }
+              }
+              if (
+                columns.length === 0 ||
+                (columns.length === 1 && typeof columns[0] === "string" && columns[0] === "value")
+              ) {
+                // Find metric columns (exclude timestamp and label columns)
+                let metricColumns: string[];
+
+                if (isArrayFormat && meta.length > 0) {
+                  // Use meta for array format - we have type information
+                  const allColumns = meta.map((colMeta: { name: string; type?: string }) => colMeta.name);
+                  // Identify timestamp column using both name and type
+                  const timestampCol = meta.find((colMeta: { name: string; type?: string }) =>
+                    isTimestampColumnUtil(colMeta.name, colMeta.type)
+                  )?.name;
+                  metricColumns = allColumns.filter((name: string) => name !== timestampCol);
+                } else if (rows.length > 0) {
+                  // Use object keys for object format - no type info, rely on naming
+                  const firstRowObj = rows[0] as Record<string, unknown>;
+                  const allColumns = Object.keys(firstRowObj);
+                  // Identify timestamp column by name only
+                  const timestampCol = allColumns.find((name: string) => isTimestampColumnUtil(name));
+                  metricColumns = allColumns.filter((name: string) => name !== timestampCol);
+                } else {
+                  // No rows available, set empty array
+                  metricColumns = [];
+                }
+
+                if (metricColumns.length > 0) {
+                  setDetectedColumns(metricColumns);
+                }
+              } else {
+                setDetectedColumns([]);
+              }
+
+              setData(transformedData);
+              setError("");
+              // Mark that we successfully loaded with these parameters
+              lastLoadedParamsRef.current = param;
+              setIsLoading(false);
+            } catch (error) {
+              // Check if request was aborted
+              if (abortController.signal.aborted) {
+                setIsLoading(false);
+                return;
+              }
+
+              const apiError = error as ApiErrorResponse;
+              const errorMessage = apiError.errorMessage || "Unknown error occurred";
               const lowerErrorMessage = errorMessage.toLowerCase();
               if (lowerErrorMessage.includes("cancel") || lowerErrorMessage.includes("abort")) {
                 setIsLoading(false);
                 return;
               }
 
-              setError(error.data);
-              setIsLoading(false);
-            },
-            () => {
+              setError(apiError.data);
               setIsLoading(false);
             }
-          );
-
-          apiCancellerRef.current = canceller;
+          })();
         } catch (error) {
           const errorMessage = (error as Error).message || "Unknown error occurred";
           setError(errorMessage);

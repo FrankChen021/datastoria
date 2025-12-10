@@ -264,18 +264,20 @@ export function QueryLogTab({
         whereClause += ` AND event_date > yesterday() AND type <> 'QueryStart'`;
       }
 
-      const response = await api.executeAsync({
+      const { response } = api.executeAsync(
         // Sort the result properly so that the finish event will overwrite the start event in the later event processing
-        sql: `SELECT FQDN() as host, toUnixTimestamp64Micro(query_start_time_microseconds) as start_time_microseconds, 
+        `SELECT FQDN() as host, toUnixTimestamp64Micro(query_start_time_microseconds) as start_time_microseconds, 
           * 
           FROM ${queryTable} 
           WHERE ${whereClause}`,
-        params: {
+        {
           default_format: "JSON",
-        },
-      });
+        }
+      );
 
-      const responseData = response.data as any;
+      const apiResponse = await response;
+
+      const responseData = apiResponse.data as any;
       const queryLogsData = responseData?.data || [];
       const metaData = responseData?.meta || [];
       setQueryLogs(queryLogsData);

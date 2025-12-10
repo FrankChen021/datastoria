@@ -66,8 +66,8 @@ const DependencyViewComponent = ({ database }: DependencyViewProps) => {
 
     (async () => {
       try {
-        const response = await api.executeAsync({
-          sql: `
+        const { response } = api.executeAsync(
+          `
 SELECT
     concat(database, '.', name) AS id,
     uuid,
@@ -80,14 +80,16 @@ SELECT
 FROM system.tables
 WHERE database = '${database}' OR has(dependencies_database, '${database}')
 `,
-          params: {
+          {
             default_format: "JSON",
             output_format_json_quote_64bit_integers: 0,
-          },
-        });
+          }
+        );
+
+        const apiResponse = await response;
 
         // Process the response data inline
-        const responseData = response.data as { data?: TableResponse[] } | undefined;
+        const responseData = apiResponse.data as { data?: TableResponse[] } | undefined;
         const tables = responseData?.data;
 
         if (tables && tables.length > 0) {

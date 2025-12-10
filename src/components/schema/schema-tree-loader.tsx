@@ -1,6 +1,7 @@
-import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
-import { type Connection } from "@/lib/connection/Connection";
 import { type TreeDataItem } from "@/components/ui/tree";
+import { Api, type ApiCanceller, type ApiErrorResponse } from "@/lib/api";
+import { type Connection } from "@/lib/connection/Connection";
+import type { LucideIcon } from "lucide-react";
 import {
   Calculator,
   Calendar,
@@ -15,7 +16,6 @@ import {
   Table as TableIcon,
   Type,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { HostSelector, SchemaTreeBadge } from "./schema-tree-host-selector";
 
 export interface SchemaLoadResult {
@@ -331,13 +331,11 @@ export class SchemaTreeLoader {
   /**
    * Loads the schema tree for a given connection
    */
-  load(connection: Connection): Promise<SchemaLoadResult> {
-    return new Promise((resolve, reject) => {
-      this.cancel(); // Cancel previous
+  async load(connection: Connection): Promise<SchemaLoadResult> {
+    this.cancel(); // Cancel previous
 
-      const api = Api.create(connection);
-
-      const sql = `SELECT 
+    const sql = `
+SELECT 
     databases.name AS database,
     databases.engine AS dbEngine,
     tables.name AS table,
@@ -360,47 +358,46 @@ WHERE
     (tables.name IS NULL OR (NOT startsWith(tables.name, '.inner.') AND NOT startsWith(tables.name, '.inner_id.')))
 ORDER BY lower(database), database, table, columnName`;
 
-      this.apiCanceller = api.executeSQL(
-        {
-          sql,
-          headers: { "Content-Type": "text/plain" },
-          params: { default_format: "JSON", output_format_json_quote_64bit_integers: 0 },
-        },
-        (response: ApiResponse) => {
-          try {
-            const rows = (response.data.data || []) as TableItemDO[];
-            const hostNode = this.buildTree(connection, response, rows);
-
-            resolve({
-              treeData: [hostNode],
-              completeTree: hostNode,
-              totalTables: (hostNode.data as any).tableCount || 0 // Host node doesn't explicitly store totalTables in data in original code, but we can infer or add it
-            });
-          } catch (err) {
-            reject(err);
-          }
-        },
-        (error: ApiErrorResponse) => {
-          let errorMessage = `Failed to load databases: ${error.errorMessage}`;
-          if (error.httpStatus) {
-            errorMessage += ` (HTTP ${error.httpStatus})`;
-          }
-          const detailMessage =
-            typeof error?.data == "object"
-              ? error.data?.message
-                ? error.data.message
-                : JSON.stringify(error.data, null, 2)
-              : error?.data;
-          if (detailMessage) {
-            errorMessage += `\n${detailMessage}`;
-          }
-          reject(new Error(errorMessage));
-        },
-        () => {
-          this.apiCanceller = null;
-        }
+    try {
+      const { response, abortController } = Api.create(connection).executeAsyncOnNode(
+        connection.runtime?.targetNode,
+        sql,
+        { default_format: "JSON", output_format_json_quote_64bit_integers: 0 }
       );
-    });
+
+      this.apiCanceller = {
+        cancel: () => abortController.abort(),
+      };
+
+      const apiResponse = await response;
+
+      const rows = (apiResponse.data.data || []) as TableItemDO[];
+      const hostNode = this.buildTree(connection, rows);
+
+      return {
+        treeData: [hostNode],
+        completeTree: hostNode,
+        totalTables: (hostNode.data as any).tableCount || 0,
+      };
+    } catch (error: unknown) {
+      const apiError = error as ApiErrorResponse;
+      let errorMessage = `Failed to load databases: ${apiError.errorMessage}`;
+      if (apiError.httpStatus) {
+        errorMessage += ` (HTTP ${apiError.httpStatus})`;
+      }
+      const detailMessage =
+        typeof apiError?.data === "object"
+          ? apiError.data?.message
+            ? apiError.data.message
+            : JSON.stringify(apiError.data, null, 2)
+          : apiError?.data;
+      if (detailMessage) {
+        errorMessage += `\n${detailMessage}`;
+      }
+      throw new Error(errorMessage);
+    } finally {
+      this.apiCanceller = null;
+    }
   }
 
   private toDatabaseTreeNodes(rows: TableItemDO[]): [number, TreeDataItem[]] {
@@ -579,22 +576,23 @@ ORDER BY lower(database), database, table, columnName`;
     return [totalTables, databaseNodes];
   }
 
-  private buildTree(connection: Connection, response: ApiResponse, rows: TableItemDO[]): TreeDataItem {
-    let responseServer = response.httpHeaders?.["x-clickhouse-server-display-name"];
+  private buildTree(connection: Connection, rows: TableItemDO[]): TreeDataItem {
+    let targetServerNode = connection.runtime?.targetNode;
+
     const canSwitchServer = connection.cluster.length > 0;
 
-    if (!responseServer || responseServer === undefined) {
+    if (!targetServerNode || targetServerNode === undefined) {
       if (canSwitchServer) {
-        responseServer = "Host";
+        targetServerNode = "Host";
       } else {
-        responseServer = connection.name || "Unknown";
+        targetServerNode = connection.name || "Unknown";
       }
     }
 
     // Ensure responseServer is a string
-    const serverName = String(responseServer || "Unknown");
+    const serverName = String(targetServerNode || "Unknown");
 
-    // Strip the Kubernetes cluster suffix if present
+    // Strip the Kubernetes cluster suffix if present for shorter name
     const displayName = serverName.replace(/\.svc\.cluster\.local$/, "");
 
     const [totalTables, databaseNodes] = this.toDatabaseTreeNodes(rows);
@@ -624,4 +622,3 @@ ORDER BY lower(database), database, table, columnName`;
     return hostNode;
   }
 }
-

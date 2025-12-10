@@ -84,28 +84,27 @@ export function QueryListItemView({
     // Execute query asynchronously
     (async () => {
       try {
-        const response = await api.executeAsync(
-          {
-            sql: queryRequest.sql,
-            headers: {
-              "Content-Type": "text/plain",
-            },
-            params: params,
-          },
-          abortController.signal
+        const { response, abortController: apiAbortController } = api.executeAsync(
+          queryRequest.sql,
+          params
         );
 
+        // Update the abort controller reference
+        abortControllerRef.current = apiAbortController;
+
+        const apiResponse = await response;
+
         // Check if request was aborted
-        if (abortController.signal.aborted) {
+        if (apiAbortController.signal.aborted) {
           return;
         }
 
         // For dependency view, keep the JSON structure; for others, convert to string
         let responseData: unknown;
         if (view === "dependency") {
-          responseData = response.data; // Keep JSON structure for dependency view
+          responseData = apiResponse.data; // Keep JSON structure for dependency view
         } else {
-          responseData = typeof response.data === "string" ? response.data : String(response.data);
+          responseData = typeof apiResponse.data === "string" ? apiResponse.data : String(apiResponse.data);
         }
 
         const queryResponse: QueryResponseViewModel = {
@@ -114,8 +113,8 @@ export function QueryListItemView({
           queryId: queryRequest.queryId,
           traceId: queryRequest.traceId,
           errorMessage: null,
-          httpStatus: response.httpStatus,
-          httpHeaders: response.httpHeaders,
+          httpStatus: apiResponse.httpStatus,
+          httpHeaders: apiResponse.httpHeaders,
           data: responseData,
         };
 
@@ -125,7 +124,7 @@ export function QueryListItemView({
         abortControllerRef.current = null;
       } catch (error) {
         // Check if request was aborted
-        if (abortController.signal.aborted) {
+        if (abortControllerRef.current?.signal.aborted) {
           // Cancellation - don't update state here, let cleanup handle it
           // This prevents the loader from flickering in StrictMode
           abortControllerRef.current = null;

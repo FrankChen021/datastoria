@@ -559,25 +559,24 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
             const thisQuery = Object.assign({}, query) as SQLQuery;
 
             // Replace time span template parameters in SQL
-            let finalSql = replaceTimeSpanParams(thisQuery.sql, _param.selectedTimeSpan);
-            if (selectedConnection!.cluster.length > 0) {
-              finalSql = finalSql.replace("{cluster}", selectedConnection!.cluster);
-            }
-            Api.create(selectedConnection!).executeSQL(
+            const finalSql = replaceTimeSpanParams(thisQuery.sql, _param.selectedTimeSpan);
+            const { response } = Api.create(selectedConnection!).executeAsyncOnNode(
+              selectedConnection!.runtime?.targetNode,
+              finalSql,
               {
-                sql: finalSql,
-                headers: {
-                  "Content-Type": "text/plain",
-                  ...query.headers,
-                },
-                params: {
-                  default_format: "JSON",
-                  output_format_json_quote_64bit_integers: 0,
-                },
+                default_format: "JSON",
+                output_format_json_quote_64bit_integers: 0,
               },
-              (response) => {
+              {
+                "Content-Type": "text/plain",
+                ...query.headers,
+              }
+            );
+
+            response
+              .then((apiResponse) => {
                 // Process the response into minimap data points
-                const minimapDataResult = getMinimapDataFromResponse(response);
+                const minimapDataResult = getMinimapDataFromResponse(apiResponse);
 
                 // Calculate reduced value using the reducer
                 const reducer = descriptor.valueOption?.reducer || "avg";
@@ -590,41 +589,38 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
                 setHasInitialData(true);
                 setIsLoadingValue(false);
                 setIsLoadingMinimap(false);
-              },
-              (error) => {
+              })
+              .catch((error) => {
                 setError(error.data || error.errorMessage || "Failed to load data");
                 setIsLoadingValue(false);
                 setIsLoadingMinimap(false);
-              }
-            );
+              });
           } else {
             // For non-timeseries or no minimap, use the original scalar fetcher
             const query = Object.assign({}, descriptor.query);
 
             // Replace time span template parameters in SQL
-            let finalSql = replaceTimeSpanParams(query.sql, _param.selectedTimeSpan);
-            if (selectedConnection!.cluster.length > 0) {
-              finalSql = finalSql.replace("{cluster}", selectedConnection!.cluster);
-            }
-
-            Api.create(selectedConnection!).executeSQL(
+            const finalSql = replaceTimeSpanParams(query.sql, _param.selectedTimeSpan);
+            const { response } = Api.create(selectedConnection!).executeAsyncOnNode(
+              selectedConnection!.runtime?.targetNode,
+              finalSql,
               {
-                sql: finalSql,
-                headers: {
-                  "Content-Type": "text/plain",
-                  ...query.headers,
-                },
-                params: {
-                  default_format: "JSONCompact",
-                  output_format_json_quote_64bit_integers: 0,
-                },
+                default_format: "JSONCompact",
+                output_format_json_quote_64bit_integers: 0,
               },
-              (response) => {
+              {
+                "Content-Type": "text/plain",
+                ...query.headers,
+              }
+            );
+
+            response
+              .then((apiResponse) => {
                 if (isOffset) {
                   //setOffsetData(dataResult);
                   setOffsetError("");
                 } else {
-                  const responsJson = response.data;
+                  const responsJson = apiResponse.data;
                   if (responsJson && responsJson.data.length > 0) {
                     setData(responsJson.data[0][0]);
                     setHasInitialData(true);
@@ -639,13 +635,12 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
                 if (isOffset) {
                   setIsLoadingOffset(false);
                 }
-              },
-              (error) => {
+              })
+              .catch((error) => {
                 setError(error.data || error.errorMessage || "Failed to load data");
                 setIsLoadingValue(false);
                 setIsLoadingMinimap(false);
-              }
-            );
+              });
           }
         } catch (error) {
           if (isOffset) {

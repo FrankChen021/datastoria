@@ -142,37 +142,32 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           if (descriptor.sortOption?.serverSideSorting && sortRef.current.column && sortRef.current.direction) {
             finalSql = replaceOrderByClause(finalSql, sortRef.current.column, sortRef.current.direction);
           }
-          if (selectedConnection.cluster.length > 0) {
-            finalSql = finalSql.replace("{cluster}", selectedConnection.cluster);
-          }
-
-          // Create AbortController for cancellation
-          const abortController = new AbortController();
-          const canceller: ApiCanceller = {
-            cancel: () => {
-              abortController.abort();
-            },
-          };
-          apiCancellerRef.current = canceller;
 
           const api = Api.create(selectedConnection);
-
           try {
-            const response = await api.executeAsync(
+            const { response, abortController } = api.executeAsyncOnNode(
+              selectedConnection.runtime?.targetNode,
+              finalSql,
               {
-                sql: finalSql,
-                headers: {
-                  "Content-Type": "text/plain",
-                  ...query.headers,
-                },
-                params: {
-                  default_format: "JSON",
-                  output_format_json_quote_64bit_integers: 0,
-                  ...query.params,
-                },
+                default_format: "JSON",
+                output_format_json_quote_64bit_integers: 0,
+                ...query.params,
               },
-              abortController.signal
+              {
+                "Content-Type": "text/plain",
+                ...query.headers,
+              }
             );
+
+            // Set the canceller immediately after getting the abort controller
+            const canceller: ApiCanceller = {
+              cancel: () => {
+                abortController.abort();
+              },
+            };
+            apiCancellerRef.current = canceller;
+
+            const apiResponse = await response;
 
             // Check if request was aborted
             if (abortController.signal.aborted) {
@@ -180,7 +175,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
               return;
             }
 
-            const responseData = response.data;
+            const responseData = apiResponse.data;
 
             // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
             const rows = responseData.data || [];

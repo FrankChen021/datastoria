@@ -482,15 +482,17 @@ function QueryContextEditDialogWrapper({ onCancel }: { onCancel?: () => void }) 
 
     try {
       const api = Api.create(selectedConnection);
-      const response = await api.executeAsync({
+      const { response } = api.executeAsync(
         // in old version, there's no 'default' value field
-        sql: "SELECT name, type, description, value FROM system.settings ORDER BY name",
-        params: {
+        "SELECT name, type, description, value FROM system.settings ORDER BY name",
+        {
           default_format: "JSONCompact",
-        },
-      });
+        }
+      );
 
-      const data = response.data as { data?: Array<[string, string, string, string]> };
+      const apiResponse = await response;
+
+      const data = apiResponse.data as { data?: Array<[string, string, string, string]> };
       if (data.data) {
         const settings: SystemSetting[] = data.data.map(([name, type, description, defaultValue]) => ({
           name,

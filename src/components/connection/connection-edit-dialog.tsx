@@ -524,18 +524,19 @@ function ConnectionEditDialogWrapper({
 
       const api = Api.create(initializedConnection);
 
-      // Create abort controller for cancellation
-      const abortController = new AbortController();
-      setApiCanceller({
-        cancel: () => abortController.abort(),
-      });
-
       try {
-        const response = await api.executeAsync({ sql: "SELECT 525" }, abortController.signal);
+        const { response, abortController } = api.executeAsync("SELECT 525");
+
+        // Set the canceller immediately after getting the abort controller
+        setApiCanceller({
+          cancel: () => abortController.abort(),
+        });
+
+        const apiResponse = await response;
 
         if (testConnection.cluster.length === 0) {
           setApiCanceller(undefined);
-          if (response.httpHeaders["x-clickhouse-format"] == null) {
+          if (apiResponse.httpHeaders["x-clickhouse-format"] == null) {
             setTestResultWithDelay({
               type: "error",
               message:
@@ -552,15 +553,19 @@ function ConnectionEditDialogWrapper({
 
         // For CLUSTER MODE, continue to check if the cluster exists
         try {
-          const clusterResponse = await api.executeAsync(
-            {
-              sql: `SELECT 1 FROM system.clusters WHERE cluster = '${testConnection.cluster}' Format JSONCompact`,
-            },
-            abortController.signal
+          const { response: clusterResponse, abortController: clusterAbortController } = api.executeAsync(
+            `SELECT 1 FROM system.clusters WHERE cluster = '${testConnection.cluster}' Format JSONCompact`
           );
 
+          // Update the canceller for the cluster check
+          setApiCanceller({
+            cancel: () => clusterAbortController.abort(),
+          });
+
+          const clusterApiResponse = await clusterResponse;
+
           setApiCanceller(undefined);
-          if (clusterResponse.data.data.length === 0) {
+          if (clusterApiResponse.data.data.length === 0) {
             setTestResultWithDelay({
               type: "error",
               message: `Cluster [${testConnection.cluster}] is not found on given ClickHouse server.`,

@@ -21,7 +21,7 @@ interface HostInfo {
 }
 
 export function HostSelector({ clusterName, displayName }: { clusterName: string; displayName: string }) {
-  const { selectedConnection } = useConnection();
+  const { selectedConnection, setSelectedConnection } = useConnection();
   const [isOpen, setIsOpen] = useState(false);
   const [data, setData] = useState<HostInfo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -96,7 +96,14 @@ ORDER BY shard, replica`,
                           isSelected && "bg-muted/50"
                         )}
                         onSelect={() => {
-                          // TODO: Set the host as selected and reload tree from this host
+                          // Update connection with target node
+                          setSelectedConnection(
+                            Object.assign({}, selectedConnection, {
+                              runtime: Object.assign({}, selectedConnection!.runtime, {
+                                targetNode: node.name,
+                              }),
+                            })
+                          );
                           setIsOpen(false);
                         }}
                       >

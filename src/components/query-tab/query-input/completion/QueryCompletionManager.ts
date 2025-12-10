@@ -42,7 +42,7 @@ export class QueryCompletionManager {
 
     const api = Api.create(connection);
 
-    // Clear qualified table completions for new connection
+    // Clear qualified ta ble completions for new connection
     this.qualifiedTableCompletions = [];
 
     // The SQL returns 4 columns: name/type/score/description
@@ -133,9 +133,16 @@ UNION ALL
         // Add 'on cluster xxx' keyword to miscCompletion when in cluster mode
         if (connection.cluster.length > 0) {
           this.miscCompletion.push({
+            caption: `${connection.cluster}`,
+            value: `${connection.cluster}`,
+            meta: 'cluster',
+            score: -10,
+          });
+
+          this.miscCompletion.push({
             caption: `ON CLUSTER ${connection.cluster}`,
             value: `ON CLUSTER ${connection.cluster}`,
-            meta: 'keyword',
+            meta: 'cluster',
             score: -10,
           });
         }

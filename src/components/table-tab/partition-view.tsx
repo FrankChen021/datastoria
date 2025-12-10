@@ -36,23 +36,17 @@ function showDropPartitionDialog({ database, table, partition, connection, onSuc
       const escapedPartition = partition.replace(/'/g, "''");
       const sql = `ALTER TABLE \`${database}\`.\`${table}\` DROP PARTITION '${escapedPartition}'`;
 
-      // Create AbortController for cancellation
-      const abortController = new AbortController();
+      // Execute the SQL using async/await
+      const { response, abortController } = connection.executeAsync(
+        sql,
+        {
+          default_format: "JSON",
+        }
+      );
+
       abortControllerRef.current = abortController;
 
-      // Execute the SQL using async/await
-      await connection.executeAsync(
-        {
-          sql: sql,
-          headers: {
-            "Content-Type": "text/plain",
-          },
-          params: {
-            default_format: "JSON",
-          },
-        },
-        abortController.signal
-      );
+      await response;
 
       isDroppingRef.current = false;
       toastManager.show(`Partition ${partition} dropped successfully`, "success");

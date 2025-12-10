@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { Connection } from './Connection';
-import { ConnectionManager } from './ConnectionManager';
-import { ensureConnectionRuntimeInitialized } from './Connection';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { Api } from "../api";
+import type { Connection } from "./Connection";
+import { ensureConnectionRuntimeInitialized } from "./Connection";
+import { ConnectionManager } from "./ConnectionManager";
 
 interface ConnectionContextType {
   selectedConnection: Connection | null;
@@ -17,6 +18,25 @@ export const ConnectionContext = createContext<ConnectionContextType>({
   hasAnyConnections: false,
 });
 
+async function initializeConnection(conn: Connection) {
+  conn = ensureConnectionRuntimeInitialized(conn);
+
+  if (conn.cluster.length > 0 && conn.runtime?.targetNode === undefined) {
+    // for cluster mode, pick a node as target node for further SQL execution
+    const api = Api.create(conn!);
+    const { response } = api.executeAsync("SELECT currentUser()", { default_format: "JSONCompact" });
+    const apiResponse = await response;
+    if (apiResponse.httpStatus === 200) {
+      const returnServer = apiResponse.httpHeaders["x-clickhouse-server-display-name"];
+      conn.runtime!.targetNode = returnServer;
+
+      conn.runtime!.internalUser = apiResponse.data.data[0][0];
+    }
+  }
+
+  return conn;
+}
+
 export function ConnectionProvider({ children }: { children: React.ReactNode }) {
   const [selectedConnection, setSelectedConnectionState] = useState<Connection | null>(null);
   const [hasAnyConnections, setHasAnyConnections] = useState<boolean>(false);
@@ -28,17 +48,21 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     setHasAnyConnections(connections.length > 0);
 
     if (savedConnection) {
-      const initialized = ensureConnectionRuntimeInitialized(savedConnection);
-      setSelectedConnectionState(initialized);
+      (async () => {
+        const initialized = await initializeConnection(savedConnection);
+        setSelectedConnectionState(initialized);
+      })();
     }
   }, []);
 
-  const setSelectedConnection = (conn: Connection | null) => {
-    if (conn) {
-      const initialized = ensureConnectionRuntimeInitialized(conn);
-      setSelectedConnectionState(initialized);
+  const setSelectedConnection = async (conn: Connection | null) => {
+    if (conn !== null) {
+      conn = await initializeConnection(conn);
+
+      setSelectedConnectionState(conn);
       // Save the selected connection name
-      ConnectionManager.getInstance().saveLastSelected(initialized?.name);
+      ConnectionManager.getInstance().saveLastSelected(conn?.name);
+
       // Update hasAnyConnections when a connection is set
       setHasAnyConnections(true);
     } else {

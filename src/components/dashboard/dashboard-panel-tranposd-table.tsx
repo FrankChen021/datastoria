@@ -114,22 +114,27 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
             : query.sql;
 
           const api = Api.create(selectedConnection);
-          const canceller = api.executeSQL(
+          const { response, abortController } = api.executeAsync(
+            finalSql,
             {
-              sql: finalSql,
-              headers: {
-                "Content-Type": "text/plain",
-                ...query.headers,
-              },
-              params: {
-                default_format: "JSON",
-                output_format_json_quote_64bit_integers: 0,
-                ...query.params,
-              },
+              default_format: "JSON",
+              output_format_json_quote_64bit_integers: 0,
+              ...query.params,
             },
-            (response: ApiResponse) => {
+            {
+              "Content-Type": "text/plain",
+              ...query.headers,
+            }
+          );
+
+          apiCancellerRef.current = {
+            cancel: () => abortController.abort(),
+          };
+
+          response
+            .then((apiResponse: ApiResponse) => {
               try {
-                const responseData = response.data;
+                const responseData = apiResponse.data;
 
                 // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
                 const rows = responseData.data || [];
@@ -161,14 +166,13 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
                 }
                 setError("");
               } catch (err) {
-                console.error("Error processing transposed table response:", err);
                 const errorMessage = err instanceof Error ? err.message : String(err);
                 setError(errorMessage);
               } finally {
                 setIsLoading(false);
               }
-            },
-            (error: ApiErrorResponse) => {
+            })
+            .catch((error: ApiErrorResponse) => {
               const errorMessage = error.errorMessage || "Unknown error occurred";
               const lowerErrorMessage = errorMessage.toLowerCase();
               if (lowerErrorMessage.includes("cancel") || lowerErrorMessage.includes("abort")) {
@@ -176,21 +180,13 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
                 return;
               }
 
-              console.error("API Error:", error);
               setError(errorMessage);
               setIsLoading(false);
-            },
-            () => {
-              setIsLoading(false);
-            }
-          );
-
-          apiCancellerRef.current = canceller;
+            });
         } catch (error) {
           const errorMessage = (error as Error).message || "Unknown error occurred";
           setError(errorMessage);
           setIsLoading(false);
-          console.error(error);
         }
       },
       [descriptor, selectedConnection, getFieldOption]
@@ -200,7 +196,6 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
     const refreshInternal = useCallback(
       (param: RefreshOptions) => {
         if (!descriptor.query) {
-          console.error(`No query defined for transposed table [${descriptor.id}]`);
           setError("No query defined for this transposed table component.");
           return;
         }

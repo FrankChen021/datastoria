@@ -40,12 +40,10 @@ export function calculateTimeSpanParams(selectedTimeSpan: TimeSpan) {
 export function replaceTimeSpanParams(sql: string, selectedTimeSpan: TimeSpan): string {
   const params = calculateTimeSpanParams(selectedTimeSpan);
 
-  let finalSql = sql;
-  finalSql = finalSql.replace(/{rounding:UInt32}/g, String(params.rounding));
-  finalSql = finalSql.replace(/{seconds:UInt32}/g, String(params.seconds));
-  finalSql = finalSql.replace(/{startTimestamp:UInt32}/g, String(params.startTimestamp));
-  finalSql = finalSql.replace(/{endTimestamp:UInt32}/g, String(params.endTimestamp));
+  sql = sql.replace(/{rounding:UInt32}/g, String(params.rounding));
+  sql = sql.replace(/{seconds:UInt32}/g, String(params.seconds));
+  sql = sql.replace(/{startTimestamp:UInt32}/g, String(params.startTimestamp));
+  sql = sql.replace(/{endTimestamp:UInt32}/g, String(params.endTimestamp));
 
-  return finalSql;
+  return sql;
 }
-
