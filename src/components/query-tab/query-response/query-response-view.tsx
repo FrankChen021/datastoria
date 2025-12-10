@@ -10,7 +10,7 @@ import { ExplainASTResponseView } from "./explain-ast-response-view";
 import { ExplainPipelineResponseView } from "./explain-pipeline-response-view";
 import { ExplainQueryResponseView } from "./explain-query-response-view";
 import { ExplainSyntaxResponseView } from "./explain-syntax-response-view";
-import { QueryResponseHeaderView } from "./query-response-header-view";
+import { QueryResponseHttpHeaderView } from "./query-response-http-header-view";
 
 interface QueryResponseViewProps {
   queryResponse: QueryResponseViewModel;
@@ -259,7 +259,7 @@ export function QueryResponseView({ queryResponse, queryRequest, isLoading = fal
 
       {queryResponse.httpHeaders && (
         <TabsContent value="headers" className="overflow-auto">
-          <QueryResponseHeaderView headers={queryResponse.httpHeaders} />
+          <QueryResponseHttpHeaderView headers={queryResponse.httpHeaders} />
         </TabsContent>
       )}
     </Tabs>

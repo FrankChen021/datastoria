@@ -1,13 +1,13 @@
 import { TabManager } from "@/components/tab-manager";
 import { ExternalLink } from "lucide-react";
 
-interface OpenQueryLogTabButtonProps {
+interface QueryIdButtonProps {
   queryId: string | null;
   traceId?: string | null;
   showLabel?: boolean;
 }
 
-export function OpenQueryLogTabButton({ queryId, traceId, showLabel = true }: OpenQueryLogTabButtonProps) {
+export function QueryIdButton({ queryId, traceId, showLabel = true }: QueryIdButtonProps) {
   if (!queryId) {
     return null;
   }

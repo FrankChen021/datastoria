@@ -6,7 +6,7 @@ import { useConnection } from "@/lib/connection/ConnectionContext";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { OpenQueryLogTabButton } from "./open-query-log-tab-button";
+import { QueryIdButton } from "./query-id-button";
 import { QueryExecutionTimer } from "./query-execution-timer";
 import { QueryRequestView } from "./query-request-view";
 import { QueryResponseView } from "./query-response/query-response-view";
@@ -270,7 +270,7 @@ export function QueryListItemView({
       {/* Query Status */}
       <div ref={scrollPlaceholderRef} className="flex flex-col mt-1">
         {queryResponse && (queryResponse.queryId || queryRequest.queryId) && (
-          <OpenQueryLogTabButton
+          <QueryIdButton
             queryId={queryResponse.queryId || queryRequest.queryId}
             traceId={queryRequest.traceId}
           />

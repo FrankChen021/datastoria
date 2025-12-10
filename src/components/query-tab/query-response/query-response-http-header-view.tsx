@@ -1,10 +1,10 @@
-import { OpenQueryLogTabButton } from "../open-query-log-tab-button";
+import { QueryIdButton } from "../query-id-button";
 
-interface QueryResponseHeaderViewProps {
+interface QueryResponseHttpHeaderViewProps {
   headers: Record<string, string>;
 }
 
-export function QueryResponseHeaderView({ headers }: QueryResponseHeaderViewProps) {
+export function QueryResponseHttpHeaderView({ headers }: QueryResponseHttpHeaderViewProps) {
   if (!headers) {
     return null;
   }
@@ -23,7 +23,7 @@ export function QueryResponseHeaderView({ headers }: QueryResponseHeaderViewProp
             <td className="p-2 whitespace-nowrap">{key}</td>
             <td className="p-2">
               {key === "x-clickhouse-query-id" ? (
-                <OpenQueryLogTabButton queryId={String(value)} showLabel={false} />
+                <QueryIdButton queryId={String(value)} showLabel={false} />
               ) : (
                 String(value)
               )}
