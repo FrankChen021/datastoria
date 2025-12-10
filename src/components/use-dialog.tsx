@@ -9,11 +9,8 @@ import {
   DialogTitle,
   Dialog as DialogUI,
 } from "@/components/ui/dialog";
-import { ConnectionProvider } from "@/lib/connection/ConnectionContext";
 import { cn } from "@/lib/utils";
-import { ThemeProvider } from "next-themes";
 import { useEffect, useRef, useState } from "react";
-import ReactDOM from "react-dom/client";
 
 export interface DialogButton {
   text?: string;
@@ -61,11 +58,11 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
   useEffect(() => {
     const closeFn = () => setOpen(false);
     closeFnRef.current = closeFn;
-    
+
     if (dialogProps.registerClose) {
       dialogProps.registerClose(closeFn);
     }
-    
+
     // Cleanup: remove the close callback when dialog unmounts
     return () => {
       if (closeFnRef.current) {
@@ -140,7 +137,7 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
           <DialogFooter className="mt-auto">
             {dialogProps.dialogButtons.map((button, index) => {
               const variant = button.variant || (button.default ? "default" : "outline");
-              
+
               // Determine button content: icon + text, icon only, or text only
               let content: React.ReactNode;
               if (button.icon && button.text) {
@@ -158,7 +155,7 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
                 // Text only (fallback)
                 content = button.text;
               }
-              
+
               return (
                 <Button
                   key={index}
@@ -183,6 +180,56 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
   );
 };
 
+// Module-level handler for the static method
+let showDialogFn: ((props: DialogProps) => void) | undefined;
+
+/**
+ * A provider that renders dialogs within the main React component tree.
+ *
+ * Background:
+ * Previously, dialogs were created using `ReactDOM.createRoot` in a separate DOM node.
+ * This caused an issue where the dialogs could not inherit Contexts (like ConnectionContext, ThemeContext)
+ * from the main application because they existed in a separate React root.
+ *
+ * By using this provider, dialogs are rendered as descendants of the main app's providers,
+ * ensuring they have access to all global contexts (e.g., the currently selected connection).
+ */
+export function DialogProvider() {
+  const [dialogs, setDialogs] = useState<Array<DialogProps & { id: string }>>([]);
+
+  useEffect(() => {
+    showDialogFn = (props: DialogProps) => {
+      const id = Math.random().toString(36).substring(7);
+      setDialogs((prev) => [...prev, { ...props, id }]);
+    };
+
+    return () => {
+      showDialogFn = undefined;
+    };
+  }, []);
+
+  const handleDispose = (id: string) => {
+    setDialogs((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const handleRegisterClose = (closeFn: () => void) => {
+    Dialog._registerCloseCallback(closeFn);
+  };
+
+  return (
+    <>
+      {dialogs.map((dialog) => (
+        <AlertDialogComponent
+          key={dialog.id}
+          {...dialog}
+          dispose={() => handleDispose(dialog.id)}
+          registerClose={handleRegisterClose}
+        />
+      ))}
+    </>
+  );
+}
+
 export class Dialog {
   private static closeCallbacks: (() => void)[] = [];
 
@@ -206,6 +253,14 @@ export class Dialog {
         closeFn();
       }
     }
+  }
+
+  /**
+   * Internal method to register a close callback.
+   * @internal
+   */
+  public static _registerCloseCallback(closeFn: () => void) {
+    Dialog.closeCallbacks.push(closeFn);
   }
 
   /**
@@ -234,48 +289,10 @@ export class Dialog {
   }
 
   public static showDialog(dialogProps: DialogProps) {
-    const rootElement = document.createElement("div");
-    const root = ReactDOM.createRoot(rootElement);
-
-    const dispose = () => {
-      root.unmount();
-      if (rootElement.parentNode) {
-        rootElement.parentNode.removeChild(rootElement);
-      }
-    };
-
-    const registerClose = (closeFn: () => void) => {
-      Dialog.closeCallbacks.push(closeFn);
-    };
-
-    // Get current theme from document to match the existing theme state
-    // Check multiple ways the theme might be set
-    const currentTheme = document.documentElement.classList.contains("dark")
-      ? "dark"
-      : document.documentElement.getAttribute("data-theme") === "dark"
-        ? "dark"
-        : localStorage.getItem("theme") === "dark"
-          ? "dark"
-          : "light";
-
-    // Apply the theme class to the dialog root element to ensure proper theming
-    rootElement.className = currentTheme;
-
-    // Append to document body so it inherits body styles
-    document.body.appendChild(rootElement);
-
-    root.render(
-      <ThemeProvider
-        attribute="class"
-        defaultTheme={currentTheme}
-        forcedTheme={currentTheme}
-        enableSystem={false}
-        disableTransitionOnChange={false}
-      >
-        <ConnectionProvider>
-          <AlertDialogComponent {...dialogProps} dispose={dispose} registerClose={registerClose} />
-        </ConnectionProvider>
-      </ThemeProvider>
-    );
+    if (showDialogFn) {
+      showDialogFn(dialogProps);
+    } else {
+      console.error("DialogProvider is not mounted. Cannot show dialog.");
+    }
   }
 }
