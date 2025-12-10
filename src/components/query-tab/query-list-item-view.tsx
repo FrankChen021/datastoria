@@ -6,14 +6,10 @@ import { useConnection } from "@/lib/connection/ConnectionContext";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { ExplainASTResponseView } from "./explain-ast-response-view";
-import { ExplainPipelineResponseView } from "./explain-pipeline-response-view";
-import { ExplainQueryResponseView } from "./explain-query-response-view";
-import { ExplainSyntaxResponseView } from "./explain-syntax-response-view";
 import { OpenQueryLogTabButton } from "./open-query-log-tab-button";
 import { QueryExecutionTimer } from "./query-execution-timer";
 import { QueryRequestView } from "./query-request-view";
-import { ApiErrorView, QueryResponseView, type ApiErrorResponse as QueryApiErrorResponse } from "./query-response-view";
+import { QueryResponseView } from "./query-response/query-response-view";
 import type { QueryResponseViewModel, QueryViewProps } from "./query-view-model";
 
 interface QueryListItemViewProps extends QueryViewProps {
@@ -226,38 +222,6 @@ export function QueryListItemView({
     return <QueryRequestView queryRequest={queryRequest} />;
   };
 
-  const renderExplainResultView = () => {
-    if (!queryResponse) {
-      return null;
-    }
-
-    if (queryResponse.errorMessage !== null) {
-      const error: QueryApiErrorResponse = {
-        errorMessage: queryResponse.errorMessage,
-        data: queryResponse.data,
-        httpHeaders: queryResponse.httpHeaders,
-      };
-
-      return <ApiErrorView error={error} sql={queryRequest.sql} />;
-    }
-
-    return (
-      <>
-        {view === "ast" && <ExplainASTResponseView queryRequest={queryRequest} queryResponse={queryResponse} />}
-
-        {view === "pipeline" && (
-          <ExplainPipelineResponseView queryRequest={queryRequest} queryResponse={queryResponse} />
-        )}
-
-        {view === "plan" && <ExplainQueryResponseView queryRequest={queryRequest} queryResponse={queryResponse} />}
-
-        {view === "estimate" && <ExplainQueryResponseView queryRequest={queryRequest} queryResponse={queryResponse} />}
-
-        {view === "syntax" && <ExplainSyntaxResponseView queryRequest={queryRequest} queryResponse={queryResponse} />}
-      </>
-    );
-  };
-
   return (
     <div
       className={`pb-4 mb-4 ${isLast ? "" : "border-b"}`}
@@ -284,15 +248,14 @@ export function QueryListItemView({
       {renderQueryRequest()}
 
       {/* Query Response */}
-      {queryResponse &&
-        (queryResponse.data !== undefined || queryResponse.errorMessage !== undefined) &&
-        view === "query" && <QueryResponseView queryResponse={queryResponse} sql={queryRequest.sql} />}
-
-      {/* Explain Response */}
-      {queryResponse &&
-        (queryResponse.data !== undefined || queryResponse.errorMessage !== undefined) &&
-        view !== "query" &&
-        renderExplainResultView()}
+      {queryResponse && (queryResponse.data !== undefined || queryResponse.errorMessage !== undefined) && (
+        <QueryResponseView 
+          queryResponse={queryResponse} 
+          queryRequest={queryRequest}
+          sql={queryRequest.sql} 
+          view={view}
+        />
+      )}
 
       {isExecuting && (
         <div className="flex items-center gap-2 mt-2 mb-2">

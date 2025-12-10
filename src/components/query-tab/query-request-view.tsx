@@ -42,12 +42,12 @@ function CopyButton({ value, className }: CopyButtonProps) {
       variant="ghost"
       size="icon"
       className={cn(
-        "absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6",
+        "absolute right-2 top-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6",
         className
       )}
       onClick={handleCopy}
     >
-      {hasCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+      {hasCopied ? <Check className="!h-3 !w-3" /> : <Copy className="!h-3 !w-3" />}
     </Button>
   );
 }

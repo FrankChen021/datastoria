@@ -6,7 +6,7 @@ import { Api } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { toastManager } from "@/lib/toast";
 import { memo, useEffect, useMemo, useState } from "react";
-import type { QueryResponseViewProps } from "./query-view-model";
+import type { QueryResponseViewProps } from "../query-view-model";
 
 // Convert HSL color (from CSS variable) to hex
 function hslToHex(hsl: string): string {

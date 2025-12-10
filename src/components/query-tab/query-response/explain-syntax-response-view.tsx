@@ -1,6 +1,6 @@
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { memo } from "react";
-import type { QueryResponseViewProps } from "./query-view-model";
+import type { QueryResponseViewProps } from "../query-view-model";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ExplainSyntaxResponseViewComponent = ({ queryRequest: _queryRequest, queryResponse }: QueryResponseViewProps) => {

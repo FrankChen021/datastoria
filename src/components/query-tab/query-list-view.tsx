@@ -81,7 +81,7 @@ export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewPr
           rawSQL = sql.replace(/^EXPLAIN\s+plan\s+indexes\s*=\s*1[\s\n]+/i, "");
         } else {
           // Remove "EXPLAIN <type>\n" or "EXPLAIN <type> " prefix
-          rawSQL = sql.replace(new RegExp(`^EXPLAIN\\s+${view}[\s\n]+`, "i"), "");
+          rawSQL = sql.replace(new RegExp(`^EXPLAIN\\s+${view}[\\s\\n]+`, "i"), "");
         }
       }
 

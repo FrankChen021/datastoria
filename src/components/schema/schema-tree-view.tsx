@@ -303,7 +303,7 @@ export function SchemaTreeView({
 
   return (
     <div className="h-full w-full flex flex-col">
-      <div className="relative border-b flex items-center h-9">
+      <div className="relative border-b-2 flex items-center h-9">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
         <Input
           ref={searchInputRef}

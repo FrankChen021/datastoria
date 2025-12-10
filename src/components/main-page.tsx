@@ -366,13 +366,13 @@ export function MainPage() {
     <div className="h-full w-full flex min-w-0 overflow-hidden">
       <PanelGroup direction="horizontal" className="h-full w-full min-w-0">
         {/* Left Panel: Schema Tree View */}
-        <Panel defaultSize={20} minSize={10} className="border-r bg-background">
+        <Panel defaultSize={20} minSize={10} className="bg-background">
           <SchemaTreeView
             onStatusChange={handleStatusChange}
           />
         </Panel>
 
-        <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors cursor-col-resize" />
+        <PanelResizeHandle className="w-1 bg-border hover:bg-border/80 transition-colors cursor-col-resize" />
 
         {/* Right Panel Group: Tabs for Query and Table Views */}
         <Panel defaultSize={80} minSize={50} className="bg-background">

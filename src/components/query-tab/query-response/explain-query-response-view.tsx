@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { QueryResponseViewProps } from "./query-view-model";
+import type { QueryResponseViewProps } from "../query-view-model";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ExplainQueryResponseViewComponent = ({ queryRequest: _queryRequest, queryResponse }: QueryResponseViewProps) => {

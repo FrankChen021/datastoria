@@ -3,7 +3,7 @@ import { useTheme } from "@/components/theme-provider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Stack } from "@/lib/stack";
 import { memo, useEffect, useState } from "react";
-import type { QueryResponseViewProps } from "./query-view-model";
+import type { QueryResponseViewProps } from "../query-view-model";
 
 interface ASTNode {
   id: string;

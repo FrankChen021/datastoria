@@ -10,7 +10,7 @@ import { toastManager } from "@/lib/toast";
 import { endOfDay, parseISO, startOfDay } from "date-fns";
 import { Maximize2, RotateCw, Search, ZoomIn, ZoomOut } from "lucide-react";
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ApiErrorView } from "../query-tab/query-response-view";
+import { ApiErrorView } from "../query-tab/query-response/query-response-view";
 import { QueryLogGraphView, type GraphControlsRef } from "./query-log-graph-view";
 import { QueryLogTableView } from "./query-log-table-view";
 import { transformQueryLogsToTree } from "./query-log-timeline-types";

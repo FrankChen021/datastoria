@@ -4,14 +4,20 @@ import { AnsiText, containsAnsiCodes } from "@/lib/ansi-parser";
 import { parseErrorLocation, type ErrorLocation } from "@/lib/clickhouse-error-parser";
 import { AlertCircleIcon } from "lucide-react";
 import { memo, useMemo, useState } from "react";
-import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "../../ui/alert";
+import type { QueryRequestViewModel, QueryResponseViewModel } from "../query-view-model";
+import { ExplainASTResponseView } from "./explain-ast-response-view";
+import { ExplainPipelineResponseView } from "./explain-pipeline-response-view";
+import { ExplainQueryResponseView } from "./explain-query-response-view";
+import { ExplainSyntaxResponseView } from "./explain-syntax-response-view";
 import { QueryResponseHeaderView } from "./query-response-header-view";
-import type { QueryResponseViewModel } from "./query-view-model";
 
 interface QueryResponseViewProps {
   queryResponse: QueryResponseViewModel;
+  queryRequest: QueryRequestViewModel;
   isLoading?: boolean;
   sql?: string;
+  view?: string;
 }
 
 export interface ApiErrorResponse {
@@ -131,7 +137,7 @@ export function ApiErrorView({ error, sql }: { error: ApiErrorResponse; sql?: st
   );
 }
 
-export function QueryResponseView({ queryResponse, isLoading = false, sql }: QueryResponseViewProps) {
+export function QueryResponseView({ queryResponse, queryRequest, isLoading = false, sql, view = "query" }: QueryResponseViewProps) {
   const [selectedTab, setSelectedTab] = useState("result");
 
   // Memoize error object creation
@@ -163,8 +169,26 @@ export function QueryResponseView({ queryResponse, isLoading = false, sql }: Que
   // Check if response contains ANSI color codes
   const hasAnsiCodes = useMemo(() => containsAnsiCodes(rawQueryResponse), [rawQueryResponse]);
 
-  // Memoize response rendering
+  // Memoize response rendering based on view type
   const renderResponse = useMemo(() => {
+    // Handle explain views
+    if (view === "ast") {
+      return <ExplainASTResponseView queryRequest={queryRequest} queryResponse={queryResponse} />;
+    }
+
+    if (view === "pipeline") {
+      return <ExplainPipelineResponseView queryRequest={queryRequest} queryResponse={queryResponse} />;
+    }
+
+    if (view === "plan" || view === "estimate") {
+      return <ExplainQueryResponseView queryRequest={queryRequest} queryResponse={queryResponse} />;
+    }
+
+    if (view === "syntax") {
+      return <ExplainSyntaxResponseView queryRequest={queryRequest} queryResponse={queryResponse} />;
+    }
+
+    // Default query view rendering
     if (rawQueryResponse.length === 0) {
       return (
         <div className="p-4 text-sm text-muted-foreground">
@@ -190,7 +214,7 @@ export function QueryResponseView({ queryResponse, isLoading = false, sql }: Que
       );
     }
     return <pre className="text-xs">{rawQueryResponse}</pre>;
-  }, [rawQueryResponse, queryResponse.displayFormat, hasAnsiCodes]);
+  }, [view, queryRequest, queryResponse, rawQueryResponse, hasAnsiCodes]);
 
   if (isLoading) {
     return (

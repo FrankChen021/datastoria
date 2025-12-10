@@ -1,4 +1,4 @@
-import { OpenQueryLogTabButton } from "./open-query-log-tab-button";
+import { OpenQueryLogTabButton } from "../open-query-log-tab-button";
 
 interface QueryResponseHeaderViewProps {
   headers: Record<string, string>;
