@@ -210,7 +210,7 @@ AND active
 GROUP BY table
 ) AS part
 ON T.table = part.table
-WHERE T.database = '${database}'
+WHERE T.database = '${database}' AND endsWith(T.engine , 'MergeTree')
 ORDER BY on_disk_size DESC
     `,
                 },
