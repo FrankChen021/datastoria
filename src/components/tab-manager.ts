@@ -88,13 +88,13 @@ export class TabManager {
   
   // Queue to store events when no listener is active
   private static eventQueue: CustomEvent<OpenTabEventDetail>[] = [];
-  private static hasListener = false;
+  private static listenerCount = 0;
 
   /**
    * Dispatch an event immediately or queue it if no listener is active
    */
   private static dispatchOrQueue(event: CustomEvent<OpenTabEventDetail>): void {
-    if (TabManager.hasListener) {
+    if (TabManager.listenerCount > 0) {
       // Listener is active, dispatch immediately
       window.dispatchEvent(event);
     } else {
@@ -176,10 +176,10 @@ export class TabManager {
     };
     
     window.addEventListener(TabManager.OPEN_TAB_EVENT, wrappedHandler);
-    TabManager.hasListener = true;
+    TabManager.listenerCount++;
     
-    // Replay any queued events
-    if (TabManager.eventQueue.length > 0) {
+    // Replay any queued events (only if this is the first listener)
+    if (TabManager.listenerCount === 1 && TabManager.eventQueue.length > 0) {
       const queuedEvents = [...TabManager.eventQueue];
       TabManager.eventQueue = []; // Clear the queue
       
@@ -193,7 +193,7 @@ export class TabManager {
     
     return () => {
       window.removeEventListener(TabManager.OPEN_TAB_EVENT, wrappedHandler);
-      TabManager.hasListener = false;
+      TabManager.listenerCount = Math.max(0, TabManager.listenerCount - 1);
     };
   }
 
