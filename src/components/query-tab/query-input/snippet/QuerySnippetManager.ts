@@ -64,11 +64,11 @@ export class QuerySnippetManager {
 
   // Process connection
   onCollectionSelected(conn: Connection | null): void {
-    const useCluster = conn !== null && conn.cluster.length > 0;
+    const useCluster = conn !== null && conn.cluster !== undefined && conn.cluster.length > 0;
 
     builtinSnippet.forEach((snippet) => {
       this.snippets.set(snippet.caption, {
-        sql: useCluster ? snippet.sql.replace('{cluster}', conn!.cluster) : snippet.sql,
+        sql: useCluster ? snippet.sql.replace('{cluster}', conn!.cluster!) : snippet.sql,
         caption: snippet.caption,
         builtin: true,
       });

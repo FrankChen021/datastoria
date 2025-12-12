@@ -24,7 +24,6 @@ interface QueryLogTimelineRowProps {
     onEnterRow: (e: React.MouseEvent) => void;
     onLeaveRow?: (e: React.MouseEvent) => void;
     zoomLevel: number;
-    searchTerm?: string;
 }
 
 const QueryLogTimelineRow = React.memo(
@@ -41,7 +40,6 @@ const QueryLogTimelineRow = React.memo(
         onEnterRow,
         onLeaveRow,
         zoomLevel,
-        searchTerm,
     }: QueryLogTimelineRowProps) => {
         const [isHovered, setIsHovered] = useState(false);
 
@@ -209,8 +207,7 @@ const QueryLogTimelineRow = React.memo(
             prevProps.node.startTime === nextProps.node.startTime &&
             prevProps.node.costTime === nextProps.node.costTime &&
             prevProps.node.children?.length === nextProps.node.children?.length &&
-            prevProps.zoomLevel === nextProps.zoomLevel &&
-            prevProps.searchTerm === nextProps.searchTerm
+            prevProps.zoomLevel === nextProps.zoomLevel
         );
     }
 );

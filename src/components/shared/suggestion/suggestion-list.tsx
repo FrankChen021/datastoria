@@ -77,7 +77,7 @@ const InputControl = React.forwardRef<
   React.ComponentProps<typeof Input> & { initialValue?: string; onValueChange?: (value: string) => void }
 >((props, forwardedRef) => {
   const { onChange, initialValue, onValueChange, ...rest } = props;
-  const search = useCommandState((state) => state.search);
+  const search = useCommandState((state: any) => state.search);
   const store = useCommandStore();
 
   // Initialize cmdk's search state with initialValue (only once)
@@ -136,7 +136,7 @@ function ItemList({
   onSelect: (value: string) => void;
   onSelectItem: (item: SuggestionItem) => void;
 }) {
-  const search = useCommandState((state) => state.search);
+  const search = useCommandState((state: any) => state.search);
   const handleSelect = React.useCallback(
     (value: string) => {
       onSelect(value);

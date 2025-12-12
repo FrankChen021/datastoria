@@ -629,7 +629,7 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
                   minHeight: `${rowHeight}px`,
                   zIndex: 1,
                 }}
-                onClick={(e) => {
+                onClick={() => {
                   // Track the index of the clicked node for accurate scrolling
                   clickedNodeIndexRef.current = virtualRow.index;
                   handleSelectChange(node);

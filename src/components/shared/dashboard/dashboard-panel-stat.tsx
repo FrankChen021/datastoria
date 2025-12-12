@@ -677,7 +677,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
       return props.selectedTimeSpan ? ({ selectedTimeSpan: props.selectedTimeSpan } as RefreshOptions) : undefined;
     }, [props.selectedTimeSpan]);
 
-    const { componentRef, isCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
+    const { componentRef, refresh, getLastRefreshParameter } = useRefreshable({
       initialCollapsed: false, // Stat chart is always "expanded"
       refreshInternal,
       getInitialParams,

@@ -649,7 +649,6 @@ const QueryLogTimelineView = React.memo(
                                                     onEnterRow={onMouseEnterRow}
                                                     onLeaveRow={onMouseLeaveRow}
                                                     zoomLevel={zoomLevel}
-                                                    searchTerm={currentSearchTerm}
                                                 />
                                             </div>
                                         );

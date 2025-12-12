@@ -152,12 +152,10 @@ const DashboardTableComponent = ({ database, table }: DashboardTableComponentPro
                   return;
                 }
 
-                const chartId = `timeseries_chart_${dashboardName}_${index}`;
                 const chartTitle = row.title || `Chart ${index}`;
 
                 groupCharts.push({
                   type: "line" as const,
-                  id: chartId,
                   titleOption: {
                     title: chartTitle,
                   },
@@ -185,8 +183,6 @@ const DashboardTableComponent = ({ database, table }: DashboardTableComponentPro
 
             const mergedDashboard: Dashboard = {
               name: "dashboard",
-              folder: "dashboard",
-              title: "Dashboard",
               filter: {},
               charts: dashboardGroups,
             };

@@ -128,7 +128,7 @@ UNION ALL
         });
 
         // Add 'on cluster xxx' keyword to miscCompletion when in cluster mode
-        if (connection.cluster.length > 0) {
+        if (connection.cluster && connection.cluster.length > 0) {
           this.miscCompletion.push({
             caption: `${connection.cluster}`,
             value: `${connection.cluster}`,
@@ -177,7 +177,7 @@ UNION ALL
         // Add keywords to miscCompletion
         this.miscCompletion.push(...keywordCompletions);
       },
-      (error) => {
+      () => {
         // Silently fail if system.keywords table doesn't exist
         // This is expected for older ClickHouse versions
       }
@@ -295,7 +295,7 @@ UNION ALL
     //
     // GET CLUSTER
     //
-    if (connection.cluster.length > 0) {
+    if (connection.cluster && connection.cluster.length > 0) {
       this.clusterCompletion = [
         {
           caption: connection.cluster,
