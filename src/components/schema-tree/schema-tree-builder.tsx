@@ -16,7 +16,14 @@ import {
   Type,
 } from "lucide-react";
 import { SchemaTreeBadge, SchemaTreeHostSelector } from "./schema-tree-host-selector";
-import type { ColumnNodeData, DatabaseNodeData, HostNodeData, TableItemDO, TableNodeData } from "./schema-tree-types";
+import type {
+  ColumnNodeData,
+  DatabaseNodeData,
+  HostNodeData,
+  SchemaLoadResult,
+  TableItemDO,
+  TableNodeData,
+} from "./schema-tree-types";
 
 // Map column types to appropriate icons
 function getColumnIcon(typeString: string): LucideIcon | undefined {
@@ -441,7 +448,7 @@ function toDatabaseTreeNodes(rows: TableItemDO[]): [number, TreeDataItem[]] {
 
 export function buildSchemaTree(
   connection: Connection,
-  rows: TableItemDO[],
+  schemaData: SchemaLoadResult,
   onHostChange?: (hostName: string) => void
 ): TreeDataItem {
   let targetServerNode = connection.targetNode;
@@ -452,14 +459,15 @@ export function buildSchemaTree(
     if (canSwitchServer) {
       targetServerNode = "Host";
     } else {
-      targetServerNode = connection.name || "Unknown";
+      // Priority: 1. serverDisplayName from header, 2. connection.name
+      targetServerNode = schemaData.serverDisplayName || connection.name || "Unknown";
     }
   }
 
   // Ensure responseServer is a string
   const serverName = String(targetServerNode || "Unknown");
 
-  const [totalTables, databaseNodes] = toDatabaseTreeNodes(rows);
+  const [totalTables, databaseNodes] = toDatabaseTreeNodes(schemaData.rows);
 
   // Default no-op handler if not provided
   const hostChangeHandler = onHostChange || (() => { });

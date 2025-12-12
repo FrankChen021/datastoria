@@ -46,7 +46,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
     (schemaData: SchemaLoadResult) => {
       if (!connection) return [];
 
-      const hostNode = buildSchemaTree(connection, schemaData.rows, handleHostChangeRef.current);
+      const hostNode = buildSchemaTree(connection, schemaData, handleHostChangeRef.current);
       return [hostNode];
     },
     [connection]

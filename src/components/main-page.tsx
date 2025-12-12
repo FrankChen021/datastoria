@@ -63,11 +63,11 @@ async function initializeClusterInfo(connection: Connection): Promise<{ targetNo
     const { response } = connection.executeAsync("SELECT currentUser()", { default_format: "JSONCompact" });
     const apiResponse = await response;
     if (apiResponse.httpStatus === 200) {
-      const returnServer = apiResponse.httpHeaders["x-clickhouse-server-display-name"];
+      const returnNode = apiResponse.httpHeaders["x-clickhouse-server-display-name"];
       const internalUser = apiResponse.data.data[0][0];
 
       return {
-        targetNode: returnServer,
+        targetNode: returnNode,
         internalUser: internalUser,
       };
     }

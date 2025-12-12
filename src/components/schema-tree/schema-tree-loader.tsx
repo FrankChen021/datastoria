@@ -63,9 +63,13 @@ ORDER BY lower(database), database, table, columnName`;
       const apiResponse = await response;
 
       const rows = (apiResponse.data.data || []) as TableItemDO[];
+      
+      // Extract server display name from HTTP header
+      const serverDisplayName = apiResponse.httpHeaders?.["x-clickhouse-server-display-name"];
 
       return {
         rows,
+        serverDisplayName: serverDisplayName || undefined,
       };
     } catch (error: unknown) {
       const apiError = error as ApiErrorResponse;

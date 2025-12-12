@@ -46,5 +46,6 @@ export type SchemaNodeData = DatabaseNodeData | TableNodeData | ColumnNodeData |
 
 export interface SchemaLoadResult {
   rows: TableItemDO[];
+  serverDisplayName?: string;
 }
 
