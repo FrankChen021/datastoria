@@ -5,8 +5,8 @@ import { CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog } from "@/components/use-dialog";
-import { Api, type ApiResponse } from "@/lib/api";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { type ApiResponse } from "@/lib/connection/connection";
+import { useConnection } from "@/lib/connection/connection-context";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { Formatter } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
@@ -140,14 +140,14 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
     const resizeObserver =
       typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(() => {
-            if (chartInstanceRef.current) {
-              requestAnimationFrame(() => {
-                if (chartInstanceRef.current) {
-                  chartInstanceRef.current.resize();
-                }
-              });
-            }
-          })
+          if (chartInstanceRef.current) {
+            requestAnimationFrame(() => {
+              if (chartInstanceRef.current) {
+                chartInstanceRef.current.resize();
+              }
+            });
+          }
+        })
         : null;
     if (resizeObserver && chartDom) {
       resizeObserver.observe(chartDom);
@@ -240,13 +240,13 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
       },
       brush: onBrushChange
         ? {
-            xAxisIndex: "all",
-            brushLink: "all",
-            brushMode: "single",
-            brushStyle: {
-              color: "rgba(120,120,120,0.15)",
-            },
-          }
+          xAxisIndex: "all",
+          brushLink: "all",
+          brushMode: "single",
+          brushStyle: {
+            color: "rgba(120,120,120,0.15)",
+          },
+        }
         : undefined,
       toolbox: {
         show: false,
@@ -276,11 +276,11 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
           areaStyle:
             option.type === "area"
               ? {
-                  color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                    { offset: 0, color: chartColor },
-                    { offset: 1, color: "rgba(255,255,255,0)" },
-                  ]),
-                }
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: chartColor },
+                  { offset: 1, color: "rgba(255,255,255,0)" },
+                ]),
+              }
               : undefined,
         },
       ],
@@ -406,7 +406,7 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
 const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelStatProps>(
   function RefreshableStatComponent(props, ref) {
     const { descriptor, selectedTimeSpan } = props;
-    const { selectedConnection } = useConnection();
+    const { connection } = useConnection();
 
     // State
     const [data, setData] = useState(0);
@@ -535,8 +535,8 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
 
             // Replace time span template parameters in SQL
             const finalSql = replaceTimeSpanParams(thisQuery.sql, _param.selectedTimeSpan);
-            const { response } = Api.create(selectedConnection!).executeAsyncOnNode(
-              selectedConnection!.runtime?.targetNode,
+            const { response } = connection!.executeAsyncOnNode(
+              connection!.targetNode,
               finalSql,
               {
                 default_format: "JSON",
@@ -576,8 +576,8 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
 
             // Replace time span template parameters in SQL
             const finalSql = replaceTimeSpanParams(query.sql, _param.selectedTimeSpan);
-            const { response } = Api.create(selectedConnection!).executeAsyncOnNode(
-              selectedConnection!.runtime?.targetNode,
+            const { response } = connection!.executeAsyncOnNode(
+              connection!.targetNode,
               finalSql,
               {
                 default_format: "JSONCompact",
@@ -628,7 +628,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
           }
         }
       },
-      [descriptor, shouldShowMinimap, getMinimapDataFromResponse, calculateReducedValue, selectedConnection]
+      [descriptor, shouldShowMinimap, getMinimapDataFromResponse, calculateReducedValue, connection]
     );
 
     // Internal refresh function

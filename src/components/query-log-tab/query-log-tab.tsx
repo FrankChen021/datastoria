@@ -3,8 +3,8 @@ import TimeSpanSelector, { BUILT_IN_TIME_SPAN_LIST, DisplayTimeSpan } from "@/co
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Api, type ApiErrorResponse } from "@/lib/api";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { type ApiErrorResponse } from "@/lib/connection/connection";
+import { useConnection } from "@/lib/connection/connection-context";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { toastManager } from "@/lib/toast";
 import { endOfDay, parseISO, startOfDay } from "date-fns";
@@ -171,7 +171,7 @@ export function QueryLogTab({
   initialEventDate,
 }: QueryLogTabProps) {
   // Internal State
-  const { selectedConnection } = useConnection();
+  const { connection } = useConnection();
   const [isLoading, setLoading] = useState(false);
   const [queryLogs, setQueryLogs] = useState<any[]>([]);
   const [meta, setMeta] = useState<{ name: string; type?: string }[]>([]);
@@ -233,20 +233,18 @@ export function QueryLogTab({
       return;
     }
 
-    const connection = selectedConnection;
-    if (connection === null) {
-      toastManager.show("No connection selected.", "error");
+    if (connection === null || connection === undefined) {
+      toastManager.show("No connection selected. Please select a connection to view query logs.", "error");
       return;
     }
 
     const queryTable =
-      connection.cluster.length > 0
+      connection.cluster && connection.cluster.length > 0
         ? `clusterAllReplicas('${connection.cluster}', system, query_log)`
         : "system.query_log";
 
     setLoading(true);
 
-    const api = Api.create(connection);
     try {
       // Build WHERE clause with timespan if available
       let whereClause = `initial_query_id = '${activeQueryId}'`;
@@ -264,7 +262,7 @@ export function QueryLogTab({
         whereClause += ` AND event_date > yesterday() AND type <> 'QueryStart'`;
       }
 
-      const { response } = api.executeAsync(
+      const { response } = connection.executeAsync(
         // Sort the result properly so that the finish event will overwrite the start event in the later event processing
         `SELECT FQDN() as host, toUnixTimestamp64Micro(query_start_time_microseconds) as start_time_microseconds, 
           * 
@@ -285,11 +283,14 @@ export function QueryLogTab({
       setQueryLogLoadError(null);
     } catch (error) {
       setQueryLogs([]);
-      setQueryLogLoadError(error as ApiErrorResponse);
+      // Only set error if not cancelled
+      if (!(error instanceof String && error.toString().includes("canceled"))) {
+        setQueryLogLoadError(error as ApiErrorResponse);
+      }
     } finally {
       setLoading(false);
     }
-  }, [activeQueryId, selectedConnection, selectedTimeSpan]);
+  }, [activeQueryId, connection, selectedTimeSpan]);
 
   useEffect(() => {
     loadQueryLog();

@@ -1,4 +1,4 @@
-import type { Connection } from '@/lib/connection/Connection';
+import type { Connection } from '@/lib/connection/connection';
 import { LocalStorage } from '@/lib/connection/LocalStorage';
 import type { Ace } from 'ace-builds';
 import { builtinSnippet } from './BuiltinSnippet';

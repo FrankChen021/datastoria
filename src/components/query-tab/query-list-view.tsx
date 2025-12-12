@@ -4,7 +4,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { useConnection } from "@/lib/connection/connection-context";
 import { toastManager } from "@/lib/toast";
 import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -32,7 +32,7 @@ interface QueryListItem {
 }
 
 export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewProps) {
-  const { selectedConnection } = useConnection();
+  const { connection } = useConnection();
   const [queryList, setQueryList] = useState<QueryListItem[]>([]);
   const responseScrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollPlaceholderRef = useRef<HTMLDivElement>(null);
@@ -58,7 +58,7 @@ export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewPr
       options?: { displayFormat?: "sql" | "text"; formatter?: (text: string) => string; view?: string },
       params?: Record<string, unknown>
     ) => {
-      if (!selectedConnection) {
+      if (!connection) {
         toastManager.show("No connection selected", "error");
         return;
       }
@@ -70,7 +70,7 @@ export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewPr
       let rawSQL = sql;
       const view = options?.view;
       const isExplainQuery = view && view !== "query";
-      
+
       if (isExplainQuery) {
         // Remove EXPLAIN prefix to get original SQL
         if (view === "pipeline") {
@@ -123,7 +123,7 @@ export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewPr
         });
       });
     },
-    [selectedConnection]
+    [connection]
   );
 
 
@@ -184,9 +184,9 @@ export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewPr
           ) : (
             <>
               {queryViewProps.map((query, index) => (
-                <QueryListItemView 
-                  key={query.queryRequest.uuid} 
-                  {...query} 
+                <QueryListItemView
+                  key={query.queryRequest.uuid}
+                  {...query}
                   onQueryDelete={handleQueryDelete}
                   isLast={index === queryViewProps.length - 1}
                   onExecutionStateChange={(queryId, isExecuting) => {

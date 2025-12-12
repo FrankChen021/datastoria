@@ -6,8 +6,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
-import type { QueryContext } from "@/lib/query-context/QueryContext";
-import { QueryContextManager } from "@/lib/query-context/QueryContextManager";
+import type { QueryContext } from "@/lib/query-context/query-context";
+import { QueryContextManager } from "@/lib/query-context/query-context-manager";
 import { toastManager } from "@/lib/toast";
 import { ChevronDown, Play } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";

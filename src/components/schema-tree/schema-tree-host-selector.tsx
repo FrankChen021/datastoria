@@ -2,8 +2,8 @@ import { CommandItemCount, HighlightableCommandItem } from "@/components/shared/
 import { Badge } from "@/components/ui/badge";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Api } from "@/lib/api";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+
+import { useConnection } from "@/lib/connection/connection-context";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -27,7 +27,7 @@ interface SchemaTreeHostSelectorProps {
 }
 
 export function SchemaTreeHostSelector({ clusterName, nodeName, onHostChange }: SchemaTreeHostSelectorProps) {
-  const { selectedConnection } = useConnection();
+  const { connection } = useConnection();
   const [isOpen, setIsOpen] = useState(false);
   const [data, setData] = useState<HostInfo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,13 +41,12 @@ export function SchemaTreeHostSelector({ clusterName, nodeName, onHostChange }: 
     setData([]);
     setLoading(false);
     setError(null);
-  }, [selectedConnection, clusterName]);
+  }, [connection, clusterName]);
 
   useEffect(() => {
-    if (isOpen && data.length === 0 && !loading && selectedConnection && clusterName.length > 0) {
+    if (isOpen && data.length === 0 && !loading && connection && clusterName.length > 0) {
       setLoading(true);
-      const api = Api.create(selectedConnection);
-      api.executeSQL(
+      connection.executeSQL(
         {
           sql: `
 SELECT 
@@ -76,7 +75,7 @@ ORDER BY shard, replica`,
         }
       );
     }
-  }, [isOpen, selectedConnection, clusterName, data.length, loading]);
+  }, [isOpen, connection, clusterName, data.length, loading]);
 
   // If no cluster name (empty string), just render the display name without popover
   if (clusterName.length === 0) {
@@ -97,7 +96,7 @@ ORDER BY shard, replica`,
       </PopoverTrigger>
       <PopoverContent className="w-[500px] p-0" align="start">
         <Command
-          filter={(value, search) => {
+          filter={(value: string, search: string) => {
             if (value.toLowerCase().includes(search.toLowerCase())) return 1;
             return 0;
           }}

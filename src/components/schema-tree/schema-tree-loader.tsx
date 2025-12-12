@@ -1,16 +1,9 @@
-import { Api, type ApiCanceller, type ApiErrorResponse } from "@/lib/api";
-import { type Connection } from "@/lib/connection/Connection";
+import { Connection, type ApiCanceller, type ApiErrorResponse } from "@/lib/connection/connection";
 import type { SchemaLoadResult, TableItemDO } from "./schema-tree-types";
 
 // Re-export types for backward compatibility
 export type {
-  DatabaseNodeData,
-  TableNodeData,
-  ColumnNodeData,
-  HostNodeData,
-  SchemaNodeData,
-  SchemaLoadResult,
-  TableItemDO,
+  ColumnNodeData, DatabaseNodeData, HostNodeData, SchemaLoadResult, SchemaNodeData, TableItemDO, TableNodeData
 } from "./schema-tree-types";
 
 export class SchemaTreeLoader {
@@ -57,8 +50,8 @@ WHERE
 ORDER BY lower(database), database, table, columnName`;
 
     try {
-      const { response, abortController } = Api.create(connection).executeAsyncOnNode(
-        connection.runtime?.targetNode,
+      const { response, abortController } = connection.executeAsyncOnNode(
+        connection.targetNode,
         sql,
         { default_format: "JSON", output_format_json_quote_64bit_integers: 0 }
       );

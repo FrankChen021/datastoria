@@ -12,18 +12,16 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { FieldDescription } from "@/components/ui/field-description";
 import { Input } from "@/components/ui/input";
-import type { ApiCanceller, ApiErrorResponse } from "@/lib/api";
-import { Api } from "@/lib/api";
-import type { Connection } from "@/lib/connection/Connection";
-import { ensureConnectionRuntimeInitialized } from "@/lib/connection/Connection";
-import { ConnectionManager } from "@/lib/connection/ConnectionManager";
+import { Connection, type ApiCanceller, type ApiErrorResponse } from "@/lib/connection/connection";
+import type { ConnectionConfig } from "@/lib/connection/connection-config";
+import { ConnectionManager } from "@/lib/connection/connection-manager";
 import axios from "axios";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactDOM from "react-dom/client";
 
 export interface ConnectionEditDialogProps {
-  connection: Connection | null;
+  connection: ConnectionConfig | null;
   onClose: () => void;
 }
 
@@ -121,8 +119,8 @@ function DeleteConfirmation({
 }
 
 export interface ShowConnectionEditDialogOptions {
-  connection: Connection | null;
-  onSave?: (connection: Connection) => void;
+  connection: ConnectionConfig | null;
+  onSave?: (connection: ConnectionConfig) => void;
   onDelete?: () => void;
   onCancel?: () => void;
 }
@@ -135,8 +133,8 @@ function ConnectionEditDialogWrapper({
   onCancel,
   isAddMode,
 }: {
-  connection: Connection | null;
-  onSave?: (connection: Connection) => void;
+  connection: ConnectionConfig | null;
+  onSave?: (connection: ConnectionConfig) => void;
   onDelete?: () => void;
   onCancel?: () => void;
   isAddMode: boolean;
@@ -153,7 +151,7 @@ function ConnectionEditDialogWrapper({
   const [user, setUser] = useState(connection ? connection.user : "");
   const [password, setPassword] = useState(connection ? connection.password : "");
   const [editable, setEditable] = useState(connection ? connection.editable : true);
-  const [currentSelectedConnection, setCurrentSelectedConnection] = useState<Connection | null>(connection);
+  const [currentSelectedConnection, setCurrentSelectedConnection] = useState<ConnectionConfig | null>(connection);
 
   // Initialize isNameManuallyEdited: true if editing existing connection, false for new connection
   useEffect(() => {
@@ -165,7 +163,7 @@ function ConnectionEditDialogWrapper({
   }, [connection]);
 
   const [apiCanceller, setApiCanceller] = useState<ApiCanceller>();
-  const [connectionTemplates, setConnectionTemplates] = useState<Connection[]>(
+  const [connectionTemplates, setConnectionTemplates] = useState<ConnectionConfig[]>(
     isAddMode ? [] : ConnectionManager.getInstance().getConnections()
   );
 
@@ -203,7 +201,7 @@ function ConnectionEditDialogWrapper({
         }
         const connectionTemplates = response.data as ConnectionTemplate[];
 
-        const newConnections: Connection[] = connectionTemplates.map((conn) => {
+        const newConnections: ConnectionConfig[] = connectionTemplates.map((conn) => {
           return {
             url: conn.url,
             name: conn.label === undefined ? conn.name : conn.label,
@@ -243,7 +241,7 @@ function ConnectionEditDialogWrapper({
     setFieldErrors((prev) => ({ ...prev, [field]: error }));
   }, []);
 
-  const getEditingConnection = useCallback((): Connection | undefined => {
+  const getEditingConnection = useCallback((): ConnectionConfig | undefined => {
     clearFieldErrors();
 
     let hasError = false;
@@ -278,7 +276,7 @@ function ConnectionEditDialogWrapper({
       return;
     }
 
-    const newConnection: Connection = {
+    const newConnection: ConnectionConfig = {
       name: name,
       url: cURL!.href,
       user: userText,
@@ -373,7 +371,7 @@ function ConnectionEditDialogWrapper({
 
   // Memoize template selection handler
   const handleTemplateSelect = useCallback(
-    (conn: Connection) => {
+    (conn: ConnectionConfig) => {
       setCurrentSelectedConnection(conn);
       setCluster(conn.cluster);
       setEditable(conn.editable);
@@ -489,8 +487,8 @@ function ConnectionEditDialogWrapper({
 
   // Test handler that manages testing state
   const handleTestConnection = useCallback(async () => {
-    const testConnection = getEditingConnection();
-    if (testConnection == null) {
+    const testConnectionConfig = getEditingConnection();
+    if (testConnectionConfig == null) {
       return;
     }
 
@@ -513,19 +511,10 @@ function ConnectionEditDialogWrapper({
     };
 
     try {
-      const initializedConnection = ensureConnectionRuntimeInitialized(testConnection);
-      if (!initializedConnection || !initializedConnection.runtime) {
-        setTestResultWithDelay({
-          type: "error",
-          message: "Failed to initialize connection. Please check your URL format.",
-        });
-        return;
-      }
-
-      const api = Api.create(initializedConnection);
+      const connection = Connection.create(testConnectionConfig);
 
       try {
-        const { response, abortController } = api.executeAsync("SELECT 525");
+        const { response, abortController } = connection.executeAsync("SELECT 1");
 
         // Set the canceller immediately after getting the abort controller
         setApiCanceller({
@@ -534,7 +523,7 @@ function ConnectionEditDialogWrapper({
 
         const apiResponse = await response;
 
-        if (testConnection.cluster.length === 0) {
+        if (testConnectionConfig.cluster.length === 0) {
           setApiCanceller(undefined);
           if (apiResponse.httpHeaders["x-clickhouse-format"] == null) {
             setTestResultWithDelay({
@@ -553,8 +542,8 @@ function ConnectionEditDialogWrapper({
 
         // For CLUSTER MODE, continue to check if the cluster exists
         try {
-          const { response: clusterResponse, abortController: clusterAbortController } = api.executeAsync(
-            `SELECT 1 FROM system.clusters WHERE cluster = '${testConnection.cluster}' Format JSONCompact`
+          const { response: clusterResponse, abortController: clusterAbortController } = connection.executeAsync(
+            `SELECT 1 FROM system.clusters WHERE cluster = '${testConnectionConfig.cluster}' Format JSONCompact`
           );
 
           // Update the canceller for the cluster check
@@ -568,7 +557,7 @@ function ConnectionEditDialogWrapper({
           if (clusterApiResponse.data.data.length === 0) {
             setTestResultWithDelay({
               type: "error",
-              message: `Cluster [${testConnection.cluster}] is not found on given ClickHouse server.`,
+              message: `Cluster [${testConnectionConfig.cluster}] is not found on given ClickHouse server.`,
             });
           } else {
             setTestResultWithDelay({
@@ -581,7 +570,7 @@ function ConnectionEditDialogWrapper({
           setApiCanceller(undefined);
           setTestResultWithDelay({
             type: "error",
-            message: `Successfully connected to ClickHouse server. But unable to determine if the cluster [${testConnection.name}] exists on the server. You can still save the connection to continue. ${error.httpStatus !== 404 ? error.errorMessage : ""
+            message: `Successfully connected to ClickHouse server. But unable to determine if the cluster [${testConnectionConfig.name}] exists on the server. You can still save the connection to continue. ${error.httpStatus !== 404 ? error.errorMessage : ""
               }`,
           });
         }
@@ -624,6 +613,8 @@ function ConnectionEditDialogWrapper({
       });
     }
   }, [getEditingConnection, setApiCanceller]);
+
+
 
   // Save handler
   const handleSave = useCallback(async () => {
@@ -901,7 +892,7 @@ export function showConnectionEditDialog(options: ShowConnectionEditDialogOption
   root.render(
     <ConnectionEditDialogWrapper
       connection={connection}
-      onSave={(savedConnection: Connection) => {
+      onSave={(savedConnection: ConnectionConfig) => {
         cleanup();
         if (onSave) {
           onSave(savedConnection);

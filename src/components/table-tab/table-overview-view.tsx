@@ -7,8 +7,8 @@ import type {
 import DashboardPanels, { type DashboardPanelsRef } from "@/components/shared/dashboard/dashboard-panels";
 import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
 import { BUILT_IN_TIME_SPAN_LIST } from "@/components/shared/dashboard/timespan-selector";
+import { useConnection } from "@/lib/connection/connection-context";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { useConnection } from "@/lib/connection/ConnectionContext";
 import type { RefreshableTabViewRef } from "./table-tab";
 
 export interface TableOverviewViewProps {
@@ -23,7 +23,7 @@ const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOvervi
     const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | undefined>(undefined);
     const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
     const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan(), []);
-    const { selectedConnection } = useConnection();
+    const { connection } = useConnection();
 
     // Calculate current time span (use selected if available, otherwise default)
     const currentTimeSpan = selectedTimeSpan ?? defaultTimeSpan;
@@ -50,7 +50,7 @@ const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOvervi
 
     // Create dashboard with all table descriptors
     const dashboard = useMemo<Dashboard>(() => {
-      const isClusterMode = selectedConnection?.cluster && selectedConnection.cluster.length > 0;
+      const isClusterMode = connection?.cluster && connection.cluster.length > 0;
       return {
         name: `table-overview-${database}-${table}`,
         folder: "table-overview",
@@ -541,7 +541,7 @@ ORDER BY 1, 2, 3`,
           } as DashboardGroup,
         ],
       };
-    }, [database, table, selectedConnection]);
+    }, [database, table, connection]);
 
     return <DashboardPanels ref={dashboardPanelsRef} dashboard={dashboard} selectedTimeSpan={currentTimeSpan} />;
   }

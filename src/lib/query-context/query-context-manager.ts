@@ -1,5 +1,5 @@
 import { LocalStorage } from '@/lib/connection/LocalStorage';
-import type { QueryContext } from './QueryContext';
+import type { QueryContext } from './query-context';
 
 const QUERY_CONTEXT_STORAGE_KEY = 'query-context';
 

@@ -1,13 +1,14 @@
 import type { Dashboard, TableDescriptor, TransposeTableDescriptor } from "@/components/shared/dashboard/dashboard-model";
 import DashboardPanels, { type DashboardPanelsRef } from "@/components/shared/dashboard/dashboard-panels";
 import { BUILT_IN_TIME_SPAN_LIST, type TimeSpan } from "@/components/shared/dashboard/timespan-selector";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { useConnection } from "@/lib/connection/connection-context";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { RefreshableTabViewRef } from "./table-tab";
 
 export interface TableMetadataViewProps {
   database: string;
   table: string;
+  autoLoad?: boolean;
 }
 
 const TableMetadataViewComponent = forwardRef<RefreshableTabViewRef, TableMetadataViewProps>(
@@ -17,7 +18,7 @@ const TableMetadataViewComponent = forwardRef<RefreshableTabViewRef, TableMetada
     // We use a default one.
     const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan>(() => BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan());
 
-    const { selectedConnection } = useConnection();
+    const { connection } = useConnection();
 
     useImperativeHandle(ref, () => ({
       refresh: (timeSpan?: TimeSpan) => {
@@ -96,7 +97,7 @@ SELECT * FROM system.tables WHERE database = '${database}' AND name = '${table}'
         ],
       } as Dashboard;
 
-      if (selectedConnection!.cluster.length > 0) {
+      if (connection?.cluster && connection.cluster.length > 0) {
         d.charts.push({
           type: "table",
           titleOption: {
@@ -130,7 +131,7 @@ SELECT
   create_table_query, 
   sipHash64(create_table_query) as table_query_hash,
   metadata_modification_time
-FROM clusterAllReplicas('${selectedConnection!.cluster}', system.tables) WHERE database = '${database}' AND name = '${table}'
+FROM clusterAllReplicas('${connection.cluster}', system.tables) WHERE database = '${database}' AND name = '${table}'
 ORDER BY host
 `,
           },

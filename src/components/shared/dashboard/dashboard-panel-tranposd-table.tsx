@@ -4,8 +4,8 @@ import { CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/connection/connection";
+import { useConnection } from "@/lib/connection/connection-context";
 import { Formatter, type FormatName } from "@/lib/formatter";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
@@ -38,7 +38,7 @@ interface DashboardPanelTransposedTableProps {
 const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, DashboardPanelTransposedTableProps>(
   function DashboardPanelTransposedTable(props, ref) {
     const { descriptor } = props;
-    const { selectedConnection } = useConnection();
+    const { connection } = useConnection();
 
     // State
     const [data, setData] = useState<Record<string, unknown> | null>(null);
@@ -76,7 +76,7 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
     // Load data from API
     const loadData = useCallback(
       async (param: RefreshOptions) => {
-        if (!selectedConnection) {
+        if (!connection) {
           setError("No connection selected");
           return;
         }
@@ -113,8 +113,7 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
             ? replaceTimeSpanParams(query.sql, param.selectedTimeSpan)
             : query.sql;
 
-          const api = Api.create(selectedConnection);
-          const { response, abortController } = api.executeAsync(
+          const { response, abortController } = connection.executeAsync(
             finalSql,
             {
               default_format: "JSON",
@@ -189,7 +188,7 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
           setIsLoading(false);
         }
       },
-      [descriptor, selectedConnection, getFieldOption]
+      [descriptor, connection, getFieldOption]
     );
 
     // Internal refresh function

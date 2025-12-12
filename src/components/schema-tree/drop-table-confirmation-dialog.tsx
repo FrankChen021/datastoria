@@ -1,7 +1,6 @@
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Dialog } from "@/components/use-dialog";
-import { Api, type ApiCanceller, type ApiErrorResponse } from "@/lib/api";
-import type { Connection } from "@/lib/connection/Connection";
+import { Connection, type ApiCanceller, type ApiErrorResponse } from "@/lib/connection/connection";
 import { StringUtils } from "@/lib/string-utils";
 import { toastManager } from "@/lib/toast";
 import { Loader2 } from "lucide-react";
@@ -64,10 +63,9 @@ export function showDropTableConfirmationDialog({
 
     isDroppingRef.current = true;
 
-    const api = Api.create(connection);
     const sql = `DROP TABLE \`${table.database}\`.\`${table.table}\``;
 
-    const canceller = api.executeSQL(
+    const canceller = connection.executeSQL(
       {
         sql: sql,
         headers: {

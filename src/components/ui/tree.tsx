@@ -34,6 +34,8 @@ interface TreeDataItem {
   tagTooltip?: React.ReactNode;
   // Tooltip for the entire node - if provided, the entire row will be wrapped in a HoverCard
   nodeTooltip?: React.ReactNode;
+  // Internal: used for testing to store original label
+  _originalLabel?: string;
 }
 
 type TreeProps = React.HTMLAttributes<HTMLDivElement> & {
@@ -132,10 +134,10 @@ const renderTooltip = (
   return (
     <HoverCard openDelay={200} closeDelay={100}>
       <HoverCardTrigger asChild>{children}</HoverCardTrigger>
-      <HoverCardContent 
-        side={side} 
-        align={align} 
-        className={className} 
+      <HoverCardContent
+        side={side}
+        align={align}
+        className={className}
         onClick={(e) => {
           e.stopPropagation();
           onClick?.(e);
@@ -613,7 +615,7 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
                   "relative flex items-center py-1 cursor-pointer transition-colors rounded-sm",
                   !isSelected && "hover:bg-accent hover:text-accent-foreground",
                   isSelected &&
-                    "bg-accent text-accent-foreground border-l-2 border-l-accent-foreground/50 dark:border-0"
+                  "bg-accent text-accent-foreground border-l-2 border-l-accent-foreground/50 dark:border-0"
                 )}
                 style={{
                   position: "absolute",
@@ -706,4 +708,4 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
 );
 Tree.displayName = "Tree";
 
-export { Tree, type TreeDataItem, type TreeRef };
+export { Tree, type TreeDataItem };

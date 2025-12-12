@@ -1,20 +1,20 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Connection } from "@/lib/connection/Connection";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import type { ConnectionConfig } from "@/lib/connection/connection-config";
+import { useConnection } from "@/lib/connection/connection-context";
 import { Database } from "lucide-react";
 import { showConnectionEditDialog } from "./connection-edit-dialog";
 
 export function ConnectionWizard() {
-    const { setSelectedConnection } = useConnection();
+    const { switchConnection } = useConnection();
 
     const handleCreateConnection = () => {
         showConnectionEditDialog({
             connection: null,
-            onSave: (savedConnection: Connection) => {
+            onSave: (savedConnection: ConnectionConfig) => {
                 // Set the newly created connection as the selected one
                 // This will update hasAnyConnections and trigger MainPage to show the main interface
-                setSelectedConnection(savedConnection);
+                switchConnection(savedConnection);
             },
         });
     };

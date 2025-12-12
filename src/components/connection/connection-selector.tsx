@@ -2,9 +2,9 @@ import { HighlightableCommandItem } from "@/components/shared/cmdk/cmdk-extensio
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import type { Connection } from "@/lib/connection/Connection";
-import { useConnection } from "@/lib/connection/ConnectionContext";
-import { ConnectionManager } from "@/lib/connection/ConnectionManager";
+import type { ConnectionConfig } from "@/lib/connection/connection-config";
+import { useConnection } from "@/lib/connection/connection-context";
+import { ConnectionManager } from "@/lib/connection/connection-manager";
 import { cn } from "@/lib/utils";
 import { Check, Pencil, Plus } from "lucide-react";
 import type { ReactNode } from "react";
@@ -41,9 +41,9 @@ export function ConnectionSelector(
     side,
   }: ConnectionSelectorProps = {} as ConnectionSelectorProps
 ) {
-  const { selectedConnection, setSelectedConnection } = useConnection();
+  const { connection, switchConnection } = useConnection();
   const [isCommandOpen, setIsCommandOpen] = useState(false);
-  const [connections, setConnections] = useState<Connection[]>([]);
+  const [connections, setConnections] = useState<ConnectionConfig[]>([]);
 
   // Load connections
   const reloadConnections = () => {
@@ -65,23 +65,34 @@ export function ConnectionSelector(
   const handleOpenAddDialog = () => {
     showConnectionEditDialog({
       connection: null,
-        onSave: (savedConnection) => {
-          // Reload connections after save
-          reloadConnections();
-          // Ensure the newly saved connection is selected in the context
-          setSelectedConnection(savedConnection);
-        },
+      onSave: (savedConnection) => {
+        // Reload connections after save
+        reloadConnections();
+        // Ensure the newly saved connection is selected in the context
+        switchConnection(savedConnection);
+      },
     });
     setIsCommandOpen(false);
   };
 
-  const handleConnectionSelect = (connection: Connection) => {
-    setSelectedConnection(connection);
+  const handleConnectionSelect = (connConfig: ConnectionConfig) => {
+    // switchConnection expects ConnectionConfig, which we have from the list
+    switchConnection(connConfig);
     setIsCommandOpen(false);
   };
 
-  const handleEditConnection = (connection?: Connection) => {
-    const connectionToEdit = connection || selectedConnection;
+  const handleEditConnection = (connConfig?: ConnectionConfig) => {
+    let connectionToEdit: ConnectionConfig | undefined = connConfig;
+
+    // If no connection passed, try to edit the currently selected one
+    if (!connectionToEdit && connection) {
+      // Find the actual Connection object from the manager/list to ensure we have all properties (like editable)
+      const manager = ConnectionManager.getInstance();
+      // We can use the connections list if loaded, or fetch from manager
+      // connection.name is available on Connection class
+      connectionToEdit = manager.getConnections().find(c => c.name === connection.name);
+    }
+
     if (connectionToEdit) {
       showConnectionEditDialog({
         connection: connectionToEdit,
@@ -89,8 +100,9 @@ export function ConnectionSelector(
           // Reload connections after save
           reloadConnections();
           // Update the selected connection if it was the one being edited or if it was renamed
-          if (!selectedConnection || selectedConnection.name === connectionToEdit.name) {
-            setSelectedConnection(savedConnection);
+          // We check name against the currently active connection
+          if (!connection || connection.name === connectionToEdit!.name) {
+            switchConnection(savedConnection);
           }
         },
         onDelete: () => {
@@ -98,11 +110,11 @@ export function ConnectionSelector(
           const updatedConnections = ConnectionManager.getInstance().getConnections();
           setConnections(updatedConnections);
           // Clear selected connection if it was the one deleted, or select the first available
-          if (selectedConnection?.name === connectionToEdit.name) {
+          if (connection?.name === connectionToEdit!.name) {
             if (updatedConnections.length > 0) {
-              setSelectedConnection(updatedConnections[0]);
+              switchConnection(updatedConnections[0]);
             } else {
-              setSelectedConnection(null);
+              switchConnection(null);
             }
           }
         },
@@ -112,7 +124,7 @@ export function ConnectionSelector(
   };
 
   // Get connection display text for command items
-  const getConnectionItemText = (conn: Connection) => {
+  const getConnectionItemText = (conn: ConnectionConfig) => {
     try {
       const hostname = new URL(conn.url).hostname;
       return `${conn.user}@${hostname}`;
@@ -135,7 +147,7 @@ export function ConnectionSelector(
         <Input
           className="w-[350px] h-9 pr-9 cursor-pointer"
           title="Edit Connection"
-          value={`${selectedConnection?.name}@${selectedConnection!.url}`}
+          value={connection ? `${connection.name}@${connection.url}` : ''}
           readOnly
         />
         <Button
@@ -145,23 +157,9 @@ export function ConnectionSelector(
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (selectedConnection) {
-              showConnectionEditDialog({
-                connection: selectedConnection,
-                onSave: () => {
-                  reloadConnections();
-                },
-                onDelete: () => {
-                  const updatedConnections = ConnectionManager.getInstance().getConnections();
-                  setConnections(updatedConnections);
-                  // Select the first available connection or clear selection
-                  if (updatedConnections.length > 0) {
-                    setSelectedConnection(updatedConnections[0]);
-                  } else {
-                    setSelectedConnection(null);
-                  }
-                },
-              });
+            if (connection) {
+              // Trigger edit logic which will resolve the connection object
+              handleEditConnection();
             }
           }}
           title="Edit Connection"
@@ -185,12 +183,9 @@ export function ConnectionSelector(
           >
             <Command
               className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]]:!rounded-none [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
-              filter={(value, search) => {
-                // Default filtering for items
-                if (!search) return 1;
-                const lowerSearch = search.toLowerCase();
-                const lowerValue = value.toLowerCase();
-                return lowerValue.includes(lowerSearch) ? 1 : 0;
+              filter={(value: string, search: string) => {
+                if (value.toLowerCase().includes(search.toLowerCase())) return 1;
+                return 0;
               }}
             >
               <CommandInput placeholder="Search connections..." className="!h-10" />
@@ -199,7 +194,7 @@ export function ConnectionSelector(
                 {connections.length > 0 && (
                   <CommandGroup className="!py-1 !px-1 !rounded-none">
                     {connections.map((conn) => {
-                      const isSelected = selectedConnection?.name === conn.name;
+                      const isSelected = connection?.name === conn.name;
                       return (
                         <CommandItem
                           key={conn.name}
@@ -263,3 +258,4 @@ export function ConnectionSelector(
     </>
   );
 }
+

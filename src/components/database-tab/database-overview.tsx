@@ -7,7 +7,7 @@ import type {
 import DashboardPanels, { type DashboardPanelsRef } from "@/components/shared/dashboard/dashboard-panels";
 import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { useConnection } from "@/lib/connection/connection-context";
 import type { FormatName } from "@/lib/formatter";
 import { forwardRef, useMemo } from "react";
 
@@ -26,8 +26,8 @@ interface TableInfo {
 
 export const DatabaseOverview = forwardRef<DashboardPanelsRef, DatabaseOverviewProps>(
   ({ database, selectedTimeSpan }, ref) => {
-    const { selectedConnection } = useConnection();
-    const isClusterMode = selectedConnection!.cluster.length > 0;
+    const { connection } = useConnection();
+    const isClusterMode = connection && connection.cluster && connection.cluster.length > 0;
 
     // Create dashboard with both the database info and tables descriptors
     const dashboard = useMemo<Dashboard>(() => {
@@ -372,7 +372,7 @@ SELECT
     sum(data_compressed_bytes) AS compressed_size,
     sum(data_uncompressed_bytes) AS uncompressed_size,
     round(uncompressed_size / compressed_size, 0) AS compressed_ratio
-FROM clusterAllReplicas('${selectedConnection?.cluster}', system.parts)
+FROM clusterAllReplicas('${connection?.cluster}', system.parts)
 WHERE database = '${database}'
 AND active
 GROUP BY host

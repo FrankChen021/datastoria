@@ -2,7 +2,7 @@ import type { TableDescriptor } from "@/components/shared/dashboard/dashboard-mo
 import type { DashboardPanelComponent } from "@/components/shared/dashboard/dashboard-panel-layout";
 import DashboardPanelTable from "@/components/shared/dashboard/dashboard-panel-table";
 import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { useConnection } from "@/lib/connection/connection-context";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef } from "react";
 import type { RefreshableTabViewRef } from "./table-tab";
 

@@ -4,8 +4,8 @@ import { CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog } from "@/components/use-dialog";
-import { Api, type ApiCanceller, type ApiErrorResponse } from "@/lib/api";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { type ApiCanceller, type ApiErrorResponse } from "@/lib/connection/connection";
+import { useConnection } from "@/lib/connection/connection-context";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { Formatter, type FormatName, type ObjectFormatter } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
@@ -324,7 +324,7 @@ interface DashboardPanelTimeseriesProps {
 const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPanelTimeseriesProps>(
   function DashboardPanelTimeseries(props, ref) {
     const { descriptor, selectedTimeSpan: propSelectedTimeSpan } = props;
-    const { selectedConnection } = useConnection();
+    const { connection } = useConnection();
     const isDark = useIsDarkTheme();
 
     // State
@@ -705,12 +705,12 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
           },
           brush: hasDrilldown()
             ? {
-                xAxisIndex: "all",
-                brushLink: "all",
-                outOfBrush: {
-                  colorAlpha: 0.1,
-                },
-              }
+              xAxisIndex: "all",
+              brushLink: "all",
+              outOfBrush: {
+                colorAlpha: 0.1,
+              },
+            }
             : undefined,
           tooltip: {
             trigger: "axis",
@@ -1050,7 +1050,7 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
     // Load data from API
     const loadData = useCallback(
       async (param: RefreshOptions) => {
-        if (!selectedConnection) {
+        if (!connection) {
           setError("No connection selected");
           return;
         }
@@ -1085,9 +1085,8 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
 
           // Replace time span template parameters in SQL
           const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan);
-          const api = Api.create(selectedConnection);
-          const { response, abortController } = api.executeAsyncOnNode(
-            selectedConnection.runtime?.targetNode,
+          const { response, abortController } = connection.executeAsyncOnNode(
+            connection.targetNode,
             finalSql,
             {
               default_format: "JSON",
@@ -1215,7 +1214,7 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
           setIsLoading(false);
         }
       },
-      [descriptor, selectedConnection]
+      [descriptor, connection]
     );
 
     // Internal refresh function
@@ -1398,10 +1397,10 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
         ...drilldownDescriptor,
         titleOption: drilldownDescriptor.titleOption
           ? {
-              ...drilldownDescriptor.titleOption,
-              showTitle: false, // Explicitly set to false to hide title
-              // Keep title and description for potential future use, but hide it
-            }
+            ...drilldownDescriptor.titleOption,
+            showTitle: false, // Explicitly set to false to hide title
+            // Keep title and description for potential future use, but hide it
+          }
           : undefined, // If no titleOption, keep it undefined
       };
 

@@ -3,9 +3,8 @@ import type { GraphEdge } from "@/components/shared/graphviz/Graph";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
-import type { ApiErrorResponse } from "@/lib/api";
-import { Api } from "@/lib/api";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { type ApiErrorResponse } from "@/lib/connection/connection";
+import { useConnection } from "@/lib/connection/connection-context";
 import { StringUtils } from "@/lib/string-utils";
 import { toastManager } from "@/lib/toast";
 import { X } from "lucide-react";
@@ -39,7 +38,7 @@ export interface DependencyViewProps {
 }
 
 const DependencyViewComponent = ({ database }: DependencyViewProps) => {
-  const { selectedConnection } = useConnection();
+  const { connection } = useConnection();
   const [nodes, setNodes] = useState<Map<string, DependencyGraphNode>>(new Map());
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,7 +47,7 @@ const DependencyViewComponent = ({ database }: DependencyViewProps) => {
   const [showTableNode, setShowTableNode] = useState<DependencyGraphNode | undefined>(undefined);
 
   useEffect(() => {
-    if (!selectedConnection) {
+    if (!connection) {
       toastManager.show("No connection selected", "error");
       return;
     }
@@ -62,11 +61,10 @@ const DependencyViewComponent = ({ database }: DependencyViewProps) => {
     setIsLoading(true);
 
     // Execute the dependency query directly (without version)
-    const api = Api.create(selectedConnection);
 
     (async () => {
       try {
-        const { response } = api.executeAsync(
+        const { response } = connection.executeAsync(
           `
 SELECT
     concat(database, '.', name) AS id,
@@ -125,7 +123,7 @@ WHERE database = '${database}' OR has(dependencies_database, '${database}')
     return () => {
       hasExecutedRef.current = false;
     };
-  }, [selectedConnection, database]);
+  }, [connection, database]);
 
   const onNodeClick = useCallback(
     (nodeId: string) => {
@@ -136,9 +134,9 @@ WHERE database = '${database}' OR has(dependencies_database, '${database}')
 
       // Don't open the pane if the node is marked as "NOT FOUND"
       // A node is "NOT FOUND" when engine is empty or query is "NOT FOUND"
-      const shouldReturn = graphNode.category === "" 
-      || graphNode.query === "NOT FOUND" 
-      || graphNode.category === 'Kafka';
+      const shouldReturn = graphNode.category === ""
+        || graphNode.query === "NOT FOUND"
+        || graphNode.category === 'Kafka';
       if (shouldReturn) {
         return;
       }

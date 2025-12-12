@@ -3,7 +3,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tree, type TreeDataItem, type TreeRef } from "@/components/ui/tree";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { useConnection } from "@/lib/connection/connection-context";
 import { AlertCircle, Database, RotateCw, Search, Table as TableIcon, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -24,7 +24,7 @@ export interface SchemaTreeViewProps {
 }
 
 export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
-  const { selectedConnection } = useConnection();
+  const { connection } = useConnection();
   const [isLoading, setIsLoading] = useState(false);
   const [treeData, setTreeData] = useState<TreeDataItem[]>([]);
   const [search, setSearch] = useState("");
@@ -44,24 +44,24 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
   // Build tree from schema data
   const buildTree = useCallback(
     (schemaData: SchemaLoadResult) => {
-      if (!selectedConnection) return [];
+      if (!connection) return [];
 
-      const hostNode = buildSchemaTree(selectedConnection, schemaData.rows, handleHostChangeRef.current);
+      const hostNode = buildSchemaTree(connection, schemaData.rows, handleHostChangeRef.current);
       return [hostNode];
     },
-    [selectedConnection]
+    [connection]
   );
 
   // Shared load data function
   const loadDatabases = useCallback(() => {
-    if (!selectedConnection) return;
+    if (!connection) return;
 
     const loadData = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        const result = await loaderRef.current.load(selectedConnection);
+        const result = await loaderRef.current.load(connection);
         const tree = buildTree(result);
         setTreeData(tree);
         setError(null);
@@ -82,19 +82,19 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
     };
 
     loadData();
-  }, [selectedConnection, buildTree]);
+  }, [connection, buildTree]);
 
   // Handle host change from the host selector
   const handleHostChange = useCallback(
     (hostName: string) => {
-      if (!selectedConnection) return;
+      if (!connection) return;
 
-      selectedConnection.runtime!.targetNode = hostName;
+      connection.targetNode = hostName;
 
       // Refresh the tree to load data from the new host
       loadDatabases();
     },
-    [selectedConnection, loadDatabases]
+    [connection, loadDatabases]
   );
 
   // Update the ref whenever handleHostChange changes
@@ -104,7 +104,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
 
   // Update tree when initial schema data changes
   useEffect(() => {
-    if (initialSchemaData && selectedConnection) {
+    if (initialSchemaData && connection) {
       const tree = buildTree(initialSchemaData);
       setTreeData(tree);
 
@@ -116,7 +116,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
         }
       }
     }
-  }, [initialSchemaData, selectedConnection, buildTree]);
+  }, [initialSchemaData, connection, buildTree]);
 
   // Helper function to sync tree selection to a tab info
   const scrollToNode = useCallback((tabInfo: TabInfo | null) => {
@@ -235,11 +235,11 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
   }, [contextMenuNode]);
 
   const handleDropTable = useCallback(() => {
-    if ((contextMenuNode?.data as SchemaNodeData)?.type === "table" && selectedConnection) {
+    if ((contextMenuNode?.data as SchemaNodeData)?.type === "table" && connection) {
       const tableData = contextMenuNode!.data as TableNodeData;
       showDropTableConfirmationDialog({
         table: tableData,
-        connection: selectedConnection,
+        connection: connection,
         onSuccess: () => {
           // Refresh the schema tree
           loadDatabases();
@@ -248,7 +248,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
     }
     setContextMenuNode(null);
     setContextMenuPosition(null);
-  }, [contextMenuNode, selectedConnection, loadDatabases]);
+  }, [contextMenuNode, connection, loadDatabases]);
 
   const onTreeNodeSelected = useCallback((item: TreeDataItem | undefined) => {
     if (!item?.data) return;
@@ -277,7 +277,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
     }
   }, []);
 
-  if (!selectedConnection) {
+  if (!connection) {
     return (
       <div className="h-full w-full overflow-auto p-4 flex flex-col">
         <div className="text-sm font-semibold mb-4">Schema</div>
@@ -296,7 +296,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-8 pr-20 rounded-none border-none flex-1 h-9"
-          disabled={!selectedConnection || (treeData.length === 0 && !isLoading)}
+          disabled={!connection || (treeData.length === 0 && !isLoading)}
         />
         {search && (
           <Button
@@ -314,7 +314,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
           size="sm"
           className="absolute right-1 h-6 w-6 shrink-0"
           onClick={() => loadDatabases()}
-          disabled={isLoading || !selectedConnection}
+          disabled={isLoading || !connection}
           title="Refresh schema"
         >
           <RotateCw className="h-4 w-4" />

@@ -1,13 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import type { ApiErrorResponse } from "@/lib/api";
-import { Api } from "@/lib/api";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { type ApiErrorResponse } from "@/lib/connection/connection";
+import { useConnection } from "@/lib/connection/connection-context";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { QueryIdButton } from "./query-id-button";
 import { QueryExecutionTimer } from "./query-execution-timer";
+import { QueryIdButton } from "./query-id-button";
 import { QueryRequestView } from "./query-request-view";
 import { QueryResponseView } from "./query-response/query-response-view";
 import type { QueryResponseViewModel, QueryViewProps } from "./query-view-model";
@@ -25,7 +24,7 @@ export function QueryListItemView({
   isLast,
   onExecutionStateChange,
 }: QueryListItemViewProps) {
-  const { selectedConnection } = useConnection();
+  const { connection } = useConnection();
   const [collapsed, setCollapsed] = useState(queryRequest.showRequest === "collapse");
   const [showDelete, setShowDelete] = useState(false);
   // Start as executing if we don't have a response yet (new query)
@@ -46,7 +45,7 @@ export function QueryListItemView({
       return;
     }
 
-    if (!selectedConnection) {
+    if (!connection) {
       setIsExecuting(false);
       onExecutionStateChange?.(queryRequest.uuid, false);
       return;
@@ -61,7 +60,6 @@ export function QueryListItemView({
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    const api = Api.create(selectedConnection);
 
     // Use JSON format for dependency view, TabSeparated for others
     // But if params are provided in viewArgs, use those instead (they override defaults)
@@ -80,7 +78,7 @@ export function QueryListItemView({
     // Execute query asynchronously
     (async () => {
       try {
-        const { response, abortController: apiAbortController } = api.executeAsync(
+        const { response, abortController: apiAbortController } = connection.executeAsync(
           queryRequest.sql,
           params
         );
@@ -249,10 +247,10 @@ export function QueryListItemView({
 
       {/* Query Response */}
       {queryResponse && (queryResponse.data !== undefined || queryResponse.errorMessage !== undefined) && (
-        <QueryResponseView 
-          queryResponse={queryResponse} 
+        <QueryResponseView
+          queryResponse={queryResponse}
           queryRequest={queryRequest}
-          sql={queryRequest.sql} 
+          sql={queryRequest.sql}
           view={view}
         />
       )}

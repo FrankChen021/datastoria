@@ -3,8 +3,8 @@ import type { DashboardPanelComponent } from "@/components/shared/dashboard/dash
 import DashboardPanelTable from "@/components/shared/dashboard/dashboard-panel-table";
 import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
 import { Button } from "@/components/ui/button";
-import { Api, type ApiErrorResponse } from "@/lib/api";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { Connection, type ApiErrorResponse } from "@/lib/connection/connection";
+import { useConnection } from "@/lib/connection/connection-context";
 import { toastManager } from "@/lib/toast";
 import { Loader2, Trash2 } from "lucide-react";
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
@@ -15,7 +15,7 @@ interface DropPartitionDialogProps {
   database: string;
   table: string;
   partition: string;
-  connection: ReturnType<typeof Api.create>;
+  connection: ReturnType<typeof Connection.create>;
   onSuccess?: () => void;
 }
 
@@ -141,7 +141,7 @@ export interface PartitionViewProps {
 
 const PartitionSizeViewComponent = forwardRef<RefreshableTabViewRef, PartitionViewProps>(
   ({ database, table, autoLoad = false }, ref) => {
-    const { selectedConnection } = useConnection();
+    const { connection } = useConnection();
     const tableComponentRef = useRef<DashboardPanelComponent>(null);
     const isMountedRef = useRef(true);
 
@@ -169,16 +169,15 @@ const PartitionSizeViewComponent = forwardRef<RefreshableTabViewRef, PartitionVi
 
     const handleDropPartitionClick = useCallback(
       (partition: string) => {
-        if (!selectedConnection) {
+        if (!connection) {
           return;
         }
 
-        const api = Api.create(selectedConnection);
         showDropPartitionDialog({
           database,
           table,
           partition,
-          connection: api,
+          connection,
           onSuccess: () => {
             // Refresh the table component to show updated data
             if (isMountedRef.current) {
@@ -188,7 +187,7 @@ const PartitionSizeViewComponent = forwardRef<RefreshableTabViewRef, PartitionVi
           },
         });
       },
-      [selectedConnection, database, table]
+      [connection, database, table]
     );
 
     // Create table descriptor

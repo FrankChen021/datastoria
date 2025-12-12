@@ -1,5 +1,4 @@
-import { Api } from '@/lib/api';
-import type { Connection } from '@/lib/connection/Connection';
+import { Connection } from '@/lib/connection/connection';
 import { StringUtils } from '@/lib/string-utils';
 import type { Ace } from 'ace-builds';
 import { QuerySnippetManager } from '../snippet/QuerySnippetManager';
@@ -8,10 +7,10 @@ type CompletionItem = {
   doc?: string;
 } & Ace.Completion;
 
-export class QueryCompletionManager {
-  private static instance: QueryCompletionManager;
+export class QuerySuggestionManager {
+  private static instance: QuerySuggestionManager;
 
-  public static getInstance(): QueryCompletionManager {
+  public static getInstance(): QuerySuggestionManager {
     return this.instance || (this.instance = new this());
   }
 
@@ -27,8 +26,8 @@ export class QueryCompletionManager {
   private currentConnectionName: string | null = null;
   private qualifiedTableCompletions: CompletionItem[] = [];
 
-  public onConnectionSelected(connection: Connection | null): void {
-    if (connection == null) {
+  public onConnectionSelected(connection: Connection) {
+    if (!connection) {
       this.currentConnectionName = null;
       return;
     }
@@ -40,13 +39,11 @@ export class QueryCompletionManager {
 
     this.currentConnectionName = connection.name;
 
-    const api = Api.create(connection);
-
-    // Clear qualified ta ble completions for new connection
+    // Clear qualified table completions for new connection
     this.qualifiedTableCompletions = [];
 
     // The SQL returns 4 columns: name/type/score/description
-    api.executeSQL(
+    connection.executeSQL(
       {
         sql: `SELECT name, 'database', -30, '' FROM system.databases ORDER BY name
 UNION ALL
@@ -160,7 +157,7 @@ UNION ALL
     //
     // Get keywords from system.keywords if the table exists
     //
-    api.executeSQL(
+    connection.executeSQL(
       {
         sql: `SELECT keyword, 'keyword', -10, '' FROM system.keywords ORDER BY keyword`,
         params: {
@@ -189,7 +186,7 @@ UNION ALL
     //
     // Get tables
     //
-    api.executeSQL(
+    connection.executeSQL(
       {
         sql: `SELECT database, name, comment FROM system.tables WHERE NOT startsWith(tables.name, '.inner') ORDER BY database, name`,
         params: {
@@ -233,10 +230,10 @@ UNION ALL
             docHTML: docHTML,
           });
         });
-        
+
         // Store qualified table completions in class property
         this.qualifiedTableCompletions = qualifiedTableCompletions;
-        
+
         // Add all qualified table names to miscCompletion
         // If miscCompletion is empty, the main query hasn't completed yet, but that's okay
         // The qualified names will be added when the main query completes
@@ -253,7 +250,7 @@ UNION ALL
     //
     // Get columns
     //
-    api.executeSQL(
+    connection.executeSQL(
       {
         sql: `SELECT table, name, type, comment FROM system.columns WHERE NOT startsWith(table, '.inner') ORDER BY table, name`,
         params: {
@@ -308,7 +305,7 @@ UNION ALL
         },
       ];
     } else {
-      api.executeSQL(
+      connection.executeSQL(
         {
           sql: `SELECT distinct cluster FROM system.clusters ORDER BY cluster`,
           params: {

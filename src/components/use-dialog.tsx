@@ -18,6 +18,7 @@ export interface DialogButton {
   default: boolean;
   onClick: () => Promise<boolean>;
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  content?: React.ReactNode | (() => React.ReactNode);
   disabled?: boolean; // Control button disabled state
 }
 
@@ -140,7 +141,10 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
 
               // Determine button content: icon + text, icon only, or text only
               let content: React.ReactNode;
-              if (button.icon && button.text) {
+
+              if (button.content) {
+                content = typeof button.content === "function" ? button.content() : button.content;
+              } else if (button.icon && button.text) {
                 // Icon + text combination
                 content = (
                   <>

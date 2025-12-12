@@ -1,9 +1,8 @@
 import { GraphvizComponent } from "@/components/shared/graphviz/GraphvizComponent";
 import { useTheme } from "@/components/theme-provider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { ApiErrorResponse, ApiResponse } from "@/lib/api";
-import { Api } from "@/lib/api";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { type ApiErrorResponse, type ApiResponse } from "@/lib/connection/connection";
+import { useConnection } from "@/lib/connection/connection-context";
 import { toastManager } from "@/lib/toast";
 import { memo, useEffect, useMemo, useState } from "react";
 import type { QueryResponseViewProps } from "../query-view-model";
@@ -74,22 +73,22 @@ function getCSSVariable(name: string): string {
 function adjustBrightness(hex: string, percent: number): string {
   // Remove # if present
   hex = hex.replace("#", "");
-  
+
   // Parse RGB
   const r = parseInt(hex.substring(0, 2), 16);
   const g = parseInt(hex.substring(2, 4), 16);
   const b = parseInt(hex.substring(4, 6), 16);
-  
+
   // Adjust brightness
   const adjust = (value: number) => {
     const newValue = Math.round(value * (1 + percent / 100));
     return Math.min(255, Math.max(0, newValue));
   };
-  
+
   const newR = adjust(r);
   const newG = adjust(g);
   const newB = adjust(b);
-  
+
   // Convert back to hex
   return `#${newR.toString(16).padStart(2, "0")}${newG.toString(16).padStart(2, "0")}${newB.toString(16).padStart(2, "0")}`;
 }
@@ -118,14 +117,14 @@ function applyGraphvizStyling(dot: string, bgColor: string): string {
 
   try {
     // Find the position of the opening brace after digraph declaration
-  const digraphMatch = dot.match(/^(digraph(?:\s+\w+)?)\s*\{/m);
+    const digraphMatch = dot.match(/^(digraph(?:\s+\w+)?)\s*\{/m);
     if (!digraphMatch) {
       return dot;
     }
 
     // Remove existing styling attributes using regex
     let cleaned = dot;
-    
+
     // Remove existing styling from both main graph and subgraphs
     // (be careful not to remove node/edge definitions)
     cleaned = cleaned.replace(/^\s*bgcolor\s*=\s*"[^"]*"\s*;?\s*$/gm, "");
@@ -137,37 +136,37 @@ function applyGraphvizStyling(dot: string, bgColor: string): string {
     // Only remove edge/node declarations that are on a single line and standalone
     cleaned = cleaned.replace(/^\s*edge\s*\[[^\]]*\]\s*;?\s*$/gm, "");
     cleaned = cleaned.replace(/^\s*node\s*\[[^\]]*\]\s*;?\s*$/gm, "");
-    
+
     // Clean up extra blank lines
     cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
 
     // Calculate node background color - nodes should be distinct from both main graph and subgraphs
     // For dark themes, nodes should be slightly lighter than main but darker than subgraphs
     // For light themes, nodes should be slightly darker than main but lighter than subgraphs
-    const isDark = bgColor === "#1a1a2e" || bgColor === "#002B36" || 
-                   (parseInt(bgColor.replace("#", ""), 16) < parseInt("808080", 16));
-    
+    const isDark = bgColor === "#1a1a2e" || bgColor === "#002B36" ||
+      (parseInt(bgColor.replace("#", ""), 16) < parseInt("808080", 16));
+
     // Subgraphs should be much more distinct - make them significantly lighter/darker
-    const subgraphBgColor = isDark 
+    const subgraphBgColor = isDark
       ? adjustBrightness(bgColor, 40)  // Much lighter for dark themes
       : adjustBrightness(bgColor, -40); // Much darker for light themes
-    
+
     // Nodes should have their own background that's between main graph and subgraph
     // This creates a visual hierarchy: main (darkest) < nodes (medium) < subgraphs (lightest for dark theme)
     const nodeBgColor = isDark
       ? adjustBrightness(bgColor, 15)  // Nodes are lighter than main but darker than subgraphs
       : adjustBrightness(bgColor, -15); // Nodes are darker than main but lighter than subgraphs
-    
+
     // Calculate edge color that works for both main graph and subgraphs
     // Edges need to be visible against the main graph background (dark) and subgraph backgrounds (lighter/darker)
     // Use a color that contrasts well with both - for dark themes, use a lighter color; for light themes, use a darker color
     const edgeColor = isDark ? "#a0b0b2" : "#4a5a5c"; // Lighter for dark theme (visible on dark main and light subgraphs), darker for light theme
-    
+
     // Define styling for main graph (includes rankdir and global edge/node styles)
     // Note: nodes get their own bgcolor to distinguish them from subgraphs
     // Use a thicker penwidth for edges to ensure visibility in subgraphs
     const mainGraphStyling = `\nbgcolor="${bgColor}"\nfontsize="9"\nrankdir="LR";\nedge [arrowhead="normal" fontsize="10" fontcolor="#D3E4E6" color="${edgeColor}" penwidth=2.5 style=solid];\nnode [shape=record fontsize="10" fontcolor="#D3E4E6" color="#839496" style=filled fillcolor="${nodeBgColor}"];\n`;
-    
+
     // Define styling for subgraphs with very distinct background and border
     // Subgraphs should be clearly visible as containers
     // Note: d3-graphviz doesn't support edge styling in subgraphs, so edges use the global edge color
@@ -185,22 +184,22 @@ function applyGraphvizStyling(dot: string, bgColor: string): string {
     // Match patterns like: subgraph cluster_123 { or subgraph { or subgraph "name" {
     const subgraphRegex = /(subgraph(?:\s+cluster_\w+|\s+"[^"]*"|\s+\w+)?\s*\{)/g;
     let match;
-    
+
     // Find all subgraph declarations and add styling after each
     // We need to collect all matches first, then process from end to start to avoid offset issues
     const matches: Array<{ index: number; length: number }> = [];
     while ((match = subgraphRegex.exec(result)) !== null) {
       matches.push({ index: match.index, length: match[0].length });
     }
-    
+
     // Process matches from end to start to avoid index shifting issues
     for (let i = matches.length - 1; i >= 0; i--) {
       const subgraphStart = matches[i].index + matches[i].length;
-      
+
       // Insert styling right after the opening brace of the subgraph
       const before = result.substring(0, subgraphStart);
       const after = result.substring(subgraphStart);
-      
+
       result = before + subgraphStyling + after;
     }
 
@@ -217,7 +216,7 @@ interface ExplainPipeGraphViewProps {
 }
 
 function ExplainPipeCompleteGraphView({ sql, isActive }: ExplainPipeGraphViewProps) {
-  const { selectedConnection } = useConnection();
+  const { connection } = useConnection();
   const { theme } = useTheme();
   const [rawGraphviz, setRawGraphviz] = useState("");
   const [result, setResult] = useState("");
@@ -270,15 +269,13 @@ function ExplainPipeCompleteGraphView({ sql, isActive }: ExplainPipeGraphViewPro
     //
     // execute EXPLAIN query to get the text
     //
-    const connection = selectedConnection;
-    if (connection === null) {
-      toastManager.show("No connection selected.", "error");
+    if (connection === null || connection === undefined) {
+      toastManager.show("No connection selected. Please select a connection to run EXPLAIN.", "error");
       return;
     }
 
-    const api = Api.create(connection);
 
-    const canceller = api.executeSQL(
+    const canceller = connection.executeSQL(
       {
         sql: sql,
         params: {
@@ -305,7 +302,7 @@ function ExplainPipeCompleteGraphView({ sql, isActive }: ExplainPipeGraphViewPro
     return () => {
       canceller.cancel();
     };
-  }, [isActive, sql, selectedConnection, rawGraphviz.length]);
+  }, [isActive, sql, connection, rawGraphviz.length]);
 
   if (loadError) {
     return (
@@ -336,7 +333,7 @@ interface ExplainPipeLineTextViewProps {
 }
 
 function ExplainPipeLineTextView({ sql, isActive }: ExplainPipeLineTextViewProps) {
-  const { selectedConnection } = useConnection();
+  const { connection } = useConnection();
   const [result, setResult] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<ApiErrorResponse | null>(null);
 
@@ -352,15 +349,13 @@ function ExplainPipeLineTextView({ sql, isActive }: ExplainPipeLineTextViewProps
     //
     // execute EXPLAIN query to get the text
     //
-    const connection = selectedConnection;
-    if (connection === null) {
-      toastManager.show("No connection selected.", "error");
+    if (connection === null || connection === undefined) {
+      toastManager.show("No connection selected. Please select a connection to run EXPLAIN.", "error");
       return;
     }
 
-    const api = Api.create(connection);
 
-    const canceller = api.executeSQL(
+    const canceller = connection.executeSQL(
       {
         sql: sql,
         params: {
@@ -383,7 +378,7 @@ function ExplainPipeLineTextView({ sql, isActive }: ExplainPipeLineTextViewProps
     return () => {
       canceller.cancel();
     };
-  }, [isActive, sql, selectedConnection, result]);
+  }, [isActive, sql, connection, result]);
 
   if (loadError) {
     return (

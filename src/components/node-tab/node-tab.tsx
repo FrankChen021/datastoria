@@ -8,7 +8,7 @@ import type {
 } from "@/components/shared/dashboard/dashboard-model";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { useConnection } from "@/lib/connection/connection-context";
 import { memo } from "react";
 
 const serverStatusDashboard = [
@@ -1460,8 +1460,9 @@ interface NodeTabProps {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const NodeTabComponent = (_props: NodeTabProps) => {
-  const connection = useConnection();
+  const { connection } = useConnection();
 
   const dashboard = {
     version: 2,
@@ -1474,11 +1475,7 @@ const NodeTabComponent = (_props: NodeTabProps) => {
     ],
   } as Dashboard;
 
-  const isClusterMode =
-    connection &&
-    connection.selectedConnection &&
-    connection.selectedConnection.cluster &&
-    connection.selectedConnection.cluster.length > 0;
+  const isClusterMode = connection && connection.cluster && connection.cluster.length > 0;
   if (isClusterMode) {
     dashboard.charts.push({
       title: "Cluster Status",

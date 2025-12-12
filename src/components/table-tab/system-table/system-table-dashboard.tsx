@@ -1,13 +1,12 @@
-import type { TimeseriesDescriptor } from "@/components/shared/dashboard/dashboard-model";
 import DashboardContainer from "@/components/shared/dashboard/dashboard-container";
 import { DashboardGroupSection } from "@/components/shared/dashboard/dashboard-group-section";
-import type { Dashboard, DashboardGroup } from "@/components/shared/dashboard/dashboard-model";
+import type { Dashboard, DashboardGroup, TimeseriesDescriptor } from "@/components/shared/dashboard/dashboard-model";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/use-dialog";
-import { Api, type ApiResponse } from "@/lib/api";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { type ApiResponse } from "@/lib/connection/connection";
+import { useConnection } from "@/lib/connection/connection-context";
 import { AlertTriangle, EllipsisVertical } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 
@@ -30,11 +29,8 @@ interface DashboardTableComponentProps {
 }
 
 const DashboardTableComponent = ({ database, table }: DashboardTableComponentProps) => {
-  const { selectedConnection } = useConnection();
+  const { connection } = useConnection();
   const [dashboard, setDashboard] = useState<Dashboard>({
-    name: "dashboard",
-    folder: "dashboard",
-    title: "Dashboard",
     filter: {},
     charts: [],
   });
@@ -43,9 +39,11 @@ const DashboardTableComponent = ({ database, table }: DashboardTableComponentPro
   const previousConnectionRef = useRef<string | null>(null);
 
   const fetchDashboards = useCallback(
-    (api: Api, hasMetricLogTable: boolean, hasAsynchronousMetricLogTable: boolean) => {
+    (hasMetricLogTable: boolean, hasAsynchronousMetricLogTable: boolean) => {
       // Fetch dashboard definitions from system.dashboards (without predefined dashboard)
-      api.executeSQL(
+      if (!connection) return;
+
+      connection.executeSQL(
         {
           sql: "SELECT dashboard, title, query FROM system.dashboards ORDER BY dashboard, title",
           headers: {
@@ -210,21 +208,20 @@ const DashboardTableComponent = ({ database, table }: DashboardTableComponentPro
   );
 
   useEffect(() => {
-    if (!selectedConnection) {
+    if (!connection) {
       return;
     }
 
     // Skip if connection hasn't changed
-    const connectionId = selectedConnection.name;
+    const connectionId = connection.name;
     if (previousConnectionRef.current === connectionId) {
       return;
     }
     previousConnectionRef.current = connectionId;
 
-    const api = Api.create(selectedConnection);
 
     // First, check if metric_log and asynchronous_metric_log tables exist
-    api.executeSQL(
+    connection.executeSQL(
       {
         sql: `SELECT name FROM system.tables WHERE database = 'system' AND (name LIKE 'metric_log%' OR name LIKE 'asynchronous_metric_log%')`,
         headers: {
@@ -279,20 +276,20 @@ const DashboardTableComponent = ({ database, table }: DashboardTableComponentPro
           });
 
           // Now fetch dashboard definitions
-          fetchDashboards(api, hasMetricLogTable, hasAsynchronousMetricLogTable);
+          fetchDashboards(hasMetricLogTable, hasAsynchronousMetricLogTable);
         } catch (err) {
           console.error("Error checking metric_log tables:", err);
           // Continue with fetching dashboards anyway
-          fetchDashboards(api, false, false);
+          fetchDashboards(false, false);
         }
       },
       (error) => {
         console.error("Error checking metric_log tables:", error);
         // Continue with fetching dashboards anyway
-        fetchDashboards(api, false, false);
+        fetchDashboards(false, false);
       }
     );
-  }, [selectedConnection, fetchDashboards, database, table]);
+  }, [connection, fetchDashboards, database, table]);
 
   const headerActions = null;
 

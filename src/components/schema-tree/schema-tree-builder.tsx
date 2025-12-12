@@ -1,5 +1,5 @@
 import { type TreeDataItem } from "@/components/ui/tree";
-import { type Connection } from "@/lib/connection/Connection";
+import { type Connection } from "@/lib/connection/connection";
 import type { LucideIcon } from "lucide-react";
 import {
   Calculator,
@@ -15,8 +15,8 @@ import {
   Table as TableIcon,
   Type,
 } from "lucide-react";
-import { SchemaTreeHostSelector, SchemaTreeBadge } from "./schema-tree-host-selector";
-import type { TableItemDO, DatabaseNodeData, TableNodeData, ColumnNodeData, HostNodeData } from "./schema-tree-types";
+import { SchemaTreeBadge, SchemaTreeHostSelector } from "./schema-tree-host-selector";
+import type { ColumnNodeData, DatabaseNodeData, HostNodeData, TableItemDO, TableNodeData } from "./schema-tree-types";
 
 // Map column types to appropriate icons
 function getColumnIcon(typeString: string): LucideIcon | undefined {
@@ -444,9 +444,9 @@ export function buildSchemaTree(
   rows: TableItemDO[],
   onHostChange?: (hostName: string) => void
 ): TreeDataItem {
-  let targetServerNode = connection.runtime?.targetNode;
+  let targetServerNode = connection.targetNode;
 
-  const canSwitchServer = connection.cluster.length > 0;
+  const canSwitchServer = (connection.cluster || "").length > 0;
 
   if (!targetServerNode || targetServerNode === undefined) {
     if (canSwitchServer) {
@@ -462,12 +462,12 @@ export function buildSchemaTree(
   const [totalTables, databaseNodes] = toDatabaseTreeNodes(rows);
 
   // Default no-op handler if not provided
-  const hostChangeHandler = onHostChange || (() => {});
+  const hostChangeHandler = onHostChange || (() => { });
 
   const hostNode: TreeDataItem = {
     id: "host",
     labelContent: (
-      <SchemaTreeHostSelector clusterName={connection.cluster} nodeName={serverName} onHostChange={hostChangeHandler} />
+      <SchemaTreeHostSelector clusterName={connection.cluster || ""} nodeName={serverName} onHostChange={hostChangeHandler} />
     ),
     search: serverName.toLowerCase(),
     icon: Monitor,

@@ -2,8 +2,8 @@
 
 import { CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Api, type ApiCanceller, type ApiErrorResponse } from "@/lib/api";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { type ApiCanceller, type ApiErrorResponse } from "@/lib/connection/connection";
+import { useConnection } from "@/lib/connection/connection-context";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { showQueryDialog } from "./dashboard-dialog-utils";
 import type { FieldOption, SQLQuery, TableDescriptor } from "./dashboard-model";
@@ -70,7 +70,7 @@ function replaceOrderByClause(
 const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTableProps>(
   function DashboardPanelTable(props, ref) {
     const { descriptor } = props;
-    const { selectedConnection } = useConnection();
+    const { connection } = useConnection();
 
     // State
     const [data, setData] = useState<Record<string, unknown>[]>([]);
@@ -102,7 +102,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
     // Load data from API
     const loadData = useCallback(
       async (param: RefreshOptions = {}) => {
-        if (!selectedConnection) {
+        if (!connection) {
           setError("No connection selected");
           return;
         }
@@ -143,10 +143,9 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
             finalSql = replaceOrderByClause(finalSql, sortRef.current.column, sortRef.current.direction);
           }
 
-          const api = Api.create(selectedConnection);
           try {
-            const { response, abortController } = api.executeAsyncOnNode(
-              selectedConnection.runtime?.targetNode,
+            const { response, abortController } = connection.executeAsyncOnNode(
+              connection.targetNode,
               finalSql,
               {
                 default_format: "JSON",
@@ -187,7 +186,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
             setIsLoading(false);
           } catch (error) {
             // Check if request was aborted
-            if (abortController.signal.aborted) {
+            if (error instanceof DOMException && error.name === "AbortError") {
               setIsLoading(false);
               return;
             }
@@ -220,7 +219,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           console.error(error);
         }
       },
-      [descriptor, selectedConnection]
+      [descriptor, connection]
     );
 
     // Internal refresh function

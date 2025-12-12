@@ -2,9 +2,8 @@ import { ConnectionWizard } from "@/components/connection/connection-wizard";
 import { SchemaTreeLoader, type SchemaLoadResult } from "@/components/schema-tree/schema-tree-loader";
 import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
 import { Button } from "@/components/ui/button";
-import { Api } from "@/lib/api";
-import type { Connection } from "@/lib/connection/Connection";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { Connection } from "@/lib/connection/connection";
+import { useConnection } from "@/lib/connection/connection-context";
 import { AlertCircle, Loader2, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
@@ -57,37 +56,45 @@ function MainPageLoadStatusComponent({ status, error, onRetry }: MainPageLoadSta
   return null;
 }
 
-async function initializeClusterInfo(conn: Connection) {
-  if (conn.cluster.length > 0 && conn.runtime?.targetNode === undefined) {
+// Initialize cluster info on a temporary connection and return the updates
+async function initializeClusterInfo(connection: Connection): Promise<{ targetNode?: string; internalUser?: string }> {
+  if (connection.cluster && connection.cluster.length > 0 && connection.targetNode === undefined) {
     // for cluster mode, pick a node as target node for further SQL execution
-    const api = Api.create(conn!);
-    const { response } = api.executeAsync("SELECT currentUser()", { default_format: "JSONCompact" });
+    const { response } = connection.executeAsync("SELECT currentUser()", { default_format: "JSONCompact" });
     const apiResponse = await response;
     if (apiResponse.httpStatus === 200) {
       const returnServer = apiResponse.httpHeaders["x-clickhouse-server-display-name"];
-      conn.runtime!.targetNode = returnServer;
+      const internalUser = apiResponse.data.data[0][0];
 
-      conn.runtime!.internalUser = apiResponse.data.data[0][0];
+      return {
+        targetNode: returnServer,
+        internalUser: internalUser,
+      };
     }
   }
 
-  return conn;
+  return {};
 }
 
 export function MainPage() {
-  const { selectedConnection, hasAnyConnections } = useConnection();
+  const { connection, updateConnection, setIsReady, isReady } = useConnection();
 
   // State for global initialization status (driven by SchemaTreeView)
   const [initStatus, setInitStatus] = useState<AppInitStatus>("initializing");
   const [initError, setInitError] = useState<string | null>(null);
   const [loadedSchemaData, setLoadedSchemaData] = useState<SchemaLoadResult | null>(null);
-  const [schemaLoaded, setSchemaLoaded] = useState(false);
 
   // Main Loading Effect
   useEffect(() => {
-    if (!selectedConnection) {
+    // Reset if no connection
+    if (!connection) {
       setInitStatus("ready");
       setLoadedSchemaData(null);
+      return;
+    }
+
+    // Only load if connection is not ready yet
+    if (isReady) {
       return;
     }
 
@@ -99,16 +106,29 @@ export function MainPage() {
       setInitError(null);
 
       try {
-        // 1. Ensure runtime is initialized
-        await initializeClusterInfo(selectedConnection);
+        // 1. Initialize cluster info and get the updates
+        const clusterUpdates = await initializeClusterInfo(connection);
 
-        // 2. Load Schema data
-        const result = await schemaLoader.load(selectedConnection);
+        // 2. Create a temporary connection with cluster info for loading schema
+        let tempConnection = connection;
+        if (Object.keys(clusterUpdates).length > 0) {
+          // Create a new connection object with cluster updates
+          tempConnection = Object.create(Object.getPrototypeOf(connection));
+          Object.assign(tempConnection, connection, clusterUpdates);
+        }
+
+        // 3. Load Schema data using the temporary connection
+        const result = await schemaLoader.load(tempConnection);
 
         if (isMounted) {
+          // 4. Update connection context with cluster info
+          if (Object.keys(clusterUpdates).length > 0) {
+            updateConnection(clusterUpdates);
+          }
+
           setLoadedSchemaData(result);
           setInitStatus("ready");
-          setSchemaLoaded(true);
+          setIsReady(true);
         }
       } catch (err) {
         if (isMounted) {
@@ -124,18 +144,10 @@ export function MainPage() {
       isMounted = false;
       schemaLoader.cancel();
     };
-  }, [selectedConnection]);
-
-  // Reset when connection changes
-  useEffect(() => {
-    if (!selectedConnection) {
-      setInitStatus("ready");
-    }
-    setSchemaLoaded(false);
-  }, [selectedConnection]);
+  }, [connection, updateConnection, setIsReady, isReady]);
 
   // Show wizard if no connections exist
-  if (!hasAnyConnections) {
+  if (!connection) {
     return <ConnectionWizard />;
   }
 
@@ -158,7 +170,7 @@ export function MainPage() {
 
         {/* Right Panel Group: Tabs for Query and Table Views */}
         <Panel defaultSize={80} minSize={50} className="bg-background">
-          <MainPageTabList selectedConnection={selectedConnection} schemaLoaded={schemaLoaded} />
+          <MainPageTabList selectedConnection={connection} />
         </Panel>
       </PanelGroup>
     </div>

@@ -5,16 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { ApiErrorResponse } from "@/lib/api";
-import { Api } from "@/lib/api";
-import type { Connection } from "@/lib/connection/Connection";
-import { ensureConnectionRuntimeInitialized } from "@/lib/connection/Connection";
-import { ConnectionManager } from "@/lib/connection/ConnectionManager";
-import type { QueryContext } from "@/lib/query-context/QueryContext";
-import { QueryContextManager } from "@/lib/query-context/QueryContextManager";
+import { Connection, type ApiErrorResponse } from "@/lib/connection/connection";
+import type { ConnectionConfig } from "@/lib/connection/connection-config";
+import { ConnectionManager } from "@/lib/connection/connection-manager";
+import type { QueryContext } from "@/lib/query-context/query-context";
+import { QueryContextManager } from "@/lib/query-context/query-context-manager";
 import { toastManager } from "@/lib/toast";
-import { AlertCircle, Info, Plus, Trash2, X } from "lucide-react";
 import styled from "@emotion/styled";
+import { AlertCircle, Info, Plus, Trash2, X } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import ReactDOM from "react-dom/client";
@@ -250,9 +248,8 @@ function SettingNameInputWithSuggestions({
 
   return (
     <div
-      className={`text-sm font-medium truncate min-h-[32px] flex items-center ${
-        isNameEditable ? "cursor-pointer hover:underline" : ""
-      }`}
+      className={`text-sm font-medium truncate min-h-[32px] flex items-center ${isNameEditable ? "cursor-pointer hover:underline" : ""
+        }`}
       onClick={isNameEditable ? handleFocus : undefined}
     >
       {row.name || (isNameEditable ? <span className="text-muted-foreground italic">Click to edit</span> : "")}
@@ -380,7 +377,7 @@ function SettingTableRow({
 }
 
 function QueryContextEditDialogWrapper({ onCancel }: { onCancel?: () => void }) {
-  const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
+  const [selectedConnection, setSelectedConnection] = useState<ConnectionConfig | null>(null);
   const [rows, setRows] = useState<SettingRow[]>([]);
   const [availableSettings, setAvailableSettings] = useState<SystemSetting[]>([]);
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
@@ -391,8 +388,7 @@ function QueryContextEditDialogWrapper({ onCancel }: { onCancel?: () => void }) 
   useEffect(() => {
     const connection = ConnectionManager.getInstance().getLastSelectedOrFirst();
     if (connection) {
-      const initialized = ensureConnectionRuntimeInitialized(connection);
-      setSelectedConnection(initialized);
+      setSelectedConnection(connection);
     }
   }, []);
 
@@ -481,8 +477,8 @@ function QueryContextEditDialogWrapper({ onCancel }: { onCancel?: () => void }) 
     setBottomSectionContent(null);
 
     try {
-      const api = Api.create(selectedConnection);
-      const { response } = api.executeAsync(
+      const connection = Connection.create(selectedConnection);
+      const { response } = connection.executeAsync(
         // in old version, there's no 'default' value field
         "SELECT name, type, description, value FROM system.settings ORDER BY name",
         {
@@ -778,9 +774,8 @@ function QueryContextEditDialogWrapper({ onCancel }: { onCancel?: () => void }) 
           {/* Bottom Section Area - Fixed height container, content adapts inside */}
           <div className="h-[140px] relative overflow-hidden flex items-start">
             <div
-              className={`w-full transition-all duration-300 ease-in-out ${
-                bottomSectionContent ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
-              }`}
+              className={`w-full transition-all duration-300 ease-in-out ${bottomSectionContent ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
+                }`}
             >
               {bottomSectionContent?.type === "error" && <ErrorMessage message={bottomSectionContent.message} />}
             </div>

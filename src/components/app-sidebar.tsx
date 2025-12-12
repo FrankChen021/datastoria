@@ -8,7 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useConnection } from "@/lib/connection/ConnectionContext";
+import { useConnection } from "@/lib/connection/connection-context";
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
 import { Database, Search, Settings, Terminal } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -18,7 +18,7 @@ import { TabManager } from "./tab-manager";
 import { useTheme } from "./theme-provider";
 
 export function AppSidebar() {
-  const { selectedConnection, hasAnyConnections } = useConnection();
+  const { isReady } = useConnection();
 
   return (
     <Sidebar collapsible="icon">
@@ -34,20 +34,18 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {hasAnyConnections && (
-              <SidebarMenuItem>
-                <ConnectionSelector
-                  trigger={
-                    <SidebarMenuButton tooltip={"Manage Connections"} size="lg" className="justify-center">
-                      <Database className="h-5 w-5" />
-                    </SidebarMenuButton>
-                  }
-                  sideOffset={5}
-                  side="right"
-                />
-              </SidebarMenuItem>
-            )}
-            {selectedConnection && (
+            <SidebarMenuItem>
+              <ConnectionSelector
+                trigger={
+                  <SidebarMenuButton tooltip={"Manage Connections"} size="lg" className="justify-center">
+                    <Database className="h-5 w-5" />
+                  </SidebarMenuButton>
+                }
+                sideOffset={5}
+                side="right"
+              />
+            </SidebarMenuItem>
+            {isReady && (
               <>
                 <SidebarMenuItem>
                   <SidebarMenuButton

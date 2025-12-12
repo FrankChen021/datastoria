@@ -13,7 +13,8 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Connection } from "@/lib/connection/Connection";
+import type { Connection } from "@/lib/connection/connection";
+import { useConnection } from "@/lib/connection/connection-context";
 import type { LucideIcon } from "lucide-react";
 import {
   ChevronLeft,
@@ -30,7 +31,6 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface MainPageTabListProps {
   selectedConnection: Connection | null;
-  schemaLoaded?: boolean;
 }
 
 // Component for the "Ready" state (Welcome screen)
@@ -55,7 +55,8 @@ function EmptyTabPlaceholderComponent() {
   );
 }
 
-const MainPageTabListComponent = ({ selectedConnection, schemaLoaded }: MainPageTabListProps) => {
+const MainPageTabListComponent = ({ selectedConnection }: MainPageTabListProps) => {
+  const { isReady } = useConnection();
   // Tab management state
   const [activeTab, setActiveTab] = useState<string>("");
   const [tabs, setTabs] = useState<TabInfo[]>([]);
@@ -121,7 +122,7 @@ const MainPageTabListComponent = ({ selectedConnection, schemaLoaded }: MainPage
           setActiveTab(tabId);
           return prevTabs;
         }
-        
+
         // Tab doesn't exist, add it and set pending activation
         setPendingTabId(tabId);
         return [...prevTabs, newTab!];
@@ -170,11 +171,11 @@ const MainPageTabListComponent = ({ selectedConnection, schemaLoaded }: MainPage
 
   // Open query tab when schema is loaded (only once per connection)
   useEffect(() => {
-    if (schemaLoaded && !hasOpenedInitialQueryTabRef.current) {
+    if (isReady && !hasOpenedInitialQueryTabRef.current) {
       TabManager.activateQueryTab();
       hasOpenedInitialQueryTabRef.current = true;
     }
-  }, [schemaLoaded]);
+  }, [isReady]);
 
   // Helper function to get the next tab ID, or previous if no next exists
   const getNextOrPreviousTabId = useCallback((tabId: string, tabsList: TabInfo[]) => {

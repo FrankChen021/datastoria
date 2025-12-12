@@ -1,4 +1,4 @@
-import type { Connection } from './Connection';
+import type { ConnectionConfig } from './connection-config';
 import { LocalStorage } from './LocalStorage';
 
 export const ConnectionChangeType = {
@@ -11,8 +11,8 @@ export type ConnectionChangeTypeValue = typeof ConnectionChangeType[keyof typeof
 
 export interface ConnectionChangeEventArgs {
   type: ConnectionChangeTypeValue;
-  beforeChange: Connection | null;
-  afterChange: Connection | null;
+  beforeChange: ConnectionConfig | null;
+  afterChange: ConnectionConfig | null;
 }
 
 const ConnectionKey: string = 'connections';
@@ -23,8 +23,8 @@ export class ConnectionManager {
     return this.instance || (this.instance = new this());
   }
 
-  private connectionMap: Map<string, Connection>;
-  private connectionArray: Connection[];
+  private connectionMap: Map<string, ConnectionConfig>;
+  private connectionArray: ConnectionConfig[];
 
   constructor() {
     let savedConnections: unknown[] = [];
@@ -61,7 +61,7 @@ export class ConnectionManager {
       // Process old data
       const cluster = connData.cluster === undefined && connData.isCluster ? connData.name : (connData.cluster || '');
 
-      const connection: Connection = {
+      const connection: ConnectionConfig = {
         name: connData.name,
         url: connData.url,
         user: connData.user,
@@ -76,7 +76,7 @@ export class ConnectionManager {
     this.connectionArray.sort((a, c) => a.name.localeCompare(c.name));
   }
 
-  getConnections(): Connection[] {
+  getConnections(): ConnectionConfig[] {
     return this.connectionArray;
   }
 
@@ -84,7 +84,7 @@ export class ConnectionManager {
     return this.connectionMap.has(name);
   }
 
-  add(connection: Connection): ConnectionChangeEventArgs {
+  add(connection: ConnectionConfig): ConnectionChangeEventArgs {
     this.connectionArray.push(connection);
 
     try {
@@ -104,7 +104,7 @@ export class ConnectionManager {
     };
   }
 
-  replace(name: string, newConnection: Connection): ConnectionChangeEventArgs {
+  replace(name: string, newConnection: ConnectionConfig): ConnectionChangeEventArgs {
     const index = this.indexOf(name);
     if (index === -1) {
       return this.add(newConnection);
@@ -163,7 +163,7 @@ export class ConnectionManager {
     return -1;
   }
 
-  public first(): Connection | null {
+  public first(): ConnectionConfig | null {
     return this.connectionArray.length > 0 ? this.connectionArray[0] : null;
   }
 

@@ -32,7 +32,7 @@ function getStructure(
     if (typeof node.labelContent === "string") {
       labelText = node.labelContent;
     } else if (node._originalLabel) {
-      // @ts-expect-error - _originalLabel is added by search function for testing
+      // _originalLabel is added by search function for testing
       labelText = node._originalLabel;
     } else {
       // For React nodes without _originalLabel, try to extract from props or use id as fallback
@@ -62,7 +62,7 @@ function getStructure(
         labelText = typeof reactNode === "string" ? reactNode : node.id;
       }
     }
-    
+
     return {
       labelContent: labelText,
       expanded: node._expanded ?? false,
@@ -99,15 +99,15 @@ describe("tree-search", () => {
         {
           labelContent: "system",
           expanded: true,
-        children: [
-          {
+          children: [
+            {
               labelContent: "query",
               expanded: true,
-            children: [
+              children: [
                 { labelContent: "query_log", expanded: false, children: undefined },
                 { labelContent: "query_cache", expanded: false, children: undefined },
               ],
-              },
+            },
           ],
         },
       ]);
@@ -122,16 +122,16 @@ describe("tree-search", () => {
         {
           labelContent: "system",
           expanded: true,
-            children: [
-              {
+          children: [
+            {
               labelContent: "processes",
               expanded: true,
               children: [
                 { labelContent: "query", expanded: false, children: undefined },
                 { labelContent: "mutations", expanded: false, children: undefined },
               ],
-              },
-            ],
+            },
+          ],
         },
       ]);
     });
@@ -161,9 +161,9 @@ describe("tree-search", () => {
               children: [
                 { labelContent: "query", expanded: true, children: undefined },
               ],
-          },
-        ],
-      },
+            },
+          ],
+        },
       ]);
     });
 
@@ -182,14 +182,14 @@ describe("tree-search", () => {
       // Without trailing dot: fuzzy recursive search
       const fuzzyResults = searchTree(tree, "system.query");
       const fuzzyStructure = getStructure(fuzzyResults);
-      
+
       // Should find both system->query AND system->processes->query
       expect(fuzzyStructure[0].children?.length).toBe(2); // query and processes branches
-      
+
       // With trailing dot: exact match only
       const exactResults = searchTree(tree, "system.query.");
       const exactStructure = getStructure(exactResults);
-      
+
       // Should find ONLY system->query
       expect(exactStructure[0].children?.length).toBe(1); // only query branch
       expect(exactStructure[0].children?.[0].labelContent).toBe("query");
@@ -203,14 +203,14 @@ describe("tree-search", () => {
         {
           labelContent: "default",
           expanded: true,
-        children: [
-          {
+          children: [
+            {
               labelContent: "query",
               expanded: true,
               children: undefined,
-          },
-        ],
-      },
+            },
+          ],
+        },
       ]);
     });
 
@@ -478,7 +478,7 @@ describe("tree-search", () => {
         ]),
       ];
       const results = searchTree(tree, "system..sys");
-      
+
       // Middle empty strings are preserved: "system..sys" → ["system", "", "sys"]
       // This means: match "system", then match empty (which fails), so no results
       expect(results).toEqual([]);
@@ -493,18 +493,18 @@ describe("tree-search", () => {
           createNode("b", "b"),
         ]),
       ];
-      
+
       // a.b → ["a", "b"] → should match a -> b (direct child)
       const results1 = searchTree(tree, "a.b");
       expect(results1).toHaveLength(1);
-      
+
       // a..c → ["a", "", "c"] → WILL match a -> "" -> c (empty node matches empty segment)
       const results2 = searchTree(tree, "a..c");
       expect(results2).toHaveLength(1);
       const structure2 = getStructure(results2);
       expect(structure2[0].children?.[0].labelContent).toBe(""); // Empty node
       expect(structure2[0].children?.[0].children?.[0].labelContent).toBe("c");
-      
+
       // Most real trees won't have empty-named nodes, so a..anything typically matches nothing
       const normalTree: TreeDataItem[] = [
         createNode("system", "system", [
@@ -520,12 +520,12 @@ describe("tree-search", () => {
           createNode("query", "query"),
         ]),
       ];
-      
+
       // system. → ["system", ""] → expand system to show children
       const results1 = searchTree(tree, "system.");
       expect(results1).toHaveLength(1);
       expect(results1[0].children).toHaveLength(1);
-      
+
       // system.. → ["system", "", ""] → match system, then try to match empty in children (fails)
       const results2 = searchTree(tree, "system..");
       expect(results2).toEqual([]);
@@ -539,22 +539,22 @@ describe("tree-search", () => {
           ]),
         ]),
       ];
-      
+
       // One dot: expand
       expect(searchTree(tree, "system.")).toHaveLength(1);
       expect(searchTree(tree, "system.")[0].children).toHaveLength(1);
-      
+
       // Two dots: no match (try to match empty string in children)
       expect(searchTree(tree, "system..")).toEqual([]);
-      
+
       // Three dots: no match
       expect(searchTree(tree, "system...")).toEqual([]);
-      
+
       // system.query. → expand query
       const resultsQuery = searchTree(tree, "system.query.");
       expect(resultsQuery).toHaveLength(1);
       expect(resultsQuery[0].children?.[0].children).toHaveLength(1);
-      
+
       // system.query.. → no match (try to match empty after query)
       expect(searchTree(tree, "system.query..")).toEqual([]);
     });
