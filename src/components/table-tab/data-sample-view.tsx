@@ -1,7 +1,7 @@
-import type { TableDescriptor } from "@/components/dashboard/dashboard-model";
-import type { DashboardPanelComponent } from "@/components/dashboard/dashboard-panel-layout";
-import DashboardPanelTable from "@/components/dashboard/dashboard-panel-table";
-import type { TimeSpan } from "@/components/dashboard/timespan-selector";
+import type { TableDescriptor } from "@/components/shared/dashboard/dashboard-model";
+import type { DashboardPanelComponent } from "@/components/shared/dashboard/dashboard-panel-layout";
+import DashboardPanelTable from "@/components/shared/dashboard/dashboard-panel-table";
+import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef } from "react";
 import type { RefreshableTabViewRef } from "./table-tab";

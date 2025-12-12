@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode } from "@/components/graphviz-component/Graph";
+import type { GraphEdge, GraphNode } from "@/components/shared/graphviz/Graph";
 import { shortenHostNameForDisplay } from "@/lib/string-utils";
 import {
   BaseEdge,

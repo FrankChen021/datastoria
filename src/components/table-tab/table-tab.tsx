@@ -2,7 +2,7 @@ import TimeSpanSelector, {
   type DisplayTimeSpan,
   type TimeSpan,
   BUILT_IN_TIME_SPAN_LIST,
-} from "@/components/dashboard/timespan-selector";
+} from "@/components/shared/dashboard/timespan-selector";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, RefreshCw } from "lucide-react";

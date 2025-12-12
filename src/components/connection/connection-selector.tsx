@@ -1,3 +1,4 @@
+import { HighlightableCommandItem } from "@/components/shared/cmdk/cmdk-extension";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -11,7 +12,6 @@ import { useEffect, useState } from "react";
 import { Input } from "../ui/input";
 import { Separator } from "../ui/separator";
 import { showConnectionEditDialog } from "./connection-edit-dialog";
-import { HighlightableCommandItem } from "../cmdk-extension/cmdk-extension";
 
 interface ConnectionSelectorProps {
   /**

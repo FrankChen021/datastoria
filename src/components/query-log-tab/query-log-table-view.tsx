@@ -1,6 +1,6 @@
 import { CollapsibleSection } from "@/components/collapsible-section";
-import type { FieldOption } from "@/components/dashboard/dashboard-model";
-import { DataTable } from "@/components/dashboard/data-table";
+import type { FieldOption } from "@/components/shared/dashboard/dashboard-model";
+import { DataTable } from "@/components/shared/dashboard/data-table";
 import { useMemo } from "react";
 
 interface QueryLogTableViewProps {

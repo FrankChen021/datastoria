@@ -1,10 +1,10 @@
-import DashboardContainer from "@/components/dashboard/dashboard-container";
+import DashboardContainer from "@/components/shared/dashboard/dashboard-container";
 import type {
   Dashboard, DashboardGroup,
   StatDescriptor,
   TableDescriptor,
   TimeseriesDescriptor
-} from "@/components/dashboard/dashboard-model";
+} from "@/components/shared/dashboard/dashboard-model";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { useConnection } from "@/lib/connection/ConnectionContext";

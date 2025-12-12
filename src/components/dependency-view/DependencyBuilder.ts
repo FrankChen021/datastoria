@@ -1,4 +1,4 @@
-import type { GraphEdge } from "@/components/graphviz-component/Graph";
+import type { GraphEdge } from "@/components/shared/graphviz/Graph";
 import { uuid2 } from "@/lib/uuid-utils";
 import { MD5 } from "crypto-js";
 

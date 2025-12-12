@@ -1,4 +1,4 @@
-import type { GraphEdge } from "@/components/graphviz-component/Graph";
+import type { GraphEdge } from "@/components/shared/graphviz/Graph";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";

@@ -1,7 +1,7 @@
 import { ExternalLink } from "lucide-react";
-import { TabManager } from "../tab-manager";
-import { ThemedSyntaxHighlighter } from "../themed-syntax-highlighter";
-import { Dialog } from "../use-dialog";
+import { TabManager } from "@/components/tab-manager";
+import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
+import { Dialog } from "@/components/use-dialog";
 import type { SQLQuery } from "./dashboard-model";
 
 /**

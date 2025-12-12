@@ -1,10 +1,10 @@
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Formatter, type FormatName } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Formatter, type FormatName } from "../../lib/formatter";
-import { Skeleton } from "../ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
 import type { ActionColumn, FieldOption } from "./dashboard-model";
 import { inferFormatFromMetaType } from "./format-inference";

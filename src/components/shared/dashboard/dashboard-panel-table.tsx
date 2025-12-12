@@ -1,10 +1,10 @@
 "use client";
 
+import { CardContent } from "@/components/ui/card";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Api, type ApiCanceller, type ApiErrorResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { CardContent } from "../ui/card";
 import { showQueryDialog } from "./dashboard-dialog-utils";
 import type { FieldOption, SQLQuery, TableDescriptor } from "./dashboard-model";
 import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";

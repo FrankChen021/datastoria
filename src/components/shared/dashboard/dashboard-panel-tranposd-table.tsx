@@ -1,13 +1,13 @@
 "use client";
 
+import { CardContent } from "@/components/ui/card";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { Formatter, type FormatName } from "@/lib/formatter";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { CardContent } from "../ui/card";
-import { DropdownMenuItem } from "../ui/dropdown-menu";
-import { Skeleton } from "../ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
 import { showQueryDialog } from "./dashboard-dialog-utils";
 import type { FieldOption, SQLQuery, TransposeTableDescriptor } from "./dashboard-model";

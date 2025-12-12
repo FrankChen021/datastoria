@@ -1,3 +1,4 @@
+import { CommandItemCount, HighlightableCommandItem } from "@/components/shared/cmdk/cmdk-extension";
 import { Badge } from "@/components/ui/badge";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -6,7 +7,6 @@ import { useConnection } from "@/lib/connection/ConnectionContext";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
-import { CommandItemCount, HighlightableCommandItem } from "../cmdk-extension/cmdk-extension";
 
 // Shared badge component for schema tree nodes
 export function SchemaTreeBadge({ children }: { children: React.ReactNode }) {

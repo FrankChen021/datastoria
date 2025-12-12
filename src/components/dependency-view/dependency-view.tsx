@@ -1,5 +1,5 @@
 import FloatingProgressBar from "@/components/floating-progress-bar";
-import type { GraphEdge } from "@/components/graphviz-component/Graph";
+import type { GraphEdge } from "@/components/shared/graphviz/Graph";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";

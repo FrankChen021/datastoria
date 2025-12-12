@@ -1,4 +1,4 @@
-import { GraphvizComponent } from "@/components/graphviz-component/GraphvizComponent";
+import { GraphvizComponent } from "@/components/shared/graphviz/GraphvizComponent";
 import { useTheme } from "@/components/theme-provider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Stack } from "@/lib/stack";

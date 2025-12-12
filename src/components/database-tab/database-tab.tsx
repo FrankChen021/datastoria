@@ -1,8 +1,9 @@
+import type { DashboardPanelsRef } from "@/components/shared/dashboard/dashboard-panels";
 import TimeSpanSelector, {
   type DisplayTimeSpan,
   type TimeSpan,
   BUILT_IN_TIME_SPAN_LIST,
-} from "@/components/dashboard/timespan-selector";
+} from "@/components/shared/dashboard/timespan-selector";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw } from "lucide-react";
@@ -10,7 +11,6 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DependencyView } from "../dependency-view/dependency-view";
 import type { RefreshableTabViewRef } from "../table-tab/table-tab";
 import { DatabaseOverview } from "./database-overview";
-import type { DashboardPanelsRef } from "@/components/dashboard/dashboard-panels";
 
 export interface DatabaseTabProps {
   database: string;

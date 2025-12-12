@@ -1,4 +1,4 @@
-import { showQueryDialog } from "@/components/dashboard/dashboard-dialog-utils";
+import { showQueryDialog } from "@/components/shared/dashboard/dashboard-dialog-utils";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Dialog } from "@/components/use-dialog";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";

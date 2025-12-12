@@ -1,7 +1,7 @@
-import type { Dashboard, DashboardGroup, FieldOption, TableDescriptor } from "@/components/dashboard/dashboard-model";
-import DashboardPanels, { type DashboardPanelsRef } from "@/components/dashboard/dashboard-panels";
-import type { TimeSpan } from "@/components/dashboard/timespan-selector";
-import { BUILT_IN_TIME_SPAN_LIST } from "@/components/dashboard/timespan-selector";
+import type { Dashboard, DashboardGroup, FieldOption, TableDescriptor } from "@/components/shared/dashboard/dashboard-model";
+import DashboardPanels, { type DashboardPanelsRef } from "@/components/shared/dashboard/dashboard-panels";
+import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
+import { BUILT_IN_TIME_SPAN_LIST } from "@/components/shared/dashboard/timespan-selector";
 import { TabManager } from "@/components/tab-manager";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { ExternalLink } from "lucide-react";

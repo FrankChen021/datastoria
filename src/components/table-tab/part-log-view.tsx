@@ -1,7 +1,7 @@
-import type { Dashboard, StatDescriptor, TableDescriptor } from "@/components/dashboard/dashboard-model";
-import DashboardPanels, { type DashboardPanelsRef } from "@/components/dashboard/dashboard-panels";
-import type { TimeSpan } from "@/components/dashboard/timespan-selector";
-import { BUILT_IN_TIME_SPAN_LIST } from "@/components/dashboard/timespan-selector";
+import type { Dashboard, StatDescriptor, TableDescriptor } from "@/components/shared/dashboard/dashboard-model";
+import DashboardPanels, { type DashboardPanelsRef } from "@/components/shared/dashboard/dashboard-panels";
+import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
+import { BUILT_IN_TIME_SPAN_LIST } from "@/components/shared/dashboard/timespan-selector";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 import type { RefreshableTabViewRef } from "./table-tab";

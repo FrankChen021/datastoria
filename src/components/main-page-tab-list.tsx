@@ -1,5 +1,4 @@
 import { DatabaseTab } from "@/components/database-tab/database-tab";
-import { DependencyView } from "@/components/dependency-view/dependency-view";
 import { NodeTab } from "@/components/node-tab/node-tab";
 import { QueryLogTab } from "@/components/query-log-tab/query-log-tab";
 import { QueryTab } from "@/components/query-tab/query-tab";
@@ -21,7 +20,6 @@ import {
   ChevronRight,
   Database,
   Monitor,
-  Package,
   Plus,
   Search,
   Table as TableIcon,
@@ -93,11 +91,6 @@ const MainPageTabListComponent = ({ selectedConnection, schemaLoaded }: MainPage
           if (!database || !table) return;
           tabId = `table:${database}.${table}`;
           newTab = { id: tabId, type: "table", database, table, engine };
-          break;
-        case "dependency":
-          if (!database) return;
-          tabId = `dependency:${database}`;
-          newTab = { id: tabId, type: "dependency", database };
           break;
         case "database":
           if (!database) return;
@@ -446,8 +439,6 @@ const MainPageTabListComponent = ({ selectedConnection, schemaLoaded }: MainPage
           return { id: tab.id, label: `${tab.host}`, icon: Monitor };
         } else if (tab.type === "database") {
           return { id: tab.id, label: `${tab.database}`, icon: Database };
-        } else if (tab.type === "dependency") {
-          return { id: tab.id, label: `${tab.database}`, icon: Package };
         } else if (tab.type === "table") {
           return { id: tab.id, label: `${tab.database}.${tab.table}`, icon: TableIcon };
         }
@@ -492,18 +483,6 @@ const MainPageTabListComponent = ({ selectedConnection, schemaLoaded }: MainPage
             aria-hidden={activeTab !== tab.id}
           >
             <DatabaseTab database={tab.database} />
-          </div>
-        );
-      }
-      if (tab.type === "dependency") {
-        return (
-          <div
-            key={tab.id}
-            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-            role="tabpanel"
-            aria-hidden={activeTab !== tab.id}
-          >
-            <DependencyView database={tab.database} />
           </div>
         );
       }

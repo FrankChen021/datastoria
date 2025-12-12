@@ -1,15 +1,15 @@
 "use client";
 
-import { Api, type ApiCanceller, type ApiErrorResponse, type ApiResponse } from "@/lib/api";
+import { CardContent } from "@/components/ui/card";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog } from "@/components/use-dialog";
+import { Api, type ApiCanceller, type ApiErrorResponse } from "@/lib/api";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import { DateTimeExtension } from "@/lib/datetime-utils";
+import { Formatter, type FormatName } from "@/lib/formatter";
 import * as echarts from "echarts";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { Formatter, type FormatName } from "../../lib/formatter";
-import { CardContent } from "../ui/card";
-import { DropdownMenuItem } from "../ui/dropdown-menu";
-import { Skeleton } from "../ui/skeleton";
-import { Dialog } from "../use-dialog";
 import { isTimestampColumn as isTimestampColumnUtil, transformRowsToChartData } from "./dashboard-data-utils";
 import { showQueryDialog } from "./dashboard-dialog-utils";
 import type { FieldOption, PanelDescriptor, SQLQuery, TimeseriesDescriptor } from "./dashboard-model";

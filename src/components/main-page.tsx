@@ -1,6 +1,6 @@
 import { ConnectionWizard } from "@/components/connection/connection-wizard";
-import { SchemaTreeLoader, type SchemaLoadResult } from "@/components/schema/schema-tree-loader";
-import { SchemaTreeView } from "@/components/schema/schema-tree-view";
+import { SchemaTreeLoader, type SchemaLoadResult } from "@/components/schema-tree/schema-tree-loader";
+import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
 import { Button } from "@/components/ui/button";
 import { Api } from "@/lib/api";
 import type { Connection } from "@/lib/connection/Connection";

@@ -3,9 +3,9 @@ import type {
   DashboardGroup,
   TableDescriptor,
   TransposeTableDescriptor,
-} from "@/components/dashboard/dashboard-model";
-import DashboardPanels, { type DashboardPanelsRef } from "@/components/dashboard/dashboard-panels";
-import type { TimeSpan } from "@/components/dashboard/timespan-selector";
+} from "@/components/shared/dashboard/dashboard-model";
+import DashboardPanels, { type DashboardPanelsRef } from "@/components/shared/dashboard/dashboard-panels";
+import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { useConnection } from "@/lib/connection/ConnectionContext";
 import type { FormatName } from "@/lib/formatter";

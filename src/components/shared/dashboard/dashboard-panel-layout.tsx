@@ -3,11 +3,11 @@
 import { cn } from "@/lib/utils";
 import { EllipsisVertical } from "lucide-react";
 import React from "react";
-import FloatingProgressBar from "../floating-progress-bar";
-import { Button } from "../ui/button";
-import { Card, CardDescription, CardHeader } from "../ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import FloatingProgressBar from "@/components/floating-progress-bar";
+import { Button } from "@/components/ui/button";
+import { Card, CardDescription, CardHeader } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { TitleOption } from "./dashboard-model";
 import type { TimeSpan } from "./timespan-selector";
 

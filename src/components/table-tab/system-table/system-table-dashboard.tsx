@@ -1,7 +1,7 @@
-import type { TimeseriesDescriptor } from "@/components/dashboard/dashboard-model";
-import DashboardContainer from "@/components/dashboard/dashboard-container";
-import { DashboardGroupSection } from "@/components/dashboard/dashboard-group-section";
-import type { Dashboard, DashboardGroup } from "@/components/dashboard/dashboard-model";
+import type { TimeseriesDescriptor } from "@/components/shared/dashboard/dashboard-model";
+import DashboardContainer from "@/components/shared/dashboard/dashboard-container";
+import { DashboardGroupSection } from "@/components/shared/dashboard/dashboard-group-section";
+import type { Dashboard, DashboardGroup } from "@/components/shared/dashboard/dashboard-model";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
