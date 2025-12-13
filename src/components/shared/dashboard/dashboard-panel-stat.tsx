@@ -536,7 +536,6 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
             // Replace time span template parameters in SQL
             const finalSql = replaceTimeSpanParams(thisQuery.sql, _param.selectedTimeSpan, connection!.session.timezone);
             const { response } = connection!.executeAsyncOnNode(
-              connection!.session.targetNode,
               finalSql,
               {
                 default_format: "JSON",
@@ -577,7 +576,6 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
             // Replace time span template parameters in SQL
             const finalSql = replaceTimeSpanParams(query.sql, _param.selectedTimeSpan, connection!.session.timezone);
             const { response } = connection!.executeAsyncOnNode(
-              connection!.session.targetNode,
               finalSql,
               {
                 default_format: "JSONCompact",

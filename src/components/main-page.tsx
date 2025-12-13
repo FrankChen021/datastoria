@@ -58,18 +58,26 @@ function MainPageLoadStatusComponent({ status, error, onRetry }: MainPageLoadSta
 
 // Initialize cluster info on a temporary connection and return the updates
 async function getSessionInfo(connection: Connection): Promise<Partial<Session>> {
-  const { response } = connection.executeAsync("SELECT currentUser(), timezone()", { default_format: "JSONCompact" });
+  const { response } = connection.executeAsync(
+    `
+    SELECT currentUser(), timezone(), hasColumnInTable('system', 'functions', 'description')
+`,
+    { default_format: "JSONCompact" }
+  );
   const apiResponse = await response;
   if (apiResponse.httpStatus === 200) {
     const returnNode = apiResponse.httpHeaders["x-clickhouse-server-display-name"];
     const internalUser = apiResponse.data.data[0][0];
     const timezone = apiResponse.data.data[0][1];
+    const functionTableHasDescriptionColumn = apiResponse.data.data[0][2] as number;
 
-    const isCluster = connection.cluster && connection.cluster.length > 0 && connection.session.targetNode === undefined;
+    const isCluster =
+      connection.cluster && connection.cluster.length > 0 && connection.session.targetNode === undefined;
     return {
       targetNode: isCluster ? returnNode : undefined,
       internalUser: internalUser,
       timezone: timezone,
+      function_table_has_description_column: functionTableHasDescriptionColumn ? true : false,
     };
   }
 

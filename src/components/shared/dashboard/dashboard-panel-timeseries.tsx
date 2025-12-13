@@ -1086,7 +1086,6 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
           // Replace time span template parameters in SQL
           const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.session.timezone);
           const { response, abortController } = connection.executeAsyncOnNode(
-            connection.session.targetNode,
             finalSql,
             {
               default_format: "JSON",

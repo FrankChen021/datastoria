@@ -145,7 +145,6 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
 
           try {
             const { response, abortController } = connection.executeAsyncOnNode(
-              connection.session.targetNode,
               finalSql,
               {
                 default_format: "JSON",

@@ -1,7 +1,7 @@
-import { Connection } from '@/lib/connection/connection';
-import { StringUtils } from '@/lib/string-utils';
-import type { Ace } from 'ace-builds';
-import { QuerySnippetManager } from '../snippet/QuerySnippetManager';
+import { Connection } from "@/lib/connection/connection";
+import { StringUtils } from "@/lib/string-utils";
+import type { Ace } from "ace-builds";
+import { QuerySnippetManager } from "../snippet/QuerySnippetManager";
 
 type CompletionItem = {
   doc?: string;
@@ -42,158 +42,243 @@ export class QuerySuggestionManager {
     // Clear qualified table completions for new connection
     this.qualifiedTableCompletions = [];
 
-    // The SQL returns 4 columns: name/type/score/description
-    connection.executeSQL(
-      {
-        sql: `SELECT name, 'database', -30, '' FROM system.databases ORDER BY name
-UNION ALL
-    -- Functions
-    SELECT name, 'function', -50, '' FROM 
-    (
-        SELECT DISTINCT name FROM (
-                SELECT concat(name, '()') AS name FROM system.functions WHERE is_aggregate = 0
-            UNION ALL
-                -- Aggregate Combinator
-                SELECT concat(functions.name, combinator.name, '()') AS name FROM system.functions AS functions
-                CROSS JOIN system.aggregate_function_combinators  AS combinator
-                WHERE functions.is_aggregate
-            UNION ALL
-                -- cluster/clusterAllReplicas functions are not in the table now
-                SELECT 'cluster()' AS name
-            UNION ALL
-                SELECT 'clusterAllReplicas()' AS name
-        ) ORDER BY name
-    )
-UNION ALL
-    -- Data Type
-    SELECT multiIf(alias_to = '', name, alias_to) AS name, 'type', -0, '' FROM system.data_type_families
-UNION ALL
-    -- Settings, has its own completion
-    SELECT name, 'setting', -60, concat(description, '<br/><br/>Current value: ', value) FROM system.settings ORDER BY name
-UNION ALL
-    -- Merge Tree Setting, has its own completion
-    SELECT name, 'merge_tree_setting', -100, concat(description, '<br/><br/>Current value: ', value) FROM system.merge_tree_settings ORDER BY name
-UNION ALL
-    -- Table Engine, has its own completion
-    SELECT name, 'engine', -100, '' FROM system.table_engines ORDER BY name
-UNION ALL
-    -- Format Setting, has its own completion
-    SELECT name, 'format', -60, '' FROM system.formats WHERE is_output ORDER BY name`,
-        params: {
-          default_format: 'JSONCompact',
-        },
-      },
-      (response) => {
-        const returnList = response.data.data;
+    // Initialize completion arrays
+    this.miscCompletion = [];
+    this.databaseCompletion = [];
+    this.formatCompletion = [];
+    this.allSettingsCompletion = [];
+    this.userSettingsCompletion = [];
+    this.engineCompletion = [];
 
-        this.miscCompletion = [];
-        this.databaseCompletion = [];
-        this.formatCompletion = [];
-        this.allSettingsCompletion = [];
-        this.userSettingsCompletion = [];
+    // Helper function to process completion items
+    const processCompletionItem = (eachRowObject: any) => {
+      const description = eachRowObject[3];
+      const docHTML =
+        description !== "" ? ["<b>", eachRowObject[0], "</b>", "<hr />", eachRowObject[3]].join("") : undefined;
 
-        returnList.forEach((eachRowObject: any) => {
-          const description = eachRowObject[3];
-          const docHTML =
-            description !== ''
-              ? ['<b>', eachRowObject[0], '</b>', '<hr />', eachRowObject[3]].join('')
-              : undefined;
+      const completion: CompletionItem = {
+        caption: eachRowObject[0],
+        value: eachRowObject[0],
+        meta: eachRowObject[1],
+        score: eachRowObject[2],
+        docHTML: docHTML,
+      };
 
-          const completion: CompletionItem = {
-            caption: eachRowObject[0],
-            value: eachRowObject[0],
-            meta: eachRowObject[1],
-            score: eachRowObject[2],
-            docHTML: docHTML,
-          };
+      const type = eachRowObject[1];
+      if (type === "format") {
+        this.formatCompletion.push(completion);
+      } else if (type === "setting") {
+        this.userSettingsCompletion.push(completion);
+        this.allSettingsCompletion.push(completion);
+      } else if (type === "merge_tree_setting") {
+        this.allSettingsCompletion.push(completion);
+      } else if (type === "engine") {
+        this.engineCompletion.push(completion);
+      } else if (type === "database") {
+        this.databaseCompletion.push(completion);
+        // Add to misc too
+        this.miscCompletion.push(completion);
+      } else {
+        this.miscCompletion.push(completion);
+      }
+    };
 
-          const type = eachRowObject[1];
-          if (type === 'format') {
-            this.formatCompletion.push(completion);
-          } else if (type === 'setting') {
-            this.userSettingsCompletion.push(completion);
-            this.allSettingsCompletion.push(completion);
-          } else if (type === 'merge_tree_setting') {
-            this.allSettingsCompletion.push(completion);
-          } else if (type === 'engine') {
-            this.engineCompletion.push(completion);
-          } else if (type === 'database') {
-            this.databaseCompletion.push(completion);
-
-            // Add to misc too
-            this.miscCompletion.push(completion);
-          } else {
-            this.miscCompletion.push(completion);
-          }
+    // Helper function to add cluster completions
+    const addClusterCompletions = () => {
+      if (connection.cluster && connection.cluster.length > 0) {
+        this.miscCompletion.push({
+          caption: `${connection.cluster}`,
+          value: `${connection.cluster}`,
+          meta: "cluster",
+          score: -10,
         });
 
-        // Add 'on cluster xxx' keyword to miscCompletion when in cluster mode
-        if (connection.cluster && connection.cluster.length > 0) {
-          this.miscCompletion.push({
-            caption: `${connection.cluster}`,
-            value: `${connection.cluster}`,
-            meta: 'cluster',
-            score: -10,
-          });
-
-          this.miscCompletion.push({
-            caption: `ON CLUSTER ${connection.cluster}`,
-            value: `ON CLUSTER ${connection.cluster}`,
-            meta: 'cluster',
-            score: -10,
-          });
-        }
-
-        // Add qualified table completions if they've been loaded
-        if (this.qualifiedTableCompletions.length > 0) {
-          this.miscCompletion.push(...this.qualifiedTableCompletions);
-        }
-      },
-      (error) => {
-        console.error('Failed to load completion data:', error);
+        this.miscCompletion.push({
+          caption: `ON CLUSTER ${connection.cluster}`,
+          value: `ON CLUSTER ${connection.cluster}`,
+          meta: "cluster",
+          score: -10,
+        });
       }
-    );
+
+      // Add qualified table completions if they've been loaded
+      if (this.qualifiedTableCompletions.length > 0) {
+        this.miscCompletion.push(...this.qualifiedTableCompletions);
+      }
+    };
+
+    // Query 1: Databases
+    connection
+      .executeAsync(`SELECT name, 'database', -30, '' FROM system.databases ORDER BY name`, {
+        default_format: "JSONCompact",
+      })
+      .response.then((response) => {
+        const returnList = response.data.data;
+        returnList.forEach((eachRowObject: any) => {
+          processCompletionItem(eachRowObject);
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to load database completion data:", error);
+      });
+
+    // Query 2: Functions
+    connection
+      .executeAsync(
+        `
+SELECT * FROM (
+        SELECT concat(name, '()') AS name, ${connection.session.function_table_has_description_column ? 'description' : ''} FROM system.functions WHERE is_aggregate = 0
+    UNION ALL
+        -- Aggregate Combinator
+        SELECT concat(functions.name, combinator.name, '()') AS name, ${connection.session.function_table_has_description_column ? 'functions.description' : ''} FROM system.functions AS functions
+        CROSS JOIN system.aggregate_function_combinators  AS combinator
+        WHERE functions.is_aggregate
+    UNION ALL
+        -- cluster/clusterAllReplicas functions are not in the table now
+        SELECT 'cluster()', 'execute query on one replica of all shards in a given cluster' AS name
+    UNION ALL
+        SELECT 'clusterAllReplicas()', 'execute query on all replicas of all shards in a given cluster' AS name
+) ORDER BY name`,
+        {
+          default_format: "JSONCompact",
+        }
+      )
+      .response.then((response) => {
+        const returnList = response.data.data;
+        returnList.forEach((eachRowObject: any) => {
+          const suggestion = [
+            eachRowObject[0],
+            'function',
+            -50,
+            eachRowObject[1]
+          ];
+          processCompletionItem(suggestion);
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to load function completion data:", error);
+      });
+
+    // Query 3: Data Types
+    connection
+      .executeAsync(
+        `SELECT multiIf(alias_to = '', name, alias_to) AS name, 'type', -0, '' FROM system.data_type_families`,
+        {
+          default_format: "JSONCompact",
+        }
+      )
+      .response.then((response) => {
+        const returnList = response.data.data;
+        returnList.forEach((eachRowObject: any) => {
+          processCompletionItem(eachRowObject);
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to load data type completion data:", error);
+      });
+
+    // Query 4: Settings
+    connection
+      .executeAsync(
+        `SELECT name, 'setting', -60, concat(description, '<br/><br/>Current value: ', value) FROM system.settings ORDER BY name`,
+        {
+          default_format: "JSONCompact",
+        }
+      )
+      .response.then((response) => {
+        const returnList = response.data.data;
+        returnList.forEach((eachRowObject: any) => {
+          processCompletionItem(eachRowObject);
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to load settings completion data:", error);
+      });
+
+    // Query 5: Merge Tree Settings
+    connection
+      .executeAsync(
+        `SELECT name, 'merge_tree_setting', -100, concat(description, '<br/><br/>Current value: ', value) FROM system.merge_tree_settings ORDER BY name`,
+        {
+          default_format: "JSONCompact",
+        }
+      )
+      .response.then((response) => {
+        const returnList = response.data.data;
+        returnList.forEach((eachRowObject: any) => {
+          processCompletionItem(eachRowObject);
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to load merge tree settings completion data:", error);
+      });
+
+    // Query 6: Table Engines
+    connection
+      .executeAsync(`SELECT name, 'engine', -100, '' FROM system.table_engines ORDER BY name`, {
+        default_format: "JSONCompact",
+      })
+      .response.then((response) => {
+        const returnList = response.data.data;
+        returnList.forEach((eachRowObject: any) => {
+          processCompletionItem(eachRowObject);
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to load table engine completion data:", error);
+      });
+
+    // Query 7: Formats
+    connection
+      .executeAsync(`SELECT name, 'format', -60, '' FROM system.formats WHERE is_output ORDER BY name`, {
+        default_format: "JSONCompact",
+      })
+      .response.then((response) => {
+        const returnList = response.data.data;
+        returnList.forEach((eachRowObject: any) => {
+          processCompletionItem(eachRowObject);
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to load format completion data:", error);
+      });
 
     //
     // Get keywords from system.keywords if the table exists
     //
-    connection.executeSQL(
-      {
-        sql: `SELECT keyword, 'keyword', -10, '' FROM system.keywords ORDER BY keyword`,
-        params: {
-          default_format: 'JSONCompact',
-        },
-      },
-      (response) => {
+    connection
+      .executeAsync(`SELECT keyword, 'keyword', -10, '' FROM system.keywords ORDER BY keyword`, {
+        default_format: "JSONCompact",
+      })
+      .response.then((response) => {
         const returnList = response.data.data as any[];
         const keywordCompletions: CompletionItem[] = returnList.map((eachRowObject) => {
           return {
             caption: eachRowObject[0],
             value: eachRowObject[0],
-            meta: 'keyword',
+            meta: "keyword",
             score: -10,
           } as CompletionItem;
         });
         // Add keywords to miscCompletion
         this.miscCompletion.push(...keywordCompletions);
-      },
-      () => {
+      })
+      .catch(() => {
         // Silently fail if system.keywords table doesn't exist
         // This is expected for older ClickHouse versions
-      }
-    );
+      });
 
     //
     // Get tables
     //
-    connection.executeSQL(
-      {
-        sql: `SELECT database, name, comment FROM system.tables WHERE NOT startsWith(tables.name, '.inner') ORDER BY database, name`,
-        params: {
-          default_format: 'JSONCompact',
-        },
-      },
-      (response) => {
+    connection
+      .executeAsync(
+        `SELECT database, name, comment FROM system.tables WHERE NOT startsWith(tables.name, '.inner') ORDER BY database, name`,
+        {
+          default_format: "JSONCompact",
+        }
+      )
+      .response.then((response) => {
         this.tableCompletion.clear();
 
         const returnList = response.data.data as any[];
@@ -201,12 +286,10 @@ UNION ALL
         returnList.forEach((eachRowObject) => {
           const database = eachRowObject[0];
           const table = eachRowObject[1];
-          const comment = eachRowObject[2] || '';
+          const comment = eachRowObject[2] || "";
 
           // Build docHTML with comment if available
-          const docHTML = comment
-            ? ['<b>', table, '</b>', '<hr />', comment].join('')
-            : undefined;
+          const docHTML = comment ? ["<b>", table, "</b>", "<hr />", comment].join("") : undefined;
 
           if (!this.tableCompletion.has(database)) {
             this.tableCompletion.set(database, []);
@@ -215,7 +298,7 @@ UNION ALL
           completions?.push({
             caption: table,
             value: table,
-            meta: 'table',
+            meta: "table",
             score: 100,
             docHTML: docHTML,
           });
@@ -225,7 +308,7 @@ UNION ALL
           qualifiedTableCompletions.push({
             caption: qualifiedName,
             value: qualifiedName,
-            meta: 'table',
+            meta: "table",
             score: 100,
             docHTML: docHTML,
           });
@@ -241,23 +324,22 @@ UNION ALL
         if (this.miscCompletion.length > 0) {
           this.miscCompletion.push(...qualifiedTableCompletions);
         }
-      },
-      (error) => {
-        console.error('Failed to load table completion data:', error);
-      }
-    );
+      })
+      .catch((error) => {
+        console.error("Failed to load table completion data:", error);
+      });
 
     //
     // Get columns
     //
-    connection.executeSQL(
-      {
-        sql: `SELECT table, name, type, comment FROM system.columns WHERE NOT startsWith(table, '.inner') ORDER BY table, name`,
-        params: {
-          default_format: 'JSONCompact',
-        },
-      },
-      (response) => {
+    connection
+      .executeAsync(
+        `SELECT table, name, type, comment FROM system.columns WHERE NOT startsWith(table, '.inner') ORDER BY table, name`,
+        {
+          default_format: "JSONCompact",
+        }
+      )
+      .response.then((response) => {
         this.columnCompletion.clear();
 
         const returnList = response.data.data as any[];
@@ -265,14 +347,14 @@ UNION ALL
           const table = eachRowObject[0];
           const column = eachRowObject[1];
           const type = eachRowObject[2];
-          const comment = eachRowObject[3] || '';
+          const comment = eachRowObject[3] || "";
 
           // Build docHTML with type and comment if available
-          const docHTMLParts = ['<b>', column, '</b>', '<hr />', 'type: ', type];
+          const docHTMLParts = ["<b>", column, "</b>", "<hr />", "type: ", type];
           if (comment) {
-            docHTMLParts.push('<hr />', comment);
+            docHTMLParts.push("<hr />", comment);
           }
-          const docHTML = docHTMLParts.join('');
+          const docHTML = docHTMLParts.join("");
 
           if (!this.columnCompletion.has(table)) {
             this.columnCompletion.set(table, []);
@@ -281,16 +363,15 @@ UNION ALL
           completions?.push({
             caption: column,
             value: column,
-            meta: 'column',
+            meta: "column",
             score: 100,
             docHTML: docHTML,
           });
         });
-      },
-      (error) => {
-        console.error('Failed to load column completion data:', error);
-      }
-    );
+      })
+      .catch((error) => {
+        console.error("Failed to load column completion data:", error);
+      });
 
     //
     // GET CLUSTER
@@ -300,35 +381,33 @@ UNION ALL
         {
           caption: connection.cluster,
           value: connection.cluster,
-          meta: 'cluster',
+          meta: "cluster",
           score: 100,
         },
       ];
     } else {
-      connection.executeSQL(
-        {
-          sql: `SELECT distinct cluster FROM system.clusters ORDER BY cluster`,
-          params: {
-            default_format: 'JSONCompact',
-          },
-        },
-        (response) => {
+      connection
+        .executeAsync(`SELECT distinct cluster FROM system.clusters ORDER BY cluster`, {
+          default_format: "JSONCompact",
+        })
+        .response.then((response) => {
           const returnList = response.data.data as any[];
           this.clusterCompletion = returnList.map((eachRowObject) => {
             const cluster = eachRowObject[0];
             return {
               caption: cluster,
               value: cluster,
-              meta: 'cluster',
+              meta: "cluster",
               score: 100,
             } as CompletionItem;
           });
-        },
-        (error) => {
-          console.error('Failed to load cluster completion data:', error);
-        }
-      );
+        })
+        .catch((error) => {
+          console.error("Failed to load cluster completion data:", error);
+        });
     }
+
+    addClusterCompletions();
   }
 
   public getCompleters(completers: Ace.Completer[] | undefined): Ace.Completer[] {
@@ -342,8 +421,8 @@ UNION ALL
 
     return [
       {
-        id: 'clickhouse-schema',
-        triggerCharacters: ['.', '='],
+        id: "clickhouse-schema",
+        triggerCharacters: [".", "="],
 
         /**
          * 'ENGINE ='
@@ -351,13 +430,7 @@ UNION ALL
          * 'ENGINE = anyInput'
          *
          */
-        getCompletions: (
-          editor: Ace.Editor,
-          session: Ace.EditSession,
-          pos: Ace.Point,
-          prefix: any,
-          callback: any
-        ) => {
+        getCompletions: (editor: Ace.Editor, session: Ace.EditSession, pos: Ace.Point, prefix: any, callback: any) => {
           if (session !== undefined) {
             // Get current token
             let currentToken = session.getTokenAt(pos.row, pos.column);
@@ -375,11 +448,7 @@ UNION ALL
               // In this case, we need to backward the previous token to make decision which completion list should be used.
               // Only once backward
               let iterations = 2;
-              if (
-                currentTokenIndex > 0 &&
-                currentToken.type === 'text' &&
-                StringUtils.isAllSpace(currentToken.value)
-              ) {
+              if (currentTokenIndex > 0 && currentToken.type === "text" && StringUtils.isAllSpace(currentToken.value)) {
                 currentToken = tokenList[--currentTokenIndex];
 
                 // because here it's already backward
@@ -393,48 +462,36 @@ UNION ALL
               // The 2nd time, we process previous token of current input,
               // In this case, the completion is triggered by keyboard input
               for (let i = 0; i < iterations; i++) {
-                if (currentTokenIndex > 0 && currentToken.value.indexOf('.') > -1) {
+                if (currentTokenIndex > 0 && currentToken.value.indexOf(".") > -1) {
                   if (this.getTableCompletion(currentTokenIndex, tokenList, callback)) {
                     return;
                   }
-                } else if (currentTokenIndex > 0 && currentToken.value.indexOf('=') > -1) {
+                } else if (currentTokenIndex > 0 && currentToken.value.indexOf("=") > -1) {
                   if (this.getEngineCompletion(currentTokenIndex, tokenList, callback)) {
                     return;
                   }
                 } else {
-                  if (
-                    currentToken.value.localeCompare('CLUSTER', undefined, { sensitivity: 'accent' }) === 0
-                  ) {
+                  if (currentToken.value.localeCompare("CLUSTER", undefined, { sensitivity: "accent" }) === 0) {
                     callback(null, this.clusterCompletion);
                     return;
                   }
-                  if (
-                    currentToken.value.localeCompare('SETTINGS', undefined, { sensitivity: 'accent' }) === 0
-                  ) {
+                  if (currentToken.value.localeCompare("SETTINGS", undefined, { sensitivity: "accent" }) === 0) {
                     callback(null, this.allSettingsCompletion);
                     return;
                   }
-                  if (
-                    currentToken.value.localeCompare('SETTING', undefined, { sensitivity: 'accent' }) === 0
-                  ) {
+                  if (currentToken.value.localeCompare("SETTING", undefined, { sensitivity: "accent" }) === 0) {
                     callback(null, this.allSettingsCompletion);
                     return;
                   }
-                  if (
-                    currentToken.value.localeCompare('FORMAT', undefined, { sensitivity: 'accent' }) === 0
-                  ) {
+                  if (currentToken.value.localeCompare("FORMAT", undefined, { sensitivity: "accent" }) === 0) {
                     callback(null, this.formatCompletion);
                     return;
                   }
-                  if (
-                    currentToken.value.localeCompare('FROM', undefined, { sensitivity: 'accent' }) === 0
-                  ) {
+                  if (currentToken.value.localeCompare("FROM", undefined, { sensitivity: "accent" }) === 0) {
                     callback(null, this.databaseCompletion);
                     return;
                   }
-                  if (
-                    currentToken.value.localeCompare('SET', undefined, { sensitivity: 'accent' }) === 0
-                  ) {
+                  if (currentToken.value.localeCompare("SET", undefined, { sensitivity: "accent" }) === 0) {
                     callback(null, this.userSettingsCompletion);
                     return;
                   }
@@ -444,7 +501,7 @@ UNION ALL
                     currentTokenIndex--;
                   } while (
                     currentTokenIndex > 0 &&
-                    tokenList[currentTokenIndex].type === 'text' &&
+                    tokenList[currentTokenIndex].type === "text" &&
                     StringUtils.isAllSpace(tokenList[currentTokenIndex].value)
                   );
                   currentToken = tokenList[currentTokenIndex];
@@ -484,9 +541,9 @@ UNION ALL
     let prevToken = null;
     do {
       prevToken = tokenList[--currentTokenIndex];
-    } while (currentTokenIndex > 0 && prevToken.type === 'text' && prevToken.value.trim() === '');
+    } while (currentTokenIndex > 0 && prevToken.type === "text" && prevToken.value.trim() === "");
 
-    if (prevToken.value.localeCompare('ENGINE', undefined, { sensitivity: 'accent' }) === 0) {
+    if (prevToken.value.localeCompare("ENGINE", undefined, { sensitivity: "accent" }) === 0) {
       callback(null, this.engineCompletion);
       return true;
     }

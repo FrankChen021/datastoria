@@ -314,11 +314,12 @@ export class Connection {
   }
 
   public executeAsyncOnNode(
-    node: string | undefined,
     sql: string,
     params?: Record<string, unknown>,
     headers?: Record<string, string>
   ): { response: Promise<ApiResponse>; abortController: AbortController } {
+    const node = this.session.targetNode;
+
     if (node === undefined) {
       return this.executeAsync(sql, params, headers);
     }
