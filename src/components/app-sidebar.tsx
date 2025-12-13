@@ -13,7 +13,7 @@ import { useConnection } from "@/lib/connection/connection-context";
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
 import { Database, Search, Settings, Terminal } from "lucide-react";
 import { useEffect, useState } from "react";
-import { ConnectionSelector } from "./connection/connection-selector";
+import { ConnectionSelectorPopover } from "./connection/connection-selector-popover";
 import { showQueryContextEditDialog } from "./query-tab/query-control/query-context-edit-dialog";
 import { TabManager } from "./tab-manager";
 import { useTheme } from "./theme-provider";
@@ -40,7 +40,7 @@ export function AppSidebar() {
               <Tooltip open={isConnectionSelectorOpen ? false : undefined}>
                 <TooltipTrigger asChild>
                   <div>
-                    <ConnectionSelector
+                    <ConnectionSelectorPopover
                       trigger={
                         <SidebarMenuButton size="lg" className="justify-center">
                           <Database className="h-5 w-5" />

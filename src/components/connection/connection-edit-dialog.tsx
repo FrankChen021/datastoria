@@ -694,10 +694,10 @@ function ConnectionEditDialogWrapper({
                   handleSave();
                 }}
               >
-                <FieldGroup>
+                <FieldGroup className="space-y-2">
                   {hasProvider && <Field>{renderConnectionSelector}</Field>}
 
-                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 gap-y-1 items-center">
+                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
                     <FieldLabel htmlFor="url" className="text-right">
                       URL
                     </FieldLabel>
@@ -718,7 +718,7 @@ function ConnectionEditDialogWrapper({
                     )}
                   </Field>
 
-                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 gap-y-1 items-center">
+                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
                     <FieldLabel htmlFor="user" className="text-right">
                       User
                     </FieldLabel>
@@ -736,7 +736,7 @@ function ConnectionEditDialogWrapper({
                     )}
                   </Field>
 
-                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 gap-y-1 items-center">
+                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
                     <FieldLabel htmlFor="password" className="text-right">
                       Password
                     </FieldLabel>
@@ -765,19 +765,18 @@ function ConnectionEditDialogWrapper({
                     </FieldDescription>
                   </Field>
 
-                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 gap-y-1 items-center">
+                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
                     <FieldLabel htmlFor="cluster" className={`text-right ${!editable ? "text-muted-foreground" : ""}`}>
                       Cluster
                     </FieldLabel>
                     <Input id="cluster" value={cluster} disabled={!editable} onChange={handleClusterChange} />
                     <div></div>
                     <FieldDescription>
-                      Configure the cluster name if the ClickHouse server is deployed as cluster to access full features
-                      of this console.
+                      Configure the cluster name to access full features of this console if the ClickHouse server is deployed as cluster
                     </FieldDescription>
                   </Field>
 
-                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 gap-y-1 items-center">
+                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
                     <FieldLabel htmlFor="name" className="text-right">
                       Connection Name
                     </FieldLabel>
@@ -791,7 +790,7 @@ function ConnectionEditDialogWrapper({
                     {fieldErrors.name ? (
                       <FieldDescription className="text-destructive">{fieldErrors.name}</FieldDescription>
                     ) : (
-                      <FieldDescription>Name of the connection.</FieldDescription>
+                      <FieldDescription>Name of the connection</FieldDescription>
                     )}
                   </Field>
 

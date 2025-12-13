@@ -7,7 +7,7 @@ import { useConnection } from "@/lib/connection/connection-context";
 import { AlertCircle, Loader2, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { ConnectionSelector } from "./connection/connection-selector";
+import { ConnectionSelectorDialog } from "./connection/connection-selector-dialog";
 import { MainPageTabList } from "./main-page-tab-list";
 
 export type AppInitStatus = "initializing" | "ready" | "error";
@@ -50,7 +50,7 @@ function MainPageLoadStatusComponent({ status, connectionName, error, onRetry }:
             <RotateCcw className="h-4 w-4" />
             Retry
           </Button>
-          <ConnectionSelector
+          <ConnectionSelectorDialog
             trigger={
               <Button variant="outline" className="gap-2">
                 Switch Connection

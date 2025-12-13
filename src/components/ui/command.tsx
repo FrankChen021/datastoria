@@ -124,8 +124,18 @@ const CommandShortcut = ({
 }
 CommandShortcut.displayName = "CommandShortcut"
 
+const CommandDialog = ({ children, ...props }: React.ComponentPropsWithoutRef<typeof CommandPrimitive.Dialog>) => {
+  return (
+    <CommandPrimitive.Dialog {...props}>
+      {children}
+    </CommandPrimitive.Dialog>
+  )
+}
+CommandDialog.displayName = "CommandDialog"
+
 export {
   Command,
+  CommandDialog,
   CommandInput,
   CommandList,
   CommandEmpty,

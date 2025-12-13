@@ -121,13 +121,15 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
           }
         }}
       >
-        <DialogHeader>
-          <DialogTitle>{dialogProps.title}</DialogTitle>
-          <DialogDescription>{dialogProps.description}</DialogDescription>
-        </DialogHeader>
+        {(dialogProps.title || dialogProps.description) && (
+          <DialogHeader>
+            <DialogTitle>{dialogProps.title}</DialogTitle>
+            <DialogDescription>{dialogProps.description}</DialogDescription>
+          </DialogHeader>
+        )}
         <div
           className={cn(
-            "flex-grow my-2",
+            "flex-grow ",
             !dialogProps.disableContentScroll && "overflow-auto",
             dialogProps.disableContentScroll && "flex flex-col min-h-0"
           )}
