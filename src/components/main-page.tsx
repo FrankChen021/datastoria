@@ -2,7 +2,7 @@ import { ConnectionWizard } from "@/components/connection/connection-wizard";
 import { SchemaTreeLoader, type SchemaLoadResult } from "@/components/schema-tree/schema-tree-loader";
 import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
 import { Button } from "@/components/ui/button";
-import { Connection } from "@/lib/connection/connection";
+import { Connection, type Session } from "@/lib/connection/connection";
 import { useConnection } from "@/lib/connection/connection-context";
 import { AlertCircle, Loader2, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -57,20 +57,20 @@ function MainPageLoadStatusComponent({ status, error, onRetry }: MainPageLoadSta
 }
 
 // Initialize cluster info on a temporary connection and return the updates
-async function initializeClusterInfo(connection: Connection): Promise<{ targetNode?: string; internalUser?: string }> {
-  if (connection.cluster && connection.cluster.length > 0 && connection.targetNode === undefined) {
-    // for cluster mode, pick a node as target node for further SQL execution
-    const { response } = connection.executeAsync("SELECT currentUser()", { default_format: "JSONCompact" });
-    const apiResponse = await response;
-    if (apiResponse.httpStatus === 200) {
-      const returnNode = apiResponse.httpHeaders["x-clickhouse-server-display-name"];
-      const internalUser = apiResponse.data.data[0][0];
+async function getSessionInfo(connection: Connection): Promise<Partial<Session>> {
+  const { response } = connection.executeAsync("SELECT currentUser(), timezone()", { default_format: "JSONCompact" });
+  const apiResponse = await response;
+  if (apiResponse.httpStatus === 200) {
+    const returnNode = apiResponse.httpHeaders["x-clickhouse-server-display-name"];
+    const internalUser = apiResponse.data.data[0][0];
+    const timezone = apiResponse.data.data[0][1];
 
-      return {
-        targetNode: returnNode,
-        internalUser: internalUser,
-      };
-    }
+    const isCluster = connection.cluster && connection.cluster.length > 0 && connection.session.targetNode === undefined;
+    return {
+      targetNode: isCluster ? returnNode : undefined,
+      internalUser: internalUser,
+      timezone: timezone,
+    };
   }
 
   return {};
@@ -107,23 +107,24 @@ export function MainPage() {
 
       try {
         // 1. Initialize cluster info and get the updates
-        const clusterUpdates = await initializeClusterInfo(connection);
+        const sessionUpdates = await getSessionInfo(connection);
 
         // 2. Create a temporary connection with cluster info for loading schema
         let tempConnection = connection;
-        if (Object.keys(clusterUpdates).length > 0) {
-          // Create a new connection object with cluster updates
+        if (Object.keys(sessionUpdates).length > 0) {
+          // Create a new connection object with session updates
           tempConnection = Object.create(Object.getPrototypeOf(connection));
-          Object.assign(tempConnection, connection, clusterUpdates);
+          Object.assign(tempConnection, connection);
+          tempConnection.session = { ...connection.session, ...sessionUpdates };
         }
 
         // 3. Load Schema data using the temporary connection
         const result = await schemaLoader.load(tempConnection);
 
         if (isMounted) {
-          // 4. Update connection context with cluster info
-          if (Object.keys(clusterUpdates).length > 0) {
-            updateConnection(clusterUpdates);
+          // 4. Update connection context with session info
+          if (Object.keys(sessionUpdates).length > 0) {
+            updateConnection(sessionUpdates);
           }
 
           setLoadedSchemaData(result);

@@ -451,7 +451,7 @@ export function buildSchemaTree(
   schemaData: SchemaLoadResult,
   onHostChange?: (hostName: string) => void
 ): TreeDataItem {
-  let targetServerNode = connection.targetNode;
+  let targetServerNode = connection.session.targetNode;
 
   const canSwitchServer = (connection.cluster || "").length > 0;
 

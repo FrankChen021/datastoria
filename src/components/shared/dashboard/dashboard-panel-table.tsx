@@ -135,7 +135,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           }
 
           // Replace time span template parameters in SQL (e.g., {rounding:UInt32}, {seconds:UInt32}, etc.)
-          let finalSql = param.selectedTimeSpan ? replaceTimeSpanParams(query.sql, param.selectedTimeSpan) : query.sql;
+          let finalSql = param.selectedTimeSpan ? replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.session.timezone) : query.sql;
 
           // Apply server-side sorting if enabled
           // Use sortRef for synchronous access to current sort state
@@ -145,7 +145,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
 
           try {
             const { response, abortController } = connection.executeAsyncOnNode(
-              connection.targetNode,
+              connection.session.targetNode,
               finalSql,
               {
                 default_format: "JSON",

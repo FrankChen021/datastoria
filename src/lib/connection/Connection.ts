@@ -36,6 +36,13 @@ class ApiCancellerImpl implements ApiCanceller {
   }
 }
 
+export interface Session {
+  targetNode?: string;
+  internalUser: string;
+  timezone: string;
+  function_table_has_description_column?: boolean;
+}
+
 export class Connection {
   // Static config
   readonly name: string;
@@ -49,14 +56,8 @@ export class Connection {
   readonly path: string;
   readonly userParams: Record<string, unknown>;
 
-  // Target ClickHouse node to execute SQLs
-  targetNode?: string;
-
-  // Internal user for remote function execution
-  readonly internalUser: string;
-
-  // Capability
-  function_table_has_description_column: boolean = false;
+  // Session information
+  session: Session;
 
   // HTTP Client
   private instance: AxiosInstance;
@@ -67,7 +68,6 @@ export class Connection {
     this.user = config.user;
     this.password = config.password;
     this.cluster = config.cluster;
-    this.internalUser = config.user; // Default to external configured user
 
     const urlObj = new URL(config.url);
     this.host = urlObj.origin;
@@ -84,6 +84,13 @@ export class Connection {
         this.userParams["max_execution_time"] = parseInt(maxExecTime, 10);
       }
     }
+
+    // Initialize session with defaults
+    this.session = {
+      internalUser: config.user, // Default to external configured user
+      timezone: "UTC", // Default timezone
+      function_table_has_description_column: false,
+    };
 
     // Initialize Axios
     const axiosConfig: AxiosRequestConfig = {
@@ -331,7 +338,7 @@ SELECT * FROM remote(
   view(
         ${sql}
   ), 
-  '${this.internalUser}', 
+  '${this.session.internalUser}', 
   '${this.password}')`,
       params,
       headers

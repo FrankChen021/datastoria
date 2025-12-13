@@ -89,7 +89,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
     (hostName: string) => {
       if (!connection) return;
 
-      connection.targetNode = hostName;
+      connection.session.targetNode = hostName;
 
       // Refresh the tree to load data from the new host
       loadDatabases();

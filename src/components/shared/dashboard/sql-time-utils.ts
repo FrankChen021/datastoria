@@ -25,6 +25,20 @@ export function calculateTimeSpanParams(selectedTimeSpan: TimeSpan) {
   };
 }
 
+function toStringFormat(secondsSinceEpoch: number, timezone: string): string {
+  const date = new Date(secondsSinceEpoch * 1000);
+  return date.toLocaleString('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).replace(',', '');
+}
+
 /**
  * Replaces time span template parameters in SQL query with actual values
  * Supported parameters:
@@ -32,18 +46,23 @@ export function calculateTimeSpanParams(selectedTimeSpan: TimeSpan) {
  * - {seconds:UInt32} -> seconds value (duration in seconds)
  * - {startTimestamp:UInt32} -> startTimestamp value (seconds-based Unix timestamp)
  * - {endTimestamp:UInt32} -> endTimestamp value (seconds-based Unix timestamp)
+ * - {from:String} -> start time as string in format 'YYYY-MM-DD HH:mm:ss' in the given timezone
  *
  * @param sql The SQL query string with template parameters
- * @param selectedTimeSpan The selected time span
+ * @param timeSpan The selected time span
+ * @param timezone The timezone to use for time-based queries
  * @returns The SQL query with parameters replaced
  */
-export function replaceTimeSpanParams(sql: string, selectedTimeSpan: TimeSpan): string {
-  const params = calculateTimeSpanParams(selectedTimeSpan);
+export function replaceTimeSpanParams(sql: string, timeSpan: TimeSpan, timezone: string): string {
+  const params = calculateTimeSpanParams(timeSpan);
 
   sql = sql.replace(/{rounding:UInt32}/g, String(params.rounding));
   sql = sql.replace(/{seconds:UInt32}/g, String(params.seconds));
   sql = sql.replace(/{startTimestamp:UInt32}/g, String(params.startTimestamp));
   sql = sql.replace(/{endTimestamp:UInt32}/g, String(params.endTimestamp));
+  
+  sql = sql.replace(/{from:String}/g, `'${toStringFormat(params.startTimestamp, timezone)}'`);
+  sql = sql.replace(/{to:String}/g, `'${toStringFormat(params.endTimestamp, timezone)}'`);
 
   return sql;
 }

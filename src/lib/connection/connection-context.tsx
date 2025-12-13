@@ -1,4 +1,4 @@
-import { Connection } from "@/lib/connection/connection";
+import { Connection, type Session } from "@/lib/connection/connection";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -8,7 +8,7 @@ interface ConnectionContextType {
     setIsReady: (ready: boolean) => void;
     connection: Connection | null;
     switchConnection: (conn: ConnectionConfig | null) => void;
-    updateConnection: (updates: Partial<Connection>) => void;
+    updateConnection: (session: Partial<Session>) => void;
 }
 
 export const ConnectionContext = createContext<ConnectionContextType>({
@@ -56,7 +56,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         }
     };
 
-    const updateConnection = (updates: Partial<Connection>) => {
+    const updateConnection = (sessionUpdates: Partial<Session>) => {
         setConnection((prev) => {
             if (!prev) return null;
             // Since Connection is a class, we need to be careful about immutability if we are spreading.
@@ -67,7 +67,10 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
             // Ideally we should clone the connection. 
             // For now, let's assume we can create a new object with prototype.
             const newConn = Object.create(Object.getPrototypeOf(prev));
-            return Object.assign(newConn, prev, updates);
+            Object.assign(newConn, prev);
+            // Update the session property
+            newConn.session = { ...prev.session, ...sessionUpdates };
+            return newConn;
         });
     };
 

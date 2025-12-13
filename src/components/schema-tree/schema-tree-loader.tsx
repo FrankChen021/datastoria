@@ -51,7 +51,7 @@ ORDER BY lower(database), database, table, columnName`;
 
     try {
       const { response, abortController } = connection.executeAsyncOnNode(
-        connection.targetNode,
+        connection.session.targetNode,
         sql,
         { default_format: "JSON", output_format_json_quote_64bit_integers: 0 }
       );

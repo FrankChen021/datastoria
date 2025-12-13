@@ -31,6 +31,10 @@ interface ConnectionSelectorProps {
    * Side of the popover. Defaults to "bottom" for nav-bar, "right" for sidebar.
    */
   side?: "top" | "right" | "bottom" | "left";
+  /**
+   * Callback that receives the popover open state. Useful for disabling tooltips when popover is open.
+   */
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function ConnectionSelector(
@@ -39,10 +43,17 @@ export function ConnectionSelector(
     popoverClassName = "w-[400px] p-0",
     sideOffset,
     side,
+    onOpenChange,
   }: ConnectionSelectorProps = {} as ConnectionSelectorProps
 ) {
   const { connection, switchConnection } = useConnection();
   const [isCommandOpen, setIsCommandOpen] = useState(false);
+
+  // Handle open state changes
+  const handleOpenChange = (open: boolean) => {
+    setIsCommandOpen(open);
+    onOpenChange?.(open);
+  };
   const [connections, setConnections] = useState<ConnectionConfig[]>([]);
 
   // Load connections
@@ -173,7 +184,7 @@ export function ConnectionSelector(
   return (
     <>
       <div className="flex items-center gap-1">
-        <Popover open={isCommandOpen} onOpenChange={setIsCommandOpen}>
+        <Popover open={isCommandOpen} onOpenChange={handleOpenChange}>
           <PopoverTrigger asChild>{renderTrigger()}</PopoverTrigger>
           <PopoverContent
             className={popoverClassName}

@@ -130,7 +130,7 @@ SETTINGS allow_introspection_functions = 1
         type: "table",
         titleOption: {
           title: "Databases",
-          description: "The number of databases on the server",
+          description: "Database Size",
         },
         width: 4,
         fieldOptions: {
@@ -147,7 +147,7 @@ SETTINGS allow_introspection_functions = 1
             format: "comma_number",
           },
           percentage: {
-            title: "Size Percentage of All Tables",
+            title: "Size Percentage of All Databases",
             format: "percentage_bar",
             formatArgs: [100, 16],
             width: 100,
