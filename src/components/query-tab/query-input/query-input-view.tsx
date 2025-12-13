@@ -12,7 +12,7 @@ import "./completion/clickhouse-sql";
 import { TabManager } from "@/components/tab-manager";
 import { useTheme } from "@/components/theme-provider";
 import { useConnection } from "@/lib/connection/connection-context";
-import { updateHasSelectedText } from "../query-control/use-query-state";
+import { updateQueryEditorState } from "../query-control/use-query-editor";
 import { QueryExecutor } from "../query-execution/query-executor";
 import { QueryInputLocalStorage } from "../query-input/query-input-local-storage";
 import { QuerySuggestionManager } from "./completion/query-suggestion-manager";
@@ -22,8 +22,6 @@ import { QuerySnippetManager } from "./snippet/QuerySnippetManager";
 type ExtendedEditor = {
   completer?: Ace.Autocomplete;
 } & Ace.Editor;
-
-let globalEditor: ExtendedEditor | undefined;
 
 export interface QueryInputViewRef {
   focus: () => void;
@@ -56,10 +54,10 @@ const applyQueryToEditor = (editor: Ace.Editor, query: string, mode: "replace" |
 
     // Select the inserted text
     // Calculate how many lines the query has
-    const queryLines = query.split('\n').length;
+    const queryLines = query.split("\n").length;
     editor.selection.setRange({
       start: { row: 0, column: 0 },
-      end: { row: queryLines - 1, column: query.split('\n')[queryLines - 1].length }
+      end: { row: queryLines - 1, column: query.split("\n")[queryLines - 1].length },
     });
 
     // Focus the editor
@@ -72,6 +70,12 @@ const applyQueryToEditor = (editor: Ace.Editor, query: string, mode: "replace" |
 export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>(
   ({ initialQuery, initialMode = "replace" }, ref) => {
     const { connection } = useConnection();
+    const { theme } = useTheme();
+    const editorRef = useRef<ExtendedEditor | undefined>(undefined);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [editorHeight, setEditorHeight] = useState(200);
+    const [editorWidth, setEditorWidth] = useState(800);
+    const lastConnectionRef = useRef<string | null>(null);
 
     // Listen for query tab activation events with query data
     useEffect(() => {
@@ -79,8 +83,8 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
         if (event.detail.type === "query" && event.detail.query) {
           const { query, mode = "replace" } = event.detail;
 
-          if (globalEditor) {
-            applyQueryToEditor(globalEditor, query, mode);
+          if (editorRef.current) {
+            applyQueryToEditor(editorRef.current, query, mode);
           }
         }
       };
@@ -88,12 +92,6 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
       const unsubscribe = TabManager.onOpenTab(handler);
       return unsubscribe;
     }, []);
-    const { theme } = useTheme();
-    const editorRef = useRef<ExtendedEditor | undefined>(undefined);
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [editorHeight, setEditorHeight] = useState(200);
-    const [editorWidth, setEditorWidth] = useState(800);
-    const lastConnectionRef = useRef<string | null>(null);
 
     // Expose focus method to parent
     useImperativeHandle(ref, () => ({
@@ -167,15 +165,15 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
         // Only initialize if connection actually changed (by name)
         if (lastConnectionRef.current !== connectionName) {
           lastConnectionRef.current = connectionName;
-          // The completion manager and snippet manager expect a full Connection object, 
+          // The completion manager and snippet manager expect a full Connection object,
           // but Connection has compatible properties for now.
           // If they need specific properties, we might need to adjust or cast.
           // For now, casting as any to bypass strict type check if needed, or assume compatibility.
           // Assuming Connection is compatible enough or updating the managers is out of scope for this specific file change step.
           // Actually, let's use Connection.create which handles Connection, but here we are passing to managers.
-          // Let's assume for now we pass connection. 
-          // Wait, QuerySuggestionManager likely expects Connection. 
-          // Let's check if we need to update managers later. 
+          // Let's assume for now we pass connection.
+          // Wait, QuerySuggestionManager likely expects Connection.
+          // Let's check if we need to update managers later.
           // Connection has static config which is what completion likely needs (url, user, etc).
           // Let's passed it as is.
           QuerySuggestionManager.getInstance().onConnectionSelected(connection as any);
@@ -207,50 +205,58 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
       };
     }, []);
 
-    const handleEditorLoad = useCallback((editor: Ace.Editor) => {
-      const extendedEditor = editor as ExtendedEditor;
-      editor.setValue(QueryInputLocalStorage.getInput());
-      editor.renderer.setScrollMargin(5, 10, 0, 0);
-      editor.completers = QuerySuggestionManager.getInstance().getCompleters(editor.completers);
+    const handleEditorLoad = useCallback(
+      (editor: Ace.Editor) => {
+        const extendedEditor = editor as ExtendedEditor;
+        editor.setValue(QueryInputLocalStorage.getInput());
+        editor.renderer.setScrollMargin(5, 10, 0, 0);
+        editor.completers = QuerySuggestionManager.getInstance().getCompleters(editor.completers);
 
-      // Clear any selection and move cursor to end of text
-      editor.clearSelection();
-      const session = editor.getSession();
-      const lines = session.getLength();
-      if (lines > 0) {
-        const lastLine = session.getLine(lines - 1);
-        editor.moveCursorTo(lines - 1, lastLine.length);
-      } else {
-        editor.moveCursorTo(0, 0);
-      }
+        // Clear any selection and move cursor to end of text
+        editor.clearSelection();
+        const session = editor.getSession();
+        const lines = session.getLength();
+        if (lines > 0) {
+          const lastLine = session.getLine(lines - 1);
+          editor.moveCursorTo(lines - 1, lastLine.length);
+        } else {
+          editor.moveCursorTo(0, 0);
+        }
 
-      // Apply initial query if present
-      if (initialQuery) {
-        applyQueryToEditor(editor, initialQuery, initialMode);
-      }
+        // Apply initial query if present
+        if (initialQuery) {
+          applyQueryToEditor(editor, initialQuery, initialMode);
+        }
 
-      // Update command
-      editor.commands.addCommand({
-        name: "run",
-        bindKey: { win: "Ctrl-Enter", mac: "Command-Enter" },
-        exec: () => {
-          const text = extendedEditor.getSelectedText().trim() || extendedEditor.getValue().trim();
-          if (text) {
-            QueryExecutor.sendQueryRequest(text, {
-              params: {
-                default_format: "PrettyCompactMonoBlock",
-                //output_format_pretty_max_value_width: 50000,
-                //output_format_pretty_max_rows: 500,
-                output_format_pretty_row_numbers: true,
-              },
-            });
-          }
-        },
-      });
+        // Update command
+        editor.commands.addCommand({
+          name: "run",
+          bindKey: { win: "Ctrl-Enter", mac: "Command-Enter" },
+          exec: () => {
+            const text = extendedEditor.getSelectedText().trim() || extendedEditor.getValue().trim();
+            if (text) {
+              QueryExecutor.sendQueryRequest(text, {
+                params: {
+                  default_format: "PrettyCompactMonoBlock",
+                  //output_format_pretty_max_value_width: 50000,
+                  //output_format_pretty_max_rows: 500,
+                  output_format_pretty_row_numbers: true,
+                },
+              });
+            }
+          },
+        });
 
-      globalEditor = extendedEditor;
-      editorRef.current = extendedEditor;
-    }, [initialQuery, initialMode]);
+        // When editor is ready, update the editor state
+        updateQueryEditorState({
+          text: extendedEditor.getValue().trim(),
+          selectedText: "",
+        });
+
+        editorRef.current = extendedEditor;
+      },
+      [initialQuery, initialMode]
+    );
 
     // Update editor theme when it changes
     useEffect(() => {
@@ -261,12 +267,24 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
 
     const handleChange = useCallback((text: string) => {
       QueryInputLocalStorage.saveInput(text);
+      // Update global state with full text
+      if (editorRef.current) {
+        const selected = editorRef.current.getSelectedText().trim();
+        updateQueryEditorState({
+          text: text.trim(),
+          selectedText: selected,
+        });
+      }
     }, []);
 
     const handleSelectionChange = useCallback(() => {
-      if (globalEditor) {
-        const selected = globalEditor.getSelectedText().trim();
-        updateHasSelectedText(selected.length > 0);
+      if (editorRef.current) {
+        const selected = editorRef.current.getSelectedText().trim();
+        const allText = editorRef.current.getValue().trim();
+        updateQueryEditorState({
+          selectedText: selected,
+          text: allText,
+        });
       }
     }, []);
 
@@ -303,23 +321,7 @@ Press Alt-Space(Windows) or Option-Space(Mac) to popup the auto suggestion dialo
         />
       </div>
     );
-  });
-
-QueryInputView.displayName = 'QueryInputView';
-
-// Static methods for accessing editor (exported for external use)
-// These are intentionally in the same file to maintain access to globalEditor
-export function getAllText(): string {
-  return globalEditor?.getValue().trim() || "";
-}
-
-export function setText(text: string): void {
-  if (globalEditor !== undefined) {
-    globalEditor.setValue(text);
   }
-}
+);
 
-export function getSelectedOrAllText(): string {
-  const selected = globalEditor?.getSelectedText().trim() || "";
-  return selected.length === 0 ? getAllText() : selected;
-}
+QueryInputView.displayName = "QueryInputView";

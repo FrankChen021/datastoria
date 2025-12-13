@@ -6,42 +6,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
-import type { QueryContext } from "@/lib/query-context/query-context";
 import { QueryContextManager } from "@/lib/query-context/query-context-manager";
 import { toastManager } from "@/lib/toast";
 import { ChevronDown, Play } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { QueryExecutor } from "../query-execution/query-executor";
-import { getSelectedOrAllText } from "../query-input/query-input-view";
+import { useQueryEditor } from "./use-query-editor";
 
 export interface QueryControlProps {
   isExecuting?: boolean;
-  hasSelectedText?: boolean;
   onQuery?: () => void;
   onExplain?: (name: string) => void;
 }
 
-export function QueryControl({
-  isExecuting = false,
-  hasSelectedText = false,
-  onQuery,
-  onExplain,
-}: QueryControlProps) {
-  const [queryContext, setQueryContext] = useState<QueryContext>(() =>
-    QueryContextManager.getInstance().getContext()
-  );
+export function QueryControl({ isExecuting = false, onQuery, onExplain }: QueryControlProps) {
+  const { selectedText, text } = useQueryEditor();
   const [isExplainOpen, setIsExplainOpen] = useState(false);
-
-  // Listen for context updates
-  useEffect(() => {
-    const updateContext = () => {
-      setQueryContext(QueryContextManager.getInstance().getContext());
-    };
-
-    // Check for updates periodically (since QueryContextManager doesn't have events)
-    const interval = setInterval(updateContext, 500);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleQuery = useCallback(() => {
     if (onQuery) {
@@ -49,11 +29,14 @@ export function QueryControl({
       return;
     }
 
-    const text = getSelectedOrAllText();
-    if (!text) {
+    const queryText = selectedText || text;
+    if (!queryText) {
       toastManager.show("No SQL to execute", "error");
       return;
     }
+
+    // Get query context at execution time
+    const queryContext = QueryContextManager.getInstance().getContext();
 
     // Build params from query context
     const params: Record<string, unknown> = {
@@ -67,16 +50,18 @@ export function QueryControl({
       params.max_execution_time = queryContext.max_execution_time;
     }
 
-    QueryExecutor.sendQueryRequest(text, { params });
-  }, [onQuery, queryContext]);
+    QueryExecutor.sendQueryRequest(queryText, { params });
+  }, [onQuery, selectedText, text]);
 
   const removeComments = useCallback((sql: string) => {
-    return sql
-      // Remove single-line comments
-      .replace(/^--.*$/gm, "")
-      // Remove multiline comments
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .trim();
+    return (
+      sql
+        // Remove single-line comments
+        .replace(/^--.*$/gm, "")
+        // Remove multiline comments
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .trim()
+    );
   }, []);
 
   const handleExplain = useCallback(
@@ -86,14 +71,7 @@ export function QueryControl({
         return;
       }
 
-      let rawSQL = getSelectedOrAllText();
-      if (!rawSQL) {
-        toastManager.show("No SQL to execute", "error");
-        return;
-      }
-
-      // Remove comments and clean up SQL
-      rawSQL = removeComments(rawSQL);
+      let rawSQL = removeComments(selectedText || text);
 
       // EXPLAINing with ending \G results in error, so clean the sql first
       if (rawSQL.endsWith("\\G")) {
@@ -118,56 +96,35 @@ export function QueryControl({
         params,
       });
     },
-    [onExplain, removeComments]
+    [onExplain, removeComments, selectedText, text]
   );
 
-
+  const isDisabled = isExecuting || (selectedText.length === 0 && text.length === 0);
+  
   return (
     <div className="flex h-8 w-full gap-2 rounded-sm items-center border-b px-2 text-xs transition-colors">
-      <Button
-        disabled={isExecuting}
-        onClick={handleQuery}
-        size="sm"
-        variant="ghost"
-        className="h-6 gap-1 px-2 text-xs"
-      >
+      <Button disabled={isDisabled} onClick={handleQuery} size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs">
         <Play className="h-3 w-3" />
-        {hasSelectedText ? "Run Selected (Cmd+Enter)" : "Run (Cmd+Enter)"}
+        {selectedText ? "Run Selected (Cmd+Enter)" : "Run (Cmd+Enter)"}
       </Button>
 
       <Separator orientation="vertical" className="h-4" />
 
       <DropdownMenu open={isExplainOpen} onOpenChange={setIsExplainOpen}>
         <DropdownMenuTrigger asChild>
-          <Button
-            disabled={isExecuting}
-            size="sm"
-            variant="ghost"
-            className="h-6 gap-1 px-2 text-xs"
-          >
-            {hasSelectedText ? "Explain Selected" : "Explain"}
+          <Button disabled={isDisabled} size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs">
+            {selectedText ? "Explain Selected" : "Explain"}
             <ChevronDown className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={() => handleExplain("ast")}>
-            Explain AST
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExplain("syntax")}>
-            Explain Syntax
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExplain("plan")}>
-            Explain Plan
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExplain("pipeline")}>
-            Explain Pipeline
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExplain("estimate")}>
-            Explain Estimate
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExplain("ast")}>Explain AST</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExplain("syntax")}>Explain Syntax</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExplain("plan")}>Explain Plan</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExplain("pipeline")}>Explain Pipeline</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExplain("estimate")}>Explain Estimate</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
   );
 }
-

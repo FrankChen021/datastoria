@@ -23,7 +23,8 @@
 /* Override default style */
 .ace_placeholder {
   /* Default: 0 */
-  margin-top: 5px;
+  margin-top: 3px;
+  margin-left: 0px;
 
   /* Default: 0.7 */
   opacity: 1;

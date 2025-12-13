@@ -2,7 +2,6 @@ import { QueryListView } from "@/components/query-tab/query-list-view";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { type ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { QueryControl } from "./query-control/query-control";
-import { useHasSelectedText } from "./query-control/use-query-state";
 import { QueryExecutor, type QueryRequestEventDetail } from "./query-execution/query-executor";
 import { QueryInputView, type QueryInputViewRef } from "./query-input/query-input-view";
 
@@ -15,7 +14,6 @@ export interface QueryTabProps {
 
 
 const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTabProps) => {
-  const hasSelectedText = useHasSelectedText();
   const [isExecuting, setIsExecuting] = useState(false);
   const resultPanelRef = useRef<ImperativePanelHandle>(null);
   const queryInputRef = useRef<QueryInputViewRef>(null);
@@ -69,7 +67,6 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
 
       {/* Bottom Panel: Query Input View with Control */}
       <Panel defaultSize={100} minSize={20} className="bg-background flex flex-col">
-        <QueryControl isExecuting={isExecuting} hasSelectedText={hasSelectedText} />
         <div className="flex-1 overflow-hidden">
           <QueryInputView
             ref={queryInputRef}
@@ -77,6 +74,7 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
             initialMode={initialMode}
           />
         </div>
+        <QueryControl isExecuting={isExecuting} />
       </Panel>
     </PanelGroup>
   );

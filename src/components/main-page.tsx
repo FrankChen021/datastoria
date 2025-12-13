@@ -27,7 +27,7 @@ function MainPageLoadStatusComponent({ status, connectionName, error, onRetry }:
         <div className="bg-background p-4 ">
           <Loader2 className="h-8 w-8 text-primary animate-spin" />
         </div>
-        <h3 className="text-lg font-medium mb-2">Connecting to Database: {connectionName}</h3>
+        <h3 className="text-lg font-medium mb-2">Connecting to: {connectionName}</h3>
         <p className="text-muted-foreground text-sm mb-8">Loading schema and verifying connection</p>
         {/* Invisible spacer to match button height in error state */}
         <div className="h-10" />
