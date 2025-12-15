@@ -1,8 +1,7 @@
-# Multi-stage build for Vite React application
+# Multi-stage build for Next.js application
 
-# Stage 1: Builder stage
-FROM node:24-alpine AS builder
-
+# Stage 1: Dependencies
+FROM node:22-alpine AS deps
 WORKDIR /app
 
 # Install git and pnpm
@@ -10,7 +9,7 @@ RUN apk add --no-cache git && \
     corepack enable && \
     corepack prepare pnpm@9 --activate
 
-# Copy package files first for better layer caching
+# Copy package files
 COPY package*.json ./
 
 # Copy external dependencies
@@ -20,16 +19,15 @@ COPY external ./external
 RUN npm ci --legacy-peer-deps
 
 # Build external packages using pnpm workspaces
-# Disable interactive prompts
 ENV CI=true
 
-# Build cmdk using pnpm filter command from workspace root
+# Build cmdk
 WORKDIR /app/external/cmdk
 RUN pnpm install && \
     pnpm rebuild esbuild && \
     pnpm -F cmdk build
 
-# Build number-flow packages using pnpm filter from workspace root
+# Build number-flow packages
 WORKDIR /app/external/number-flow
 RUN pnpm install --no-frozen-lockfile && \
     pnpm rebuild esbuild && \
@@ -39,52 +37,62 @@ RUN pnpm install --no-frozen-lockfile && \
 # Return to app root
 WORKDIR /app
 
-# Copy TypeScript configuration files
-COPY tsconfig*.json ./
-COPY vite.config.ts ./
+# Stage 2: Builder
+FROM node:22-alpine AS builder
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/external ./external
+
+# Copy configuration files
+COPY package*.json ./
+COPY next.config.ts ./
+COPY tsconfig.json ./
 COPY tailwind.config.js ./
 COPY postcss.config.js ./
 COPY components.json ./
-COPY index.html ./
 
 # Copy source code and public assets
 COPY src ./src
 COPY public ./public
 
-# Build the application
+# Build the Next.js application
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
 RUN npm run build
 
-# Stage 2: Production stage with Node.js
-FROM node:24-alpine AS runner
-
+# Stage 3: Runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 # Install curl for health checks
 RUN apk add --no-cache curl
 
 ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
-ENV HOST=0.0.0.0
+ENV HOSTNAME=0.0.0.0
 
 # Create a non-root user
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nodejs
+    adduser --system --uid 1001 nextjs
 
-# Copy built files from builder stage
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-
-# Copy server.js from docker directory
-COPY --chown=nodejs:nodejs docker/server.js ./server.js
+# Copy necessary files from builder
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
 # Switch to non-root user
-USER nodejs
+USER nextjs
 
 # Expose port
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:3000/ || exit 1
 
-# Start the server
+# Start the Next.js server
 CMD ["node", "server.js"]

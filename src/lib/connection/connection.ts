@@ -176,7 +176,7 @@ export class Connection {
         const fetchUrl = url.toString();
         
         // Validate URL before making request
-        if (!fetchUrl || !fetchUrl.startsWith('http://') && !fetchUrl.startsWith('https://')) {
+        if (!fetchUrl || !(fetchUrl.startsWith('http://') || fetchUrl.startsWith('https://'))) {
           throw new QueryError(`Invalid URL: ${fetchUrl}. Connection may not be properly initialized.`);
         }
         

@@ -94,7 +94,7 @@ async function getSessionInfo(connection: Connection): Promise<Partial<Session>>
 }
 
 export function MainPage() {
-  const { connection, updateConnection, setIsReady, isReady, isMounted } = useConnection();
+  const { connection, updateConnection, setIsReady, isReady, isInitialized } = useConnection();
 
   // State for global initialization status (driven by SchemaTreeView)
   const [initStatus, setInitStatus] = useState<AppInitStatus>("initializing");
@@ -164,7 +164,7 @@ export function MainPage() {
   }, [connection, updateConnection, setIsReady, isReady, retryCount]);
 
   // Show loading state while hydrating from localStorage
-  if (!isMounted) {
+  if (!isInitialized) {
     return (
       <div className="h-full w-full flex items-center justify-center bg-muted/5">
         <Loader2 className="h-8 w-8 text-primary animate-spin" />

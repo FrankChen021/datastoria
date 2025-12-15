@@ -1,4 +1,13 @@
 import '@/index.css'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'ClickHouse Console',
+  description: 'AI-powered ClickHouse database management console',
+  icons: {
+    icon: '/logo_clickhouse.svg',
+  },
+}
 
 export default function RootLayout({
   children,
@@ -8,8 +17,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <title>ClickHouse Console</title>
-        <meta name="description" content="AI-powered ClickHouse database management console" />
         {/* Avoid Theme inconsistancy under SSR which causes the screen splash */}
         <script
           dangerouslySetInnerHTML={{

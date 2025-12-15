@@ -7,7 +7,7 @@ interface ConnectionContextType {
   isReady: boolean;
   setIsReady: (ready: boolean) => void;
   connection: Connection | null;
-  isMounted: boolean;
+  isInitialized: boolean;
   switchConnection: (conn: ConnectionConfig | null) => void;
   updateConnection: (session: Partial<Session>) => void;
 }
@@ -18,7 +18,7 @@ export const ConnectionContext = createContext<ConnectionContextType>({
     // Default implementation
   },
   connection: null,
-  isMounted: false,
+  isInitialized: false,
   switchConnection: () => {
     // Default implementation
   },
@@ -29,12 +29,12 @@ export const ConnectionContext = createContext<ConnectionContextType>({
 
 export function ConnectionProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState<boolean>(false);
-  const [isMounted, setIsMounted] = useState(false);
-  const [connection, setConnection] = useState<Connection | null>();
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [connection, setConnection] = useState<Connection | null>(null);
 
   // Mount effect - load connection on client side
   useEffect(() => {
-    setIsMounted(true);
+    setIsInitialized(true);
 
     const manager = ConnectionManager.getInstance();
     const savedConnection = manager.getLastSelectedOrFirst();
@@ -85,7 +85,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         isReady,
         setIsReady,
         connection,
-        isMounted,
+        isInitialized,
         switchConnection,
         updateConnection,
       }}

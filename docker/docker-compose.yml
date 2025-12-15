@@ -12,10 +12,41 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - HOST=0.0.0.0
+      - HOSTNAME=0.0.0.0
+      
+      # Authentication (Optional)
+      # Uncomment and configure the following variables to enable authentication
+      
+      # NextAuth Secret (Required if auth is enabled)
+      # Generate with: openssl rand -base64 32
+      # - NEXTAUTH_SECRET=your-secret-key-here
+      
+      # Production URL (Required for OAuth in production)
+      # - NEXTAUTH_URL=https://your-domain.com
+      
+      # Google OAuth
+      # - GOOGLE_CLIENT_ID=your-google-client-id
+      # - GOOGLE_CLIENT_SECRET=your-google-client-secret
+      # - NEXT_PUBLIC_GOOGLE_ENABLED=true
+      
+      # GitHub OAuth
+      # - GITHUB_CLIENT_ID=your-github-client-id
+      # - GITHUB_CLIENT_SECRET=your-github-client-secret
+      # - NEXT_PUBLIC_GITHUB_ENABLED=true
+      
+      # Microsoft Entra ID OAuth
+      # - MICROSOFT_CLIENT_ID=your-microsoft-client-id
+      # - MICROSOFT_CLIENT_SECRET=your-microsoft-client-secret
+      # - MICROSOFT_TENANT_ID=your-microsoft-tenant-id
+      # - NEXT_PUBLIC_MICROSOFT_ENABLED=true
+    
+    # Alternative: Use .env file
+    # env_file:
+    #   - ../.env
+    
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 30s
       timeout: 3s
       retries: 3
-      start_period: 5s
+      start_period: 10s

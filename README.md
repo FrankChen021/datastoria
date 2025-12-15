@@ -1,73 +1,146 @@
-# React + TypeScript + Vite
+# ClickHouse Console
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An AI-powered ClickHouse database management console built with Next.js, React, and TypeScript.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 🔐 **Optional Authentication** - Support for Google, GitHub, and Microsoft OAuth providers
+- 🎨 **Modern UI** - Built with shadcn/ui components and Tailwind CSS
+- 🌓 **Dark Mode** - Seamless theme switching
+- 📊 **Database Management** - Query execution, schema browsing, and more
+- 🔄 **Real-time Updates** - Live query results and monitoring
+- 🐳 **Docker Support** - Easy deployment with Docker
 
-## React Compiler
+## Prerequisites
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js 20.9 or later
+- npm or pnpm
+- Git
 
-## Expanding the ESLint configuration
+## Quick Start
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Local Development
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+1. **Clone the repository with submodules:**
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+```bash
+# Clone with submodules
+git clone --recurse-submodules https://github.com/your-org/clickhouse-console.git
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Or if already cloned, initialize submodules
+git submodule update --init --recursive
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+> **Note**: This project uses git submodules for external dependencies (`cmdk` and `number-flow`). Make sure to fetch them before building.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+2. **Install dependencies:**
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
+
+3. **Run the development server:**
+
+```bash
+npm run dev
+```
+
+4. **Open your browser:**
+
+Navigate to [http://localhost:3000](http://localhost:3000)
+
+### Docker Deployment
+
+> **Important**: Make sure git submodules are initialized before building the Docker image.
+
+#### Build and Run with Docker
+
+```bash
+# Initialize submodules (if not already done)
+git submodule update --init --recursive
+
+# Build the Docker image
+docker build -t clickhouse-console -f docker/Dockerfile .
+
+# Run the container
+docker run -p 3000:3000 clickhouse-console
+```
+
+#### Using Docker Compose
+
+```bash
+# Start the application
+docker-compose -f docker/docker-compose.yml up -d
+
+# Stop the application
+docker-compose -f docker/docker-compose.yml down
+```
+
+#### Build for Production
+
+```bash
+# Ensure submodules are initialized
+git submodule update --init --recursive
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
+```
+
+## Troubleshooting
+
+### Submodule Issues
+
+If you encounter build errors related to missing dependencies:
+
+```bash
+# Update submodules to latest
+git submodule update --remote --recursive
+
+# Or reset submodules
+git submodule deinit -f --all
+git submodule update --init --recursive
+```
+
+### External Dependencies
+
+This project includes these external dependencies as git submodules:
+- `external/cmdk` - Command palette component
+- `external/number-flow` - Number animation library
+
+If you're missing these directories, run:
+```bash
+git submodule update --init --recursive
+```
+
+## Authentication Setup (Optional)
+
+ClickHouse Console supports optional authentication with OAuth providers. See [doc/dev/authentication.md](./doc/dev/authentication.md) for detailed setup instructions.
+
+**Quick setup:**
+
+1. Copy the environment template:
+```bash
+cp .env.example .env
+```
+
+2. Configure your OAuth providers in `.env`
+
+3. Restart the development server
+
+If no authentication is configured, the app will run without requiring login.
+
+## Environment Variables
+
+See `.env.example` for all available configuration options including:
+- OAuth provider credentials (Google, GitHub, Microsoft)
+- NextAuth secret key
+- Custom application settings
+
+## Documentation
+
+- [Authentication Guide](./doc/dev/authentication.md) - Detailed OAuth setup instructions
+- [Quick Start Guide](./doc/dev/authentication-quickstart.md) - Fast authentication setup
+
