@@ -79,6 +79,24 @@ const applyQueryToEditor = (editor: Ace.Editor, query: string, mode: "replace" |
   QueryInputLocalStorage.saveInput(editor.getValue());
 };
 
+// Detect OS and return appropriate key bindings
+const getKeyBindings = () => {
+  if (typeof window === "undefined") {
+    return { execute: "CTRL + ENTER or COMMAND + ENTER", autocomplete: "ALT + SPACE or OPTION + SPACE" };
+  }
+
+  const platform = window.navigator.platform.toLowerCase();
+  const userAgent = window.navigator.userAgent.toLowerCase();
+
+  // Check for Mac
+  if (platform.includes("mac") || userAgent.includes("mac")) {
+    return { execute: "COMMAND + ENTER", autocomplete: "OPTION + SPACE" };
+  }
+
+  // Default to Windows/Linux
+  return { execute: "CTRL + ENTER", autocomplete: "ALT + SPACE" };
+};
+
 export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>(
   ({ initialQuery, initialMode = "replace" }, ref) => {
     const { connection } = useConnection();
@@ -300,6 +318,9 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
       }
     }, []);
 
+    // Get OS-specific key bindings
+    const keyBindings = useMemo(() => getKeyBindings(), []);
+
     return (
       <div ref={containerRef} className="query-editor-container h-full w-full">
         <AceEditor
@@ -324,9 +345,9 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           enableSnippets={true}
           width={`${editorWidth}px`}
           height={`${editorHeight}px`}
-          placeholder="Input your SQL here.
-Press Ctrl-Enter(Windows) or Command-Enter(Mac) to execute the query.
-Press Alt-Space(Windows) or Option-Space(Mac) to popup the auto suggestion dialog."
+          placeholder={`Input your SQL here.
+Press ${keyBindings.execute} to execute query.
+Press ${keyBindings.autocomplete} to show suggestions.`}
           onLoad={handleEditorLoad}
           onChange={handleChange}
           onSelectionChange={handleSelectionChange}
