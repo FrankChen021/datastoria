@@ -5,6 +5,7 @@ import { useConnection } from "@/lib/connection/connection-context";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { QueryExecutor } from "./query-execution/query-executor";
 import { QueryExecutionTimer } from "./query-execution-timer";
 import { QueryIdButton } from "./query-id-button";
 import { QueryRequestView } from "./query-request-view";
@@ -116,6 +117,33 @@ export function QueryListItemView({
         setIsExecuting(false);
         onExecutionStateChange?.(queryRequest.uuid, false);
         abortControllerRef.current = null;
+
+        // Broadcast success event
+        // Attempt to parse columns and row count if data is in a structured format
+        // This is a simplified extraction relative to the full data shape knowledge
+        let columns: string[] = [];
+        let rowCount = 0;
+        let sampleData: any[][] = [];
+
+        if (view === "dependency") {
+          // Dependency view data logic if applicable
+        } else if (typeof responseData === 'string') {
+          // Basic TAB separated parsing or specific format parsing could happen here
+          // For now, we trust the ChatExecutor context builder to handle raw strings or
+          // we implement a basic parser if needed.
+          // Let's defer deep parsing to the context builder to keep this view light.
+          // Or, if responseData is the raw string, we can send it.
+        }
+
+        QueryExecutor.sendQuerySuccess({
+          sql: queryRequest.sql,
+          queryId: queryRequest.queryId,
+          timestamp: Date.now(),
+          // We can pass the raw data and let the context manager handle parsing
+          // allowing the sampleData to be extracted there.
+          // However, for the event payload, let's pass what we have.
+          sampleData: [], // Placeholder, will be enhanced if we parse `data`
+        });
       } catch (error) {
         // Check if request was aborted
         if (abortControllerRef.current?.signal.aborted) {

@@ -6,71 +6,39 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
-import { QueryContextManager } from "@/lib/query-context/query-context-manager";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toastManager } from "@/lib/toast";
-import { ChevronDown, Play } from "lucide-react";
+import { ChevronDown, Database, Eraser, Play, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { QueryExecutor } from "../query-execution/query-executor";
 import { useQueryEditor } from "./use-query-editor";
-import { ChatExecutor } from "../query-execution/chat-executor";
-import { isAIChatMessage } from "@/lib/ai/config";
 import { useConnection } from "@/lib/connection/connection-context";
 
 export interface QueryControlProps {
+  mode: "sql" | "chat";
+  onModeChange: (mode: "sql" | "chat") => void;
   isExecuting?: boolean;
-  onQuery?: () => void;
+  onRun?: (text: string) => void;
   onExplain?: (name: string) => void;
+  onClearContext?: () => void;
 }
 
-export function QueryControl({ isExecuting = false, onQuery, onExplain }: QueryControlProps) {
+export function QueryControl({ mode, onModeChange, isExecuting = false, onRun, onExplain, onClearContext }: QueryControlProps) {
   const { selectedText, text } = useQueryEditor();
   const { connection } = useConnection();
   const [isExplainOpen, setIsExplainOpen] = useState(false);
 
   const handleQuery = useCallback(() => {
-    if (onQuery) {
-      onQuery();
-      return;
-    }
-
     const queryText = selectedText || text;
     if (!queryText) {
-      toastManager.show("No SQL to execute", "error");
+      toastManager.show(mode === "sql" ? "No SQL to execute" : "Please input message", "error");
       return;
     }
 
-    // Check if this is an AI chat message
-    if (isAIChatMessage(queryText)) {
-      // Build context for chat
-      const context = {
-        currentQuery: queryText,
-        database: connection?.database,
-        // TODO: Add tables context if available
-        // tables: getAvailableTables(),
-      };
-
-      // Send to chat API
-      ChatExecutor.sendChatRequest(queryText, context);
-      return;
+    if (onRun) {
+      onRun(queryText);
     }
-
-    // Get query context at execution time
-    const queryContext = QueryContextManager.getInstance().getContext();
-
-    // Build params from query context
-    const params: Record<string, unknown> = {
-      default_format: "PrettyCompactMonoBlock",
-      //output_format_pretty_max_value_width: 50000,
-      output_format_pretty_max_rows: queryContext.output_format_pretty_max_rows || 500,
-      output_format_pretty_row_numbers: queryContext.output_format_pretty_row_numbers !== false,
-    };
-
-    if (queryContext.max_execution_time) {
-      params.max_execution_time = queryContext.max_execution_time;
-    }
-
-    QueryExecutor.sendQueryRequest(queryText, { params });
-  }, [onQuery, selectedText, text, connection]);
+  }, [onRun, selectedText, text, mode]);
 
   const removeComments = useCallback((sql: string) => {
     return (
@@ -119,31 +87,67 @@ export function QueryControl({ isExecuting = false, onQuery, onExplain }: QueryC
   );
 
   const isDisabled = isExecuting || (selectedText.length === 0 && text.length === 0);
-  
+
   return (
-    <div className="flex h-8 w-full gap-2 rounded-sm items-center border-b px-2 text-xs transition-colors">
-      <Button disabled={isDisabled} onClick={handleQuery} size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs">
-        <Play className="h-3 w-3" />
-        {selectedText ? "Run Selected (Cmd+Enter)" : "Run (Cmd+Enter)"}
+    <div className="flex h-8 w-full gap-2 rounded-sm items-center px-2 text-xs transition-colors">
+      <ToggleGroup type="single" value={mode} onValueChange={(val) => val && onModeChange(val as "sql" | "chat")} className="h-7 p-[2px]">
+        <ToggleGroupItem value="sql" size="sm" className="h-6 px-2 text-[10px] data-[state=on]:bg-accent data-[state=on]:text-accent-foreground" title="Switch to SQL Editor (Cmd+I)">
+          <Database className="h-3 w-3 mr-1" />
+          SQL
+        </ToggleGroupItem>
+        <ToggleGroupItem value="chat" size="sm" className="h-6 px-2 text-[10px] data-[state=on]:bg-accent data-[state=on]:text-accent-foreground" title="Switch to AI Chat (Cmd+I)">
+          <Sparkles className="h-3 w-3 mr-1" />
+          Chat
+        </ToggleGroupItem>
+      </ToggleGroup>
+      <Separator orientation="vertical" className="h-4" />
+
+      <Button
+        disabled={isDisabled}
+        onClick={handleQuery}
+        size="sm"
+        variant="ghost"
+        className={`h-6 gap-1 px-2 text-xs`}
+      >
+        {mode === "sql" ? <Play className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+        {mode === "sql" ? (selectedText ? "Run Selected (Cmd+Enter)" : "Run (Cmd+Enter)") : "Ask AI (Cmd+Enter)"}
       </Button>
 
       <Separator orientation="vertical" className="h-4" />
 
-      <DropdownMenu open={isExplainOpen} onOpenChange={setIsExplainOpen}>
-        <DropdownMenuTrigger asChild>
-          <Button disabled={isDisabled} size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs">
-            {selectedText ? "Explain Selected" : "Explain"}
-            <ChevronDown className="h-3 w-3" />
+      {mode === "chat" && (
+        <>
+          <Button
+            onClick={onClearContext}
+            size="sm"
+            variant="ghost"
+            className="h-6 gap-1 px-2 text-xs hover:text-red-400"
+            title="Clear Chat Context (keep history, reset active memory)"
+          >
+            <Eraser className="h-3 w-3" />
+            Clear Context
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={() => handleExplain("ast")}>Explain AST</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExplain("syntax")}>Explain Syntax</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExplain("plan")}>Explain Plan</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExplain("pipeline")}>Explain Pipeline</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExplain("estimate")}>Explain Estimate</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          <Separator orientation="vertical" className="h-4" />
+        </>
+      )}
+
+      {mode === "sql" && (
+        <DropdownMenu open={isExplainOpen} onOpenChange={setIsExplainOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button disabled={isDisabled} size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs">
+              {selectedText ? "Explain Selected" : "Explain"}
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => handleExplain("ast")}>Explain AST</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExplain("syntax")}>Explain Syntax</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExplain("plan")}>Explain Plan</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExplain("pipeline")}>Explain Pipeline</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExplain("estimate")}>Explain Estimate</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }

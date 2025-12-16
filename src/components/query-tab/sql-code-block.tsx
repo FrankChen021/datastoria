@@ -1,4 +1,5 @@
 import { Play } from "lucide-react";
+import { CopyButton } from "@/components/ui/copy-button";
 import { ThemedSyntaxHighlighter } from "../themed-syntax-highlighter";
 import { Button } from "../ui/button";
 import { QueryExecutor } from "./query-execution/query-executor";
@@ -18,53 +19,54 @@ export function SqlCodeBlock({
   showExecuteButton = false,
   showLineNumbers,
 }: SqlCodeBlockProps) {
-  const defaultStyle: React.CSSProperties = {
-    margin: 0,
-    borderRadius: "0.375rem",
-    fontSize: "0.875rem",
-    marginTop: "0.5rem",
-    marginBottom: "0.5rem",
-    ...customStyle,
+  const handleRun = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    QueryExecutor.sendQueryRequest(code, {
+      params: {
+        default_format: "PrettyCompactMonoBlock",
+        output_format_pretty_color: 0,
+        output_format_pretty_max_value_width: 50000,
+        output_format_pretty_max_rows: 500,
+        output_format_pretty_row_numbers: true,
+      },
+    });
   };
 
-  const content = (
-    <ThemedSyntaxHighlighter
-      language={language}
-      customStyle={defaultStyle}
-      showLineNumbers={showLineNumbers}
-    >
-      {code}
-    </ThemedSyntaxHighlighter>
-  );
-
-  if (!showExecuteButton || language !== "sql") {
-    return content;
-  }
-
   return (
-    <div className="relative group">
-      {content}
-      <Button
-        size="icon"
-        variant="secondary"
-        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-        onClick={(e) => {
-          e.stopPropagation();
-          QueryExecutor.sendQueryRequest(code, {
-            params: {
-              default_format: "PrettyCompactMonoBlock",
-              output_format_pretty_color: 0,
-              output_format_pretty_max_value_width: 50000,
-              output_format_pretty_max_rows: 500,
-              output_format_pretty_row_numbers: true,
-            },
-          });
+    <div className="relative rounded-md my-1 overflow-hidden bg-muted/20 group">
+      {/* Floating Actions */}
+      <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
+        {showExecuteButton && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 opacity-60 hover:opacity-100 transition-all"
+            onClick={handleRun}
+            title="Execute SQL"
+          >
+            <Play className="h-3 w-3" />
+          </Button>
+        )}
+
+        <CopyButton
+          value={code}
+          className="relative h-6 w-6 opacity-60 hover:opacity-100 transition-all"
+        />
+      </div>
+
+      <ThemedSyntaxHighlighter
+        language={language}
+        customStyle={{
+          margin: 0,
+          fontSize: "0.800rem",
+          lineHeight: "1.5",
+          padding: "0.5rem",
+          ...customStyle,
         }}
-        title="Execute SQL"
+        showLineNumbers={showLineNumbers}
       >
-        <Play className="h-3.5 w-3.5" />
-      </Button>
+        {code}
+      </ThemedSyntaxHighlighter>
     </div>
   );
 }
-

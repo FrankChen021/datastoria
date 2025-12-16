@@ -147,16 +147,16 @@ export function QueryResponseView({ queryResponse, queryRequest, isLoading = fal
       queryResponse.message === null
         ? undefined
         : {
-            message: queryResponse.message as string,
-            data: queryResponse.data,
-            httpHeaders: queryResponse.httpHeaders,
-          },
+          message: queryResponse.message as string,
+          data: queryResponse.data,
+          httpHeaders: queryResponse.httpHeaders,
+        },
     [queryResponse.message, queryResponse.data, queryResponse.httpHeaders]
   );
 
   // Memoize response text computation
   const responseText = useMemo(
-    () => (typeof queryResponse.data === "string" ? queryResponse.data : JSON.stringify(queryResponse.data, null, 2)),
+    () => (typeof queryResponse.data === "string" ? queryResponse.data : (JSON.stringify(queryResponse.data, null, 2) || "")),
     [queryResponse.data]
   );
 
@@ -190,7 +190,7 @@ export function QueryResponseView({ queryResponse, queryRequest, isLoading = fal
     }
 
     // Default query view rendering
-    if (rawQueryResponse.length === 0) {
+    if (!rawQueryResponse || rawQueryResponse.length === 0) {
       return (
         <div className="p-4 text-sm text-muted-foreground">
           Query was executed successfully. No data is returned to show.

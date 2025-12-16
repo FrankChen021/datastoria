@@ -1,6 +1,6 @@
 import type { Ace } from "ace-builds";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 // Dynamically import AceEditor to prevent SSR issues
 const AceEditor = dynamic(
@@ -9,12 +9,12 @@ const AceEditor = dynamic(
     // to make ace globally available before ext-language_tools
     const { initAce } = await import("./ace-setup");
     await initAce();
-    
+
     await import("ace-builds/src-noconflict/ext-language_tools");
     await import("ace-builds/src-noconflict/theme-github");
     await import("ace-builds/src-noconflict/theme-solarized_dark");
     await import("./completion/clickhouse-sql");
-    
+
     const ReactAce = await import("react-ace");
     return ReactAce.default;
   },
@@ -24,10 +24,9 @@ const AceEditor = dynamic(
 import { TabManager } from "@/components/tab-manager";
 import { useTheme } from "@/components/theme-provider";
 import { useConnection } from "@/lib/connection/connection-context";
+import { useDebouncedCallback } from "use-debounce";
 import { updateQueryEditorState } from "../query-control/use-query-editor";
 import { QueryExecutor } from "../query-execution/query-executor";
-import { ChatExecutor } from "../query-execution/chat-executor";
-import { isAIChatMessage } from "@/lib/ai/config";
 import { QueryInputLocalStorage } from "../query-input/query-input-local-storage";
 import { QuerySuggestionManager } from "./completion/query-suggestion-manager";
 import "./query-input-view.css";
@@ -39,15 +38,21 @@ type ExtendedEditor = {
 
 export interface QueryInputViewRef {
   focus: () => void;
+  setValue: (value: string) => void;
 }
 
 interface QueryInputViewProps {
   initialQuery?: string;
   initialMode?: "replace" | "insert";
+  storageKey?: string;
+  language?: string;
+  placeholder?: string;
+  onToggleMode?: () => void;
+  onRun?: (text: string) => void;
 }
 
 // Logic to apply query to editor
-const applyQueryToEditor = (editor: Ace.Editor, query: string, mode: "replace" | "insert") => {
+const applyQueryToEditor = (editor: Ace.Editor, query: string, mode: "replace" | "insert", storageKey: string = 'editing-sql') => {
   const session = editor.getSession();
 
   if (mode === "replace") {
@@ -78,7 +83,7 @@ const applyQueryToEditor = (editor: Ace.Editor, query: string, mode: "replace" |
     editor.focus();
   }
   // Save to localStorage
-  QueryInputLocalStorage.saveInput(editor.getValue());
+  QueryInputLocalStorage.saveInput(editor.getValue(), storageKey);
 };
 
 // Detect OS and return appropriate key bindings
@@ -100,7 +105,7 @@ const getKeyBindings = () => {
 };
 
 export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>(
-  ({ initialQuery, initialMode = "replace" }, ref) => {
+  ({ initialQuery, initialMode = "replace", storageKey = "editing-sql", language = "dsql", placeholder, onToggleMode, onRun }, ref) => {
     const { connection } = useConnection();
     const { theme } = useTheme();
     const editorRef = useRef<ExtendedEditor | undefined>(undefined);
@@ -108,6 +113,17 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
     const [editorHeight, setEditorHeight] = useState(200);
     const [editorWidth, setEditorWidth] = useState(800);
     const lastConnectionRef = useRef<string | null>(null);
+    const latestOnToggleMode = useRef(onToggleMode);
+    const latestOnRun = useRef(onRun);
+
+    // Keep the ref updated with the latest callback
+    useEffect(() => {
+      latestOnToggleMode.current = onToggleMode;
+    }, [onToggleMode]);
+
+    useEffect(() => {
+      latestOnRun.current = onRun;
+    }, [onRun]);
 
     // Listen for query tab activation events with query data
     useEffect(() => {
@@ -116,7 +132,7 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           const { query, mode = "replace" } = event.detail;
 
           if (editorRef.current) {
-            applyQueryToEditor(editorRef.current, query, mode);
+            applyQueryToEditor(editorRef.current, query, mode, storageKey);
           }
         }
       };
@@ -132,6 +148,12 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           editorRef.current.focus();
         }
       },
+      setValue: (value: string) => {
+        if (editorRef.current) {
+          editorRef.current.setValue(value);
+          editorRef.current.clearSelection();
+        }
+      }
     }));
 
     // Determine if dark mode is active
@@ -240,9 +262,16 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
     const handleEditorLoad = useCallback(
       (editor: Ace.Editor) => {
         const extendedEditor = editor as ExtendedEditor;
-        editor.setValue(QueryInputLocalStorage.getInput());
+        editor.setValue(QueryInputLocalStorage.getInput(storageKey));
         editor.renderer.setScrollMargin(5, 10, 0, 0);
-        editor.completers = QuerySuggestionManager.getInstance().getCompleters(editor.completers);
+
+        // Only valid for SQL
+        if (language === 'dsql') {
+          editor.completers = QuerySuggestionManager.getInstance().getCompleters(editor.completers);
+        } else {
+          // Clear completers for chat to avoid irrelevant suggestions
+          editor.completers = [];
+        }
 
         // Clear any selection and move cursor to end of text
         editor.clearSelection();
@@ -257,7 +286,7 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
 
         // Apply initial query if present
         if (initialQuery) {
-          applyQueryToEditor(editor, initialQuery, initialMode);
+          applyQueryToEditor(editor, initialQuery, initialMode, storageKey);
         }
 
         // Update command
@@ -266,15 +295,8 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           bindKey: { win: "Ctrl-Enter", mac: "Command-Enter" },
           exec: () => {
             const text = extendedEditor.getSelectedText().trim() || extendedEditor.getValue().trim();
-            if (text) {
-              QueryExecutor.sendQueryRequest(text, {
-                params: {
-                  default_format: "PrettyCompactMonoBlock",
-                  //output_format_pretty_max_value_width: 50000,
-                  //output_format_pretty_max_rows: 500,
-                  output_format_pretty_row_numbers: true,
-                },
-              });
+            if (text && latestOnRun.current) {
+              latestOnRun.current(text);
             }
           },
         });
@@ -285,10 +307,51 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           selectedText: "",
         });
 
+        // Add command to toggle mode
+        editor.commands.addCommand({
+          name: "toggleMode",
+          bindKey: { win: "Ctrl-I", mac: "Command-I" },
+          exec: () => {
+            if (latestOnToggleMode.current) {
+              latestOnToggleMode.current();
+            }
+          },
+        });
+
         editorRef.current = extendedEditor;
       },
       [initialQuery, initialMode]
     );
+
+    // Handle switching modes (storage key / language changes) without unmounting
+    useEffect(() => {
+      if (!editorRef.current) return;
+
+      // Load saved content for the new key
+      const savedValue = QueryInputLocalStorage.getInput(storageKey);
+
+      // Stop the change event from triggering save back to storage momentarily if needed
+      // But handleChange uses the *current* storageKey from closure or ref?
+      // handleChange depends on [storageKey], so it should be updated.
+      // react-ace might fire onChange synchronously during setValue.
+      // If it does, 'handleChange' will be called.
+      // It will use the NEW storageKey.
+      // It will save 'savedValue' to 'storageKey'.
+      // This is redundant but harmless (saving what we just loaded).
+
+      editorRef.current.setValue(savedValue);
+      editorRef.current.clearSelection();
+      editorRef.current.focus();
+
+      // Update completers based on language
+      if (language === 'dsql') {
+        const extendedEditor = editorRef.current as ExtendedEditor;
+        extendedEditor.completers = QuerySuggestionManager.getInstance().getCompleters(extendedEditor.completers);
+      } else {
+        const extendedEditor = editorRef.current as ExtendedEditor;
+        extendedEditor.completers = [];
+      }
+    }, [storageKey, language]);
 
     // Update editor theme when it changes
     useEffect(() => {
@@ -297,8 +360,8 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
       }
     }, [aceTheme]);
 
-    const handleChange = useCallback((text: string) => {
-      QueryInputLocalStorage.saveInput(text);
+    const handleChange = useDebouncedCallback((text: string) => {
+      QueryInputLocalStorage.saveInput(text, storageKey);
       // Update global state with full text
       if (editorRef.current) {
         const selected = editorRef.current.getSelectedText().trim();
@@ -307,7 +370,7 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           selectedText: selected,
         });
       }
-    }, []);
+    }, 200);
 
     const handleSelectionChange = useCallback(() => {
       if (editorRef.current) {
@@ -326,7 +389,7 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
     return (
       <div ref={containerRef} className="query-editor-container h-full w-full">
         <AceEditor
-          mode="dsql"
+          mode={language}
           theme={aceTheme}
           className="no-background placeholder-padding h-full w-full"
           name="ace-editor"
@@ -342,12 +405,12 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
             tabSize: 4,
             newLineMode: "auto",
           }}
-          enableBasicAutocompletion={true}
-          enableLiveAutocompletion={true}
-          enableSnippets={true}
+          enableBasicAutocompletion={language === 'dsql'}
+          enableLiveAutocompletion={language === 'dsql'}
+          enableSnippets={language === 'dsql'}
           width={`${editorWidth}px`}
           height={`${editorHeight}px`}
-          placeholder={`Input your SQL here.
+          placeholder={placeholder || `Input your SQL here.
 Press ${keyBindings.execute} to execute query.
 Press ${keyBindings.autocomplete} to show suggestions.`}
           onLoad={handleEditorLoad}

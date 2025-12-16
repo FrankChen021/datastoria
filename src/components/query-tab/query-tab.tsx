@@ -5,6 +5,12 @@ import dynamic from "next/dynamic";
 import { QueryControl } from "./query-control/query-control";
 import { QueryExecutor, type QueryRequestEventDetail } from "./query-execution/query-executor";
 import type { QueryInputViewRef } from "./query-input/query-input-view";
+import { QueryInput } from "./query-input/query-input";
+import { QueryInputLocalStorage } from "./query-input/query-input-local-storage";
+import { ChatExecutor } from "./query-execution/chat-executor";
+import { useConnection } from "@/lib/connection/connection-context";
+import { useQueryEditor } from "./query-control/use-query-editor";
+import { toastManager } from "@/lib/toast";
 
 // Dynamically import QueryInputView to prevent SSR issues with ace editor
 const QueryInputView = dynamic(
@@ -22,11 +28,66 @@ export interface QueryTabProps {
 
 const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTabProps) => {
   const [isExecuting, setIsExecuting] = useState(false);
+  const [mode, setMode] = useState<"sql" | "chat">("sql");
   const resultPanelRef = useRef<ImperativePanelHandle>(null);
   const queryInputRef = useRef<QueryInputViewRef>(null);
+  const { connection } = useConnection();
+  const { text } = useQueryEditor(); // Get current text for chat
+
+  const lastExecutionRef = useRef<any>(null);
 
   const handleExecutionStateChange = useCallback((executing: boolean) => {
     setIsExecuting(executing);
+  }, []);
+
+  const handleChatRequest = useCallback((inputText?: string) => {
+    const textToUse = typeof inputText === 'string' ? inputText : text;
+    if (!textToUse) return;
+
+    // Get background SQL context if in chat mode (read from SQL storage)
+    // If in SQL mode, the 'text' variable already holds the SQL, but handleChatRequest is likely called in Chat mode.
+    // We explicitly read the SQL buffer to ensure we get the latest SQL the user was working on.
+    const backgroundSql = QueryInputLocalStorage.getInput('editing-sql');
+
+    // Build context for chat
+    const context = {
+      currentQuery: backgroundSql, // The SQL context "behind" the chat
+      database: (connection as any)?.database,
+      lastExecution: lastExecutionRef.current,
+    };
+
+    // Send to chat API
+    ChatExecutor.sendChatRequest(textToUse, context);
+
+    // Clear the chat input after sending
+    queryInputRef.current?.setValue('');
+  }, [text, connection]);
+
+  const handleRun = useCallback((textToRun: string) => {
+    if (mode === "chat") {
+      handleChatRequest(textToRun);
+    } else {
+      QueryExecutor.sendQueryRequest(textToRun, {
+        params: {
+          default_format: "PrettyCompactMonoBlock",
+          output_format_pretty_row_numbers: true,
+        },
+      });
+    }
+  }, [mode, handleChatRequest]);
+
+  // Listen for query success to update context
+  useEffect(() => {
+    const unsubscribe = QueryExecutor.onQuerySuccess((event) => {
+      // Update the ref with the latest execution details
+      lastExecutionRef.current = event.detail;
+    });
+    return unsubscribe;
+  }, []);
+
+  const handleClearContext = useCallback(() => {
+    lastExecutionRef.current = null;
+    toastManager.show("Chat context cleared (execution history)", "success");
   }, []);
 
   // Auto-expand the result panel when a query is executed
@@ -74,14 +135,26 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
 
       {/* Bottom Panel: Query Input View with Control */}
       <Panel defaultSize={100} minSize={20} className="bg-background flex flex-col">
+
         <div className="flex-1 overflow-hidden">
           <QueryInputView
             ref={queryInputRef}
             initialQuery={initialQuery}
             initialMode={initialMode}
+            storageKey={mode === "sql" ? "editing-sql" : "editing-chat"}
+            language={mode === "sql" ? "dsql" : "markdown"}
+            placeholder={mode === "chat" ? "Ask AI anything about your data..." : undefined}
+            onToggleMode={() => setMode(prev => prev === 'sql' ? 'chat' : 'sql')}
+            onRun={handleRun}
           />
         </div>
-        <QueryControl isExecuting={isExecuting} />
+        <QueryControl
+          mode={mode}
+          onModeChange={setMode}
+          isExecuting={isExecuting}
+          onRun={handleRun}
+          onClearContext={handleClearContext}
+        />
       </Panel>
     </PanelGroup>
   );

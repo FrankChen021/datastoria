@@ -15,6 +15,14 @@ export interface ChatRequestEventDetail {
       name: string;
       columns: string[];
     }>;
+    lastExecution?: {
+      sql: string;
+      queryId?: string;
+      columns?: string[];
+      rowCount?: number;
+      sampleData?: any[][];
+      timestamp: number;
+    };
   };
   tabId?: string; // Optional tabId for multi-tab support
 }
@@ -44,14 +52,10 @@ export class ChatExecutor {
     try {
       console.log('🚀 ChatExecutor.sendChatRequest called:', { message, hasContext: !!context, tabId })
 
-      // Check if this is an AI chat message
-      if (!isAIChatMessage(message)) {
-        console.warn('⚠️ ChatExecutor: Message does not start with AI chat prefix, ignoring:', message);
-        return;
-      }
+      // Check if this is an AI chat message or a direct request
+      // If it starts with prefix, strip it. If not, pass through (assuming direct UI invocation)
+      const cleanMessage = isAIChatMessage(message) ? removeAIChatPrefix(message) : message;
 
-      // Remove the @ai prefix
-      const cleanMessage = removeAIChatPrefix(message);
       console.log('✅ ChatExecutor: Processed message:', { original: message, clean: cleanMessage })
 
       const event = new CustomEvent<ChatRequestEventDetail>(

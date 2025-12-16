@@ -1,7 +1,9 @@
 import type { AppUIMessage } from "@/lib/ai/ai-tools";
-import { AlertCircleIcon, Loader2 } from "lucide-react";
+import { AlertCircleIcon, Loader2, Sparkles, User } from "lucide-react";
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useSession } from "next-auth/react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Badge } from "../ui/badge";
 import { SqlCodeBlock } from "./sql-code-block";
@@ -37,8 +39,6 @@ function MessagePart({ part }: { part: AppUIMessage["parts"][0] }) {
                       margin: 0,
                       borderRadius: "0.375rem",
                       fontSize: "0.875rem",
-                      marginTop: "0.5rem",
-                      marginBottom: "0.5rem",
                     }}
                   />
                 );
@@ -142,15 +142,31 @@ const MessageView = memo(function MessageView({
   children?: React.ReactNode;
 }) {
   const isUser = message.role === "user";
+  const { data: session } = useSession();
+  const user = session?.user;
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
-      <div className={`max-w-[85%] rounded-lg px-4 py-2 ${isUser ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-        <div className="text-xs opacity-70 mb-1">{isUser ? "You" : "AI Assistant"}</div>
-        {message.parts.map((part, i) => (
-          <MessagePart key={i} part={part} />
-        ))}
-        {children}
+    <div className="flex gap-3 mb-4">
+      <div className="flex-shrink-0 mt-0.5">
+        {isUser ? (
+          <Avatar className="h-6 w-6">
+            <AvatarImage src={user?.image || ""} alt={user?.name || "User"} />
+            <AvatarFallback>{user?.name?.[0]?.toUpperCase() || <User className="h-4 w-4" />}</AvatarFallback>
+          </Avatar>
+        ) : (
+          <div className="h-6 w-6 rounded-sm flex items-center justify-center">
+            <Sparkles className="h-4 w-4" />
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-hidden min-w-0">
+        <div className={`text-sm`}>
+          {message.parts.map((part, i) => (
+            <MessagePart key={i} part={part} />
+          ))}
+          {children}
+        </div>
       </div>
     </div>
   );

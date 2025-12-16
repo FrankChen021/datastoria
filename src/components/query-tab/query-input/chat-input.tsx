@@ -184,14 +184,14 @@ function ChatInputContent({
 }
 
 export function ChatInput({ chatId, initialMessage, onExitChat, onMessageSent, tabId }: ChatInputProps) {
-  const { selectedConnection } = useConnection();
+  const { connection } = useConnection();
   const [chat, setChat] = useState<Awaited<ReturnType<typeof createChat>> | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
   // Set up context builder for chat
   useEffect(() => {
     const contextBuilder = (): ChatContext | undefined => {
-      if (!selectedConnection) {
+      if (!connection) {
         return undefined;
       }
 
@@ -206,7 +206,7 @@ export function ChatInput({ chatId, initialMessage, onExitChat, onMessageSent, t
     return () => {
       setChatContextBuilder(() => undefined);
     };
-  }, [selectedConnection]);
+  }, [connection]);
 
   // Create or load chat instance
   useEffect(() => {

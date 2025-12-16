@@ -15,10 +15,10 @@ import { QueryExecutor } from "../query-execution/query-executor";
 import { ChatExecutor } from "../query-execution/chat-executor";
 import { isAIChatMessage, removeAIChatPrefix } from "@/lib/ai/config";
 import { QueryInputLocalStorage } from "../query-input/query-input-local-storage";
-import { QueryCompletionManager } from "./completion/QueryCompletionManager";
+import { QueryCompletionManager } from "./completion/query-completion-manager";
 import "./query-input-view.css";
 import { QuerySnippetManager } from "./snippet/QuerySnippetManager";
-import { updateHasSelectedText } from "../query-control/use-query-state";
+
 
 type ExtendedEditor = {
   completer?: Ace.Autocomplete;
@@ -27,13 +27,8 @@ type ExtendedEditor = {
 let globalEditor: ExtendedEditor | undefined;
 
 export function SqlInput() {
-  const { selectedConnection } = useConnection();
-  const selectedConnectionRef = useRef(selectedConnection);
+  const { connection } = useConnection();
 
-  // Keep connection ref updated
-  useEffect(() => {
-    selectedConnectionRef.current = selectedConnection;
-  }, [selectedConnection]);
   const { theme } = useTheme();
   const editorRef = useRef<ExtendedEditor | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -99,19 +94,19 @@ export function SqlInput() {
   // Initialize completion manager when connection changes
   // Use connection name as key to avoid duplicate calls when object reference changes
   useEffect(() => {
-    if (selectedConnection) {
-      const connectionName = selectedConnection.name;
+    if (connection) {
+      const connectionName = connection.name;
       // Only initialize if connection actually changed (by name)
       if (lastConnectionRef.current !== connectionName) {
         lastConnectionRef.current = connectionName;
-        QueryCompletionManager.getInstance().onConnectionSelected(selectedConnection);
-        QuerySnippetManager.getInstance().onCollectionSelected(selectedConnection);
+        QueryCompletionManager.getInstance().onConnectionSelected(connection);
+        QuerySnippetManager.getInstance().onCollectionSelected(connection);
       }
     } else {
       lastConnectionRef.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedConnection?.name]); // Use connection name instead of whole object to avoid duplicate calls
+  }, [connection]); // Use connection name instead of whole object to avoid duplicate calls
 
   // Handle editor resize
   useEffect(() => {

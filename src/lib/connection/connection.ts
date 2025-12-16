@@ -135,10 +135,10 @@ export class Connection {
 
     // Create timeout controller
     const timeoutController = new AbortController();
-    
+
     // Track which signal aborted (for error messages and abort reason)
     let abortReason: string | undefined;
-    
+
     // Helper to abort with reason if supported
     const abortWithReason = (controller: AbortController, reason: string) => {
       abortReason = reason;
@@ -151,7 +151,7 @@ export class Connection {
         controller.abort();
       }
     };
-    
+
     const timeoutId = setTimeout(() => {
       abortWithReason(timeoutController, "timeout");
     }, timeout);
@@ -174,12 +174,12 @@ export class Connection {
     const response = (async (): Promise<QueryResponse> => {
       try {
         const fetchUrl = url.toString();
-        
+
         // Validate URL before making request
         if (!fetchUrl || !(fetchUrl.startsWith('http://') || fetchUrl.startsWith('https://'))) {
           throw new QueryError(`Invalid URL: ${fetchUrl}. Connection may not be properly initialized.`);
         }
-        
+
         const response = await fetch(fetchUrl, {
           method: "POST",
           headers: requestHeaders,
@@ -241,7 +241,7 @@ export class Connection {
           // This is more reliable than relying on abortReason variable
           const isTimeout = timeoutController.signal.aborted;
           const isUserCancelled = abortController.signal.aborted && !isTimeout;
-          
+
           // Determine the reason from signal states or tracked reason
           let reason: string;
           if (isTimeout) {
@@ -252,7 +252,7 @@ export class Connection {
             // Fallback to tracked reason or check signal reason if available
             reason = abortReason || (combined.signal as { reason?: string }).reason || "unknown";
           }
-          
+
           console.debug("Abort detected:", {
             isTimeout,
             isUserCancelled,
@@ -260,7 +260,7 @@ export class Connection {
             errorMessage: error.message,
             determinedReason: reason,
           });
-          
+
           // Provide appropriate error message based on the reason
           if (reason === "timeout" || isTimeout) {
             throw new QueryError(`${timeout / 1000}s timeout to wait for response from ClickHouse server.`);
@@ -268,7 +268,7 @@ export class Connection {
           if (reason === "user_cancelled" || isUserCancelled) {
             throw new QueryError("Request was cancelled by user");
           }
-          
+
           // For any other abort reason, provide a descriptive message
           const errorMsg = error.message || "Request aborted";
           // Always replace "without reason" messages with our tracked reason
@@ -284,7 +284,7 @@ export class Connection {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         if (errorMessage === "Failed to fetch") {
           // This could be CORS, network error, or invalid URL
-          const errorDetails = `Failed to connect to ${this.host}${this.path}. ` +
+          const errorDetails = `Failed to connect to ${this.host}${this.path}. \n` +
             `Possible causes: CORS issue, network error, or invalid server URL. ` +
             `Please check the connection configuration and ensure the server allows requests from this origin.`;
           throw new QueryError(errorDetails);

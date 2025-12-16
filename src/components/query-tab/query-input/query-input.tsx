@@ -3,8 +3,8 @@ import { QueryControl } from "../query-control/query-control";
 import { SqlInput } from "./sql-input";
 import { ChatInput } from "./chat-input";
 import { ChatExecutor, type ChatRequestEventDetail } from "../query-execution/chat-executor";
-import { useHasSelectedText } from "../query-control/use-query-state";
 import { v4 as uuid } from "uuid";
+import { QueryInputView } from "./query-input-view";
 
 export interface QueryInputProps {
   tabId?: string;
@@ -12,7 +12,6 @@ export interface QueryInputProps {
 }
 
 export function QueryInput({ tabId, isExecuting = false }: QueryInputProps) {
-  const hasSelectedText = useHasSelectedText();
   const [isChatMode, setIsChatMode] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [initialChatMessage, setInitialChatMessage] = useState<string | undefined>(undefined);
@@ -21,7 +20,7 @@ export function QueryInput({ tabId, isExecuting = false }: QueryInputProps) {
   // Listen for chat request events to switch to chat mode
   useEffect(() => {
     const unsubscribe = ChatExecutor.onChatRequest((event: CustomEvent<ChatRequestEventDetail>) => {
-      const { tabId: eventTabId, chatId: eventChatId } = event.detail;
+      const { tabId: eventTabId } = event.detail;
 
       // If tabId is specified, only handle events for this tab
       // If no tabId is specified in event, handle it in all tabs
@@ -29,8 +28,8 @@ export function QueryInput({ tabId, isExecuting = false }: QueryInputProps) {
         return;
       }
 
-      // Use chatId from event (ChatExecutor now always generates one if not provided)
-      const chatId = event.detail.chatId;
+      // Generate a new chatId for this chat session
+      const chatId = uuid();
       console.log("🔵 QueryInput: Received chat request event:", {
         chatId,
         message: event.detail.message,
@@ -71,7 +70,6 @@ export function QueryInput({ tabId, isExecuting = false }: QueryInputProps) {
       {!isChatMode && (
         <QueryControl
           isExecuting={isExecuting}
-          hasSelectedText={hasSelectedText}
           onSwitchToChat={handleSwitchToChat}
         />
       )}
@@ -87,7 +85,7 @@ export function QueryInput({ tabId, isExecuting = false }: QueryInputProps) {
             tabId={tabId}
           />
         ) : (
-          <SqlInput />
+          <QueryInputView />
         )}
       </div>
     </div>
