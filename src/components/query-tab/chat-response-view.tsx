@@ -136,9 +136,13 @@ function MessagePart({ part }: { part: AppUIMessage["parts"][0] }) {
  */
 const MessageView = memo(function MessageView({
   message,
+  isLast,
+  isLoading,
   children,
 }: {
   message: AppUIMessage;
+  isLast?: boolean;
+  isLoading?: boolean;
   children?: React.ReactNode;
 }) {
   const isUser = message.role === "user";
@@ -146,7 +150,7 @@ const MessageView = memo(function MessageView({
   const user = session?.user;
 
   return (
-    <div className="flex gap-3 mb-4">
+    <div className="flex gap-3 mb-2">
       <div className="flex-shrink-0 mt-0.5">
         {isUser ? (
           <Avatar className="h-6 w-6">
@@ -155,7 +159,10 @@ const MessageView = memo(function MessageView({
           </Avatar>
         ) : (
           <div className="h-6 w-6 rounded-sm flex items-center justify-center">
-            <Sparkles className="h-4 w-4" />
+            <Sparkles
+              className={`h-4 w-4 ${isLast && isLoading ? "animate-spin" : ""}`}
+              style={isLast && isLoading ? { animationDuration: "2s" } : undefined}
+            />
           </div>
         )}
       </div>
@@ -173,19 +180,8 @@ const MessageView = memo(function MessageView({
 });
 
 export function ChatResponseView({ messages, isLoading = false, error }: ChatResponseViewProps) {
-  if (error) {
-    return (
-      <Alert variant="destructive" className="border-0 p-3">
-        <div className="flex items-center gap-2">
-          <AlertCircleIcon />
-          <AlertTitle>Chat Error</AlertTitle>
-        </div>
-        <AlertDescription className="mt-2">
-          {error.message || "An error occurred while chatting with the AI assistant."}
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  // Error is now rendered as part of the message content
+  // if (error) { ... } removed to maintain consistent UI structure
 
   if (isLoading && messages.length === 0) {
     return (
@@ -201,11 +197,14 @@ export function ChatResponseView({ messages, isLoading = false, error }: ChatRes
   }
 
   return (
-    <div className="mt-2 overflow-auto">
+    <div className="overflow-auto">
       {messages.map((message, index) => (
-        <MessageView key={message.id} message={message}>
-          {index === messages.length - 1 && isLoading && <Loader2 className="mt-2 h-4 w-4 animate-spin" />}
-        </MessageView>
+        <MessageView
+          key={message.id}
+          message={message}
+          isLast={index === messages.length - 1}
+          isLoading={isLoading}
+        />
       ))}
     </div>
   );

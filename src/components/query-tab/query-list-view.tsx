@@ -6,24 +6,30 @@ import {
 } from "@/components/ui/context-menu";
 import { useConnection } from "@/lib/connection/connection-context";
 import { toastManager } from "@/lib/toast";
-import { useChatManager } from "@/hooks/use-chat-manager";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
-import { QueryExecutor, type QueryRequestEventDetail } from "./query-execution/query-executor";
-import { ChatExecutor, type ChatRequestEventDetail } from "./query-execution/chat-executor";
+import { QueryExecutor } from "./query-execution/query-executor";
+import { ChatExecutor } from "./query-execution/chat-executor";
 import { QueryListItemView } from "./query-list-item-view";
-import { ChatListItemView } from "./chat-list-item-view";
-import type { QueryRequestViewModel, QueryViewProps } from "./query-view-model";
+import { ChatResponseView } from "./chat-response-view";
+import type { QueryRequestViewModel } from "./query-view-model";
+import { useChat } from '@ai-sdk/react';
+import type { Chat } from '@ai-sdk/react';
+import { format } from "date-fns";
+import type { AppUIMessage } from "@/lib/ai/ai-tools";
+import { createChat, setChatContextBuilder } from "@/lib/chat";
 
 export interface QueryListViewProps {
   tabId?: string; // Optional tab ID for multi-tab support
   onExecutionStateChange?: (isExecuting: boolean) => void;
 }
 
-const MAX_QUERY_VIEW_LIST_SIZE = 50;
+const MAX_MESSAGE_LIST_SIZE = 100;
 
-interface QueryListItem {
+export interface SQLMessage {
+  type: 'sql';
+  id: string;
   queryRequest: QueryRequestViewModel;
   view: string;
   viewArgs?: {
@@ -32,34 +38,53 @@ interface QueryListItem {
     showRequest?: "show" | "hide" | "collapse";
     params?: Record<string, unknown>;
   };
+  timestamp: number;
 }
 
-interface ChatListItem {
-  chatRequest: ChatRequestEventDetail;
-  id: string; // Unique ID for the chat item
-  timestamp: number; // Timestamp when chat was created
+// Adapter interface for the merged list
+interface MergedChatMessage {
+  type: 'chat';
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  parts: AppUIMessage['parts']; // Use parts from AppUIMessage
+  isLoading: boolean;
+  timestamp: number;
+  error?: Error | undefined;
 }
 
-export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewProps) {
+export type Message = SQLMessage | MergedChatMessage;
+
+function QueryListViewContent({
+  tabId,
+  onExecutionStateChange,
+  chatInstance
+}: QueryListViewProps & { chatInstance: Chat<AppUIMessage> }) {
   const { connection } = useConnection();
-  const [queryList, setQueryList] = useState<QueryListItem[]>([]);
-  const [chatList, setChatList] = useState<ChatListItem[]>([]);
+  // We now split state: SQL messages are local, Chat messages are managed by useChat
+  const [sqlMessages, setSqlMessages] = useState<SQLMessage[]>([]);
+
   const responseScrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollPlaceholderRef = useRef<HTMLDivElement>(null);
   const shouldScrollRef = useRef(false);
   const executingQueriesRef = useRef<Set<string>>(new Set());
-  const executingChatsRef = useRef<Set<string>>(new Set());
+  const messageTimestampsRef = useRef<Map<string, number>>(new Map());
 
-  // Manage chat instances at parent level
-  const chatListForManager = useMemo(
-    () => chatList.map((item) => ({ id: item.id, chatRequest: item.chatRequest })),
-    [chatList]
-  );
-  const { getChatInstance } = useChatManager(chatListForManager, connection?.url + ":" + connection?.name + ":" + connection?.user);
+  // Use hook with the instance
+  // @ts-ignore - useChat types might be outdated or custom in this project
+  const { messages: rawMessages, sendMessage, status } = useChat({
+    chat: chatInstance,
+    onError: (error: Error) => {
+      console.error("Chat error:", error);
+      toastManager.show("Chat failed: " + error.message, "error");
+    }
+  });
+
+  // Track executing state for Chat
+  const isChatExecuting = status === 'streaming' || status === 'submitted';
 
   const scrollToBottom = useCallback(() => {
     if (scrollPlaceholderRef.current) {
-      // Use requestAnimationFrame to wait for DOM to render, then scroll smoothly
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           if (scrollPlaceholderRef.current) {
@@ -69,6 +94,87 @@ export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewPr
       });
     }
   }, []);
+
+  // Update parent execution state
+  useEffect(() => {
+    if (onExecutionStateChange) {
+      const isSqlExecuting = executingQueriesRef.current.size > 0;
+      onExecutionStateChange(isSqlExecuting || isChatExecuting);
+    }
+  }, [executingQueriesRef.current.size, isChatExecuting, onExecutionStateChange]);
+
+  // Merge lists efficiently
+  const mergedMessageList = useMemo(() => {
+    if (!rawMessages) return sqlMessages;
+
+    const chatObjs: MergedChatMessage[] = (rawMessages as AppUIMessage[]).filter(m => {
+      // Filter internal messages if needed, matching chat-list-item-view logic
+      // For now, allow all, or filter raw text parts
+      return true;
+    }).map(m => {
+      // Access generic properties safely
+      const mAny = m as any;
+
+      // Stable timestamp logic:
+      // 1. If message has createdAt, use it.
+      // 2. If not, check if we already assigned a timestamp in our ref map.
+      // 3. If not, assign Date.now() and store it.
+      let ts: number;
+      if (mAny.createdAt) {
+        ts = new Date(mAny.createdAt).getTime();
+      } else {
+        const existingTs = messageTimestampsRef.current.get(m.id);
+        if (existingTs) {
+          ts = existingTs;
+        } else {
+          ts = Date.now();
+          messageTimestampsRef.current.set(m.id, ts);
+        }
+      }
+
+      // Ensure parts exist and are up to date with streaming content
+      // If parts is empty or undefined, but content exists (streaming text), use content.
+      let parts = m.parts;
+      if ((!parts || parts.length === 0) && mAny.content) {
+        parts = [{ type: 'text', text: mAny.content }];
+      } else if (!parts) {
+        parts = [];
+      }
+
+      // Compute content string for display fallback or search
+      let content = mAny.content || '';
+      if (!content && parts.length > 0) {
+        content = parts.filter(p => p.type === 'text').map(p => p.text).join('');
+      }
+
+      // Map 'data' role to 'system'
+      let role = m.role as string;
+      if (role === 'data') role = 'system';
+
+      return {
+        type: 'chat',
+        id: m.id,
+        role: role as 'user' | 'assistant' | 'system',
+        content: content,
+        parts: parts,
+        isLoading: false,
+        timestamp: ts
+      };
+    });
+
+    // Mark the last assistant message as loading if global loading is true
+    if (isChatExecuting && chatObjs.length > 0) {
+      const last = chatObjs[chatObjs.length - 1];
+      if (last.role === 'assistant') {
+        last.isLoading = true;
+      }
+    }
+
+    // Merge and sort
+    const all = [...sqlMessages, ...chatObjs];
+    return all.sort((a, b) => a.timestamp - b.timestamp);
+  }, [sqlMessages, rawMessages, isChatExecuting]);
+
 
   const addQuery = useCallback(
     (
@@ -84,214 +190,157 @@ export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewPr
       const queryId = uuid();
       const timestamp = Date.now();
 
-      // Extract original SQL for rawSQL if this is an explain query
+      // Extract original SQL for rawSQL
       let rawSQL = sql;
       const view = options?.view;
       const isExplainQuery = view && view !== "query";
 
       if (isExplainQuery) {
-        // Remove EXPLAIN prefix to get original SQL
         if (view === "pipeline") {
-          // Remove "EXPLAIN pipeline graph = 1\n" or "EXPLAIN pipeline graph = 1 " prefix
           rawSQL = sql.replace(/^EXPLAIN\s+pipeline\s+graph\s*=\s*1[\s\n]+/i, "");
         } else if (view === "plan") {
-          // Remove "EXPLAIN plan indexes = 1\n" or "EXPLAIN plan indexes = 1 " prefix
           rawSQL = sql.replace(/^EXPLAIN\s+plan\s+indexes\s*=\s*1[\s\n]+/i, "");
         } else {
-          // Remove "EXPLAIN <type>\n" or "EXPLAIN <type> " prefix
           rawSQL = sql.replace(new RegExp(`^EXPLAIN\\s+${view}[\\s\\n]+`, "i"), "");
         }
       }
 
-      setQueryList((responseList) => {
-        let newResponseList = responseList;
-        if (newResponseList.length >= MAX_QUERY_VIEW_LIST_SIZE) {
-          // Clear history
-          newResponseList = [];
+      setSqlMessages((prevList) => {
+        let newList = prevList;
+        // Optional: limit local SQL history size
+        if (newList.length >= MAX_MESSAGE_LIST_SIZE) {
+          newList = newList.slice(newList.length - MAX_MESSAGE_LIST_SIZE + 1);
         }
 
-        // For explain queries, hide the request by default
-        // For regular queries, hide if formatter is provided (for formatted queries)
-        const showRequest = isExplainQuery
-          ? "show"
-          : options?.formatter
-            ? "hide"
-            : "show";
+        const showRequest = isExplainQuery ? "show" : options?.formatter ? "hide" : "show";
 
-        const queryRequest: QueryRequestViewModel = {
-          uuid: queryId,
-          sql: sql,
-          rawSQL: rawSQL,
-          requestServer: "Random Host",
-          queryId: queryId,
-          traceId: null,
-          timestamp: timestamp,
-          showRequest: showRequest,
-          params: params,
-          onCancel: () => {
-            // Cancellation is now handled by the child component
+        const queryMsg: SQLMessage = {
+          type: 'sql',
+          id: queryId,
+          timestamp,
+          view: options?.view || "query",
+          viewArgs: { ...options, params },
+          queryRequest: {
+            uuid: queryId,
+            sql: sql,
+            rawSQL: rawSQL,
+            requestServer: connection.name || "Server",
+            queryId: queryId,
+            traceId: null,
+            timestamp: timestamp,
+            showRequest: showRequest,
+            params: params,
+            onCancel: () => { },
           },
         };
 
         shouldScrollRef.current = true;
-        return newResponseList.concat({
-          queryRequest: queryRequest,
-          viewArgs: { ...options, params },
-          view: options?.view || "query",
-        });
+        return [...newList, queryMsg];
       });
     },
     [connection]
   );
 
-
-  // Auto-scroll to bottom when queryList or chatList changes
+  // Auto scroll when list grows or content updates
   useEffect(() => {
     if (shouldScrollRef.current) {
       shouldScrollRef.current = false;
       scrollToBottom();
+    } else {
+      // Also scroll if streaming happens (content size change)
+      if (isChatExecuting) {
+        scrollToBottom();
+      }
     }
-  }, [queryList, chatList, scrollToBottom]);
+  }, [mergedMessageList, isChatExecuting, scrollToBottom]);
 
-  // Listen for query request events
+
+  // Listeners
   useEffect(() => {
-    const unsubscribe = QueryExecutor.onQueryRequest((event: CustomEvent<QueryRequestEventDetail>) => {
-      const { sql, options, tabId: eventTabId } = event.detail;
-
-      // If tabId is specified, only handle events for this tab
-      // If no tabId is specified in event, handle it in all tabs
-      if (eventTabId !== undefined && eventTabId !== tabId) {
-        return;
-      }
-
-      addQuery(sql, options, options?.params);
+    const unsubscribeQuery = QueryExecutor.onQueryRequest((event) => {
+      if (event.detail.tabId !== undefined && event.detail.tabId !== tabId) return;
+      addQuery(event.detail.sql, event.detail.options, event.detail.options?.params);
     });
 
-    return unsubscribe;
-  }, [tabId, addQuery]);
+    const unsubscribeChat = ChatExecutor.onChatRequest((event) => {
+      if (event.detail.tabId !== undefined && event.detail.tabId !== tabId) return;
 
-  // Listen for chat request events
-  useEffect(() => {
-    const unsubscribe = ChatExecutor.onChatRequest((event: CustomEvent<ChatRequestEventDetail>) => {
-      const { tabId: eventTabId } = event.detail;
-
-      // If tabId is specified, only handle events for this tab
-      // If no tabId is specified in event, handle it in all tabs
-      if (eventTabId !== undefined && eventTabId !== tabId) {
-        return;
-      }
-
-      const chatId = uuid();
-      const chatTimestamp = Date.now();
-      setChatList((prevList) => {
-        let newList = prevList;
-        if (newList.length >= MAX_QUERY_VIEW_LIST_SIZE) {
-          // Clear history
-          newList = [];
+      // Ensure we have a way to send
+      if (sendMessage) {
+        // Set context builder for this request
+        if (event.detail.context) {
+          setChatContextBuilder(() => event.detail.context);
         }
-        shouldScrollRef.current = true;
-        return newList.concat({
-          chatRequest: event.detail,
-          id: chatId,
-          timestamp: chatTimestamp,
+
+        sendMessage({
+          text: event.detail.message
         });
-      });
+        shouldScrollRef.current = true;
+      } else {
+        console.warn("Chat not ready yet");
+      }
     });
 
-    return unsubscribe;
-  }, [tabId]);
+    return () => {
+      unsubscribeQuery();
+      unsubscribeChat();
+    }
+  }, [tabId, addQuery, sendMessage]);
 
-  const handleQueryDelete = useCallback((queryId: string) => {
-    setQueryList((prevList) => prevList.filter((q) => q.queryRequest.uuid !== queryId));
-  }, []);
 
-  const handleChatDelete = useCallback((chatId: string) => {
-    setChatList((prevList) => prevList.filter((c) => c.id !== chatId));
+  // Deletion Handlers
+  const handleQueryDelete = useCallback((id: string) => {
+    setSqlMessages(prev => prev.filter(m => m.id !== id));
   }, []);
 
   const handleClearScreen = useCallback(() => {
-    setQueryList([]);
-    setChatList([]);
+    setSqlMessages([]);
     executingQueriesRef.current.clear();
-    executingChatsRef.current.clear();
-    if (onExecutionStateChange) {
-      onExecutionStateChange(false);
-    }
+    if (onExecutionStateChange) onExecutionStateChange(false);
   }, [onExecutionStateChange]);
-
-  const queryViewProps: QueryViewProps[] = useMemo(
-    () =>
-      queryList.map((item) => ({
-        queryRequest: item.queryRequest,
-        view: item.view,
-        viewArgs: item.viewArgs,
-      })),
-    [queryList]
-  );
-
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div ref={responseScrollContainerRef} className="h-full w-full overflow-auto p-2" style={{ scrollBehavior: 'smooth' }}>
-          {queryViewProps.length === 0 && chatList.length === 0 ? (
+          {mergedMessageList.length === 0 ? (
             <div className="text-sm text-muted-foreground p-1">Input your SQL in the editor below and execute it, then the results will appear here. Or type '@ai' to chat with the AI assistant.</div>
           ) : (
             <>
-              {/* Render queries and chats interleaved by timestamp */}
-              {[...queryViewProps.map(q => ({ type: 'query' as const, data: q, timestamp: q.queryRequest.timestamp })),
-                 ...chatList.map(c => ({ type: 'chat' as const, data: c, timestamp: c.timestamp }))]
-                .sort((a, b) => a.timestamp - b.timestamp)
-                .map((item, index, allItems) => {
-                  if (item.type === 'query') {
-                    const query = item.data;
-                    return (
-                      <QueryListItemView 
-                        key={query.queryRequest.uuid} 
-                        {...query} 
-                        onQueryDelete={handleQueryDelete}
-                        isLast={index === allItems.length - 1}
-                        onExecutionStateChange={(queryId, isExecuting) => {
-                          if (isExecuting) {
-                            executingQueriesRef.current.add(queryId);
-                          } else {
-                            executingQueriesRef.current.delete(queryId);
-                          }
-                          if (onExecutionStateChange) {
-                            const totalExecuting = executingQueriesRef.current.size + executingChatsRef.current.size;
-                            onExecutionStateChange(totalExecuting > 0);
-                          }
-                        }}
+              {mergedMessageList.map((msg, index) => {
+                if (msg.type === 'sql') {
+                  return (
+                    <QueryListItemView
+                      key={msg.id}
+                      {...msg}
+                      onQueryDelete={handleQueryDelete}
+                      isLast={index === mergedMessageList.length - 1}
+                      onExecutionStateChange={(qid, isExec) => {
+                        if (isExec) executingQueriesRef.current.add(qid);
+                        else executingQueriesRef.current.delete(qid);
+                      }}
+                    />
+                  );
+                } else {
+                  return (
+                    <div key={msg.id} className={``}>
+                      {msg.role === 'user' && <div className="flex items-center gap-2 mt-2">
+                        <h4 className="text-sm font-semibold">{format(msg.timestamp, "yyyy-MM-dd HH:mm:ss")}</h4>
+                      </div>}
+                      <ChatResponseView
+                        messages={[{
+                          id: msg.id,
+                          role: msg.role,
+                          parts: msg.parts
+                        }]}
+                        isLoading={msg.isLoading}
+                        error={msg.error}
                       />
-                    );
-                  } else {
-                    const chat = item.data;
-                    const chatInstanceData = getChatInstance(chat.id);
-                    return (
-                      <ChatListItemView
-                        key={chat.id}
-                        chatId={chat.id}
-                        chatRequest={chat.chatRequest}
-                        chatInstance={chatInstanceData?.chat}
-                        isLast={index === allItems.length - 1}
-                        onChatDelete={handleChatDelete}
-                        onExecutionStateChange={(chatId, isExecuting) => {
-                          if (isExecuting) {
-                            executingChatsRef.current.add(chatId);
-                          } else {
-                            executingChatsRef.current.delete(chatId);
-                          }
-                          if (onExecutionStateChange) {
-                            const totalExecuting = executingQueriesRef.current.size + executingChatsRef.current.size;
-                            onExecutionStateChange(totalExecuting > 0);
-                          }
-                        }}
-                      />
-                    );
-                  }
-                })}
-              {/* Placeholder element used for smooth scrolling to the end */}
-              <div ref={scrollPlaceholderRef} />
+                    </div>
+                  );
+                }
+              })}
+              <div ref={scrollPlaceholderRef} className="h-6" />
             </>
           )}
         </div>
@@ -304,4 +353,37 @@ export function QueryListView({ tabId, onExecutionStateChange }: QueryListViewPr
       </ContextMenuContent>
     </ContextMenu>
   );
+}
+
+export function QueryListView(props: QueryListViewProps) {
+  const [chatInstance, setChatInstance] = useState<Chat<AppUIMessage> | null>(null);
+
+  // Initialize Chat Instance
+  useEffect(() => {
+    let mounted = true;
+    async function initChat() {
+      try {
+        // Use a stable ID for the tab, or a new random one if tabId is missing (unlikely for views)
+        const id = props.tabId || uuid();
+        const chat = await createChat({ id, skipStorage: false });
+        if (mounted) {
+          setChatInstance(chat);
+        }
+      } catch (e) {
+        console.error("Failed to init chat", e);
+      }
+    }
+    initChat();
+    return () => { mounted = false; };
+  }, [props.tabId]);
+
+  if (!chatInstance) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return <QueryListViewContent {...props} chatInstance={chatInstance} />;
 }

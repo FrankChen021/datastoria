@@ -33,50 +33,25 @@ interface ChatPanelProps {
   }>
 }
 
-export function ChatPanel({ 
-  currentQuery,
-  currentDatabase,
-  availableTables 
-}: ChatPanelProps) {
-  const [chat, setChat] = useState<Chat | null>(null)
+function ChatPanelContent({ chat }: { chat: Chat<any> }) {
   const [input, setInput] = useState('')
-  
-  useEffect(() => {
-    // Set up context builder
-    // This provides ClickHouse-specific information to the AI
-    setChatContextBuilder(() => ({
-      currentQuery,
-      database: currentDatabase,
-      tables: availableTables,
-    }))
-    
-    // Create chat instance
-    // This loads any existing messages from localStorage
-    createChat().then(setChat)
-  }, [currentQuery, currentDatabase, availableTables])
-  
-  const { messages, error, isStreaming } = useChat({ chat })
-  
+  // @ts-ignore - useChat types might be outdated or custom
+  const { messages, error, sendMessage, status } = useChat({ chat })
+
+  const isStreaming = status === 'streaming' || status === 'submitted'
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!chat || !input.trim() || isStreaming) {
+
+    if (!chat || !input.trim()) {
       return
     }
-    
+
     // Send message
-    chat.submit(input)
+    sendMessage({ text: input })
     setInput('')
   }
-  
-  if (!chat) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    )
-  }
-  
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -86,7 +61,7 @@ export function ChatPanel({
           Ask questions about SQL, schemas, or query optimization
         </p>
       </div>
-      
+
       {/* Messages */}
       <ScrollArea className="flex-1 p-4">
         {messages.length === 0 ? (
@@ -95,7 +70,7 @@ export function ChatPanel({
               <p className="font-medium">No messages yet</p>
               <p className="text-sm">Start a conversation with the SQL assistant</p>
             </div>
-            
+
             {/* Suggested prompts */}
             <div className="space-y-2 w-full max-w-md">
               <p className="text-xs text-muted-foreground">Try asking:</p>
@@ -133,13 +108,12 @@ export function ChatPanel({
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-lg px-4 py-2 ${
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  }`}
+                  className={`max-w-[85%] rounded-lg px-4 py-2 ${message.role === 'user'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted'
+                    }`}
                 >
-                  {message.parts.map((part, i) => {
+                  {message.parts.map((part: any, i: number) => {
                     if (part.type === 'text') {
                       return (
                         <div key={i} className="prose prose-sm dark:prose-invert max-w-none">
@@ -153,7 +127,7 @@ export function ChatPanel({
                 </div>
               </div>
             ))}
-            
+
             {isStreaming && (
               <div className="flex justify-start">
                 <div className="bg-muted rounded-lg px-4 py-2">
@@ -163,7 +137,7 @@ export function ChatPanel({
             )}
           </div>
         )}
-        
+
         {error && (
           <div className="mt-4 p-3 bg-destructive/10 border border-destructive rounded-lg flex items-start gap-2">
             <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
@@ -174,7 +148,7 @@ export function ChatPanel({
           </div>
         )}
       </ScrollArea>
-      
+
       {/* Input */}
       <div className="p-4 border-t">
         <form onSubmit={handleSubmit} className="flex gap-2">
@@ -211,6 +185,38 @@ export function ChatPanel({
       </div>
     </div>
   )
+}
+
+export function ChatPanel({
+  currentQuery,
+  currentDatabase,
+  availableTables
+}: ChatPanelProps) {
+  const [chat, setChat] = useState<Chat<any> | null>(null)
+
+  useEffect(() => {
+    // Set up context builder
+    // This provides ClickHouse-specific information to the AI
+    setChatContextBuilder(() => ({
+      currentQuery,
+      database: currentDatabase,
+      tables: availableTables,
+    }))
+
+    // Create chat instance
+    // This loads any existing messages from localStorage
+    createChat().then(setChat)
+  }, [currentQuery, currentDatabase, availableTables])
+
+  if (!chat) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    )
+  }
+
+  return <ChatPanelContent chat={chat} />
 }
 
 /**

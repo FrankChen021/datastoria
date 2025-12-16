@@ -1,16 +1,15 @@
 import { QueryListView } from "@/components/query-tab/query-list-view";
+import { useConnection } from "@/lib/connection/connection-context";
+import { toastManager } from "@/lib/toast";
+import dynamic from "next/dynamic";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { type ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import dynamic from "next/dynamic";
 import { QueryControl } from "./query-control/query-control";
-import { QueryExecutor, type QueryRequestEventDetail } from "./query-execution/query-executor";
-import type { QueryInputViewRef } from "./query-input/query-input-view";
-import { QueryInput } from "./query-input/query-input";
-import { QueryInputLocalStorage } from "./query-input/query-input-local-storage";
-import { ChatExecutor } from "./query-execution/chat-executor";
-import { useConnection } from "@/lib/connection/connection-context";
 import { useQueryEditor } from "./query-control/use-query-editor";
-import { toastManager } from "@/lib/toast";
+import { ChatExecutor } from "./query-execution/chat-executor";
+import { QueryExecutor, type QueryRequestEventDetail } from "./query-execution/query-executor";
+import { QueryInputLocalStorage } from "./query-input/query-input-local-storage";
+import type { QueryInputViewRef } from "./query-input/query-input-view";
 
 // Dynamically import QueryInputView to prevent SSR issues with ace editor
 const QueryInputView = dynamic(
@@ -129,6 +128,10 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
       {/* Top Panel: Query Response View */}
       <Panel ref={resultPanelRef} defaultSize={0} minSize={0} className="bg-background overflow-auto">
         <QueryListView tabId={tabId} onExecutionStateChange={handleExecutionStateChange} />
+        {/* <ChatPanel
+          currentDatabase={"default"}
+          availableTables={[{ name: "table1", columns: ["column1", "column2"] }]}
+        /> */}
       </Panel>
 
       <PanelResizeHandle className="h-[1px] bg-border hover:bg-border/80 transition-colors cursor-row-resize" />
