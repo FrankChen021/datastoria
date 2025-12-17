@@ -4,44 +4,28 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 
-# Install git and pnpm
-RUN apk add --no-cache git && \
-    corepack enable && \
-    corepack prepare pnpm@9 --activate
+# Install git (needed for git submodule update if script runs it, though we copy external folder)
+RUN apk add --no-cache git
+RUN npm install -g pnpm
 
 # Copy package files
 COPY package*.json ./
 
-# Copy external dependencies
+# Copy external dependencies (submodules)
 COPY external ./external
 
-# Install main dependencies
-RUN npm ci --legacy-peer-deps
-
-# Build external packages using pnpm workspaces
-ENV CI=true
-
-# Build cmdk
-WORKDIR /app/external/cmdk
-RUN pnpm install && \
-    pnpm rebuild esbuild && \
-    pnpm -F cmdk build
-
-# Build number-flow packages
-WORKDIR /app/external/number-flow
-RUN pnpm install --no-frozen-lockfile && \
-    pnpm rebuild esbuild && \
-    pnpm -F number-flow build && \
-    pnpm -F @number-flow/react build
-
-# Return to app root
-WORKDIR /app
+# Install dependencies
+# This automatically runs postinstall -> build:deps which builds external packages
+# We use --include=dev to ensure build tools (vite, tsup) are available
+# We use --force to bypass peer dependency conflicts
+RUN npm install --include=dev --force
 
 # Stage 2: Builder
 FROM node:22-alpine AS builder
 WORKDIR /app
+RUN npm install -g pnpm
 
-# Copy dependencies from deps stage
+# Copy dependencies and built external packages from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/external ./external
 
@@ -61,6 +45,7 @@ COPY public ./public
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# prebuild hook will run build:deps again, ensuring everything is up to date
 RUN npm run build
 
 # Stage 3: Runner

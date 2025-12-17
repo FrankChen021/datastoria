@@ -1,0 +1,15 @@
+{
+  "buildCommand": "npm run build",
+  "installCommand": "npm install --include=dev --force",
+  "framework": "nextjs",
+  "git": {
+    "deploymentEnabled": true
+  },
+  "build": {
+    "env": {
+      "NODE_ENV": "production",
+      "NEXT_TELEMETRY_DISABLED": "1"
+    }
+  }
+}
+

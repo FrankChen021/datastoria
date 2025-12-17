@@ -5,6 +5,12 @@
   "type": "module",
   "description": "AI-powered ClickHouse database management console with optional OAuth authentication",
   "scripts": {
+    "postinstall": "npm run build:deps",
+    "prebuild": "npm run build:deps",
+    "build:deps": "npm run build:number-flow-core && npm run build:number-flow-react && npm run build:cmdk",
+    "build:number-flow-core": "cd external/number-flow && npm install --include=dev --ignore-scripts && cd packages/number-flow && npm install --include=dev --ignore-scripts && npm run build",
+    "build:number-flow-react": "cd external/number-flow && npm install --include=dev --ignore-scripts && cd packages/react && npm install --include=dev --ignore-scripts && npm run build",
+    "build:cmdk": "cd external/cmdk && npm install --include=dev --ignore-scripts && cd cmdk && npm install --include=dev --ignore-scripts && npm run build",
     "dev": "concurrently -n \"core,react,app\" -c \"blue,green,yellow\" \"npm run dev:number-flow-core\" \"npm run dev:number-flow-react\" \"next dev\"",
     "dev:number-flow-core": "cd external/number-flow/packages/number-flow && npm run dev",
     "dev:number-flow-react": "cd external/number-flow/packages/react && npm run dev",
@@ -96,7 +102,7 @@
     "globals": "^16.4.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.18",
-    "typescript": "~5.9.3",
+    "typescript": "^5.7.2",
     "typescript-eslint": "^8.45.0",
     "vite": "^7.1.7",
     "vitest": "^4.0.6"
