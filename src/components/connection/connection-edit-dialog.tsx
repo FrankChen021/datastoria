@@ -125,8 +125,8 @@ export interface ShowConnectionEditDialogOptions {
   onCancel?: () => void;
 }
 
-// Wrapper component that includes form and buttons with shared state
-function ConnectionEditDialogWrapper({
+// Exported component for inline use (e.g., in ConnectionWizard)
+export function ConnectionEditDialogContent({
   connection,
   onSave,
   onDelete,
@@ -345,14 +345,7 @@ function ConnectionEditDialogWrapper({
       onSave(savedConnection);
     }
     return true; // Close dialog
-  }, [
-    getEditingConnection,
-    currentSelectedConnection,
-    isAddMode,
-    onSave,
-    clearFieldErrors,
-    setFieldError,
-  ]);
+  }, [getEditingConnection, currentSelectedConnection, isAddMode, onSave, clearFieldErrors, setFieldError]);
 
   useEffect(() => {
     return () => {
@@ -372,19 +365,16 @@ function ConnectionEditDialogWrapper({
   }, []);
 
   // Memoize template selection handler
-  const handleTemplateSelect = useCallback(
-    (conn: ConnectionConfig) => {
-      setCurrentSelectedConnection(conn);
-      setCluster(conn.cluster);
-      setEditable(conn.editable);
-      setName(conn.name);
-      setUrl(conn.url);
-      setUser(conn.user);
-      setPassword(conn.password);
-      setIsNameManuallyEdited(true); // Template names are pre-set, so mark as manually edited
-    },
-    []
-  );
+  const handleTemplateSelect = useCallback((conn: ConnectionConfig) => {
+    setCurrentSelectedConnection(conn);
+    setCluster(conn.cluster);
+    setEditable(conn.editable);
+    setName(conn.name);
+    setUrl(conn.url);
+    setUser(conn.user);
+    setPassword(conn.password);
+    setIsNameManuallyEdited(true); // Template names are pre-set, so mark as manually edited
+  }, []);
 
   // Memoize input onChange handlers to prevent unnecessary re-renders
   const handleUrlChange = useCallback(
@@ -568,8 +558,9 @@ function ConnectionEditDialogWrapper({
           setAbort(undefined);
           setTestResultWithDelay({
             type: "error",
-            message: `Successfully connected to ClickHouse server. But unable to determine if the cluster [${testConnectionConfig.name}] exists on the server. You can still save the connection to continue. ${error.httpStatus !== 404 ? error.message : ""
-              }`,
+            message: `Successfully connected to ClickHouse server. But unable to determine if the cluster [${testConnectionConfig.name}] exists on the server. You can still save the connection to continue. ${
+              error.httpStatus !== 404 ? error.message : ""
+            }`,
           });
         }
       } catch (error: unknown) {
@@ -611,8 +602,6 @@ function ConnectionEditDialogWrapper({
       });
     }
   }, [getEditingConnection, setAbort]);
-
-
 
   // Save handler
   const handleSave = useCallback(async () => {
@@ -668,197 +657,196 @@ function ConnectionEditDialogWrapper({
   }, [handleClose]);
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-background flex flex-col">
-      {/* Main Content - Centered */}
-      <div className="flex-1 overflow-y-auto flex items-center justify-center p-8 relative">
-        <div className="w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden">
-          <Card className={`w-full ${bottomSectionContent ? "rounded-b-none" : ""} relative flex-shrink-0`}>
-            {/* Close Button - Top Right inside Card */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              disabled={bottomSectionContent?.type === "delete-confirmation"}
-              className="absolute top-2 right-2 h-8 w-8 z-10"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-            <CardHeader>
-              <CardTitle>{isAddMode ? "Create a new connection" : "Modify existing connection"}</CardTitle>
-              <CardDescription>Configure your ClickHouse connection settings.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSave();
-                }}
-              >
-                <FieldGroup className="space-y-2">
-                  {hasProvider && <Field>{renderConnectionSelector}</Field>}
+    <div className="w-full max-w-2xl flex flex-col h-[90vh] overflow-hidden">
+      <Card className={`w-full ${bottomSectionContent ? "rounded-b-none" : ""} relative flex-shrink-0`}>
+        {/* Close Button - Top Right inside Card */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleClose}
+          disabled={bottomSectionContent?.type === "delete-confirmation"}
+          className="absolute top-2 right-2 h-8 w-8 z-10"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+        <CardHeader>
+          <CardTitle>{isAddMode ? "Create a new connection" : "Modify existing connection"}</CardTitle>
+          <CardDescription>Configure your ClickHouse connection settings.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSave();
+            }}
+          >
+            <FieldGroup className="space-y-2">
+              {hasProvider && <Field>{renderConnectionSelector}</Field>}
 
-                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
-                    <FieldLabel htmlFor="url" className="text-right">
-                      URL
-                    </FieldLabel>
+              <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
+                <FieldLabel htmlFor="url" className="text-right">
+                  URL
+                </FieldLabel>
 
-                    <Input
-                      id="url"
-                      autoFocus
-                      placeholder="http(s)://"
-                      value={url}
-                      onChange={handleUrlChange}
-                      className={fieldErrors.url ? "border-destructive" : ""}
-                    />
-                    <div></div>
-                    {fieldErrors.url ? (
-                      <FieldDescription className="text-destructive">{fieldErrors.url}</FieldDescription>
-                    ) : (
-                      <FieldDescription>The HTTP(s) URL of the ClickHouse server</FieldDescription>
-                    )}
-                  </Field>
+                <Input
+                  id="url"
+                  autoFocus
+                  placeholder="http(s)://"
+                  value={url}
+                  onChange={handleUrlChange}
+                  className={fieldErrors.url ? "border-destructive" : ""}
+                />
+                <div></div>
+                {fieldErrors.url ? (
+                  <FieldDescription className="text-destructive">{fieldErrors.url}</FieldDescription>
+                ) : (
+                  <FieldDescription>The HTTP(s) URL of the ClickHouse server</FieldDescription>
+                )}
+              </Field>
 
-                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
-                    <FieldLabel htmlFor="user" className="text-right">
-                      User
-                    </FieldLabel>
-                    <Input
-                      id="user"
-                      value={user}
-                      onChange={handleUserChange}
-                      className={fieldErrors.user ? "border-destructive" : ""}
-                    />
-                    <div></div>
-                    {fieldErrors.user ? (
-                      <FieldDescription className="text-destructive">{fieldErrors.user}</FieldDescription>
-                    ) : (
-                      <FieldDescription>The user name to access the ClickHouse server</FieldDescription>
-                    )}
-                  </Field>
+              <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
+                <FieldLabel htmlFor="user" className="text-right">
+                  User
+                </FieldLabel>
+                <Input
+                  id="user"
+                  value={user}
+                  onChange={handleUserChange}
+                  className={fieldErrors.user ? "border-destructive" : ""}
+                />
+                <div></div>
+                {fieldErrors.user ? (
+                  <FieldDescription className="text-destructive">{fieldErrors.user}</FieldDescription>
+                ) : (
+                  <FieldDescription>The user name to access the ClickHouse server</FieldDescription>
+                )}
+              </Field>
 
-                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
-                    <FieldLabel htmlFor="password" className="text-right">
-                      Password
-                    </FieldLabel>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={isShowPassword ? "text" : "password"}
-                        value={password}
-                        onChange={handlePasswordChange}
-                        className="pr-10"
-                      />
+              <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
+                <FieldLabel htmlFor="password" className="text-right">
+                  Password
+                </FieldLabel>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={isShowPassword ? "text" : "password"}
+                    value={password}
+                    onChange={handlePasswordChange}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    disabled={bottomSectionContent?.type === "delete-confirmation"}
+                  >
+                    {isShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <div></div>
+                <FieldDescription>
+                  The password to access the ClickHouse server. Leave it blank if password is not needed.
+                </FieldDescription>
+              </Field>
+
+              <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
+                <FieldLabel htmlFor="cluster" className={`text-right ${!editable ? "text-muted-foreground" : ""}`}>
+                  Cluster
+                </FieldLabel>
+                <Input id="cluster" value={cluster} disabled={!editable} onChange={handleClusterChange} />
+                <div></div>
+                <FieldDescription>
+                  Configure the cluster name to access full features of this console if the ClickHouse server is
+                  deployed as cluster
+                </FieldDescription>
+              </Field>
+
+              <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
+                <FieldLabel htmlFor="name" className="text-right">
+                  Connection Name
+                </FieldLabel>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={handleNameChange}
+                  className={fieldErrors.name ? "border-destructive" : ""}
+                />
+                <div></div>
+                {fieldErrors.name ? (
+                  <FieldDescription className="text-destructive">{fieldErrors.name}</FieldDescription>
+                ) : (
+                  <FieldDescription>Name of the connection</FieldDescription>
+                )}
+              </Field>
+
+              <FieldGroup>
+                <Field>
+                  <div className="flex items-center justify-end gap-2 pt-4 border-t">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleTestConnection}
+                      disabled={isTesting || isSaving || bottomSectionContent?.type === "delete-confirmation"}
+                    >
+                      {isTesting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Test Connection
+                    </Button>
+                    {!isAddMode && onDelete && (
                       <Button
                         type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowPassword((prev) => !prev)}
-                        disabled={bottomSectionContent?.type === "delete-confirmation"}
+                        variant="destructive"
+                        onClick={handleDeleteClick}
+                        disabled={isTesting || isSaving || bottomSectionContent?.type === "delete-confirmation"}
                       >
-                        {isShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        Delete
                       </Button>
-                    </div>
-                    <div></div>
-                    <FieldDescription>
-                      The password to access the ClickHouse server. Leave it blank if password is not needed.
-                    </FieldDescription>
-                  </Field>
-
-                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
-                    <FieldLabel htmlFor="cluster" className={`text-right ${!editable ? "text-muted-foreground" : ""}`}>
-                      Cluster
-                    </FieldLabel>
-                    <Input id="cluster" value={cluster} disabled={!editable} onChange={handleClusterChange} />
-                    <div></div>
-                    <FieldDescription>
-                      Configure the cluster name to access full features of this console if the ClickHouse server is deployed as cluster
-                    </FieldDescription>
-                  </Field>
-
-                  <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
-                    <FieldLabel htmlFor="name" className="text-right">
-                      Connection Name
-                    </FieldLabel>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={handleNameChange}
-                      className={fieldErrors.name ? "border-destructive" : ""}
-                    />
-                    <div></div>
-                    {fieldErrors.name ? (
-                      <FieldDescription className="text-destructive">{fieldErrors.name}</FieldDescription>
-                    ) : (
-                      <FieldDescription>Name of the connection</FieldDescription>
                     )}
-                  </Field>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCancel}
+                      disabled={isTesting || isSaving || bottomSectionContent?.type === "delete-confirmation"}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isTesting || isSaving || bottomSectionContent?.type === "delete-confirmation"}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </Field>
+              </FieldGroup>
+            </FieldGroup>
+          </form>
+        </CardContent>
+      </Card>
 
-                  <FieldGroup>
-                    <Field>
-                      <div className="flex items-center justify-end gap-2 pt-4 border-t">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={handleTestConnection}
-                          disabled={isTesting || isSaving || bottomSectionContent?.type === "delete-confirmation"}
-                        >
-                          {isTesting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                          Test Connection
-                        </Button>
-                        {!isAddMode && onDelete && (
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            onClick={handleDeleteClick}
-                            disabled={isTesting || isSaving || bottomSectionContent?.type === "delete-confirmation"}
-                          >
-                            Delete
-                          </Button>
-                        )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={handleCancel}
-                          disabled={isTesting || isSaving || bottomSectionContent?.type === "delete-confirmation"}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="submit"
-                          disabled={isTesting || isSaving || bottomSectionContent?.type === "delete-confirmation"}
-                        >
-                          Save
-                        </Button>
-                      </div>
-                    </Field>
-                  </FieldGroup>
-                </FieldGroup>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Bottom Section Area - Fixed height container, content adapts inside */}
-          <div className="h-[140px] relative overflow-hidden flex items-start">
-            <div
-              className={`w-full transition-all duration-300 ease-in-out ${bottomSectionContent ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
-                }`}
-            >
-              {bottomSectionContent?.type === "test-success" && (
-                <TestSuccessMessage message={bottomSectionContent.message} />
-              )}
-              {bottomSectionContent?.type === "error" && <ErrorMessage message={bottomSectionContent.message} />}
-              {bottomSectionContent?.type === "delete-confirmation" && (
-                <DeleteConfirmation
-                  onConfirm={handleDeleteConfirm}
-                  onCancel={handleDeleteCancel}
-                  disabled={isTesting || isSaving}
-                />
-              )}
-            </div>
+      {/* Bottom Section Area - Fixed height container, content adapts inside */}
+      {bottomSectionContent && (
+        <div className="h-[140px] relative overflow-hidden flex items-start">
+          <div
+            className={`w-full transition-all duration-300 ease-in-out ${
+              bottomSectionContent ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
+            }`}
+          >
+            {bottomSectionContent?.type === "test-success" && (
+              <TestSuccessMessage message={bottomSectionContent.message} />
+            )}
+            {bottomSectionContent?.type === "error" && <ErrorMessage message={bottomSectionContent.message} />}
+            {bottomSectionContent?.type === "delete-confirmation" && (
+              <DeleteConfirmation
+                onConfirm={handleDeleteConfirm}
+                onCancel={handleDeleteCancel}
+                disabled={isTesting || isSaving}
+              />
+            )}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -885,24 +873,29 @@ export function showConnectionEditDialog(options: ShowConnectionEditDialogOption
     }
   };
 
-  // Render the full-screen component
+  // Render the full-screen component with wrapper
   root.render(
-    <ConnectionEditDialogWrapper
-      connection={connection}
-      onSave={(savedConnection: ConnectionConfig) => {
-        cleanup();
-        if (onSave) {
-          onSave(savedConnection);
-        }
-      }}
-      onDelete={() => {
-        cleanup();
-        if (onDelete) {
-          onDelete();
-        }
-      }}
-      onCancel={cleanup}
-      isAddMode={isAddMode}
-    />
+    <div className="fixed inset-0 z-[9999] bg-background flex flex-col">
+      {/* Main Content - Centered */}
+      <div className="flex-1 overflow-y-auto flex items-center justify-center p-8 relative">
+        <ConnectionEditDialogContent
+          connection={connection}
+          onSave={(savedConnection: ConnectionConfig) => {
+            cleanup();
+            if (onSave) {
+              onSave(savedConnection);
+            }
+          }}
+          onDelete={() => {
+            cleanup();
+            if (onDelete) {
+              onDelete();
+            }
+          }}
+          onCancel={cleanup}
+          isAddMode={isAddMode}
+        />
+      </div>
+    </div>
   );
 }

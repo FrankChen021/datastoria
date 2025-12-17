@@ -41,7 +41,7 @@ function EmptyTabPlaceholderComponent() {
         <Database className="h-10 w-10 text-primary/80" />
       </div>
 
-      <h3 className="text-2xl font-semibold tracking-tight mb-2">Welcome to ClickHouse Console</h3>
+      <h3 className="text-2xl font-semibold tracking-tight mb-2">Welcome to Data Scopic</h3>
 
       <p className="text-muted-foreground max-w-md mb-8 text-sm leading-relaxed">
         Select a table from the sidebar to view its details, or start by running a new SQL query.
