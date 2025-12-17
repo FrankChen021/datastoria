@@ -1,18 +1,18 @@
-import '@/index.css'
-import type { Metadata } from 'next'
+import "@/index.css";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: 'ClickHouse Console',
-  description: 'AI-powered ClickHouse database management console',
+  title: "Data Scopic",
+  description: "AI-powered ClickHouse database management console",
   icons: {
-    icon: '/logo_clickhouse.svg',
+    icon: "/logo.png",
   },
-}
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -39,10 +39,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
-  )
+  );
 }
-

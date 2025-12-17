@@ -1,3 +1,12 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -8,21 +17,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useConnection } from "@/lib/connection/connection-context";
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
 import { Database, LogOut, Search, Settings, Terminal } from "lucide-react";
-import { useEffect, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import { ConnectionSelectorPopover } from "./connection/connection-selector-popover";
 import { showQueryContextEditDialog } from "./query-tab/query-control/query-context-edit-dialog";
 import { TabManager } from "./tab-manager";
@@ -37,10 +38,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <a href="/" className="flex items-center justify-center">
-              <img src="/logo_clickhouse.svg" alt="ClickHouse" className="h-6 w-6" />
-            </a>
+          <SidebarMenuItem className="flex justify-center">
+            <Image src="/logo.png" alt="Data Scopic" width={24} height={24} />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
@@ -129,11 +128,11 @@ function ThemeToggleButton() {
   useEffect(() => {
     // Set mounted flag to true after client-side hydration
     setMounted(true);
-    
+
     const root = window.document.documentElement;
     // Set initial value after mount
     setIsDark(root.classList.contains("dark"));
-    
+
     const observer = new MutationObserver(() => {
       setIsDark(root.classList.contains("dark"));
     });
@@ -155,12 +154,7 @@ function ThemeToggleButton() {
   // Prevent hydration mismatch by not rendering icons until mounted
   if (!mounted) {
     return (
-      <SidebarMenuButton
-        size="lg"
-        onClick={toggleTheme}
-        tooltip="Toggle theme"
-        className="justify-center"
-      >
+      <SidebarMenuButton size="lg" onClick={toggleTheme} tooltip="Toggle theme" className="justify-center">
         <div className="h-5 w-5" />
       </SidebarMenuButton>
     );
