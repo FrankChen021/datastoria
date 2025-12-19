@@ -265,3 +265,12 @@
   white-space: pre;
   overflow-x: auto;
 }
+
+/* React Resizable Panels cursor overrides */
+[data-panel-group-direction="horizontal"] > [data-resize-handle] {
+  cursor: col-resize !important;
+}
+
+[data-panel-group-direction="vertical"] > [data-resize-handle] {
+  cursor: row-resize !important;
+}
