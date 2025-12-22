@@ -149,12 +149,15 @@ function toColumnTreeNode(column: { name: string; type: string; comment?: string
     }
 
     return (
-      <div className="text-xs space-y-1 max-w-[300px]">
+      <div className="text-xs space-y-1 max-w-[400px]">
         <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
           <div className="font-medium text-muted-foreground">Column</div>
-          <div className="text-foreground break-words">{columnName}</div>
+          <div className="text-foreground break-all flex items-center gap-1 min-w-0">
+            <span>{columnName}</span>
+            <CopyButton value={columnName} className="relative top-0 right-0 h-4 w-4 shrink-0 [&_svg]:h-2.5 [&_svg]:w-2.5" />
+          </div>
           <div className="font-medium text-muted-foreground">Type</div>
-          <div className="text-foreground font-mono break-words">{columnType}</div>
+          <div className="text-foreground font-mono break-all min-w-0">{columnType}</div>
         </div>
 
         {/* Enum info */}
@@ -218,12 +221,12 @@ function toTableTreeNode(table: {
     <div className="text-xs space-y-1">
       <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 items-center">
         <div className="font-medium text-muted-foreground">Table</div>
-        <div className="text-foreground break-all flex items-center gap-1">
+        <div className="text-foreground break-all flex items-center gap-1 min-w-0">
           <span>{fullName}</span>
           <CopyButton value={fullName} className="relative top-0 right-0 h-4 w-4 shrink-0 [&_svg]:h-2.5 [&_svg]:w-2.5" />
         </div>
         <div className="font-medium text-muted-foreground">Engine</div>
-        <div className="text-foreground break-all">{table.fullTableEngine || table.tableEngine}</div>
+        <div className="text-foreground break-all min-w-0">{table.fullTableEngine || table.tableEngine}</div>
       </div>
       {tableComment && (
         <div className="pt-1 mt-1 border-t">
@@ -269,14 +272,14 @@ function toDatabaseTreeNode(db: {
     <div className="text-xs space-y-1">
       <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 items-center">
         <div className="font-medium text-muted-foreground">Database</div>
-        <div className="text-foreground break-all flex items-center gap-1">
+        <div className="text-foreground break-all flex items-center gap-1 min-w-0">
           <span>{dbName}</span>
           <CopyButton value={dbName} className="relative top-0 right-0 h-4 w-4 shrink-0 [&_svg]:h-2.5 [&_svg]:w-2.5" />
         </div>
         <div className="font-medium text-muted-foreground">Engine</div>
-        <div className="text-foreground break-all">{db.engine}</div>
+        <div className="text-foreground break-all min-w-0">{db.engine}</div>
         <div className="font-medium text-muted-foreground">Tables</div>
-        <div className="text-foreground">{db.tableCount}</div>
+        <div className="text-foreground min-w-0">{db.tableCount}</div>
       </div>
       {db.comment && (
         <div className="pt-1 mt-1 border-t">
@@ -526,14 +529,14 @@ export function buildSchemaTree(
       <div className="font-medium text-muted-foreground">{connection.name}</div>
       <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 items-center">
         <div className="font-medium text-muted-foreground">URL</div>
-        <div className="text-foreground break-all flex items-center gap-1">
+        <div className="text-foreground break-all flex items-center gap-1 min-w-0">
           <span>{connection.url}</span>
           <CopyButton value={connection.url} className="relative top-0 right-0 h-4 w-4 shrink-0 [&_svg]:h-2.5 [&_svg]:w-2.5" />
         </div>
         <div className="font-medium text-muted-foreground">User</div>
-        <div className="text-foreground break-all">{connection.user}</div>
+        <div className="text-foreground break-all min-w-0">{connection.user}</div>
         <div className="font-medium text-muted-foreground">Current Node</div>
-        <div className="text-foreground break-all">{serverName}</div>
+        <div className="text-foreground break-all min-w-0">{serverName}</div>
       </div>
       <div className="pt-1 mt-1 border-t grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
         <div className="font-medium text-muted-foreground">Databases</div>
