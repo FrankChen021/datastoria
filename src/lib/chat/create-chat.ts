@@ -1,8 +1,9 @@
-import type { AppUIMessage } from "@/lib/ai/ai-tools";
-import { toolExecutors } from "@/lib/ai/ai-tools";
+import { CLIENT_TOOL_NAMES, type AppUIMessage } from "@/lib/ai/client-tools";
+import { toolExecutors } from "@/lib/ai/client-tools";
+import { Connection } from "@/lib/connection/connection";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
 import { Chat } from "@ai-sdk/react";
-import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { v7 as uuidv7 } from "uuid";
 import { chatStorage } from "./storage";
 import type { ChatContext, Message } from "./types";
@@ -88,9 +89,15 @@ function buildContext(): ChatContext | undefined {
  * Create or retrieve a chat instance
  * Uses @ai-sdk/react Chat class with custom transport for API communication
  */
-export async function createChat(options?: { id?: string; databaseId?: string; skipStorage?: boolean }): Promise<Chat> {
+export async function createChat(options?: {
+  id?: string;
+  databaseId?: string;
+  skipStorage?: boolean;
+  apiEndpoint?: string;
+}): Promise<Chat<AppUIMessage>> {
   const chatId = options?.id || uuidv7();
   const skipStorage = options?.skipStorage ?? false;
+  const apiEndpoint = options?.apiEndpoint ?? "/api/chat-agent";
 
   // Return cached instance if exists
   if (chatsMap.has(chatId)) {
@@ -121,24 +128,41 @@ export async function createChat(options?: { id?: string; databaseId?: string; s
     // Automatically send tool results back to the API when all tool calls are complete
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
 
+    // Configure custom API endpoint
+    transport: new DefaultChatTransport({
+      api: apiEndpoint,
+    }),
+
     // Initial messages from storage
     messages: existingMessages.map((msg) => ({
       id: msg.id,
       role: msg.role,
       parts: msg.parts,
+      createdAt: msg.createdAt,
+      updatedAt: msg.updatedAt,
     })) as AppUIMessage[],
+
 
     // Handle tool calls from LLM using registry pattern
     onToolCall: async ({ toolCall }) => {
       const { toolName, toolCallId, input } = toolCall;
 
+      // Ignore server-side reasoning tools (they are executed on the server)
+      if (toolName === CLIENT_TOOL_NAMES.GENERATE_SQL || toolName === CLIENT_TOOL_NAMES.GENEREATE_VISUALIZATION) {
+        return;
+      }
+
+
       // Type guard to ensure toolName is a valid key
       if (!(toolName in toolExecutors)) {
         console.error(`Unknown tool: ${toolName}`);
         chat.addToolResult({
-          tool: toolName as "get_table_columns" | "get_tables" | "execute_select_query",
+          tool: toolName as
+            | typeof CLIENT_TOOL_NAMES.GET_TABLE_COLUMNS
+            | typeof CLIENT_TOOL_NAMES.GET_TABLES
+            | typeof CLIENT_TOOL_NAMES.EXECUTE_SQL,
           toolCallId,
-          output: { error: `Unknown tool: ${toolName}` },
+          output: { error: `Unknown tool: ${toolName}` } as any,
         });
         return;
       }
@@ -147,31 +171,42 @@ export async function createChat(options?: { id?: string; databaseId?: string; s
       const executor = toolExecutors[toolName as keyof typeof toolExecutors];
 
       // Get the current connection
-      const connection = ConnectionManager.getInstance().getLastSelectedOrFirst();
-      if (!connection) {
+      const config = ConnectionManager.getInstance().getLastSelectedOrFirst();
+      if (!config) {
         console.error("No ClickHouse connection available");
         chat.addToolResult({
-          tool: toolName as "get_table_columns" | "get_tables" | "execute_select_query",
+          tool: toolName as any,
           toolCallId,
           output: { error: "No ClickHouse connection available" },
         });
         return;
       }
 
+      const connection = Connection.create(config);
+
       try {
         // Execute the tool using the registry
         // TypeScript will properly infer the types based on toolName
-        const output = await executor(input as never, connection);
+        const output = await executor(input as any, connection);
+
+        // Log output size for monitoring
+        const outputStr = JSON.stringify(output);
+        const outputSizeKB = (outputStr.length / 1024).toFixed(2);
+        console.log(`🔧 Tool ${toolName} output size: ${outputSizeKB}KB`);
+        
+        if (outputStr.length > 500 * 1024) { // Warn if > 500KB
+          console.warn(`⚠️ Large tool output detected for ${toolName}: ${outputSizeKB}KB`);
+        }
 
         chat.addToolResult({
-          tool: toolName as "get_table_columns" | "get_tables" | "execute_select_query",
+          tool: toolName as any,
           toolCallId,
           output,
         });
       } catch (error) {
         console.error(`Error executing tool ${toolName}:`, error);
         chat.addToolResult({
-          tool: toolName as "get_table_columns" | "get_tables" | "execute_select_query",
+          tool: toolName as any,
           toolCallId,
           output: {
             error: error instanceof Error ? error.message : "Unknown error occurred",
@@ -184,26 +219,26 @@ export async function createChat(options?: { id?: string; databaseId?: string; s
     onFinish: skipStorage
       ? undefined
       : async ({ message }) => {
-          const messageToSave: Message = {
-            id: message.id,
-            chatId,
-            role: message.role,
-            parts: message.parts as any,
-            createdAt: new Date(),
+        const messageToSave: Message = {
+          id: message.id,
+          chatId,
+          role: message.role,
+          parts: message.parts as any,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        await chatStorage.saveMessage(messageToSave);
+
+        // Update chat timestamp
+        const chat = await chatStorage.getChat(chatId);
+        if (chat) {
+          await chatStorage.saveChat({
+            ...chat,
             updatedAt: new Date(),
-          };
-
-          await chatStorage.saveMessage(messageToSave);
-
-          // Update chat timestamp
-          const chat = await chatStorage.getChat(chatId);
-          if (chat) {
-            await chatStorage.saveChat({
-              ...chat,
-              updatedAt: new Date(),
-            });
-          }
-        },
+          });
+        }
+      },
   });
 
   // Cache the instance

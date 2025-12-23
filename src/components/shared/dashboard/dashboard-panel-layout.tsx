@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { EllipsisVertical } from "lucide-react";
+import { EllipsisVertical, RotateCw } from "lucide-react";
 import React from "react";
 import FloatingProgressBar from "@/components/floating-progress-bar";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import type { TimeSpan } from "./timespan-selector";
 export type RefreshOptions = {
   inputFilter?: string;
   selectedTimeSpan?: TimeSpan;
+  forceRefresh?: boolean; // Force refresh even if parameters haven't changed
 };
 
 export interface DashboardPanelComponent {
@@ -41,6 +42,9 @@ export interface DashboardPanelLayoutProps {
   // Dropdown menu items
   dropdownItems?: React.ReactNode;
 
+  // Refresh callback (called when refresh button is clicked)
+  onRefresh?: () => void;
+
   // Content
   children: React.ReactNode;
 
@@ -62,12 +66,35 @@ export function DashboardPanelLayout({
   setIsCollapsed,
   titleOption,
   dropdownItems,
+  onRefresh,
   children,
   headerClassName,
   headerBackground = false,
 }: DashboardPanelLayoutProps) {
   const isCollapsible = isCollapsed !== undefined && setIsCollapsed !== undefined;
   const showTitle = !!titleOption?.title && titleOption?.showTitle !== false;
+  const showRefreshButton = titleOption?.showRefreshButton === true;
+
+  // Render refresh button (absolutely positioned, before dropdown menu)
+  const renderRefreshButton = () => {
+    if (!showRefreshButton || !onRefresh) return null;
+
+    return (
+      <div className="absolute right-10 z-10">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20"
+          title="Refresh panel"
+          aria-label="Refresh panel"
+          onClick={onRefresh}
+        >
+          <RotateCw className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  };
 
   // Render dropdown menu button (absolutely positioned)
   const renderDropdownMenu = () => {
@@ -78,6 +105,7 @@ export function DashboardPanelLayout({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
+              type="button"
               variant="ghost"
               size="icon"
               className="h-6 w-6 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20"
@@ -126,6 +154,7 @@ export function DashboardPanelLayout({
         ) : (
           <div className={cn("w-full", hoverClasses)}>{headerContent}</div>
         )}
+        {renderRefreshButton()}
         {renderDropdownMenu()}
       </CardHeader>
     );

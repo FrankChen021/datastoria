@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { QueryControl } from "../query-control/query-control";
-import { SqlInput } from "./sql-input";
-import { ChatInput } from "./chat-input";
-import { ChatExecutor, type ChatRequestEventDetail } from "../query-execution/chat-executor";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
+import { QueryControl } from "../query-control/query-control";
+import { ChatExecutor, type ChatRequestEventDetail } from "../query-execution/chat-executor";
+import { ChatInput } from "./chat-input";
 import { QueryInputView } from "./query-input-view";
 
 export interface QueryInputProps {

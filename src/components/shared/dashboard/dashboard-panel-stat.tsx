@@ -513,13 +513,6 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
           return;
         }
 
-        // Validate that we have a time span
-        if (!_param.selectedTimeSpan) {
-          if (!isOffset) {
-            setError("Please choose time span.");
-          }
-          return;
-        }
 
         const showMinimap = shouldShowMinimap() && !isOffset;
 
@@ -538,7 +531,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
             const query = descriptor.query;
             const thisQuery = Object.assign({}, query) as SQLQuery;
 
-            // Replace time span template parameters in SQL
+            // Replace time span template parameters in SQL if time span is provided
             const finalSql = replaceTimeSpanParams(thisQuery.sql, _param.selectedTimeSpan, connection!.session.timezone);
             const { response } = connection!.queryOnNode(
               finalSql,
@@ -578,7 +571,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
             // For non-timeseries or no minimap, use the original scalar fetcher
             const query = Object.assign({}, descriptor.query);
 
-            // Replace time span template parameters in SQL
+            // Replace time span template parameters in SQL if provided
             const finalSql = replaceTimeSpanParams(query.sql, _param.selectedTimeSpan, connection!.session.timezone);
             const { response } = connection!.queryOnNode(
               finalSql,
@@ -642,16 +635,12 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
           return;
         }
 
-        if (!param.selectedTimeSpan) {
-          setError("Please choose time span.");
-          return;
-        }
 
         // Load data - for timeseries with minimap, we get both stat and minimap from same response
         loadData(param);
 
         // Load offset data
-        if (offset !== 0) {
+        if (offset !== 0 && param.selectedTimeSpan) {
           const offsetTimeSpan: TimeSpan = {
             startISO8601:
               DateTimeExtension.formatISO8601(
@@ -677,7 +666,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
 
     // Use shared refreshable hook (stat chart doesn't have collapse, but uses viewport checking)
     const getInitialParams = React.useCallback(() => {
-      return props.selectedTimeSpan ? ({ selectedTimeSpan: props.selectedTimeSpan } as RefreshOptions) : undefined;
+      return props.selectedTimeSpan ? ({ selectedTimeSpan: props.selectedTimeSpan } as RefreshOptions) : ({} as RefreshOptions);
     }, [props.selectedTimeSpan]);
 
     const { componentRef, refresh, getLastRefreshParameter } = useRefreshable({
@@ -1110,6 +1099,12 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
       </>
     );
 
+    // Handler for refresh button
+    const handleRefresh = useCallback(() => {
+      const lastParams = getLastRefreshParameter();
+      refresh({ ...lastParams, forceRefresh: true });
+    }, [getLastRefreshParameter, refresh]);
+
     return (
       <DashboardPanelLayout
         componentRef={componentRef}
@@ -1119,6 +1114,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
         isLoading={isLoadingValue}
         titleOption={descriptor.titleOption}
         dropdownItems={dropdownItems}
+        onRefresh={handleRefresh}
         headerBackground={true}
       >
         <CardContent className="pt-5 pb-1 px-0 relative">

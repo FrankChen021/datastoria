@@ -1,4 +1,4 @@
-import type { AppUIMessage } from "@/lib/ai/ai-tools";
+import type { AppUIMessage } from "@/lib/ai/client-tools";
 import { createChat, setChatContextBuilder } from "@/lib/chat";
 import type { Chat } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
@@ -43,18 +43,26 @@ function ChatContent({
     sendMessage,
   } = useChat({
     chat: chat, // Use the chat instance that has onToolCall, custom transport, etc.
-    api: "/api/chat",
-    body: {
-      context: chatRequest.context,
-    },
   });
 
   // Filter out internal AI SDK parts like 'step-start', 'step-finish', etc.
   // AppUIMessage is already the AI SDK's UIMessage type, so we can use rawMessages directly
   // but we need to filter out internal parts that shouldn't be displayed
   const messages: AppUIMessage[] = rawMessages.map((msg) => {
+    // The usage data should be in the message metadata (not in parts)
+    // The AI SDK automatically attaches metadata from finish chunks to the message
+    const msgWithMetadata = msg as AppUIMessage & {
+      metadata?: { usage?: { inputTokens: number; outputTokens: number; totalTokens: number } };
+    };
+    const usage = msgWithMetadata.metadata?.usage;
+
+    if (usage) {
+      console.log("Found usage in message metadata:", { id: msg.id, role: msg.role, usage });
+    }
+
     return {
       ...msg,
+      usage, // Attach usage to the message for easy access
       parts: msg.parts.filter((part) => {
         // Filter out internal AI SDK stream events that shouldn't be displayed
         const partType = part.type as string;
@@ -188,6 +196,7 @@ export function ChatListItemView({
         const instance = await createChat({
           id: chatId,
           skipStorage: true, // Skip storage for single-use chats
+          apiEndpoint: "/api/chat-agent", // Use the agent-based endpoint
         });
 
         if (!mounted) return;

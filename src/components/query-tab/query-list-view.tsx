@@ -17,7 +17,7 @@ import type { QueryRequestViewModel } from "./query-view-model";
 import { useChat } from '@ai-sdk/react';
 import type { Chat } from '@ai-sdk/react';
 import { format } from "date-fns";
-import type { AppUIMessage } from "@/lib/ai/ai-tools";
+import type { AppUIMessage } from "@/lib/ai/client-tools";
 import { createChat, setChatContextBuilder } from "@/lib/chat";
 
 export interface QueryListViewProps {

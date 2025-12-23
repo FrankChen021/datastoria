@@ -135,7 +135,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           }
 
           // Replace time span template parameters in SQL (e.g., {rounding:UInt32}, {seconds:UInt32}, etc.)
-          let finalSql = param.selectedTimeSpan ? replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.session.timezone) : query.sql;
+          let finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.session.timezone);
 
           // Apply server-side sorting if enabled
           // Use sortRef for synchronous access to current sort state
@@ -294,6 +294,12 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
       <>{descriptor.query?.sql && <DropdownMenuItem onClick={handleShowQuery}>Show query</DropdownMenuItem>}</>
     );
 
+    // Handler for refresh button
+    const handleRefresh = useCallback(() => {
+      const lastParams = getLastRefreshParameter();
+      refresh({ ...lastParams, forceRefresh: true });
+    }, [getLastRefreshParameter, refresh]);
+
     return (
       <DashboardPanelLayout
         componentRef={componentRef}
@@ -303,6 +309,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
         setIsCollapsed={setIsCollapsed}
         titleOption={descriptor.titleOption}
         dropdownItems={dropdownItems}
+        onRefresh={handleRefresh}
       >
         <CardContent
           className="px-0 p-0 h-full overflow-hidden"

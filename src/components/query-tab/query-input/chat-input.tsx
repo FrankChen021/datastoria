@@ -1,13 +1,14 @@
+import type { AppUIMessage } from "@/lib/ai/client-tools";
 import { Button } from "@/components/ui/button";
-import type { AppUIMessage } from "@/lib/ai/ai-tools";
 import { createChat, setChatContextBuilder } from "@/lib/chat/create-chat";
 import type { ChatContext } from "@/lib/chat/types";
 import { useConnection } from "@/lib/connection/connection-context";
 import { useChat } from "@ai-sdk/react";
-import { ArrowLeft, MessageSquare, Send } from "lucide-react";
+import { ArrowLeft, MessageSquare } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatResponseView } from "../chat-response-view";
 import { ChatExecutor } from "../query-execution/chat-executor";
+import { QueryInputView, type QueryInputViewRef } from "./query-input-view";
 
 export interface ChatInputProps {
   chatId: string;
@@ -31,8 +32,7 @@ function ChatInputContent({
   onMessageSent?: () => void;
   tabId?: string;
 }) {
-  const [input, setInput] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<QueryInputViewRef>(null);
   const hasDispatchedChatRequest = useRef(false);
 
   // Use useChat hook to get messages, status, and sendMessage
@@ -47,8 +47,16 @@ function ChatInputContent({
 
   // Filter out internal AI SDK parts
   const messages: AppUIMessage[] = rawMessages.map((msg) => {
+    // The usage data should be in the message metadata (not in parts)
+    // The AI SDK automatically attaches metadata from finish chunks to the message
+    const msgWithMetadata = msg as AppUIMessage & { 
+      metadata?: { usage?: { inputTokens: number; outputTokens: number; totalTokens: number } } 
+    };
+    const usage = msgWithMetadata.metadata?.usage;
+
     return {
       ...msg,
+      usage, // Attach usage to the message for easy access
       parts: msg.parts.filter((part) => {
         const partType = part.type as string;
         return (
@@ -80,9 +88,9 @@ function ChatInputContent({
     }
   }, [initialMessage, sendMessage, onMessageSent]);
 
-  const handleSend = useCallback(() => {
-    const messageText = input.trim();
-    if (!messageText || status === "streaming" || status === "submitted") {
+  // Handle run command from editor (Ctrl/Cmd+Enter)
+  const handleRun = useCallback((text: string) => {
+    if (!text || status === "streaming" || status === "submitted") {
       return;
     }
 
@@ -91,38 +99,22 @@ function ChatInputContent({
       ChatExecutor.sendChatRequest("@ai", undefined, tabId);
     }
 
-    console.log("📤 ChatInput: Sending subsequent message via sendMessage()", { messageText });
-    sendMessage({ text: messageText });
+    console.log("📤 ChatInput: Sending message from editor via sendMessage()", { text });
+    sendMessage({ text });
 
-    setInput("");
+    // Clear editor after sending
+    if (editorRef.current) {
+      editorRef.current.setValue("");
+    }
+
     if (onMessageSent) {
       onMessageSent();
     }
 
     setTimeout(() => {
-      textareaRef.current?.focus();
+      editorRef.current?.focus();
     }, 0);
-  }, [input, status, sendMessage, onMessageSent, tabId, initialMessage]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend]
-  );
-
-  // Auto-resize textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [input]);
-
-  const isSending = status === "streaming" || status === "submitted";
+  }, [status, sendMessage, onMessageSent, tabId, initialMessage]);
 
   return (
     <div className="flex flex-col h-full bg-background border-t">
@@ -148,36 +140,14 @@ function ChatInputContent({
       </div>
 
       {/* Input Area */}
-      <div className="border-t p-4">
-        <div className="flex flex-col gap-2">
-          {/* Textarea container with relative positioning for icon button */}
-          <div className="relative">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
-              disabled={isSending}
-              className="flex-1 min-h-[60px] max-h-[200px] resize-none rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 w-full"
-              rows={3}
-            />
-            {/* Icon-only send button positioned in bottom-right */}
-            <Button
-              onClick={handleSend}
-              disabled={!input.trim() || isSending}
-              size="icon"
-              className="absolute bottom-2 right-2 h-8 w-8"
-              title="Send message"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-          {/* Status text below textarea */}
-          <div className="text-xs text-muted-foreground">
-            {isSending ? "AI is responding..." : "Press Enter to send, Shift+Enter for new line"}
-          </div>
-        </div>
+      <div className="border-t" style={{ height: "150px" }}>
+        <QueryInputView
+          ref={editorRef}
+          storageKey={`chat-input-${chat.id}`}
+          language="chat"
+          placeholder="Type your message... Press Ctrl/Cmd+Enter to send. Use @ to mention tables."
+          onRun={handleRun}
+        />
       </div>
     </div>
   );

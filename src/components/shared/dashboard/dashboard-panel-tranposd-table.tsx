@@ -108,10 +108,8 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
             };
           }
 
-          // Replace time span template parameters in SQL
-          const finalSql = param.selectedTimeSpan
-            ? replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.session.timezone)
-            : query.sql;
+          // Replace time span template parameters in SQL if provided
+          const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.session.timezone);
 
           const { response, abortController } = connection.query(
             finalSql,
@@ -460,6 +458,12 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
       <>{descriptor.query?.sql && <DropdownMenuItem onClick={handleShowQuery}>Show query</DropdownMenuItem>}</>
     );
 
+    // Handler for refresh button
+    const handleRefresh = useCallback(() => {
+      const lastParams = getLastRefreshParameter();
+      refresh({ ...lastParams, forceRefresh: true });
+    }, [getLastRefreshParameter, refresh]);
+
     return (
       <DashboardPanelLayout
         componentRef={componentRef}
@@ -469,6 +473,7 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
         setIsCollapsed={setIsCollapsed}
         titleOption={descriptor.titleOption}
         dropdownItems={dropdownItems}
+        onRefresh={handleRefresh}
       >
         <CardContent className="px-0 pb-0 h-full overflow-auto">
           <Table>

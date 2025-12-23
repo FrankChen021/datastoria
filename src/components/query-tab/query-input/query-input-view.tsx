@@ -26,9 +26,9 @@ import { useTheme } from "@/components/theme-provider";
 import { useConnection } from "@/lib/connection/connection-context";
 import { useDebouncedCallback } from "use-debounce";
 import { updateQueryEditorState } from "../query-control/use-query-editor";
-import { QueryExecutor } from "../query-execution/query-executor";
 import { QueryInputLocalStorage } from "../query-input/query-input-local-storage";
 import { QuerySuggestionManager } from "./completion/query-suggestion-manager";
+import { defineChatMode, updateChatModeTableNames } from "./completion/chat-mode";
 import "./query-input-view.css";
 import { QuerySnippetManager } from "./snippet/QuerySnippetManager";
 
@@ -265,17 +265,28 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
         editor.setValue(QueryInputLocalStorage.getInput(storageKey));
         editor.renderer.setScrollMargin(5, 10, 0, 0);
 
+        const session = editor.getSession();
+
         // Only valid for SQL
         if (language === 'dsql') {
           editor.completers = QuerySuggestionManager.getInstance().getCompleters(editor.completers);
+        } else if (language === 'chat') {
+          // Define and set up chat mode with table name highlighting FIRST
+          defineChatMode();
+          session.setMode("ace/mode/chat");
+          
+          // Then set completers (after mode is set)
+          editor.completers = QuerySuggestionManager.getInstance().getTableCompleters();
+          
+          // Update table names in the highlighter
+          updateChatModeTableNames(editor);
         } else {
-          // Clear completers for chat to avoid irrelevant suggestions
+          // Clear completers for other modes
           editor.completers = [];
         }
 
         // Clear any selection and move cursor to end of text
         editor.clearSelection();
-        const session = editor.getSession();
         const lines = session.getLength();
         if (lines > 0) {
           const lastLine = session.getLine(lines - 1);
@@ -320,7 +331,7 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
 
         editorRef.current = extendedEditor;
       },
-      [initialQuery, initialMode]
+      [initialQuery, initialMode, language, storageKey]
     );
 
     // Handle switching modes (storage key / language changes) without unmounting
@@ -347,6 +358,17 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
       if (language === 'dsql') {
         const extendedEditor = editorRef.current as ExtendedEditor;
         extendedEditor.completers = QuerySuggestionManager.getInstance().getCompleters(extendedEditor.completers);
+      } else if (language === 'chat') {
+        // Update chat mode and table name highlighting FIRST
+        const session = editorRef.current.getSession();
+        defineChatMode();
+        session.setMode("ace/mode/chat");
+        
+        // Then set completers (after mode is set)
+        const extendedEditor = editorRef.current as ExtendedEditor;
+        extendedEditor.completers = QuerySuggestionManager.getInstance().getTableCompleters();
+        
+        updateChatModeTableNames(editorRef.current);
       } else {
         const extendedEditor = editorRef.current as ExtendedEditor;
         extendedEditor.completers = [];
@@ -389,7 +411,7 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
     return (
       <div ref={containerRef} className="query-editor-container h-full w-full">
         <AceEditor
-          mode={language}
+          mode={language === 'chat' ? 'ace/mode/chat' : language}
           theme={aceTheme}
           className="no-background placeholder-padding h-full w-full"
           name="ace-editor"
@@ -405,8 +427,8 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
             tabSize: 4,
             newLineMode: "auto",
           }}
-          enableBasicAutocompletion={language === 'dsql'}
-          enableLiveAutocompletion={language === 'dsql'}
+          enableBasicAutocompletion={language === 'dsql' || language === 'chat'}
+          enableLiveAutocompletion={language === 'dsql' || language === 'chat'}
           enableSnippets={language === 'dsql'}
           width={`${editorWidth}px`}
           height={`${editorHeight}px`}

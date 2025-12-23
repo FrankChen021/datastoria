@@ -1,7 +1,6 @@
-// This file a modified version of the file located at
-// https://github.com/druid
+// Based on https://github.com/thlorenz/brace/blob/master/mode/sql.js
 
-import * as druidKeywords from './keywords';
+import * as keywordsModule from './keywords';
 
 // Access ace from global scope (set by ace-setup.ts)
 // This avoids importing ace-builds at module level which causes SSR issues
@@ -19,12 +18,12 @@ if (ace) {
 
     var SqlHighlightRules = function () {
       // Stuff like: 'with|select|from|where|and|or|group|by|order|limit|having|as|case|'
-      var keywords = druidKeywords.SQL_KEYWORDS.concat(druidKeywords.SQL_EXPRESSION_PARTS)
+      var keywords = keywordsModule.SQL_KEYWORDS.concat(keywordsModule.SQL_EXPRESSION_PARTS)
         .join('|')
         .replace(/\s/g, '|');
 
       // Stuff like: 'true|false'
-      var builtinConstants = druidKeywords.SQL_CONSTANTS.join('|');
+      var builtinConstants = keywordsModule.SQL_CONSTANTS.join('|');
 
       // Stuff like: 'avg|count|first|last|max|min'
       var builtinFunctions = '';

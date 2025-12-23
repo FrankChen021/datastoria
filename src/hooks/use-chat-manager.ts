@@ -1,4 +1,4 @@
-import type { AppUIMessage } from "@/lib/ai/ai-tools";
+import type { AppUIMessage } from "@/lib/ai/client-tools";
 import { createChat, setChatContextBuilder } from "@/lib/chat";
 import type { Chat } from "@ai-sdk/react";
 import { useCallback, useEffect, useRef, useState } from "react";

@@ -422,6 +422,40 @@ SELECT * FROM (
     addClusterCompletions();
   }
 
+  /**
+   * Get all qualified table names for highlighting
+   */
+  public getQualifiedTableNames(): string[] {
+    return this.qualifiedTableCompletions.map(c => c.value).filter((v): v is string => v !== undefined);
+  }
+
+  /**
+   * Custom insertMatch function for table completions that removes the '@' trigger character
+   * when inserting the completion
+   */
+  private static insertTableMatch(editor: Ace.Editor, data: Ace.Completion): void {
+    const session = editor.getSession();
+    const pos = editor.getCursorPosition();
+    const line = session.getLine(pos.row);
+    
+    // Find the '@' before the cursor
+    let startCol = pos.column;
+    while (startCol > 0 && line[startCol - 1] !== '@') {
+      startCol--;
+    }
+    if (startCol > 0 && line[startCol - 1] === '@') {
+      startCol--; // Include the '@' in the range to replace
+    }
+    
+    // Replace from '@' to cursor position with the table name
+    const range = {
+      start: { row: pos.row, column: startCol },
+      end: { row: pos.row, column: pos.column }
+    };
+    
+    session.replace(range, data.value || data.caption || '');
+  }
+
   public getCompleters(completers: Ace.Completer[] | undefined): Ace.Completer[] {
     if (completers !== undefined) {
       // Remove the local completer which does not define the 'id' property. The local completer uses tokens in current editor as suggestion list.
@@ -560,5 +594,58 @@ SELECT * FROM (
       return true;
     }
     return false;
+  }
+
+  /**
+   * Get table completers for chat mode that trigger on '@' character
+   * Returns all qualified table names (database.table) as suggestions
+   */
+  public getTableCompleters(): Ace.Completer[] {
+    return [
+      {
+        id: "clickhouse-table-mention",
+        triggerCharacters: ["@"],
+        
+        getCompletions: (editor: Ace.Editor, session: Ace.EditSession, pos: Ace.Point, prefix: string, callback: (error: Error | null, completions: CompletionItem[]) => void) => {
+          const currentToken = session.getTokenAt(pos.row, pos.column);
+          const line = session.getLine(pos.row);
+          const beforeCursor = line.substring(0, pos.column);
+          
+          console.log("Table completer getCompletions:", { 
+            prefix, 
+            currentToken: currentToken?.value,
+            beforeCursor: beforeCursor.slice(-10)
+          });
+          
+          // Check if we're in a context where '@' was typed
+          // Look for '@' in the prefix or check if the character before cursor is '@'
+          if (prefix.includes("@") || beforeCursor.endsWith("@") || (currentToken && currentToken.value.includes("@"))) {
+            // Remove the '@' from the prefix for filtering
+            const searchPrefix = prefix.replace("@", "").toLowerCase();
+            
+            // Filter completions based on the search prefix (after @)
+            const tableCompletions = searchPrefix
+              ? this.qualifiedTableCompletions.filter(c => 
+                  c.value && c.value.toLowerCase().includes(searchPrefix)
+                )
+              : this.qualifiedTableCompletions;
+            
+            // Add custom insertMatch to each completion item
+            const finalCompletionItems = tableCompletions.map(tableCompletion => ({
+              ...tableCompletion,
+              completer: {
+                insertMatch: QuerySuggestionManager.insertTableMatch
+              }
+            })) as CompletionItem[];
+            
+            callback(null, finalCompletionItems);
+            return;
+          }
+          
+          // No completions if '@' not found
+          callback(null, []);
+        },
+      },
+    ];
   }
 }

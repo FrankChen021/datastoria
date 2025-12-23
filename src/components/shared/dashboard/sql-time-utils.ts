@@ -53,14 +53,17 @@ function toStringFormat(secondsSinceEpoch: number, timezone: string): string {
  * @param timezone The timezone to use for time-based queries
  * @returns The SQL query with parameters replaced
  */
-export function replaceTimeSpanParams(sql: string, timeSpan: TimeSpan, timezone: string): string {
+export function replaceTimeSpanParams(sql: string, timeSpan: TimeSpan | undefined, timezone: string): string {
+  if (!timeSpan) {
+    return sql;
+  }
   const params = calculateTimeSpanParams(timeSpan);
 
   sql = sql.replace(/{rounding:UInt32}/g, String(params.rounding));
   sql = sql.replace(/{seconds:UInt32}/g, String(params.seconds));
   sql = sql.replace(/{startTimestamp:UInt32}/g, String(params.startTimestamp));
   sql = sql.replace(/{endTimestamp:UInt32}/g, String(params.endTimestamp));
-  
+
   sql = sql.replace(/{from:String}/g, `'${toStringFormat(params.startTimestamp, timezone)}'`);
   sql = sql.replace(/{to:String}/g, `'${toStringFormat(params.endTimestamp, timezone)}'`);
 

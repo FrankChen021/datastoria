@@ -24,10 +24,6 @@ export function SqlCodeBlock({
     QueryExecutor.sendQueryRequest(code, {
       params: {
         default_format: "PrettyCompactMonoBlock",
-        output_format_pretty_color: 0,
-        output_format_pretty_max_value_width: 50000,
-        output_format_pretty_max_rows: 500,
-        output_format_pretty_row_numbers: true,
       },
     });
   };

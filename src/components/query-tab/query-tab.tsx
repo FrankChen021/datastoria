@@ -120,7 +120,7 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
             initialQuery={initialQuery}
             initialMode={initialMode}
             storageKey={mode === "sql" ? "editing-sql" : "editing-chat"}
-            language={mode === "sql" ? "dsql" : "markdown"}
+            language={mode === "sql" ? "dsql" : "chat"}
             placeholder={mode === "chat" ? "Ask AI anything about your data..." : undefined}
             onToggleMode={() => setMode(prev => prev === 'sql' ? 'chat' : 'sql')}
             onRun={handleRun}

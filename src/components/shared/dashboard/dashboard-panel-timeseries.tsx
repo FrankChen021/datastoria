@@ -319,6 +319,8 @@ interface DashboardPanelTimeseriesProps {
 
   // Callback when collapsed state changes
   onCollapsedChange?: (isCollapsed: boolean) => void;
+
+  className?: string;
 }
 
 const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPanelTimeseriesProps>(
@@ -765,9 +767,17 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
               if (!Array.isArray(params)) {
                 return "";
               }
-              const firstParam = params[0] as { axisValue: string };
-              const timestamp = firstParam.axisValue;
-              let result = `<div style="margin-bottom: 6px; font-weight: 600;">${timestamp}</div>`;
+              const firstParam = params[0] as { axisValue: string; dataIndex: number };
+              const dataIndex = firstParam.dataIndex;
+              const timestamps = timestampsRef.current;
+              let tooltipTitle = firstParam.axisValue;
+
+              if (timestamps && timestamps[dataIndex]) {
+                const fullDate = new Date(timestamps[dataIndex]);
+                tooltipTitle = DateTimeExtension.toYYYYMMddHHmmss(fullDate);
+              }
+
+              let result = `<div style="margin-bottom: 6px; font-weight: 600;">${tooltipTitle}</div>`;
 
               // Get tooltip sort option, default to 'none'
               const sortValue = descriptor.tooltipOption?.sortValue || "none";
@@ -1044,9 +1054,6 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
       }
     }, [data, descriptor, detectedColumns, meta, inferFormatFromMetricName, hasDrilldown]);
 
-    // Track last successfully loaded parameters to avoid duplicate API calls
-    const lastLoadedParamsRef = useRef<RefreshOptions | null>(null);
-
     // Load data from API
     const loadData = useCallback(
       async (param: RefreshOptions) => {
@@ -1057,16 +1064,6 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
 
         if (!descriptor.query) {
           setError("No query defined for this chart component.");
-          return;
-        }
-
-        if (!param.selectedTimeSpan) {
-          setError("Please choose time span.");
-          return;
-        }
-
-        // Check if we're loading with the same parameters (avoid duplicate API calls)
-        if (lastLoadedParamsRef.current && JSON.stringify(lastLoadedParamsRef.current) === JSON.stringify(param)) {
           return;
         }
 
@@ -1083,8 +1080,9 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
           // Build query from descriptor
           const query = Object.assign({}, descriptor.query) as SQLQuery;
 
-          // Replace time span template parameters in SQL
+          // Replace time span template parameters in SQL if time span is provided
           const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.session.timezone);
+
           const { response, abortController } = connection.queryOnNode(
             finalSql,
             {
@@ -1183,8 +1181,6 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
 
               setData(transformedData);
               setError("");
-              // Mark that we successfully loaded with these parameters
-              lastLoadedParamsRef.current = param;
               setIsLoading(false);
             } catch (error) {
               // Check if request was aborted
@@ -1504,6 +1500,12 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
       </>
     );
 
+    // Handler for refresh button
+    const handleRefresh = useCallback(() => {
+      const lastParams = getLastRefreshParameter();
+      refresh({ ...lastParams, forceRefresh: true });
+    }, [getLastRefreshParameter, refresh]);
+
     // Memoize drilldown component to prevent unnecessary remounts
     // This ensures the table component doesn't lose its state when parent re-renders
     const drilldownComponent = useMemo(() => {
@@ -1520,11 +1522,13 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
     return (
       <DashboardPanelLayout
         componentRef={componentRef}
+        className={props.className}
         isLoading={isLoading}
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
         titleOption={descriptor.titleOption}
         dropdownItems={dropdownItems}
+        onRefresh={handleRefresh}
         headerBackground={true}
       >
         <CardContent className="px-0 p-0 h-full flex flex-col">
@@ -1539,7 +1543,7 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
                 ref={chartContainerRef}
                 className="flex-1 w-full min-h-0"
                 style={{
-                  minHeight: descriptor.height ? `${descriptor.height}px` : undefined,
+                  height: descriptor.height ? `${descriptor.height}px` : '100%',
                   width: "100%",
                   minWidth: 0, // Ensure flex children can shrink
                 }}

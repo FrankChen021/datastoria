@@ -1,5 +1,5 @@
-import type { AppUIMessage } from "@/lib/ai/ai-tools";
-import { tools } from "@/lib/ai/ai-tools";
+import type { AppUIMessage } from "@/lib/ai/client-tools";
+import { tools } from "@/lib/ai/client-tools";
 import { buildSystemPrompt } from "@/lib/ai/system-prompt";
 import { getLanguageModel } from "@/lib/ai/provider";
 import type { ChatContext } from "@/lib/chat/types";

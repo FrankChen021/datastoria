@@ -69,6 +69,9 @@ export interface TitleOption {
 
   // Default to true. If false, the title bar will not be rendered
   showTitle?: boolean;
+
+  // Whether to show the refresh button in the toolbar
+  showRefreshButton?: boolean;
 }
 
 // Field Option interface

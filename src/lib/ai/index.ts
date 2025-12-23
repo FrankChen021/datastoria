@@ -1,6 +1,7 @@
 // Central export for AI functionality
 
-export * from './system-prompt'
-export * from './ai-tools'
-export * from './config'
-
+export { buildSystemPrompt } from "./system-prompt";
+export { getLanguageModel } from "./provider";
+export { AI_ASSISTANT_NAME, getAIChatPrefix, isAIChatMessage } from "./config";
+export { tools, toolExecutors } from "./client-tools";
+export type { AppUIMessage } from "./client-tools";

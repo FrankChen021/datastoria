@@ -54,3 +54,16 @@
   /* Default: 280px, increased to 400px */
   width: 400px !important;
 }
+
+/*
+ * Chat mode table name highlighting
+ */
+.ace_table\.name {
+  color: #0969da;
+  font-weight: 500;
+}
+
+.dark .ace_table\.name {
+  color: #58a6ff;
+  font-weight: 500;
+}

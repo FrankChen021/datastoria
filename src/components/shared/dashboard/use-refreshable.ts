@@ -64,7 +64,7 @@ export function useRefreshable({
     // Elements inside collapsed CollapsibleContent have display: none or height: 0
     const rect = element.getBoundingClientRect();
     const isVisible = rect.width > 0 && rect.height > 0;
-    
+
     if (!isVisible) {
       return false;
     }
@@ -99,7 +99,7 @@ export function useRefreshable({
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
     const elementBottom = rect.bottom;
     const elementTop = rect.top;
-    
+
     // Element is in viewport if:
     // - Top is above bottom of viewport AND
     // - Bottom is below top of viewport
@@ -116,7 +116,8 @@ export function useRefreshable({
     (param: RefreshOptions) => {
       // Check if the parameters have actually changed
       // Skip refresh if we already have data with the same parameters (avoid unnecessary API calls)
-      if (lastRefreshParamRef.current && JSON.stringify(lastRefreshParamRef.current) === JSON.stringify(param)) {
+      // UNLESS forceRefresh is true (e.g., when user clicks the refresh button)
+      if (!param.forceRefresh && lastRefreshParamRef.current && JSON.stringify(lastRefreshParamRef.current) === JSON.stringify(param)) {
         return;
       }
 
@@ -148,12 +149,15 @@ export function useRefreshable({
 
   // Trigger initial refresh (deferred until visible if needed)
   useEffect(() => {
-    if (!getInitialParams) return;
+    if (!getInitialParams) {
+      // If no initial params getter, we still want to trigger an initial "blank" refresh 
+      // if the component supports raw execution
+      refresh({} as RefreshOptions);
+      return;
+    }
     const params = getInitialParams();
-    if (!params) return;
-    // Delegate to refresh which handles visibility and de-duplication
-    refresh(params);
-    // getInitialParams should be memoized by callers
+    // Even if params is undefined, we trigger it. The component's loadData will handle validation.
+    refresh(params || {} as RefreshOptions);
   }, [getInitialParams, refresh]);
 
   // Handle collapsed state changes - refresh when expanded if needed

@@ -1,6 +1,6 @@
 // TypeScript types for AI chat feature
 
-export type MessageRole = 'user' | 'assistant'
+export type MessageRole = 'user' | 'assistant' | 'system' | 'data' | 'tool'
 
 export type MessagePartType = 'text' | 'tool-call' | 'tool-result'
 
@@ -68,7 +68,7 @@ export interface ChatStorage {
   saveChat(chat: Chat): Promise<void>
   deleteChat(id: string): Promise<void>
   listChats(): Promise<Chat[]>
-  
+
   // Message operations
   getMessages(chatId: string): Promise<Message[]>
   saveMessage(message: Message): Promise<void>
