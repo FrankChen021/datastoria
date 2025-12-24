@@ -164,7 +164,7 @@ export function QueryControl({
                 disabled={sessionMessageCount === 0}
                 className="h-6 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
                 style={
-                  sessionColor
+                  sessionColor && sessionMessageCount > 0
                     ? {
                         color: `${sessionColor.foreground}`,
                       }

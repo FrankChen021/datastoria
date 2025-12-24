@@ -1,16 +1,48 @@
 import { QueryListView } from "@/components/query-tab/query-list-view";
+import { NUM_COLORS } from "@/lib/color-generator";
 import { useConnection } from "@/lib/connection/connection-context";
+import { Hash } from "@/lib/hash";
 import { toastManager } from "@/lib/toast";
 import dynamic from "next/dynamic";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { v7 as uuid } from "uuid";
+import { v7 as uuidv7 } from "uuid";
 import { QueryControl } from "./query-control/query-control";
 import { useQueryEditor } from "./query-control/use-query-editor";
 import { ChatExecutor } from "./query-execution/chat-executor";
 import { QueryExecutor } from "./query-execution/query-executor";
 import { QueryInputLocalStorage } from "./query-input/query-input-local-storage";
 import type { QueryInputViewRef } from "./query-input/query-input-view";
+
+/**
+ * Generates a new session ID that will have a different color than the previous session.
+ * Uses hash-based color selection to ensure visual distinction.
+ */
+function generateNewSessionId(previousSessionId: string | undefined): string {
+  if (!previousSessionId) {
+    // No previous session, just generate a new one
+    return uuidv7();
+  }
+
+  // Get the color index of the previous session
+  const previousColorIndex = Hash.hash(previousSessionId) % NUM_COLORS;
+
+  // Generate new session IDs until we get one with a different color
+  // With 12 colors, probability of collision is ~8.3%, so we should find one quickly
+  const maxAttempts = 50; // Safety limit to avoid infinite loops
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const newSessionId = uuidv7();
+    const newColorIndex = Hash.hash(newSessionId) % NUM_COLORS;
+    
+    if (newColorIndex !== previousColorIndex) {
+      return newSessionId;
+    }
+  }
+
+  // If we somehow couldn't find a different color after maxAttempts, just return a new UUID
+  // This is extremely unlikely but provides a fallback
+  return uuidv7();
+}
 
 // Dynamically import QueryInputView to prevent SSR issues with ace editor
 const QueryInputView = dynamic(
@@ -34,7 +66,7 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
   const { text } = useQueryEditor(); // Get current text for chat
 
   // Session tracking for chat conversations
-  const [currentSessionId, setCurrentSessionId] = useState<string>(() => uuid());
+  const [currentSessionId, setCurrentSessionId] = useState<string>(() => uuidv7());
   const [sessionMessageCount, setSessionMessageCount] = useState(0);
   const sessionStartTimeRef = useRef<Date>(new Date());
 
@@ -98,15 +130,15 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
       if (!confirmed) return;
     }
 
-    // Create new session
-    const newSessionId = uuid();
+    // Create new session with a different color than the previous one
+    const newSessionId = generateNewSessionId(currentSessionId);
     setCurrentSessionId(newSessionId);
     setSessionMessageCount(0);
     sessionStartTimeRef.current = new Date();
     lastExecutionRef.current = null;
     
     toastManager.show("Started new conversation", "success");
-  }, [sessionMessageCount]);
+  }, [sessionMessageCount, currentSessionId]);
 
   // Focus editor when tab becomes active
   useEffect(() => {

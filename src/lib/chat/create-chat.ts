@@ -80,7 +80,9 @@ export function setChatContextBuilder(builder: BuildContextFn) {
 
 /**
  * Get the current context for chat
+ * Note: Currently unused but kept for potential future use
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildContext(): ChatContext | undefined {
   return contextBuilder?.();
 }
@@ -94,10 +96,14 @@ export async function createChat(options?: {
   databaseId?: string;
   skipStorage?: boolean;
   apiEndpoint?: string;
+  getCurrentSessionId?: () => string | undefined;
+  getMessageSessionId?: (messageId: string) => string | undefined;
 }): Promise<Chat<AppUIMessage>> {
   const chatId = options?.id || uuidv7();
   const skipStorage = options?.skipStorage ?? false;
   const apiEndpoint = options?.apiEndpoint ?? "/api/chat-agent";
+  const getCurrentSessionId = options?.getCurrentSessionId;
+  const getMessageSessionId = options?.getMessageSessionId;
 
   // Return cached instance if exists
   if (chatsMap.has(chatId)) {
@@ -128,9 +134,57 @@ export async function createChat(options?: {
     // Automatically send tool results back to the API when all tool calls are complete
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
 
-    // Configure custom API endpoint
+    // Configure custom API endpoint with message filtering by sessionId
     transport: new DefaultChatTransport({
       api: apiEndpoint,
+      prepareSendMessagesRequest: getCurrentSessionId
+        ? ({ messages, id, trigger, messageId, body, headers, credentials }) => {
+            // Filter messages to only include those from the current session
+            const currentSessionId = getCurrentSessionId();
+            if (!currentSessionId) {
+              // If no sessionId, send all messages (fallback behavior)
+              return {
+                body: {
+                  ...body,
+                  id,
+                  messages,
+                  trigger,
+                  messageId,
+                },
+                headers,
+                credentials,
+              };
+            }
+
+            // Filter messages by sessionId
+            // Messages without sessionId metadata will be excluded from new sessions
+            const filteredMessages = messages.filter((msg) => {
+              // Try to get sessionId from message metadata first
+              let msgSessionId = (msg as { sessionId?: string }).sessionId;
+              
+              // If not found in metadata, try to look it up by message ID
+              if (!msgSessionId && getMessageSessionId) {
+                msgSessionId = getMessageSessionId(msg.id);
+              }
+              
+              // Include message if it has the current sessionId
+              // For new conversations, we only want messages with the current sessionId
+              return msgSessionId === currentSessionId;
+            });
+
+            return {
+              body: {
+                ...body,
+                id,
+                messages: filteredMessages,
+                trigger,
+                messageId,
+              },
+              headers,
+              credentials,
+            };
+          }
+        : undefined,
     }),
 
     // Initial messages from storage

@@ -60,7 +60,11 @@ function QueryListViewContent({
   onExecutionStateChange,
   onSessionMessageCountChange,
   chatInstance,
-}: QueryListViewProps & { chatInstance: Chat<AppUIMessage> }) {
+  messageIdToSessionIdRef,
+}: QueryListViewProps & {
+  chatInstance: Chat<AppUIMessage>;
+  messageIdToSessionIdRef: React.MutableRefObject<Map<string, string>>;
+}) {
   const { connection } = useConnection();
   // We now split state: SQL messages are local, Chat messages are managed by useChat
   const [sqlMessages, setSqlMessages] = useState<SQLMessage[]>([]);
@@ -70,6 +74,10 @@ function QueryListViewContent({
   const shouldScrollRef = useRef(false);
   const executingQueriesRef = useRef<Set<string>>(new Set());
   const messageTimestampsRef = useRef<Map<string, number>>(new Map());
+  // Map to store sessionId for messages by their content and timestamp
+  // Key: message content, Value: { sessionId, timestamp }
+  const pendingSessionIdsRef = useRef<Map<string, { sessionId: string; timestamp: number }>>(new Map());
+  // Note: messageIdToSessionIdRef is passed as a prop from parent component
 
   // Use hook with the instance
   const {
@@ -182,6 +190,62 @@ function QueryListViewContent({
           }
         }
 
+        // Determine sessionId for this message
+        let sessionId: string | undefined = (m as any).sessionId;
+
+        // Check if we already stored a sessionId for this message ID
+        if (!sessionId) {
+          sessionId = messageIdToSessionIdRef.current.get(m.id);
+        }
+
+        // If message doesn't have a sessionId and it's a user message, try to match it with a pending sessionId
+        if (!sessionId && role === "user" && content) {
+          const pending = pendingSessionIdsRef.current.get(content);
+          if (pending) {
+            // Check if this message was created recently (within 5 seconds of the pending entry)
+            const timeDiff = Math.abs(ts - pending.timestamp);
+            if (timeDiff < 5000) {
+              sessionId = pending.sessionId;
+              // Store it by message ID for future reference (e.g., for assistant messages)
+              messageIdToSessionIdRef.current.set(m.id, sessionId);
+              // Remove from pending map once used
+              pendingSessionIdsRef.current.delete(content);
+            }
+          }
+        }
+
+        // For assistant messages, try to find the sessionId from the previous user message
+        // by looking at rawMessages array (not chatMessages to avoid circular dependency)
+        if (!sessionId && role === "assistant" && rawMessages) {
+          const currentIndex = rawMessages.findIndex((msg) => msg.id === m.id);
+          if (currentIndex > 0) {
+            // Look backwards for the last user message
+            for (let i = currentIndex - 1; i >= 0; i--) {
+              const prevMsg = rawMessages[i];
+              if (prevMsg.role === "user") {
+                // Check if we have a stored sessionId for this previous user message
+                const prevSessionId = messageIdToSessionIdRef.current.get(prevMsg.id);
+                if (prevSessionId) {
+                  sessionId = prevSessionId;
+                  // Store it for this assistant message too
+                  messageIdToSessionIdRef.current.set(m.id, sessionId);
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        // Fallback to currentSessionId if still no sessionId
+        if (!sessionId) {
+          sessionId = currentSessionId;
+        }
+
+        // Store sessionId by message ID for future reference (especially for assistant messages)
+        if (sessionId) {
+          messageIdToSessionIdRef.current.set(m.id, sessionId);
+        }
+
         return {
           type: "chat",
           id: m.id,
@@ -191,7 +255,7 @@ function QueryListViewContent({
           content: content,
           isLoading: false,
           timestamp: ts,
-          sessionId: (m as any).sessionId || currentSessionId, // Use message's sessionId or current session
+          sessionId: sessionId,
         };
       });
 
@@ -206,7 +270,7 @@ function QueryListViewContent({
     // Merge and sort
     const all = [...sqlMessages, ...chatMessages];
     return all.sort((a, b) => a.timestamp - b.timestamp);
-  }, [sqlMessages, rawMessages, isChatExecuting, currentSessionId]);
+  }, [sqlMessages, rawMessages, isChatExecuting, currentSessionId, messageIdToSessionIdRef]);
 
   // Update parent with current session message count
   useEffect(() => {
@@ -322,10 +386,29 @@ function QueryListViewContent({
         }
 
         // Send message to chat
-        // Note: sessionId is tracked at the message level after creation,
-        // not passed through the sendMessage call
+        // Store the sessionId from the event so we can associate it with the message when it's created
+        const sessionIdToUse = event.detail.sessionId || currentSessionId;
+        const messageText = event.detail.message;
+        const now = Date.now();
+
+        // Store sessionId for this message content (will be matched when mapping messages)
+        // Only store if we have a valid sessionId
+        if (sessionIdToUse) {
+          pendingSessionIdsRef.current.set(messageText, {
+            sessionId: sessionIdToUse,
+            timestamp: now,
+          });
+        }
+
+        // Clean up old entries (older than 10 seconds) to prevent memory leaks
+        for (const [key, value] of pendingSessionIdsRef.current.entries()) {
+          if (now - value.timestamp > 10000) {
+            pendingSessionIdsRef.current.delete(key);
+          }
+        }
+
         sendMessage({
-          text: event.detail.message,
+          text: messageText,
         });
         shouldScrollRef.current = true;
       } else {
@@ -369,12 +452,13 @@ function QueryListViewContent({
                 // Check if this is the start of a new session
                 const prevMsg = index > 0 ? mergedMessageList[index - 1] : null;
 
-                const isNewSession =
+                const isNewSession = Boolean(
                   msg.type === "chat" &&
-                  msg.sessionId &&
-                  prevMsg?.type === "chat" &&
-                  (prevMsg as ChatMessage).sessionId !== msg.sessionId &&
-                  msg.role === "user";
+                    msg.sessionId &&
+                    prevMsg?.type === "chat" &&
+                    (prevMsg as ChatMessage).sessionId !== msg.sessionId &&
+                    msg.role === "user"
+                );
 
                 if (msg.type === "sql") {
                   return (
@@ -394,7 +478,7 @@ function QueryListViewContent({
                     <div key={msg.id}>
                       {/* Show separator for new conversation */}
                       {isNewSession && (
-                        <div className="flex items-center gap-2 my-4 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2 px-4 h-6 text-xs text-muted-foreground">
                           <div className="flex-1 h-px bg-border" />
                           <span className="px-2">New conversation started</span>
                           <div className="flex-1 h-px bg-border" />
@@ -402,7 +486,7 @@ function QueryListViewContent({
                       )}
                       <ChatMessageView
                         message={msg}
-                        isFirst={index === 0}
+                        isFirst={index === 0 || isNewSession}
                         isLast={index === mergedMessageList.length - 1}
                       />
                     </div>
@@ -426,6 +510,15 @@ function QueryListViewContent({
 
 export function QueryListView(props: QueryListViewProps) {
   const [chatInstance, setChatInstance] = useState<Chat<AppUIMessage> | null>(null);
+  // Use a ref to store currentSessionId so the getter function always has the latest value
+  const currentSessionIdRef = useRef<string | undefined>(props.currentSessionId);
+  // Use a ref to store the messageIdToSessionId map so the getter function can access it
+  const messageIdToSessionIdRef = useRef<Map<string, string>>(new Map());
+
+  // Update ref when currentSessionId changes
+  useEffect(() => {
+    currentSessionIdRef.current = props.currentSessionId;
+  }, [props.currentSessionId]);
 
   // Initialize Chat Instance
   useEffect(() => {
@@ -434,7 +527,12 @@ export function QueryListView(props: QueryListViewProps) {
       try {
         // Use a stable ID for the tab, or a new random one if tabId is missing (unlikely for views)
         const id = props.tabId || uuid();
-        const chat = await createChat({ id, skipStorage: false });
+        const chat = await createChat({
+          id,
+          skipStorage: false,
+          getCurrentSessionId: () => currentSessionIdRef.current,
+          getMessageSessionId: (messageId: string) => messageIdToSessionIdRef.current.get(messageId),
+        });
         if (mounted) {
           setChatInstance(chat);
         }
@@ -456,5 +554,7 @@ export function QueryListView(props: QueryListViewProps) {
     );
   }
 
-  return <QueryListViewContent {...props} chatInstance={chatInstance} />;
+  return (
+    <QueryListViewContent {...props} chatInstance={chatInstance} messageIdToSessionIdRef={messageIdToSessionIdRef} />
+  );
 }

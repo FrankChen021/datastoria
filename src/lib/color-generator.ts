@@ -23,6 +23,9 @@ const APP_COLORS = [
   { background: "#FEF0ED", foreground: "#c0392b", hover: "rgb(230, 247, 249)", text: "#E64A19" },
 ] as Color[];
 
+// Export the number of available colors for use in session ID generation
+export const NUM_COLORS = APP_COLORS.length;
+
 export class ColorGenerator {
   private cache: Map<string, number>;
 
