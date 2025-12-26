@@ -1,8 +1,8 @@
 import { ClientTools } from "@/lib/ai/client-tools";
 import type { AppUIMessage } from "@/lib/ai/common-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm-provider-factory";
-import { buildSystemPrompt } from "@/lib/ai/system-prompt";
-import type { ChatContext } from "@/lib/chat/types";
+import { buildSystemPrompt } from "@/lib/ai/prompts";
+import type { DatabaseContext } from "@/lib/chat/types";
 import { convertToModelMessages, smoothStream, streamText } from "ai";
 import { v7 as uuidv7 } from "uuid";
 
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
     let chatId: string;
     let messages: AppUIMessage[];
-    let context: ChatContext | undefined;
+    let context: DatabaseContext | undefined;
 
     if (Array.isArray(body.messages)) {
       messages = body.messages;
@@ -47,7 +47,12 @@ export async function POST(req: Request) {
     // Get the appropriate model (mock or real based on USE_MOCK_LLM env var)
     let model;
     try {
-      model = LanguageModelProviderFactory.createProvider();
+      const autoSelected = LanguageModelProviderFactory.autoSelectModel();
+      [model] = LanguageModelProviderFactory.createModel(
+        autoSelected.provider,
+        autoSelected.modelId,
+        autoSelected.apiKey
+      );
     } catch (error) {
       return new Response(
         error instanceof Error

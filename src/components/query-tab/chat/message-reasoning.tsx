@@ -14,7 +14,7 @@ export const MessageReasoning = memo(function MessageReasoning({
   return (
     <CollapsiblePart toolName="reasoning" state={part.state}>
       <div className="mt-1 max-h-[300px] overflow-auto text-[10px] text-muted-foreground">
-        <pre className="bg-muted/30 rounded overflow-x-auto shadow-sm leading-tight">{part.text}</pre>
+        <pre className="bg-muted/30 rounded overflow-x-auto shadow-sm leading-tight whitespace-pre-wrap break-words">{part.text}</pre>
       </div>
     </CollapsiblePart>
   );

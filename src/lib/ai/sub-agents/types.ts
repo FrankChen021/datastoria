@@ -1,3 +1,4 @@
+import type { DatabaseContext } from '../../chat/types';
 import { z } from 'zod';
 
 /**
@@ -65,13 +66,21 @@ export type RunSQLResult = z.infer<typeof runSQLResultSchema>;
 /**
  * SQL Sub-Agent Input
  */
+export interface ModelConfig {
+  provider: string;
+  modelId: string;
+  apiKey: string;
+}
+
 export interface SQLSubAgentInput {
     userQuestion: string;
     schemaHints?: {
         database?: string;
         tables?: Array<{ name: string; columns: string[] }>;
     };
+    context?: DatabaseContext;
     history?: any[]; // CoreMessage[]
+    modelConfig: ModelConfig;
 }
 
 /**
@@ -80,4 +89,5 @@ export interface SQLSubAgentInput {
 export interface VizSubAgentInput {
     userQuestion: string;
     sql: string;
+    modelConfig: ModelConfig;
 }

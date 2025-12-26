@@ -8,7 +8,11 @@ import { vizSubAgentOutputSchema, type VizSubAgentInput, type VizSubAgentOutput 
  * Specialized sub-agent for determining appropriate visualizations
  */
 export async function vizSubAgent(input: VizSubAgentInput): Promise<VizSubAgentOutput> {
-  const { userQuestion, sql } = input;
+  const { userQuestion, sql, modelConfig } = input;
+  
+  if (!modelConfig) {
+    throw new Error("modelConfig is required for vizSubAgent");
+  }
 
   const systemPrompt = `You are a data visualization expert. Analyze the provided ClickHouse SQL query and the original user question to determine the best visualization.
 
@@ -73,7 +77,12 @@ For timeseries, you can optionally add:
 `;
 
   try {
-    const model = LanguageModelProviderFactory.createProvider();
+    // Use provided model config
+    const [model] = LanguageModelProviderFactory.createModel(
+      modelConfig.provider,
+      modelConfig.modelId,
+      modelConfig.apiKey
+    );
 
     const { object: validated } = await generateObject({
       model,

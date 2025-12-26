@@ -17,27 +17,25 @@ export function ModelsEdit() {
   useEffect(() => {
     const storedModels = modelManager.getModelSettings();
 
-    // Get all available models from modelCreator with their provider names
+    // Get all available models from the flattened MODELS array
     const availableModels: ModelSetting[] = [];
-    for (const [provider, providerModels] of Object.entries(MODELS)) {
-      for (const [modelId, model] of Object.entries(providerModels)) {
-        const stored = storedModels.find((m) => m.modelId === modelId);
-        availableModels.push(
-          stored
-            ? {
-                ...stored,
-                provider: stored.provider || provider, // Use stored provider if exists, otherwise use from modelCreator
-                free: stored.free ?? model.free ?? false, // Use stored free if exists, otherwise use from modelCreator
-              }
-            : {
-                modelId,
-                provider,
-                disabled: false,
-                free: model.free ?? false,
-                apiKey: "",
-              }
-        );
-      }
+    for (const model of MODELS) {
+      const stored = storedModels.find((m) => m.modelId === model.modelId && m.provider === model.provider);
+      availableModels.push(
+        stored
+          ? {
+              ...stored,
+              provider: stored.provider || model.provider, // Use stored provider if exists, otherwise use from model
+              free: stored.free ?? model.free ?? false, // Use stored free if exists, otherwise use from model
+            }
+          : {
+              modelId: model.modelId,
+              provider: model.provider,
+              disabled: false,
+              free: model.free ?? false,
+              apiKey: "",
+            }
+      );
     }
 
     setModels(availableModels);

@@ -47,7 +47,7 @@ export function ChatSessionStatus({
           {sessionMessageCount} {sessionMessageCount === 1 ? "message" : "messages"}
           {totalTokens > 0 && (
             <>
-              {", "}
+              {" "}
               {totalTokens.toLocaleString()} {totalTokens === 1 ? "token" : "tokens"}
             </>
           )}

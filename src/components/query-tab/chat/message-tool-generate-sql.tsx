@@ -1,4 +1,4 @@
-import { CLIENT_TOOL_NAMES } from "@/lib/ai/client-tools";
+import { SERVER_TOOL_NAMES } from "@/lib/ai/server-tools";
 import type { AppUIMessage, ToolPart } from "@/lib/ai/common-types";
 import { memo } from "react";
 import { SqlCodeBlock } from "../sql-code-block";
@@ -10,7 +10,7 @@ export const MessageToolGenerateSql = memo(function GenerateSqlPart({ part }: { 
   const state = toolPart.state;
 
   return (
-    <CollapsiblePart toolName={CLIENT_TOOL_NAMES.GENERATE_SQL} state={state}>
+    <CollapsiblePart toolName={SERVER_TOOL_NAMES.GENERATE_SQL} state={state}>
       {output?.sql && (
         <SqlCodeBlock
           code={output.sql}

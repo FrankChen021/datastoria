@@ -1,9 +1,10 @@
 import { CLIENT_TOOL_NAMES, ClientTools as clientTools } from "@/lib/ai/client-tools";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm-provider-factory";
-import { generateSqlTool, generateVisualizationTool } from "@/lib/ai/server-tools";
-import { buildSystemPrompt } from "@/lib/ai/system-prompt";
-import type { ChatContext } from "@/lib/chat/types";
-import { convertToModelMessages, streamText } from "ai";
+import { buildOrchestratorPrompt, buildSystemPrompt } from "@/lib/ai/prompts";
+import { createGenerateSqlTool, createGenerateVisualizationTool, SERVER_TOOL_NAMES } from "@/lib/ai/server-tools";
+import type { DatabaseContext } from "@/lib/chat/types";
+import { APICallError } from "@ai-sdk/provider";
+import { convertToModelMessages, RetryError, streamText } from "ai";
 import { v7 as uuidv7 } from "uuid";
 
 // Force dynamic rendering (no static generation)
@@ -12,6 +13,82 @@ export const dynamic = "force-dynamic";
 // Increase body size limit for this route to handle large tool results
 // This is needed when get_table_columns returns 1500+ columns (e.g., system.metric_log)
 export const maxDuration = 60; // 60 seconds timeout
+
+/**
+ * Extracts error message from response body.
+ * Tries to extract the raw message from metadata, falls back to error message.
+ */
+function extractErrorMessageFromLLMProvider(
+  responseBody: string | undefined,
+  fallbackMessage?: string
+): string | undefined {
+  if (!responseBody || typeof responseBody !== "string") {
+    return fallbackMessage;
+  }
+
+  try {
+    const parsed = JSON.parse(responseBody) as {
+      error?: {
+        metadata?: { raw?: string };
+        message?: string;
+      };
+    };
+
+    return parsed.error?.metadata?.raw || parsed.error?.message || fallbackMessage;
+  } catch {
+    return fallbackMessage;
+  }
+}
+
+/**
+ * Extracts a meaningful error message from various error types.
+ * Handles RetryError, APICallError, and standard Error instances.
+ */
+function extractErrorMessage(error: unknown): string {
+  const defaultMessage = "Sorry, I encountered an error. Please try again.";
+
+  // Handle RetryError (contains lastError with the actual API error)
+  if (RetryError.isInstance(error)) {
+    const lastError = error.lastError;
+    if (!lastError) {
+      return error.message || defaultMessage;
+    }
+
+    // Check if lastError is an APICallError-like object with statusCode 429
+    if (typeof lastError === "object" && "statusCode" in lastError && "responseBody" in lastError) {
+      return (
+        extractErrorMessageFromLLMProvider(
+          lastError.responseBody as string | undefined,
+          "message" in lastError && typeof lastError.message === "string" ? lastError.message : undefined
+        ) || defaultMessage
+      );
+    }
+
+    // For other errors, use the error message
+    if (typeof lastError === "object" && "message" in lastError && typeof lastError.message === "string") {
+      return lastError.message;
+    }
+
+    return error.message || defaultMessage;
+  }
+
+  // Handle direct APICallError
+  if (APICallError.isInstance(error)) {
+    return extractErrorMessageFromLLMProvider(error.responseBody, error.message) || defaultMessage;
+  }
+
+  // Fallback to error message for any Error instance
+  if (error instanceof Error) {
+    return error.message || defaultMessage;
+  }
+
+  // Handle string errors
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return defaultMessage;
+}
 
 /**
  * POST /api/chat-agent
@@ -27,12 +104,14 @@ export const maxDuration = 60; // 60 seconds timeout
 export async function POST(req: Request) {
   try {
     // Parse request body with size validation
-    let body: {
+    let apiRequest: {
       messages?: unknown[];
-      chatId?: string;
-      id?: string;
-      context?: ChatContext;
-      body?: { context?: ChatContext };
+      context?: DatabaseContext;
+      model?: {
+        provider: string;
+        modelId: string;
+        apiKey: string;
+      };
     };
     try {
       const text = await req.text();
@@ -48,115 +127,96 @@ export async function POST(req: Request) {
         });
       }
 
-      body = JSON.parse(text) as typeof body;
+      apiRequest = JSON.parse(text) as typeof apiRequest;
     } catch (error) {
       console.error("Failed to parse request body:", error);
       return new Response("Invalid JSON in request body", { status: 400 });
     }
 
-    let chatId: string;
+    // Extract messages and context from request body
+    if (!Array.isArray(apiRequest.messages)) {
+      return new Response("Invalid request format: messages must be an array", { status: 400 });
+    }
+
+    // Validate clickHouseUser is provided in context
+    const context: DatabaseContext | undefined = apiRequest.context;
+    if (!context?.clickHouseUser || typeof context.clickHouseUser !== "string") {
+      return new Response("Missing or invalid clickHouseUser in context (required string)", { status: 400 });
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let messages: any[];
-    let context: ChatContext | undefined;
-
-    // Handle different request formats (same as original /api/chat)
-    if (Array.isArray(body.messages)) {
-      messages = body.messages;
-      chatId = body.chatId || body.id || "default-chat";
-      context = body.context || body.body?.context;
-    } else if (body.chatId && body.messages) {
-      ({ chatId, messages, context } = body);
-    } else {
-      console.error("Unrecognized request format:", Object.keys(body));
-      return new Response("Invalid request format", { status: 400 });
-    }
-
-    if (!chatId) {
-      return new Response("Missing chatId", { status: 400 });
-    }
-
+    const messages: any[] = apiRequest.messages;
     if (!messages || messages.length === 0) {
       return new Response("Missing messages", { status: 400 });
     }
 
     // Get the appropriate model (mock or real based on USE_MOCK_LLM env var)
-    let model;
+    // Use provided model config if available, otherwise auto-select
+    let modelConfig: { provider: string; modelId: string; apiKey: string } | undefined;
     try {
-      model = LanguageModelProviderFactory.createProvider();
+      if (apiRequest.model) {
+        // If modelConfig is provided, all 3 properties must be present
+        if (!apiRequest.model.provider || !apiRequest.model.modelId || !apiRequest.model.apiKey) {
+          return new Response(
+            "Invalid model config: provider, modelId, and apiKey are all required when model config is provided",
+            { status: 400 }
+          );
+        }
+        modelConfig = {
+          provider: apiRequest.model.provider,
+          modelId: apiRequest.model.modelId,
+          apiKey: apiRequest.model.apiKey,
+        };
+      } else {
+        // Auto-select a model if no model config is provided
+        const autoSelected = LanguageModelProviderFactory.autoSelectModel();
+        modelConfig = {
+          provider: autoSelected.provider,
+          modelId: autoSelected.modelId,
+          apiKey: autoSelected.apiKey,
+        };
+      }
     } catch (error) {
       return new Response(
         error instanceof Error
           ? error.message
-          : "No AI API key configured. Set OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, or ANTHROPIC_API_KEY",
+          : "No AI API key configured. Set OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY",
         { status: 500 }
       );
     }
 
+    const [model, modelProps] = LanguageModelProviderFactory.createModel(
+      modelConfig.provider,
+      modelConfig.modelId,
+      modelConfig.apiKey
+    );
+
+    // Check if we're using a free model (more likely to hit 429 rate limits)
+    // For free models, set maxRetries to 0 to prevent retries on 429 errors
+    const maxRetries = modelProps.free === true ? 0 : undefined; // undefined uses default (2), 0 disables retries
+
     // Build orchestrator system prompt
     const baseSystemPrompt = buildSystemPrompt(context);
-
-    const orchestratorPrompt = `${baseSystemPrompt}
-## ClickHouse Orchestrator (Tool-Routing Contract)
-
-You route requests to tools and MUST follow these rules.
-
-### Tools
-- generate_sql: generates ClickHouse SQL. This tool performs its own multi-turn logic for schema discovery and validation.
-- execute_sql: execute ClickHouse query to fetch data.
-- generate_visualization: produce a visualization plan (based on SQL and intent).
-- get_tables: list tables.
-- get_table_columns: list columns. **IMPORTANT**: When calling this tool, always split fully qualified table names (e.g., "system.metric_log") into separate database and table fields: {database: "system", table: "metric_log"}.
-
-### Routing (STRICT)
-1) Visualization intent (any of: "visualize", "chart", "plot", "graph", "time series", "trend", "over time")
-   → MUST call generate_visualization.
-2) Schema questions
-   → get_tables / get_table_columns (no SQL execution unless asked).
-3) Data results requests (e.g., "show me", "list", "what are")
-   → **WORKFLOW**:
-      a) If schema info needed: call get_table_columns or get_tables
-      b) Once you have schema: call generate_sql with the schema context
-      c) If generate_sql returns 'needs_clarification' with "validating SQL syntax":
-         → Call validate_sql with the SQL being validated
-      d) After validation passes: call execute_sql
-      e) If visualization requested: call generate_visualization
-
-### Constraints (MANDATORY)
-- **Schema Discovery**: YOU handle schema discovery (get_tables, get_table_columns).
-- **SQL Generation**: Call generate_sql ONLY after you have the necessary schema context.
-- **Validation Support**: If generate_sql needs validation, YOU call validate_sql and pass results back.
-- **SQL Execution**: Only execute SQL after successful validation.
-- **Visualization Integration**: Call generate_visualization ONLY when SQL is available.
-- You MUST NOT describe a visualization without calling generate_visualization.
-- If a SQL query is present in context, reuse it (do NOT call generate_sql).
-- generate_visualization should be called with the SQL string, NOT wait for execute_sql results.
-
-### Final response format
-- Brief explanation of what was run in markdown format.
-- Results summary (if executed) in markdown format.
-- DO NOT repeat or explain the visualization plan if generate_visualization was called. The UI will render it automatically.
-
-### Self-check
-Before final answer: if user asked for visualization and generate_visualization was not called → call generate_visualization.
-`;
-
-    // Convert UIMessages to ModelMessages
-    const modelMessages = convertToModelMessages(messages);
+    const orchestratorPrompt = buildOrchestratorPrompt(baseSystemPrompt);
 
     // Use streamText with all tools (both server-side and client-side)
+    // For free models, maxRetries is set to 0 to prevent retries on 429 rate limit errors
     const result = streamText({
       model,
+      maxRetries,
       messages: [
         {
           role: "system",
           content: orchestratorPrompt,
         },
-        ...modelMessages,
+        // Convert UIMessages to ModelMessages
+        ...convertToModelMessages(messages),
       ],
       tools: {
-        // Server-side tools
-        [CLIENT_TOOL_NAMES.GENERATE_SQL]: generateSqlTool,
-        [CLIENT_TOOL_NAMES.GENEREATE_VISUALIZATION]: generateVisualizationTool,
+        // Server-side tools (created with model config to ensure sub-agents use the same model)
+        // Pass full context to ensure all context information (user, database, tables, currentQuery) is available
+        [SERVER_TOOL_NAMES.GENERATE_SQL]: createGenerateSqlTool(modelConfig, context),
+        [SERVER_TOOL_NAMES.GENEREATE_VISUALIZATION]: createGenerateVisualizationTool(modelConfig),
         // Client-side tools (no execute function)
         [CLIENT_TOOL_NAMES.GET_TABLES]: clientTools.get_tables,
         [CLIENT_TOOL_NAMES.GET_TABLE_COLUMNS]: clientTools.get_table_columns,
@@ -189,7 +249,13 @@ Before final answer: if user asked for visualization and generate_visualization 
       },
       onError: (error) => {
         console.error("Agent error:", error);
-        return "Sorry, I encountered an error. Please try again.";
+        try {
+          return extractErrorMessage(error);
+        } catch (parseError) {
+          // If anything goes wrong during error extraction, log and use default
+          console.error("Error extracting error message:", parseError);
+          return "Sorry, I encountered an error. Please try again.";
+        }
       },
     });
 

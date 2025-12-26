@@ -1,4 +1,4 @@
-import { CLIENT_TOOL_NAMES } from "@/lib/ai/client-tools";
+import { SERVER_TOOL_NAMES } from "@/lib/ai/server-tools";
 import type { AppUIMessage, ToolPart } from "@/lib/ai/common-types";
 import { memo } from "react";
 import type { PanelDescriptor, TableDescriptor, TimeseriesDescriptor } from "../../shared/dashboard/dashboard-model";
@@ -29,7 +29,7 @@ export const MessageToolGenerateVisualization = memo(function MessageToolGenerat
   return (
     <>
       <CollapsiblePart
-        toolName={CLIENT_TOOL_NAMES.GENEREATE_VISUALIZATION}
+        toolName={SERVER_TOOL_NAMES.GENEREATE_VISUALIZATION}
         state={state}
         defaultExpanded={false}
       ></CollapsiblePart>

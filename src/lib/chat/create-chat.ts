@@ -1,4 +1,5 @@
 import { CLIENT_TOOL_NAMES, ClientToolExecutors } from "@/lib/ai/client-tools";
+import { SERVER_TOOL_NAMES } from "@/lib/ai/server-tools";
 import type { AppUIMessage } from "@/lib/ai/common-types";
 import { Connection } from "@/lib/connection/connection";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
@@ -6,7 +7,7 @@ import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { v7 as uuidv7 } from "uuid";
 import { chatStorage } from "./storage";
-import type { ChatContext, Message } from "./types";
+import type { DatabaseContext, Message } from "./types";
 
 /**
  * TOOL IMPLEMENTATION GUIDE
@@ -15,7 +16,7 @@ import type { ChatContext, Message } from "./types";
  *
  * 1. Access the current ClickHouse connection:
  *    - The connection is available through the ConnectionContext
- *    - You can extend the ChatContext type to include the connection
+ *    - You can extend the DatabaseContext type to include the connection
  *    - Or access it via ConnectionManager.getInstance().getLastSelectedOrFirst()
  *
  * 2. For the 'get_tables' tool:
@@ -66,7 +67,7 @@ const chatsMap = new Map<string, Chat<AppUIMessage>>();
  * Context builder function type
  * Should be provided by the application to build ClickHouse-specific context
  */
-type BuildContextFn = () => ChatContext | undefined;
+type BuildContextFn = () => DatabaseContext | undefined;
 
 let contextBuilder: BuildContextFn | undefined;
 
@@ -83,7 +84,7 @@ export function setChatContextBuilder(builder: BuildContextFn) {
  * Note: Currently unused but kept for potential future use
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function buildContext(): ChatContext | undefined {
+function buildContext(): DatabaseContext | undefined {
   return contextBuilder?.();
 }
 
@@ -98,12 +99,18 @@ export async function createChat(options?: {
   apiEndpoint?: string;
   getCurrentSessionId?: () => string | undefined;
   getMessageSessionId?: (messageId: string) => string | undefined;
+  model?: {
+    provider: string;
+    modelId: string;
+    apiKey: string;
+  };
 }): Promise<Chat<AppUIMessage>> {
   const chatId = options?.id || uuidv7();
   const skipStorage = options?.skipStorage ?? false;
   const apiEndpoint = options?.apiEndpoint ?? "/api/chat-agent";
   const getCurrentSessionId = options?.getCurrentSessionId;
   const getMessageSessionId = options?.getMessageSessionId;
+  const modelConfig = options?.model;
 
   // Return cached instance if exists
   if (chatsMap.has(chatId)) {
@@ -138,7 +145,7 @@ export async function createChat(options?: {
     transport: new DefaultChatTransport({
       api: apiEndpoint,
       prepareSendMessagesRequest: getCurrentSessionId
-        ? ({ messages, id, trigger, messageId, body, headers, credentials }) => {
+        ? ({ messages, trigger, messageId, body, headers, credentials }) => {
             // Filter messages to only include those from the current session
             const currentSessionId = getCurrentSessionId();
             if (!currentSessionId) {
@@ -146,7 +153,6 @@ export async function createChat(options?: {
               return {
                 body: {
                   ...body,
-                  id,
                   messages,
                   trigger,
                   messageId,
@@ -161,30 +167,53 @@ export async function createChat(options?: {
             const filteredMessages = messages.filter((msg) => {
               // Try to get sessionId from message metadata first
               let msgSessionId = (msg as { sessionId?: string }).sessionId;
-              
+
               // If not found in metadata, try to look it up by message ID
               if (!msgSessionId && getMessageSessionId) {
                 msgSessionId = getMessageSessionId(msg.id);
               }
-              
+
               // Include message if it has the current sessionId
               // For new conversations, we only want messages with the current sessionId
               return msgSessionId === currentSessionId;
             });
 
+            // Get context from context builder and ensure clickHouseUser is included
+            const currentContext = contextBuilder?.();
+            const contextWithUser = currentContext ? { ...currentContext } : undefined;
+
             return {
               body: {
                 ...body,
-                id,
                 messages: filteredMessages,
                 trigger,
                 messageId,
+                ...(contextWithUser && { context: contextWithUser }),
+                ...(modelConfig && { model: modelConfig }),
               },
               headers,
               credentials,
             };
           }
-        : undefined,
+        : ({ messages, trigger, messageId, body, headers, credentials }) => {
+            // Fallback when no sessionId filtering is needed
+            // Get context from context builder and ensure clickHouseUser is included
+            const currentContext = contextBuilder?.();
+            const contextWithUser = currentContext ? { ...currentContext } : undefined;
+
+            return {
+              body: {
+                ...body,
+                messages,
+                trigger,
+                messageId,
+                ...(contextWithUser && { context: contextWithUser }),
+                ...(modelConfig && { model: modelConfig }),
+              },
+              headers,
+              credentials,
+            };
+          },
     }),
 
     // Initial messages from storage
@@ -196,16 +225,14 @@ export async function createChat(options?: {
       updatedAt: msg.updatedAt,
     })) as AppUIMessage[],
 
-
     // Handle tool calls from LLM using registry pattern
     onToolCall: async ({ toolCall }) => {
       const { toolName, toolCallId, input } = toolCall;
 
       // Ignore server-side reasoning tools (they are executed on the server)
-      if (toolName === CLIENT_TOOL_NAMES.GENERATE_SQL || toolName === CLIENT_TOOL_NAMES.GENEREATE_VISUALIZATION) {
+      if (toolName === SERVER_TOOL_NAMES.GENERATE_SQL || toolName === SERVER_TOOL_NAMES.GENEREATE_VISUALIZATION) {
         return;
       }
-
 
       // Type guard to ensure toolName is a valid key
       if (!(toolName in ClientToolExecutors)) {
@@ -248,7 +275,8 @@ export async function createChat(options?: {
         const outputSizeKB = (outputStr.length / 1024).toFixed(2);
         console.log(`🔧 Tool ${toolName} output size: ${outputSizeKB}KB`);
 
-        if (outputStr.length > 500 * 1024) { // Warn if > 500KB
+        if (outputStr.length > 500 * 1024) {
+          // Warn if > 500KB
           console.warn(`⚠️ Large tool output detected for ${toolName}: ${outputSizeKB}KB`);
         }
 
@@ -273,34 +301,34 @@ export async function createChat(options?: {
     onFinish: skipStorage
       ? undefined
       : async ({ message }) => {
-        const uiMessage = message as AppUIMessage & {
-          usage?: {
-            inputTokens: number;
-            outputTokens: number;
-            totalTokens: number;
+          const uiMessage = message as AppUIMessage & {
+            usage?: {
+              inputTokens: number;
+              outputTokens: number;
+              totalTokens: number;
+            };
           };
-        };
-        const messageToSave: Message = {
-          id: message.id,
-          chatId,
-          role: message.role,
-          parts: message.parts as any,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          usage: uiMessage.usage,
-        };
-
-        await chatStorage.saveMessage(messageToSave);
-
-        // Update chat timestamp
-        const chat = await chatStorage.getChat(chatId);
-        if (chat) {
-          await chatStorage.saveChat({
-            ...chat,
+          const messageToSave: Message = {
+            id: message.id,
+            chatId,
+            role: message.role,
+            parts: message.parts as any,
+            createdAt: new Date(),
             updatedAt: new Date(),
-          });
-        }
-      },
+            usage: uiMessage.usage,
+          };
+
+          await chatStorage.saveMessage(messageToSave);
+
+          // Update chat timestamp
+          const chat = await chatStorage.getChat(chatId);
+          if (chat) {
+            await chatStorage.saveChat({
+              ...chat,
+              updatedAt: new Date(),
+            });
+          }
+        },
   });
 
   // Cache the instance

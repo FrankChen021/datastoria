@@ -13,19 +13,54 @@ import { sqlSubAgentOutputSchema, type SQLSubAgentInput, type SQLSubAgentOutput 
  * - System table queries for diagnostics
  */
 export async function sqlSubAgent(input: SQLSubAgentInput): Promise<SQLSubAgentOutput> {
-  const { userQuestion, schemaHints, history } = input;
-
-  // Build schema context
-  const schemaContext = [];
-  if (schemaHints?.database) {
-    schemaContext.push(`Current database: ${schemaHints.database}`);
+  const { userQuestion, schemaHints, context, history, modelConfig } = input;
+  
+  if (!modelConfig) {
+    throw new Error("modelConfig is required for sqlSubAgent");
   }
-  if (schemaHints?.tables && schemaHints.tables.length > 0) {
+
+  // Build schema context from schemaHints (for backward compatibility) or context
+  const schemaContext = [];
+  const database = schemaHints?.database || context?.database;
+  const tables = schemaHints?.tables || context?.tables;
+  
+  if (database) {
+    schemaContext.push(`Current database: ${database}`);
+  }
+  if (tables && tables.length > 0) {
     schemaContext.push("Available tables:");
-    schemaHints.tables.forEach((table) => {
+    tables.forEach((table) => {
       schemaContext.push(`- ${table.name}: ${table.columns.join(", ")}`);
     });
   }
+
+  // Build user context section with explicit instructions
+  const clickHouseUser = context?.clickHouseUser;
+  const userContextSection = clickHouseUser
+    ? `\n## Current ClickHouse User (CRITICAL - USE THIS FOR USER-RELATED QUERIES)
+**Authenticated user: ${clickHouseUser}**
+
+**MANDATORY INSTRUCTIONS FOR USER-RELATED QUERIES:**
+- When the user asks about their own data, user permissions, or user-specific information, ALWAYS use "${clickHouseUser}" as the user value
+- DO NOT use functions like current_user(), USER(), or any placeholder values
+- DO NOT hardcode different usernames or ask for the username
+- When filtering by user, use: WHERE user = '${clickHouseUser}' or WHERE username = '${clickHouseUser}' (adjust column name as needed)
+- This is the authoritative user identity - use it directly in your SQL queries
+- Examples:
+  * "Show my queries" → WHERE user = '${clickHouseUser}'
+  * "What tables can I access?" → Use ${clickHouseUser} in permission checks
+  * "My recent activity" → Filter by user = '${clickHouseUser}'`
+    : "";
+
+  // Add current query context if available
+  const currentQuerySection = context?.currentQuery
+    ? `\n## Current Query Context
+The user may be asking about or modifying this existing query:
+\`\`\`sql
+${context.currentQuery}
+\`\`\`
+Consider this query when generating the new SQL.`
+    : "";
 
   const systemPromptDiscovery = `You are a ClickHouse SQL expert. Your goal is to generate a SQL query to answer the user's question.
 
@@ -34,7 +69,7 @@ export async function sqlSubAgent(input: SQLSubAgentInput): Promise<SQLSubAgentO
 - Always use LIMIT clauses (default: LIMIT 100)
 - Use bounded time windows for time-series queries (e.g., last 24 hours, last 7 days)
 - For performance queries, use system tables: system.query_log, system.processes, system.metrics, etc.
-
+${userContextSection}${currentQuerySection}
 ## Schema Context
 ${schemaContext.length > 0 ? schemaContext.join("\n") : "No schema context provided. Generate SQL based on the user question."}
 
@@ -58,6 +93,7 @@ ${schemaContext.length > 0 ? schemaContext.join("\n") : "No schema context provi
 - Format SQL with 2-space indentation
 - Use full qualified table names (e.g., database.table)
 - Ensure the SQL has been validated via \`validate_sql\` in the previous step.
+${userContextSection}${currentQuerySection}
 
 ## Output Format
 1. Return ONLY valid JSON matching this schema:
@@ -71,7 +107,12 @@ ${schemaContext.length > 0 ? schemaContext.join("\n") : "No schema context provi
 2. Don't wrap the JSON in any additional text or formatting.`;
 
   try {
-    const model = LanguageModelProviderFactory.createProvider();
+    // Use provided model config
+    const [model] = LanguageModelProviderFactory.createModel(
+      modelConfig.provider,
+      modelConfig.modelId,
+      modelConfig.apiKey
+    );
 
     // Build base messages for processing
     // If history is provided, we assume it contains the full context (including previous tool results)

@@ -94,10 +94,6 @@ export const ClientTools = {
  * Tool names for easy referencing without hardcoded strings
  */
 export const CLIENT_TOOL_NAMES = {
-  // Server-side reasoning tools
-  GENERATE_SQL: "generate_sql",
-  GENEREATE_VISUALIZATION: "generate_visualization",
-
   // Client-side introspection and execution tools
   GET_TABLE_COLUMNS: "get_table_columns",
   GET_TABLES: "get_tables",

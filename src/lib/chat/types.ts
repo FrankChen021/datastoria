@@ -47,13 +47,14 @@ export interface Chat {
   updatedAt: Date
 }
 
-export interface ChatContext {
+export interface DatabaseContext {
   currentQuery?: string
   database?: string
   tables?: Array<{
     name: string
     columns: string[]
   }>
+  clickHouseUser?: string
 }
 
 export interface ChatRequest {
@@ -63,7 +64,7 @@ export interface ChatRequest {
     role: MessageRole
     parts: MessagePart[]
   }>
-  context?: ChatContext
+  context?: DatabaseContext
 }
 
 // Storage interface for abstraction (localStorage now, IndexedDB later)

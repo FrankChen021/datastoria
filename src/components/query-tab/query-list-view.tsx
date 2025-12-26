@@ -1,6 +1,7 @@
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
 import type { AppUIMessage, TokenUsage } from "@/lib/ai/common-types";
 import { createChat, setChatContextBuilder } from "@/lib/chat";
+import type { DatabaseContext } from "@/lib/chat/types";
 import { useConnection } from "@/lib/connection/connection-context";
 import { toastManager } from "@/lib/toast";
 import type { Chat } from "@ai-sdk/react";
@@ -83,6 +84,9 @@ function QueryListViewContent({
   // Map to store sessionId for messages by their content and timestamp
   // Key: message content, Value: { sessionId, timestamp }
   const pendingSessionIdsRef = useRef<Map<string, { sessionId: string; timestamp: number }>>(new Map());
+  // Map to store errors by message ID
+  // Key: message ID, Value: Error
+  const messageErrorsRef = useRef<Map<string, Error>>(new Map());
   // Note: messageIdToSessionIdRef is passed as a prop from parent component
 
   // Use hook with the instance
@@ -90,6 +94,7 @@ function QueryListViewContent({
     messages: rawMessages,
     sendMessage,
     status,
+    error: chatError,
   } = useChat({
     chat: chatInstance,
     onError: (error: Error) => {
@@ -97,6 +102,26 @@ function QueryListViewContent({
       toastManager.show("Chat failed: " + error.message, "error");
     },
   });
+
+  // Watch for error changes from useChat and store them in the ref for persistence
+  useEffect(() => {
+    if (chatError) {
+      // Find the last assistant message that was being streamed (the one that errored)
+      // Use chatInstance.messages directly to get the latest state
+      const currentMessages = chatInstance.messages;
+      if (currentMessages && currentMessages.length > 0) {
+        // Find the last assistant message
+        for (let i = currentMessages.length - 1; i >= 0; i--) {
+          const msg = currentMessages[i];
+          if (msg.role === "assistant") {
+            // Store the error with this message ID for persistence
+            messageErrorsRef.current.set(msg.id, chatError);
+            break;
+          }
+        }
+      }
+    }
+  }, [chatError, chatInstance]);
 
   // Track executing state for Chat
   const isChatExecuting = status === "streaming" || status === "submitted";
@@ -252,6 +277,32 @@ function QueryListViewContent({
           messageIdToSessionIdRef.current.set(m.id, sessionId);
         }
 
+        // Check if there's an error for this message
+        // First check if this is the last assistant message and there's a current chatError
+        // Then fall back to stored errors in the ref (for persistence across re-renders)
+        let messageError: Error | undefined;
+        if (role === "assistant" && chatError) {
+          // Check if this is the last assistant message in rawMessages
+          const currentIndex = rawMessages.findIndex((msg) => msg.id === m.id);
+          if (currentIndex >= 0) {
+            // Check if this is the last assistant message
+            let isLastAssistant = true;
+            for (let i = currentIndex + 1; i < rawMessages.length; i++) {
+              if (rawMessages[i].role === "assistant") {
+                isLastAssistant = false;
+                break;
+              }
+            }
+            if (isLastAssistant) {
+              messageError = chatError;
+            }
+          }
+        }
+        // Fall back to stored error if no current error matches
+        if (!messageError) {
+          messageError = messageErrorsRef.current.get(m.id);
+        }
+
         return {
           type: "chat",
           id: m.id,
@@ -262,6 +313,7 @@ function QueryListViewContent({
           isLoading: false,
           timestamp: ts,
           sessionId: sessionId,
+          error: messageError,
         };
       });
 
@@ -276,7 +328,7 @@ function QueryListViewContent({
     // Merge and sort
     const all = [...sqlMessages, ...chatMessages];
     return all.sort((a, b) => a.timestamp - b.timestamp);
-  }, [sqlMessages, rawMessages, isChatExecuting, currentSessionId, messageIdToSessionIdRef]);
+  }, [sqlMessages, rawMessages, isChatExecuting, currentSessionId, messageIdToSessionIdRef, chatError]);
 
   // Update parent with current session stats (message count, token usage, and start time)
   useEffect(() => {
@@ -423,8 +475,20 @@ function QueryListViewContent({
       // Ensure we have a way to send
       if (sendMessage) {
         // Set context builder for this request
+        // Ensure context includes clickHouseUser from connection
         if (event.detail.context) {
-          setChatContextBuilder(() => event.detail.context);
+          const clickHouseUser = connection?.session?.internalUser || connection?.user;
+          const contextWithUser: DatabaseContext = {
+            ...event.detail.context,
+            clickHouseUser: (event.detail.context as DatabaseContext).clickHouseUser || clickHouseUser,
+          };
+          setChatContextBuilder(() => contextWithUser);
+        } else {
+          // If no context provided, create one with clickHouseUser
+          const clickHouseUser = connection?.session?.internalUser || connection?.user;
+          if (clickHouseUser) {
+            setChatContextBuilder(() => ({ clickHouseUser }));
+          }
         }
 
         // Send message to chat
@@ -563,12 +627,18 @@ export function QueryListView(props: QueryListViewProps) {
   }, [props.currentSessionId]);
 
   // Initialize Chat Instance
+  const { connection } = useConnection();
   useEffect(() => {
     let mounted = true;
     async function initChat() {
       try {
         // Use a stable ID for the tab, or a new random one if tabId is missing (unlikely for views)
         const id = props.tabId || uuid();
+        // Set up context builder with clickHouseUser from connection
+        const clickHouseUser = connection?.session?.internalUser || connection?.user;
+        if (clickHouseUser) {
+          setChatContextBuilder(() => ({ clickHouseUser }));
+        }
         const chat = await createChat({
           id,
           skipStorage: false,
@@ -586,7 +656,7 @@ export function QueryListView(props: QueryListViewProps) {
     return () => {
       mounted = false;
     };
-  }, [props.tabId]);
+  }, [props.tabId, connection]);
 
   if (!chatInstance) {
     return (

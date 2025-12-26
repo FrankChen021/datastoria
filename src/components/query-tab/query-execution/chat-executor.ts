@@ -14,6 +14,7 @@ export interface ChatRequestEventDetail {
       name: string;
       columns: string[];
     }>;
+    clickHouseUser?: string;
     lastExecution?: {
       sql: string;
       queryId?: string;

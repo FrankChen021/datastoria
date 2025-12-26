@@ -1,5 +1,6 @@
 import { UserProfileImage } from "@/components/user-profile-image";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/client-tools";
+import { SERVER_TOOL_NAMES } from "@/lib/ai/server-tools";
 import type { AppUIMessage, TokenUsage, ToolPart } from "@/lib/ai/common-types";
 import { colorGenerator } from "@/lib/color-generator";
 import { DateTimeExtension } from "@/lib/datetime-utils";
@@ -15,6 +16,7 @@ import { MessageToolGenerateVisualization } from "./message-tool-generate-visual
 import { MessageToolGetTableColumns } from "./message-tool-get-table-columns";
 import { MessageToolGetTables } from "./message-tool-get-tables";
 import { MessageToolValidateSql } from "./message-tool-validate-sql";
+import { ErrorMessageDisplay } from "./message-error";
 
 /**
  * Display token usage information per message
@@ -72,9 +74,9 @@ function ChatMessagePart({ part }: { part: AppUIMessage["parts"][0] }) {
     toolName = part.type.replace("tool-", "");
   }
 
-  if (toolName === CLIENT_TOOL_NAMES.GENERATE_SQL) {
+  if (toolName === SERVER_TOOL_NAMES.GENERATE_SQL) {
     return <MessageToolGenerateSql part={part} />;
-  } else if (toolName === CLIENT_TOOL_NAMES.GENEREATE_VISUALIZATION) {
+  } else if (toolName === SERVER_TOOL_NAMES.GENEREATE_VISUALIZATION) {
     return <MessageToolGenerateVisualization part={part} />;
   } else if (toolName === CLIENT_TOOL_NAMES.EXECUTE_SQL) {
     return <MessageToolExecuteSql part={part} />;
@@ -146,13 +148,14 @@ export const ChatMessageView = memo(function ChatMessageView({
             )}
           </div>
 
-          <div className="flex-1 overflow-hidden min-w-0">
+          <div className="flex-1 overflow-hidden min-w-0 mt-1">
             <div className="text-sm">
               {message.parts.length === 0 && message.isLoading && "Thinking..."}
-              {message.parts.length === 0 && !message.isLoading && "Nothing returned"}
+              {message.parts.length === 0 && !message.isLoading && !message.error && "Nothing returned"}
               {message.parts.map((part, i) => (
                 <ChatMessagePart key={i} part={part} />
               ))}
+              {message.error && <ErrorMessageDisplay errorText={message.error.message || String(message.error)} />}
             </div>
           </div>
         </div>

@@ -1,5 +1,7 @@
 import type { AppUIMessage } from "@/lib/ai/common-types";
 import { createChat, setChatContextBuilder } from "@/lib/chat";
+import { Connection } from "@/lib/connection/connection";
+import { ConnectionManager } from "@/lib/connection/connection-manager";
 import type { Chat } from "@ai-sdk/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatRequestEventDetail } from "@/components/query-tab/query-execution/chat-executor";
@@ -41,8 +43,20 @@ export function useChatManager(chatList: Array<{ id: string; chatRequest: ChatRe
         initializingRef.current.add(chatId);
 
         try {
-          // Set context builder for this specific chat
-          setChatContextBuilder(() => chatItem.chatRequest.context);
+          // Get ClickHouse user from connection
+          const config = ConnectionManager.getInstance().getLastSelectedOrFirst();
+          const clickHouseUser = config
+            ? (Connection.create(config).session?.internalUser || Connection.create(config).user)
+            : undefined;
+
+          // Set context builder for this specific chat, ensuring clickHouseUser is included
+          setChatContextBuilder(() => {
+            const context = chatItem.chatRequest.context || {};
+            return {
+              ...context,
+              clickHouseUser: context.clickHouseUser || clickHouseUser,
+            };
+          });
 
           // Create chat instance with skipStorage for single-use chats
           const chatInstance = await createChat({

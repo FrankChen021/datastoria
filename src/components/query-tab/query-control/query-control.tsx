@@ -5,16 +5,63 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toastManager } from "@/lib/toast";
-import { ChevronDown, Database, Info, MessageSquarePlus, Play, Sparkles } from "lucide-react";
-import { useCallback, useState } from "react";
+import { cn } from "@/lib/utils";
+import * as PopoverPrimitive from "@radix-ui/react-popover";
+import { AlertCircle, ChevronDown, Database, Info, MessageSquarePlus, Play, Sparkles } from "lucide-react";
+import { memo, useCallback, useState } from "react";
 import { QueryExecutor } from "../query-execution/query-executor";
 import { useQueryInput } from "../query-input/use-query-input";
 import type { ChatSessionStats } from "../query-list-view";
 import { ChatSessionStatus } from "./chat-session-status";
+
+interface NewConversationButtonProps {
+  onNewConversation?: () => void;
+}
+
+const NewConversationButton = memo(function NewConversationButton({ onNewConversation }: NewConversationButtonProps) {
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleConfirm = useCallback(() => {
+    setShowConfirm(false);
+    if (onNewConversation) {
+      onNewConversation();
+    }
+  }, [onNewConversation]);
+
+  return (
+    <Popover open={showConfirm} onOpenChange={setShowConfirm}>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs" title="Start New Conversation">
+          <MessageSquarePlus className="h-3 w-3" />
+          New Conversation
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className={cn("w-[350px]")} side="top" align="end" sideOffset={0}>
+        <PopoverPrimitive.Arrow className={cn("fill-[var(--border)]")} width={12} height={8} />
+        <div className="flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-sm mb-1">Start New Conversation</div>
+            <div className="text-xs mb-3">Are you sure you want to start a new conversation?</div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowConfirm(false)}>
+                Cancel
+              </Button>
+              <Button type="button" variant="default" size="sm" className="h-7 text-xs" onClick={handleConfirm}>
+                Start New
+              </Button>
+            </div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+});
 
 export interface QueryControlProps {
   mode: "sql" | "chat";
@@ -159,20 +206,8 @@ export function QueryControl({
 
         {mode === "chat" && sessionStats && sessionStats.messageCount > 0 && (
           <>
-            <ChatSessionStatus
-              stats={sessionStats}
-              currentSessionId={currentSessionId}
-            />
-            <Button
-              onClick={onNewConversation}
-              size="sm"
-              variant="ghost"
-              className="h-6 gap-1 px-2 text-xs"
-              title="Start New Conversation"
-            >
-              <MessageSquarePlus className="h-3 w-3" />
-              New Conversation
-            </Button>
+            <ChatSessionStatus stats={sessionStats} currentSessionId={currentSessionId} />
+            <NewConversationButton onNewConversation={onNewConversation} />
           </>
         )}
 
