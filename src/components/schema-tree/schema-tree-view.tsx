@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tree, type TreeDataItem, type TreeRef } from "@/components/ui/tree";
 import { useConnection } from "@/lib/connection/connection-context";
+import type { DatabaseInfo, TableInfo } from "@/lib/connection/connection";
 import { AlertCircle, Database, RotateCw, Search, Table as TableIcon, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -19,12 +20,48 @@ import {
   type TableNodeData,
 } from "./schema-tree-loader";
 
+/**
+ * Extract table names and database names from schema load result
+ */
+function extractTableNames(result: SchemaLoadResult): { tableNames: Map<string, TableInfo>; databaseNames: Map<string, DatabaseInfo> } {
+  const tableNames = new Map<string, TableInfo>();
+  const databaseNames = new Map<string, DatabaseInfo>();
+  
+  for (const row of result.rows) {
+    // Extract database names with comments
+    if (row.database) {
+      // Only set if not already set (to avoid overwriting with null comment from table/column rows)
+      if (!databaseNames.has(row.database)) {
+        databaseNames.set(row.database, {
+          name: row.database,
+          comment: row.dbComment || null,
+        });
+      }
+    }
+    
+    // Extract table names
+    if (row.database && row.table) {
+      const qualifiedName = `${row.database}.${row.table}`;
+      // Only set if not already set (to avoid overwriting with null comment from column rows)
+      if (!tableNames.has(qualifiedName)) {
+        tableNames.set(qualifiedName, {
+          database: row.database,
+          table: row.table,
+          comment: row.tableComment || null,
+        });
+      }
+    }
+  }
+  
+  return { tableNames, databaseNames };
+}
+
 export interface SchemaTreeViewProps {
   initialSchemaData?: SchemaLoadResult | null;
 }
 
 export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
-  const { connection } = useConnection();
+  const { connection, updateConnection } = useConnection();
   const [isLoading, setIsLoading] = useState(false);
   const [treeData, setTreeData] = useState<TreeDataItem[]>([]);
   const [search, setSearch] = useState("");
@@ -66,6 +103,10 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
         setTreeData(tree);
         setError(null);
 
+        // Extract and update table names and database names in connection metadata
+        const { tableNames, databaseNames } = extractTableNames(result);
+        updateConnection({ tableNames, databaseNames });
+
         // Open node tab every time tree is loaded
         if (tree.length > 0) {
           const firstNodeData = tree[0]?.data as { type?: string; host?: string };
@@ -82,19 +123,19 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
     };
 
     loadData();
-  }, [connection, buildTree]);
+  }, [connection, buildTree, updateConnection]);
 
   // Handle host change from the host selector
   const handleHostChange = useCallback(
     (hostName: string) => {
       if (!connection) return;
 
-      connection.session.targetNode = hostName;
+      updateConnection({ targetNode: hostName });
 
       // Refresh the tree to load data from the new host
       loadDatabases();
     },
-    [connection, loadDatabases]
+    [connection, updateConnection, loadDatabases]
   );
 
   // Update the ref whenever handleHostChange changes

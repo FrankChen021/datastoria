@@ -1,4 +1,3 @@
-import { Dialog } from "@/components/use-dialog";
 import { QueryListView, type ChatSessionStats } from "@/components/query-tab/query-list-view";
 import { NUM_COLORS } from "@/lib/color-generator";
 import { useConnection } from "@/lib/connection/connection-context";
@@ -137,49 +136,19 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
   }, []);
 
   const handleNewConversation = useCallback(() => {
-    const startNewConversation = () => {
-      // Create new session with a different color than the previous one
-      const newSessionId = generateNewSessionId(currentSessionId);
-      setCurrentSessionId(newSessionId);
-      setChartSessionStats({
-        messageCount: 0,
-        tokens: {
-          inputTokens: 0,
-          outputTokens: 0,
-          totalTokens: 0,
-          reasoningTokens: 0,
-          cachedInputTokens: 0,
-        },
-      });
-      lastExecutionRef.current = null;
-    };
-
-    // Show confirmation if conversation has many messages
-    if (chatSessionStats.messageCount > 0) {
-      Dialog.confirm({
-        title: "Start New Conversation?",
-        description: `Current conversation has ${chatSessionStats.messageCount} messages.`,
-        dialogButtons: [
-          {
-            text: "Start New",
-            onClick: async () => {
-              startNewConversation();
-              return true;
-            },
-            default: true,
-          },
-          {
-            text: "Cancel",
-            onClick: async () => true,
-            default: false,
-          },
-        ],
-      });
-      return;
-    }
-
-    startNewConversation();
-  }, [chatSessionStats.messageCount, currentSessionId]);
+    setCurrentSessionId(generateNewSessionId(currentSessionId));
+    setChartSessionStats({
+      messageCount: 0,
+      tokens: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        reasoningTokens: 0,
+        cachedInputTokens: 0,
+      },
+    });
+    lastExecutionRef.current = null;
+  }, [currentSessionId]);
 
   // Focus editor when tab becomes active
   useEffect(() => {
@@ -200,6 +169,7 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
           currentSessionId={currentSessionId}
           onExecutionStateChange={handleExecutionStateChange}
           onChatSessionStatsChanged={setChartSessionStats}
+          onNewSession={handleNewConversation}
         />
         {/* <ChatPanel
           currentDatabase={"default"}

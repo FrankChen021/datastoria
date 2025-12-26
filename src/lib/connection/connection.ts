@@ -28,11 +28,24 @@ export interface QueryResponse {
   data: any;
 }
 
-export interface Session {
+export interface TableInfo {
+  database: string;
+  table: string;
+  comment?: string | null;
+}
+
+export interface DatabaseInfo {
+  name: string;
+  comment?: string | null;
+}
+
+export interface ConnectionMetadata {
   targetNode?: string;
   internalUser: string;
   timezone: string;
   function_table_has_description_column?: boolean;
+  tableNames?: Map<string, TableInfo>;
+  databaseNames?: Map<string, DatabaseInfo>;
 }
 
 export class Connection {
@@ -48,8 +61,8 @@ export class Connection {
   readonly path: string;
   readonly userParams: Record<string, unknown>;
 
-  // Session information
-  session: Session;
+  // Connection metadata information
+  metadata: ConnectionMetadata;
 
   private constructor(config: ConnectionConfig) {
     this.name = config.name;
@@ -74,8 +87,8 @@ export class Connection {
       }
     }
 
-    // Initialize session with defaults
-    this.session = {
+    // Initialize metadata with defaults
+    this.metadata = {
       internalUser: config.user, // Default to external configured user
       timezone: "UTC", // Default timezone
       function_table_has_description_column: false,
@@ -301,7 +314,7 @@ export class Connection {
     params?: Record<string, unknown>,
     headers?: Record<string, string>
   ): { response: Promise<QueryResponse>; abortController: AbortController } {
-    const node = this.session.targetNode;
+    const node = this.metadata.targetNode;
 
     if (node === undefined) {
       return this.query(sql, params, headers);
@@ -322,7 +335,7 @@ SELECT * FROM remote(
   view(
         ${sql}
   ), 
-  '${this.session.internalUser}', 
+  '${this.metadata.internalUser}', 
   '${this.password}')`,
       params,
       headers

@@ -1,12 +1,56 @@
+import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
+import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
+import { useConnection } from "@/lib/connection/connection-context";
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { SqlCodeBlock } from "../sql-code-block";
+import { MessageMarkdownSql } from "./message-markdown-sql";
 
 /**
  * Render text message with markdown support
  */
 export const MessageMarkdown = memo(function MessageMarkdown({ text }: { text: string }) {
+  const { connection } = useConnection();
+
+  // Helper function to check if text is a table name
+  const getTableInfo = (text: string): { database: string; table: string } | null => {
+    if (!connection?.metadata?.tableNames) {
+      return null;
+    }
+
+    const normalizedText = text.trim();
+    if (!normalizedText) {
+      return null;
+    }
+
+    // Check if it matches a qualified table name (database.table)
+    const tableInfo = connection.metadata.tableNames.get(normalizedText);
+    if (tableInfo) {
+      return tableInfo;
+    }
+
+    return null;
+  };
+
+  // Helper function to get database info
+  const getDatabaseInfo = (text: string): { name: string } | null => {
+    if (!connection?.metadata?.databaseNames) {
+      return null;
+    }
+
+    const normalizedText = text.trim();
+    if (!normalizedText) {
+      return null;
+    }
+
+    const databaseInfo = connection.metadata.databaseNames.get(normalizedText);
+    if (databaseInfo) {
+      return { name: databaseInfo.name };
+    }
+
+    return null;
+  };
+
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
       <ReactMarkdown
@@ -21,7 +65,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({ text }: { text: s
             if (!isInline && (language === "sql" || language === "")) {
               const codeString = String(children).replace(/\n$/, "");
               return (
-                <SqlCodeBlock
+                <MessageMarkdownSql
                   code={codeString}
                   showExecuteButton={true}
                   customStyle={{
@@ -31,6 +75,43 @@ export const MessageMarkdown = memo(function MessageMarkdown({ text }: { text: s
                   }}
                 />
               );
+            }
+
+            // Check if inline code is a table name or database name
+            if (isInline) {
+              const codeText = String(children).trim();
+              
+              // First check if it's a table name
+              const tableInfo = getTableInfo(codeText);
+              if (tableInfo) {
+                return (
+                  <code className={`${className || ""} inline-flex items-center`} {...props}>
+                    <OpenTableTabButton
+                      database={tableInfo.database}
+                      table={tableInfo.table}
+                      showDatabase={true}
+                      variant="link"
+                      className="underline decoration-dotted underline-offset-2 font-normal text-sm"
+                      showLinkIcon={false}
+                    />
+                  </code>
+                );
+              }
+              
+              // Then check if it's a database name
+              const databaseInfo = getDatabaseInfo(codeText);
+              if (databaseInfo) {
+                return (
+                  <code className={`${className || ""} inline-flex items-center`} {...props}>
+                    <OpenDatabaseTabButton
+                      database={databaseInfo.name}
+                      variant="link"
+                      className="underline decoration-dotted underline-offset-2 font-normal text-sm"
+                      showLinkIcon={false}
+                    />
+                  </code>
+                );
+              }
             }
 
             // Default inline code rendering

@@ -1,10 +1,11 @@
-import { Play } from "lucide-react";
 import { CopyButton } from "@/components/ui/copy-button";
-import { ThemedSyntaxHighlighter } from "../themed-syntax-highlighter";
-import { Button } from "../ui/button";
-import { QueryExecutor } from "./query-execution/query-executor";
+import { Play } from "lucide-react";
+import { memo } from "react";
+import { ThemedSyntaxHighlighter } from "../../themed-syntax-highlighter";
+import { Button } from "../../ui/button";
+import { QueryExecutor } from "../query-execution/query-executor";
 
-interface SqlCodeBlockProps {
+interface MessageMarkdownSqlProps {
   code: string;
   language?: string;
   customStyle?: React.CSSProperties;
@@ -12,13 +13,13 @@ interface SqlCodeBlockProps {
   showLineNumbers?: boolean;
 }
 
-export function SqlCodeBlock({
+export const MessageMarkdownSql = memo(function MessageMarkdownSql({
   code,
   language = "sql",
   customStyle,
   showExecuteButton = false,
   showLineNumbers,
-}: SqlCodeBlockProps) {
+}: MessageMarkdownSqlProps) {
   const handleRun = (e: React.MouseEvent) => {
     e.stopPropagation();
     QueryExecutor.sendQueryRequest(code, {
@@ -44,10 +45,7 @@ export function SqlCodeBlock({
           </Button>
         )}
 
-        <CopyButton
-          value={code}
-          className="relative h-6 w-6 opacity-60 hover:opacity-100 transition-all"
-        />
+        <CopyButton value={code} className="relative h-6 w-6 opacity-60 hover:opacity-100 transition-all" />
       </div>
 
       <ThemedSyntaxHighlighter
@@ -65,4 +63,4 @@ export function SqlCodeBlock({
       </ThemedSyntaxHighlighter>
     </div>
   );
-}
+});

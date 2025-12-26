@@ -2,13 +2,49 @@ import { ConnectionWizard } from "@/components/connection/connection-wizard";
 import { SchemaTreeLoader, type SchemaLoadResult } from "@/components/schema-tree/schema-tree-loader";
 import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
 import { Button } from "@/components/ui/button";
-import { Connection, type Session } from "@/lib/connection/connection";
+import { Connection, type ConnectionMetadata, type DatabaseInfo, type TableInfo } from "@/lib/connection/connection";
 import { useConnection } from "@/lib/connection/connection-context";
 import { AlertCircle, Loader2, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { ConnectionSelectorDialog } from "./connection/connection-selector-dialog";
 import { MainPageTabList } from "./main-page-tab-list";
+
+/**
+ * Extract table names and database names from schema load result
+ */
+function extractTableNames(result: SchemaLoadResult): { tableNames: Map<string, TableInfo>; databaseNames: Map<string, DatabaseInfo> } {
+  const tableNames = new Map<string, TableInfo>();
+  const databaseNames = new Map<string, DatabaseInfo>();
+  
+  for (const row of result.rows) {
+    // Extract database names with comments
+    if (row.database) {
+      // Only set if not already set (to avoid overwriting with null comment from table/column rows)
+      if (!databaseNames.has(row.database)) {
+        databaseNames.set(row.database, {
+          name: row.database,
+          comment: row.dbComment || null,
+        });
+      }
+    }
+    
+    // Extract table names
+    if (row.database && row.table) {
+      const qualifiedName = `${row.database}.${row.table}`;
+      // Only set if not already set (to avoid overwriting with null comment from column rows)
+      if (!tableNames.has(qualifiedName)) {
+        tableNames.set(qualifiedName, {
+          database: row.database,
+          table: row.table,
+          comment: row.tableComment || null,
+        });
+      }
+    }
+  }
+  
+  return { tableNames, databaseNames };
+}
 
 export type AppInitStatus = "initializing" | "connecting" | "ready" | "error";
 
@@ -82,7 +118,7 @@ function MainPageLoadStatusComponent({ status, connectionName, error, onRetry }:
 }
 
 // Initialize cluster info on a temporary connection and return the updates
-async function getSessionInfo(connection: Connection): Promise<Partial<Session>> {
+async function getConnectionMetadata(connection: Connection): Promise<Partial<ConnectionMetadata>> {
   const { response } = connection.query(
     `
     SELECT currentUser(), timezone(), hasColumnInTable('system', 'functions', 'description')
@@ -97,7 +133,7 @@ async function getSessionInfo(connection: Connection): Promise<Partial<Session>>
     const functionTableHasDescriptionColumn = apiResponse.data.data[0][2] as number;
 
     const isCluster =
-      connection.cluster && connection.cluster.length > 0 && connection.session.targetNode === undefined;
+      connection.cluster && connection.cluster.length > 0 && connection.metadata.targetNode === undefined;
     return {
       targetNode: isCluster ? returnNode : undefined,
       internalUser: internalUser,
@@ -137,15 +173,15 @@ export function MainPage() {
     const load = async () => {
       try {
         // 1. Initialize cluster info and get the updates
-        const sessionUpdates = await getSessionInfo(connection);
+        const metadataUpdates = await getConnectionMetadata(connection);
 
         // 2. Create a temporary connection with cluster info for loading schema
         let tempConnection = connection;
-        if (Object.keys(sessionUpdates).length > 0) {
-          // Create a new connection object with session updates
+        if (Object.keys(metadataUpdates).length > 0) {
+          // Create a new connection object with metadata updates
           tempConnection = Object.create(Object.getPrototypeOf(connection));
           Object.assign(tempConnection, connection);
-          tempConnection.session = { ...connection.session, ...sessionUpdates };
+          tempConnection.metadata = { ...connection.metadata, ...metadataUpdates };
         }
 
         const startTime = Date.now();
@@ -154,10 +190,15 @@ export function MainPage() {
         const result = await schemaLoader.load(tempConnection);
 
         if (isMounted) {
-          // 4. Update connection context with session info
-          if (Object.keys(sessionUpdates).length > 0) {
-            updateConnection(sessionUpdates);
-          }
+          // 4. Extract table names and database names from schema result
+          const { tableNames, databaseNames } = extractTableNames(result);
+
+          // 5. Update connection context with metadata info including table names and database names
+          updateConnection({
+            ...metadataUpdates,
+            tableNames,
+            databaseNames,
+          });
 
           const post = () => {
             setLoadedSchemaData(result);

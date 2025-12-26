@@ -9,6 +9,7 @@ export interface OpenDatabaseTabButtonProps {
   maxLength?: number;
   className?: string;
   variant?: "link" | "button" | "shadcn-link";
+  showLinkIcon?: boolean;
 }
 
 /**
@@ -46,7 +47,7 @@ function truncateText(text: string, maxLength: number): string {
  * Automatically truncates long names to show first and last parts.
  */
 export const OpenDatabaseTabButton = memo(
-  ({ database, maxLength = 24, className = "" }: OpenDatabaseTabButtonProps) => {
+  ({ database, maxLength = 24, className = "", showLinkIcon = true }: OpenDatabaseTabButtonProps) => {
     const handleClick = () => {
       TabManager.openDatabaseTab(database);
       Dialog.close(); // Automatically close any parent dialog
@@ -61,12 +62,12 @@ export const OpenDatabaseTabButton = memo(
     return (
       <Button
         variant="link"
-        className={`font-semibold h-auto p-0 text-left flex items-center gap-1 ${className}`}
+        className={`font-semibold h-auto p-0 text-left inline-flex items-center gap-1 ${className}`}
         onClick={handleClick}
         title={title}
       >
         {displayText}
-        <ExternalLink className="!h-3 !w-3 flex-shrink-0" />
+        {showLinkIcon && <ExternalLink className="!h-3 !w-3 flex-shrink-0" />}
       </Button>
     );
   }

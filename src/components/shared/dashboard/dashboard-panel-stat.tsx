@@ -532,7 +532,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
             const thisQuery = Object.assign({}, query) as SQLQuery;
 
             // Replace time span template parameters in SQL if time span is provided
-            const finalSql = replaceTimeSpanParams(thisQuery.sql, _param.selectedTimeSpan, connection!.session.timezone);
+            const finalSql = replaceTimeSpanParams(thisQuery.sql, _param.selectedTimeSpan, connection!.metadata.timezone);
             const { response } = connection!.queryOnNode(
               finalSql,
               {
@@ -572,7 +572,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
             const query = Object.assign({}, descriptor.query);
 
             // Replace time span template parameters in SQL if provided
-            const finalSql = replaceTimeSpanParams(query.sql, _param.selectedTimeSpan, connection!.session.timezone);
+            const finalSql = replaceTimeSpanParams(query.sql, _param.selectedTimeSpan, connection!.metadata.timezone);
             const { response } = connection!.queryOnNode(
               finalSql,
               {

@@ -109,7 +109,7 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
           }
 
           // Replace time span template parameters in SQL if provided
-          const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.session.timezone);
+          const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.metadata.timezone);
 
           const { response, abortController } = connection.query(
             finalSql,

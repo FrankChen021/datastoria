@@ -1081,7 +1081,7 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
           const query = Object.assign({}, descriptor.query) as SQLQuery;
 
           // Replace time span template parameters in SQL if time span is provided
-          const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.session.timezone);
+          const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.metadata.timezone);
 
           const { response, abortController } = connection.queryOnNode(
             finalSql,

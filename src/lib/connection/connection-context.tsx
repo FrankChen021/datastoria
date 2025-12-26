@@ -1,4 +1,4 @@
-import { Connection, type Session } from "@/lib/connection/connection";
+import { Connection, type ConnectionMetadata } from "@/lib/connection/connection";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -9,7 +9,7 @@ interface ConnectionContextType {
   connection: Connection | null;
   isInitialized: boolean;
   switchConnection: (conn: ConnectionConfig | null) => void;
-  updateConnection: (session: Partial<Session>) => void;
+  updateConnection: (metadata: Partial<ConnectionMetadata>) => void;
 }
 
 export const ConnectionContext = createContext<ConnectionContextType>({
@@ -61,7 +61,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const updateConnection = (sessionUpdates: Partial<Session>) => {
+  const updateConnection = (metadataUpdates: Partial<ConnectionMetadata>) => {
     setConnection((prev) => {
       if (!prev) return null;
       // Since Connection is a class, we need to be careful about immutability if we are spreading.
@@ -73,8 +73,29 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
       // For now, let's assume we can create a new object with prototype.
       const newConn = Object.create(Object.getPrototypeOf(prev));
       Object.assign(newConn, prev);
-      // Update the session property
-      newConn.session = { ...prev.session, ...sessionUpdates };
+      // Update the metadata property
+      // Handle Map and Set merging specially
+      const mergedMetadata: ConnectionMetadata = { ...prev.metadata, ...metadataUpdates };
+      
+      // Merge tableNames Map if both exist
+      if (metadataUpdates.tableNames && prev.metadata.tableNames) {
+        const mergedTableNames = new Map(prev.metadata.tableNames);
+        for (const [key, value] of metadataUpdates.tableNames) {
+          mergedTableNames.set(key, value);
+        }
+        mergedMetadata.tableNames = mergedTableNames;
+      }
+      
+      // Merge databaseNames Map if both exist
+      if (metadataUpdates.databaseNames && prev.metadata.databaseNames) {
+        const mergedDatabaseNames = new Map(prev.metadata.databaseNames);
+        for (const [key, value] of metadataUpdates.databaseNames) {
+          mergedDatabaseNames.set(key, value);
+        }
+        mergedMetadata.databaseNames = mergedDatabaseNames;
+      }
+      
+      newConn.metadata = mergedMetadata;
       return newConn;
     });
   };

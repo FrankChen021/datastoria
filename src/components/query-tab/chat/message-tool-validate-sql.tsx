@@ -5,7 +5,7 @@ import {
 } from "@/lib/ai/client-tools";
 import type { AppUIMessage, ToolPart } from "@/lib/ai/common-types";
 import { memo } from "react";
-import { SqlCodeBlock } from "../sql-code-block";
+import { MessageMarkdownSql } from "./message-markdown-sql";
 import { CollapsiblePart } from "./collapsible-part";
 
 export const MessageToolValidateSql = memo(function MessageToolValidateSql({ part }: { part: AppUIMessage["parts"][0] }) {
@@ -22,7 +22,7 @@ export const MessageToolValidateSql = memo(function MessageToolValidateSql({ par
       {input?.sql && (
         <>
           <div className="text-[10px] text-muted-foreground">input:</div>
-          <SqlCodeBlock
+          <MessageMarkdownSql
             code={input.sql}
             showExecuteButton={false}
             customStyle={{

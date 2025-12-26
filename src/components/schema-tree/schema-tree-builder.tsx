@@ -502,7 +502,7 @@ export function buildSchemaTree(
   schemaData: SchemaLoadResult,
   onHostChange?: (hostName: string) => void
 ): TreeDataItem {
-  let targetServerNode = connection.session.targetNode;
+  let targetServerNode = connection.metadata.targetNode;
 
   const canSwitchServer = (connection.cluster || "").length > 0;
 

@@ -16,6 +16,11 @@ export class QuerySuggestionManager {
 
   private miscCompletion: CompletionItem[] = [];
   private databaseCompletion: CompletionItem[] = [];
+
+  /**
+   * key: database name
+   * value: table completions for the database
+   */
   private tableCompletion: Map<string, CompletionItem[]> = new Map();
   private columnCompletion: Map<string, CompletionItem[]> = new Map();
   private allSettingsCompletion: CompletionItem[] = [];
@@ -107,30 +112,42 @@ export class QuerySuggestionManager {
       }
     };
 
-    // Query 1: Databases
-    connection
-      .query(`SELECT name, 'database', -30, '' FROM system.databases ORDER BY name`, {
-        default_format: "JSONCompact",
-      })
-      .response.then((response) => {
-        const returnList = response.data.data;
-        returnList.forEach((eachRowObject: any) => {
-          processCompletionItem(eachRowObject);
-        });
-      })
-      .catch((error) => {
-        console.error("Failed to load database completion data:", error);
-      });
+    // Query 1: Databases - use metadata if available, otherwise query SQL
+    if (connection.metadata?.databaseNames && connection.metadata.databaseNames.size > 0) {
+      // Use metadata to build database completions
+      const databaseCompletions: CompletionItem[] = [];
+      
+      for (const [dbName, dbInfo] of connection.metadata.databaseNames) {
+        const comment = dbInfo.comment || "";
+        // Build docHTML with comment if available
+        const docHTML = comment ? ["<b>", dbName, "</b>", "<hr />", comment].join("") : undefined;
+        
+        const completion: CompletionItem = {
+          caption: dbName,
+          value: dbName,
+          meta: "database",
+          score: -30,
+          docHTML: docHTML,
+        };
+        
+        databaseCompletions.push(completion);
+        // Add to miscCompletion too
+        this.miscCompletion.push(completion);
+      }
+      
+      // Also add to databaseCompletion for specific database completion
+      this.databaseCompletion = databaseCompletions;
+    }
 
     // Query 2: Functions
     connection
       .query(
         `
 SELECT * FROM (
-        SELECT concat(name, '()') AS name, ${connection.session.function_table_has_description_column ? "description" : "''"} FROM system.functions WHERE is_aggregate = 0
+        SELECT concat(name, '()') AS name, ${connection.metadata.function_table_has_description_column ? "description" : "''"} FROM system.functions WHERE is_aggregate = 0
     UNION ALL
         -- Aggregate Combinator
-        SELECT concat(functions.name, combinator.name, '()') AS name, ${connection.session.function_table_has_description_column ? "functions.description" : "''"} FROM system.functions AS functions
+        SELECT concat(functions.name, combinator.name, '()') AS name, ${connection.metadata.function_table_has_description_column ? "functions.description" : "''"} FROM system.functions AS functions
         CROSS JOIN system.aggregate_function_combinators  AS combinator
         WHERE functions.is_aggregate
     UNION ALL
@@ -281,65 +298,61 @@ SELECT * FROM (
       });
 
     //
-    // Get tables
+    // Get tables from metadata (if available) or query SQL
     //
-    connection
-      .query(
-        `SELECT database, name, comment FROM system.tables WHERE NOT startsWith(tables.name, '.inner') ORDER BY database, name`,
-        {
-          default_format: "JSONCompact",
+    if (connection.metadata?.tableNames && connection.metadata.tableNames.size > 0) {
+      // Use metadata to build completions
+      this.tableCompletion.clear();
+
+      const qualifiedTableCompletions: CompletionItem[] = [];
+      
+      // Group tables by database for tableCompletion
+      const tablesByDatabase = new Map<string, CompletionItem[]>();
+      
+      for (const [qualifiedName, tableInfo] of connection.metadata.tableNames) {
+        const { database, table, comment } = tableInfo;
+        
+        // Build docHTML with comment if available
+        const docHTML = comment ? ["<b>", table, "</b>", "<hr />", comment].join("") : undefined;
+
+        // Add to database-specific table completion
+        if (!tablesByDatabase.has(database)) {
+          tablesByDatabase.set(database, []);
         }
-      )
-      .response.then((response) => {
-        this.tableCompletion.clear();
-
-        const returnList = response.data.data as any[];
-        const qualifiedTableCompletions: CompletionItem[] = [];
-        returnList.forEach((eachRowObject) => {
-          const database = eachRowObject[0];
-          const table = eachRowObject[1];
-          const comment = eachRowObject[2] || "";
-
-          // Build docHTML with comment if available
-          const docHTML = comment ? ["<b>", table, "</b>", "<hr />", comment].join("") : undefined;
-
-          if (!this.tableCompletion.has(database)) {
-            this.tableCompletion.set(database, []);
-          }
-          const completions = this.tableCompletion.get(database);
-          completions?.push({
-            caption: table,
-            value: table,
-            meta: "table",
-            score: 100,
-            docHTML: docHTML,
-          });
-
-          // Add qualified table name (database.table) to miscCompletion
-          const qualifiedName = `${database}.${table}`;
-          qualifiedTableCompletions.push({
-            caption: qualifiedName,
-            value: qualifiedName,
-            meta: "table",
-            score: 100,
-            docHTML: docHTML,
-          });
+        tablesByDatabase.get(database)?.push({
+          caption: table,
+          value: table,
+          meta: "table",
+          score: 100,
+          docHTML: docHTML,
         });
 
-        // Store qualified table completions in class property
-        this.qualifiedTableCompletions = qualifiedTableCompletions;
+        // Add qualified table name (database.table) to qualified completions
+        qualifiedTableCompletions.push({
+          caption: qualifiedName,
+          value: qualifiedName,
+          meta: "table",
+          score: 100,
+          docHTML: docHTML,
+        });
+      }
 
-        // Add all qualified table names to miscCompletion
-        // If miscCompletion is empty, the main query hasn't completed yet, but that's okay
-        // The qualified names will be added when the main query completes
-        // If miscCompletion already has items, add them now
-        if (this.miscCompletion.length > 0) {
-          this.miscCompletion.push(...qualifiedTableCompletions);
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to load table completion data:", error);
-      });
+      // Set tableCompletion from grouped data
+      for (const [database, completions] of tablesByDatabase) {
+        this.tableCompletion.set(database, completions);
+      }
+
+      // Store qualified table completions in class property
+      this.qualifiedTableCompletions = qualifiedTableCompletions;
+
+      // Add all qualified table names to miscCompletion
+      // If miscCompletion is empty, the main query hasn't completed yet, but that's okay
+      // The qualified names will be added when the main query completes
+      // If miscCompletion already has items, add them now
+      if (this.miscCompletion.length > 0) {
+        this.miscCompletion.push(...qualifiedTableCompletions);
+      }
+    }
 
     //
     // Get columns
@@ -535,7 +548,7 @@ SELECT * FROM (
                     return;
                   }
                   if (currentToken.value.localeCompare("FROM", undefined, { sensitivity: "accent" }) === 0) {
-                    callback(null, this.databaseCompletion);
+                    callback(null, this.qualifiedTableCompletions);
                     return;
                   }
                   if (currentToken.value.localeCompare("SET", undefined, { sensitivity: "accent" }) === 0) {

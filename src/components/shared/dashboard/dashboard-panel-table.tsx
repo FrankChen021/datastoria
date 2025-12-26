@@ -135,7 +135,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           }
 
           // Replace time span template parameters in SQL (e.g., {rounding:UInt32}, {seconds:UInt32}, etc.)
-          let finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.session.timezone);
+          let finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.metadata.timezone);
 
           // Apply server-side sorting if enabled
           // Use sortRef for synchronous access to current sort state

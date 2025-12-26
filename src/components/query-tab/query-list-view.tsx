@@ -26,6 +26,7 @@ export interface QueryListViewProps {
   currentSessionId?: string; // Current session ID for chat messages
   onExecutionStateChange?: (isExecuting: boolean) => void;
   onChatSessionStatsChanged?: (stats: ChatSessionStats) => void; // Callback to update parent with session stats
+  onNewSession?: () => void; // Callback to generate a new session when clearing screen
 }
 
 const MAX_MESSAGE_LIST_SIZE = 100;
@@ -66,6 +67,7 @@ function QueryListViewContent({
   currentSessionId,
   onExecutionStateChange,
   onChatSessionStatsChanged,
+  onNewSession,
   chatInstance,
   messageIdToSessionIdRef,
 }: QueryListViewProps & {
@@ -534,10 +536,26 @@ function QueryListViewContent({
   }, []);
 
   const handleClearScreen = useCallback(() => {
+    // Clear SQL messages
     setSqlMessages([]);
     executingQueriesRef.current.clear();
+    
+    // Clear chat messages
+    chatInstance.messages = [];
+    
+    // Clear all refs related to chat messages
+    messageIdToSessionIdRef.current.clear();
+    pendingSessionIdsRef.current.clear();
+    messageTimestampsRef.current.clear();
+    messageErrorsRef.current.clear();
+    
+    // Generate a new session ID so new messages are treated as a new session
+    if (onNewSession) {
+      onNewSession();
+    }
+    
     if (onExecutionStateChange) onExecutionStateChange(false);
-  }, [onExecutionStateChange]);
+  }, [onExecutionStateChange, onNewSession, chatInstance, messageIdToSessionIdRef]);
 
   return (
     <ContextMenu>
