@@ -1,33 +1,51 @@
 "use client";
 
+import { AgreementDialog, PRIVACY_POLICY, TERMS_OF_SERVICE } from "@/app/login/agreement-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 
 function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
   const error = searchParams.get("error");
+  const [agreementOpen, setAgreementOpen] = useState<{
+    open: boolean;
+    content: string;
+  }>({
+    open: false,
+    content: "",
+  });
 
   const handleSignIn = (provider: string) => {
     signIn(provider, { callbackUrl });
   };
 
+  const showAgreement = (_title: string, content: string) => {
+    setAgreementOpen({
+      open: true,
+      content,
+    });
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold flex items-center">
-            <Image src="/logo.png" alt="Data Scopic" width={64} height={64} />
-            Sign in to Data Scopic
-          </CardTitle>
-          <CardDescription>Choose your authentication provider to continue</CardDescription>
+        <CardHeader className="text-center space-y-1">
+          <div className="flex justify-center">
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+              {/* <Database className="h-8 w-8 text-primary" /> */}
+              <Image src="/logo.png" alt="Data Scopic" width={64} height={64} />
+            </div>
+          </div>
+          <CardTitle className="text-3xl">Sign in to Data Scopic</CardTitle>
+          <CardDescription className="text-base">Choose your authentication provider to continue</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {error && (
               <div className="rounded-md bg-destructive/15 px-4 py-3 text-sm text-destructive">
                 {error === "OAuthCallback"
@@ -107,10 +125,32 @@ function LoginForm() {
           </div>
 
           <div className="mt-6 text-center text-xs text-muted-foreground">
-            By signing in, you agree to our Terms of Service and Privacy Policy.
+            By signing in, you agree to our{" "}
+            <button
+              type="button"
+              className="underline underline-offset-4 hover:text-primary transition-colors"
+              onClick={() => showAgreement("Terms of Service", TERMS_OF_SERVICE)}
+            >
+              Terms of Service
+            </button>{" "}
+            and{" "}
+            <button
+              type="button"
+              className="underline underline-offset-4 hover:text-primary transition-colors"
+              onClick={() => showAgreement("Privacy Policy", PRIVACY_POLICY)}
+            >
+              Privacy Policy
+            </button>
+            .
           </div>
         </CardContent>
       </Card>
+
+      <AgreementDialog
+        isOpen={agreementOpen.open}
+        onOpenChange={(open) => setAgreementOpen((prev) => ({ ...prev, open }))}
+        content={agreementOpen.content}
+      />
     </div>
   );
 }
