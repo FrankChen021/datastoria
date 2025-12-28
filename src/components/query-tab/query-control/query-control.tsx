@@ -57,7 +57,9 @@ const NewConversationButton = memo(function NewConversationButton({ onNewConvers
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-sm mb-1">Start New Conversation</div>
-            <div className="text-xs mb-3">Are you sure you want to start a new conversation?</div>
+            <div className="text-xs mb-3">
+              Are you sure you want to start a new conversation? Conversation history will be cleared.
+            </div>
             <div className="flex justify-end gap-2">
               <Button
                 type="button"

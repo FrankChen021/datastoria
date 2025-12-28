@@ -1,12 +1,14 @@
 import { UserProfileImage } from "@/components/user-profile-image";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/client-tools";
-import { SERVER_TOOL_NAMES } from "@/lib/ai/server-tools";
 import type { AppUIMessage, TokenUsage, ToolPart } from "@/lib/ai/common-types";
+import { SERVER_TOOL_NAMES } from "@/lib/ai/server-tools";
 import { colorGenerator } from "@/lib/color-generator";
 import { DateTimeExtension } from "@/lib/datetime-utils";
+import { cn } from "@/lib/utils";
 import { Info, Sparkles } from "lucide-react";
 import { memo } from "react";
 import type { ChatMessage } from "../query-list-view";
+import { ErrorMessageDisplay } from "./message-error";
 import { MessageMarkdown } from "./message-markdown";
 import { MessageReasoning } from "./message-reasoning";
 import { MessageToolExecuteSql } from "./message-tool-execute-sql";
@@ -16,7 +18,6 @@ import { MessageToolGenerateVisualization } from "./message-tool-generate-visual
 import { MessageToolGetTableColumns } from "./message-tool-get-table-columns";
 import { MessageToolGetTables } from "./message-tool-get-tables";
 import { MessageToolValidateSql } from "./message-tool-validate-sql";
-import { ErrorMessageDisplay } from "./message-error";
 
 /**
  * Display token usage information per message
@@ -117,14 +118,14 @@ export const ChatMessageView = memo(function ChatMessageView({
   const isUser = message.role === "user";
 
   return (
-    <div className="border-l-4 transition-colors" style={sessionStyles}>
-      {/* Separator for new user requests */}
-      {isUser && !isFirst && (
-        <div className="flex items-center h-4">
-          <div className="flex-1 h-px bg-border" />
-        </div>
+    <div
+      className={cn(
+        "py-3 border-l-4 transition-colors",
+        // Add border as separator, the SAME style as it's in the query-list-item-view.tsx
+        isUser && !isFirst ? "border-t" : ""
       )}
-
+      style={sessionStyles}
+    >
       <div className="pl-2 py-1">
         {/* Timestamp above profile for user messages - reserve space for alignment */}
         {isUser && message.timestamp && (
