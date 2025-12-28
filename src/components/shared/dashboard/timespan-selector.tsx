@@ -3,7 +3,12 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateTimeExtension } from "@/lib/datetime-utils";
@@ -442,7 +447,13 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
       userTimeSpans,
     } = this.state;
 
-    const { showTimeSpanSelector = true, showRefresh = true, showAutoRefresh = true, size = "default", buttonClassName } = this.props;
+    const {
+      showTimeSpanSelector = true,
+      showRefresh = true,
+      showAutoRefresh = true,
+      size = "default",
+      buttonClassName,
+    } = this.props;
 
     // If no components are visible, render nothing
     if (!showTimeSpanSelector && !showRefresh && !showAutoRefresh) {
@@ -465,7 +476,11 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
               <Button
                 variant="outline"
                 size={size}
-                className={cn("rounded-none", showRefresh || showAutoRefresh ? "rounded-l" : "rounded", buttonClassName)}
+                className={cn(
+                  "rounded-none",
+                  showRefresh || showAutoRefresh ? "rounded-l" : "rounded",
+                  buttonClassName
+                )}
               >
                 {selectedTimeSpan.label} {/* Display the label of the selected range */}
               </Button>
@@ -535,7 +550,7 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                       className="rounded-none"
                       disabled={!inputDateRange?.from || !inputDateRange?.to}
                     >
-                      Apply Range
+                      Apply
                     </Button>
                     {error && (
                       <Alert variant="destructive" className="rounded-none">

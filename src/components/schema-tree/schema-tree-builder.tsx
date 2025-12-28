@@ -154,10 +154,13 @@ function toColumnTreeNode(column: { name: string; type: string; comment?: string
           <div className="font-medium text-muted-foreground">Column</div>
           <div className="text-foreground break-all flex items-center gap-1 min-w-0">
             <span>{columnName}</span>
-            <CopyButton value={columnName} className="relative top-0 right-0 h-4 w-4 shrink-0 [&_svg]:h-2.5 [&_svg]:w-2.5" />
+            <CopyButton
+              value={columnName}
+              className="relative top-0 right-0 h-4 w-4 shrink-0 [&_svg]:h-2.5 [&_svg]:w-2.5"
+            />
           </div>
           <div className="font-medium text-muted-foreground">Type</div>
-          <div className="text-foreground font-mono break-all min-w-0">{columnType}</div>
+          <div className="text-foreground break-all min-w-0">{columnType}</div>
         </div>
 
         {/* Enum info */}
@@ -223,7 +226,10 @@ function toTableTreeNode(table: {
         <div className="font-medium text-muted-foreground">Table</div>
         <div className="text-foreground break-all flex items-center gap-1 min-w-0">
           <span>{fullName}</span>
-          <CopyButton value={fullName} className="relative top-0 right-0 h-4 w-4 shrink-0 [&_svg]:h-2.5 [&_svg]:w-2.5" />
+          <CopyButton
+            value={fullName}
+            className="relative top-0 right-0 h-4 w-4 shrink-0 [&_svg]:h-2.5 [&_svg]:w-2.5"
+          />
         </div>
         <div className="font-medium text-muted-foreground">Engine</div>
         <div className="text-foreground break-all min-w-0">{table.fullTableEngine || table.tableEngine}</div>
@@ -531,7 +537,10 @@ export function buildSchemaTree(
         <div className="font-medium text-muted-foreground">URL</div>
         <div className="text-foreground break-all flex items-center gap-1 min-w-0">
           <span>{connection.url}</span>
-          <CopyButton value={connection.url} className="relative top-0 right-0 h-4 w-4 shrink-0 [&_svg]:h-2.5 [&_svg]:w-2.5" />
+          <CopyButton
+            value={connection.url}
+            className="relative top-0 right-0 h-4 w-4 shrink-0 [&_svg]:h-2.5 [&_svg]:w-2.5"
+          />
         </div>
         <div className="font-medium text-muted-foreground">User</div>
         <div className="text-foreground break-all min-w-0">{connection.user}</div>

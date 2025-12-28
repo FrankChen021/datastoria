@@ -570,8 +570,8 @@ function QueryListViewContent({
         >
           {mergedMessageList.length === 0 ? (
             <div className="text-sm text-muted-foreground p-1">
-              Input your SQL in the editor below and execute it, then the results will appear here. Or type '@ai' to
-              chat with the AI assistant.
+              Input your SQL in the editor below and execute it, then the results will appear here. Or input your
+              questions to chat with the AI assistant.
             </div>
           ) : (
             <>
