@@ -14,6 +14,7 @@ const PROVIDER_LINKS: Record<string, string> = {
   Anthropic: "https://console.anthropic.com/settings/keys",
   OpenRouter: "https://openrouter.ai/settings/keys",
   Groq: "https://console.groq.com/keys",
+  Cerebras: "https://cloud.cerebras.ai/platform",
 };
 
 export function ModelsEdit() {

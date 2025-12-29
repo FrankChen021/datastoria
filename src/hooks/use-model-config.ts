@@ -6,13 +6,13 @@ export function useModelConfig() {
 
   const [config, setConfig] = useState(() => ({
     availableModels: manager.getAvailableModels(),
-    selectedModelId: manager.getSelectedModelId(),
+    selectedModel: manager.getSelectedModel(),
   }));
 
   const refresh = useCallback(() => {
     setConfig({
       availableModels: manager.getAvailableModels(),
-      selectedModelId: manager.getSelectedModelId(),
+      selectedModel: manager.getSelectedModel(),
     });
   }, [manager]);
 
@@ -34,14 +34,16 @@ export function useModelConfig() {
     };
   }, [refresh]);
 
-  const setSelectedModelId = useCallback((modelId: string) => {
-    manager.setSelectedModelId(modelId);
-  }, [manager]);
+  const setSelectedModel = useCallback(
+    (model: { provider: string; modelId: string }) => {
+      manager.setSelectedModel(model);
+    },
+    [manager]
+  );
 
   return {
     ...config,
-    setSelectedModelId,
+    setSelectedModel,
     refresh,
   };
 }
-
