@@ -1200,11 +1200,10 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
-  avg(value) AS TotalPartsOfMergeTreeTables
-FROM merge('system', '^asynchronous_metric_log')
+  avg(ProfileEvent_MergeSourceParts) AS TotalPartsOfMergeTreeTables
+FROM merge('system', '^metric_log')
 WHERE event_date >= toDate(now() - {seconds:UInt32})
   AND event_time >= now() - {seconds:UInt32}
-  AND metric = 'TotalPartsOfMergeTreeTables'
 GROUP BY t
 ORDER BY t WITH FILL STEP {rounding:UInt32}
 `,
