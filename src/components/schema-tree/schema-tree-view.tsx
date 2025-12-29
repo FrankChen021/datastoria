@@ -77,6 +77,10 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
   const wasInSearchModeRef = useRef(false);
   // Ref to store the latest handleHostChange to avoid circular dependency
   const handleHostChangeRef = useRef<((hostName: string) => void) | undefined>(undefined);
+  // Track if we've opened the node tab for the first time (per connection)
+  const hasOpenedNodeTabRef = useRef(false);
+  // Track the connection name to detect actual connection changes
+  const lastConnectionNameRef = useRef<string | null>(null);
 
   // Build tree from schema data
   const buildTree = useCallback(
@@ -106,14 +110,6 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
         // Extract and update table names and database names in connection metadata
         const { tableNames, databaseNames } = extractTableNames(result);
         updateConnection({ tableNames, databaseNames });
-
-        // Open node tab every time tree is loaded
-        if (tree.length > 0) {
-          const firstNodeData = tree[0]?.data as { type?: string; host?: string };
-          if (firstNodeData?.type === "host" && firstNodeData.host) {
-            TabManager.openNodeTab(firstNodeData.host);
-          }
-        }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         setError(errorMessage);
@@ -143,17 +139,27 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
     handleHostChangeRef.current = handleHostChange;
   }, [handleHostChange]);
 
+  // Reset the node tab flag when connection name changes (actual connection switch)
+  useEffect(() => {
+    const currentConnectionName = connection?.name ?? null;
+    if (lastConnectionNameRef.current !== currentConnectionName) {
+      hasOpenedNodeTabRef.current = false;
+      lastConnectionNameRef.current = currentConnectionName;
+    }
+  }, [connection?.name]);
+
   // Update tree when initial schema data changes
   useEffect(() => {
     if (initialSchemaData && connection) {
       const tree = buildTree(initialSchemaData);
       setTreeData(tree);
 
-      // Open node tab every time tree is loaded
-      if (tree.length > 0) {
+      // Open node tab only on the first load
+      if (!hasOpenedNodeTabRef.current && tree.length > 0) {
         const firstNodeData = tree[0]?.data as { type?: string; host?: string };
         if (firstNodeData?.type === "host" && firstNodeData.host) {
           TabManager.openNodeTab(firstNodeData.host);
+          hasOpenedNodeTabRef.current = true;
         }
       }
     }
