@@ -9,20 +9,22 @@ import { simulateReadableStream } from "ai";
  */
 const createMockModel = (): LanguageModel => {
   return {
-    specificationVersion: "v2",
+    specificationVersion: "v3",
     provider: "mock",
     modelId: "mock-model",
     supportedUrls: {},
     doGenerate: async () => ({
-      rawCall: { rawPrompt: null, rawSettings: {} },
-      finishReason: "stop",
-      usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
       content: [
         {
           type: "text",
           text: `[MOCK RESPONSE] This is a mock response. \n\`\`\`sql\nSELECT version();\n\`\`\`\nIn production, this would be a real AI response. You can customize this in src/lib/ai/models.mock.ts`,
         },
       ],
+      finishReason: { unified: "stop", raw: "stop" },
+      usage: {
+        inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 },
+        outputTokens: { total: 20, text: 20, reasoning: 0 },
+      },
       warnings: [],
     }),
     doStream: async (options: { 
@@ -37,7 +39,7 @@ const createMockModel = (): LanguageModel => {
         | { type: "text-delta"; id: string; delta: string }
         | { type: "text-end"; id: string }
         | { type: "tool-call"; toolCallId: string; toolName: string; args: unknown }
-        | { type: "finish"; finishReason: "stop" | "tool-calls"; usage: { inputTokens: number; outputTokens: number; totalTokens: number } };
+        | { type: "finish"; finishReason: { unified: "stop" | "tool-calls"; raw: string }; usage: { inputTokens: { total: number; noCache: number; cacheRead: number; cacheWrite: number }; outputTokens: { total: number; text: number; reasoning: number } } };
       
       const chunks: StreamChunk[] = [];
       
@@ -138,8 +140,11 @@ const createMockModel = (): LanguageModel => {
       // Add finish chunk
       chunks.push({
         type: "finish",
-        finishReason: shouldGenerateToolCalls ? "tool-calls" : "stop",
-        usage: { inputTokens: 10, outputTokens: 100, totalTokens: 110 },
+        finishReason: { unified: shouldGenerateToolCalls ? "tool-calls" : "stop", raw: shouldGenerateToolCalls ? "tool-calls" : "stop" },
+        usage: {
+          inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 },
+          outputTokens: { total: 100, text: 100, reasoning: 0 },
+        },
       });
 
       return {
@@ -148,7 +153,6 @@ const createMockModel = (): LanguageModel => {
           initialDelayInMs: 100,
           chunks,
         }),
-        rawCall: { rawPrompt: null, rawSettings: {} },
       };
     },
   } as LanguageModel;

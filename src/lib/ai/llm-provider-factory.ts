@@ -1,4 +1,5 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createCerebras } from "@ai-sdk/cerebras";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -32,21 +33,25 @@ export const CREATORS: Record<string, ModelCreator> = {
   OpenAI: (modelId, apiKey) =>
     createOpenAI({
       apiKey,
-    }).chat(modelId),
+    })(modelId),
   Google: (modelId, apiKey) =>
     createGoogleGenerativeAI({
       apiKey,
-    }).chat(modelId),
+    })(modelId),
   Anthropic: (modelId, apiKey) =>
     createAnthropic({
       apiKey,
-    }).chat(modelId),
+    })(modelId),
   OpenRouter: (modelId, apiKey) =>
     createOpenRouter({
       apiKey,
-    }).chat(modelId),
+    })(modelId),
   Groq: (modelId, apiKey) =>
     createGroq({
+      apiKey,
+    })(modelId),
+  Cerebras: (modelId, apiKey) =>
+    createCerebras({
       apiKey,
     })(modelId),
 };
@@ -182,6 +187,13 @@ export const MODELS: ModelProps[] = [
   },
   {
     provider: "OpenRouter",
+    modelId: "openai/gpt-oss-20b:free",
+    free: true,
+    autoSelectable: true,
+    description: "Open-source GPT model with large parameter count for general tasks.",
+  },
+  {
+    provider: "OpenRouter",
     modelId: "openai/gpt-oss-120b:free",
     free: true,
     autoSelectable: true,
@@ -206,6 +218,16 @@ export const MODELS: ModelProps[] = [
     autoSelectable: false,
     description: "High-performance Qwen 3 model, currently disabled due to tool call issues.",
   },
+
+  // Cerebras models
+  // https://cloud.cerebras.ai/platform
+  {
+    provider: "Cerebras",
+    modelId: "gpt-oss-120b",
+    free: false,
+    autoSelectable: true,
+    description: "Cerebras's latest model with extreme intelligence and reliability.",
+  },
 ];
 
 /**
@@ -229,6 +251,7 @@ export class LanguageModelProviderFactory {
       { provider: "Anthropic", apiKey: process.env.ANTHROPIC_API_KEY },
       { provider: "OpenRouter", apiKey: process.env.OPENROUTER_API_KEY },
       { provider: "Groq", apiKey: process.env.GROQ_API_KEY },
+      { provider: "Cerebras", apiKey: process.env.CEREBRAS_API_KEY },
     ];
 
     // Find the first provider with an available API key

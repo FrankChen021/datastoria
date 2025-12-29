@@ -12,74 +12,29 @@ import { chatStorage } from "./storage";
 import type { DatabaseContext, Message } from "./types";
 
 /**
- * TOOL IMPLEMENTATION GUIDE
- *
- * To implement the tools, you need to:
- *
- * 1. Access the current ClickHouse connection:
- *    - The connection is available through the ConnectionContext
- *    - You can extend the DatabaseContext type to include the connection
- *    - Or access it via ConnectionManager.getInstance().getLastSelectedOrFirst()
- *
- * 2. For the 'get_tables' tool:
- *    - Use Api.create(connection) to create an API instance
- *    - Execute: SELECT database, name FROM system.tables
- *              WHERE NOT startsWith(name, '.inner')
- *              [AND database = ?] -- if databaseName is provided
- *              ORDER BY database, name
- *    - Use api.executeAsync() for async execution
- *    - Format: { database: string, name: string }[]
- *
- * 3. For the 'get_table_columns' tool:
- *    - Accepts an array of tables to query in batch
- *    - Query: SELECT database, table, type, comment FROM system.columns
- *            WHERE (database = ? AND table IN (...)) OR (database = ? AND table IN (...))
- *    - Groups tables by database and uses IN clause for efficient batch querying
- *    - Map to the expected output schema
- *
- * 4. For the 'execute_select_query' tool:
- *    - Build SELECT query from input parameters
- *    - Execute and return results
- *
- * Example implementation pattern:
- * ```typescript
- * import { Api } from '@/lib/api'
- * import { ConnectionManager } from '@/lib/connection/ConnectionManager'
- *
- * const connection = ConnectionManager.getInstance().getLastSelectedOrFirst()
- * if (!connection) {
- *   throw new Error('No connection available')
- * }
- * const api = Api.create(connection)
- * const response = await api.executeAsync({
- *   sql: 'SELECT database, name FROM system.tables WHERE NOT startsWith(name, \'.inner\')',
- *   params: { default_format: 'JSONCompact' }
- * })
- * const tables = response.data.data.map((row: any[]) => ({
- *   database: row[0],
- *   name: row[1]
- * }))
- * ```
- */
-
-/**
  * Get the current model configuration based on user settings
  */
 function getCurrentModelConfig(): { provider: string; modelId: string; apiKey: string } | undefined {
   const modelManager = ModelManager.getInstance();
-  const selectedModelId = modelManager.getSelectedModelId();
-  if (!selectedModelId) return undefined;
+  const selectedModel = modelManager.getSelectedModel();
 
-  const modelProps = MODELS.find((m) => m.modelId === selectedModelId);
+  // If no model selected, or it's set to Auto, return undefined to let backend handle auto-selection
+  if (!selectedModel || (selectedModel.provider === "System" && selectedModel.modelId === "Auto")) {
+    return undefined;
+  }
+
+  const { provider, modelId } = selectedModel;
+
+  const modelProps = MODELS.find((m) => m.modelId === modelId && m.provider === provider);
   if (!modelProps) return undefined;
 
   const providerSettings = modelManager.getProviderSettings();
-  const providerSetting = providerSettings.find((p) => p.provider === modelProps.provider);
+  const providerSetting = providerSettings.find((p) => p.provider === provider);
   if (!providerSetting?.apiKey) return undefined;
 
   return {
-    provider: modelProps.provider,
-    modelId: modelProps.modelId,
+    provider,
+    modelId,
     apiKey: providerSetting.apiKey,
   };
 }

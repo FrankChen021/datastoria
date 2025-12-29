@@ -39,19 +39,40 @@ class ModelManager {
   }
 
   /**
-   * Get the currently selected model ID from localStorage
-   * @returns The selected model ID or undefined
+   * Get the currently selected model configuration from localStorage
+   * @returns The selected model configuration or undefined
    */
-  public getSelectedModelId(): string | undefined {
-    return LocalStorage.getInstance().getString(SELECTED_MODEL_ID_STORAGE_KEY) || undefined;
+  public getSelectedModel(): { provider: string; modelId: string } | undefined {
+    const stored = LocalStorage.getInstance().getString(SELECTED_MODEL_ID_STORAGE_KEY);
+    if (!stored) return undefined;
+
+    try {
+      // Try to parse as JSON (new format)
+      const parsed = JSON.parse(stored);
+      if (typeof parsed === "object" && parsed !== null && "provider" in parsed && "modelId" in parsed) {
+        return parsed as { provider: string; modelId: string };
+      }
+    } catch (e) {
+      // Ignore parsing error, treat as legacy string format
+    }
+
+    // Legacy format: stored value is just modelId string
+    // Try to find the provider for this modelId
+    const models = this.getAvailableModels();
+    const found = models.find((m) => m.modelId === stored);
+    if (found) {
+      return { provider: found.provider, modelId: found.modelId };
+    }
+
+    return undefined;
   }
 
   /**
-   * Save the selected model ID to localStorage
-   * @param modelId - The model ID to select
+   * Save the selected model configuration to localStorage
+   * @param model - The model configuration to select
    */
-  public setSelectedModelId(modelId: string): void {
-    LocalStorage.getInstance().setString(SELECTED_MODEL_ID_STORAGE_KEY, modelId);
+  public setSelectedModel(model: { provider: string; modelId: string }): void {
+    LocalStorage.getInstance().setString(SELECTED_MODEL_ID_STORAGE_KEY, JSON.stringify(model));
     this.notify();
   }
 

@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       }),
     ].join("\n");
 
-    const convertedMessages = convertToModelMessages(appMessages);
+    const convertedMessages = await convertToModelMessages(appMessages);
 
     const result = streamText({
       model,

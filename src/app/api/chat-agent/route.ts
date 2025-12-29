@@ -224,7 +224,7 @@ export async function POST(req: Request) {
           content: orchestratorPrompt,
         },
         // Convert UIMessages to ModelMessages
-        ...convertToModelMessages(messages),
+        ...(await convertToModelMessages(messages)),
       ],
       tools: {
         // Server-side tools (created with model config to ensure sub-agents use the same model)
