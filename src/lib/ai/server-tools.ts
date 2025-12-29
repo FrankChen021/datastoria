@@ -76,20 +76,12 @@ export function createGenerateSqlTool(modelConfig: ModelConfig, context?: Databa
         .describe("Previous turns of the SQL generation/discovery process"),
     }),
     execute: async ({ userQuestion, schemaHints, history, context: providedContext }) => {
-      console.log("🔧 generate_sql tool called:", userQuestion);
-      console.log("📚 History received:", history ? `${history.length} messages` : "none");
-      if (history && history.length > 0) {
-        console.log("📜 Last history item:", JSON.stringify(history[history.length - 1]).substring(0, 300));
-      }
       // Merge provided context with the one from tool creation (provided context takes precedence)
-      const mergedContext: DatabaseContext | undefined = providedContext
-        ? { ...context, ...providedContext }
-        : context;
+      const mergedContext: DatabaseContext | undefined = providedContext ? { ...context, ...providedContext } : context;
       // Use mock sub-agent in mock mode to avoid recursive LLM calls
       const result = isMockMode
         ? await mockSqlSubAgent({ userQuestion, schemaHints, context: mergedContext, history, modelConfig })
         : await sqlSubAgent({ userQuestion, schemaHints, context: mergedContext, history, modelConfig });
-      console.log("✅ generate_sql tool result:", result);
       return result;
     },
   });
@@ -108,12 +100,9 @@ export function createGenerateVisualizationTool(modelConfig: ModelConfig) {
       sql: z.string().describe("The SQL query to visualize"),
     }),
     execute: async ({ userQuestion, sql }) => {
-      console.log("🔧 generate_visualization tool called for SQL:", sql);
-      // Use mock sub-agent in mock mode to avoid recursive LLM calls
       const result = isMockMode
         ? await mockVizSubAgent({ userQuestion, sql, modelConfig })
         : await vizSubAgent({ userQuestion, sql, modelConfig });
-      console.log("✅ generate_visualization tool result:", result);
       return result;
     },
   });

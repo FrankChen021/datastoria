@@ -129,12 +129,8 @@ export async function POST(req: Request) {
     let apiRequest: ChatAgentRequest;
     try {
       const text = await req.text();
-      const sizeInMB = (text.length / 1024 / 1024).toFixed(2);
-      console.log(`📦 Request body size: ${sizeInMB}MB`);
-
       if (text.length > 10 * 1024 * 1024) {
         // 10MB limit
-        console.error(`❌ Request body too large: ${sizeInMB}MB (limit: 10MB)`);
         return new Response("Request body too large. Please reduce the amount of data being sent.", {
           status: 413,
           headers: { "Content-Type": "text/plain" },
