@@ -64,7 +64,7 @@ const DependencyViewComponent = ({ database }: DependencyViewProps) => {
 
     (async () => {
       try {
-        const { response } = connection.query(
+        const { response } = connection.queryOnNode(
           `
 SELECT
     concat(database, '.', name) AS id,

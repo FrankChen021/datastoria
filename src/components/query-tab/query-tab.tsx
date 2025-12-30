@@ -115,7 +115,7 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
       if (mode === "chat") {
         handleChatRequest(textToRun);
       } else {
-        QueryExecutor.sendQueryRequest(textToRun, {
+        QueryExecutor.executeQuery(textToRun, {
           params: {
             default_format: "PrettyCompactMonoBlock",
             output_format_pretty_row_numbers: true,

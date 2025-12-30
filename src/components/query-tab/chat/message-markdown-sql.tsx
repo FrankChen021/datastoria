@@ -22,7 +22,7 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
 }: MessageMarkdownSqlProps) {
   const handleRun = (e: React.MouseEvent) => {
     e.stopPropagation();
-    QueryExecutor.sendQueryRequest(code, {
+    QueryExecutor.executeQuery(code, {
       params: {
         default_format: "PrettyCompactMonoBlock",
       },

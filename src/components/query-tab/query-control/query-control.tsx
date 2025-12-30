@@ -84,7 +84,6 @@ export interface QueryControlProps {
   onModeChange: (mode: "sql" | "chat") => void;
   isExecuting?: boolean;
   onRun?: (text: string) => void;
-  onExplain?: (name: string) => void;
   onNewConversation?: () => void;
   sessionStats?: ChatSessionStats;
   currentSessionId?: string;
@@ -95,7 +94,6 @@ export function QueryControl({
   onModeChange,
   isExecuting = false,
   onRun,
-  onExplain,
   onNewConversation,
   sessionStats,
   currentSessionId,
@@ -104,61 +102,14 @@ export function QueryControl({
   const [isExplainOpen, setIsExplainOpen] = useState(false);
 
   const handleQuery = useCallback(() => {
-    const queryText = selectedText || text;
-    if (!queryText) {
-      toastManager.show(mode === "sql" ? "No SQL to execute" : "Please input message", "error");
-      return;
-    }
-
-    if (onRun) {
-      onRun(queryText);
-    }
-  }, [onRun, selectedText, text, mode]);
-
-  const removeComments = useCallback((sql: string) => {
-    return (
-      sql
-        // Remove single-line comments
-        .replace(/^--.*$/gm, "")
-        // Remove multiline comments
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .trim()
-    );
-  }, []);
+    QueryExecutor.executeQuery(selectedText || text);
+  }, [selectedText, text]);
 
   const handleExplain = useCallback(
     (type: string) => {
-      if (onExplain) {
-        onExplain(type);
-        return;
-      }
-
-      let rawSQL = removeComments(selectedText || text);
-
-      // EXPLAINing with ending \G results in error, so clean the sql first
-      if (rawSQL.endsWith("\\G")) {
-        rawSQL = rawSQL.substring(0, rawSQL.length - 2);
-      }
-
-      let sql: string;
-      if (type === "pipeline") {
-        sql = `EXPLAIN pipeline graph = 1\n${rawSQL}`;
-      } else if (type === "plan") {
-        sql = `EXPLAIN plan indexes = 1\n${rawSQL}`;
-      } else {
-        sql = `EXPLAIN ${type}\n${rawSQL}`;
-      }
-
-      const params: Record<string, unknown> = {
-        default_format: type === "estimate" ? "PrettyCompactMonoBlock" : "TabSeparatedRaw",
-      };
-
-      QueryExecutor.sendQueryRequest(sql, {
-        view: type,
-        params,
-      });
+      QueryExecutor.explainQuery(type, selectedText || text);
     },
-    [onExplain, removeComments, selectedText, text]
+    [selectedText, text]
   );
 
   const isDisabled = isExecuting || (selectedText.length === 0 && text.length === 0);
