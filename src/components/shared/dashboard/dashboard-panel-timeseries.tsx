@@ -202,7 +202,7 @@ const LegendTable: React.FC<LegendTableProps> = ({ chartInstance, legendOption, 
   }
 
   return (
-    <div className="max-h-[150px] overflow-auto custom-scrollbar border-t">
+    <div className="h-[25%] min-h-[70px] overflow-auto custom-scrollbar border-t flex-none">
       <Table>
         <TableHeader>
           <TableRow className="cursor-pointer bg-muted">
