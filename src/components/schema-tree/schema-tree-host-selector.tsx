@@ -3,7 +3,7 @@ import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { useConnection } from "@/lib/connection/connection-context";
-import { shortenHostnames } from "@/lib/hostname-utils";
+import { hostNameManager } from "@/lib/host-name-manager";
 import { cn } from "@/lib/utils";
 import { useCommandState } from "cmdk";
 import { Check, Loader2 } from "lucide-react";
@@ -79,17 +79,14 @@ ORDER BY shard, replica`,
         .response.then((response) => {
           try {
             const rawHosts = (response.data.data || []) as any[];
-            const hostNames = rawHosts.map((h) => h.name);
-            const shortenedMap = shortenHostnames(hostNames);
-
             const hosts: HostInfo[] = rawHosts.map((h) => ({
               ...h,
-              shortName: shortenedMap.get(h.name) || h.name
+              shortName: hostNameManager.getShortHostname(h.name)
             }));
 
             setData(hosts);
 
-            const initShortName = shortenedMap.get(nodeName);
+            const initShortName = hostNameManager.getShortHostname(nodeName);
             const initSelectedHost = hosts.find((host) => host.shortName === initShortName);
             if (initSelectedHost) {
               // Value is name and address combined together so filter can be performed on both
@@ -166,6 +163,7 @@ ORDER BY shard, replica`,
                         onSelect={() => {
                           // Only fire onHostChange if the selected host is different from current
                           if (node.name !== nodeName) {
+                            setInitialSelectedHost(node.shortName);
                             // Notify parent component of host change
                             onHostChange(node.name);
                           }

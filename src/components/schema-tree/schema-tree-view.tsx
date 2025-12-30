@@ -3,8 +3,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tree, type TreeDataItem, type TreeRef } from "@/components/ui/tree";
-import { useConnection } from "@/lib/connection/connection-context";
 import type { DatabaseInfo, TableInfo } from "@/lib/connection/connection";
+import { useConnection } from "@/lib/connection/connection-context";
+import { hostNameManager } from "@/lib/host-name-manager";
 import { AlertCircle, Database, RotateCw, Search, Table as TableIcon, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -26,7 +27,7 @@ import {
 function extractTableNames(result: SchemaLoadResult): { tableNames: Map<string, TableInfo>; databaseNames: Map<string, DatabaseInfo> } {
   const tableNames = new Map<string, TableInfo>();
   const databaseNames = new Map<string, DatabaseInfo>();
-  
+
   for (const row of result.rows) {
     // Extract database names with comments
     if (row.database) {
@@ -38,7 +39,7 @@ function extractTableNames(result: SchemaLoadResult): { tableNames: Map<string, 
         });
       }
     }
-    
+
     // Extract table names
     if (row.database && row.table) {
       const qualifiedName = `${row.database}.${row.table}`;
@@ -52,7 +53,7 @@ function extractTableNames(result: SchemaLoadResult): { tableNames: Map<string, 
       }
     }
   }
-  
+
   return { tableNames, databaseNames };
 }
 
@@ -130,6 +131,9 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
 
       // Refresh the tree to load data from the new host
       loadDatabases();
+
+      // Reset the node tab flag when host changes
+      hasOpenedNodeTabRef.current = false;
     },
     [connection, updateConnection, loadDatabases]
   );
@@ -156,9 +160,9 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
 
       // Open node tab only on the first load
       if (!hasOpenedNodeTabRef.current && tree.length > 0) {
-        const firstNodeData = tree[0]?.data as { type?: string; host?: string };
-        if (firstNodeData?.type === "host" && firstNodeData.host) {
-          TabManager.openNodeTab(firstNodeData.host);
+        const firstNodeData = tree[0]?.data as HostNodeData;
+        if (firstNodeData?.type === "host" && firstNodeData.shortName) {
+          TabManager.openNodeTab(firstNodeData.shortName);
           hasOpenedNodeTabRef.current = true;
         }
       }
@@ -310,7 +314,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
     // If a host node is clicked, open the dashboard tab
     if (data.type === "host") {
       const hostData = data as HostNodeData;
-      TabManager.openNodeTab(hostData.host);
+      TabManager.openNodeTab(hostData.shortName);
     }
     // If a database node is clicked, open the database tab
     else if (data.type === "database") {

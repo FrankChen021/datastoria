@@ -41,7 +41,8 @@ export interface ColumnNodeData {
 
 export interface HostNodeData {
   type: "host";
-  host: string;
+  shortName: string;
+  fullName: string;
 }
 
 export type SchemaNodeData = DatabaseNodeData | TableNodeData | ColumnNodeData | HostNodeData;

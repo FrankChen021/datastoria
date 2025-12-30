@@ -4,6 +4,7 @@ import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
 import { Button } from "@/components/ui/button";
 import { Connection, type ConnectionMetadata, type DatabaseInfo, type TableInfo } from "@/lib/connection/connection";
 import { useConnection } from "@/lib/connection/connection-context";
+import { hostNameManager } from "@/lib/host-name-manager";
 import { AlertCircle, Loader2, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
@@ -67,8 +68,7 @@ function MainPageLoadStatusComponent({ status, connectionName, error, onRetry }:
           <div className="bg-background p-4 ">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
           </div>
-          <h3 className="text-lg font-medium mb-2">Loading connections...</h3>
-          <p className="text-muted-foreground text-sm mb-8">Loading connections from local storage</p>
+          <h3 className="text-lg font-medium mb-2">Initializing application...</h3>
           {/* Invisible spacer to match button height in error state */}
           <div className="h-10" />
         </>
@@ -82,7 +82,6 @@ function MainPageLoadStatusComponent({ status, connectionName, error, onRetry }:
           <h3 className="text-lg font-medium mb-2">
             {connectionName ? `Connecting to ${connectionName}` : "Connecting..."}
           </h3>
-          <p className="text-muted-foreground text-sm mb-8">Connecting to the server to load schemas from the connection</p>
           {/* Invisible spacer to match button height in error state */}
           <div className="h-10" />
         </>
@@ -171,6 +170,25 @@ export function MainPage() {
 
     const load = async () => {
       try {
+        hostNameManager.clear();
+
+        // Pre-load hostnames for shortening if cluster is configured
+        if (connection.cluster) {
+          try {
+            const response = await connection.query(
+              `SELECT host_name FROM system.clusters WHERE cluster = '${connection.cluster}'`,
+              { default_format: "JSONCompact" }
+            ).response;
+            if (response.data && Array.isArray(response.data.data)) {
+              const hostNames = response.data.data.map((row: any) => row[0]);
+              hostNameManager.shortenHostnames(hostNames);
+            }
+          } catch (e) {
+            // Ignore errors during hostname shortening initialization
+            console.warn("Failed to load cluster hosts for shortening:", e);
+          }
+        }
+
         // 1. Initialize cluster info and get the updates
         const metadataUpdates = await getConnectionMetadata(connection);
 

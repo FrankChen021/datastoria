@@ -1,5 +1,7 @@
+import { CopyButton } from "@/components/ui/copy-button";
 import { type TreeDataItem } from "@/components/ui/tree";
 import { type Connection } from "@/lib/connection/connection";
+import { hostNameManager } from "@/lib/host-name-manager";
 import type { LucideIcon } from "lucide-react";
 import {
   Calculator,
@@ -15,7 +17,6 @@ import {
   Table as TableIcon,
   Type,
 } from "lucide-react";
-import { CopyButton } from "@/components/ui/copy-button";
 import { SchemaTreeBadge, SchemaTreeHostSelector } from "./schema-tree-host-selector";
 import type {
   ColumnNodeData,
@@ -522,7 +523,8 @@ export function buildSchemaTree(
   }
 
   // Ensure responseServer is a string
-  const serverName = String(targetServerNode || "Unknown");
+  const fullServerName = String(targetServerNode || "Unknown");
+  const shortServerName = hostNameManager.getShortHostname(fullServerName);
 
   const [totalTables, databaseNodes] = toDatabaseTreeNodes(schemaData.rows);
 
@@ -545,7 +547,7 @@ export function buildSchemaTree(
         <div className="font-medium text-muted-foreground">User</div>
         <div className="text-foreground break-all min-w-0">{connection.user}</div>
         <div className="font-medium text-muted-foreground">Current Node</div>
-        <div className="text-foreground break-all min-w-0">{serverName}</div>
+        <div className="text-foreground break-all min-w-0">{fullServerName}</div>
         <div className="col-span-2 pt-1 mt-1 border-t" />
         <div className="font-medium text-muted-foreground">Databases</div>
         <div className="text-foreground">{databaseNodes.length}</div>
@@ -560,11 +562,11 @@ export function buildSchemaTree(
     labelContent: (
       <SchemaTreeHostSelector
         clusterName={connection.cluster || ""}
-        nodeName={serverName}
+        nodeName={shortServerName}
         onHostChange={hostChangeHandler}
       />
     ),
-    search: serverName.toLowerCase(),
+    search: shortServerName.toLowerCase(),
     icon: Monitor,
     type: "folder",
     children: databaseNodes,
@@ -576,7 +578,8 @@ export function buildSchemaTree(
     labelTooltip: connection.cluster ? undefined : hostTooltip,
     data: {
       type: "host",
-      host: serverName,
+      shortName: shortServerName,
+      fullName: fullServerName,
     } as HostNodeData,
   };
 

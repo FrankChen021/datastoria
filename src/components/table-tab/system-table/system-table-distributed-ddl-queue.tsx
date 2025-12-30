@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useConnection } from "@/lib/connection/connection-context";
 import { Formatter } from "@/lib/formatter";
-import { findCommonSuffix } from "@/lib/hostname-utils";
+import { hostNameManager } from "@/lib/host-name-manager";
 import { cn } from "@/lib/utils";
 import { AlertCircle, CheckCircle2, Clock, PlayCircle, X, XCircle } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -553,7 +553,7 @@ ORDER BY entry, host`;
 
             // Find common suffix from first 5 records
             const first5Hosts = fetchedRawRows.slice(0, 5).map(r => r.host);
-            const commonSuffix = findCommonSuffix(first5Hosts);
+            const commonSuffix = hostNameManager.findCommonSuffix(first5Hosts);
 
             const rows = fetchedRawRows.map(row => ({
                 ...row,
