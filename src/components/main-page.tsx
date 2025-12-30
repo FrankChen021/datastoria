@@ -16,7 +16,7 @@ import { MainPageTabList } from "./main-page-tab-list";
 function extractTableNames(result: SchemaLoadResult): { tableNames: Map<string, TableInfo>; databaseNames: Map<string, DatabaseInfo> } {
   const tableNames = new Map<string, TableInfo>();
   const databaseNames = new Map<string, DatabaseInfo>();
-  
+
   for (const row of result.rows) {
     // Extract database names with comments
     if (row.database) {
@@ -28,7 +28,7 @@ function extractTableNames(result: SchemaLoadResult): { tableNames: Map<string, 
         });
       }
     }
-    
+
     // Extract table names
     if (row.database && row.table) {
       const qualifiedName = `${row.database}.${row.table}`;
@@ -42,7 +42,7 @@ function extractTableNames(result: SchemaLoadResult): { tableNames: Map<string, 
       }
     }
   }
-  
+
   return { tableNames, databaseNames };
 }
 
@@ -59,9 +59,8 @@ interface MainPageLoadStatusComponentProps {
 function MainPageLoadStatusComponent({ status, connectionName, error, onRetry }: MainPageLoadStatusComponentProps) {
   return (
     <div
-      className={`h-full w-full flex flex-col items-center justify-center bg-muted/5 p-8 text-center animate-in duration-500 ${
-        status === "error" ? "slide-in-from-bottom-4 duration-300" : "fade-in"
-      }`}
+      className={`h-full w-full flex flex-col items-center justify-center bg-muted/5 p-8 text-center animate-in duration-500 ${status === "error" ? "slide-in-from-bottom-4 duration-300" : "fade-in"
+        }`}
     >
       {status === "initializing" && (
         <>
@@ -83,7 +82,7 @@ function MainPageLoadStatusComponent({ status, connectionName, error, onRetry }:
           <h3 className="text-lg font-medium mb-2">
             {connectionName ? `Connecting to ${connectionName}` : "Connecting..."}
           </h3>
-          <p className="text-muted-foreground text-sm mb-8">Loading schema and verifying connection</p>
+          <p className="text-muted-foreground text-sm mb-8">Connecting to the server to load schemas from the connection</p>
           {/* Invisible spacer to match button height in error state */}
           <div className="h-10" />
         </>
