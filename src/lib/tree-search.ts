@@ -20,36 +20,35 @@
  * ### Search Process:
  *
  * The `searchNodes` function processes nodes recursively with a position parameter
- * indicating which segment to match:
+ * indicating which segment to match. Each segment MUST match at its corresponding depth:
  *
  * 1. **Non-terminal segments** (position < length - 1):
  *    - Require exact match (case-insensitive)
  *    - If current node matches exactly, recurse to children with position + 1
  *    - If current node doesn't match, return null (no children search)
  *    - Only include nodes that have matching children (enforce complete path)
- *    - Example: For "system.metric", position 0 requires exact match of "system"
+ *    - Example: For "system.metric", position 0 requires exact match of "system" at level 0
  *
  * 2. **Last segment** (position === length - 1):
  *    - If empty string (trailing dot): The previous segment was matched exactly, expand to show all children
  *      - Example: "system.query." → matches "system" AND "query" exactly, then expands "query" to show all children
- *      - The trailing dot converts the last non-empty segment to exact match mode
- *    - If not empty: Perform fuzzy (substring) search recursively on ALL descendants
- *      - Searches the entire subtree below the matched path
- *      - Example: "system.query" → matches "system" exactly, then fuzzy matches "query" in all descendants
- *      - This will match: system->query, system->query_log, system->metric->query, etc.
+ *    - If not empty: Perform fuzzy (substring) match on CURRENT node only
+ *      - Does NOT search descendants recursively. Match must occur at the exact depth corresponding to the segment position.
+ *      - Example: "system.query" → matches "system" exactly at level 0, then fuzzy matches "query" at level 1 (direct children of "system")
+ *      - This will match: system.query, system.query_log, but NOT system.metric.query
  *
  * ### Examples:
  *
  * **Example 1: "system"**
  * - Segments: ["system"]
- * - Position 0: Last segment, not empty → fuzzy search for "system"
- * - Result: Matches any node containing "system" as substring
+ * - Position 0: Last segment, not empty → fuzzy match for "system" at level 0
+ * - Result: Matches any root-level node containing "system" as substring
  *
  * **Example 2: "system.pos"**
  * - Segments: ["system", "pos"]
- * - Position 0: Exact match "system" → recurse with position 1
- * - Position 1: Last segment, not empty → fuzzy search for "pos" in children
- * - Result: Matches "system" exactly, then fuzzy matches "pos" in its children
+ * - Position 0: Exact match "system" at level 0 → recurse with position 1
+ * - Position 1: Last segment, not empty → fuzzy match for "pos" at level 1 (direct children of "system")
+ * - Result: Matches "system" at root, then fuzzy matches "pos" in its immediate children
  *
  * **Example 3: "system.pos."**
  * - Segments: ["system", "pos", ""]
@@ -61,8 +60,8 @@
  * **Example 4: "system.metric"**
  * - Segments: ["system", "metric"]
  * - Position 0: Exact match "system" → recurse with position 1
- * - Position 1: Last segment, not empty → fuzzy search for "metric" in children
- * - Result: Matches "system" exactly, then fuzzy matches "metric" in "metric_log" and "metrics"
+ * - Position 1: Last segment, not empty → fuzzy match for "metric" at level 1
+ * - Result: Matches "system" exactly, then fuzzy matches "metric" in immediate children like "metric_log" and "metrics"
  */
 
 import type { TreeDataItem } from "@/components/ui/tree";
@@ -82,6 +81,10 @@ interface SearchContext {
    * Returns match information including start and end indices.
    */
   match: (node: TreeDataItem, pattern: string) => { matches: boolean; start: number; end: number };
+  /**
+   * Whether to perform global recursive search (for single segment searches)
+   */
+  isGlobal: boolean;
 }
 
 function searchNodes(
@@ -90,10 +93,58 @@ function searchNodes(
   position: number = 0,
   currentPath: string[] = []
 ): TreeDataItem | null {
-  const { segments, highlight } = context;
+  const { segments, highlight, isGlobal } = context;
   const isFolderNode = node.type ? node.type === "folder" : node.children !== undefined && node.children.length > 0;
   const labelText = String(node.labelContent);
 
+  // Global mode: fuzzy match at ANY level and recurse
+  if (isGlobal) {
+    const currentSegment = segments[0];
+    const fuzzyMatch = context.match(node, currentSegment);
+    let matches = fuzzyMatch.matches;
+    let highlightedLabel = matches ? highlight(labelText, fuzzyMatch.start, fuzzyMatch.end) : labelText;
+
+    // Always search children in global mode to find deeper matches
+    const childrenResults: TreeDataItem[] = [];
+    if (node.children) {
+      for (const child of node.children) {
+        const childResult = searchNodes(child, context, 0, []);
+        if (childResult) {
+          childrenResults.push(childResult);
+        }
+      }
+    }
+
+    if (matches || childrenResults.length > 0) {
+      // If current node matches, we should also show its children (collapsed)
+      let children: TreeDataItem[] | undefined = undefined;
+
+      if (matches && node.children) {
+        // Show matching descendants FIRST, then other immediate children
+        const matchingChildIds = new Set(childrenResults.map((c) => c.id));
+        children = [
+          ...childrenResults,
+          ...node.children
+            .filter((c) => !matchingChildIds.has(c.id))
+            .map((c) => ({ ...c, _expanded: false })),
+        ];
+      } else if (childrenResults.length > 0) {
+        children = childrenResults;
+      }
+
+      return {
+        ...node,
+        _expanded: childrenResults.length > 0, // Expand if it has matching descendants
+        labelContent: highlightedLabel,
+        _originalLabel: matches ? labelText : undefined,
+        children,
+      } as TreeDataItem;
+    }
+
+    return null;
+  }
+
+  // Strict mode: match specific segments at specific depths
   // Check if we're at the last segment
   const isLastSegment = position === segments.length - 1;
   const currentSegment = segments[position];
@@ -210,7 +261,7 @@ function searchNodes(
     };
   }
 
-  // Last segment is not empty: perform fuzzy (substring) search recursively
+  // Last segment is not empty: perform fuzzy (substring) search
   const fuzzyMatch = context.match(node, currentSegment);
 
   if (fuzzyMatch.matches) {
@@ -218,28 +269,21 @@ function searchNodes(
     highlightedLabel = highlight(labelText, fuzzyMatch.start, fuzzyMatch.end);
   }
 
-  // For last segment fuzzy matching, recursively search ALL descendants
-  // This allows matching deep paths like system -> metric -> query for "system.query"
-  const children: TreeDataItem[] = [];
-  if (node.children) {
-    const childCurrentPath = [...currentPath, labelText];
-    for (const child of node.children) {
-      // Recursively search children with same position (fuzzy search continues)
-      const childResult = searchNodes(child, context, position, childCurrentPath);
-      if (childResult) {
-        children.push(childResult);
-      }
-    }
-  }
+  // Strictly match at this level only - do not recurse into descendants for the last segment.
+  // This ensures that "a.b" only matches "b" as a direct child of "a".
+  if (matches) {
+    // If matched at last segment, return all its children as well (if any)
+    const unprocessedChildren = node.children?.map((child) => ({
+      ...child,
+      _expanded: false,
+    }));
 
-  // Include node if it matches or has matching children
-  if (matches || children.length > 0) {
     return {
       ...node,
-      _expanded: matches || children.length > 0,
-      labelContent: matches ? highlightedLabel : labelText,
-      _originalLabel: matches ? labelText : undefined,
-      children: children.length > 0 ? children : undefined,
+      _expanded: false, // Do not auto-expand the matched node
+      labelContent: highlightedLabel,
+      _originalLabel: labelText,
+      children: unprocessedChildren,
     } as TreeDataItem;
   }
 
@@ -326,7 +370,7 @@ export function searchTree(
   // Split by separator: skip only leading empty strings, preserve all others
   const rawSegments = search.split(pathSeparator);
   const segments: string[] = [];
-  
+
   // Skip leading empty strings, but preserve all middle and trailing empty strings
   let foundFirstNonEmpty = false;
   for (const segment of rawSegments) {
@@ -351,6 +395,8 @@ export function searchTree(
     hasTrailingDot,
     highlight,
     match: substringMatch,
+    // Global search if single segment and NO trailing dot
+    isGlobal: segments.length === 1 && !hasTrailingDot,
   };
 
   // Use searchTreeFromGivenLevel for all cases - it handles startLevel === 0 correctly

@@ -79,9 +79,12 @@ interface FlatNode {
 }
 
 // Helper function to flatten tree into visible nodes
-const flattenTree = (items: TreeDataItem[], expandedIds: Set<string>, depth: number = 0): FlatNode[] => {
-  const result: FlatNode[] = [];
-
+const flattenTree = (
+  items: TreeDataItem[],
+  expandedIds: Set<string>,
+  depth: number = 0,
+  result: FlatNode[] = []
+): FlatNode[] => {
   for (const item of items) {
     const hasChildren = !!(item.children && item.children.length > 0);
     const childCount = item.children?.length || 0;
@@ -95,7 +98,7 @@ const flattenTree = (items: TreeDataItem[], expandedIds: Set<string>, depth: num
 
     // If expanded and has children, recursively flatten children
     if (hasChildren && expandedIds.has(item.id)) {
-      result.push(...flattenTree(item.children!, expandedIds, depth + 1));
+      flattenTree(item.children!, expandedIds, depth + 1, result);
     }
   }
 

@@ -590,7 +590,7 @@ ORDER BY entry, host`;
                         value="aggregate"
                         className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 pb-1 h-8 text-xs font-semibold"
                     >
-                        Aggregate Entries
+                        Aggregated Entries
                     </TabsTrigger>
                     <TabsTrigger
                         value="raw"

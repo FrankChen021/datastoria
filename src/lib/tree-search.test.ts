@@ -136,12 +136,13 @@ describe("tree-search", () => {
       ]);
     });
 
-    it("should recursively match 'system.query' in all descendants", () => {
+    it("should match 'system.query' only in immediate children", () => {
       const results = searchTree(tree, "system.query");
       const structure = getStructure(results);
 
-      // Fuzzy last segment searches recursively through ALL descendants
-      // Should match: system -> query, system -> query's children, AND system -> processes -> query
+      // Fuzzy last segment match only at its specific depth
+      // Should match: system -> query
+      // Should NOT match: system -> processes -> query
       expect(structure).toEqual([
         {
           labelContent: "system",
@@ -149,17 +150,10 @@ describe("tree-search", () => {
           children: [
             {
               labelContent: "query",
-              expanded: true,
+              expanded: false,
               children: [
-                { labelContent: "query_log", expanded: true, children: undefined },
-                { labelContent: "query_cache", expanded: true, children: undefined },
-              ],
-            },
-            {
-              labelContent: "processes",
-              expanded: true,
-              children: [
-                { labelContent: "query", expanded: true, children: undefined },
+                { labelContent: "query_log", expanded: false, children: undefined },
+                { labelContent: "query_cache", expanded: false, children: undefined },
               ],
             },
           ],
@@ -179,20 +173,22 @@ describe("tree-search", () => {
     });
 
     it("should demonstrate difference: 'system.query' vs 'system.query.'", () => {
-      // Without trailing dot: fuzzy recursive search
+      // Without trailing dot: matches node at level 1
       const fuzzyResults = searchTree(tree, "system.query");
       const fuzzyStructure = getStructure(fuzzyResults);
 
-      // Should find both system->query AND system->processes->query
-      expect(fuzzyStructure[0].children?.length).toBe(2); // query and processes branches
+      // Should find ONLY system->query
+      expect(fuzzyStructure[0].children?.length).toBe(1);
+      expect(fuzzyStructure[0].children?.[0].labelContent).toBe("query");
 
-      // With trailing dot: exact match only
+      // With trailing dot: matches system->query AND expands it to show children
       const exactResults = searchTree(tree, "system.query.");
       const exactStructure = getStructure(exactResults);
 
-      // Should find ONLY system->query
-      expect(exactStructure[0].children?.length).toBe(1); // only query branch
+      // Should find system->query AND its children
+      expect(exactStructure[0].children?.length).toBe(1);
       expect(exactStructure[0].children?.[0].labelContent).toBe("query");
+      expect(exactStructure[0].children?.[0].children?.length).toBe(2); // query_log and query_cache
     });
 
     it("should match only default -> query for 'default.query.'", () => {
@@ -243,8 +239,8 @@ describe("tree-search", () => {
           labelContent: "system",
           expanded: true,
           children: [
-            { labelContent: "query_log", expanded: true, children: undefined },
-            { labelContent: "query_cache", expanded: true, children: undefined },
+            { labelContent: "query_log", expanded: false, children: undefined },
+            { labelContent: "query_cache", expanded: false, children: undefined },
           ],
         },
       ]);
@@ -259,8 +255,8 @@ describe("tree-search", () => {
           labelContent: "system",
           expanded: true,
           children: [
-            { labelContent: "query_log", expanded: true, children: undefined },
-            { labelContent: "metric_log", expanded: true, children: undefined },
+            { labelContent: "query_log", expanded: false, children: undefined },
+            { labelContent: "metric_log", expanded: false, children: undefined },
           ],
         },
       ]);
@@ -281,12 +277,14 @@ describe("tree-search", () => {
       const results = searchTree(tree, "sys");
       const structure = getStructure(results);
 
-      // Single segment fuzzy match - node matches but children don't, so no children shown
+      // Single segment fuzzy match at level 0
       expect(structure).toEqual([
         {
           labelContent: "system",
-          expanded: true,
-          children: undefined,
+          expanded: false,
+          children: [
+            { labelContent: "query", expanded: false, children: undefined },
+          ],
         },
       ]);
     });
@@ -298,10 +296,68 @@ describe("tree-search", () => {
       expect(structure).toEqual([
         {
           labelContent: "information_schema",
-          expanded: true,
-          children: undefined,
+          expanded: false,
+          children: [
+            { labelContent: "tables", expanded: false, children: undefined },
+          ],
         },
       ]);
+    });
+
+    it("should recursively match 'query' at any level (global search)", () => {
+      const globalTree: TreeDataItem[] = [
+        createNode("system", "system", [
+          createNode("query", "query"), // depth 1
+        ]),
+        createNode("test", "test", [
+          createNode("something", "something", [
+            createNode("query", "query"), // depth 2
+          ]),
+        ]),
+      ];
+
+      const results = searchTree(globalTree, "query");
+      const structure = getStructure(results);
+
+      expect(structure).toEqual([
+        {
+          labelContent: "system",
+          expanded: true, // Expanded because it contains a match
+          children: [
+            { labelContent: "query", expanded: false, children: undefined },
+          ],
+        },
+        {
+          labelContent: "test",
+          expanded: true, // Expanded because it contains a match
+          children: [
+            {
+              labelContent: "something",
+              expanded: true,
+              children: [
+                { labelContent: "query", expanded: false, children: undefined },
+              ],
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("should strictly match 'test.' only at root level", () => {
+      const globalTree: TreeDataItem[] = [
+        createNode("test", "test"), // root level
+        createNode("other", "other", [
+          createNode("test", "test"), // depth 1
+        ]),
+      ];
+
+      // Trailing dot forces strict matching (and root level for single segment)
+      const results = searchTree(globalTree, "test.");
+      const structure = getStructure(results);
+
+      expect(structure).toHaveLength(1);
+      expect(structure[0].labelContent).toBe("test");
+      // Should NOT match the nested 'test'
     });
   });
 
@@ -415,7 +471,7 @@ describe("tree-search", () => {
           labelContent: "System",
           expanded: true,
           children: [
-            { labelContent: "Query", expanded: true, children: undefined },
+            { labelContent: "Query", expanded: false, children: undefined },
           ],
         },
       ]);
