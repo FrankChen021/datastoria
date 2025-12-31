@@ -337,6 +337,7 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
     const [error, setError] = useState("");
     const [selectedTimeRange, setSelectedTimeRange] = useState<TimeSpan | null>(null);
     const [legendData, setLegendData] = useState<LegendData | undefined>(undefined);
+    const [executedSql, setExecutedSql] = useState<string>("");
 
     // Refs
     const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -1082,6 +1083,7 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
 
           // Replace time span template parameters in SQL if time span is provided
           const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.metadata.timezone);
+          setExecutedSql(finalSql);
 
           const { response, abortController } = connection.queryOnNode(
             finalSql,
@@ -1489,8 +1491,8 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
 
     // Handler for showing query dialog
     const handleShowQuery = useCallback(() => {
-      showQueryDialog(descriptor.query, descriptor.titleOption?.title);
-    }, [descriptor.query, descriptor.titleOption]);
+      showQueryDialog(descriptor.query, descriptor.titleOption?.title, executedSql);
+    }, [descriptor.query, descriptor.titleOption, executedSql]);
 
     // Build dropdown menu items
     const dropdownItems = (

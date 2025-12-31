@@ -46,6 +46,7 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
     const [error, setError] = useState("");
     // Store inferred formats for fields that don't have explicit formats
     const [inferredFormats, setInferredFormats] = useState<Map<string, FormatName>>(new Map());
+    const [executedSql, setExecutedSql] = useState<string>("");
     // Skeleton timing state for smooth transitions
     const [shouldShowSkeleton, setShouldShowSkeleton] = useState(false);
     const [skeletonOpacity, setSkeletonOpacity] = useState(1);
@@ -110,6 +111,7 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
 
           // Replace time span template parameters in SQL if provided
           const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.metadata.timezone);
+          setExecutedSql(finalSql);
 
           const { response, abortController } = connection.query(
             finalSql,
@@ -450,8 +452,8 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
 
     // Handler for showing query dialog
     const handleShowQuery = useCallback(() => {
-      showQueryDialog(descriptor.query, descriptor.titleOption?.title);
-    }, [descriptor.query, descriptor.titleOption]);
+      showQueryDialog(descriptor.query, descriptor.titleOption?.title, executedSql);
+    }, [descriptor.query, descriptor.titleOption, executedSql]);
 
     // Build dropdown menu items
     const dropdownItems = (

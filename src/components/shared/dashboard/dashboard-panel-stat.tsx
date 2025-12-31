@@ -410,6 +410,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
 
     // State
     const [data, setData] = useState(0);
+    const [executedSql, setExecutedSql] = useState<string>("");
     const valueTextRef = useRef<HTMLDivElement>(null);
     const valueContainerRef = useRef<HTMLDivElement>(null);
     const [fontSize, setFontSize] = useState(3); // Start with 3rem (text-5xl equivalent)
@@ -533,6 +534,9 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
 
             // Replace time span template parameters in SQL if time span is provided
             const finalSql = replaceTimeSpanParams(thisQuery.sql, _param.selectedTimeSpan, connection!.metadata.timezone);
+            if (!isOffset) {
+              setExecutedSql(finalSql);
+            }
             const { response } = connection!.queryOnNode(
               finalSql,
               {
@@ -573,6 +577,9 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
 
             // Replace time span template parameters in SQL if provided
             const finalSql = replaceTimeSpanParams(query.sql, _param.selectedTimeSpan, connection!.metadata.timezone);
+            if (!isOffset) {
+              setExecutedSql(finalSql);
+            }
             const { response } = connection!.queryOnNode(
               finalSql,
               {
@@ -1014,8 +1021,8 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
 
     // Handler for showing query dialog
     const handleShowQuery = useCallback(() => {
-      showQueryDialog(descriptor.query, descriptor.titleOption?.title);
-    }, [descriptor.query, descriptor.titleOption]);
+      showQueryDialog(descriptor.query, descriptor.titleOption?.title, executedSql);
+    }, [descriptor.query, descriptor.titleOption, executedSql]);
 
     // Check if we should use NumberFlow for rendering
     const shouldUseNumberFlow = useCallback((): boolean => {

@@ -81,6 +81,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
       column: descriptor.sortOption?.initialSort?.column || null,
       direction: descriptor.sortOption?.initialSort?.direction || null,
     });
+    const [executedSql, setExecutedSql] = useState<string>("");
 
     // Refs
     const apiCancellerRef = useRef<AbortController | null>(null);
@@ -142,6 +143,8 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           if (descriptor.sortOption?.serverSideSorting && sortRef.current.column && sortRef.current.direction) {
             finalSql = replaceOrderByClause(finalSql, sortRef.current.column, sortRef.current.direction);
           }
+
+          setExecutedSql(finalSql);
 
           try {
             const { response, abortController } = connection.queryOnNode(
@@ -286,8 +289,8 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
 
     // Handler for showing query dialog
     const handleShowQuery = useCallback(() => {
-      showQueryDialog(descriptor.query, descriptor.titleOption?.title);
-    }, [descriptor.query, descriptor.titleOption]);
+      showQueryDialog(descriptor.query, descriptor.titleOption?.title, executedSql);
+    }, [descriptor.query, descriptor.titleOption, executedSql]);
 
     // Build dropdown menu items
     const dropdownItems = (

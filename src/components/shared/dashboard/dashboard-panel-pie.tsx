@@ -86,6 +86,7 @@ const DashboardPanelPie = forwardRef<DashboardPanelComponent, DashboardPanelPieP
     const [meta, setMeta] = useState<Array<{ name: string; type?: string }>>([]);
     const [isLoading, setIsLoading] = useState(props.initialLoading ?? false);
     const [error, setError] = useState("");
+    const [executedSql, setExecutedSql] = useState<string>("");
 
     // Refs
     const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -451,6 +452,7 @@ const DashboardPanelPie = forwardRef<DashboardPanelComponent, DashboardPanelPieP
 
           // Replace time span template parameters in SQL if time span is provided
           const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.metadata.timezone);
+          setExecutedSql(finalSql);
 
           const { response, abortController } = connection.queryOnNode(
             finalSql,
@@ -658,8 +660,8 @@ const DashboardPanelPie = forwardRef<DashboardPanelComponent, DashboardPanelPieP
 
     // Handler for showing query dialog
     const handleShowQuery = useCallback(() => {
-      showQueryDialog(descriptor.query, descriptor.titleOption?.title);
-    }, [descriptor.query, descriptor.titleOption]);
+      showQueryDialog(descriptor.query, descriptor.titleOption?.title, executedSql);
+    }, [descriptor.query, descriptor.titleOption, executedSql]);
 
     // Build dropdown menu items
     const dropdownItems = (
