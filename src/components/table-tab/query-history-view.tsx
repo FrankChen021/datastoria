@@ -9,7 +9,7 @@ import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from
 
 import type { RefreshableTabViewRef } from "./table-tab";
 
-export interface QueryLogViewProps {
+export interface QueryHistoryViewProps {
   database: string;
   table: string;
   autoLoad?: boolean;
@@ -41,7 +41,8 @@ const formatQueryLogLink = (queryId: any, _params?: any[], context?: Record<stri
   );
 };
 
-const QueryLogViewComponent = forwardRef<RefreshableTabViewRef, QueryLogViewProps>(({ database, table }, ref) => {
+
+export const QueryHistoryView = memo(forwardRef<RefreshableTabViewRef, QueryHistoryViewProps>(({ database, table }, ref) => {
   const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | undefined>(undefined);
   const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
   const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan(), []);
@@ -181,7 +182,7 @@ LIMIT 10`;
 
     return {
       type: "table",
-      id: `query-log-${database}-${table}`,
+      id: `query-history-${database}-${table}`,
       titleOption: {
         title: "Top 10 Queries by CPU Time",
         align: "left",
@@ -209,9 +210,9 @@ LIMIT 10`;
   // Create dashboard with the table descriptor
   const dashboard = useMemo<Dashboard>(() => {
     return {
-      name: `query-log-${database}-${table}`,
+      name: `query-history-${database}-${table}`,
       folder: "",
-      title: "Query Log",
+      title: "Query History",
       version: 2,
       filter: {
         showTimeSpanSelector: false,
@@ -546,8 +547,4 @@ LIMIT 50
   }, [tableDescriptor, database, table]);
 
   return <DashboardPanels ref={dashboardPanelsRef} dashboard={dashboard} selectedTimeSpan={currentTimeSpan} />;
-});
-
-QueryLogViewComponent.displayName = "QueryLogView";
-
-export const QueryLogView = memo(QueryLogViewComponent);
+}));

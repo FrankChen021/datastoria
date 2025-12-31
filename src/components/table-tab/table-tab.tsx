@@ -8,9 +8,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, RefreshCw } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DataSampleView } from "./data-sample-view";
-import { PartLogView } from "./part-log-view";
+import { PartHistoryView } from "./part-history-view";
 import { PartitionSizeView } from "./partition-view";
-import { QueryLogView } from "./query-log-view";
+import { QueryHistoryView } from "./query-history-view";
 import { getSystemTableTabs } from "./system-table/system-table-registry";
 import { TableMetadataView } from "./table-metadata-view";
 import { TableOverviewView } from "./table-overview-view";
@@ -43,7 +43,7 @@ const ENGINE_TABS_MAP = new Map<string, Set<string>>([
   ["MaterializedView", new Set(["metadata", "overview", "partitions"])],
   ["Kafka", new Set(["metadata"])],
   ["URL", new Set(["metadata"])],
-  ["Distributed", new Set(["data-sample", "metadata", "query-log"])],
+  ["Distributed", new Set(["data-sample", "metadata", "query-history"])],
   // Default: all tabs available
 ]);
 
@@ -64,8 +64,9 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
   const baseAvailableTabs = useMemo(() => {
     return engine
       ? (ENGINE_TABS_MAP.get(engine) ??
-        new Set(["data-sample", "metadata", "overview", "partitions", "query-log", "part-log"]))
-      : new Set(["data-sample", "metadata", "overview", "partitions", "query-log", "part-log"]);
+        new Set(["data-sample", "metadata", "overview", "partitions", "query-history", "part-history"]))
+      : new Set(["data-sample", "metadata", "overview", "partitions", "query-history", "part-history"]);
+
   }, [engine]);
 
   // Remove overview and partitions for System tables
@@ -98,8 +99,8 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
   const metadataRef = useRef<RefreshableTabViewRef>(null);
   const tableOverviewRef = useRef<RefreshableTabViewRef>(null);
   const partitionRef = useRef<RefreshableTabViewRef>(null);
-  const queryLogRef = useRef<RefreshableTabViewRef>(null);
-  const partLogRef = useRef<RefreshableTabViewRef>(null);
+  const queryHistoryRef = useRef<RefreshableTabViewRef>(null);
+  const partHistoryRef = useRef<RefreshableTabViewRef>(null);
 
   // Helper function to get the current ref based on active tab
   // Directly access refs to avoid unnecessary callback recreation
@@ -113,10 +114,10 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
         return tableOverviewRef.current;
       case "partitions":
         return partitionRef.current;
-      case "query-log":
-        return queryLogRef.current;
-      case "part-log":
-        return partLogRef.current;
+      case "query-history":
+        return queryHistoryRef.current;
+      case "part-history":
+        return partHistoryRef.current;
       default:
         return null;
     }
@@ -229,8 +230,8 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
               {availableTabs.has("metadata") && <TabsTrigger value="metadata">Metadata</TabsTrigger>}
               {availableTabs.has("data-sample") && <TabsTrigger value="data-sample">Data Sample</TabsTrigger>}
               {availableTabs.has("partitions") && <TabsTrigger value="partitions">Partitions</TabsTrigger>}
-              {availableTabs.has("query-log") && <TabsTrigger value="query-log">Query Log</TabsTrigger>}
-              {availableTabs.has("part-log") && <TabsTrigger value="part-log">Part Log</TabsTrigger>}
+              {availableTabs.has("query-history") && <TabsTrigger value="query-history">Query History</TabsTrigger>}
+              {availableTabs.has("part-history") && <TabsTrigger value="part-history">Part History</TabsTrigger>}
             </TabsList>
             {hasRefresh ? (
               <div className="flex items-center gap-2">
@@ -339,27 +340,32 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
               />
             </div>
           )}
-          {availableTabs.has("query-log") && (
+          {availableTabs.has("query-history") && (
             <div
-              className={`absolute inset-0 overflow-auto px-2 ${currentTab === "query-log" ? "block" : "hidden"}`}
+              className={`absolute inset-0 overflow-auto px-2 ${currentTab === "query-history" ? "block" : "hidden"}`}
               role="tabpanel"
-              aria-hidden={currentTab !== "query-log"}
+              aria-hidden={currentTab !== "query-history"}
             >
-              <QueryLogView
-                ref={queryLogRef}
+              <QueryHistoryView
+                ref={queryHistoryRef}
                 database={database}
                 table={table}
-                autoLoad={loadedTabs.has("query-log")}
+                autoLoad={loadedTabs.has("query-history")}
               />
             </div>
           )}
-          {availableTabs.has("part-log") && (
+          {availableTabs.has("part-history") && (
             <div
-              className={`absolute inset-0 overflow-auto px-2 ${currentTab === "part-log" ? "block" : "hidden"}`}
+              className={`absolute inset-0 overflow-auto px-2 ${currentTab === "part-history" ? "block" : "hidden"}`}
               role="tabpanel"
-              aria-hidden={currentTab !== "part-log"}
+              aria-hidden={currentTab !== "part-history"}
             >
-              <PartLogView ref={partLogRef} database={database} table={table} autoLoad={loadedTabs.has("part-log")} />
+              <PartHistoryView
+                ref={partHistoryRef}
+                database={database}
+                table={table}
+                autoLoad={loadedTabs.has("part-history")}
+              />
             </div>
           )}
         </div>

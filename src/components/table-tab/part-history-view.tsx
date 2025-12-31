@@ -6,13 +6,13 @@ import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from
 
 import type { RefreshableTabViewRef } from "./table-tab";
 
-export interface PartLogViewProps {
+export interface PartHistoryViewProps {
   database: string;
   table: string;
   autoLoad?: boolean;
 }
 
-const PartLogViewComponent = forwardRef<RefreshableTabViewRef, PartLogViewProps>(({ database, table }, ref) => {
+const PartHistoryView = memo(forwardRef<RefreshableTabViewRef, PartHistoryViewProps>(({ database, table }, ref) => {
   const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | undefined>(undefined);
   const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
   const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan(), []);
@@ -43,9 +43,9 @@ const PartLogViewComponent = forwardRef<RefreshableTabViewRef, PartLogViewProps>
   // Create dashboard with the stat chart
   const dashboard = useMemo<Dashboard>(() => {
     return {
-      name: `part-log-${database}-${table}`,
+      name: `part-history-${database}-${table}`,
       folder: "",
-      title: "Part Log",
+      title: "Part History",
       filter: {
         showTimeSpanSelector: false,
         showRefresh: false,
@@ -387,8 +387,5 @@ WITH FILL STEP {rounding:UInt32}
   }, [database, table]);
 
   return <DashboardPanels ref={dashboardPanelsRef} dashboard={dashboard} selectedTimeSpan={currentTimeSpan} />;
-});
-
-PartLogViewComponent.displayName = "PartLogView";
-
-export const PartLogView = memo(PartLogViewComponent);
+}));
+export { PartHistoryView };
