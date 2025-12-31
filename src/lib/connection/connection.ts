@@ -43,7 +43,10 @@ export interface ConnectionMetadata {
   targetNode?: string;
   internalUser: string;
   timezone: string;
-  function_table_has_description_column?: boolean;
+  function_table_has_description_column: boolean;
+  metric_log_table_has_ProfileEvent_MergeSourceParts: boolean;
+  metric_log_table_has_ProfileEvent_MutationTotalParts: boolean;
+
   tableNames?: Map<string, TableInfo>;
   databaseNames?: Map<string, DatabaseInfo>;
 }
@@ -94,6 +97,8 @@ export class Connection {
       internalUser: config.user, // Default to external configured user
       timezone: "UTC", // Default timezone
       function_table_has_description_column: false,
+      metric_log_table_has_ProfileEvent_MergeSourceParts: false,
+      metric_log_table_has_ProfileEvent_MutationTotalParts: false,
     };
   }
 

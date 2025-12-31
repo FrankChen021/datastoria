@@ -20,7 +20,7 @@ const serverStatusDashboard = [
     titleOption: {
       title: "Server Version",
     },
-    width: 4,
+    width: 3,
     description: "The version of the server",
     query: {
       sql: "SELECT version()",
@@ -43,7 +43,7 @@ const serverStatusDashboard = [
     titleOption: {
       title: "Server UP Time",
     },
-    width: 4,
+    width: 3,
     description: "How long the server has been running",
     query: {
       sql: "SELECT uptime() * 1000",
@@ -58,7 +58,7 @@ const serverStatusDashboard = [
     titleOption: {
       title: "Warnings",
     },
-    width: 4,
+    width: 3,
     description: "How long the server has been running",
     query: {
       sql: "SELECT count() FROM system.warnings",
@@ -82,7 +82,7 @@ const serverStatusDashboard = [
     titleOption: {
       title: "Last Error",
     },
-    width: 4,
+    width: 3,
     description: "How long the server has been running",
     query: {
       sql: "SELECT toUnixTimestamp(max(last_error_time)) * 1000 FROM system.errors",
@@ -120,7 +120,7 @@ SETTINGS allow_introspection_functions = 1
     titleOption: {
       title: "Databases",
     },
-    width: 4,
+    width: 3,
     description: "The number of databases on the server",
     query: {
       sql: "SELECT count() FROM system.databases",
@@ -174,7 +174,7 @@ ORDER BY size DESC
     titleOption: {
       title: "Tables",
     },
-    width: 4,
+    width: 3,
     description: "The number of databases on the server",
     query: {
       sql: "SELECT count() FROM system.tables",
@@ -186,7 +186,7 @@ ORDER BY size DESC
     titleOption: {
       title: "Size of all tables",
     },
-    width: 4,
+    width: 3,
     query: {
       sql: `SELECT sum(total_bytes) FROM system.tables`,
     },
@@ -256,7 +256,7 @@ ORDER BY size DESC
     titleOption: {
       title: "Used Storage",
     },
-    width: 4,
+    width: 3,
     description: "The number of databases on the server",
     query: {
       sql: `SELECT round((1 - sum(free_space) / sum(total_space)) * 100, 2) AS used_percent
@@ -293,6 +293,177 @@ ORDER BY size DESC
       } as TableDescriptor,
     },
   } as StatDescriptor,
+];
+
+const queryDashboard = [
+  {
+    type: "stat",
+    titleOption: {
+      title: "Running queries",
+    },
+    width: 3,
+    description: "The number of running queries",
+    query: {
+      sql: `SELECT count() FROM system.processes`,
+    },
+    drilldown: {
+      main: {
+        type: "table",
+        titleOption: {
+          title: "Running Queries",
+          description: "The running queries",
+        },
+        width: 4,
+        fieldOptions: {
+          query_kind: {
+            align: "center",
+          },
+          query: {
+            format: "sql",
+          },
+          elapsed: {
+            align: "center",
+            format: "seconds",
+          },
+          read_rows: {
+            align: "center",
+            format: "comma_number",
+          },
+          read_bytes: {
+            align: "center",
+            format: "binary_size",
+          },
+          written_rows: {
+            align: "center",
+            format: "comma_number",
+          },
+          written_bytes: {
+            align: "center",
+            format: "binary_size",
+          },
+          memory_usage: {
+            align: "center",
+            format: "binary_size",
+          },
+          peak_memory_usage: {
+            align: "center",
+            format: "binary_size",
+          },
+          ProfileEvents: {
+            align: "center",
+            format: "map",
+          },
+        },
+        query: {
+          sql: `SELECT * FROM system.processes`,
+        },
+      } as TableDescriptor,
+    },
+  } as StatDescriptor,
+
+  {
+    type: "stat",
+    titleOption: {
+      title: "Selected Queries",
+    },
+    width: 3,
+    description: "The number of SELECT queries",
+    query: {
+      sql: `SELECT sum(ProfileEvent_SelectQuery) FROM system.metric_log 
+WHERE event_date >= toDate(now() - {seconds:UInt32})
+  AND event_time >= now() - {seconds:UInt32}`,
+    },
+    valueOption: {
+      format: "short_number",
+    },
+  } as StatDescriptor,
+
+  {
+    type: "stat",
+    titleOption: {
+      title: "Failed SELECTs",
+    },
+    width: 3,
+    description: "The number of Failed SELECT queries",
+    query: {
+      sql: `SELECT sum(ProfileEvent_FailedSelectQuery) FROM system.metric_log 
+WHERE event_date >= toDate(now() - {seconds:UInt32})
+  AND event_time >= now() - {seconds:UInt32}`,
+    },
+    valueOption: {
+      format: "short_number",
+    },
+  } as StatDescriptor,
+
+  {
+    type: "stat",
+    titleOption: {
+      title: "INSERT Queries",
+    },
+    width: 3,
+    description: "The number of INSERT queries",
+    query: {
+      sql: `SELECT sum(ProfileEvent_InsertQuery) FROM system.metric_log 
+WHERE event_date >= toDate(now() - {seconds:UInt32})
+  AND event_time >= now() - {seconds:UInt32}`,
+    },
+    valueOption: {
+      format: "short_number",
+    },
+  } as StatDescriptor,
+
+  {
+    type: "stat",
+    titleOption: {
+      title: "Failed INSERTs",
+    },
+    width: 3,
+    description: "The number of Failed INSERT queries",
+    query: {
+      sql: `SELECT sum(ProfileEvent_FailedInsertQuery) FROM system.metric_log 
+WHERE event_date >= toDate(now() - {seconds:UInt32})
+  AND event_time >= now() - {seconds:UInt32}`,
+    },
+    valueOption: {
+      format: "short_number",
+    },
+  } as StatDescriptor,
+  {
+    type: "stat",
+    titleOption: {
+      title: "INSERT Rows",
+    },
+    width: 3,
+    description: "The number of INSERT rows",
+    query: {
+      sql: `SELECT sum(ProfileEvent_InsertedRows) FROM system.metric_log 
+WHERE event_date >= toDate(now() - {seconds:UInt32})
+  AND event_time >= now() - {seconds:UInt32}`,
+    },
+    valueOption: {
+      format: "short_number",
+    },
+  } as StatDescriptor,
+
+  {
+    type: "stat",
+    titleOption: {
+      title: "INSERT Bytes",
+    },
+    width: 3,
+    description: "The total number of INSERT bytes",
+    query: {
+      sql: `SELECT sum(ProfileEvent_InsertedBytes) FROM system.metric_log 
+WHERE event_date >= toDate(now() - {seconds:UInt32})
+  AND event_time >= now() - {seconds:UInt32}`,
+    },
+    valueOption: {
+      format: "binary_size",
+    },
+  } as StatDescriptor,
+]
+
+const mergeDashboard = [
   {
     type: "stat",
     titleOption: {
@@ -452,71 +623,58 @@ ORDER BY elapsed DESC
       } as TableDescriptor,
     },
   } as StatDescriptor,
+
   {
     type: "stat",
     titleOption: {
-      title: "Running queries",
+      title: "Number of Merges",
     },
     width: 4,
-    description: "The number of running queries",
+    description: "The total number of merged launched in background",
     query: {
-      sql: `SELECT count() FROM system.processes`,
+      sql: `SELECT sum(ProfileEvent_Merge) FROM system.metric_log 
+WHERE event_date >= toDate(now() - {seconds:UInt32})
+  AND event_time >= now() - {seconds:UInt32}`,
     },
-    drilldown: {
-      main: {
-        type: "table",
-        titleOption: {
-          title: "Running Queries",
-          description: "The running queries",
-        },
-        width: 4,
-        fieldOptions: {
-          query_kind: {
-            align: "center",
-          },
-          query: {
-            format: "sql",
-          },
-          elapsed: {
-            align: "center",
-            format: "seconds",
-          },
-          read_rows: {
-            align: "center",
-            format: "comma_number",
-          },
-          read_bytes: {
-            align: "center",
-            format: "binary_size",
-          },
-          written_rows: {
-            align: "center",
-            format: "comma_number",
-          },
-          written_bytes: {
-            align: "center",
-            format: "binary_size",
-          },
-          memory_usage: {
-            align: "center",
-            format: "binary_size",
-          },
-          peak_memory_usage: {
-            align: "center",
-            format: "binary_size",
-          },
-          ProfileEvents: {
-            align: "center",
-            format: "map",
-          },
-        },
-        query: {
-          sql: `SELECT * FROM system.processes`,
-        },
-      } as TableDescriptor,
+    valueOption: {
+      format: "short_number",
     },
   } as StatDescriptor,
-];
+
+  {
+    type: "stat",
+    titleOption: {
+      title: "Number of Parts Merged",
+    },
+    width: 4,
+    description: "The total number of parts merged launched in background",
+    query: {
+      sql: `SELECT sum(ProfileEvent_MergeSourceParts) FROM system.metric_log 
+WHERE event_date >= toDate(now() - {seconds:UInt32})
+  AND event_time >= now() - {seconds:UInt32}`,
+    },
+    valueOption: {
+      format: "short_number",
+    },
+  } as StatDescriptor,
+
+  {
+    type: "stat",
+    titleOption: {
+      title: "Number of Mutation Parts",
+    },
+    width: 4,
+    description: "The total number of mutation parts launched in background",
+    query: {
+      sql: `SELECT sum(ProfileEvent_MutationTotalParts) FROM system.metric_log 
+WHERE event_date >= toDate(now() - {seconds:UInt32})
+  AND event_time >= now() - {seconds:UInt32}`,
+    },
+    valueOption: {
+      format: "short_number",
+    },
+  } as StatDescriptor,
+]
 
 const clusterStatusDashboard = [
   //
@@ -2023,8 +2181,23 @@ const NodeTabComponent = (_props: NodeTabProps) => {
         collapsed: false,
         charts: serverStatusDashboard,
       } as DashboardGroup,
+      {
+        title: "Node Queries",
+        collapsed: false,
+        charts: queryDashboard,
+      } as DashboardGroup,
     ],
   } as Dashboard;
+
+  // Filter out charts that are not supported in lower version of ClickHouse
+  dashboard.charts.push({
+    title: "Node Merges",
+    collapsed: false,
+    charts: mergeDashboard.filter((chart) => {
+      return (connection!.metadata.metric_log_table_has_ProfileEvent_MergeSourceParts || !chart.query.sql.includes("ProfileEvent_MergeSourceParts")) &&
+        (connection!.metadata.metric_log_table_has_ProfileEvent_MutationTotalParts || !chart.query.sql.includes("ProfileEvent_MutationTotalParts"));
+    }),
+  } as DashboardGroup);
 
   const isClusterMode = connection && connection.cluster && connection.cluster.length > 0;
   if (isClusterMode) {
@@ -2043,7 +2216,7 @@ const NodeTabComponent = (_props: NodeTabProps) => {
 
   dashboard.charts.push({
     title: "Node ZooKeeper Metrics",
-    collapsed: false,
+    collapsed: true,
     charts: nodeZkMetricsDashboard,
   } as DashboardGroup);
 

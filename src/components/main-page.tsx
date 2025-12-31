@@ -119,7 +119,11 @@ function MainPageLoadStatusComponent({ status, connectionName, error, onRetry }:
 async function getConnectionMetadata(connection: Connection): Promise<Partial<ConnectionMetadata>> {
   const { response } = connection.query(
     `
-    SELECT currentUser(), timezone(), hasColumnInTable('system', 'functions', 'description')
+    SELECT currentUser(), 
+    timezone(), 
+    hasColumnInTable('system', 'functions', 'description'),
+    hasColumnInTable('system', 'metric_log', 'ProfileEvent_MergeSourceParts'),
+    hasColumnInTable('system', 'metric_log', 'ProfileEvent_MutationTotalParts')
 `,
     { default_format: "JSONCompact" }
   );
@@ -128,7 +132,6 @@ async function getConnectionMetadata(connection: Connection): Promise<Partial<Co
     const returnNode = apiResponse.httpHeaders["x-clickhouse-server-display-name"];
     const internalUser = apiResponse.data.data[0][0];
     const timezone = apiResponse.data.data[0][1];
-    const functionTableHasDescriptionColumn = apiResponse.data.data[0][2] as number;
 
     const isCluster =
       connection.cluster && connection.cluster.length > 0 && connection.metadata.targetNode === undefined;
@@ -136,7 +139,9 @@ async function getConnectionMetadata(connection: Connection): Promise<Partial<Co
       targetNode: isCluster ? returnNode : undefined,
       internalUser: internalUser,
       timezone: timezone,
-      function_table_has_description_column: functionTableHasDescriptionColumn ? true : false,
+      function_table_has_description_column: apiResponse.data.data[0][2] ? true : false,
+      metric_log_table_has_ProfileEvent_MergeSourceParts: apiResponse.data.data[0][3] ? true : false,
+      metric_log_table_has_ProfileEvent_MutationTotalParts: apiResponse.data.data[0][4] ? true : false,
     };
   }
 
