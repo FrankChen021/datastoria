@@ -6,6 +6,7 @@ import { useConnection } from "@/lib/connection/connection-context";
 import { toastManager } from "@/lib/toast";
 import { memo, useEffect, useMemo, useState } from "react";
 import type { QueryResponseViewProps } from "../query-view-model";
+import { QueryResponseHttpHeaderView } from "./query-response-http-header-view";
 
 // Convert HSL color (from CSS variable) to hex
 function hslToHex(hsl: string): string {
@@ -204,7 +205,7 @@ function applyGraphvizStyling(dot: string, bgColor: string): string {
     }
 
     return result;
-  } catch (error) {
+  } catch {
     // Return original if styling fails
     return dot;
   }
@@ -215,197 +216,209 @@ interface ExplainPipeGraphViewProps {
   isActive: boolean;
 }
 
-function ExplainPipeCompleteGraphView({ sql, isActive }: ExplainPipeGraphViewProps) {
-  const { connection } = useConnection();
-  const { theme } = useTheme();
-  const [rawGraphviz, setRawGraphviz] = useState("");
-  const [result, setResult] = useState("");
-  const [loadError, setLoadError] = useState<QueryError | null>(null);
-  const [bgColor, setBgColor] = useState("#002B36");
+const ExplainPipeCompleteGraphView = memo(
+  ({ sql, isActive }: ExplainPipeGraphViewProps) => {
+    const { connection } = useConnection();
+    const { theme } = useTheme();
+    const [rawGraphviz, setRawGraphviz] = useState("");
+    const [result, setResult] = useState("");
+    const [loadError, setLoadError] = useState<QueryError | null>(null);
+    const [bgColor, setBgColor] = useState("#002B36");
 
-  // Update background color based on current theme
-  useEffect(() => {
-    const isDark =
-      theme === "dark" ||
-      (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches) ||
-      (typeof window !== "undefined" && document.documentElement.classList.contains("dark"));
+    // Update background color based on current theme
+    useEffect(() => {
+      const isDark =
+        theme === "dark" ||
+        (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches) ||
+        (typeof window !== "undefined" && document.documentElement.classList.contains("dark"));
 
-    if (isDark) {
-      // Dark mode
-      const bgHsl = getCSSVariable("--background");
-      setBgColor(bgHsl ? hslToHex(bgHsl) : "#1a1a2e");
-    } else {
-      // Light mode
-      const bgHsl = getCSSVariable("--background");
-      setBgColor(bgHsl ? hslToHex(bgHsl) : "#ffffff");
-    }
-  }, [theme]);
-
-  // Re-apply styling when bgColor changes and we have raw graphviz
-  useEffect(() => {
-    if (rawGraphviz.length > 0) {
-      try {
-        const styled = applyGraphvizStyling(rawGraphviz, bgColor);
-        setResult(styled);
-      } catch (error) {
-        // Fallback to un-styled version if styling fails
-        setResult(rawGraphviz);
+      if (isDark) {
+        // Dark mode
+        const bgHsl = getCSSVariable("--background");
+        setBgColor(bgHsl ? hslToHex(bgHsl) : "#1a1a2e");
+      } else {
+        // Light mode
+        const bgHsl = getCSSVariable("--background");
+        setBgColor(bgHsl ? hslToHex(bgHsl) : "#ffffff");
       }
-    } else {
-      // Reset result when rawGraphviz is cleared
-      setResult("");
-    }
-  }, [bgColor, rawGraphviz]);
+    }, [theme]);
 
-  useEffect(() => {
-    if (!isActive) {
-      return;
-    }
-    if (rawGraphviz.length > 0) {
-      // has been loaded
-      return;
-    }
-
-    //
-    // execute EXPLAIN query to get the text
-    //
-    if (connection === null || connection === undefined) {
-      toastManager.show("No connection selected. Please select a connection to run EXPLAIN.", "error");
-      return;
-    }
-
-    const { response, abortController } = connection.query(sql, {
-      default_format: "TSVRaw",
-    });
-
-    response
-      .then((apiResponse: QueryResponse) => {
-        const cleaned = apiResponse.data === "" ? "" : cleanGraphviz(apiResponse.data);
-        setRawGraphviz(cleaned);
-        // Don't set result here - let the useEffect handle styling
-        // This ensures styling is applied correctly even if bgColor changes
-        setLoadError(null);
-      })
-      .catch((error: QueryError) => {
-        // Ignore abort errors
-        const errorMessage = error.message || "Unknown error occurred";
-        const lowerErrorMessage = errorMessage.toLowerCase();
-        if (
-          lowerErrorMessage.includes("cancel") ||
-          lowerErrorMessage.includes("abort") ||
-          lowerErrorMessage.includes("signal is aborted without reason")
-        ) {
-          return;
+    // Re-apply styling when bgColor changes and we have raw graphviz
+    useEffect(() => {
+      if (rawGraphviz.length > 0) {
+        try {
+          const styled = applyGraphvizStyling(rawGraphviz, bgColor);
+          setResult(styled);
+        } catch {
+          // Fallback to un-styled version if styling fails
+          setResult(rawGraphviz);
         }
-
-        setRawGraphviz("");
+      } else {
+        // Reset result when rawGraphviz is cleared
         setResult("");
-        setLoadError(error);
+      }
+    }, [bgColor, rawGraphviz]);
+
+    useEffect(() => {
+      if (!isActive) {
+        return;
+      }
+      if (rawGraphviz.length > 0) {
+        // has been loaded
+        return;
+      }
+
+      //
+      // execute EXPLAIN query to get the text
+      //
+      if (connection === null || connection === undefined) {
+        toastManager.show("No connection selected. Please select a connection to run EXPLAIN.", "error");
+        return;
+      }
+
+      const { response, abortController } = connection.query(sql, {
+        default_format: "TSVRaw",
       });
 
-    return () => {
-      abortController.abort();
-    };
-  }, [isActive, sql, connection, rawGraphviz.length]);
+      response
+        .then((apiResponse: QueryResponse) => {
+          const cleaned = apiResponse.data === "" ? "" : cleanGraphviz(apiResponse.data);
+          setRawGraphviz(cleaned);
+          // Don't set result here - let the useEffect handle styling
+          // This ensures styling is applied correctly even if bgColor changes
+          setLoadError(null);
+        })
+        .catch((error: QueryError) => {
+          // Ignore abort errors
+          const errorMessage = error.message || "Unknown error occurred";
+          const lowerErrorMessage = errorMessage.toLowerCase();
+          if (
+            lowerErrorMessage.includes("cancel") ||
+            lowerErrorMessage.includes("abort") ||
+            lowerErrorMessage.includes("signal is aborted without reason")
+          ) {
+            return;
+          }
 
-  if (loadError) {
-    return (
-      <div className="text-sm text-destructive p-4">
-        <pre className="whitespace-pre-wrap">{loadError.message}</pre>
-      </div>
-    );
-  }
+          setRawGraphviz("");
+          setResult("");
+          setLoadError(error);
+        });
 
-  if (result.length > 0) {
-    // Validate that result contains valid graphviz before rendering
-    if (!result.includes("digraph") || !result.includes("{")) {
+      return () => {
+        abortController.abort();
+      };
+    }, [isActive, sql, connection, rawGraphviz.length]);
+
+    if (loadError) {
       return (
         <div className="text-sm text-destructive p-4">
-          <pre className="whitespace-pre-wrap">Invalid graphviz format</pre>
+          <pre className="whitespace-pre-wrap">{loadError.message}</pre>
         </div>
       );
     }
-    return <GraphvizComponent dot={result} style={{ width: "100%", height: "100%" }} />;
-  }
 
-  return <div className="text-sm text-muted-foreground p-4">Loading...</div>;
-}
+    if (result.length > 0) {
+      // Validate that result contains valid graphviz before rendering
+      if (!result.includes("digraph") || !result.includes("{")) {
+        return (
+          <div className="text-sm text-destructive p-4">
+            <pre className="whitespace-pre-wrap">Invalid graphviz format</pre>
+          </div>
+        );
+      }
+      return <GraphvizComponent dot={result} style={{ width: "100%", height: "100%" }} />;
+    }
+
+    return <div className="text-sm text-muted-foreground p-4">Loading...</div>;
+  },
+  (prevProps, nextProps) => {
+    // Only re-render if sql prop changes
+    return prevProps.sql === nextProps.sql;
+  }
+);
 
 interface ExplainPipeLineTextViewProps {
   sql: string;
   isActive: boolean;
 }
 
-function ExplainPipeLineTextView({ sql, isActive }: ExplainPipeLineTextViewProps) {
-  const { connection } = useConnection();
-  const [result, setResult] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState<QueryError | null>(null);
+const ExplainPipeLineTextView = memo(
+  ({ sql, isActive }: ExplainPipeLineTextViewProps) => {
+    const { connection } = useConnection();
+    const [result, setResult] = useState<string | null>(null);
+    const [loadError, setLoadError] = useState<QueryError | null>(null);
 
-  useEffect(() => {
-    if (!isActive) {
-      return;
-    }
-    if (result != null) {
-      // has been loaded
-      return;
-    }
+    useEffect(() => {
+      if (!isActive) {
+        return;
+      }
+      if (result != null) {
+        // has been loaded
+        return;
+      }
 
-    //
-    // execute EXPLAIN query to get the text
-    //
-    if (connection === null || connection === undefined) {
-      toastManager.show("No connection selected. Please select a connection to run EXPLAIN.", "error");
-      return;
-    }
+      //
+      // execute EXPLAIN query to get the text
+      //
+      if (connection === null || connection === undefined) {
+        toastManager.show("No connection selected. Please select a connection to run EXPLAIN.", "error");
+        return;
+      }
 
-    const { response, abortController } = connection.query(sql, {
-      default_format: "TSVRaw",
-    });
-
-    response
-      .then((apiResponse: QueryResponse) => {
-        setResult(apiResponse.data === "" ? null : apiResponse.data);
-        setLoadError(null);
-      })
-      .catch((error: QueryError) => {
-        // Ignore abort errors
-        const errorMessage = error.message || "Unknown error occurred";
-        const lowerErrorMessage = errorMessage.toLowerCase();
-        if (
-          lowerErrorMessage.includes("cancel") ||
-          lowerErrorMessage.includes("abort") ||
-          lowerErrorMessage.includes("signal is aborted without reason")
-        ) {
-          return;
-        }
-
-        setResult(null);
-        setLoadError(error);
+      const { response, abortController } = connection.query(sql, {
+        default_format: "TSVRaw",
       });
 
-    return () => {
-      abortController.abort();
-    };
-  }, [isActive, sql, connection, result]);
+      response
+        .then((apiResponse: QueryResponse) => {
+          setResult(apiResponse.data === "" ? null : apiResponse.data);
+          setLoadError(null);
+        })
+        .catch((error: QueryError) => {
+          // Ignore abort errors
+          const errorMessage = error.message || "Unknown error occurred";
+          const lowerErrorMessage = errorMessage.toLowerCase();
+          if (
+            lowerErrorMessage.includes("cancel") ||
+            lowerErrorMessage.includes("abort") ||
+            lowerErrorMessage.includes("signal is aborted without reason")
+          ) {
+            return;
+          }
 
-  if (loadError) {
-    return (
-      <div className="text-sm text-destructive p-4">
-        <pre className="whitespace-pre-wrap text-xs">{loadError.message}</pre>
-      </div>
-    );
+          setResult(null);
+          setLoadError(error);
+        });
+
+      return () => {
+        abortController.abort();
+      };
+    }, [isActive, sql, connection, result]);
+
+    if (loadError) {
+      return (
+        <div className="text-sm text-destructive p-4">
+          <pre className="whitespace-pre-wrap text-xs">{loadError.message}</pre>
+        </div>
+      );
+    }
+
+    if (result) {
+      return (
+        <pre className="overflow-x-auto whitespace-pre-wrap text-xs" style={{ overflowX: "auto" }}>
+          {result}
+        </pre>
+      );
+    }
+
+    return <div className="text-sm text-muted-foreground p-4">Loading...</div>;
+  },
+  (prevProps, nextProps) => {
+    // Only re-render if sql prop changes
+    return prevProps.sql === nextProps.sql;
   }
-
-  if (result) {
-    return (
-      <pre className="overflow-x-auto whitespace-pre-wrap text-xs" style={{ overflowX: "auto" }}>
-        {result}
-      </pre>
-    );
-  }
-
-  return <div className="text-sm text-muted-foreground p-4">Loading...</div>;
-}
+);
 
 const ExplainPipelineResponseViewComponent = ({ queryRequest, queryResponse }: QueryResponseViewProps) => {
   const [selectedSubView, setSelectedSubView] = useState("compactGraph");
@@ -458,12 +471,39 @@ const ExplainPipelineResponseViewComponent = ({ queryRequest, queryResponse }: Q
   }
 
   return (
-    <Tabs value={selectedSubView} onValueChange={setSelectedSubView} className="my-2">
-      <TabsList>
-        {graphModeResult && <TabsTrigger value="compactGraph">Compact Graph</TabsTrigger>}
-        <TabsTrigger value="completeGraph">Complete Graph</TabsTrigger>
-        <TabsTrigger value="text">Text</TabsTrigger>
-      </TabsList>
+    <Tabs value={selectedSubView} onValueChange={setSelectedSubView} className="mt-2">
+      <div className="w-full border-b bg-background">
+        <TabsList className="inline-flex min-w-full justify-start rounded-none border-0 h-auto p-0 bg-transparent flex-nowrap">
+          {graphModeResult && (
+            <TabsTrigger
+              value="compactGraph"
+              className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            >
+              Compact Graph
+            </TabsTrigger>
+          )}
+          <TabsTrigger
+            value="completeGraph"
+            className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+          >
+            Complete Graph
+          </TabsTrigger>
+          <TabsTrigger
+            value="text"
+            className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+          >
+            Text
+          </TabsTrigger>
+          {queryResponse.httpHeaders && (
+            <TabsTrigger
+              value="headers"
+              className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            >
+              Response Headers
+            </TabsTrigger>
+          )}
+        </TabsList>
+      </div>
       {graphModeResult && (
         <TabsContent value="compactGraph" className="overflow-auto">
           <GraphvizComponent dot={graphModeResult} style={{ width: "100%", height: "100%" }} />
@@ -478,6 +518,11 @@ const ExplainPipelineResponseViewComponent = ({ queryRequest, queryResponse }: Q
       <TabsContent value="text" className="overflow-auto">
         <ExplainPipeLineTextView isActive={selectedSubView === "text"} sql={`EXPLAIN pipeline ${rawSQL}`} />
       </TabsContent>
+      {queryResponse.httpHeaders && (
+        <TabsContent value="headers" className="overflow-auto">
+          <QueryResponseHttpHeaderView headers={queryResponse.httpHeaders} />
+        </TabsContent>
+      )}
     </Tabs>
   );
 };

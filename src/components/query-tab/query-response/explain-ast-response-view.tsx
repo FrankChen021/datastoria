@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Stack } from "@/lib/stack";
 import { memo, useEffect, useState } from "react";
 import type { QueryResponseViewProps } from "../query-view-model";
+import { QueryResponseHttpHeaderView } from "./query-response-http-header-view";
 
 interface ASTNode {
   id: string;
@@ -203,10 +204,34 @@ const ExplainASTResponseViewComponent = ({ queryRequest: _queryRequest, queryRes
 
   return (
     <Tabs defaultValue="graph" className="mt-2">
-      <TabsList>
-        {graphModeResult && <TabsTrigger value="graph">Graph Mode</TabsTrigger>}
-        {textModeResult && <TabsTrigger value="text">Text Mode</TabsTrigger>}
-      </TabsList>
+      <div className="w-full border-b bg-background">
+        <TabsList className="inline-flex min-w-full justify-start rounded-none border-0 h-auto p-0 bg-transparent flex-nowrap">
+          {graphModeResult && (
+            <TabsTrigger
+              value="graph"
+              className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            >
+              Graph Mode
+            </TabsTrigger>
+          )}
+          {textModeResult && (
+            <TabsTrigger
+              value="text"
+              className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            >
+              Text Mode
+            </TabsTrigger>
+          )}
+          {queryResponse.httpHeaders && (
+            <TabsTrigger
+              value="headers"
+              className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            >
+              Response Headers
+            </TabsTrigger>
+          )}
+        </TabsList>
+      </div>
       {graphModeResult && (
         <TabsContent value="graph" className="overflow-auto">
           <GraphvizComponent dot={graphModeResult} style={{ width: "100%", height: "100%" }} />
@@ -215,6 +240,11 @@ const ExplainASTResponseViewComponent = ({ queryRequest: _queryRequest, queryRes
       {textModeResult && (
         <TabsContent value="text" className="overflow-auto">
           <pre className="whitespace-pre-wrap text-xs">{textModeResult}</pre>
+        </TabsContent>
+      )}
+      {queryResponse.httpHeaders && (
+        <TabsContent value="headers" className="overflow-auto">
+          <QueryResponseHttpHeaderView headers={queryResponse.httpHeaders} />
         </TabsContent>
       )}
     </Tabs>

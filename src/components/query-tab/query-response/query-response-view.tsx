@@ -170,15 +170,7 @@ export function QueryResponseView({
 
   // Memoize response rendering based on view type
   const renderResponse = useMemo(() => {
-    // Handle explain views
-    if (view === "ast") {
-      return <ExplainASTResponseView queryRequest={queryRequest} queryResponse={queryResponse} />;
-    }
-
-    if (view === "pipeline") {
-      return <ExplainPipelineResponseView queryRequest={queryRequest} queryResponse={queryResponse} />;
-    }
-
+    // Handle explain views - these don't need the wrapper tabs
     if (view === "plan" || view === "estimate") {
       return <ExplainQueryResponseView queryRequest={queryRequest} queryResponse={queryResponse} />;
     }
@@ -220,6 +212,17 @@ export function QueryResponseView({
     );
   }
 
+  // For EXPLAIN AST and Pipeline views, render their tabs directly at the top level
+  // This avoids nested tabs (Result -> Graph/Text) and provides better UX
+  if (view === "ast") {
+    return <ExplainASTResponseView queryRequest={queryRequest} queryResponse={queryResponse} />;
+  }
+
+  if (view === "pipeline") {
+    return <ExplainPipelineResponseView queryRequest={queryRequest} queryResponse={queryResponse} />;
+  }
+
+  // For all other views, use the standard Result + Response Headers tab structure
   return (
     <Tabs value={selectedTab} onValueChange={setSelectedTab} className="mt-2">
       <div className="w-full border-b bg-background">
