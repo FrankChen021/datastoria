@@ -17,6 +17,17 @@ export class StringUtils {
       return query;
     }
   }
+
+  public static removeComments(sql: string): string {
+    return (
+      sql
+        // Remove single-line comments
+        .replace(/^--.*$/gm, "")
+        // Remove multiline comments
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .trim()
+    );
+  }
 }
 
 /**

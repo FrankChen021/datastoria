@@ -8,8 +8,9 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { v7 as uuidv7 } from "uuid";
 import { QueryControl } from "./query-control/query-control";
+import { ChatExecutionProvider } from "./query-execution/chat-execution-context";
 import { ChatExecutor } from "./query-execution/chat-executor";
-import { QueryExecutor } from "./query-execution/query-executor";
+import { QueryExecutionProvider, useQueryExecutor } from "./query-execution/query-executor";
 import { QueryInputLocalStorage } from "./query-input/query-input-local-storage";
 import type { QueryInputViewRef } from "./query-input/query-input-view";
 import { useQueryInput } from "./query-input/use-query-input";
@@ -56,12 +57,13 @@ export interface QueryTabProps {
   active?: boolean;
 }
 
-const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTabProps) => {
-  const [isExecuting, setIsExecuting] = useState(false);
+const QueryTabContent = ({ tabId, initialQuery, initialMode, active }: QueryTabProps) => {
   const [mode, setMode] = useState<"sql" | "chat">("sql");
+  const [isChatExecuting, setIsChatExecuting] = useState(false);
   const queryInputRef = useRef<QueryInputViewRef>(null);
   const { connection } = useConnection();
   const { text } = useQueryInput(); // Get current text for chat
+  const { executeQuery, isSqlExecuting } = useQueryExecutor();
 
   // Pending query state for handling mode switching
   const [pendingQueryInfo, setPendingQueryInfo] = useState<{ query: string; mode: "replace" | "insert" } | null>(null);
@@ -78,12 +80,6 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
       cachedInputTokens: 0,
     },
   });
-
-  const lastExecutionRef = useRef<any>(null);
-
-  const handleExecutionStateChange = useCallback((executing: boolean) => {
-    setIsExecuting(executing);
-  }, []);
 
   const handleChatRequest = useCallback(
     (inputText?: string) => {
@@ -102,7 +98,6 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
         currentQuery: backgroundSql, // The SQL context "behind" the chat
         database: (connection as any)?.database,
         clickHouseUser,
-        lastExecution: lastExecutionRef.current,
       };
 
       // Send to chat API with session ID
@@ -114,30 +109,36 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
     [text, connection, tabId, currentSessionId]
   );
 
-  const handleRun = useCallback(
+  // Unified handler for Cmd+Enter in QueryInputView
+  // Handles both SQL and chat modes
+  const handleInputRun = useCallback(
     (textToRun: string) => {
+      // Prevent execution if already executing
+      const isExecuting = isSqlExecuting || isChatExecuting;
+      if (isExecuting) {
+        return;
+      }
+
       if (mode === "chat") {
         handleChatRequest(textToRun);
       } else {
-        QueryExecutor.executeQuery(textToRun, {
-          params: {
-            default_format: "PrettyCompactMonoBlock",
-            output_format_pretty_row_numbers: true,
-          },
-        });
+        if (!connection || textToRun.length === 0) {
+          return;
+        }
+
+        executeQuery(textToRun);
       }
     },
-    [mode, handleChatRequest]
+    [mode, handleChatRequest, executeQuery, connection, isSqlExecuting, isChatExecuting]
   );
 
-  // Listen for query success to update context
-  useEffect(() => {
-    const unsubscribe = QueryExecutor.onQuerySuccess((event) => {
-      // Update the ref with the latest execution details
-      lastExecutionRef.current = event.detail;
-    });
-    return unsubscribe;
-  }, []);
+  // handleChatRun is only used for chat mode (called from QueryControl button)
+  const handleChatRun = useCallback(
+    (textToRun: string) => {
+      handleChatRequest(textToRun);
+    },
+    [handleChatRequest]
+  );
 
   const handleNewConversation = useCallback(() => {
     setCurrentSessionId(generateNewSessionId(currentSessionId));
@@ -151,7 +152,6 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
         cachedInputTokens: 0,
       },
     });
-    lastExecutionRef.current = null;
   }, [currentSessionId]);
 
   // Listen for query tab activation events
@@ -196,50 +196,55 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
   }, [active]);
 
   return (
-    <PanelGroup direction="vertical" className="h-full">
-      {/* Top Panel: Query Response View */}
-      <Panel defaultSize={60} minSize={20} className="bg-background overflow-auto">
-        <QueryListView
-          tabId={tabId}
-          currentSessionId={currentSessionId}
-          onExecutionStateChange={handleExecutionStateChange}
-          onChatSessionStatsChanged={setChartSessionStats}
-          onNewSession={handleNewConversation}
-        />
-        {/* <ChatPanel
-          currentDatabase={"default"}
-          availableTables={[{ name: "table1", columns: ["column1", "column2"] }]}
-        /> */}
-      </Panel>
-
-      <PanelResizeHandle className="h-[1px] bg-border hover:bg-border/80 transition-colors cursor-row-resize" />
-
-      {/* Bottom Panel: Query Input View with Control */}
-      <Panel defaultSize={40} minSize={20} className="bg-background flex flex-col">
-        <div className="flex-1 overflow-hidden">
-          <QueryInputView
-            ref={queryInputRef}
-            initialQuery={initialQuery}
-            initialMode={initialMode}
-            storageKey={mode === "sql" ? "editing-sql" : "editing-chat"}
-            language={mode === "sql" ? "dsql" : "chat"}
-            placeholder={mode === "chat" ? "Ask AI anything about your data..." : undefined}
-            onToggleMode={() => setMode((prev) => (prev === "sql" ? "chat" : "sql"))}
-            onRun={handleRun}
+    <ChatExecutionProvider isChatExecuting={isChatExecuting}>
+      <PanelGroup direction="vertical" className="h-full">
+        {/* Top Panel: Query Response View */}
+        <Panel defaultSize={60} minSize={20} className="bg-background overflow-auto">
+          <QueryListView
+            tabId={tabId}
+            currentSessionId={currentSessionId}
+            onExecutionStateChange={setIsChatExecuting}
+            onChatSessionStatsChanged={setChartSessionStats}
+            onNewSession={handleNewConversation}
           />
-        </div>
-        <QueryControl
-          mode={mode}
-          onModeChange={setMode}
-          isExecuting={isExecuting}
-          onRun={handleRun}
-          onNewConversation={handleNewConversation}
-          sessionStats={chatSessionStats}
-          currentSessionId={currentSessionId}
-        />
-      </Panel>
-    </PanelGroup>
+          {/* <ChatPanel
+            currentDatabase={"default"}
+            availableTables={[{ name: "table1", columns: ["column1", "column2"] }]}
+          /> */}
+        </Panel>
+
+        <PanelResizeHandle className="h-[1px] bg-border hover:bg-border/80 transition-colors cursor-row-resize" />
+
+        {/* Bottom Panel: Query Input View with Control */}
+        <Panel defaultSize={40} minSize={20} className="bg-background flex flex-col">
+          <div className="flex-1 overflow-hidden">
+            <QueryInputView
+              ref={queryInputRef}
+              initialQuery={initialQuery}
+              initialMode={initialMode}
+              storageKey={mode === "sql" ? "editing-sql" : "editing-chat"}
+              language={mode === "sql" ? "dsql" : "chat"}
+              placeholder={mode === "chat" ? "Ask AI anything about your data..." : undefined}
+              onToggleMode={() => setMode((prev) => (prev === "sql" ? "chat" : "sql"))}
+              onRun={handleInputRun}
+            />
+          </div>
+          <QueryControl
+            mode={mode}
+            onModeChange={setMode}
+            onRun={handleChatRun}
+            onNewConversation={handleNewConversation}
+            sessionStats={chatSessionStats}
+            currentSessionId={currentSessionId}
+          />
+        </Panel>
+      </PanelGroup>
+    </ChatExecutionProvider>
   );
 };
 
-export const QueryTab = memo(QueryTabComponent);
+export const QueryTab = memo((props: QueryTabProps) => (
+  <QueryExecutionProvider>
+    <QueryTabContent {...props} />
+  </QueryExecutionProvider>
+));

@@ -8,22 +8,15 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { toastManager } from "@/lib/toast";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useConnection } from "@/lib/connection/connection-context";
+import { StringUtils } from "@/lib/string-utils";
 import { cn } from "@/lib/utils";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
-import {
-  AlertCircle,
-  ChevronDown,
-  Database,
-  Info,
-  MessageSquare,
-  MessageSquarePlus,
-  Play,
-  Sparkles,
-} from "lucide-react";
+import { AlertCircle, ChevronDown, Database, MessageSquare, MessageSquarePlus, Play, Sparkles } from "lucide-react";
 import { memo, useCallback, useState } from "react";
-import { QueryExecutor } from "../query-execution/query-executor";
+import { useChatExecution } from "../query-execution/chat-execution-context";
+import { useQueryExecutor } from "../query-execution/query-executor";
 import { useQueryInput } from "../query-input/use-query-input";
 import type { ChatSessionStats } from "../query-list-view";
 import { ChatSessionStatus } from "./chat-session-status";
@@ -82,8 +75,7 @@ const NewConversationButton = memo(function NewConversationButton({ onNewConvers
 export interface QueryControlProps {
   mode: "sql" | "chat";
   onModeChange: (mode: "sql" | "chat") => void;
-  isExecuting?: boolean;
-  onRun?: (text: string) => void;
+  onRun?: (text: string) => void; // For chat mode
   onNewConversation?: () => void;
   sessionStats?: ChatSessionStats;
   currentSessionId?: string;
@@ -92,30 +84,71 @@ export interface QueryControlProps {
 export function QueryControl({
   mode,
   onModeChange,
-  isExecuting = false,
   onRun,
   onNewConversation,
   sessionStats,
   currentSessionId,
 }: QueryControlProps) {
+  const { isSqlExecuting, executeQuery } = useQueryExecutor();
+  const { isChatExecuting } = useChatExecution();
+  const { connection } = useConnection();
   const { selectedText, text } = useQueryInput();
-  const [isExplainOpen, setIsExplainOpen] = useState(false);
 
-  const handleQuery = useCallback(() => {
-    if (onRun) {
-      onRun(selectedText || text);
+  const handleRun = useCallback(() => {
+    if (mode === "chat") {
+      // For chat mode, delegate to the onRun callback
+      if (onRun) {
+        onRun(selectedText || text);
+      }
+    } else {
+      // For SQL mode, execute directly
+      const sql = selectedText || text;
+
+      if (sql.length === 0) return;
+
+      if (!connection) {
+        return;
+      }
+
+      // executeQuery now handles comment removal and vertical format detection
+      executeQuery(sql);
     }
-  }, [onRun, selectedText, text]);
+  }, [mode, onRun, selectedText, text, executeQuery, connection]);
 
   const handleExplain = useCallback(
     (type: string) => {
-      QueryExecutor.explainQuery(type, selectedText || text);
+      let rawSQL = StringUtils.removeComments(selectedText || text);
+      if (rawSQL.length === 0) {
+        return;
+      }
+
+      // for EXPLAIN SQL, the trailing \G is not allowed, let's remove it
+      if (rawSQL.endsWith("\\G")) {
+        rawSQL = rawSQL.substring(0, rawSQL.length - 2);
+      }
+
+      // Build the EXPLAIN query - executeQuery will handle comment removal and \G
+      let explainSQL: string;
+      if (type === "pipeline") {
+        explainSQL = `EXPLAIN pipeline graph = 1\n${rawSQL}`;
+      } else if (type === "plan-indexes") {
+        explainSQL = `EXPLAIN plan indexes = 1\n${rawSQL}`;
+      } else if (type === "plan-actions") {
+        explainSQL = `EXPLAIN plan actions = 1\n${rawSQL}`;
+      } else {
+        explainSQL = `EXPLAIN ${type}\n${rawSQL}`;
+      }
+
+      // Pass both the EXPLAIN query and the original SQL
+      // executeQuery will handle format selection based on the view type
+      // For plan-indexes and plan-actions, use "plan" as the view type
+      const viewType = type === "plan-indexes" || type === "plan-actions" ? "plan" : type;
+      executeQuery(explainSQL, rawSQL, { view: viewType });
     },
-    [selectedText, text]
+    [selectedText, text, executeQuery]
   );
-  console.log("isExecuting", isExecuting);
-  console.log("selectedText", selectedText);
-  console.log("text", text);
+
+  const isExecuting = isSqlExecuting || isChatExecuting;
   const isDisabled = isExecuting || (selectedText.length === 0 && text.length === 0);
 
   return (
@@ -130,7 +163,7 @@ export function QueryControl({
           <ToggleGroupItem
             value="sql"
             size="sm"
-            className="h-full px-2 text-[10px] rounded-sm border-r data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=off]:text-muted-foreground hover:bg-muted/50"
+            className="h-full px-2 text-[10px] rounded-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=off]:text-muted-foreground hover:bg-muted/50"
             title="SQL Editor/Execution Mode (Cmd+I)"
           >
             <Database className="h-3.5 w-3.5" />
@@ -149,10 +182,10 @@ export function QueryControl({
         <div>
           <Button
             disabled={isDisabled}
-            onClick={handleQuery}
+            onClick={handleRun}
             size="sm"
             variant="ghost"
-            className={`h-6 gap-1 px-2 text-xs rounded-sm rounded-r-none`}
+            className={`h-6 gap-1 px-2 text-xs rounded-sm`}
           >
             {mode === "sql" ? <Play className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}
             {mode === "sql"
@@ -163,22 +196,27 @@ export function QueryControl({
           </Button>
 
           {mode === "sql" && (
-            <DropdownMenu open={isExplainOpen} onOpenChange={setIsExplainOpen}>
+            <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button disabled={isDisabled} size="sm" variant="ghost"
-                  className="h-6 gap-1 px-2 text-xs rounded-sm rounded-l-none">
+                <Button disabled={isDisabled} size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs rounded-sm">
                   <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuItem onClick={() => handleExplain("ast")}>Explain AST</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExplain("syntax")}>Explain Syntax</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExplain("plan")}>Explain Plan</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExplain("plan-indexes")}>
+                  Explain Plan (indexes)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExplain("plan-actions")}>
+                  Explain Plan (actions)
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExplain("pipeline")}>Explain Pipeline</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExplain("estimate")}>Explain Estimate</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          )}</div>
+          )}
+        </div>
 
         <Separator orientation="vertical" className="h-4" />
 

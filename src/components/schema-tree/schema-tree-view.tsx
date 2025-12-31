@@ -24,7 +24,10 @@ import {
 /**
  * Extract table names and database names from schema load result
  */
-function extractTableNames(result: SchemaLoadResult): { tableNames: Map<string, TableInfo>; databaseNames: Map<string, DatabaseInfo> } {
+function extractTableNames(result: SchemaLoadResult): {
+  tableNames: Map<string, TableInfo>;
+  databaseNames: Map<string, DatabaseInfo>;
+} {
   const tableNames = new Map<string, TableInfo>();
   const databaseNames = new Map<string, DatabaseInfo>();
 
@@ -347,7 +350,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-8 pr-20 rounded-none border-none flex-1 h-9"
-          disabled={!connection || (treeData.length === 0 && !isLoading)}
+          disabled={!connection || isLoading}
         />
         {search && (
           <Button

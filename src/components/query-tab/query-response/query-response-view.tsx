@@ -53,7 +53,7 @@ const ErrorLocationView = memo(function ErrorLocationView({ errorLocation }: Err
         Error Context: Line {errorLocation.lineNumber}, Col {errorLocation.columnNumber}:
       </div>
       <div className="font-mono text-sm rounded overflow-hidden">
-        <ThemedSyntaxHighlighter language="sql" customStyle={{ margin: 0, padding: "0.75rem", fontSize: "0.875rem" }}>
+        <ThemedSyntaxHighlighter language="sql" customStyle={{ margin: 0, fontSize: "0.875rem" }}>
           {codeString}
         </ThemedSyntaxHighlighter>
       </div>
@@ -97,19 +97,14 @@ export function ApiErrorView({ error, sql }: { error: QueryErrorDisplay; sql?: s
   );
 
   return (
-    <Alert variant="destructive" className="border-0 p-1 text-yellow-900 dark:text-yellow-600">
+    <Alert variant="destructive" className="border-0 p-1 text-destructive">
       <div className="flex items-center gap-2">
         <AlertCircleIcon />
-        <AlertTitle>{error.message}</AlertTitle>
+        <AlertTitle className="mb-0">{error.message}</AlertTitle>
       </div>
       <AlertDescription className="mt-2">
-        {clickHouseErrorCode && (
-          <div className="mb-2">
-            ClickHouse Exception Code: <code className=" font-mono font-semibold">{clickHouseErrorCode}</code>
-          </div>
-        )}
         {detailMessage && detailMessage.length > 0 && (
-          <div className="whitespace-pre-wrap overflow-x-auto font-mono text-sm bg-muted/50 dark:bg-muted/30 p-3 rounded border border-yellow-400/40 dark:border-yellow-700/40">
+          <div className="whitespace-pre-wrap overflow-x-auto font-mono text-xs bg-muted/50 dark:bg-muted/30">
             {displayDetailMessage}
             {shouldTruncateDetailMessage && !showFullDetailMessage && (
               <>
@@ -167,12 +162,8 @@ export function QueryResponseView({
     [queryResponse.data]
   );
 
-  // Memoize formatted response
-  const rawQueryResponse = useMemo(
-    () => (queryResponse.formatter ? queryResponse.formatter(responseText) : responseText),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [queryResponse.formatter, responseText]
-  );
+  // Memoize response text
+  const rawQueryResponse = useMemo(() => responseText, [responseText]);
 
   // Check if response contains ANSI color codes
   const hasAnsiCodes = useMemo(() => containsAnsiCodes(rawQueryResponse), [rawQueryResponse]);
@@ -210,17 +201,6 @@ export function QueryResponseView({
       return <AnsiText>{rawQueryResponse}</AnsiText>;
     }
 
-    if (queryResponse.displayFormat === "sql") {
-      return (
-        <ThemedSyntaxHighlighter
-          customStyle={{ fontSize: "14px", margin: 0, padding: "1rem" }}
-          language="sql"
-          showLineNumbers={true}
-        >
-          {rawQueryResponse}
-        </ThemedSyntaxHighlighter>
-      );
-    }
     return (
       <div className="relative group">
         <CopyButton

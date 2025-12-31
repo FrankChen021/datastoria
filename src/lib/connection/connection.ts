@@ -138,7 +138,6 @@ export class Connection {
       requestParams["default_format"] = "JSONCompact";
     }
 
-
     // Build URL with query parameters
     const url = new URL(this.path, this.host);
     Object.entries(requestParams).forEach(([key, value]) => {
@@ -153,8 +152,6 @@ export class Connection {
 
     // Create abort controller for the caller to use
     const abortController = new AbortController();
-
-
 
     const response = (async (): Promise<QueryResponse> => {
       try {
@@ -176,8 +173,11 @@ export class Connection {
         const responseText = await response.text();
 
         if (!response.ok) {
+          const clickHouseErrorCode = response.headers.get("x-clickhouse-exception-code");
           throw new QueryError(
-            `Error executing query, got HTTP status ${response.status} ${response.statusText} from server`,
+            clickHouseErrorCode
+              ? `Failed to execute query, got ClickHouse Exception Code: ${clickHouseErrorCode}`
+              : `Failed to execute query, got HTTP status ${response.status} ${response.statusText} from server`,
             response.status,
             Object.fromEntries(response.headers.entries()),
             responseText
@@ -208,7 +208,6 @@ export class Connection {
           data: data,
         };
       } catch (error: unknown) {
-
         // If it's already an QueryError, re-throw it
         if (error instanceof QueryError) {
           throw error;

@@ -1,13 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { type QueryError } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
 import { Formatter } from "@/lib/formatter";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Square, X } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import { QueryExecutionTimer } from "./query-execution-timer";
-import { QueryExecutor } from "./query-execution/query-executor";
+import { useQueryExecutor } from "./query-execution/query-executor";
 import { QueryIdButton } from "./query-id-button";
 import { QueryRequestView } from "./query-request-view";
 import { QueryResponseView } from "./query-response/query-response-view";
@@ -15,7 +13,8 @@ import type { QueryResponseViewModel, QueryViewProps } from "./query-view-model"
 
 interface QueryListItemViewProps extends QueryViewProps {
   isFirst?: boolean;
-  onExecutionStateChange?: (queryId: string, isExecuting: boolean) => void;
+  queryResponse?: QueryResponseViewModel;
+  isExecuting: boolean;
 }
 
 const QuerySummary = memo(({ summaryText }: { summaryText: string | undefined }) => {
@@ -50,162 +49,17 @@ export function QueryListItemView({
   onQueryDelete,
   view,
   queryRequest,
-  viewArgs,
   isFirst,
-  onExecutionStateChange,
+  queryResponse,
+  isExecuting,
 }: QueryListItemViewProps) {
-  const { connection } = useConnection();
+  const { cancelQuery } = useQueryExecutor();
   const [collapsed, setCollapsed] = useState(queryRequest.showRequest === "collapse");
   const [showDelete, setShowDelete] = useState(false);
-  // Start as executing if we don't have a response yet (new query)
-  const [isExecuting, setIsExecuting] = useState(true);
-  const [queryResponse, setQueryResponse] = useState<QueryResponseViewModel | undefined>(undefined);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
-  const hasExecutedRef = useRef<string | null>(null);
   const scrollPlaceholderRef = useRef<HTMLDivElement>(null);
 
   const timestamp = format(new Date(queryRequest.timestamp), "yyyy-MM-dd HH:mm:ss");
-
-  // Execute query when component mounts
-  useEffect(() => {
-    // Guard: Prevent concurrent executions for the same query
-    // If guard is set, another execution is already in progress
-    if (hasExecutedRef.current === queryRequest.uuid) {
-      return;
-    }
-
-    if (!connection) {
-      setIsExecuting(false);
-      onExecutionStateChange?.(queryRequest.uuid, false);
-      return;
-    }
-
-    // Mark as executing - this will be reset if cancelled
-    hasExecutedRef.current = queryRequest.uuid;
-    setIsExecuting(true);
-    onExecutionStateChange?.(queryRequest.uuid, true);
-
-    // Create abort controller for this execution
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
-    // Use JSON format for dependency view, TabSeparated for others
-    // But if params are provided in viewArgs, use those instead (they override defaults)
-    const defaultFormat = view === "dependency" ? "JSON" : "TabSeparated";
-
-    // Always include query_id, even if viewArgs.params is provided
-    // If viewArgs.params already contains query_id, preserve it; otherwise use queryRequest.queryId
-    const params = viewArgs?.params
-      ? { ...viewArgs.params, query_id: viewArgs.params.query_id ?? queryRequest.queryId }
-      : {
-          query_id: queryRequest.queryId,
-          default_format: defaultFormat,
-          output_format_json_quote_64bit_integers: view === "dependency" ? 0 : undefined,
-        };
-
-    // Execute query asynchronously
-    (async () => {
-      try {
-        const { response, abortController: apiAbortController } = connection.query(queryRequest.sql, params);
-
-        // Update the abort controller reference
-        abortControllerRef.current = apiAbortController;
-
-        const apiResponse = await response;
-
-        // Check if request was aborted
-        if (apiAbortController.signal.aborted) {
-          return;
-        }
-
-        // For dependency view, keep the JSON structure; for others, convert to string
-        let responseData: unknown;
-        if (view === "dependency") {
-          responseData = apiResponse.data; // Keep JSON structure for dependency view
-        } else {
-          responseData = typeof apiResponse.data === "string" ? apiResponse.data : String(apiResponse.data);
-        }
-
-        const queryResponse: QueryResponseViewModel = {
-          formatter: viewArgs?.formatter,
-          displayFormat: viewArgs?.displayFormat || "text",
-          queryId: queryRequest.queryId,
-          traceId: queryRequest.traceId,
-          message: null,
-          httpStatus: apiResponse.httpStatus,
-          httpHeaders: apiResponse.httpHeaders,
-          data: responseData,
-        };
-
-        setQueryResponse(queryResponse);
-        setIsExecuting(false);
-        onExecutionStateChange?.(queryRequest.uuid, false);
-        abortControllerRef.current = null;
-
-        if (view === "dependency") {
-          // Dependency view data logic if applicable
-        } else if (typeof responseData === "string") {
-          // Basic TAB separated parsing or specific format parsing could happen here
-          // For now, we trust the ChatExecutor context builder to handle raw strings or
-          // we implement a basic parser if needed.
-          // Let's defer deep parsing to the context builder to keep this view light.
-          // Or, if responseData is the raw string, we can send it.
-        }
-
-        QueryExecutor.sendQuerySuccess({
-          sql: queryRequest.sql,
-          queryId: queryRequest.queryId,
-          timestamp: Date.now(),
-          // We can pass the raw data and let the context manager handle parsing
-          // allowing the sampleData to be extracted there.
-          // However, for the event payload, let's pass what we have.
-          sampleData: [], // Placeholder, will be enhanced if we parse `data`
-        });
-      } catch (error) {
-        // Only set error response if it's not a cancellation
-        const apiError = error as QueryError;
-        // if (
-        //   apiError.message &&
-        //   !apiError.message.toLowerCase().includes("cancel") &&
-        //   !apiError.message.toLowerCase().includes("abort")
-        // ) {
-        const queryResponse: QueryResponseViewModel = {
-          formatter: viewArgs?.formatter,
-          displayFormat: viewArgs?.displayFormat || "text",
-          queryId: queryRequest.queryId,
-          traceId: queryRequest.traceId,
-          message: apiError.message || "Unknown error occurred",
-          httpStatus: apiError.httpStatus,
-          httpHeaders: apiError.httpHeaders,
-          data: apiError.data,
-        };
-
-        setQueryResponse(queryResponse);
-        setIsExecuting(false);
-        onExecutionStateChange?.(queryRequest.uuid, false);
-        abortControllerRef.current = null;
-        // } else {
-        //   // Cancellation - don't update state here, let cleanup handle it
-        //   // This prevents the loader from flickering in StrictMode
-        //   abortControllerRef.current = null;
-        //   hasExecutedRef.current = null;
-        // }
-      }
-    })();
-
-    // Cleanup: cancel query on unmount
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-        // Reset guard when cancelled so StrictMode's second execution can proceed
-        // Don't reset isExecuting here - let the second execution maintain the loading state
-        hasExecutedRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryRequest.uuid]); // Only re-execute if this is a different query (different uuid)
 
   // Scroll to placeholder when execution completes
   useEffect(() => {
@@ -221,14 +75,13 @@ export function QueryListItemView({
     }
   }, [queryResponse, isExecuting]);
 
-  // Handle query deletion - cancel if executing
+  // Handle query deletion - cancel if executing, then delete
   const handleDelete = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+    if (isExecuting) {
+      cancelQuery(queryRequest.queryId);
     }
     if (onQueryDelete) {
-      onQueryDelete(queryRequest.uuid);
+      onQueryDelete(queryRequest.queryId);
     }
   };
 
@@ -299,12 +152,7 @@ export function QueryListItemView({
             variant="ghost"
             size="sm"
             className="h-6 text-xs rounded-sm text-destructive"
-            onClick={() => {
-              // Abort the request - the error handler will pick up the flag
-              if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-              }
-            }}
+            onClick={() => cancelQuery(queryRequest.queryId)}
           >
             <Square className="!h-3 !w-3" /> Click to cancel execution
           </Button>
@@ -319,7 +167,7 @@ export function QueryListItemView({
         {/* <div className="text-xs text-muted-foreground">Request Server: {queryRequest.requestServer}</div> */}
         {queryResponse?.httpHeaders?.["x-clickhouse-server-display-name"] && (
           <div className="text-xs text-muted-foreground">
-            Response Server: {queryResponse.httpHeaders["x-clickhouse-server-display-name"]}
+            Server: {queryResponse.httpHeaders["x-clickhouse-server-display-name"]}
           </div>
         )}
         <QuerySummary summaryText={queryResponse?.httpHeaders?.["x-clickhouse-summary"]} />

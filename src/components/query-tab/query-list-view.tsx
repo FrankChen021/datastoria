@@ -8,12 +8,12 @@ import type { Chat } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { Loader2, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { v4 as uuid } from "uuid";
+import { v7 as uuid } from "uuid";
 import { ChatMessageView } from "./chat/chat-message-view";
 import { ChatExecutor } from "./query-execution/chat-executor";
-import { QueryExecutor } from "./query-execution/query-executor";
+import { useQueryExecutor } from "./query-execution/query-executor";
 import { QueryListItemView } from "./query-list-item-view";
-import type { QueryRequestViewModel } from "./query-view-model";
+import type { SQLMessage } from "./query-view-model";
 
 export interface ChatSessionStats {
   messageCount: number;
@@ -24,26 +24,9 @@ export interface ChatSessionStats {
 export interface QueryListViewProps {
   tabId?: string; // Optional tab ID for multi-tab support
   currentSessionId?: string; // Current session ID for chat messages
-  onExecutionStateChange?: (isExecuting: boolean) => void;
+  onExecutionStateChange?: (isChatExecuting: boolean) => void;
   onChatSessionStatsChanged?: (stats: ChatSessionStats) => void; // Callback to update parent with session stats
   onNewSession?: () => void; // Callback to generate a new session when clearing screen
-}
-
-const MAX_MESSAGE_LIST_SIZE = 100;
-
-export interface SQLMessage {
-  type: "sql";
-  id: string;
-  queryRequest: QueryRequestViewModel;
-  view: string;
-  viewArgs?: {
-    displayFormat?: "sql" | "text";
-    formatter?: (text: string) => string;
-    showRequest?: "show" | "hide" | "collapse";
-    params?: Record<string, unknown>;
-  };
-  timestamp: number;
-  sessionId?: string; // Optional session ID when SQL is added to chat
 }
 
 // Adapter interface for the merged list
@@ -75,13 +58,12 @@ function QueryListViewContent({
   messageIdToSessionIdRef: React.MutableRefObject<Map<string, string>>;
 }) {
   const { connection } = useConnection();
-  // We now split state: SQL messages are local, Chat messages are managed by useChat
-  const [sqlMessages, setSqlMessages] = useState<SQLMessage[]>([]);
+  const { sqlMessages, isSqlExecuting, deleteQuery, deleteAllQueries: clearAllQueries } = useQueryExecutor();
 
   const responseScrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollPlaceholderRef = useRef<HTMLDivElement>(null);
   const shouldScrollRef = useRef(false);
-  const executingQueriesRef = useRef<Set<string>>(new Set());
+  const prevSqlMessagesCountRef = useRef(sqlMessages.length);
   const messageTimestampsRef = useRef<Map<string, number>>(new Map());
   // Map to store sessionId for messages by their content and timestamp
   // Key: message content, Value: { sessionId, timestamp }
@@ -128,6 +110,13 @@ function QueryListViewContent({
   // Track executing state for Chat
   const isChatExecuting = status === "streaming" || status === "submitted";
 
+  // Notify parent about chat execution state changes
+  useEffect(() => {
+    if (onExecutionStateChange) {
+      onExecutionStateChange(isChatExecuting);
+    }
+  }, [isChatExecuting, onExecutionStateChange]);
+
   const scrollToBottom = useCallback((instant = false) => {
     if (scrollPlaceholderRef.current && responseScrollContainerRef.current) {
       // If instant, set scrollTop directly
@@ -145,14 +134,6 @@ function QueryListViewContent({
       });
     }
   }, []);
-
-  // Update parent execution state
-  useEffect(() => {
-    if (onExecutionStateChange) {
-      const isSqlExecuting = executingQueriesRef.current.size > 0;
-      onExecutionStateChange(isSqlExecuting || isChatExecuting);
-    }
-  }, [executingQueriesRef.current.size, isChatExecuting, onExecutionStateChange]);
 
   // Merge lists efficiently
   const mergedMessageList = useMemo(() => {
@@ -378,79 +359,21 @@ function QueryListViewContent({
     }
   }, [mergedMessageList, currentSessionId, onChatSessionStatsChanged]);
 
-  const addQuery = useCallback(
-    (
-      sql: string,
-      options?: { displayFormat?: "sql" | "text"; formatter?: (text: string) => string; view?: string },
-      params?: Record<string, unknown>
-    ) => {
-      if (!connection) {
-        toastManager.show("No connection selected", "error");
-        return;
-      }
-
-      const queryId = uuid();
-      const timestamp = Date.now();
-
-      // Extract original SQL for rawSQL
-      let rawSQL = sql;
-      const view = options?.view;
-      const isExplainQuery = view && view !== "query";
-
-      if (isExplainQuery) {
-        if (view === "pipeline") {
-          rawSQL = sql.replace(/^EXPLAIN\s+pipeline\s+graph\s*=\s*1[\s\n]+/i, "");
-        } else if (view === "plan") {
-          rawSQL = sql.replace(/^EXPLAIN\s+plan\s+indexes\s*=\s*1[\s\n]+/i, "");
-        } else {
-          rawSQL = sql.replace(new RegExp(`^EXPLAIN\\s+${view}[\\s\\n]+`, "i"), "");
-        }
-      }
-
-      setSqlMessages((prevList) => {
-        let newList = prevList;
-        // Optional: limit local SQL history size
-        if (newList.length >= MAX_MESSAGE_LIST_SIZE) {
-          newList = newList.slice(newList.length - MAX_MESSAGE_LIST_SIZE + 1);
-        }
-
-        const showRequest = isExplainQuery ? "show" : options?.formatter ? "hide" : "show";
-
-        const queryMsg: SQLMessage = {
-          type: "sql",
-          id: queryId,
-          timestamp,
-          view: options?.view || "query",
-          viewArgs: { ...options, params },
-          queryRequest: {
-            uuid: queryId,
-            sql: sql,
-            rawSQL: rawSQL,
-            requestServer: connection.name || "Server",
-            queryId: queryId,
-            traceId: null,
-            timestamp: timestamp,
-            showRequest: showRequest,
-            params: params,
-            onCancel: () => {},
-          },
-        };
-
-        shouldScrollRef.current = true;
-        return [...newList, queryMsg];
-      });
-    },
-    [connection]
-  );
-
   // Auto scroll when list grows or content updates
   useEffect(() => {
+    // Check if a new SQL message was added by comparing with previous count
+    const sqlMessageAdded = sqlMessages.length > prevSqlMessagesCountRef.current;
+    prevSqlMessagesCountRef.current = sqlMessages.length;
+
     if (shouldScrollRef.current) {
       shouldScrollRef.current = false;
       scrollToBottom();
+    } else if (sqlMessageAdded) {
+      // New SQL query was added - always scroll to bottom
+      scrollToBottom();
     } else {
-      // Also scroll if streaming happens (content size change)
-      if (isChatExecuting) {
+      // Also scroll if streaming happens (content size change) or SQL is executing
+      if (isChatExecuting || isSqlExecuting) {
         const container = responseScrollContainerRef.current;
         if (container) {
           const { scrollTop, scrollHeight, clientHeight } = container;
@@ -462,17 +385,13 @@ function QueryListViewContent({
         }
       }
     }
-  }, [mergedMessageList, isChatExecuting, scrollToBottom]);
+  }, [mergedMessageList, isChatExecuting, isSqlExecuting, sqlMessages.length, scrollToBottom]);
 
   // Listeners
   useEffect(() => {
-    const unsubscribeQuery = QueryExecutor.onQueryRequest((event) => {
-      if (event.detail.tabId !== undefined && event.detail.tabId !== tabId) return;
-      addQuery(event.detail.sql, event.detail.options, event.detail.options?.params);
-    });
-
     const unsubscribeChat = ChatExecutor.onChatRequest((event) => {
       if (event.detail.tabId !== undefined && event.detail.tabId !== tabId) return;
+      // ... existing chat logic ...
 
       // Ensure we have a way to send
       if (sendMessage) {
@@ -527,20 +446,21 @@ function QueryListViewContent({
     });
 
     return () => {
-      unsubscribeQuery();
       unsubscribeChat();
     };
-  }, [tabId, addQuery, sendMessage, currentSessionId]);
+  }, [tabId, sendMessage, currentSessionId]);
 
   // Deletion Handlers
-  const handleQueryDelete = useCallback((id: string) => {
-    setSqlMessages((prev) => prev.filter((m) => m.id !== id));
-  }, []);
+  const handleQueryDelete = useCallback(
+    (id: string) => {
+      deleteQuery(id);
+    },
+    [deleteQuery]
+  );
 
   const handleClearScreen = useCallback(() => {
-    // Clear SQL messages
-    setSqlMessages([]);
-    executingQueriesRef.current.clear();
+    // Clear SQL messages and executing queries (via context)
+    clearAllQueries();
 
     // Clear chat messages
     chatInstance.messages = [];
@@ -555,9 +475,7 @@ function QueryListViewContent({
     if (onNewSession) {
       onNewSession();
     }
-
-    if (onExecutionStateChange) onExecutionStateChange(false);
-  }, [onExecutionStateChange, onNewSession, chatInstance, messageIdToSessionIdRef]);
+  }, [onNewSession, chatInstance, messageIdToSessionIdRef, clearAllQueries]);
 
   return (
     <ContextMenu>
@@ -588,16 +506,7 @@ function QueryListViewContent({
 
                 if (msg.type === "sql") {
                   return (
-                    <QueryListItemView
-                      key={msg.id}
-                      {...msg}
-                      onQueryDelete={handleQueryDelete}
-                      isFirst={index === 0}
-                      onExecutionStateChange={(qid, isExec) => {
-                        if (isExec) executingQueriesRef.current.add(qid);
-                        else executingQueriesRef.current.delete(qid);
-                      }}
-                    />
+                    <QueryListItemView key={msg.id} {...msg} onQueryDelete={handleQueryDelete} isFirst={index === 0} />
                   );
                 } else {
                   return (

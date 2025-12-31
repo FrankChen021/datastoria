@@ -14,7 +14,10 @@ import { MainPageTabList } from "./main-page-tab-list";
 /**
  * Extract table names and database names from schema load result
  */
-function extractTableNames(result: SchemaLoadResult): { tableNames: Map<string, TableInfo>; databaseNames: Map<string, DatabaseInfo> } {
+function extractTableNames(result: SchemaLoadResult): {
+  tableNames: Map<string, TableInfo>;
+  databaseNames: Map<string, DatabaseInfo>;
+} {
   const tableNames = new Map<string, TableInfo>();
   const databaseNames = new Map<string, DatabaseInfo>();
 
@@ -60,8 +63,9 @@ interface MainPageLoadStatusComponentProps {
 function MainPageLoadStatusComponent({ status, connectionName, error, onRetry }: MainPageLoadStatusComponentProps) {
   return (
     <div
-      className={`h-full w-full flex flex-col items-center justify-center bg-muted/5 p-8 text-center animate-in duration-500 ${status === "error" ? "slide-in-from-bottom-4 duration-300" : "fade-in"
-        }`}
+      className={`h-full w-full flex flex-col items-center justify-center bg-muted/5 p-8 text-center animate-in duration-500 ${
+        status === "error" ? "slide-in-from-bottom-4 duration-300" : "fade-in"
+      }`}
     >
       {status === "initializing" && (
         <>
@@ -79,8 +83,14 @@ function MainPageLoadStatusComponent({ status, connectionName, error, onRetry }:
           <div className="bg-background p-4 ">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
           </div>
-          <h3 className="text-lg font-medium mb-2">
-            {connectionName ? `Connecting to ${connectionName}` : "Connecting..."}
+          <h3 className="text-lg font-medium items-center mb-2">
+            {connectionName ? (
+              <>
+                Connecting to <span className="underline">{connectionName}</span>
+              </>
+            ) : (
+              "Connecting..."
+            )}
           </h3>
           {/* Invisible spacer to match button height in error state */}
           <div className="h-10" />

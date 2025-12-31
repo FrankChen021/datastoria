@@ -143,18 +143,18 @@ function applyGraphvizStyling(dot: string, bgColor: string): string {
     // Calculate node background color - nodes should be distinct from both main graph and subgraphs
     // For dark themes, nodes should be slightly lighter than main but darker than subgraphs
     // For light themes, nodes should be slightly darker than main but lighter than subgraphs
-    const isDark = bgColor === "#1a1a2e" || bgColor === "#002B36" ||
-      (parseInt(bgColor.replace("#", ""), 16) < parseInt("808080", 16));
+    const isDark =
+      bgColor === "#1a1a2e" || bgColor === "#002B36" || parseInt(bgColor.replace("#", ""), 16) < parseInt("808080", 16);
 
     // Subgraphs should be much more distinct - make them significantly lighter/darker
     const subgraphBgColor = isDark
-      ? adjustBrightness(bgColor, 40)  // Much lighter for dark themes
+      ? adjustBrightness(bgColor, 40) // Much lighter for dark themes
       : adjustBrightness(bgColor, -40); // Much darker for light themes
 
     // Nodes should have their own background that's between main graph and subgraph
     // This creates a visual hierarchy: main (darkest) < nodes (medium) < subgraphs (lightest for dark theme)
     const nodeBgColor = isDark
-      ? adjustBrightness(bgColor, 15)  // Nodes are lighter than main but darker than subgraphs
+      ? adjustBrightness(bgColor, 15) // Nodes are lighter than main but darker than subgraphs
       : adjustBrightness(bgColor, -15); // Nodes are darker than main but lighter than subgraphs
 
     // Calculate edge color that works for both main graph and subgraphs
@@ -274,7 +274,6 @@ function ExplainPipeCompleteGraphView({ sql, isActive }: ExplainPipeGraphViewPro
       return;
     }
 
-
     const { response, abortController } = connection.query(sql, {
       default_format: "TSVRaw",
     });
@@ -292,7 +291,7 @@ function ExplainPipeCompleteGraphView({ sql, isActive }: ExplainPipeGraphViewPro
         const errorMessage = error.message || "Unknown error occurred";
         const lowerErrorMessage = errorMessage.toLowerCase();
         if (
-          lowerErrorMessage.includes("cancel") || 
+          lowerErrorMessage.includes("cancel") ||
           lowerErrorMessage.includes("abort") ||
           lowerErrorMessage.includes("signal is aborted without reason")
         ) {
@@ -359,7 +358,6 @@ function ExplainPipeLineTextView({ sql, isActive }: ExplainPipeLineTextViewProps
       return;
     }
 
-
     const { response, abortController } = connection.query(sql, {
       default_format: "TSVRaw",
     });
@@ -374,7 +372,7 @@ function ExplainPipeLineTextView({ sql, isActive }: ExplainPipeLineTextViewProps
         const errorMessage = error.message || "Unknown error occurred";
         const lowerErrorMessage = errorMessage.toLowerCase();
         if (
-          lowerErrorMessage.includes("cancel") || 
+          lowerErrorMessage.includes("cancel") ||
           lowerErrorMessage.includes("abort") ||
           lowerErrorMessage.includes("signal is aborted without reason")
         ) {
@@ -442,7 +440,7 @@ const ExplainPipelineResponseViewComponent = ({ queryRequest, queryResponse }: Q
         return undefined;
       }
       return applyGraphvizStyling(cleaned, bgColor);
-    } catch (error) {
+    } catch {
       const cleaned = cleanGraphviz(queryResponse.data);
       return cleaned && cleaned.trim().length > 0 ? cleaned : undefined;
     }

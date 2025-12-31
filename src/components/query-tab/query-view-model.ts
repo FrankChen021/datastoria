@@ -1,10 +1,5 @@
 export interface QueryRequestViewModel {
   /**
-   * Since queryId might be empty, we generate uuid for each query so that this id can be used as key prop of React
-   */
-  uuid: string;
-
-  /**
    * SQL is being executing
    */
   sql: string;
@@ -30,9 +25,6 @@ export interface QueryRequestViewModel {
 }
 
 export interface QueryResponseViewModel {
-  formatter?: (response: string) => string;
-  displayFormat?: "text" | "sql";
-
   queryId: string | null;
   traceId: string | null;
   message: string | null;
@@ -51,9 +43,22 @@ export interface QueryViewProps {
   view: string;
   queryRequest: QueryRequestViewModel;
   viewArgs?: {
-    displayFormat?: "sql" | "text";
-    formatter?: (text: string) => string;
     showRequest?: "show" | "hide" | "collapse";
     params?: Record<string, unknown>;
   };
+}
+
+export interface SQLMessage {
+  type: "sql";
+  id: string;
+  queryRequest: QueryRequestViewModel;
+  queryResponse?: QueryResponseViewModel; // Response after query execution
+  isExecuting: boolean; // Whether the query is currently executing
+  view: string;
+  viewArgs?: {
+    showRequest?: "show" | "hide" | "collapse";
+    params?: Record<string, unknown>;
+  };
+  timestamp: number;
+  sessionId?: string; // Optional session ID when SQL is added to chat
 }

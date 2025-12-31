@@ -1,9 +1,11 @@
 import { CopyButton } from "@/components/ui/copy-button";
+import { useConnection } from "@/lib/connection/connection-context";
+import { toastManager } from "@/lib/toast";
 import { Play } from "lucide-react";
 import { memo } from "react";
 import { ThemedSyntaxHighlighter } from "../../themed-syntax-highlighter";
 import { Button } from "../../ui/button";
-import { QueryExecutor } from "../query-execution/query-executor";
+import { useQueryExecutor } from "../query-execution/query-executor";
 
 interface MessageMarkdownSqlProps {
   code: string;
@@ -20,12 +22,17 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
   showExecuteButton = false,
   showLineNumbers,
 }: MessageMarkdownSqlProps) {
+  const { executeQuery } = useQueryExecutor();
+  const { connection } = useConnection();
+
   const handleRun = (e: React.MouseEvent) => {
     e.stopPropagation();
-    QueryExecutor.executeQuery(code, {
-      params: {
-        default_format: "PrettyCompactMonoBlock",
-      },
+    if (!connection) {
+      toastManager.show("No connection selected", "error");
+      return;
+    }
+    executeQuery(code, undefined, {
+      default_format: "PrettyCompactMonoBlock",
     });
   };
 
