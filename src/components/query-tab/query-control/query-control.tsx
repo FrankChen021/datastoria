@@ -102,8 +102,10 @@ export function QueryControl({
   const [isExplainOpen, setIsExplainOpen] = useState(false);
 
   const handleQuery = useCallback(() => {
-    QueryExecutor.executeQuery(selectedText || text);
-  }, [selectedText, text]);
+    if (onRun) {
+      onRun(selectedText || text);
+    }
+  }, [onRun, selectedText, text]);
 
   const handleExplain = useCallback(
     (type: string) => {
@@ -111,63 +113,72 @@ export function QueryControl({
     },
     [selectedText, text]
   );
-
+  console.log("isExecuting", isExecuting);
+  console.log("selectedText", selectedText);
+  console.log("text", text);
   const isDisabled = isExecuting || (selectedText.length === 0 && text.length === 0);
 
   return (
     <TooltipProvider>
       <div className="flex h-8 w-full gap-2 rounded-sm items-center px-2 text-xs transition-colors">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center text-muted-foreground">
-              <Info className="h-3.5 w-3.5" />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>CMD+I to switch mode</p>
-          </TooltipContent>
-        </Tooltip>
         <ToggleGroup
           type="single"
           value={mode}
           onValueChange={(val) => val && onModeChange(val as "sql" | "chat")}
-          className="h-7 p-[2px] bg-muted/50 rounded-md"
+          className="h-6 gap-0 p-0"
         >
           <ToggleGroupItem
             value="sql"
             size="sm"
-            className="h-6 px-2 text-[10px] data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm data-[state=off]:text-muted-foreground rounded-sm"
-            title="Switch to SQL Editor (Cmd+I)"
+            className="h-full px-2 text-[10px] rounded-sm border-r data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=off]:text-muted-foreground hover:bg-muted/50"
+            title="SQL Editor/Execution Mode (Cmd+I)"
           >
-            <Database className="h-3 w-3 mr-1" />
-            SQL
+            <Database className="h-3.5 w-3.5" />
           </ToggleGroupItem>
           <ToggleGroupItem
             value="chat"
             size="sm"
-            className="h-6 px-2 text-[10px] data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm data-[state=off]:text-muted-foreground rounded-sm"
-            title="Switch to AI Chat (Cmd+I)"
+            className="h-full px-2 text-[10px] rounded-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=off]:text-muted-foreground hover:bg-muted/50"
+            title="AI Chat Mode (Cmd+I)"
           >
-            <Sparkles className="h-3 w-3 mr-1" />
-            Chat
+            <Sparkles className="h-3.5 w-3.5" />
           </ToggleGroupItem>
         </ToggleGroup>
         <Separator orientation="vertical" className="h-4" />
 
-        <Button
-          disabled={isDisabled}
-          onClick={handleQuery}
-          size="sm"
-          variant="ghost"
-          className={`h-6 gap-1 px-2 text-xs`}
-        >
-          {mode === "sql" ? <Play className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}
-          {mode === "sql"
-            ? selectedText
-              ? "Run Selected SQL(Cmd+Enter)"
-              : "Run SQL(Cmd+Enter)"
-            : "Ask AI (Cmd+Enter)"}
-        </Button>
+        <div>
+          <Button
+            disabled={isDisabled}
+            onClick={handleQuery}
+            size="sm"
+            variant="ghost"
+            className={`h-6 gap-1 px-2 text-xs rounded-sm rounded-r-none`}
+          >
+            {mode === "sql" ? <Play className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}
+            {mode === "sql"
+              ? selectedText
+                ? "Run Selected SQL(Cmd+Enter)"
+                : "Run SQL(Cmd+Enter)"
+              : "Ask AI (Cmd+Enter)"}
+          </Button>
+
+          {mode === "sql" && (
+            <DropdownMenu open={isExplainOpen} onOpenChange={setIsExplainOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button disabled={isDisabled} size="sm" variant="ghost"
+                  className="h-6 gap-1 px-2 text-xs rounded-sm rounded-l-none">
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => handleExplain("ast")}>Explain AST</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExplain("syntax")}>Explain Syntax</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExplain("plan")}>Explain Plan</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExplain("pipeline")}>Explain Pipeline</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExplain("estimate")}>Explain Estimate</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}</div>
 
         <Separator orientation="vertical" className="h-4" />
 
@@ -183,24 +194,6 @@ export function QueryControl({
             <ChatSessionStatus stats={sessionStats} currentSessionId={currentSessionId} />
             <NewConversationButton onNewConversation={onNewConversation} />
           </>
-        )}
-
-        {mode === "sql" && (
-          <DropdownMenu open={isExplainOpen} onOpenChange={setIsExplainOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button disabled={isDisabled} size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs">
-                {selectedText ? "Explain Selected SQL" : "Explain SQL"}
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => handleExplain("ast")}>Explain AST</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExplain("syntax")}>Explain Syntax</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExplain("plan")}>Explain Plan</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExplain("pipeline")}>Explain Pipeline</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExplain("estimate")}>Explain Estimate</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         )}
       </div>
     </TooltipProvider>
