@@ -21,7 +21,6 @@ const AceEditor = dynamic(
   { ssr: false }
 );
 
-import { TabManager } from "@/components/tab-manager";
 import { useTheme } from "@/components/theme-provider";
 import { useConnection } from "@/lib/connection/connection-context";
 import { useDebouncedCallback } from "use-debounce";
@@ -39,6 +38,7 @@ type ExtendedEditor = {
 export interface QueryInputViewRef {
   focus: () => void;
   setValue: (value: string) => void;
+  setQuery: (query: string, mode: "replace" | "insert") => void;
 }
 
 interface QueryInputViewProps {
@@ -125,22 +125,6 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
       latestOnRun.current = onRun;
     }, [onRun]);
 
-    // Listen for query tab activation events with query data
-    useEffect(() => {
-      const handler = (event: CustomEvent<import("@/components/tab-manager").OpenTabEventDetail>) => {
-        if (event.detail.type === "query" && event.detail.query) {
-          const { query, mode = "replace" } = event.detail;
-
-          if (editorRef.current) {
-            applyQueryToEditor(editorRef.current, query, mode, storageKey);
-          }
-        }
-      };
-
-      const unsubscribe = TabManager.onOpenTab(handler);
-      return unsubscribe;
-    }, []);
-
     // Expose focus method to parent
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -152,6 +136,11 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
         if (editorRef.current) {
           editorRef.current.setValue(value);
           editorRef.current.clearSelection();
+        }
+      },
+      setQuery: (query: string, mode: "replace" | "insert") => {
+        if (editorRef.current) {
+          applyQueryToEditor(editorRef.current, query, mode, storageKey);
         }
       }
     }));
@@ -274,10 +263,10 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           // Define and set up chat mode with table name highlighting FIRST
           defineChatMode();
           session.setMode("ace/mode/chat");
-          
+
           // Then set completers (after mode is set)
           editor.completers = QuerySuggestionManager.getInstance().getTableCompleters();
-          
+
           // Update table names in the highlighter
           updateChatModeTableNames(editor);
         } else {
@@ -363,11 +352,11 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
         const session = editorRef.current.getSession();
         defineChatMode();
         session.setMode("ace/mode/chat");
-        
+
         // Then set completers (after mode is set)
         const extendedEditor = editorRef.current as ExtendedEditor;
         extendedEditor.completers = QuerySuggestionManager.getInstance().getTableCompleters();
-        
+
         updateChatModeTableNames(editorRef.current);
       } else {
         const extendedEditor = editorRef.current as ExtendedEditor;

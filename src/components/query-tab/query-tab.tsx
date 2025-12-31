@@ -1,4 +1,5 @@
 import { QueryListView, type ChatSessionStats } from "@/components/query-tab/query-list-view";
+import { TabManager } from "@/components/tab-manager";
 import { NUM_COLORS } from "@/lib/color-generator";
 import { useConnection } from "@/lib/connection/connection-context";
 import { Hash } from "@/lib/hash";
@@ -61,6 +62,9 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
   const queryInputRef = useRef<QueryInputViewRef>(null);
   const { connection } = useConnection();
   const { text } = useQueryInput(); // Get current text for chat
+
+  // Pending query state for handling mode switching
+  const [pendingQueryInfo, setPendingQueryInfo] = useState<{ query: string; mode: "replace" | "insert" } | null>(null);
 
   // Session tracking for chat conversations
   const [currentSessionId, setCurrentSessionId] = useState<string>(() => uuidv7());
@@ -150,7 +154,38 @@ const QueryTabComponent = ({ tabId, initialQuery, initialMode, active }: QueryTa
     lastExecutionRef.current = null;
   }, [currentSessionId]);
 
-  // Focus editor when tab becomes active
+  // Listen for query tab activation events
+  useEffect(() => {
+    const handler = (event: CustomEvent<import("@/components/tab-manager").OpenTabEventDetail>) => {
+      if (event.detail.type === "query" && event.detail.query) {
+        // Switch to SQL mode if not already
+        setMode("sql");
+        // Store query to be applied after mode switch renders
+        setPendingQueryInfo({
+          query: event.detail.query,
+          mode: event.detail.mode || "replace",
+        });
+      }
+    };
+
+    const unsubscribe = TabManager.onOpenTab(handler);
+    return unsubscribe;
+  }, []);
+
+  // Apply pending query when mode is sql and editor is ready
+  useEffect(() => {
+    if (mode === "sql" && pendingQueryInfo && queryInputRef.current) {
+      // Use setTimeout to ensure the editor has loaded the SQL content from storage
+      // after the mode switch, before we apply the new query.
+      setTimeout(() => {
+        queryInputRef.current?.setQuery(pendingQueryInfo.query, pendingQueryInfo.mode);
+        // Clear pending query
+        setPendingQueryInfo(null);
+      }, 50);
+    }
+  }, [mode, pendingQueryInfo]);
+
+  // Focus editor when tab becomes active (existing effect)
   useEffect(() => {
     if (active) {
       // Use setTimeout to ensure focus happens after the tab is fully rendered
