@@ -138,11 +138,18 @@ const MainPageTabListComponent = ({ selectedConnection }: MainPageTabListProps) 
 
   // Emit active tab change events
   useEffect(() => {
-    if (activeTab) {
-      const tabInfo = tabs.find((t) => t.id === activeTab) || null;
-      TabManager.sendActiveTabChange(activeTab, tabInfo);
+    // Don't re-emit the current active tab while we're in the middle of activating a new tab.
+    if (pendingTabId) {
+      return;
     }
-  }, [activeTab, tabs]);
+
+    if (!activeTab) {
+      return;
+    }
+
+    const tabInfo = tabs.find((t) => t.id === activeTab) || null;
+    TabManager.sendActiveTabChange(activeTab, tabInfo);
+  }, [activeTab, tabs, pendingTabId]);
 
   // Close all tabs when connection changes or is updated
   useEffect(() => {
