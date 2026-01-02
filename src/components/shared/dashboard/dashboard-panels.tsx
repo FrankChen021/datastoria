@@ -523,7 +523,7 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
                           >
                             <div
                               onClick={() => toggleGroup(groupInfo.groupIndex)}
-                              className="flex rounded-sm items-center p-2 transition-colors gap-1 cursor-pointer hover:bg-muted/50"
+                              className="flex rounded-sm items-center py-1 transition-colors gap-1 cursor-pointer hover:bg-muted/50"
                               style={{
                                 backgroundColor: isCollapsed ? "var(--muted)" : "transparent",
                               }}

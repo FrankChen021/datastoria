@@ -35,6 +35,57 @@ import type { TimeSpan } from "./timespan-selector";
 import useIsDarkTheme from "./use-is-dark-theme";
 import { useRefreshable } from "./use-refreshable";
 
+// Safety scale used in the initial font size calculation.
+// Reduces the theoretical "perfect fit" size to avoid edge-touching.
+// Lowering this value (e.g., to 0.90) makes the text initially smaller relative to the container.
+const INITIAL_SAFETY_SCALE = 0.97;
+
+// Safety scale used in the verification step if the text is still too large.
+// If the text overflows after the initial calculation (e.g. due to font rendering quirks),
+// it is shrunk by this additional factor.
+// Lowering this value provides a more aggressive reduction when overflow is detected.
+const VERIFY_SAFETY_SCALE = 0.98;
+
+// Helper function to create a measurement element with given font size
+const createMeasurementElement = (
+  fontSize: string,
+  textContent: string,
+  textStyles: CSSStyleDeclaration
+): HTMLDivElement => {
+  const element = document.createElement("div");
+  element.style.position = "absolute";
+  element.style.visibility = "hidden";
+  element.style.top = "-9999px";
+  element.style.left = "-9999px";
+  element.style.whiteSpace = "nowrap";
+  element.style.fontSize = fontSize;
+  element.style.fontWeight = textStyles.fontWeight;
+  element.style.fontFamily = textStyles.fontFamily;
+  element.style.fontStyle = textStyles.fontStyle;
+  element.style.letterSpacing = textStyles.letterSpacing;
+  element.style.textTransform = textStyles.textTransform;
+  element.style.lineHeight = textStyles.lineHeight;
+  element.style.fontVariant = textStyles.fontVariant;
+  element.style.textRendering = textStyles.textRendering;
+  element.textContent = textContent;
+  return element;
+};
+
+// Helper function to measure text dimensions at a given font size
+const measureTextDimensions = (
+  fontSize: string,
+  textContent: string,
+  textStyles: CSSStyleDeclaration
+): { width: number; height: number } => {
+  const element = createMeasurementElement(fontSize, textContent, textStyles);
+  document.body.appendChild(element);
+  void element.offsetWidth; // Force reflow
+  const width = Math.max(element.scrollWidth, element.offsetWidth);
+  const height = element.offsetHeight;
+  document.body.removeChild(element);
+  return { width, height };
+};
+
 interface DashboardPanelStatProps {
   // The stat descriptor configuration
   descriptor: StatDescriptor;
@@ -140,14 +191,14 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
     const resizeObserver =
       typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(() => {
-          if (chartInstanceRef.current) {
-            requestAnimationFrame(() => {
-              if (chartInstanceRef.current) {
-                chartInstanceRef.current.resize();
-              }
-            });
-          }
-        })
+            if (chartInstanceRef.current) {
+              requestAnimationFrame(() => {
+                if (chartInstanceRef.current) {
+                  chartInstanceRef.current.resize();
+                }
+              });
+            }
+          })
         : null;
     if (resizeObserver && chartDom) {
       resizeObserver.observe(chartDom);
@@ -240,13 +291,13 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
       },
       brush: onBrushChange
         ? {
-          xAxisIndex: "all",
-          brushLink: "all",
-          brushMode: "single",
-          brushStyle: {
-            color: "rgba(120,120,120,0.15)",
-          },
-        }
+            xAxisIndex: "all",
+            brushLink: "all",
+            brushMode: "single",
+            brushStyle: {
+              color: "rgba(120,120,120,0.15)",
+            },
+          }
         : undefined,
       toolbox: {
         show: false,
@@ -276,11 +327,11 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
           areaStyle:
             option.type === "area"
               ? {
-                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                  { offset: 0, color: chartColor },
-                  { offset: 1, color: "rgba(255,255,255,0)" },
-                ]),
-              }
+                  color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    { offset: 0, color: chartColor },
+                    { offset: 1, color: "rgba(255,255,255,0)" },
+                  ]),
+                }
               : undefined,
         },
       ],
@@ -504,7 +555,10 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
     }, []);
 
     const calculateReducedValue = useCallback((data: MinimapDataPoint[], reducer: Reducer): number => {
-      return applyReducer(data.map((d) => d.value), reducer);
+      return applyReducer(
+        data.map((d) => d.value),
+        reducer
+      );
     }, []);
 
     const loadData = useCallback(
@@ -513,7 +567,6 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
           setError("No connection selected");
           return;
         }
-
 
         const showMinimap = shouldShowMinimap() && !isOffset;
 
@@ -533,7 +586,11 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
             const thisQuery = Object.assign({}, query) as SQLQuery;
 
             // Replace time span template parameters in SQL if time span is provided
-            const finalSql = replaceTimeSpanParams(thisQuery.sql, _param.selectedTimeSpan, connection!.metadata.timezone);
+            const finalSql = replaceTimeSpanParams(
+              thisQuery.sql,
+              _param.selectedTimeSpan,
+              connection!.metadata.timezone
+            );
             if (!isOffset) {
               setExecutedSql(finalSql);
             }
@@ -642,7 +699,6 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
           return;
         }
 
-
         // Load data - for timeseries with minimap, we get both stat and minimap from same response
         loadData(param);
 
@@ -673,7 +729,9 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
 
     // Use shared refreshable hook (stat chart doesn't have collapse, but uses viewport checking)
     const getInitialParams = React.useCallback(() => {
-      return props.selectedTimeSpan ? ({ selectedTimeSpan: props.selectedTimeSpan } as RefreshOptions) : ({} as RefreshOptions);
+      return props.selectedTimeSpan
+        ? ({ selectedTimeSpan: props.selectedTimeSpan } as RefreshOptions)
+        : ({} as RefreshOptions);
     }, [props.selectedTimeSpan]);
 
     const { componentRef, refresh, getLastRefreshParameter } = useRefreshable({
@@ -685,41 +743,6 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
 
     // Auto-scale text to fit container
     useEffect(() => {
-      // Helper function to create a measurement element with given font size
-      const createMeasurementElement = (
-        fontSize: string,
-        textContent: string,
-        textStyles: CSSStyleDeclaration
-      ): HTMLDivElement => {
-        const element = document.createElement("div");
-        element.style.position = "absolute";
-        element.style.visibility = "hidden";
-        element.style.top = "-9999px";
-        element.style.left = "-9999px";
-        element.style.whiteSpace = "nowrap";
-        element.style.fontSize = fontSize;
-        element.style.fontWeight = textStyles.fontWeight;
-        element.style.fontFamily = textStyles.fontFamily;
-        element.style.fontStyle = textStyles.fontStyle;
-        element.style.letterSpacing = textStyles.letterSpacing;
-        element.style.textTransform = textStyles.textTransform;
-        element.style.lineHeight = textStyles.lineHeight;
-        element.style.fontVariant = textStyles.fontVariant;
-        element.style.textRendering = textStyles.textRendering;
-        element.textContent = textContent;
-        return element;
-      };
-
-      // Helper function to measure text width at a given font size
-      const measureTextWidth = (fontSize: string, textContent: string, textStyles: CSSStyleDeclaration): number => {
-        const element = createMeasurementElement(fontSize, textContent, textStyles);
-        document.body.appendChild(element);
-        void element.offsetWidth; // Force reflow
-        const width = Math.max(element.scrollWidth, element.offsetWidth);
-        document.body.removeChild(element);
-        return width;
-      };
-
       const adjustFontSize = () => {
         if (!valueTextRef.current || !valueContainerRef.current) return;
         // Skip if loading and we don't have initial data yet (showing skeleton)
@@ -775,15 +798,21 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
         const scale = Math.min(widthScale, heightScale, 1); // Don't scale up, only down
 
         // Calculate new font size with safety margin (3% reduction)
-        const safetyScale = 0.97;
+        const safetyScale = INITIAL_SAFETY_SCALE;
         let newFontSizeRem = Math.max(0.75, scale * 3 * safetyScale);
 
         // Verify: measure at calculated size and adjust if needed
-        const verifiedWidth = measureTextWidth(`${newFontSizeRem}rem`, textContent, textStyles);
+        const { width: verifiedWidth, height: verifiedHeight } = measureTextDimensions(
+          `${newFontSizeRem}rem`,
+          textContent,
+          textStyles
+        );
 
-        // If still too wide, scale down further with additional 2% margin
-        if (verifiedWidth > availableWidth) {
-          const additionalScale = (availableWidth / verifiedWidth) * 0.98;
+        // If still too wide or too tall, scale down further with additional 2% margin
+        if (verifiedWidth > availableWidth || verifiedHeight > availableHeight) {
+          const widthScaleVerify = verifiedWidth > availableWidth ? availableWidth / verifiedWidth : 1;
+          const heightScaleVerify = verifiedHeight > availableHeight ? availableHeight / verifiedHeight : 1;
+          const additionalScale = Math.min(widthScaleVerify, heightScaleVerify) * VERIFY_SAFETY_SCALE;
           newFontSizeRem = Math.max(0.75, newFontSizeRem * additionalScale);
         }
 
@@ -1124,111 +1153,119 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
         onRefresh={handleRefresh}
         headerBackground={true}
       >
-        <CardContent className="pt-5 pb-1 px-0 relative">
-          <CardTitle
-            className={cn(
-              descriptor.valueOption?.align ? "text-" + descriptor.valueOption.align : "text-center",
-              "font-semibold tabular-nums"
-            )}
-          >
-            {error && <div key="error" className="text-destructive text-xs">{error}</div>}
-            {!error && (
-              <div ref={valueContainerRef} className="h-16 flex items-center justify-center overflow-hidden px-2">
-                <div
-                  ref={valueTextRef}
-                  className={cn(
-                    "leading-none whitespace-nowrap",
-                    hasMainDrilldown && "cursor-pointer underline transition-all"
-                  )}
-                  style={{
-                    fontSize: `${fontSize}rem`,
-                  }}
-                  onClick={hasMainDrilldown ? handleDrilldownClick : undefined}
-                >
-                  {shouldShowSkeleton ? (
-                    <div className="transition-opacity duration-150" style={{ opacity: skeletonOpacity }}>
-                      <Skeleton className="w-20 h-10" />
-                    </div>
-                  ) : shouldUseNumberFlow() ? (
-                    (() => {
-                      // Default to 'compact_number' if no format is specified
-                      const originalFormatName = descriptor.valueOption?.format;
-                      const formatName = originalFormatName || "compact_number";
-
-                      // Map format names to NumberFlow format options (inline)
-                      // Note: NumberFlow supports Intl.NumberFormatOptions through the format prop
-                      // It does not support custom formatter functions, only standard Intl.NumberFormat options
-                      let numberFlowFormat: Record<string, unknown> | undefined;
-                      // Handle format names (including "compact_number" which is an alias for "short_number")
-                      // Cast to string to handle "compact_number" which is not in FormatName type but is used in practice
-                      const formatStr = formatName as string;
-                      if (formatStr === "compact_number" || formatStr === "short_number") {
-                        numberFlowFormat = { notation: "compact", compactDisplay: "short" };
-                      } else if (formatStr === "comma_number") {
-                        numberFlowFormat = { useGrouping: true };
-                      } else if (formatStr === "percentage") {
-                        // percentage format expects values already as percentages (e.g., 50 = 50%)
-                        // NumberFlow with style: "percent" multiplies by 100, so we need to divide by 100 first
-                        numberFlowFormat = { style: "percent", minimumFractionDigits: 0, maximumFractionDigits: 2 };
-                      } else if (formatStr === "percentage_0_1") {
-                        // This format expects values in [0,1] range (e.g., 0.5 = 50%)
-                        // NumberFlow with style: "percent" multiplies by 100, so we pass as-is
-                        numberFlowFormat = { style: "percent", minimumFractionDigits: 0, maximumFractionDigits: 2 };
-                      } else if (formatStr === "binary_size") {
-                        // binary_size format converts bytes to binary units (KB, MB, GB, etc.)
-                        numberFlowFormat = { notation: "binary_size" };
-                      } else {
-                        numberFlowFormat = undefined;
-                      }
-
-                      // Handle percentage formats: NumberFlow with style: "percent" multiplies by 100
-                      // - percentage: value is already a percentage (e.g., 50 = 50%), so divide by 100
-                      // - percentage_0_1: value is in [0,1] range (e.g., 0.5 = 50%), pass as-is
-                      let displayValue = data;
-                      if (originalFormatName === "percentage") {
-                        displayValue = data / 100;
-                      }
-
-                      return (
-                        <NumberFlow
-                          value={displayValue}
-                          format={numberFlowFormat as Parameters<typeof NumberFlow>[0]["format"]}
-                          locales="en-GB"
-                          className={cn(hasMainDrilldown ? "underline" : "")}
-                        />
-                      );
-                    })()
-                  ) : descriptor.valueOption?.format ? (
-                    Formatter.getInstance().getFormatter(descriptor.valueOption.format)(data)
-                  ) : (
-                    data
-                  )}
+        <div className="flex flex-col h-full w-full">
+          {/* relative is given because the comparison uses absolute layout */}
+          <CardContent className={cn("py-0 px-0 relative flex-1 min-h-0")}>
+            <CardTitle
+              className={cn(
+                descriptor.valueOption?.align ? "text-" + descriptor.valueOption.align : "text-center",
+                "font-semibold h-full tabular-nums flex flex-col justify-center"
+              )}
+            >
+              {error && (
+                <div key="error" className="text-destructive text-xs">
+                  {error}
                 </div>
-              </div>
-            )}
-          </CardTitle>
+              )}
+              {!error && (
+                <div ref={valueContainerRef} className="h-full flex items-center justify-center overflow-hidden">
+                  <div
+                    ref={valueTextRef}
+                    className={cn(
+                      "leading-none whitespace-nowrap",
+                      hasMainDrilldown && "cursor-pointer underline transition-all"
+                    )}
+                    style={{
+                      fontSize: `${fontSize}rem`,
+                    }}
+                    onClick={hasMainDrilldown ? handleDrilldownClick : undefined}
+                  >
+                    {shouldShowSkeleton ? (
+                      <div className="transition-opacity duration-150" style={{ opacity: skeletonOpacity }}>
+                        <Skeleton className="w-20 h-10" />
+                      </div>
+                    ) : shouldUseNumberFlow() ? (
+                      (() => {
+                        // Default to 'compact_number' if no format is specified
+                        const originalFormatName = descriptor.valueOption?.format;
+                        const formatName = originalFormatName || "compact_number";
 
-          {renderComparison()}
-        </CardContent>
-        {/* Only render CardFooter if minimap is configured */}
-        {!error && shouldShowMinimap() && (
-          <CardFooter className="px-0 pb-2">
-            {/* Show skeleton for minimap while main skeleton is showing */}
-            {shouldShowSkeleton ? (
-              <div className="w-full mt-2">
-                <Skeleton className="h-[50px] w-full" />
-              </div>
-            ) : (
-              <StatMinimap
-                id={"stat"}
-                data={minimapData}
-                isLoading={isLoadingMinimap}
-                option={descriptor.minimapOption!}
-                onBrushChange={hasMinimapDrilldown ? handleMinimapDrilldown : undefined}
-              />
-            )}
-          </CardFooter>
-        )}
+                        // Map format names to NumberFlow format options (inline)
+                        // Note: NumberFlow supports Intl.NumberFormatOptions through the format prop
+                        // It does not support custom formatter functions, only standard Intl.NumberFormat options
+                        let numberFlowFormat: Record<string, unknown> | undefined;
+                        // Handle format names (including "compact_number" which is an alias for "short_number")
+                        // Cast to string to handle "compact_number" which is not in FormatName type but is used in practice
+                        const formatStr = formatName as string;
+                        if (formatStr === "compact_number" || formatStr === "short_number") {
+                          numberFlowFormat = { notation: "compact", compactDisplay: "short" };
+                        } else if (formatStr === "comma_number") {
+                          numberFlowFormat = { useGrouping: true };
+                        } else if (formatStr === "percentage") {
+                          // percentage format expects values already as percentages (e.g., 50 = 50%)
+                          // NumberFlow with style: "percent" multiplies by 100, so we need to divide by 100 first
+                          numberFlowFormat = { style: "percent", minimumFractionDigits: 0, maximumFractionDigits: 2 };
+                        } else if (formatStr === "percentage_0_1") {
+                          // This format expects values in [0,1] range (e.g., 0.5 = 50%)
+                          // NumberFlow with style: "percent" multiplies by 100, so we pass as-is
+                          numberFlowFormat = { style: "percent", minimumFractionDigits: 0, maximumFractionDigits: 2 };
+                        } else if (formatStr === "binary_size") {
+                          // binary_size format converts bytes to binary units (KB, MB, GB, etc.)
+                          numberFlowFormat = { notation: "binary_size" };
+                        } else {
+                          numberFlowFormat = undefined;
+                        }
+
+                        // Handle percentage formats: NumberFlow with style: "percent" multiplies by 100
+                        // - percentage: value is already a percentage (e.g., 50 = 50%), so divide by 100
+                        // - percentage_0_1: value is in [0,1] range (e.g., 0.5 = 50%), pass as-is
+                        let displayValue = data;
+                        if (originalFormatName === "percentage") {
+                          displayValue = data / 100;
+                        }
+
+                        return (
+                          <NumberFlow
+                            value={displayValue}
+                            format={numberFlowFormat as Parameters<typeof NumberFlow>[0]["format"]}
+                            locales="en-GB"
+                            className={cn(hasMainDrilldown ? "underline" : "")}
+                          />
+                        );
+                      })()
+                    ) : descriptor.valueOption?.format ? (
+                      Formatter.getInstance().getFormatter(descriptor.valueOption.format)(data)
+                    ) : (
+                      data
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardTitle>
+
+            {renderComparison()}
+          </CardContent>
+
+          {/* Only render CardFooter if minimap is configured */}
+          {!error && shouldShowMinimap() && (
+            <CardFooter className="px-0 pb-1">
+              {/* Show skeleton for minimap while main skeleton is showing */}
+              {shouldShowSkeleton ? (
+                <div className="w-full mt-2">
+                  <Skeleton className="h-[50px] w-full" />
+                </div>
+              ) : (
+                <StatMinimap
+                  id={"stat"}
+                  data={minimapData}
+                  isLoading={isLoadingMinimap}
+                  option={descriptor.minimapOption!}
+                  onBrushChange={hasMinimapDrilldown ? handleMinimapDrilldown : undefined}
+                />
+              )}
+            </CardFooter>
+          )}
+        </div>
       </DashboardPanelLayout>
     );
   }
