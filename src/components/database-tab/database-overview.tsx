@@ -1,6 +1,7 @@
 import type {
   Dashboard,
   DashboardGroup,
+  StatDescriptor,
   TableDescriptor,
   TransposeTableDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
@@ -63,19 +64,22 @@ where database = '${database}'
           } as TransposeTableDescriptor,
 
           //
-          // Host overview section
+          // Node overview section
           //
           {
-            title: "Host",
+            title: "Node",
             charts: [
               {
                 type: "stat",
                 titleOption: {
-                  title: "Size of Database",
+                  title: "Database Size",
                   align: "center",
                 },
                 collapsed: false,
-                width: 6,
+                gridPos: {
+                  w: 4,
+                  h: 4,
+                },
                 query: {
                   sql: `
 SELECT
@@ -99,7 +103,10 @@ WHERE
                   align: "center",
                 },
                 collapsed: false,
-                width: 6,
+                gridPos: {
+                  w: 4,
+                  h: 4,
+                },
                 query: {
                   sql: `
 SELECT
@@ -120,7 +127,10 @@ WHERE
                   align: "center",
                 },
                 collapsed: false,
-                width: 6,
+                gridPos: {
+                  w: 4,
+                  h: 4,
+                },
                 query: {
                   sql: `
 SELECT
@@ -144,7 +154,10 @@ WHERE
                   align: "center",
                 },
                 collapsed: false,
-                width: 6,
+                gridPos: {
+                  w: 4,
+                  h: 4,
+                },
                 query: {
                   sql: `
 SELECT
@@ -163,7 +176,179 @@ FROM (
                 },
               },
 
+              {
+                type: "stat",
+                titleOption: {
+                  title: "Ongoing Merges",
+                },
+                gridPos: {
+                  w: 4,
+                  h: 4,
+                },
+                description: "The number of ongoing merges",
+                query: {
+                  sql: `SELECT count() FROM system.merges WHERE database = '${database}'`,
+                },
+                drilldown: {
+                  main: {
+                    type: "table",
+                    titleOption: {
+                      title: "Ongoing Merges",
+                      description: "The ongoing merges",
+                    },
+                    width: 4,
+                    fieldOptions: {
+                      table: {
+                        title: "Table",
+                      },
+                      result_part_name: {
+                        title: "Result Part Name",
+                      },
+                      num_parts: {
+                        title: "Number of Parts",
+                        format: "comma_number",
+                      },
+                      elapsed: {
+                        title: "Elapsed",
+                        format: "timeDuration",
+                      },
+                      progress: {
+                        title: "Progress",
+                        format: "percentage_bar",
+                        formatArgs: [100, 16],
+                        width: 50,
+                      },
+                      is_mutation: {
+                        title: "Is Mutation",
+                      },
+                      total_size_bytes_compressed: {
+                        title: "Total Size",
+                        format: "binary_size",
+                      },
+                      bytes_read_uncompressed: {
+                        title: "Bytes Read",
+                        format: "binary_size",
+                      },
+                      rows_read: {
+                        title: "Rows Read",
+                        format: "comma_number",
+                      },
+                      bytes_written_uncompressed: {
+                        title: "Bytes Written",
+                        format: "binary_size",
+                      },
+                      rows_written: {
+                        title: "Rows Written",
+                        format: "comma_number",
+                      },
+                      columns_written: {
+                        title: "Columns Written",
+                        format: "comma_number",
+                      },
+                      memory_usage: {
+                        title: "Memory Usage",
+                        format: "binary_size",
+                      },
+                    },
+                    sortOption: {
+                      initialSort: {
+                        column: "elapsed",
+                        direction: "desc",
+                      },
+                    },
+                    query: {
+                      sql: `
+SELECT 
+    database || '.' || table AS table,
+    result_part_name,  
+    elapsed * 1000 AS elapsed, 
+    progress * 100 AS progress, 
+    is_mutation,  
+    length(source_part_names) as num_parts,
+    total_size_bytes_compressed,
+    bytes_read_uncompressed,
+    rows_read,
+    bytes_written_uncompressed,
+    rows_written,
+    columns_written,
+    memory_usage
+FROM system.merges 
+WHERE database = '${database}'
+ORDER BY elapsed DESC`,
+                    },
+                  } as TableDescriptor,
+                },
+              } as StatDescriptor,
+              {
+                type: "stat",
+                titleOption: {
+                  title: "Ongoing Mutations",
+                },
+                gridPos: {
+                  w: 4,
+                  h: 4,
+                },
+                description: "The number of ongoing mutations",
+                query: {
+                  sql: `SELECT count() FROM system.mutations WHERE is_done = 0 AND database = '${database}'`,
+                },
+                drilldown: {
+                  main: {
+                    type: "table",
+                    titleOption: {
+                      title: "Ongoing Mutations",
+                      description: "The number of ongoing mutations",
+                    },
+                    width: 4,
+                    fieldOptions: {
+                      database: {
+                        title: "Database",
+                      },
+                      table: {
+                        title: "Table",
+                      },
+                      create_time: {
+                        title: "Create Time",
+                        format: "dateTime",
+                      },
+                      mutation_id: {
+                        title: "Mutation ID",
+                      },
+                      command: {
+                        title: "Command",
+                      },
+                      parts_to_do: {
+                        title: "Parts to Do",
+                        format: "comma_number",
+                      },
+                      latest_fail_time: {
+                        title: "Latest Fail Time",
+                        format: "dateTime",
+                      },
+                      latest_fail_reason: {
+                        title: "Latest Fail Reason",
+                      },
+                    },
+                    sortOption: {
+                      initialSort: {
+                        column: "create_time",
+                        direction: "desc",
+                      },
+                    },
+                    query: {
+                      sql: `
+SELECT database, table, create_time, mutation_id, command, parts_to_do, latest_fail_time, latest_fail_reason 
+FROM system.mutations 
+WHERE is_done = 0 AND database = '${database}' 
+ORDER BY create_time DESC`,
+                    },
+                  } as TableDescriptor,
+                },
+              } as StatDescriptor,
+
+              //
               // Table size
+              //
               {
                 type: "table",
                 titleOption: {
@@ -320,12 +505,12 @@ WHERE
               },
 
               //
-              // database by host
+              // database by node
               //
               {
                 type: "table",
                 titleOption: {
-                  title: "Database Size by Host",
+                  title: "Database Size by Node",
                   align: "center",
                 },
                 collapsed: false,
