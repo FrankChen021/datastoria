@@ -1,6 +1,6 @@
 /**
  * Client-Side Tools for ClickHouse
- * 
+ *
  * These tools are executed on the client via the onToolCall callback.
  * They provide schema introspection and query execution capabilities.
  */
@@ -21,17 +21,22 @@ export type ValidateSqlToolOutput = {
 
 export const ClientTools = {
   get_table_columns: tool({
-    description: "Use this tool if you need to get the list of columns in one or more tables. You can query multiple tables at once by providing an array of tables. IMPORTANT: If the user provides a fully qualified table name (e.g., 'system.metric_log'), you MUST split it into database='system' and table='metric_log'. The 'table' field should ONLY contain the table name without the database prefix.",
+    description:
+      "Use this tool if you need to get the list of columns in one or more tables. You can query multiple tables at once by providing an array of tables. IMPORTANT: If the user provides a fully qualified table name (e.g., 'system.metric_log'), you MUST split it into database='system' and table='metric_log'. The 'table' field should ONLY contain the table name without the database prefix.",
     inputSchema: z.object({
       tablesAndSchemas: z
         .array(
           z.object({
-            table: z.string().describe("The table name ONLY (without database prefix). For 'system.metric_log', use 'metric_log'."),
+            table: z
+              .string()
+              .describe("The table name ONLY (without database prefix). For 'system.metric_log', use 'metric_log'."),
             database: z.string().describe("The database name. For 'system.metric_log', use 'system'."),
           })
         )
         .min(1)
-        .describe("An array of tables to query. Each entry must have separate 'database' and 'table' fields. If given a fully qualified name like 'database.table', split it into database='database' and table='table'."),
+        .describe(
+          "An array of tables to query. Each entry must have separate 'database' and 'table' fields. If given a fully qualified name like 'database.table', split it into database='database' and table='table'."
+        ),
     }),
     outputSchema: z.array(
       z.object({
@@ -66,7 +71,8 @@ export const ClientTools = {
     ),
   }),
   execute_sql: tool({
-    description: "Execute SQL query on ClickHouse database (client-side execution). Use this tool to select data from the database to improve your response.",
+    description:
+      "Execute SQL query on ClickHouse database (client-side execution). Use this tool to select data from the database to improve your response.",
     inputSchema: z.object({
       sql: z.string().describe("The SQL query to execute"),
     }),
@@ -122,7 +128,10 @@ type ToolExecutor<TInput, TOutput> = (input: TInput, connection: Connection) => 
  * Tool registry - maps tool names to their executor functions
  */
 export const ClientToolExecutors: {
-  [K in keyof typeof ClientTools]: ToolExecutor<InferToolInput<(typeof ClientTools)[K]>, InferToolOutput<(typeof ClientTools)[K]>>;
+  [K in keyof typeof ClientTools]: ToolExecutor<
+    InferToolInput<(typeof ClientTools)[K]>,
+    InferToolOutput<(typeof ClientTools)[K]>
+  >;
 } = {
   get_table_columns: async (input, connection) => {
     const { tablesAndSchemas } = input;
@@ -142,9 +151,7 @@ export const ClientToolExecutors: {
     const conditions: string[] = [];
     for (const [database, tables] of tablesByDatabase.entries()) {
       const tableList = tables.map((t) => `'${escapeSqlString(t)}'`).join(", ");
-      conditions.push(
-        `(database = '${escapeSqlString(database)}' AND table IN (${tableList}))`
-      );
+      conditions.push(`(database = '${escapeSqlString(database)}' AND table IN (${tableList}))`);
     }
 
     const sql = `
@@ -158,18 +165,22 @@ ORDER BY database, table`;
     try {
       const { response } = connection.query(sql, { default_format: "JSONCompact" });
       const apiResponse = await response;
+      const responseData = apiResponse.data.json<any>();
 
       // Validate response structure
       // JSONCompact format returns { data: [[...], [...]] }
-      if (!apiResponse.data || !Array.isArray(apiResponse.data.data)) {
-        console.error("Unexpected response format from get_table_columns:", apiResponse.data);
+      if (!responseData || !Array.isArray(responseData.data)) {
+        console.error("Unexpected response format from get_table_columns:", responseData);
         return [];
       }
 
-      const data = apiResponse.data.data;
+      const data = responseData.data;
 
       // Group columns by database and table
-      const columnsByTable = new Map<string, { database: string; table: string; columns: Array<{ name: string; type: string }> }>();
+      const columnsByTable = new Map<
+        string,
+        { database: string; table: string; columns: Array<{ name: string; type: string }> }
+      >();
 
       for (const row of data) {
         const rowArray = row as unknown[];
@@ -222,15 +233,16 @@ WHERE NOT startsWith(table, '.inner')`;
     try {
       const { response } = connection.query(sql, { default_format: "JSONCompact" });
       const apiResponse = await response;
+      const responseData = apiResponse.data.json<any>();
 
       // Validate response structure
       // JSONCompact format returns { data: [[...], [...]] }
-      if (!apiResponse.data || !Array.isArray(apiResponse.data.data)) {
-        console.error("Unexpected response format from get_tables:", apiResponse.data);
+      if (!responseData || !Array.isArray(responseData.data)) {
+        console.error("Unexpected response format from get_tables:", responseData);
         return [];
       }
 
-      const data = apiResponse.data.data;
+      const data = responseData.data;
       const tables = data.map((row: unknown) => {
         const rowArray = row as unknown[];
         return {
@@ -257,18 +269,17 @@ WHERE NOT startsWith(table, '.inner')`;
         default_format: "JSONCompact",
       });
       const apiResponse = await response;
+      const responseData = apiResponse.data.json<any>();
 
       // Transform ClickHouse JSONCompact response
       // JSONCompact response structure: { meta: [{name, type}, ...], data: [[...], ...], rows: number }
       const columns =
-        (apiResponse.data?.meta as { name: string; type: string }[])?.map(
-          (m: { name: string; type: string }) => ({
-            name: m.name,
-            type: m.type,
-          })
-        ) || [];
+        (responseData?.meta as { name: string; type: string }[])?.map((m: { name: string; type: string }) => ({
+          name: m.name,
+          type: m.type,
+        })) || [];
 
-      const rowsData = (apiResponse.data?.data as unknown[][]) || [];
+      const rowsData = (responseData?.data as unknown[][]) || [];
       const rows = rowsData.map((row: unknown[]) => {
         const obj: Record<string, unknown> = {};
         columns.forEach((col: { name: string }, idx: number) => {

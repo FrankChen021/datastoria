@@ -93,8 +93,6 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
     // Ref to store refresh function
     const refreshRef = useRef<((param: RefreshOptions) => void) | null>(null);
 
-
-
     // Keep sortRef in sync with sort state
     useEffect(() => {
       sortRef.current = sort;
@@ -171,7 +169,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
               return;
             }
 
-            const responseData = apiResponse.data;
+            const responseData = apiResponse.data.json<any>();
 
             // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
             const rows = responseData.data || [];
@@ -284,8 +282,6 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
       },
       [descriptor.sortOption]
     );
-
-
 
     // Handler for showing query dialog
     const handleShowQuery = useCallback(() => {

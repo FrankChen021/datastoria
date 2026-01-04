@@ -99,6 +99,9 @@ function adjustBrightness(hex: string, percent: number): string {
  * We have to clean up these invalid string
  */
 function cleanGraphviz(graph: string): string {
+  if (!graph) {
+    return "";
+  }
   const index = graph.indexOf("digraph");
   if (index > 0) {
     return graph.substring(index);
@@ -282,7 +285,7 @@ const ExplainPipeCompleteGraphView = memo(
 
       response
         .then((apiResponse: QueryResponse) => {
-          const cleaned = apiResponse.data === "" ? "" : cleanGraphviz(apiResponse.data);
+          const cleaned = cleanGraphviz(apiResponse.data.text());
           setRawGraphviz(cleaned);
           // Don't set result here - let the useEffect handle styling
           // This ensures styling is applied correctly even if bgColor changes
@@ -372,7 +375,7 @@ const ExplainPipeLineTextView = memo(
 
       response
         .then((apiResponse: QueryResponse) => {
-          setResult(apiResponse.data === "" ? null : apiResponse.data);
+          setResult(apiResponse.data.text() === "" ? null : apiResponse.data.text());
           setLoadError(null);
         })
         .catch((error: QueryError) => {

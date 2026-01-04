@@ -22,10 +22,15 @@ export class QueryError extends Error {
   }
 }
 
+export interface QueryResponseData {
+  text: () => string;
+  json: <T = any>() => T;
+}
+
 export interface QueryResponse {
   httpStatus: number;
   httpHeaders: any;
-  data: any;
+  data: QueryResponseData;
 }
 
 export interface TableInfo {
@@ -205,23 +210,10 @@ export class Connection {
           );
         }
 
-        // Check Content-Type header to determine if response is JSON
-        const contentType = response.headers.get("content-type") || "";
-        const isJson =
-          contentType.toLowerCase().includes("application/json") || contentType.toLowerCase().includes("text/json");
-
-        // Parse as JSON if Content-Type indicates JSON, otherwise use text
-        let data: unknown;
-        if (isJson) {
-          try {
-            data = JSON.parse(responseText);
-          } catch {
-            // If JSON parsing fails, fallback to text
-            data = responseText;
-          }
-        } else {
-          data = responseText;
-        }
+        const data: QueryResponseData = {
+          text: () => responseText,
+          json: <T = any>() => JSON.parse(responseText) as T,
+        };
 
         return {
           httpStatus: response.status,

@@ -56,7 +56,7 @@ const SystemTableDashboards = ({ database, table }: SystemTableDashboardsProps) 
         )
         .response.then((response: QueryResponse) => {
           try {
-            const responseData = response.data;
+            const responseData = response.data.json<any>();
             const rows = responseData.data || [];
             const meta = responseData.meta || [];
 
@@ -214,7 +214,6 @@ const SystemTableDashboards = ({ database, table }: SystemTableDashboardsProps) 
     }
     previousConnectionRef.current = connectionId;
 
-
     // First, check if metric_log and asynchronous_metric_log tables exist
     connection
       .query(
@@ -229,7 +228,7 @@ const SystemTableDashboards = ({ database, table }: SystemTableDashboardsProps) 
       )
       .response.then((response: QueryResponse) => {
         try {
-          const responseData = response.data;
+          const responseData = response.data.json<any>();
           const rows = responseData.data || [];
           const meta = responseData.meta || [];
 
@@ -369,4 +368,3 @@ const SystemTableDashboards = ({ database, table }: SystemTableDashboardsProps) 
 };
 
 export default memo(SystemTableDashboards);
-

@@ -50,9 +50,7 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
 
       // Determine default format based on view and vertical format flag
       let defaultFormat: string;
-      if (view === "dependency") {
-        defaultFormat = "JSON";
-      } else if (view === "estimate") {
+      if (view === "estimate") {
         defaultFormat = "PrettyCompactMonoBlock";
       } else if (isExplainQuery) {
         defaultFormat = "TabSeparatedRaw";
@@ -74,9 +72,7 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
       if (!queryParams.default_format) {
         queryParams.default_format = defaultFormat;
       }
-      if (view === "dependency" && queryParams.output_format_json_quote_64bit_integers === undefined) {
-        queryParams.output_format_json_quote_64bit_integers = 0;
-      }
+
       // Add row numbers for pretty formats (unless explicitly disabled)
       if (!isExplainQuery && !useVerticalFormat && queryParams.output_format_pretty_row_numbers === undefined) {
         queryParams.output_format_pretty_row_numbers = true;
@@ -155,12 +151,7 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
           }
 
           // For dependency view, keep the JSON structure; for others, convert to string
-          let responseData: unknown;
-          if (view === "dependency") {
-            responseData = apiResponse.data; // Keep JSON structure for dependency view
-          } else {
-            responseData = typeof apiResponse.data === "string" ? apiResponse.data : String(apiResponse.data);
-          }
+          const responseData = apiResponse.data.text();
 
           const queryResponse: QueryResponseViewModel = {
             queryId: queryId,

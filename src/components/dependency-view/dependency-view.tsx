@@ -93,7 +93,7 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
           );
 
           const apiResponse = await response;
-          const responseData = apiResponse.data as { data?: TableResponse[] } | undefined;
+          const responseData = apiResponse.data.json<{ data?: TableResponse[] } | undefined>();
           const tables = responseData?.data;
 
           // Build the cache map

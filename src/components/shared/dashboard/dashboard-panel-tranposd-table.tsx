@@ -131,7 +131,7 @@ const DashboardPanelTransposedTable = forwardRef<DashboardPanelComponent, Dashbo
           response
             .then((apiResponse: QueryResponse) => {
               try {
-                const responseData = apiResponse.data;
+                const responseData = apiResponse.data.json<any>();
 
                 // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
                 const rows = responseData.data || [];

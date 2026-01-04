@@ -549,7 +549,7 @@ WHERE query_create_time >= {from:String} AND query_create_time <= {to:String}
 ORDER BY entry, host`;
             sql = replaceTimeSpanParams(sql, timeSpan, connection.metadata.timezone || "UTC");
             const response = await connection.query(sql, { default_format: "JSON" }).response;
-            const fetchedRawRows = response.data.data as DDLRecord[];
+            const fetchedRawRows = response.data.json<any>().data as DDLRecord[];
 
             // Find common suffix from first 5 records
             const first5Hosts = fetchedRawRows.slice(0, 5).map(r => r.host);

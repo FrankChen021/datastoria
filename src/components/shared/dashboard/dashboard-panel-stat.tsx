@@ -498,7 +498,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
       }
 
       try {
-        const responseData = response.data;
+        const responseData = response.data.json<any>();
 
         // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
         const rows = responseData.data || [];
@@ -655,7 +655,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
                   //setOffsetData(dataResult);
                   setOffsetError("");
                 } else {
-                  const responsJson = apiResponse.data;
+                  const responsJson = apiResponse.data.json<any>();
                   if (responsJson && responsJson.data.length > 0) {
                     setData(responsJson.data[0][0]);
                     setHasInitialData(true);

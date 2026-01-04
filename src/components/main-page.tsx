@@ -147,8 +147,9 @@ async function getConnectionMetadata(connection: Connection): Promise<Partial<Co
   const metadataResponse = await metadataQuery.response;
   if (metadataResponse.httpStatus === 200) {
     const returnNode = metadataResponse.httpHeaders["x-clickhouse-server-display-name"];
-    const internalUser = metadataResponse.data.data[0][0];
-    const timezone = metadataResponse.data.data[0][1];
+    const data = metadataResponse.data.json<any>();
+    const internalUser = data.data[0][0];
+    const timezone = data.data[0][1];
 
     const isCluster =
       connection.cluster && connection.cluster.length > 0 && connection.metadata.targetNode === undefined;
@@ -156,17 +157,20 @@ async function getConnectionMetadata(connection: Connection): Promise<Partial<Co
       targetNode: isCluster ? returnNode : undefined,
       internalUser: internalUser,
       timezone: timezone,
-      function_table_has_description_column: metadataResponse.data.data[0][2] ? true : false,
-      metric_log_table_has_ProfileEvent_MergeSourceParts: metadataResponse.data.data[0][3] ? true : false,
-      metric_log_table_has_ProfileEvent_MutationTotalParts: metadataResponse.data.data[0][4] ? true : false,
+      function_table_has_description_column: data.data[0][2] ? true : false,
+      metric_log_table_has_ProfileEvent_MergeSourceParts: data.data[0][3] ? true : false,
+      metric_log_table_has_ProfileEvent_MutationTotalParts: data.data[0][4] ? true : false,
     };
   }
 
   {
     const response = await functionQuery.response;
-    if (response.httpStatus === 200 && response.data.data.length > 0) {
-      const has_format_query_function = response.data.data[0][0];
-      metadata.has_format_query_function = has_format_query_function ? true : false;
+    if (response.httpStatus === 200) {
+      const data = response.data.json<any>();
+      if (data.data.length > 0) {
+        const has_format_query_function = data.data[0][0];
+        metadata.has_format_query_function = has_format_query_function ? true : false;
+      }
     }
   }
 
@@ -202,15 +206,16 @@ export function MainPage() {
       try {
         hostNameManager.clear();
 
-        // Pre-load hostnames for shortening if cluster is configured
+          // Pre-load hostnames for shortening if cluster is configured
         if (connection.cluster) {
           try {
             const response = await connection.query(
               `SELECT host_name FROM system.clusters WHERE cluster = '${connection.cluster}'`,
               { default_format: "JSONCompact" }
             ).response;
-            if (response.data && Array.isArray(response.data.data)) {
-              const hostNames = response.data.data.map((row: any) => row[0]);
+            const data = response.data.json<any>();
+            if (data && Array.isArray(data.data)) {
+              const hostNames = data.data.map((row: any) => row[0]);
               hostNameManager.shortenHostnames(hostNames);
             }
           } catch (e) {
