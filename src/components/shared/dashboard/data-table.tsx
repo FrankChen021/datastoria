@@ -3,11 +3,39 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/compon
 import { Formatter, type FormatName } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight, Loader2 } from "lucide-react";
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
 import type { ActionColumn, FieldOption } from "./dashboard-model";
 import { inferFormatFromMetaType } from "./format-inference";
+
+export type DataTablePagination = {
+  mode: "client" | "server";
+  pageSize: number;
+  /**
+   * Whether there are more pages available (server pagination). Managed by the parent.
+   * If omitted, defaults to true.
+   */
+  hasMorePages?: boolean;
+};
+
+/**
+ * Methods exposed by DataTable via ref
+ */
+export interface DataTableRef {
+  /**
+   * Reset scroll position to top
+   */
+  resetScroll: () => void;
+  /**
+   * Get all columns with their visibility state
+   */
+  getAllColumns: () => Array<{ name: string; title: string; isVisible: boolean }>;
+  /**
+   * Toggle column visibility by name
+   */
+  toggleColumnVisibility: (columnName: string) => void;
+}
 
 export interface DataTableProps {
   // Data to display
@@ -22,8 +50,8 @@ export interface DataTableProps {
   isLoading?: boolean;
   // Error message
   error?: string;
-  // Show index column
-  showIndexColumn?: boolean;
+  // Enable index column
+  enableIndexColumn?: boolean;
   // Current sort state (controlled)
   sort?: { column: string | null; direction: "asc" | "desc" | null };
   // Default sort state (uncontrolled)
@@ -44,29 +72,60 @@ export interface DataTableProps {
   idField?: string;
   // Class name for the header row
   headerClassName?: string;
+  /**
+   * Optional pagination config. Currently only server mode is supported.
+   */
+  pagination?: DataTablePagination;
+  /**
+   * Called when the table is scrolled (for implementing infinite scroll, etc.)
+   * Provides scroll metrics to the parent component
+   */
+  onTableScroll?: (scrollMetrics: {
+    scrollTop: number;
+    scrollHeight: number;
+    clientHeight: number;
+    isNearBottom: boolean;
+  }) => void;
+  /**
+   * Enable expandable rows with transposed detail view (default: false)
+   * When enabled, shows an expand/collapse button that reveals row data in a transposed format
+   */
+  enableShowRowDetail?: boolean;
+  /**
+   * Enable compact mode for table cells (default: false)
+   * When enabled, applies p-1 padding to cells instead of p-2
+   */
+  enableCompactMode?: boolean;
 }
 
-export function DataTable({
-  data,
-  meta,
-  fieldOptions,
-  actions,
-  isLoading = false,
-  error,
-  showIndexColumn = false,
-  sort: controlledSort,
-  defaultSort,
-  onSortChange,
-  className,
-  onRowClick,
-  enableClientSorting = true,
-  stickyHeader = false,
-  selectedRowId,
-  idField = "id",
-  headerClassName,
-}: DataTableProps) {
+export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataTable(
+  {
+    data,
+    meta,
+    fieldOptions,
+    actions,
+    isLoading = false,
+    error,
+    enableIndexColumn = false,
+    sort: controlledSort,
+    defaultSort,
+    onSortChange,
+    className,
+    onRowClick,
+    enableClientSorting = true,
+    stickyHeader = false,
+    selectedRowId,
+    idField = "id",
+    headerClassName,
+    pagination,
+    onTableScroll,
+    enableShowRowDetail = false,
+    enableCompactMode = false,
+  }: DataTableProps,
+  ref
+) {
   // Virtualization constants
-  const VIRTUALIZATION_THRESHOLD = 500;
+  const VIRTUALIZATION_THRESHOLD = 300;
   const ESTIMATED_ROW_HEIGHT = 33; // Height of a table row in pixels
   const OVERSCAN_COUNT = 50; // Render extra rows above/below viewport for smoother scrolling
 
@@ -86,6 +145,27 @@ export function DataTable({
 
   // Ref for virtualization scroll container
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const paginationPageSize = pagination?.pageSize;
+
+  // Row expansion state
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+
+  // Column visibility state - all columns visible by default
+  const [columnVisibility, setColumnVisibility] = useState<Map<string, boolean>>(new Map());
+
+  // Toggle row expansion
+  const toggleRowExpansion = useCallback((rowIndex: number) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowIndex)) {
+        next.delete(rowIndex);
+      } else {
+        next.add(rowIndex);
+      }
+      return next;
+    });
+  }, []);
 
   // Calculate columns based on props
   const columns = useMemo(() => {
@@ -249,8 +329,47 @@ export function DataTable({
     const visibleColumns = finalColumns.filter((col) => col.position === undefined || col.position >= 0);
 
     return visibleColumns;
-    return visibleColumns;
   }, [meta, fieldOptions, actions]);
+
+  // Filter columns based on visibility state
+  const visibleColumns = useMemo(() => {
+    return columns.filter((col) => {
+      // Always show action columns
+      if (col.name?.startsWith("__action_")) return true;
+      // Show column if not explicitly hidden
+      return columnVisibility.get(col.name!) !== false;
+    });
+  }, [columns, columnVisibility]);
+
+  // Expose methods via ref
+  useImperativeHandle(
+    ref,
+    () => ({
+      resetScroll: () => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = 0;
+        }
+      },
+      getAllColumns: () => {
+        return columns
+          .filter((col) => col.name && !col.name.startsWith("__action_"))
+          .map((col) => ({
+            name: col.name!,
+            title: col.title || col.name!,
+            isVisible: columnVisibility.get(col.name!) !== false,
+          }));
+      },
+      toggleColumnVisibility: (columnName: string) => {
+        setColumnVisibility((prev) => {
+          const next = new Map(prev);
+          const currentValue = next.get(columnName);
+          next.set(columnName, currentValue === false ? true : false);
+          return next;
+        });
+      },
+    }),
+    [columns, columnVisibility]
+  );
 
   // Process data (sorting)
   const processedData = useMemo(() => {
@@ -259,23 +378,75 @@ export function DataTable({
     }
 
     return [...data].sort((a, b) => {
-      let aValue: any = a[sort.column!];
-      let bValue: any = b[sort.column!];
+      const column = sort.column!;
+      let aValue: unknown = a[column];
+      let bValue: unknown = b[column];
 
       // Handle null/undefined
       if (aValue == null) aValue = "";
       if (bValue == null) bValue = "";
 
+      const toComparable = (v: unknown): number | string => {
+        if (typeof v === "number") {
+          return v;
+        }
+        if (typeof v === "bigint") {
+          // Prefer numeric ordering even for big ints; convert to Number when safe, otherwise sort as stringified bigint.
+          const asNumber = Number(v);
+          return Number.isSafeInteger(asNumber) ? asNumber : v.toString();
+        }
+        if (typeof v === "string") {
+          // Pure numeric strings (common for JSON-encoded UInt64/Int64)
+          const numeric = v.match(/^-?\d+(?:\.\d+)?$/);
+          if (numeric) {
+            const n = Number(v);
+            if (Number.isFinite(n)) {
+              return n;
+            }
+          }
+
+          return v;
+        }
+        if (typeof v === "boolean") {
+          return v ? 1 : 0;
+        }
+        // Fall back to string compare for objects/arrays/etc.
+        return String(v);
+      };
+
+      const aComp = toComparable(aValue);
+      const bComp = toComparable(bValue);
+
       let comparison = 0;
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        comparison = aValue - bValue;
+      if (typeof aComp === "number" && typeof bComp === "number") {
+        comparison = aComp - bComp;
       } else {
-        comparison = String(aValue).localeCompare(String(bValue));
+        comparison = String(aComp).localeCompare(String(bComp));
       }
 
       return sort.direction === "asc" ? comparison : -comparison;
     });
   }, [data, sort, enableClientSorting]);
+
+  // Handle scroll events and notify parent
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      if (!onTableScroll) {
+        return;
+      }
+
+      const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+
+      onTableScroll({
+        scrollTop,
+        scrollHeight,
+        clientHeight,
+        isNearBottom,
+      });
+    },
+    [onTableScroll]
+  );
 
   // Skeleton timing logic
   useEffect(() => {
@@ -329,15 +500,15 @@ export function DataTable({
       // Skip action columns
       if (fieldName.startsWith("__action_")) return;
 
-      const fieldOption = columns.find((col) => col.name === fieldName);
+      const fieldOption = visibleColumns.find((col) => col.name === fieldName);
       if (!fieldOption || fieldOption.sortable === false) return;
 
-      let newDirection: "asc" | "desc" | null = "asc";
+      let newDirection: "asc" | "desc" | null = "desc";
 
       if (sort?.column === fieldName) {
-        if (sort.direction === "asc") {
-          newDirection = "desc";
-        } else if (sort.direction === "desc") {
+        if (sort.direction === "desc") {
+          newDirection = "asc";
+        } else if (sort.direction === "asc") {
           newDirection = null;
         }
       }
@@ -350,13 +521,13 @@ export function DataTable({
       // Notify parent
       onSortChange?.(fieldName, newDirection);
     },
-    [columns, sort, onSortChange, controlledSort]
+    [visibleColumns, sort, onSortChange, controlledSort]
   );
 
   // Get sort icon
   const getSortIcon = useCallback(
     (fieldName: string) => {
-      const fieldOption = columns.find((col) => col.name === fieldName);
+      const fieldOption = visibleColumns.find((col) => col.name === fieldName);
       if (!fieldOption || fieldOption.sortable === false) return null;
 
       if (sort?.column !== fieldName) {
@@ -370,7 +541,7 @@ export function DataTable({
       }
       return <ArrowUpDown className="inline-block w-4 h-4 ml-1 opacity-50" />;
     },
-    [columns, sort]
+    [visibleColumns, sort]
   );
 
   // Format cell value
@@ -389,7 +560,12 @@ export function DataTable({
           formatted = fieldOption.format(value, fieldOption.formatArgs, context);
         } else {
           const formatter = Formatter.getInstance().getFormatter(fieldOption.format);
-          formatted = formatter(value, fieldOption.formatArgs);
+          if (!formatter) {
+            console.error(`Formatter ${fieldOption.format} not found`);
+            return <span className="text-muted-foreground">{String(value)}</span>;
+          } else {
+            formatted = formatter(value, fieldOption.formatArgs);
+          }
         }
 
         if (formatted === "" || (typeof formatted === "string" && formatted.trim() === "")) {
@@ -443,7 +619,7 @@ export function DataTable({
   // Render helpers
   const renderError = () => {
     if (!error) return null;
-    const colSpan = columns.length + (showIndexColumn ? 1 : 0);
+    const colSpan = visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0);
     return (
       <TableRow>
         <TableCell colSpan={colSpan} className="text-center text-destructive p-8">
@@ -462,12 +638,17 @@ export function DataTable({
       <>
         {Array.from({ length: 10 }).map((_, index) => (
           <TableRow key={index} className="transition-opacity duration-150" style={{ opacity: skeletonOpacity }}>
-            {showIndexColumn && (
+            {enableShowRowDetail && (
               <TableCell className="text-center whitespace-nowrap !p-2">
                 <Skeleton className="h-5 w-full" />
               </TableCell>
             )}
-            {columns.map((fieldOption) => (
+            {enableIndexColumn && (
+              <TableCell className="text-center whitespace-nowrap !p-2">
+                <Skeleton className="h-5 w-full" />
+              </TableCell>
+            )}
+            {visibleColumns.map((fieldOption) => (
               <TableCell
                 key={fieldOption.name}
                 className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap !p-2")}
@@ -483,13 +664,146 @@ export function DataTable({
 
   const renderNoData = () => {
     if (error || shouldShowSkeleton || processedData.length > 0) return null;
-    const colSpan = columns.length + (showIndexColumn ? 1 : 0);
+    const colSpan = visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0);
     return (
       <TableRow>
         <TableCell colSpan={colSpan} className="text-center text-muted-foreground p-8">
           <div className="flex items-center justify-center h-[72px]">No data found</div>
         </TableCell>
       </TableRow>
+    );
+  };
+
+  const renderPaginationLoadingRow = () => {
+    if (!pagination || pagination.mode !== "server") {
+      return null;
+    }
+    // Show loading row when loading more data (not initial load)
+    if (!isLoading || processedData.length === 0) {
+      return null;
+    }
+    if (shouldShowSkeleton || error) {
+      return null;
+    }
+    const colSpan = visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0);
+    return (
+      <TableRow>
+        <TableCell colSpan={colSpan} className="p-0 text-muted-foreground">
+          {/* Sticky centers relative to the scroll viewport, not the full table width */}
+          <div className="sticky left-1/2 w-max -translate-x-1/2 px-3 py-3 text-center">
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-xs">Loading next {paginationPageSize} rows…</span>
+            </span>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  };
+
+  const renderExpandedDetail = (row: Record<string, unknown>) => {
+    const colSpan = visibleColumns.length;
+
+    return (
+      <TableRow className="bg-muted/30">
+        <TableCell className="!p-0"></TableCell>
+        {enableIndexColumn && <TableCell className="!p-0"></TableCell>}
+        <TableCell colSpan={colSpan} className="!p-0">
+          <div className="bg-background border-l">
+            <table className="w-full text-xs">
+              <tbody>
+                {visibleColumns.map((fieldOption, index) => {
+                  if (!fieldOption.name || fieldOption.renderAction) return null;
+                  return (
+                    <tr
+                      key={fieldOption.name}
+                      className={cn("border-b last:border-b-0", index % 2 === 0 ? "bg-muted/20" : "bg-background")}
+                    >
+                      <td className="font-medium px-2 py-1 w-[180px] align-top text-muted-foreground">
+                        {fieldOption.title || fieldOption.name}
+                      </td>
+                      <td className="px-2 py-1">{formatCellValue(row[fieldOption.name], fieldOption, row)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  };
+
+  const renderRow = (
+    row: Record<string, unknown>, 
+    rowIndex: number, 
+    key: React.Key,
+    additionalProps?: React.HTMLAttributes<HTMLTableRowElement> & { "data-index"?: number }
+  ) => {
+    const isExpanded = expandedRows.has(rowIndex);
+    const cellPaddingClass = enableCompactMode ? "!py-0.5" : "!p-2";
+
+    return (
+      <React.Fragment key={key}>
+        <TableRow
+          className={cn(
+            onRowClick && !enableShowRowDetail && "cursor-pointer",
+            selectedRowId !== undefined && selectedRowId !== null && row[idField] === selectedRowId
+              ? "bg-accent text-accent-foreground"
+              : "hover:bg-muted/50"
+          )}
+          onClick={() => !enableShowRowDetail && onRowClick?.(row)}
+          {...additionalProps}
+        >
+          {enableShowRowDetail && (
+            <TableCell className={cn("text-center whitespace-nowrap py-0 pl-2 pr-0", cellPaddingClass)}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleRowExpansion(rowIndex);
+                }}
+                className="inline-flex items-center justify-center rounded px-0 p-1 transition-colors"
+                aria-label={isExpanded ? "Collapse row" : "Expand row"}
+              >
+                <ChevronRight 
+                  className={cn(
+                    "h-4 w-4 transition-transform duration-200",
+                    isExpanded && "rotate-90"
+                  )} 
+                />
+              </button>
+            </TableCell>
+          )}
+          {enableIndexColumn && (
+            <TableCell className={cn("text-center whitespace-nowrap", cellPaddingClass)}>{rowIndex + 1}</TableCell>
+          )}
+          {visibleColumns.map((fieldOption) => {
+            if (!fieldOption.name) return null;
+
+            if (fieldOption.renderAction) {
+              return (
+                <TableCell
+                  key={fieldOption.name}
+                  className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap", cellPaddingClass)}
+                >
+                  {fieldOption.renderAction(row, rowIndex)}
+                </TableCell>
+              );
+            }
+
+            return (
+              <TableCell
+                key={fieldOption.name}
+                className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap", cellPaddingClass)}
+              >
+                {formatCellValue(row[fieldOption.name], fieldOption, row)}
+              </TableCell>
+            );
+          })}
+        </TableRow>
+        {isExpanded && renderExpandedDetail(row)}
+      </React.Fragment>
     );
   };
 
@@ -506,7 +820,10 @@ export function DataTable({
         <>
           {paddingTop > 0 && (
             <TableRow style={{ height: `${paddingTop}px` }}>
-              <TableCell colSpan={columns.length + (showIndexColumn ? 1 : 0)} className="!p-0 !border-0" />
+              <TableCell
+                colSpan={visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0)}
+                className="!p-0 !border-0"
+              />
             </TableRow>
           )}
           {virtualItems.map((virtualRow) => {
@@ -514,158 +831,101 @@ export function DataTable({
             const row = processedData[rowIndex];
             if (!row) return null;
 
-            return (
-              <TableRow
-                key={virtualRow.key}
-                data-index={virtualRow.index}
-                className={cn(
-                  onRowClick && "cursor-pointer",
-                  selectedRowId !== undefined && selectedRowId !== null && row[idField] === selectedRowId
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-muted/50"
-                )}
-                onClick={() => onRowClick?.(row)}
-                style={{
-                  contain: "layout style paint",
-                  contentVisibility: "auto",
-                }}
-              >
-                {showIndexColumn && (
-                  <TableCell className="text-center whitespace-nowrap !p-2">{rowIndex + 1}</TableCell>
-                )}
-                {columns.map((fieldOption) => {
-                  if (!fieldOption.name) return null;
-
-                  if (fieldOption.renderAction) {
-                    return (
-                      <TableCell
-                        key={fieldOption.name}
-                        className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap !p-2")}
-                      >
-                        {fieldOption.renderAction(row, rowIndex)}
-                      </TableCell>
-                    );
-                  }
-
-                  return (
-                    <TableCell
-                      key={fieldOption.name}
-                      className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap !p-2")}
-                    >
-                      {formatCellValue(row[fieldOption.name], fieldOption, row)}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            );
+            return renderRow(row, rowIndex, virtualRow.key, {
+              "data-index": virtualRow.index,
+              style: {
+                contain: "layout style paint",
+                contentVisibility: "auto",
+              },
+            });
           })}
           {paddingBottom > 0 && (
             <TableRow style={{ height: `${paddingBottom}px` }}>
-              <TableCell colSpan={columns.length + (showIndexColumn ? 1 : 0)} className="!p-0 !border-0" />
+              <TableCell
+                colSpan={visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0)}
+                className="!p-0 !border-0"
+              />
             </TableRow>
           )}
         </>
       );
     }
 
-    return processedData.map((row, rowIndex) => (
-      <TableRow
-        key={rowIndex}
-        className={cn(
-          onRowClick && "cursor-pointer",
-          selectedRowId !== undefined && selectedRowId !== null && row[idField] === selectedRowId
-            ? "bg-accent text-accent-foreground"
-            : "hover:bg-muted/50"
-        )}
-        onClick={() => onRowClick?.(row)}
-      >
-        {showIndexColumn && <TableCell className="text-center whitespace-nowrap !p-2">{rowIndex + 1}</TableCell>}
-        {columns.map((fieldOption) => {
-          if (!fieldOption.name) return null;
-
-          if (fieldOption.renderAction) {
-            return (
-              <TableCell
-                key={fieldOption.name}
-                className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap !p-2")}
-              >
-                {fieldOption.renderAction(row, rowIndex)}
-              </TableCell>
-            );
-          }
-
-          return (
-            <TableCell
-              key={fieldOption.name}
-              className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap !p-2")}
-            >
-              {formatCellValue(row[fieldOption.name], fieldOption, row)}
-            </TableCell>
-          );
-        })}
-      </TableRow>
-    ));
+    return processedData.map((row, rowIndex) => renderRow(row, rowIndex, rowIndex));
   };
 
   if (error && !isLoading && (!processedData || processedData.length === 0)) {
     return (
-      <div
-        ref={scrollContainerRef}
-        className={cn("w-full overflow-auto flex items-center justify-center p-4", className)}
-      >
-        <div className="flex flex-col items-center justify-center text-destructive gap-2 text-center">
-          <p className="font-semibold">Error loading table data:</p>
-          <p className="text-sm">{error}</p>
+      <div className={cn("relative w-full h-full", className)}>
+        <div ref={scrollContainerRef} className="w-full h-full overflow-auto flex items-center justify-center p-4">
+          <div className="flex flex-col items-center justify-center text-destructive gap-2 text-center">
+            <p className="font-semibold">Error loading table data:</p>
+            <p className="text-sm">{error}</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div ref={scrollContainerRef} className={cn("w-full overflow-auto", className)}>
-      <table className="w-full caption-bottom text-sm">
-        <TableHeader>
-          <TableRow className={cn("hover:bg-muted/50 select-none h-10", headerClassName)}>
-            {showIndexColumn && (
-              <TableHead
-                className={cn(
-                  "w-[50px] text-center p-2",
-                  stickyHeader &&
-                    "sticky top-0 z-10 bg-background shadow-[0_1px_0_0_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.1)]"
-                )}
-              >
-                #
-              </TableHead>
-            )}
-            {columns.map((fieldOption) => (
-              <TableHead
-                key={fieldOption.name}
-                className={cn(
-                  "whitespace-nowrap p-2",
-                  getCellAlignmentClass(fieldOption),
-                  fieldOption.sortable !== false && "cursor-pointer hover:bg-muted/50",
-                  stickyHeader &&
-                    "sticky top-0 z-10 bg-background shadow-[0_1px_0_0_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.1)]"
-                )}
-                style={{
-                  width: fieldOption.width,
-                  minWidth: fieldOption.minWidth,
-                }}
-                onClick={() => fieldOption.name && handleSort(fieldOption.name)}
-              >
-                {fieldOption.title || fieldOption.name}
-                {fieldOption.name && getSortIcon(fieldOption.name)}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {renderError()}
-          {renderLoading()}
-          {renderNoData()}
-          {renderData()}
-        </TableBody>
-      </table>
+    <div className={cn("relative w-full h-full", className)}>
+      <div ref={scrollContainerRef} className="w-full h-full overflow-auto" onScroll={handleScroll}>
+        <table className="w-full caption-bottom text-sm">
+          <TableHeader>
+            <TableRow className={cn("hover:bg-muted/50 select-none h-10", headerClassName)}>
+              {enableShowRowDetail && (
+                <TableHead
+                  className={cn(
+                    "w-[40px] text-center p-2",
+                    stickyHeader &&
+                      "sticky top-0 z-10 bg-background shadow-[0_1px_0_0_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.1)]"
+                  )}
+                >
+                  {/* Empty header for expand/collapse column */}
+                </TableHead>
+              )}
+              {enableIndexColumn && (
+                <TableHead
+                  className={cn(
+                    "w-[50px] text-center p-2",
+                    stickyHeader &&
+                      "sticky top-0 z-10 bg-background shadow-[0_1px_0_0_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.1)]"
+                  )}
+                >
+                  #
+                </TableHead>
+              )}
+              {visibleColumns.map((fieldOption) => (
+                <TableHead
+                  key={fieldOption.name}
+                  className={cn(
+                    "whitespace-nowrap p-2",
+                    getCellAlignmentClass(fieldOption),
+                    fieldOption.sortable !== false && "cursor-pointer hover:bg-muted/50",
+                    stickyHeader &&
+                      "sticky top-0 z-10 bg-background shadow-[0_1px_0_0_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.1)]"
+                  )}
+                  style={{
+                    width: fieldOption.width,
+                    minWidth: fieldOption.minWidth,
+                  }}
+                  onClick={() => fieldOption.name && handleSort(fieldOption.name)}
+                >
+                  {fieldOption.title || fieldOption.name}
+                  {fieldOption.name && getSortIcon(fieldOption.name)}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {renderError()}
+            {renderLoading()}
+            {renderNoData()}
+            {renderData()}
+            {renderPaginationLoadingRow()}
+          </TableBody>
+        </table>
+      </div>
     </div>
   );
-}
+});

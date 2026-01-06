@@ -1,4 +1,4 @@
-import { Connection } from "@/lib/connection/connection";
+import { Connection, type JSONCompactFormatResponse } from "@/lib/connection/connection";
 import { StringUtils } from "@/lib/string-utils";
 import type { Ace } from "ace-builds";
 import { QuerySnippetManager } from "../snippet/QuerySnippetManager";
@@ -161,7 +161,7 @@ SELECT * FROM (
         }
       )
       .response.then((response) => {
-        const returnList = response.data.data;
+        const returnList = response.data.json<JSONCompactFormatResponse>().data;
         returnList.forEach((eachRowObject: any) => {
           const suggestion = [eachRowObject[0], "function", -50, eachRowObject[1]];
           processCompletionItem(suggestion);
@@ -180,8 +180,8 @@ SELECT * FROM (
         }
       )
       .response.then((response) => {
-        const returnList = response.data.data;
-        returnList.forEach((eachRowObject: any) => {
+        const returnList = response.data.json<JSONCompactFormatResponse>().data;
+        returnList.forEach((eachRowObject: unknown[]) => {
           processCompletionItem(eachRowObject);
         });
       })
@@ -198,8 +198,8 @@ SELECT * FROM (
         }
       )
       .response.then((response) => {
-        const returnList = response.data.data;
-        returnList.forEach((eachRowObject: any) => {
+        const returnList = response.data.json<JSONCompactFormatResponse>().data;
+        returnList.forEach((eachRowObject: unknown[]) => {
           processCompletionItem(eachRowObject);
         });
       })
@@ -216,8 +216,8 @@ SELECT * FROM (
         }
       )
       .response.then((response) => {
-        const returnList = response.data.data;
-        returnList.forEach((eachRowObject: any) => {
+        const returnList = response.data.json<JSONCompactFormatResponse>().data;
+        returnList.forEach((eachRowObject: unknown[]) => {
           processCompletionItem(eachRowObject);
         });
       })
@@ -233,8 +233,8 @@ SELECT * FROM (
         }
       )
       .response.then((response) => {
-        const returnList = response.data.data;
-        returnList.forEach((eachRowObject: any) => {
+        const returnList = response.data.json<JSONCompactFormatResponse>().data;
+        returnList.forEach((eachRowObject: unknown[]) => {
           processCompletionItem(eachRowObject);
         });
       })
@@ -248,7 +248,7 @@ SELECT * FROM (
         default_format: "JSONCompact",
       })
       .response.then((response) => {
-        const returnList = response.data.data;
+        const returnList = response.data.json<JSONCompactFormatResponse>().data;
         returnList.forEach((eachRowObject: any) => {
           processCompletionItem(eachRowObject);
         });
@@ -263,7 +263,7 @@ SELECT * FROM (
         default_format: "JSONCompact",
       })
       .response.then((response) => {
-        const returnList = response.data.data;
+        const returnList = response.data.json<JSONCompactFormatResponse>().data;
         returnList.forEach((eachRowObject: any) => {
           processCompletionItem(eachRowObject);
         });
@@ -280,7 +280,7 @@ SELECT * FROM (
         default_format: "JSONCompact",
       })
       .response.then((response) => {
-        const returnList = response.data.data as any[];
+        const returnList = response.data.json<JSONCompactFormatResponse>().data;
         const keywordCompletions: CompletionItem[] = returnList.map((eachRowObject) => {
           return {
             caption: eachRowObject[0],
@@ -367,7 +367,7 @@ SELECT * FROM (
       .response.then((response) => {
         this.columnCompletion.clear();
 
-        const returnList = response.data.data as any[];
+        const returnList = response.data.json<JSONCompactFormatResponse>().data;
         returnList.forEach((eachRowObject) => {
           const table = eachRowObject[0];
           const column = eachRowObject[1];
@@ -416,7 +416,7 @@ SELECT * FROM (
           default_format: "JSONCompact",
         })
         .response.then((response) => {
-          const returnList = response.data.data as any[];
+          const returnList = response.data.json<JSONCompactFormatResponse>().data;
           this.clusterCompletion = returnList.map((eachRowObject) => {
             const cluster = eachRowObject[0];
             return {

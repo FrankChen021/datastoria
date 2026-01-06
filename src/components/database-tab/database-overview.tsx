@@ -363,7 +363,7 @@ ORDER BY create_time DESC`,
                 headOption: {
                   isSticky: true,
                 },
-                showIndexColumn: true,
+                miscOption: { enableIndexColumn: true },
                 query: {
                   sql: `
 SELECT
@@ -513,15 +513,15 @@ WHERE
                   title: "Database Size by Node",
                   align: "center",
                 },
-                collapsed: false,
-                gridPos: {
-                  w: 24,
-                  h: 12,
-                },
-                showIndexColumn: true,
-                headOption: {
-                  isSticky: true,
-                },
+              collapsed: false,
+              gridPos: {
+                w: 24,
+                h: 12,
+              },
+              miscOption: { enableIndexColumn: true },
+              headOption: {
+                isSticky: true,
+              },
                 sortOption: {
                   initialSort: {
                     column: "host",

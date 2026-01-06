@@ -1,15 +1,23 @@
 "use client";
 
 import { CardContent } from "@/components/ui/card";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+} from "@/components/ui/dropdown-menu";
 import { QueryError } from "@/lib/connection/connection";
 import { useConnection } from "@/lib/connection/connection-context";
+import { cn } from "@/lib/utils";
+import { ArrowDown, ArrowUp, Check } from "lucide-react";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { showQueryDialog } from "./dashboard-dialog-utils";
 import type { FieldOption, SQLQuery, TableDescriptor } from "./dashboard-model";
 import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
 import { DashboardPanelLayout } from "./dashboard-panel-layout";
-import { DataTable } from "./data-table";
+import { DataTable, type DataTableRef } from "./data-table";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
 import { useRefreshable } from "./use-refreshable";
@@ -67,6 +75,16 @@ function replaceOrderByClause(
   }
 }
 
+function applyLimitOffset(sql: string, limit: number, offset: number): string {
+  // Prefer replacing a trailing LIMIT/OFFSET clause if present.
+  const trimmed = sql.trim();
+  const trailingLimitRegex = /\s+LIMIT\s+\d+(?:\s+OFFSET\s+\d+)?\s*$/i;
+  if (trailingLimitRegex.test(trimmed)) {
+    return trimmed.replace(trailingLimitRegex, ` LIMIT ${limit} OFFSET ${offset}`);
+  }
+  return `${trimmed} LIMIT ${limit} OFFSET ${offset}`;
+}
+
 const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTableProps>(
   function DashboardPanelTable(props, ref) {
     const { descriptor } = props;
@@ -77,6 +95,8 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
     const [meta, setMeta] = useState<{ name: string; type?: string }[]>([]);
     const [isLoading, setIsLoading] = useState(props.initialLoading ?? false);
     const [error, setError] = useState("");
+    const [hasMorePages, setHasMorePages] = useState(true);
+    const [currentPage, setCurrentPage] = useState(0);
     const [sort, setSort] = useState<{ column: string | null; direction: "asc" | "desc" | null }>({
       column: descriptor.sortOption?.initialSort?.column || null,
       direction: descriptor.sortOption?.initialSort?.direction || null,
@@ -92,6 +112,12 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
     });
     // Ref to store refresh function
     const refreshRef = useRef<((param: RefreshOptions) => void) | null>(null);
+    const lastRefreshParamRef = useRef<RefreshOptions>({});
+    const loadingRef = useRef(false);
+    // Ref to prevent duplicate scroll requests for pagination
+    const isRequestingMoreRef = useRef(false);
+    // Ref to the DataTable component for controlling scroll position
+    const dataTableRef = useRef<DataTableRef>(null);
 
     // Keep sortRef in sync with sort state
     useEffect(() => {
@@ -100,7 +126,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
 
     // Load data from API
     const loadData = useCallback(
-      async (param: RefreshOptions = {}) => {
+      async (param: RefreshOptions = {}, pageNumber: number = 0) => {
         if (!connection) {
           setError("No connection selected");
           return;
@@ -110,6 +136,11 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           setError("No query defined for this table component.");
           return;
         }
+
+        if (loadingRef.current) {
+          return;
+        }
+        loadingRef.current = true;
 
         setIsLoading(true);
         setError("");
@@ -134,12 +165,27 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           }
 
           // Replace time span template parameters in SQL (e.g., {rounding:UInt32}, {seconds:UInt32}, etc.)
+          // IMPORTANT: This must be done BEFORE applying server-side sorting to ensure all replacement
+          // variables are replaced before SQL manipulation (like adding ORDER BY clause)
           let finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.metadata.timezone);
+
+          // Replace other common replacement variables that might be in the SQL query
+          // These replacements should happen before any SQL manipulation (ORDER BY, LIMIT, etc.)
+          // Replace {filterExpression:String} with "1=1" if not provided (default to no filter)
+          finalSql = finalSql.replace(/{filterExpression:String}/g, "1=1");
+          // Replace {timeFilter:String} with empty string if not provided (time filtering handled by {from:String}/{to:String})
+          finalSql = finalSql.replace(/{timeFilter:String}/g, "");
 
           // Apply server-side sorting if enabled
           // Use sortRef for synchronous access to current sort state
           if (descriptor.sortOption?.serverSideSorting && sortRef.current.column && sortRef.current.direction) {
             finalSql = replaceOrderByClause(finalSql, sortRef.current.column, sortRef.current.direction);
+          }
+
+          // Apply pagination (server mode)
+          if (descriptor.pagination?.mode === "server") {
+            const pageSize = descriptor.pagination.pageSize;
+            finalSql = applyLimitOffset(finalSql, pageSize, pageNumber * pageSize);
           }
 
           setExecutedSql(finalSql);
@@ -169,14 +215,22 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
               return;
             }
 
-            const responseData = apiResponse.data.json<any>();
+            const responseData = apiResponse.data.json<{ data?: Record<string, unknown>[]; meta?: { name: string; type?: string }[] }>();
 
             // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
             const rows = responseData.data || [];
             const meta = responseData.meta || [];
 
             setMeta(meta);
-            setData(rows as Record<string, unknown>[]);
+            if (pageNumber === 0) {
+              setData(rows as Record<string, unknown>[]);
+            } else {
+              setData((prev) => [...prev, ...(rows as Record<string, unknown>[])]);
+            }
+            if (descriptor.pagination?.mode === "server") {
+              const pageSize = descriptor.pagination.pageSize;
+              setHasMorePages(Array.isArray(rows) && rows.length === pageSize);
+            }
             setError("");
             setIsLoading(false);
           } catch (error) {
@@ -211,6 +265,9 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           setError(errorMessage);
           setIsLoading(false);
           console.error(error);
+        } finally {
+          loadingRef.current = false;
+          isRequestingMoreRef.current = false;
         }
       },
       [descriptor, connection]
@@ -225,7 +282,16 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           return;
         }
 
-        loadData(param);
+        // Reset pagination on refresh
+        lastRefreshParamRef.current = param;
+        setHasMorePages(true);
+        setCurrentPage(0);
+        isRequestingMoreRef.current = false;
+        // Reset scroll position to top
+        dataTableRef.current?.resetScroll();
+        // Don't clear data here - keep existing data visible while loading new data
+        // The loadData function will replace it when new data arrives (pageNumber === 0)
+        loadData(param, 0);
       },
       [descriptor, loadData]
     );
@@ -275,13 +341,154 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
         sortRef.current = newSort;
 
         // If server-side sorting is enabled, trigger a refresh with the new sort
+        // IMPORTANT: Preserve lastRefreshParamRef to ensure replacement variables are replaced correctly
         if (descriptor.sortOption?.serverSideSorting && refreshRef.current) {
-          const refreshParam = { inputFilter: `sort_${Date.now()}_${newSort.column}_${newSort.direction}` };
+          const lastParams = lastRefreshParamRef.current;
+          const refreshParam: RefreshOptions = {
+            ...lastParams,
+            inputFilter: `sort_${Date.now()}_${newSort.column}_${newSort.direction}`,
+          };
           refreshRef.current(refreshParam);
         }
       },
       [descriptor.sortOption]
     );
+
+    // Handle table scroll events for infinite scroll pagination
+    const handleTableScroll = useCallback(
+      (scrollMetrics: { scrollTop: number; scrollHeight: number; clientHeight: number; isNearBottom: boolean }) => {
+        if (descriptor.pagination?.mode !== "server") {
+          return;
+        }
+
+        // Prevent duplicate requests
+        if (!hasMorePages || isLoading || isRequestingMoreRef.current) {
+          return;
+        }
+
+        if (scrollMetrics.scrollHeight <= scrollMetrics.clientHeight) {
+          return;
+        }
+
+        // Check if scrolled near bottom
+        if (scrollMetrics.isNearBottom) {
+          // Set ref immediately to prevent duplicate requests
+          isRequestingMoreRef.current = true;
+          const nextPage = currentPage + 1;
+          setCurrentPage(nextPage);
+          loadData(lastRefreshParamRef.current, nextPage);
+        }
+      },
+      [descriptor.pagination?.mode, hasMorePages, isLoading, currentPage, loadData]
+    );
+
+    // Component for rendering show/hide columns submenu
+    const RenderShowColumns = () => {
+      const scrollRef = useRef<HTMLDivElement>(null);
+      const [showTopArrow, setShowTopArrow] = useState(false);
+      const [showBottomArrow, setShowBottomArrow] = useState(false);
+      
+      // Track column visibility state locally for immediate UI updates
+      const [localColumns, setLocalColumns] = useState<Array<{ name: string; title: string; isVisible: boolean }>>(dataTableRef.current?.getAllColumns() || []);
+
+      const checkScrollPosition = useCallback(() => {
+        const element = scrollRef.current;
+        if (!element) return;
+
+        const { scrollTop, scrollHeight, clientHeight } = element;
+
+        // Show top arrow if we can scroll up
+        setShowTopArrow(scrollTop > 5);
+
+        // Show bottom arrow if we can scroll down
+        setShowBottomArrow(scrollTop < scrollHeight - clientHeight - 5);
+      }, []);
+
+      useEffect(() => {
+        const element = scrollRef.current;
+        if (!element) return;
+
+        // Check initial state
+        checkScrollPosition();
+
+        // Add scroll listener
+        element.addEventListener("scroll", checkScrollPosition);
+
+        // Also check when content changes (ResizeObserver)
+        const resizeObserver = new ResizeObserver(checkScrollPosition);
+        resizeObserver.observe(element);
+
+        return () => {
+          element.removeEventListener("scroll", checkScrollPosition);
+          resizeObserver.disconnect();
+        };
+      }, [checkScrollPosition]);
+
+      const handleToggleColumn = useCallback((columnName: string) => {
+        // Update DataTable visibility
+        dataTableRef.current?.toggleColumnVisibility(columnName);
+        
+        // Update local state for immediate UI feedback
+        setLocalColumns((prev) => 
+          prev.map((col) => 
+            col.name === columnName ? { ...col, isVisible: !col.isVisible } : col
+          )
+        );
+      }, []);
+
+      return (
+        <div
+          className="relative"
+          // Suppress event propagation to parent that causes the header to be clicked
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+        >
+          {showTopArrow && (
+            <div className="absolute top-0 left-0 right-0 z-10 flex justify-center bg-gradient-to-b from-popover to-transparent h-6 items-start">
+              <ArrowUp className="h-3 w-3 text-muted-foreground mt-1" />
+            </div>
+          )}
+
+          <div
+            ref={scrollRef}
+            className="max-h-[60vh] overflow-y-auto"
+            style={{ scrollbarGutter: "stable" }}
+          >
+            {localColumns.map((col, index) => {
+              return (
+                <DropdownMenuItem
+                  key={index}
+                  onClick={(e) => {
+                    handleToggleColumn(col.name);
+
+                    // Stop progress to the parent element which triggers the collapse/expand
+                    e.stopPropagation();
+
+                    // No need to close the popup as we may want to show/hide multiple columns
+                    e.preventDefault();
+                  }}
+                >
+                  <Check className={cn("h-4 w-4", col.isVisible ? "opacity-100" : "opacity-0")} />
+                  {col.title}
+                </DropdownMenuItem>
+              );
+            })}
+          </div>
+
+          {showBottomArrow && (
+            <div className="absolute bottom-0 left-0 right-0 z-10 flex justify-center bg-gradient-to-t from-popover to-transparent h-6 items-end">
+              <ArrowDown className="h-3 w-3 text-muted-foreground mb-1" />
+            </div>
+          )}
+        </div>
+      );
+    };
 
     // Handler for showing query dialog
     const handleShowQuery = useCallback(() => {
@@ -290,7 +497,18 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
 
     // Build dropdown menu items
     const dropdownItems = (
-      <>{descriptor.query?.sql && <DropdownMenuItem onClick={handleShowQuery}>Show query</DropdownMenuItem>}</>
+      <>
+        {descriptor.query?.sql && <DropdownMenuItem onClick={handleShowQuery}>Show query</DropdownMenuItem>}
+        <DropdownMenuSub>
+          {/* Stop event propagation so that DropdownMenu will not be closed if clicked */}
+          <DropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>Show/Hide Columns</DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent>
+              <RenderShowColumns />
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+      </>
     );
 
     // Handler for refresh button
@@ -317,6 +535,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           style={descriptor.height ? ({ maxHeight: `${descriptor.height}vh` } as React.CSSProperties) : undefined}
         >
           <DataTable
+            ref={dataTableRef}
             data={data}
             meta={meta}
             fieldOptions={useMemo(() => {
@@ -338,8 +557,16 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
             error={error}
             sort={sort}
             onSortChange={handleSortChange}
-            showIndexColumn={descriptor.showIndexColumn}
+            enableIndexColumn={descriptor.miscOption?.enableIndexColumn}
+            enableShowRowDetail={descriptor.miscOption?.enableShowRowDetail}
             enableClientSorting={!descriptor.sortOption?.serverSideSorting}
+            enableCompactMode={descriptor.miscOption?.enableCompactMode ?? false}
+            pagination={
+              descriptor.pagination?.mode === "server"
+                ? { mode: "server", pageSize: descriptor.pagination.pageSize, hasMorePages }
+                : undefined
+            }
+            onTableScroll={descriptor.pagination?.mode === "server" ? handleTableScroll : undefined}
             className="h-full border-0 rounded-none"
           />
         </CardContent>

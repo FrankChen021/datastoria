@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Connection, type QueryError } from "@/lib/connection/connection";
+import { Connection, type JSONCompactFormatResponse, type QueryError } from "@/lib/connection/connection";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
 import type { QueryContext } from "@/lib/query-context/query-context";
@@ -266,36 +266,36 @@ function SettingTableRow({
   // Calculate tooltip position to keep it within viewport
   const getTooltipPosition = () => {
     if (!mousePosition) return { left: 0, top: 0 };
-    
+
     const tooltipWidth = 300;
     const tooltipHeight = 300; // max height
     const offset = 10;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    
+
     let left = mousePosition.x + offset;
     let top = mousePosition.y + offset;
-    
+
     // Check right boundary
     if (left + tooltipWidth > viewportWidth) {
       left = mousePosition.x - tooltipWidth - offset;
     }
-    
+
     // Check left boundary
     if (left < 0) {
       left = offset;
     }
-    
+
     // Check bottom boundary
     if (top + tooltipHeight > viewportHeight) {
       top = mousePosition.y - tooltipHeight - offset;
     }
-    
+
     // Check top boundary
     if (top < 0) {
       top = offset;
     }
-    
+
     return { left, top };
   };
 
@@ -481,13 +481,13 @@ export function QueryContextEdit() {
 
       const apiResponse = await response;
 
-      const data = apiResponse.data as { data?: Array<[string, string, string, string]> };
+      const data = apiResponse.data.json<JSONCompactFormatResponse>();
       if (data.data) {
-        const settings: SystemSetting[] = data.data.map(([name, type, description, defaultValue]) => ({
-          name,
-          type,
-          description: transformMarkdownLinks(description || ""),
-          default: defaultValue || "",
+        const settings: SystemSetting[] = data.data.map((row) => ({
+          name: row[0] as string,
+          type: row[1] as string,
+          description: row[2] as string,
+          default: row[3] as string,
         }));
         setAvailableSettings(settings);
         setHasLoadedSettings(true);

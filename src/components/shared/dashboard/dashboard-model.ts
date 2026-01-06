@@ -7,18 +7,51 @@ export type SelectorUI = {
   fields: FilterSpec[];
 };
 
-export interface FilterSpec {
-  filterType: string;
-  sourceType: string;
-  source: string;
+export type FilterType = "select" | "date_time";
+
+export type FilterSpec = SelectorFilterSpec | DateTimeFilterSpec;
+
+/**
+ * Map comparator -> expression template.
+ *
+ * Supported placeholders (replaced by DashboardFilterComponent):
+ * - {name}        : converted column name (see nameConverter)
+ * - {value}       : single value as escaped SQL string literal (including quotes)
+ * - {values}      : comma-joined escaped SQL string literals (e.g. 'a','b')
+ * - {valuesArray} : ClickHouse array literal (e.g. ['a','b'])
+ */
+export type ExpressionTemplateMap = Partial<Record<string, string>>;
+
+export type FilterDataSource =
+  | {
+      type: "inline";
+      values: Array<{ label: string; value: string }>;
+    }
+  | {
+      type: "sql";
+      sql: string;
+    };
+
+export interface SelectorFilterSpec {
+  filterType: "select";
   name: string;
-  alias: string;
   displayText: string;
   defaultValue: string;
   width: number;
-  filterExpression: string;
-  allowClear: boolean;
-  allowEdit: boolean;
+  /**
+   * Data source for loading selector values.
+   * - If type is "inline", uses the provided values array directly.
+   * - If type is "sql", uses the SQL query template to fetch options from the backend.
+   *
+   * For SQL data sources, supported template params (replaced by DashboardFilterComponent):
+   * - {from:String}, {to:String}, {rounding:UInt32}, {seconds:UInt32}, {startTimestamp:UInt32}, {endTimestamp:UInt32}
+   *   (same behavior as `replaceTimeSpanParams`)
+   * - {filterExpression:String} -> combined expression from previous selectors (or "1=1" if empty)
+   * - {timeFilter:String} -> generated from the date_time filter spec (or default time column if missing)
+   *
+   * The query should return a single-column result set; the first column is used as the selector value.
+   */
+  datasource: FilterDataSource;
 
   // If not given, all comparators are supported
   // See ComparatorManager for supported comparators
@@ -29,6 +62,31 @@ export interface FilterSpec {
 
   // Callback to convert name to the name in the expression
   nameConverter?: (name: string) => string;
+
+  /**
+   * Optional comparator -> expression template map.
+   * If set (and comparator matches), it overrides `QueryPattern.toQueryString()`.
+   *
+   * Useful for array columns, e.g.:
+   * - "=": "has({name}, {value})"
+   * - "in": "hasAny({name}, {valuesArray})"
+   */
+  expressionTemplate?: ExpressionTemplateMap;
+}
+
+export interface DateTimeFilterSpec {
+  filterType: "date_time";
+  alias: string;
+  displayText: string;
+  width?: number;
+  /**
+   * The column name to apply the selected time span to (e.g. "event_time")
+   */
+  timeColumn: string;
+  /**
+   * Default time span label used by TimeSpanSelector (e.g. "Last 15 Mins")
+   */
+  defaultTimeSpan?: string;
 }
 
 // Formatter function type
@@ -40,7 +98,7 @@ export interface FormatterFn {
 export interface SQLQuery {
   sql: string;
   headers?: Record<string, string>;
-  params?: Record<string, any>;
+  params?: Record<string, unknown>;
 
   interval?: {
     startISO8601: string;
@@ -55,7 +113,7 @@ export interface QueryResponse {
   startTimestamp: number;
   endTimestamp: number;
   interval: number;
-  data: any[];
+  data: unknown[];
 }
 
 // Title Option interface
@@ -91,7 +149,7 @@ export interface FieldOption {
 
   format?: FormatName | ObjectFormatter;
   // Arguments to pass to the formatter function (only used when format is FormatName)
-  formatArgs?: any[];
+  formatArgs?: unknown[];
 
   yAxis?: number;
   inverse?: boolean;
@@ -101,7 +159,7 @@ export interface FieldOption {
   // Action column support: render custom action buttons for each row
   renderAction?: (row: Record<string, unknown>, rowIndex: number) => React.ReactNode;
 
-  // Position in the table (for ordering). If not provided, columns will be shown in data order.
+  // Position in the table (for ordering) starting from 1. If not provided, columns will be shown in data order.
   // If negative, the column will be hidden from the table.
   position?: number;
 }
@@ -160,6 +218,16 @@ export interface ActionColumn {
   renderAction: (row: Record<string, unknown>, rowIndex: number) => React.ReactNode;
 }
 
+// Miscellaneous options for table display
+export interface MiscOption {
+  // If true, display an index column as the first column (default: false)
+  enableIndexColumn?: boolean;
+  // If true, enable expandable rows with transposed detail view (default: false)
+  enableShowRowDetail?: boolean;
+  // If true, enable compact mode for table cells (default: false)
+  enableCompactMode?: boolean;
+}
+
 // Table Descriptor interface
 export interface TableDescriptor extends PanelDescriptor {
   type: "table";
@@ -191,8 +259,17 @@ export interface TableDescriptor extends PanelDescriptor {
     isSticky?: boolean;
   };
 
-  // If true, display an index column as the first column (default: false)
-  showIndexColumn?: boolean;
+  // Miscellaneous display options
+  miscOption?: MiscOption;
+
+  /**
+   * Pagination configuration.
+   * Currently only server mode is supported by `DashboardPanelTable`.
+   */
+  pagination?: {
+    mode: "server";
+    pageSize: number;
+  };
 }
 
 // Transpose Table Descriptor interface
@@ -335,7 +412,7 @@ export type DashboardFilter = {
 
 export type DashboardGroup = {
   title: string;
-  charts: any[];
+  charts: unknown[];
   collapsed?: boolean;
 };
 
@@ -343,5 +420,5 @@ export type Dashboard = {
   name?: string;
   version?: number; // Dashboard version: 1 = 4-column system, 2 = 24-column system, 3 = gridPos system, default to 1 if missing
   filter: DashboardFilter;
-  charts: (any | DashboardGroup)[];
+  charts: (unknown | DashboardGroup)[];
 };

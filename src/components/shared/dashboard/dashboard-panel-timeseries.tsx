@@ -4,7 +4,7 @@ import { CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog } from "@/components/use-dialog";
-import { type QueryError } from "@/lib/connection/connection";
+import { type JSONFormatResponse, type QueryError } from "@/lib/connection/connection";
 import { useConnection } from "@/lib/connection/connection-context";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { Formatter, type FormatName, type ObjectFormatter } from "@/lib/formatter";
@@ -314,6 +314,9 @@ interface DashboardPanelTimeseriesProps {
   // Runtime
   selectedTimeSpan?: TimeSpan;
 
+  // Optional callback: when a bar is clicked, notify parent with the bucket time span
+  onTimeSpanSelect?: (timeSpan: TimeSpan) => void;
+
   // Initial loading state (useful for drilldown dialogs)
   initialLoading?: boolean;
 
@@ -325,7 +328,7 @@ interface DashboardPanelTimeseriesProps {
 
 const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPanelTimeseriesProps>(
   function DashboardPanelTimeseries(props, ref) {
-    const { descriptor, selectedTimeSpan: propSelectedTimeSpan } = props;
+    const { descriptor, selectedTimeSpan: propSelectedTimeSpan, onTimeSpanSelect } = props;
     const { connection } = useConnection();
     const isDark = useIsDarkTheme();
 
@@ -345,6 +348,37 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
     const apiCancellerRef = useRef<AbortController | null>(null);
     const timestampsRef = useRef<number[]>([]);
     const hoveredSeriesRef = useRef<string | null>(null);
+
+    const toBucketTimeSpan = useCallback(
+      (dataIndex: number): TimeSpan | null => {
+        const timestamps = timestampsRef.current;
+        const ts = timestamps[dataIndex];
+        if (!ts) {
+          return null;
+        }
+
+        // Estimate bucket size from neighboring points.
+        let bucketMs = 60_000;
+        if (timestamps.length >= 2) {
+          if (dataIndex < timestamps.length - 1) {
+            bucketMs = timestamps[dataIndex + 1] - timestamps[dataIndex];
+          } else if (dataIndex > 0) {
+            bucketMs = timestamps[dataIndex] - timestamps[dataIndex - 1];
+          }
+        }
+        if (!Number.isFinite(bucketMs) || bucketMs <= 0) {
+          bucketMs = 60_000;
+        }
+
+        const start = new Date(ts);
+        const end = new Date(ts + bucketMs);
+        return {
+          startISO8601: DateTimeExtension.formatISO8601(start) || start.toISOString(),
+          endISO8601: DateTimeExtension.formatISO8601(end) || end.toISOString(),
+        };
+      },
+      []
+    );
 
     // Check if drilldown is available (defined early for use in chart update)
     const hasDrilldown = useCallback((): boolean => {
@@ -448,6 +482,12 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
       }
 
       if (!data || data.length === 0) {
+        // Clear previous series/axes so stale data doesn't remain visible.
+        chartInstanceRef.current.clear();
+        setLegendData(undefined);
+        setSelectedTimeRange(null);
+        timestampsRef.current = [];
+
         // Show empty state
         chartInstanceRef.current.setOption({
           title: {
@@ -457,6 +497,9 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
             top: "center",
           },
           backgroundColor: "transparent",
+          xAxis: { type: "category", data: [] },
+          yAxis: { type: "value" },
+          series: [],
         });
         return;
       }
@@ -633,6 +676,8 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
                 smooth: true,
                 showSymbol: false, // Hide dots, show only smooth lines
                 areaStyle: descriptor.type === "area" ? { opacity: 0.3 } : undefined,
+                // Prevent overly wide bars when there are only a few buckets
+                barMaxWidth: descriptor.type === "bar" ? 24 : undefined,
               });
             });
           });
@@ -663,6 +708,8 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
               smooth: true,
               showSymbol: false, // Hide dots, show only smooth lines
               areaStyle: descriptor.type === "area" ? { opacity: 0.3 } : undefined,
+              // Prevent overly wide bars when there are only a few buckets
+              barMaxWidth: descriptor.type === "bar" ? 24 : undefined,
             });
           });
         }
@@ -774,8 +821,24 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
               let tooltipTitle = firstParam.axisValue;
 
               if (timestamps && timestamps[dataIndex]) {
-                const fullDate = new Date(timestamps[dataIndex]);
-                tooltipTitle = DateTimeExtension.toYYYYMMddHHmmss(fullDate);
+                const currentTimestamp = timestamps[dataIndex];
+                let bucketMs = 60_000;
+
+                if (timestamps.length >= 2) {
+                  if (dataIndex < timestamps.length - 1) {
+                    bucketMs = timestamps[dataIndex + 1] - currentTimestamp;
+                  } else if (dataIndex > 0) {
+                    bucketMs = currentTimestamp - timestamps[dataIndex - 1];
+                  }
+                }
+
+                if (!Number.isFinite(bucketMs) || bucketMs <= 0) {
+                  bucketMs = 60_000;
+                }
+
+                const startDate = new Date(currentTimestamp);
+                const endDate = new Date(currentTimestamp + bucketMs);
+                tooltipTitle = `${DateTimeExtension.toYYYYMMddHHmmss(startDate)}<br/>${DateTimeExtension.toYYYYMMddHHmmss(endDate)}`;
               }
 
               let result = `<div style="margin-bottom: 6px; font-weight: 600;">${tooltipTitle}</div>`;
@@ -878,14 +941,14 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
             icon: "circle",
           },
           grid: {
-            left: "3%",
-            right: "4%",
-            bottom: "10%",
+            left: 20,
+            right: 20,
+            bottom: 8,
             // Adjust top margin based on whether ECharts legend is shown
             top:
               series.length > 0 && (!descriptor.legendOption || descriptor.legendOption.placement === "inside")
-                ? "15%"
-                : "5%",
+                ? 32
+                : 12,
             containLabel: true,
           },
           xAxis: {
@@ -1110,7 +1173,7 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
                 return;
               }
 
-              const responseData = apiResponse.data;
+              const responseData = apiResponse.data.json<JSONFormatResponse>();
 
               // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
               const rows = responseData.data || [];
@@ -1277,6 +1340,24 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
         hoveredSeriesRef.current = null;
       });
 
+      // Click-to-zoom support for bar charts: notify parent with clicked bucket time span
+      chartInstance.off("click");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      chartInstance.on("click", { componentType: "series" } as any, (p: any) => {
+        if (descriptor.type !== "bar") {
+          return;
+        }
+        const dataIndex = typeof p?.dataIndex === "number" ? p.dataIndex : null;
+        if (dataIndex === null) {
+          return;
+        }
+        const bucket = toBucketTimeSpan(dataIndex);
+        if (!bucket) {
+          return;
+        }
+        onTimeSpanSelect?.(bucket);
+      });
+
       // Handle window resize
       const handleResize = () => {
         if (chartInstanceRef.current) {
@@ -1317,7 +1398,7 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
           chartInstanceRef.current = null;
         }
       };
-    }, [isDark]);
+    }, [isDark, descriptor.type, onTimeSpanSelect, toBucketTimeSpan]);
 
     // Resize chart when expanded/collapsed state changes (since content is now hidden, not unmounted)
     useEffect(() => {

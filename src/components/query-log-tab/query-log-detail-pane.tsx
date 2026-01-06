@@ -235,9 +235,9 @@ export const QueryLogDetailPane = memo(function QueryLogDetailPane({
   if (!selectedQueryLog) return null;
 
   return (
-    <Panel defaultSize={40} minSize={5} maxSize={70} className="bg-background border-l shadow-lg flex flex-col h-full">
+    <Panel defaultSize={40} minSize={5} maxSize={70} className="bg-background shadow-lg flex flex-col h-full">
       {/* Header with close button */}
-      <div className="flex items-center justify-between px-3 py-2 border-b flex-shrink-0 h-10">
+      <div className="flex items-center justify-between pl-3 py-2 border-b flex-shrink-0 h-10">
         <h4 className="truncate font-semibold text-sm">Query Id: {selectedQueryLog.query_id}</h4>
         <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
           <X className="h-4 w-4" />

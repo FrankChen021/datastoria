@@ -3,7 +3,7 @@ import TimeSpanSelector, { BUILT_IN_TIME_SPAN_LIST, DisplayTimeSpan } from "@/co
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { type QueryError } from "@/lib/connection/connection";
+import { type JSONFormatResponse, type QueryError } from "@/lib/connection/connection";
 import { useConnection } from "@/lib/connection/connection-context";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { toastManager } from "@/lib/toast";
@@ -181,6 +181,18 @@ export function QueryLogTab({
   // Tab state - default to Timeline
   const [activeTab, setActiveTab] = useState<string>("timeline");
 
+  // Fit view when switching to topology tab
+  useEffect(() => {
+    if (activeTab === "topo") {
+      // Small delay to ensure the container is visible and has dimensions
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          graphControlsRef.current?.fitView();
+        }, 100);
+      });
+    }
+  }, [activeTab]);
+
   // Timeline data transformation
   const timelineData = useMemo(() => {
     if (!queryLogs || queryLogs.length === 0) {
@@ -270,12 +282,13 @@ export function QueryLogTab({
           WHERE ${whereClause}`,
         {
           default_format: "JSON",
+          output_format_json_quote_64bit_integers: 0,
         }
       );
 
       const apiResponse = await response;
 
-      const responseData = apiResponse.data as any;
+      const responseData = apiResponse.data.json<JSONFormatResponse>();
       const queryLogsData = responseData?.data || [];
       const metaData = responseData?.meta || [];
       setQueryLogs(queryLogsData);
@@ -334,9 +347,9 @@ export function QueryLogTab({
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
           <div className="flex justify-between items-center ml-2 mr-2">
             <TabsList>
-              <TabsTrigger value="timeline">Timeline</TabsTrigger>
-              <TabsTrigger value="table">Table</TabsTrigger>
-              <TabsTrigger value="topo">Topo</TabsTrigger>
+              <TabsTrigger value="timeline">Timeline View</TabsTrigger>
+              <TabsTrigger value="table">Table View</TabsTrigger>
+              <TabsTrigger value="topo">Topology View</TabsTrigger>
             </TabsList>
             {activeTab === "topo" && graphControlsRef.current && queryLogs.length > 0 && (
               <div className="flex items-center gap-1">

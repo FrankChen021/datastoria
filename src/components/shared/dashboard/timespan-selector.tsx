@@ -75,7 +75,7 @@ const AutoRefresher: React.FC<AutoRefreshProps> = ({ onRefresh, size = "icon" })
   // For "sm" size, we need to make it square like icon but with sm height
   // We'll use a custom className to override the size
   const buttonSize = size === "sm" ? undefined : size;
-  const buttonClassName = cn(size === "sm" ? "h-9 w-9" : "", "rounded-none rounded-r");
+  const buttonClassName = cn(size === "sm" ? "h-8 w-8" : "", "rounded-none rounded-r");
 
   return (
     <DropdownMenu>
@@ -454,6 +454,8 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
       size = "default",
       buttonClassName,
     } = this.props;
+    const triggerHeightClassName = size === "sm" ? "h-8" : "";
+    const iconHeightClassName = size === "sm" ? "h-8 w-8 p-0" : "";
 
     // If no components are visible, render nothing
     if (!showTimeSpanSelector && !showRefresh && !showAutoRefresh) {
@@ -479,6 +481,7 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                 className={cn(
                   "rounded-none",
                   showRefresh || showAutoRefresh ? "rounded-l" : "rounded",
+                  triggerHeightClassName,
                   buttonClassName
                 )}
               >
@@ -622,7 +625,8 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
               "rounded-none",
               !showTimeSpanSelector && showAutoRefresh ? "rounded-l" : "",
               !showAutoRefresh && showTimeSpanSelector ? "rounded-r" : "",
-              !showTimeSpanSelector && !showAutoRefresh ? "rounded" : ""
+              !showTimeSpanSelector && !showAutoRefresh ? "rounded" : "",
+              iconHeightClassName
             )}
             onClick={this.onRefershButtonClicked}
           >

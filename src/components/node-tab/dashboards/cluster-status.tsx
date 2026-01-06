@@ -42,15 +42,15 @@ SETTINGS skip_unavailable_shards=1
     },
     drilldown: {
       main: {
-        type: "table",
-        titleOption: {
-          title: "Server Count",
-        },
-        width: 4,
-        showIndexColumn: true,
-        query: {
-          sql: `SELECT * FROM system.clusters WHERE cluster = '{cluster}'`,
-        },
+      type: "table",
+      titleOption: {
+        title: "Server Count",
+      },
+      width: 4,
+      miscOption: { enableIndexColumn: true },
+      query: {
+        sql: `SELECT * FROM system.clusters WHERE cluster = '{cluster}'`,
+      },
         fieldOptions: {
           host: {
             title: "Host",

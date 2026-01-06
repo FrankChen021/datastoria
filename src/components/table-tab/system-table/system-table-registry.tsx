@@ -1,5 +1,6 @@
 import SystemTableDashboards from "./system-table-dashboards";
 import SystemTableDistributedDDLQueue from "./system-table-distributed-ddl-queue";
+import SystemTableQueryLog from "./system-table-query-log";
 
 /**
  * Type definition for a system table tab entry
@@ -27,7 +28,21 @@ export const SYSTEM_TABLE_REGISTRY = new Map<string, SystemTableTabEntry[]>([
       ["DDL Queue", SystemTableDistributedDDLQueue],
     ],
   ],
+  [
+    "query_log",
+    [
+      ["Query Log", SystemTableQueryLog],
+    ],
+  ],
 ]);
+
+function normalizeSystemTableName(tableName: string): string {
+  // e.g. query_log_0, query_log_1, ...
+  if (/^query_log_\d+$/.test(tableName)) {
+    return "query_log";
+  }
+  return tableName;
+}
 
 
 /**
@@ -36,6 +51,5 @@ export const SYSTEM_TABLE_REGISTRY = new Map<string, SystemTableTabEntry[]>([
  * @returns Array of tab entries, or undefined if not found
  */
 export function getSystemTableTabs(tableName: string): SystemTableTabEntry[] | undefined {
-  return SYSTEM_TABLE_REGISTRY.get(tableName);
+  return SYSTEM_TABLE_REGISTRY.get(normalizeSystemTableName(tableName));
 }
-

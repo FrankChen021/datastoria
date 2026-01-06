@@ -44,6 +44,28 @@ export interface DatabaseInfo {
   comment?: string | null;
 }
 
+export interface JSONCompactFormatResponse {
+  data: unknown[][];
+  meta: { name: string; type: string }[];
+  rows: number;
+  statistics: {
+    elapsed: number;
+    rows_read: number;
+    bytes_read: number;
+  };
+}
+
+export interface JSONFormatResponse {
+  data: Record<string, unknown>[];
+  meta: { name: string; type: string }[];
+  rows: number;
+  statistics: {
+    elapsed: number;
+    rows_read: number;
+    bytes_read: number;
+  };
+}
+
 // Dependency table information
 export interface DependencyTableInfo {
   id: string;

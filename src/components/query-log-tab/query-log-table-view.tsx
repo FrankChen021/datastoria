@@ -3,6 +3,22 @@ import type { FieldOption } from "@/components/shared/dashboard/dashboard-model"
 import { DataTable } from "@/components/shared/dashboard/data-table";
 import { useMemo } from "react";
 
+export const formatQueryLogType = (value: unknown) => {
+  return (
+    <span
+      className={`text-xs px-2 py-1 rounded whitespace-nowrap ${
+        value === "QueryFinish"
+          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+          : value === "QueryStart"
+            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+            : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+      }`}
+    >
+      {String(value)}
+    </span>
+  );
+};
+
 interface QueryLogTableViewProps {
     queryLogs: any[];
     meta?: { name: string; type?: string }[];
@@ -29,20 +45,7 @@ export function QueryLogTableView({ queryLogs, meta }: QueryLogTableViewProps) {
             {
                 name: "type",
                 align: "center",
-                format: (value: any) => {
-                    return (
-                        <span
-                            className={`text-xs px-2 py-1 rounded whitespace-nowrap ${value === "QueryFinish"
-                                ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
-                                : value === "QueryStart"
-                                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                                    : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
-                                }`}
-                        >
-                            {value}
-                        </span>
-                    );
-                },
+                format: formatQueryLogType,
             },
             // Host
             { name: "host" },
@@ -150,8 +153,8 @@ export function QueryLogTableView({ queryLogs, meta }: QueryLogTableViewProps) {
     }, [detailedFieldOptions]);
 
     return (
-        <div className="w-full flex flex-col gap-2 py-2">
-            <CollapsibleSection title="Query Logs">
+        <div className="w-full flex flex-col gap-6 py-2">
+            <CollapsibleSection title="Query Logs by Host">
                 <DataTable
                     showIndexColumn
                     data={queryLogs}

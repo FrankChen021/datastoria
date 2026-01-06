@@ -42,7 +42,7 @@
 import { CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/use-dialog";
-import { type QueryError } from "@/lib/connection/connection";
+import { type JSONFormatResponse, type QueryError } from "@/lib/connection/connection";
 import { useConnection } from "@/lib/connection/connection-context";
 import { Formatter } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
@@ -479,7 +479,7 @@ const DashboardPanelPie = forwardRef<DashboardPanelComponent, DashboardPanelPieP
                 return;
               }
 
-              const responseData = apiResponse.data;
+              const responseData = apiResponse.data.json<JSONFormatResponse>();
 
               // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
               const rows = responseData.data || [];

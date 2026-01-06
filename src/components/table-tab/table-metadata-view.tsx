@@ -57,12 +57,6 @@ const TableMetadataViewComponent = forwardRef<RefreshableTabViewRef, TableMetada
               sql: `
 SELECT * FROM system.tables WHERE database = '${database}' AND name = '${table}'
 `,
-              headers: {
-                "Content-Type": "text/plain",
-              },
-              params: {
-                default_format: "JSON",
-              },
             },
             fieldOptions: {
               create_table_query: { name: "create_table_query", format: "inline_sql" },
@@ -72,15 +66,15 @@ SELECT * FROM system.tables WHERE database = '${database}' AND name = '${table}'
           {
             type: "table",
             titleOption: {
-              title: "Table Columns",
-              align: "center",
-            },
-            collapsed: true,
-            showIndexColumn: true,
-            gridPos: {
-              w: 24,
-              h: 12
-            },
+            title: "Table Columns",
+            align: "center",
+          },
+          collapsed: true,
+          miscOption: { enableIndexColumn: true },
+          gridPos: {
+            w: 24,
+            h: 12
+          },
             query: {
               sql: `SELECT * FROM system.columns WHERE database = '${database}' AND table = '${table}'`,
             },
@@ -97,15 +91,15 @@ SELECT * FROM system.tables WHERE database = '${database}' AND name = '${table}'
         d.charts.push({
           type: "table",
           titleOption: {
-            title: "Table Metadata On Cluster",
-            align: "center",
-          },
-          collapsed: true,
-          showIndexColumn: true,
-          gridPos: {
-            w: 24,
-            h: 12
-          },
+          title: "Table Metadata On Cluster",
+          align: "center",
+        },
+        collapsed: true,
+        miscOption: { enableIndexColumn: true },
+        gridPos: {
+          w: 24,
+          h: 12
+        },
           sortOption: {
             initialSort: {
               column: "host",

@@ -294,24 +294,9 @@ const QueryLogGraphFlowInner = ({
 
   // Track the graph structure to prevent re-layout on drag
   const layoutedGraphRef = useRef<string>("");
-  // Track when we should fit view (after layout is applied)
-  const shouldFitViewRef = useRef<boolean>(false);
+  // Track if we've fitted the view (persists across renders)
+  const hasFittedViewRef = useRef<boolean>(false);
 
-
-  // Fit view when nodes are rendered after layout
-  useEffect(() => {
-    if (flowNodes.length === 0 || !shouldFitViewRef.current) {
-      return;
-    }
-
-    // Use double requestAnimationFrame to ensure DOM is fully updated
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        fitView({ padding: 0.2, duration: 300 });
-        shouldFitViewRef.current = false;
-      });
-    });
-  }, [flowNodes, fitView]);
 
   // Update nodes and edges when props change
   useEffect(() => {
@@ -349,9 +334,31 @@ const QueryLogGraphFlowInner = ({
       setFlowNodes(layoutedNodes);
       setFlowEdges(initialEdges);
       layoutedGraphRef.current = graphSignature;
-      shouldFitViewRef.current = true;
+      // Reset fit view flag when graph structure changes
+      hasFittedViewRef.current = false;
     }
   }, [initialNodes, initialEdges, getLayoutedNodes, setFlowNodes, setFlowEdges]);
+
+  // Fit view when graph is initially loaded or when graph structure changes
+  useEffect(() => {
+    if (flowNodes.length > 0 && !hasFittedViewRef.current) {
+      // Use requestAnimationFrame to ensure the layout is complete before fitting
+      // Double RAF ensures the DOM is fully updated and ReactFlow has calculated positions
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Add a small delay to ensure ReactFlow internal state is ready
+          setTimeout(() => {
+            try {
+              fitView({ padding: 0.2, duration: 300, maxZoom: 1.5, minZoom: 0.1 });
+              hasFittedViewRef.current = true;
+            } catch (error) {
+              console.warn("Failed to fit view:", error);
+            }
+          }, 200);
+        });
+      });
+    }
+  }, [flowNodes, fitView]);
 
   // Node and edge types configuration
   const nodeTypes: NodeTypes = useMemo(
@@ -435,6 +442,7 @@ const QueryLogGraphFlowInner = ({
             type: MarkerType.ArrowClosed,
           },
         }}
+        fitView
         nodesDraggable={true}
         nodesConnectable={false}
         elementsSelectable={true}

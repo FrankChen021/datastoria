@@ -195,14 +195,14 @@ const PartitionSizeViewComponent = forwardRef<RefreshableTabViewRef, PartitionVi
       return {
         type: "table",
         id: `partition-view-${database}-${table}`,
-        titleOption: {
-          title: " Partitions",
-          align: "left",
-        },
-        collapsed: false,
-        width: 100,
-        showIndexColumn: true,
-        query: {
+      titleOption: {
+        title: " Partitions",
+        align: "left",
+      },
+      collapsed: false,
+      width: 100,
+      miscOption: { enableIndexColumn: true },
+      query: {
           sql: `
 SELECT 
     partition,

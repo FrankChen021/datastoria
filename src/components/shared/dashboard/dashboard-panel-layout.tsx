@@ -1,13 +1,13 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { EllipsisVertical, RotateCw } from "lucide-react";
-import React from "react";
 import FloatingProgressBar from "@/components/floating-progress-bar";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { EllipsisVertical, RotateCw } from "lucide-react";
+import React, { useState } from "react";
 import type { TitleOption } from "./dashboard-model";
 import type { TimeSpan } from "./timespan-selector";
 
@@ -53,6 +53,121 @@ export interface DashboardPanelLayoutProps {
   headerBackground?: boolean; // Whether to show bg-muted/50 background
 }
 
+interface DashboardPanelHeaderProps {
+  titleOption: TitleOption;
+  isCollapsible: boolean;
+  headerBackground: boolean;
+  headerClassName?: string;
+  wrapInTrigger: boolean;
+  showRefreshButton: boolean;
+  onRefresh?: () => void;
+  dropdownItems?: React.ReactNode;
+}
+
+const DashboardPanelHeader = React.memo<DashboardPanelHeaderProps>(
+  ({
+    titleOption,
+    isCollapsible,
+    headerBackground,
+    headerClassName,
+    wrapInTrigger,
+    showRefreshButton,
+    onRefresh,
+    dropdownItems,
+  }) => {
+    const [isHovered, setIsHovered] = useState(false);
+
+    // Render refresh button (absolutely positioned, before dropdown menu)
+    const renderRefreshButton = () => {
+      if (!showRefreshButton || !onRefresh) return null;
+
+      return (
+        <div className="absolute right-10 top-[calc(50%-6px)] -translate-y-1/2 z-10">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20"
+            title="Refresh panel"
+            aria-label="Refresh panel"
+            onClick={onRefresh}
+          >
+            <RotateCw className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      );
+    };
+
+    // Render dropdown menu button (absolutely positioned, only visible on hover)
+    const renderDropdownMenu = () => {
+      if (!dropdownItems) return null;
+
+      return (
+        <div className={cn("absolute right-2 top-[calc(50%-6px)] -translate-y-1/2 z-10 transition-opacity", isHovered ? "opacity-100" : "opacity-0")}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20"
+                title="More options"
+                aria-label="More options"
+              >
+                <EllipsisVertical className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={0}>
+              {dropdownItems}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    };
+
+    // don't padding bottom so that we have more space for charts under the title
+    const headerContent = (
+      <div className={cn("flex items-center px-2 py-1 transition-colors", headerBackground && "bg-muted/50")}>
+        <div className="flex-1 text-left min-w-0">
+          <CardDescription
+            className={cn(
+              titleOption.align ? "text-" + titleOption.align : isCollapsible ? "text-left" : "text-center",
+              "text-xs text-muted-foreground m-0 truncate"
+            )}
+          >
+            {titleOption.title}
+          </CardDescription>
+          {titleOption.description && (
+            <CardDescription className="text-xs mt-1 m-0 truncate">{titleOption.description}</CardDescription>
+          )}
+        </div>
+      </div>
+    );
+
+    const hoverClasses = isCollapsible ? "hover:bg-muted cursor-pointer" : "";
+
+    const headerElement = (
+      <CardHeader
+        className={cn("p-0 relative", headerClassName)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {wrapInTrigger ? (
+          <CollapsibleTrigger className={cn("w-full transition-all", hoverClasses)}>{headerContent}</CollapsibleTrigger>
+        ) : (
+          <div className={cn("w-full", hoverClasses)}>{headerContent}</div>
+        )}
+        {renderRefreshButton()}
+        {renderDropdownMenu()}
+      </CardHeader>
+    );
+
+    return headerElement;
+  }
+);
+
+DashboardPanelHeader.displayName = "DashboardPanelHeader";
+
 /**
  * Common layout component for dashboard cards
  * Handles Card wrapper, FloatingProgressBar, Collapsible, Header, and DropdownMenu
@@ -75,98 +190,37 @@ export function DashboardPanelLayout({
   const showTitle = !!titleOption?.title && titleOption?.showTitle !== false;
   const showRefreshButton = titleOption?.showRefreshButton === true;
 
-  // Render refresh button (absolutely positioned, before dropdown menu)
-  const renderRefreshButton = () => {
-    if (!showRefreshButton || !onRefresh) return null;
-
-    return (
-      <div className="absolute right-10 z-10">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20"
-          title="Refresh panel"
-          aria-label="Refresh panel"
-          onClick={onRefresh}
-        >
-          <RotateCw className="h-4 w-4" />
-        </Button>
-      </div>
-    );
-  };
-
-  // Render dropdown menu button (absolutely positioned)
-  const renderDropdownMenu = () => {
-    if (!dropdownItems) return null;
-
-    return (
-      <div className="absolute right-2 z-10">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20"
-              title="More options"
-              aria-label="More options"
-            >
-              <EllipsisVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" sideOffset={0}>
-            {dropdownItems}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    );
-  };
-
   // Render header with title (collapsible if enabled)
   const renderHeaderWithTitle = (wrapInTrigger = false) => {
     if (!showTitle || !titleOption) return null;
 
-    const headerContent = (
-      <div className={cn("flex items-center p-2 transition-colors", headerBackground && "bg-muted/50")}>
-        <div className="flex-1 text-left min-w-0">
-          <CardDescription
-            className={cn(
-              titleOption.align ? "text-" + titleOption.align : isCollapsible ? "text-left" : "text-center",
-              "font-semibold text-muted-foreground m-0 truncate"
-            )}
-          >
-            {titleOption.title}
-          </CardDescription>
-          {titleOption.description && (
-            <CardDescription className="text-xs mt-1 m-0 truncate">{titleOption.description}</CardDescription>
-          )}
-        </div>
-      </div>
+    return (
+      <DashboardPanelHeader
+        titleOption={titleOption}
+        isCollapsible={isCollapsible}
+        headerBackground={headerBackground}
+        headerClassName={headerClassName}
+        wrapInTrigger={wrapInTrigger}
+        showRefreshButton={showRefreshButton}
+        onRefresh={onRefresh}
+        dropdownItems={dropdownItems}
+      />
     );
-
-    const hoverClasses = isCollapsible ? "hover:bg-muted cursor-pointer" : "";
-
-    const headerElement = (
-      <CardHeader className={cn("p-0 relative", headerClassName)}>
-        {wrapInTrigger ? (
-          <CollapsibleTrigger className={cn("w-full transition-all", hoverClasses)}>{headerContent}</CollapsibleTrigger>
-        ) : (
-          <div className={cn("w-full", hoverClasses)}>{headerContent}</div>
-        )}
-        {renderRefreshButton()}
-        {renderDropdownMenu()}
-      </CardHeader>
-    );
-
-    return headerElement;
   };
 
   return (
-    <Card ref={componentRef} className={cn("@container/card rounded-sm relative overflow-hidden h-full flex flex-col", className)} style={style}>
+    <Card
+      ref={componentRef}
+      className={cn("@container/card rounded-sm relative overflow-hidden h-full flex flex-col", className)}
+      style={style}
+    >
       <FloatingProgressBar show={isLoading} />
       {isCollapsible ? (
-        <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed?.(!open)} className="flex flex-col h-full">
+        <Collapsible
+          open={!isCollapsed}
+          onOpenChange={(open) => setIsCollapsed?.(!open)}
+          className="flex flex-col h-full"
+        >
           {renderHeaderWithTitle(true)}
           <CollapsibleContent className="flex-1 overflow-hidden">{children}</CollapsibleContent>
         </Collapsible>

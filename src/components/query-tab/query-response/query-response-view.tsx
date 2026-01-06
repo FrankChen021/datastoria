@@ -182,7 +182,7 @@ export function QueryResponseView({
     // Default query view rendering
     if (!rawQueryResponse || rawQueryResponse.length === 0) {
       return (
-        <div className="p-4 text-sm text-muted-foreground">
+        <div className="pb-4 text-sm text-muted-foreground">
           Query was executed successfully. No data is returned to show.
         </div>
       );

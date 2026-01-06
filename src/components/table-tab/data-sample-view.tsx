@@ -29,7 +29,7 @@ const DataSampleViewComponent = forwardRef<RefreshableTabViewRef, DataSampleView
       type: "table",
       id: `data-sample-${database}-${table}`,
       width: 100,
-      showIndexColumn: true,
+      miscOption: { enableIndexColumn: true },
       headOption: {
         isSticky: true,
       },

@@ -25,3 +25,4 @@ tsconfig.tsbuildinfo
 *.sln
 *.sw?
 .next/*
+*.code-workspace
