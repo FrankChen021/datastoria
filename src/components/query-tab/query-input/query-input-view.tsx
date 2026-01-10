@@ -28,6 +28,7 @@ const AceEditor = dynamic(
     await initAce();
 
     await import("ace-builds/src-noconflict/ext-language_tools");
+    await import("ace-builds/src-noconflict/mode-sql");
     await import("ace-builds/src-noconflict/theme-xcode");
     await import("ace-builds/src-noconflict/theme-solarized_dark");
     await import("./completion/clickhouse-sql");
@@ -457,6 +458,8 @@ Press ${keyBindings.toggle} to switch to SQL mode.
             showLineNumbers: true,
             tabSize: 4,
             newLineMode: "auto",
+            foldStyle: "markbeginend",
+            showFoldWidgets: true,
           }}
           enableBasicAutocompletion={language === "dsql" || language === "chat"}
           enableLiveAutocompletion={language === "dsql" || language === "chat"}
