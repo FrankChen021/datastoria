@@ -5,6 +5,7 @@ import { Command as CommandPrimitive } from "cmdk"
 import { Search } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 
 const Command = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,
@@ -127,6 +128,10 @@ CommandShortcut.displayName = "CommandShortcut"
 const CommandDialog = ({ children, ...props }: React.ComponentPropsWithoutRef<typeof CommandPrimitive.Dialog>) => {
   return (
     <CommandPrimitive.Dialog {...props}>
+      <DialogTitle className="sr-only">Command Menu</DialogTitle>
+      <DialogDescription className="sr-only">
+        Search and execute commands.
+      </DialogDescription>
       {children}
     </CommandPrimitive.Dialog>
   )

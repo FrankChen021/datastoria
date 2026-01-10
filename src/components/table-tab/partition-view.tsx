@@ -1,13 +1,21 @@
+import { useConnection } from "@/components/connection/connection-context";
 import type { FieldOption, TableDescriptor } from "@/components/shared/dashboard/dashboard-model";
 import type { DashboardPanelComponent } from "@/components/shared/dashboard/dashboard-panel-layout";
 import DashboardPanelTable from "@/components/shared/dashboard/dashboard-panel-table";
 import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
 import { Button } from "@/components/ui/button";
 import { Connection, QueryError } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
 import { toastManager } from "@/lib/toast";
 import { Loader2, Trash2 } from "lucide-react";
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from "react";
 import { Dialog } from "../use-dialog";
 import type { RefreshableTabViewRef } from "./table-tab";
 
@@ -19,7 +27,13 @@ interface DropPartitionDialogProps {
   onSuccess?: () => void;
 }
 
-function showDropPartitionDialog({ database, table, partition, connection, onSuccess }: DropPartitionDialogProps) {
+function showDropPartitionDialog({
+  database,
+  table,
+  partition,
+  connection,
+  onSuccess,
+}: DropPartitionDialogProps) {
   const isDroppingRef = { current: false };
   const abortControllerRef: { current: AbortController | null } = { current: null };
   const shouldCloseRef = { current: false };
@@ -37,12 +51,9 @@ function showDropPartitionDialog({ database, table, partition, connection, onSuc
       const sql = `ALTER TABLE \`${database}\`.\`${table}\` DROP PARTITION '${escapedPartition}'`;
 
       // Execute the SQL using async/await
-      const { response, abortController } = connection.query(
-        sql,
-        {
-          default_format: "JSON",
-        }
-      );
+      const { response, abortController } = connection.query(sql, {
+        default_format: "JSON",
+      });
 
       abortControllerRef.current = abortController;
 
@@ -146,7 +157,6 @@ const PartitionSizeViewComponent = forwardRef<RefreshableTabViewRef, PartitionVi
     const isMountedRef = useRef(true);
 
     useImperativeHandle(ref, () => ({
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       refresh: (_timeSpan?: TimeSpan) => {
         // Force refresh by passing a unique timestamp to bypass the parameter change check
         // This ensures refresh always happens even if called multiple times with "same" parameters
@@ -195,14 +205,14 @@ const PartitionSizeViewComponent = forwardRef<RefreshableTabViewRef, PartitionVi
       return {
         type: "table",
         id: `partition-view-${database}-${table}`,
-      titleOption: {
-        title: " Partitions",
-        align: "left",
-      },
-      collapsed: false,
-      width: 100,
-      miscOption: { enableIndexColumn: true },
-      query: {
+        titleOption: {
+          title: " Partitions",
+          align: "left",
+        },
+        collapsed: false,
+        width: 100,
+        miscOption: { enableIndexColumn: true },
+        query: {
           sql: `
 SELECT 
     partition,
@@ -223,7 +233,7 @@ ORDER BY
     partition DESC`,
           headers: {
             "Content-Type": "text/plain",
-          }
+          },
         },
         fieldOptions: {
           partition: {
@@ -276,7 +286,7 @@ ORDER BY
         actions: {
           title: "Action",
           align: "center",
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
           renderAction: (row: Record<string, unknown>, _rowIndex: number) => {
             const partition = String(row.partition || "");
             return (

@@ -281,7 +281,9 @@ export class Dialog {
   }
 
   public static alert(dialogProps: DialogProps) {
-    const dialogButtons = dialogProps.dialogButtons ?? [{ text: "OK", onClick: async () => true, default: true }];
+    const dialogButtons = dialogProps.dialogButtons ?? [
+      { text: "OK", onClick: async () => true, default: true },
+    ];
     Dialog.showDialog({ ...dialogProps, dialogButtons: dialogButtons });
   }
 

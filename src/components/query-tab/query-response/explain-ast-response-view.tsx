@@ -74,9 +74,12 @@ function getCSSVariable(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const ExplainASTResponseViewComponent = ({ queryRequest: _queryRequest, queryResponse }: QueryResponseViewProps) => {
-  const text = typeof queryResponse.data === "string" ? queryResponse.data : String(queryResponse.data || "");
+const ExplainASTResponseViewComponent = ({
+  queryRequest: _queryRequest,
+  queryResponse,
+}: QueryResponseViewProps) => {
+  const text =
+    typeof queryResponse.data === "string" ? queryResponse.data : String(queryResponse.data || "");
   const { theme } = useTheme();
   const [bgColor, setBgColor] = useState("#002B36");
 

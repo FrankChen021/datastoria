@@ -1,7 +1,6 @@
 import { useTheme } from "@/components/theme-provider";
 import { useEffect, useMemo, useState } from "react";
-import type { SyntaxHighlighterProps } from "react-syntax-highlighter";
-import SyntaxHighlighter from "react-syntax-highlighter";
+import SyntaxHighlighter, { type SyntaxHighlighterProps } from "react-syntax-highlighter";
 import { atomOneDark, atomOneLight } from "react-syntax-highlighter/dist/cjs/styles/hljs";
 
 interface ThemedSyntaxHighlighterProps extends Omit<SyntaxHighlighterProps, "style"> {
@@ -59,7 +58,9 @@ export function ThemedSyntaxHighlighter({
   // Read theme directly from DOM on every render to ensure accuracy
   // This handles cases where state might not be in sync yet
   const currentDarkMode =
-    typeof window !== "undefined" ? window.document.documentElement.classList.contains("dark") : isDark;
+    typeof window !== "undefined"
+      ? window.document.documentElement.classList.contains("dark")
+      : isDark;
 
   // Use memoized style that updates when theme actually changes
   const syntaxStyle = useMemo(() => {

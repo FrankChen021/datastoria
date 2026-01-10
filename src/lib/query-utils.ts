@@ -80,7 +80,7 @@ export class ComparatorManager {
 }
 
 function escapeSingleQuotes(str: string): string {
-    return str.replace(/'/g, "\\'");
+  return str.replace(/'/g, "\\'");
 }
 
 export class QueryPattern {
@@ -106,7 +106,10 @@ export class QueryPattern {
     }
   }
 
-  public static fromSearchParams(searchParams: URLSearchParams, filter: (param) => boolean): Map<string, QueryPattern> {
+  public static fromSearchParams(
+    searchParams: URLSearchParams,
+    filter: (param) => boolean
+  ): Map<string, QueryPattern> {
     const queryParams: Map<string, QueryPattern> = new Map();
     searchParams.forEach((value, key) => {
       if (value === "") {
@@ -123,4 +126,3 @@ export class QueryPattern {
     return queryParams;
   }
 }
-

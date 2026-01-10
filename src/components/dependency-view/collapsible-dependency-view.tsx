@@ -23,9 +23,16 @@ export function CollapsibleDependencyView({
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CardHeader className="p-0">
           <CollapsibleTrigger className="w-full">
-            <div className={cn("flex items-center p-3 bg-muted/50 transition-colors gap-2 hover:bg-muted")}>
+            <div
+              className={cn(
+                "flex items-center p-3 bg-muted/50 transition-colors gap-2 hover:bg-muted"
+              )}
+            >
               <ChevronRight
-                className={cn("h-4 w-4 transition-transform duration-200 shrink-0", isOpen && "rotate-90")}
+                className={cn(
+                  "h-4 w-4 transition-transform duration-200 shrink-0",
+                  isOpen && "rotate-90"
+                )}
               />
               <div className="flex-1 text-left">
                 <CardDescription className={cn("font-semibold text-foreground m-0")}>
@@ -46,4 +53,3 @@ export function CollapsibleDependencyView({
     </Card>
   );
 }
-

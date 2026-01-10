@@ -1,7 +1,7 @@
 import TimeSpanSelector, {
+  BUILT_IN_TIME_SPAN_LIST,
   type DisplayTimeSpan,
   type TimeSpan,
-  BUILT_IN_TIME_SPAN_LIST,
 } from "@/components/shared/dashboard/timespan-selector";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -59,7 +59,10 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
   }, [isSystemDatabase, table]);
 
   // Hide Overview and Partitions tabs if engine starts with "System"
-  const isSystemTable = useMemo(() => (engine?.startsWith("System") || engine?.startsWith("MySQL")) ?? false, [engine]);
+  const isSystemTable = useMemo(
+    () => (engine?.startsWith("System") || engine?.startsWith("MySQL")) ?? false,
+    [engine]
+  );
 
   // Get available tabs for this engine, or default to all tabs
   const baseAvailableTabs = useMemo(() => {
@@ -74,7 +77,15 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
             "query-history",
             "part-history",
           ]))
-      : new Set(["data-sample", "metadata", "dependencies", "overview", "partitions", "query-history", "part-history"]);
+      : new Set([
+          "data-sample",
+          "metadata",
+          "dependencies",
+          "overview",
+          "partitions",
+          "query-history",
+          "part-history",
+        ]);
   }, [engine]);
 
   // Remove overview and partitions for System tables
@@ -173,7 +184,8 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
       const currentRef = getCurrentRef();
       if (hasRefreshCapability(currentRef)) {
         const timeSpan =
-          overrideTimeSpan ?? (supportsTimeSpan ? selectedTimeSpan.calculateAbsoluteTimeSpan() : undefined);
+          overrideTimeSpan ??
+          (supportsTimeSpan ? selectedTimeSpan.calculateAbsoluteTimeSpan() : undefined);
         currentRef.refresh(timeSpan);
       }
     },
@@ -196,7 +208,11 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
 
     return (
       <div className="h-full w-full flex flex-col overflow-hidden">
-        <Tabs value={currentTab} onValueChange={setCurrentTab} className="flex flex-col flex-1 overflow-hidden">
+        <Tabs
+          value={currentTab}
+          onValueChange={setCurrentTab}
+          className="flex flex-col flex-1 overflow-hidden"
+        >
           {hasMultipleTabs && (
             <div className="flex justify-between items-center gap-2 m-2">
               <TabsList>
@@ -237,7 +253,11 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">
-      <Tabs value={currentTab} onValueChange={setCurrentTab} className="flex flex-col flex-1 overflow-hidden">
+      <Tabs
+        value={currentTab}
+        onValueChange={setCurrentTab}
+        className="flex flex-col flex-1 overflow-hidden"
+      >
         {hasMultipleTabs && (
           <div className="flex justify-between items-center gap-2 m-2">
             <TabsList>
@@ -314,10 +334,14 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
                   variant="outline"
                   size="icon"
                   onClick={() => handleRefresh()}
-                  className="h-9 w-9"
+                  className="h-8 w-8"
                   disabled={isRefreshing}
                 >
-                  {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  {isRefreshing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             ) : null}
@@ -342,7 +366,11 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
               className="h-9 w-9"
               disabled={isRefreshing}
             >
-              {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {isRefreshing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
             </Button>
           </div>
         )}

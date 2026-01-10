@@ -1,15 +1,11 @@
-import { describe, expect, it } from "vitest";
 import type { TreeDataItem } from "@/components/ui/tree";
+import { describe, expect, it } from "vitest";
 import { searchTree } from "./tree-search";
 
 /**
  * Helper function to create a tree node
  */
-function createNode(
-  id: string,
-  labelContent: string,
-  children?: TreeDataItem[]
-): TreeDataItem {
+function createNode(id: string, labelContent: string, children?: TreeDataItem[]): TreeDataItem {
   return {
     id,
     labelContent,
@@ -85,9 +81,7 @@ describe("tree-search", () => {
         ]),
         createNode("metrics", "metrics"),
       ]),
-      createNode("default", "default", [
-        createNode("query", "query"),
-      ]),
+      createNode("default", "default", [createNode("query", "query")]),
     ];
 
     it("should match exact path: system.query.", () => {
@@ -265,12 +259,8 @@ describe("tree-search", () => {
 
   describe("single segment search", () => {
     const tree: TreeDataItem[] = [
-      createNode("system", "system", [
-        createNode("query", "query"),
-      ]),
-      createNode("information_schema", "information_schema", [
-        createNode("tables", "tables"),
-      ]),
+      createNode("system", "system", [createNode("query", "query")]),
+      createNode("information_schema", "information_schema", [createNode("tables", "tables")]),
     ];
 
     it("should fuzzy match 'sys' to system", () => {
@@ -282,9 +272,7 @@ describe("tree-search", () => {
         {
           labelContent: "system",
           expanded: false,
-          children: [
-            { labelContent: "query", expanded: false, children: undefined },
-          ],
+          children: [{ labelContent: "query", expanded: false, children: undefined }],
         },
       ]);
     });
@@ -297,9 +285,7 @@ describe("tree-search", () => {
         {
           labelContent: "information_schema",
           expanded: false,
-          children: [
-            { labelContent: "tables", expanded: false, children: undefined },
-          ],
+          children: [{ labelContent: "tables", expanded: false, children: undefined }],
         },
       ]);
     });
@@ -323,9 +309,7 @@ describe("tree-search", () => {
         {
           labelContent: "system",
           expanded: true, // Expanded because it contains a match
-          children: [
-            { labelContent: "query", expanded: false, children: undefined },
-          ],
+          children: [{ labelContent: "query", expanded: false, children: undefined }],
         },
         {
           labelContent: "test",
@@ -334,9 +318,7 @@ describe("tree-search", () => {
             {
               labelContent: "something",
               expanded: true,
-              children: [
-                { labelContent: "query", expanded: false, children: undefined },
-              ],
+              children: [{ labelContent: "query", expanded: false, children: undefined }],
             },
           ],
         },
@@ -390,18 +372,10 @@ describe("tree-search", () => {
     const tree: TreeDataItem[] = [
       createNode("a", "a", [
         createNode("b", "b", [
-          createNode("c", "c", [
-            createNode("d", "d"),
-          ]),
-          createNode("x", "x", [
-            createNode("c", "c"),
-          ]),
+          createNode("c", "c", [createNode("d", "d")]),
+          createNode("x", "x", [createNode("c", "c")]),
         ]),
-        createNode("y", "y", [
-          createNode("b", "b", [
-            createNode("c", "c"),
-          ]),
-        ]),
+        createNode("y", "y", [createNode("b", "b", [createNode("c", "c")])]),
       ]),
     ];
 
@@ -422,9 +396,7 @@ describe("tree-search", () => {
                 {
                   labelContent: "c",
                   expanded: true,
-                  children: [
-                    { labelContent: "d", expanded: false, children: undefined },
-                  ],
+                  children: [{ labelContent: "d", expanded: false, children: undefined }],
                 },
               ],
             },
@@ -456,11 +428,7 @@ describe("tree-search", () => {
   });
 
   describe("case sensitivity", () => {
-    const tree: TreeDataItem[] = [
-      createNode("System", "System", [
-        createNode("Query", "Query"),
-      ]),
-    ];
+    const tree: TreeDataItem[] = [createNode("System", "System", [createNode("Query", "Query")])];
 
     it("should match 'system.query' case-insensitively for exact segments", () => {
       const results = searchTree(tree, "system.query");
@@ -470,9 +438,7 @@ describe("tree-search", () => {
         {
           labelContent: "System",
           expanded: true,
-          children: [
-            { labelContent: "Query", expanded: false, children: undefined },
-          ],
+          children: [{ labelContent: "Query", expanded: false, children: undefined }],
         },
       ]);
     });
@@ -485,20 +451,14 @@ describe("tree-search", () => {
         {
           labelContent: "System",
           expanded: true,
-          children: [
-            { labelContent: "Query", expanded: true, children: undefined },
-          ],
+          children: [{ labelContent: "Query", expanded: true, children: undefined }],
         },
       ]);
     });
   });
 
   describe("empty search", () => {
-    const tree: TreeDataItem[] = [
-      createNode("system", "system", [
-        createNode("query", "query"),
-      ]),
-    ];
+    const tree: TreeDataItem[] = [createNode("system", "system", [createNode("query", "query")])];
 
     it("should return original tree for empty search", () => {
       const results = searchTree(tree, "");
@@ -518,9 +478,7 @@ describe("tree-search", () => {
     });
 
     it("should handle search with only dots", () => {
-      const tree: TreeDataItem[] = [
-        createNode("system", "system"),
-      ];
+      const tree: TreeDataItem[] = [createNode("system", "system")];
       const results = searchTree(tree, "...");
       // All empty segments are filtered out, returning original tree (same as empty search)
       expect(results).toEqual(tree);
@@ -543,7 +501,8 @@ describe("tree-search", () => {
     it("should handle empty-named nodes with middle empty segments", () => {
       const tree: TreeDataItem[] = [
         createNode("a", "a", [
-          createNode("", "", [  // Empty-named node
+          createNode("", "", [
+            // Empty-named node
             createNode("c", "c"),
           ]),
           createNode("b", "b"),
@@ -563,19 +522,13 @@ describe("tree-search", () => {
 
       // Most real trees won't have empty-named nodes, so a..anything typically matches nothing
       const normalTree: TreeDataItem[] = [
-        createNode("system", "system", [
-          createNode("query", "query"),
-        ]),
+        createNode("system", "system", [createNode("query", "query")]),
       ];
       expect(searchTree(normalTree, "system..query")).toEqual([]);
     });
 
     it("should distinguish 'system..' vs 'system.'", () => {
-      const tree: TreeDataItem[] = [
-        createNode("system", "system", [
-          createNode("query", "query"),
-        ]),
-      ];
+      const tree: TreeDataItem[] = [createNode("system", "system", [createNode("query", "query")])];
 
       // system. → ["system", ""] → expand system to show children
       const results1 = searchTree(tree, "system.");
@@ -590,9 +543,7 @@ describe("tree-search", () => {
     it("should handle multiple trailing dots correctly", () => {
       const tree: TreeDataItem[] = [
         createNode("system", "system", [
-          createNode("query", "query", [
-            createNode("query_log", "query_log"),
-          ]),
+          createNode("query", "query", [createNode("query_log", "query_log")]),
         ]),
       ];
 

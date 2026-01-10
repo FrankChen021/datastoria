@@ -2,8 +2,10 @@ import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter"
 import { memo } from "react";
 import type { QueryResponseViewProps } from "../query-view-model";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const ExplainSyntaxResponseViewComponent = ({ queryRequest: _queryRequest, queryResponse }: QueryResponseViewProps) => {
+const ExplainSyntaxResponseViewComponent = ({
+  queryRequest: _queryRequest,
+  queryResponse,
+}: QueryResponseViewProps) => {
   const text =
     typeof queryResponse.data === "string"
       ? queryResponse.data
@@ -23,7 +25,12 @@ const ExplainSyntaxResponseViewComponent = ({ queryRequest: _queryRequest, query
     <div className="mt-2">
       <ThemedSyntaxHighlighter
         showLineNumbers={true}
-        customStyle={{ backgroundColor: "rgba(143, 153, 168, 0.15)", fontSize: "14px", margin: 0, padding: "1rem" }}
+        customStyle={{
+          backgroundColor: "rgba(143, 153, 168, 0.15)",
+          fontSize: "14px",
+          margin: 0,
+          padding: "1rem",
+        }}
         language="sql"
       >
         {text}

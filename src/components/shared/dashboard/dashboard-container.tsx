@@ -1,10 +1,17 @@
 "use client";
 
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { Dashboard } from "./dashboard-model";
 import DashboardPanels, { type DashboardPanelsRef } from "./dashboard-panels";
-import type { TimeSpan } from "./timespan-selector";
-import TimeSpanSelector, { BUILT_IN_TIME_SPAN_LIST } from "./timespan-selector";
+import TimeSpanSelector, { BUILT_IN_TIME_SPAN_LIST, type TimeSpan } from "./timespan-selector";
 
 export interface DashboardContainerRef {
   refresh: (timeSpan?: TimeSpan) => void;

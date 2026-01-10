@@ -5,15 +5,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { TextHighlighter } from "@/lib/text-highlighter";
 import {
   BaseEdge,
-  type Edge,
   EdgeLabelRenderer,
-  type EdgeProps,
-  type EdgeTypes,
   getStraightPath,
   Handle,
   MarkerType,
-  type Node,
-  type NodeTypes,
   Panel,
   Position,
   ReactFlow,
@@ -21,6 +16,11 @@ import {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  type Edge,
+  type EdgeProps,
+  type EdgeTypes,
+  type Node,
+  type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
@@ -80,12 +80,16 @@ function TableNode({
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
       <div className="px-3 py-2 border-b border-border text-center">
-        <div className="font-semibold text-sm text-foreground">{isNotFound ? "NOT FOUND" : `<<${node.category}>>`}</div>
+        <div className="font-semibold text-sm text-foreground">
+          {isNotFound ? "NOT FOUND" : `<<${node.category}>>`}
+        </div>
       </div>
       <div className="px-3 py-2 text-center">
         <div className="text-sm font-medium text-foreground">{node.namespace}</div>
       </div>
-      {node.name && <div className="px-3 py-2 border-t border-border text-center">{tableNameDisplay}</div>}
+      {node.name && (
+        <div className="px-3 py-2 border-t border-border text-center">{tableNameDisplay}</div>
+      )}
     </div>
   );
 }
@@ -310,7 +314,8 @@ const GraphControlPanel = ({
                     ? `${Array.from(matchingNodeIds).indexOf(selectedNodeId) + 1}/${matchingNodeIds.size} `
                     : `${matchingNodeIds.size} tables found. `}
                   Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Enter</kbd>/
-                  <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Shift+Enter</kbd> to locate
+                  <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Shift+Enter</kbd> to
+                  locate
                 </div>
               </>
             )}
@@ -318,7 +323,13 @@ const GraphControlPanel = ({
           <div className="bg-background rounded-md shadow-lg flex items-center">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={onZoomIn} className="h-8 w-8" aria-label="Zoom in">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onZoomIn}
+                  className="h-8 w-8"
+                  aria-label="Zoom in"
+                >
                   <ZoomIn className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -328,7 +339,13 @@ const GraphControlPanel = ({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={onZoomOut} className="h-8 w-8" aria-label="Zoom out">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onZoomOut}
+                  className="h-8 w-8"
+                  aria-label="Zoom out"
+                >
                   <ZoomOut className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -338,7 +355,13 @@ const GraphControlPanel = ({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={onFitView} className="h-8 w-8" aria-label="Fit view">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onFitView}
+                  className="h-8 w-8"
+                  aria-label="Fit view"
+                >
                   <Maximize2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -357,7 +380,11 @@ const GraphControlPanel = ({
                   className="h-8 w-8"
                   aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
                 >
-                  {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                  {isFullscreen ? (
+                    <Minimize className="h-4 w-4" />
+                  ) : (
+                    <Maximize className="h-4 w-4" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -447,7 +474,10 @@ const DependencyGraphFlowInner = ({
       // Base: 250 for names <= 60, then scale proportionally
       const baseRanksep = 250;
       const baseMaxLength = 60;
-      const ranksep = maxNameLength <= baseMaxLength ? baseRanksep : baseRanksep + (maxNameLength - baseMaxLength) * 4; // 4px per character over 60
+      const ranksep =
+        maxNameLength <= baseMaxLength
+          ? baseRanksep
+          : baseRanksep + (maxNameLength - baseMaxLength) * 4; // 4px per character over 60
 
       dagreGraph.setGraph({ rankdir: "LR", nodesep: 10, ranksep });
 

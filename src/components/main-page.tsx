@@ -1,9 +1,17 @@
+import { useConnection } from "@/components/connection/connection-context";
 import { ConnectionWizard } from "@/components/connection/connection-wizard";
-import { SchemaTreeLoader, type SchemaLoadResult } from "@/components/schema-tree/schema-tree-loader";
+import {
+  SchemaTreeLoader,
+  type SchemaLoadResult,
+} from "@/components/schema-tree/schema-tree-loader";
 import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
 import { Button } from "@/components/ui/button";
-import { Connection, type ConnectionMetadata, type DatabaseInfo, type TableInfo } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
+import {
+  Connection,
+  type ConnectionMetadata,
+  type DatabaseInfo,
+  type TableInfo,
+} from "@/lib/connection/connection";
 import { hostNameManager } from "@/lib/host-name-manager";
 import { AlertCircle, Loader2, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -42,7 +50,16 @@ function extractTableNames(result: SchemaLoadResult): {
           database: row.database,
           table: row.table,
           comment: row.tableComment || null,
+          columns: [],
         });
+      }
+
+      // Add column if it exists
+      if (row.columnName) {
+        const tableInfo = tableNames.get(qualifiedName);
+        if (tableInfo && tableInfo.columns) {
+          tableInfo.columns.push(row.columnName);
+        }
       }
     }
   }
@@ -60,7 +77,12 @@ interface MainPageLoadStatusComponentProps {
 }
 
 // Component for Initializing, Connecting or Error states (covers the whole page)
-function MainPageLoadStatusComponent({ status, connectionName, error, onRetry }: MainPageLoadStatusComponentProps) {
+function MainPageLoadStatusComponent({
+  status,
+  connectionName,
+  error,
+  onRetry,
+}: MainPageLoadStatusComponentProps) {
   return (
     <div
       className={`h-full w-full flex flex-col items-center justify-center bg-muted/5 p-8 text-center animate-in duration-500 ${
@@ -138,9 +160,12 @@ async function getConnectionMetadata(connection: Connection): Promise<Partial<Co
   );
 
   // Issue a dedicated query in case the query fails
-  const functionQuery = await connection.query(`select 1 from system.functions where name = 'formatQuery'`, {
-    default_format: "JSONCompact",
-  });
+  const functionQuery = await connection.query(
+    `select 1 from system.functions where name = 'formatQuery'`,
+    {
+      default_format: "JSONCompact",
+    }
+  );
 
   let metadata: Partial<ConnectionMetadata> = {};
 
@@ -152,7 +177,9 @@ async function getConnectionMetadata(connection: Connection): Promise<Partial<Co
     const timezone = data.data[0][1];
 
     const isCluster =
-      connection.cluster && connection.cluster.length > 0 && connection.metadata.targetNode === undefined;
+      connection.cluster &&
+      connection.cluster.length > 0 &&
+      connection.metadata.targetNode === undefined;
     metadata = {
       targetNode: isCluster ? returnNode : undefined,
       internalUser: internalUser,
@@ -206,7 +233,7 @@ export function MainPage() {
       try {
         hostNameManager.clear();
 
-          // Pre-load hostnames for shortening if cluster is configured
+        // Pre-load hostnames for shortening if cluster is configured
         if (connection.cluster) {
           try {
             const response = await connection.query(
@@ -320,8 +347,8 @@ export function MainPage() {
 
         <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
 
-        {/* Right Panel Group: Tabs for Query and Table Views */}
-        <Panel defaultSize={80} minSize={50} className="bg-background">
+        {/* Middle Panel: Tabs for Query and Table Views */}
+        <Panel defaultSize={80} minSize={30} className="bg-background">
           <MainPageTabList selectedConnection={connection} />
         </Panel>
       </PanelGroup>

@@ -183,4 +183,3 @@ ORDER BY t WITH FILL STEP {rounding:UInt32} SETTINGS skip_unavailable_shards = 1
     },
   } as TimeseriesDescriptor,
 ];
-

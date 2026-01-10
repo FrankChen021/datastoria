@@ -1,4 +1,7 @@
-import type { StatDescriptor, TableDescriptor } from "@/components/shared/dashboard/dashboard-model";
+import type {
+  StatDescriptor,
+  TableDescriptor,
+} from "@/components/shared/dashboard/dashboard-model";
 
 export const nodeMergeDashboard: StatDescriptor[] = [
   {
@@ -227,4 +230,3 @@ WHERE event_date >= toDate(now() - {seconds:UInt32})
     },
   } as StatDescriptor,
 ];
-

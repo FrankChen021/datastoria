@@ -1,22 +1,35 @@
 "use client";
 
+import { useConnection } from "@/components/connection/connection-context";
 import { CardContent } from "@/components/ui/card";
 import {
-  DropdownMenuItem,
   DropdownMenuPortal,
   DropdownMenuSub,
   DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import { QueryError } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
 import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp, Check } from "lucide-react";
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { showQueryDialog } from "./dashboard-dialog-utils";
+import {
+  DashboardDropdownMenuItem,
+  DashboardDropdownMenuSubTrigger,
+} from "./dashboard-dropdown-menu-item";
 import type { FieldOption, SQLQuery, TableDescriptor } from "./dashboard-model";
-import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
-import { DashboardPanelLayout } from "./dashboard-panel-layout";
+import {
+  DashboardPanelLayout,
+  type DashboardPanelComponent,
+  type RefreshOptions,
+} from "./dashboard-panel-layout";
 import { DataTable, type DataTableRef } from "./data-table";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
@@ -48,7 +61,10 @@ function replaceOrderByClause(
   if (!orderByColumn || !orderDirection) {
     // Remove ORDER BY clause if sorting is cleared
     // Match ORDER BY ... (until LIMIT or end of string)
-    return sql.replace(/\s+ORDER\s+BY\s+[^\s]+(?:\s+(?:ASC|DESC))?(?:\s*,\s*[^\s]+\s+(?:ASC|DESC)?)*/gi, "");
+    return sql.replace(
+      /\s+ORDER\s+BY\s+[^\s]+(?:\s+(?:ASC|DESC))?(?:\s*,\s*[^\s]+\s+(?:ASC|DESC)?)*/gi,
+      ""
+    );
   }
 
   const orderByClause = `ORDER BY ${orderByColumn} ${orderDirection.toUpperCase()}`;
@@ -167,7 +183,11 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           // Replace time span template parameters in SQL (e.g., {rounding:UInt32}, {seconds:UInt32}, etc.)
           // IMPORTANT: This must be done BEFORE applying server-side sorting to ensure all replacement
           // variables are replaced before SQL manipulation (like adding ORDER BY clause)
-          let finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.metadata.timezone);
+          let finalSql = replaceTimeSpanParams(
+            query.sql,
+            param.selectedTimeSpan,
+            connection.metadata.timezone
+          );
 
           // Replace other common replacement variables that might be in the SQL query
           // These replacements should happen before any SQL manipulation (ORDER BY, LIMIT, etc.)
@@ -178,8 +198,16 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
 
           // Apply server-side sorting if enabled
           // Use sortRef for synchronous access to current sort state
-          if (descriptor.sortOption?.serverSideSorting && sortRef.current.column && sortRef.current.direction) {
-            finalSql = replaceOrderByClause(finalSql, sortRef.current.column, sortRef.current.direction);
+          if (
+            descriptor.sortOption?.serverSideSorting &&
+            sortRef.current.column &&
+            sortRef.current.direction
+          ) {
+            finalSql = replaceOrderByClause(
+              finalSql,
+              sortRef.current.column,
+              sortRef.current.direction
+            );
           }
 
           // Apply pagination (server mode)
@@ -215,7 +243,10 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
               return;
             }
 
-            const responseData = apiResponse.data.json<{ data?: Record<string, unknown>[]; meta?: { name: string; type?: string }[] }>();
+            const responseData = apiResponse.data.json<{
+              data?: Record<string, unknown>[];
+              meta?: { name: string; type?: string }[];
+            }>();
 
             // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
             const rows = responseData.data || [];
@@ -254,7 +285,8 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
               setIsLoading(false);
             } else {
               // Handle other errors
-              const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+              const errorMessage =
+                error instanceof Error ? error.message : "Unknown error occurred";
               console.error("Error processing table response:", error);
               setError(errorMessage);
               setIsLoading(false);
@@ -277,7 +309,9 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
     const refreshInternal = useCallback(
       (param: RefreshOptions) => {
         if (!descriptor.query) {
-          console.error(`No query defined for table [${descriptor.titleOption?.title || "Unknown"}]`);
+          console.error(
+            `No query defined for table [${descriptor.titleOption?.title || "Unknown"}]`
+          );
           setError("No query defined for this table component.");
           return;
         }
@@ -303,12 +337,13 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
         : ({} as RefreshOptions);
     }, [props.selectedTimeSpan]);
 
-    const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
-      initialCollapsed: descriptor.collapsed ?? false,
-      refreshInternal,
-      getInitialParams,
-      onCollapsedChange: props.onCollapsedChange,
-    });
+    const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } =
+      useRefreshable({
+        initialCollapsed: descriptor.collapsed ?? false,
+        refreshInternal,
+        getInitialParams,
+        onCollapsedChange: props.onCollapsedChange,
+      });
 
     // Store refresh function in ref for use in handleSort
     useEffect(() => {
@@ -356,7 +391,12 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
 
     // Handle table scroll events for infinite scroll pagination
     const handleTableScroll = useCallback(
-      (scrollMetrics: { scrollTop: number; scrollHeight: number; clientHeight: number; isNearBottom: boolean }) => {
+      (scrollMetrics: {
+        scrollTop: number;
+        scrollHeight: number;
+        clientHeight: number;
+        isNearBottom: boolean;
+      }) => {
         if (descriptor.pagination?.mode !== "server") {
           return;
         }
@@ -387,9 +427,11 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
       const scrollRef = useRef<HTMLDivElement>(null);
       const [showTopArrow, setShowTopArrow] = useState(false);
       const [showBottomArrow, setShowBottomArrow] = useState(false);
-      
+
       // Track column visibility state locally for immediate UI updates
-      const [localColumns, setLocalColumns] = useState<Array<{ name: string; title: string; isVisible: boolean }>>(dataTableRef.current?.getAllColumns() || []);
+      const [localColumns, setLocalColumns] = useState<
+        Array<{ name: string; title: string; isVisible: boolean }>
+      >(dataTableRef.current?.getAllColumns() || []);
 
       const checkScrollPosition = useCallback(() => {
         const element = scrollRef.current;
@@ -427,12 +469,10 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
       const handleToggleColumn = useCallback((columnName: string) => {
         // Update DataTable visibility
         dataTableRef.current?.toggleColumnVisibility(columnName);
-        
+
         // Update local state for immediate UI feedback
-        setLocalColumns((prev) => 
-          prev.map((col) => 
-            col.name === columnName ? { ...col, isVisible: !col.isVisible } : col
-          )
+        setLocalColumns((prev) =>
+          prev.map((col) => (col.name === columnName ? { ...col, isVisible: !col.isVisible } : col))
         );
       }, []);
 
@@ -462,7 +502,7 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           >
             {localColumns.map((col, index) => {
               return (
-                <DropdownMenuItem
+                <DashboardDropdownMenuItem
                   key={index}
                   onClick={(e) => {
                     handleToggleColumn(col.name);
@@ -474,9 +514,9 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
                     e.preventDefault();
                   }}
                 >
-                  <Check className={cn("h-4 w-4", col.isVisible ? "opacity-100" : "opacity-0")} />
+                  <Check className={cn("h-3 w-3", col.isVisible ? "opacity-100" : "opacity-0")} />
                   {col.title}
-                </DropdownMenuItem>
+                </DashboardDropdownMenuItem>
               );
             })}
           </div>
@@ -498,10 +538,16 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
     // Build dropdown menu items
     const dropdownItems = (
       <>
-        {descriptor.query?.sql && <DropdownMenuItem onClick={handleShowQuery}>Show query</DropdownMenuItem>}
+        {descriptor.query?.sql && (
+          <DashboardDropdownMenuItem onClick={handleShowQuery}>
+            Show query
+          </DashboardDropdownMenuItem>
+        )}
         <DropdownMenuSub>
           {/* Stop event propagation so that DropdownMenu will not be closed if clicked */}
-          <DropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>Show/Hide Columns</DropdownMenuSubTrigger>
+          <DashboardDropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>
+            Show/Hide Columns
+          </DashboardDropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
               <RenderShowColumns />
@@ -532,7 +578,11 @@ const DashboardPanelTable = forwardRef<DashboardPanelComponent, DashboardPanelTa
           className="px-0 p-0 h-full overflow-hidden"
           // Support descriptor.height for special cases like drilldown dialogs (uses vh units)
           // For normal dashboard panels, height is controlled by gridPos.h instead
-          style={descriptor.height ? ({ maxHeight: `${descriptor.height}vh` } as React.CSSProperties) : undefined}
+          style={
+            descriptor.height
+              ? ({ maxHeight: `${descriptor.height}vh` } as React.CSSProperties)
+              : undefined
+          }
         >
           <DataTable
             ref={dataTableRef}

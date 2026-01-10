@@ -1,10 +1,10 @@
 "use client";
 
 import { AgreementDialog, PRIVACY_POLICY, TERMS_OF_SERVICE } from "@/app/login/agreement-dialog";
+import { AppLogo } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { signIn } from "next-auth/react";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
@@ -38,11 +38,13 @@ function LoginForm() {
           <div className="flex justify-center">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
               {/* <Database className="h-8 w-8 text-primary" /> */}
-              <Image src="/logo.png" alt="Data Scopic" width={64} height={64} />
+              <AppLogo width={64} height={64} />
             </div>
           </div>
           <CardTitle className="text-3xl">Sign in to Data Scopic</CardTitle>
-          <CardDescription className="text-base">Choose your authentication provider to continue</CardDescription>
+          <CardDescription className="text-base">
+            Choose your authentication provider to continue
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -97,7 +99,11 @@ function LoginForm() {
             )}
 
             {process.env.NEXT_PUBLIC_MICROSOFT_ENABLED === "true" && (
-              <Button variant="outline" className="w-full" onClick={() => handleSignIn("microsoft-entra-id")}>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => handleSignIn("microsoft-entra-id")}
+              >
                 <svg
                   className="mr-2 h-4 w-4"
                   aria-hidden="true"
@@ -119,7 +125,8 @@ function LoginForm() {
               !process.env.NEXT_PUBLIC_GITHUB_ENABLED &&
               !process.env.NEXT_PUBLIC_MICROSOFT_ENABLED && (
                 <div className="text-center text-sm text-muted-foreground">
-                  No authentication providers are configured. Please check your environment variables.
+                  No authentication providers are configured. Please check your environment
+                  variables.
                 </div>
               )}
           </div>

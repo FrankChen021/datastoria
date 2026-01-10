@@ -1,7 +1,7 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { useState, type ReactNode } from "react";
 
 export interface DashboardGroupSectionProps {
   title: ReactNode;
@@ -38,10 +38,7 @@ export function DashboardGroupSection({
           <h3 className={cn("text-md font-semibold", titleClassName)}>{title}</h3>
         </div>
       </CollapsibleTrigger>
-      <CollapsibleContent className="w-full py-1">
-        {children}
-      </CollapsibleContent>
+      <CollapsibleContent className="w-full py-1">{children}</CollapsibleContent>
     </Collapsible>
   );
 }
-

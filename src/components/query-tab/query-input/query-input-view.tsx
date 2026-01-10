@@ -1,6 +1,23 @@
+import { useConnection } from "@/components/connection/connection-context";
+import { useTheme } from "@/components/theme-provider";
 import type { Ace } from "ace-builds";
 import dynamic from "next/dynamic";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useDebouncedCallback } from "use-debounce";
+import { QueryInputLocalStorage } from "../query-input/query-input-local-storage";
+import { defineChatMode, updateChatModeTableNames } from "./completion/chat-mode";
+import { QuerySuggestionManager } from "./completion/query-suggestion-manager";
+import "./query-input-view.css";
+import { QuerySnippetManager } from "./snippet/QuerySnippetManager";
+import { updateQueryInputState } from "./use-query-input";
 
 // Dynamically import AceEditor to prevent SSR issues
 const AceEditor = dynamic(
@@ -20,16 +37,6 @@ const AceEditor = dynamic(
   },
   { ssr: false }
 );
-
-import { useTheme } from "@/components/theme-provider";
-import { useConnection } from "@/lib/connection/connection-context";
-import { useDebouncedCallback } from "use-debounce";
-import { QueryInputLocalStorage } from "../query-input/query-input-local-storage";
-import { defineChatMode, updateChatModeTableNames } from "./completion/chat-mode";
-import { QuerySuggestionManager } from "./completion/query-suggestion-manager";
-import "./query-input-view.css";
-import { QuerySnippetManager } from "./snippet/QuerySnippetManager";
-import { updateQueryInputState } from "./use-query-input";
 
 type ExtendedEditor = {
   completer?: Ace.Autocomplete;
@@ -210,7 +217,9 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
 
     // Get current theme state directly from DOM on every render to ensure accuracy
     const currentDarkMode =
-      typeof window !== "undefined" ? window.document.documentElement.classList.contains("dark") : isDark;
+      typeof window !== "undefined"
+        ? window.document.documentElement.classList.contains("dark")
+        : isDark;
 
     // Determine the ace editor theme based on current dark mode
     // Use xcode theme for light mode (better syntax highlighting) and solarized_dark for dark mode
@@ -312,7 +321,8 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           name: "run",
           bindKey: { win: "Ctrl-Enter", mac: "Command-Enter" },
           exec: () => {
-            const text = extendedEditor.getSelectedText().trim() || extendedEditor.getValue().trim();
+            const text =
+              extendedEditor.getSelectedText().trim() || extendedEditor.getValue().trim();
             if (text && latestOnRun.current) {
               latestOnRun.current(text);
             }
@@ -326,15 +336,15 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
         });
 
         // Add command to toggle mode
-        editor.commands.addCommand({
-          name: "toggleMode",
-          bindKey: { win: "Ctrl-I", mac: "Command-I" },
-          exec: () => {
-            if (latestOnToggleMode.current) {
-              latestOnToggleMode.current();
-            }
-          },
-        });
+        // editor.commands.addCommand({
+        //   name: "toggleMode",
+        //   bindKey: { win: "Ctrl-I", mac: "Command-I" },
+        //   exec: () => {
+        //     if (latestOnToggleMode.current) {
+        //       latestOnToggleMode.current();
+        //     }
+        //   },
+        // });
 
         editorRef.current = extendedEditor;
       },
@@ -364,7 +374,9 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
       // Update completers based on language
       if (language === "dsql") {
         const extendedEditor = editorRef.current as ExtendedEditor;
-        extendedEditor.completers = QuerySuggestionManager.getInstance().getCompleters(extendedEditor.completers);
+        extendedEditor.completers = QuerySuggestionManager.getInstance().getCompleters(
+          extendedEditor.completers
+        );
       } else if (language === "chat") {
         // Update chat mode and table name highlighting FIRST
         const session = editorRef.current.getSession();
@@ -419,7 +431,6 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
       placeholderText = `Input your SQL here.
 Press ${keyBindings.execute} to execute query.
 Press ${keyBindings.autocomplete} to show suggestions.
-Press ${keyBindings.toggle} to switch to Chat mode.
   `;
     } else if (language === "chat") {
       placeholderText = `Ask AI anything about your data...

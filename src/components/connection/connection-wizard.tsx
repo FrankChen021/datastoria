@@ -1,13 +1,13 @@
+import { AppLogo } from "@/components/app-logo";
+import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
-import { useConnection } from "@/lib/connection/connection-context";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
 import { X } from "lucide-react";
-import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 import { ConnectionEditComponent } from "./connection-edit-component";
-import Link from "next/link";
 
 export function ConnectionWizard() {
   const { switchConnection } = useConnection();
@@ -38,8 +38,7 @@ export function ConnectionWizard() {
             <CardHeader className="text-center space-y-2">
               <div className="flex justify-center">
                 <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  {/* <Database className="h-8 w-8 text-primary" /> */}
-                  <Image src="/logo.png" alt="Data Scopic" width={64} height={64} />
+                  <AppLogo width={64} height={64} />
                 </div>
               </div>
               <CardTitle className="text-3xl">Welcome to Data Scopic</CardTitle>
@@ -57,7 +56,9 @@ export function ConnectionWizard() {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">Configure Connection</p>
-                      <p>Enter your ClickHouse server URL, credentials, and optional cluster name</p>
+                      <p>
+                        Enter your ClickHouse server URL, credentials, and optional cluster name
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
@@ -85,8 +86,8 @@ export function ConnectionWizard() {
                     <div>
                       <p className="font-medium text-foreground">Ask AI</p>
                       <p>
-                        Ask AI questions about your cluster data in natural language and get instant answers,
-                        visualizations, and more
+                        Ask AI questions about your cluster data in natural language and get instant
+                        answers, visualizations, and more
                       </p>
                     </div>
                   </div>
@@ -133,7 +134,12 @@ export function ConnectionWizard() {
           </Card>
         ) : (
           <Card className="w-full relative flex-shrink-0">
-            <Button variant="ghost" size="icon" onClick={handleCancel} className="absolute top-2 right-2 h-8 w-8 z-10">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleCancel}
+              className="absolute top-2 right-2 h-8 w-8 z-10"
+            >
               <X className="h-4 w-4" />
             </Button>
             <CardHeader className="pb-4">
@@ -141,7 +147,12 @@ export function ConnectionWizard() {
               <CardDescription>Configure your ClickHouse connection settings.</CardDescription>
             </CardHeader>
             <CardContent>
-              <ConnectionEditComponent connection={null} onSave={handleSave} onCancel={handleCancel} isAddMode={true} />
+              <ConnectionEditComponent
+                connection={null}
+                onSave={handleSave}
+                onCancel={handleCancel}
+                isAddMode={true}
+              />
             </CardContent>
           </Card>
         )}

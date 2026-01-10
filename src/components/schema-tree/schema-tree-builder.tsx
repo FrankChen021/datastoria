@@ -2,7 +2,6 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { type TreeDataItem } from "@/components/ui/tree";
 import { type Connection } from "@/lib/connection/connection";
 import { hostNameManager } from "@/lib/host-name-manager";
-import type { LucideIcon } from "lucide-react";
 import {
   Calculator,
   Calendar,
@@ -16,6 +15,7 @@ import {
   Package,
   Table as TableIcon,
   Type,
+  type LucideIcon,
 } from "lucide-react";
 import { SchemaTreeBadge, SchemaTreeHostSelector } from "./schema-tree-host-selector";
 import type {
@@ -97,7 +97,9 @@ function getColumnIcon(typeString: string): LucideIcon | undefined {
 }
 
 // Parse Enum type to extract base type and key-value pairs
-function parseEnumType(typeString: string): { baseType: string; pairs: Array<[string, string]> } | null {
+function parseEnumType(
+  typeString: string
+): { baseType: string; pairs: Array<[string, string]> } | null {
   const type = String(typeString || "").trim();
 
   // Match Enum8, Enum16, Enum, etc.
@@ -127,7 +129,11 @@ function parseEnumType(typeString: string): { baseType: string; pairs: Array<[st
 }
 
 // Create a column tree node
-function toColumnTreeNode(column: { name: string; type: string; comment?: string | null }): TreeDataItem {
+function toColumnTreeNode(column: {
+  name: string;
+  type: string;
+  comment?: string | null;
+}): TreeDataItem {
   const columnName = String(column.name || "Unknown");
   const columnType = String(column.type || "");
   const columnComment = column.comment || null;
@@ -228,7 +234,9 @@ function toTableTreeNode(table: {
           />
         </div>
         <div className="font-medium text-muted-foreground">Engine</div>
-        <div className="text-foreground break-all min-w-0">{table.fullTableEngine || table.tableEngine}</div>
+        <div className="text-foreground break-all min-w-0">
+          {table.fullTableEngine || table.tableEngine}
+        </div>
       </div>
       {tableComment && (
         <div className="pt-1 mt-1 border-t">
@@ -276,7 +284,10 @@ function toDatabaseTreeNode(db: {
         <div className="font-medium text-muted-foreground">Database</div>
         <div className="text-foreground break-all flex items-center gap-1 min-w-0">
           <span>{dbName}</span>
-          <CopyButton value={dbName} className="relative top-0 right-0 h-4 w-4 shrink-0 [&_svg]:h-2.5 [&_svg]:w-2.5" />
+          <CopyButton
+            value={dbName}
+            className="relative top-0 right-0 h-4 w-4 shrink-0 [&_svg]:h-2.5 [&_svg]:w-2.5"
+          />
         </div>
         <div className="font-medium text-muted-foreground">Engine</div>
         <div className="text-foreground break-all min-w-0">{db.engine}</div>
@@ -447,7 +458,11 @@ function toDatabaseTreeNodes(rows: TableItemDO[]): [number, TreeDataItem[]] {
       const columnName = String(row.columnName);
       const columnType = String(row.columnType || "");
       const columnComment = row.columnComment ? String(row.columnComment) : null;
-      const columnNode = toColumnTreeNode({ name: columnName, type: columnType, comment: columnComment });
+      const columnNode = toColumnTreeNode({
+        name: columnName,
+        type: columnType,
+        comment: columnComment,
+      });
       columnNode.id = `table:${currentDatabase}.${tableName}.${columnName}`;
       columnNodes.push(columnNode);
     }
@@ -524,7 +539,7 @@ export function buildSchemaTree(
   const [totalTables, databaseNodes] = toDatabaseTreeNodes(schemaData.rows);
 
   // Default no-op handler if not provided
-  const hostChangeHandler = onHostChange || (() => { });
+  const hostChangeHandler = onHostChange || (() => {});
 
   // Build comprehensive tooltip for host
   const hostTooltip = (

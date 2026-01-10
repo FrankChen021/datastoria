@@ -1,7 +1,16 @@
-import type { Dashboard, TableDescriptor, TransposeTableDescriptor } from "@/components/shared/dashboard/dashboard-model";
-import DashboardPanels, { type DashboardPanelsRef } from "@/components/shared/dashboard/dashboard-panels";
-import { BUILT_IN_TIME_SPAN_LIST, type TimeSpan } from "@/components/shared/dashboard/timespan-selector";
-import { useConnection } from "@/lib/connection/connection-context";
+import { useConnection } from "@/components/connection/connection-context";
+import type {
+  Dashboard,
+  TableDescriptor,
+  TransposeTableDescriptor,
+} from "@/components/shared/dashboard/dashboard-model";
+import DashboardPanels, {
+  type DashboardPanelsRef,
+} from "@/components/shared/dashboard/dashboard-panels";
+import {
+  BUILT_IN_TIME_SPAN_LIST,
+  type TimeSpan,
+} from "@/components/shared/dashboard/timespan-selector";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { RefreshableTabViewRef } from "./table-tab";
 
@@ -16,7 +25,9 @@ const TableMetadataViewComponent = forwardRef<RefreshableTabViewRef, TableMetada
     const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
     // Metadata doesn't really depend on time, but DashboardPanels requires a time span.
     // We use a default one.
-    const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan>(() => BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan());
+    const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan>(() =>
+      BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan()
+    );
 
     const { connection } = useConnection();
 
@@ -32,7 +43,6 @@ const TableMetadataViewComponent = forwardRef<RefreshableTabViewRef, TableMetada
     }));
 
     const dashboard = useMemo<Dashboard>(() => {
-
       const d: Dashboard = {
         version: 2,
         filter: {
@@ -51,7 +61,7 @@ const TableMetadataViewComponent = forwardRef<RefreshableTabViewRef, TableMetada
             collapsed: false,
             gridPos: {
               w: 24,
-              h: 24
+              h: 24,
             },
             query: {
               sql: `
@@ -66,15 +76,15 @@ SELECT * FROM system.tables WHERE database = '${database}' AND name = '${table}'
           {
             type: "table",
             titleOption: {
-            title: "Table Columns",
-            align: "center",
-          },
-          collapsed: true,
-          miscOption: { enableIndexColumn: true },
-          gridPos: {
-            w: 24,
-            h: 12
-          },
+              title: "Table Columns",
+              align: "center",
+            },
+            collapsed: true,
+            miscOption: { enableIndexColumn: true },
+            gridPos: {
+              w: 24,
+              h: 12,
+            },
             query: {
               sql: `SELECT * FROM system.columns WHERE database = '${database}' AND table = '${table}'`,
             },
@@ -91,15 +101,15 @@ SELECT * FROM system.tables WHERE database = '${database}' AND name = '${table}'
         d.charts.push({
           type: "table",
           titleOption: {
-          title: "Table Metadata On Cluster",
-          align: "center",
-        },
-        collapsed: true,
-        miscOption: { enableIndexColumn: true },
-        gridPos: {
-          w: 24,
-          h: 12
-        },
+            title: "Table Metadata On Cluster",
+            align: "center",
+          },
+          collapsed: true,
+          miscOption: { enableIndexColumn: true },
+          gridPos: {
+            w: 24,
+            h: 12,
+          },
           sortOption: {
             initialSort: {
               column: "host",
@@ -108,10 +118,10 @@ SELECT * FROM system.tables WHERE database = '${database}' AND name = '${table}'
           },
           fieldOptions: {
             create_table_query: {
-              format: 'sql'
+              format: "sql",
             },
             table_query_hash: {
-              format: (val) => val
+              format: (val) => val,
             },
           },
           query: {
@@ -131,7 +141,13 @@ ORDER BY host
       return d;
     }, [database, table]);
 
-    return <DashboardPanels ref={dashboardPanelsRef} dashboard={dashboard} selectedTimeSpan={selectedTimeSpan} />;
+    return (
+      <DashboardPanels
+        ref={dashboardPanelsRef}
+        dashboard={dashboard}
+        selectedTimeSpan={selectedTimeSpan}
+      />
+    );
   }
 );
 

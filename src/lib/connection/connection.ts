@@ -37,6 +37,7 @@ export interface TableInfo {
   database: string;
   table: string;
   comment?: string | null;
+  columns?: string[];
 }
 
 export interface DatabaseInfo {
@@ -116,6 +117,8 @@ export class Connection {
   // Connection metadata information
   metadata: ConnectionMetadata;
 
+  readonly connectionId: string;
+
   private constructor(config: ConnectionConfig) {
     this.name = config.name;
     this.url = config.url;
@@ -139,6 +142,8 @@ export class Connection {
       }
     }
 
+    this.connectionId = `${config.user}@${this.host}`;
+
     // Initialize metadata with defaults
     this.metadata = {
       internalUser: config.user, // Default to external configured user
@@ -161,7 +166,9 @@ export class Connection {
   ): { response: Promise<QueryResponse>; abortController: AbortController } {
     // Validate connection is properly initialized
     if (!this.host || !this.path) {
-      throw new QueryError(`Connection not properly initialized. Host: ${this.host}, Path: ${this.path}`);
+      throw new QueryError(
+        `Connection not properly initialized. Host: ${this.host}, Path: ${this.path}`
+      );
     }
 
     if (this.cluster && this.cluster.length > 0 && sql.includes("{cluster}")) {
@@ -207,7 +214,9 @@ export class Connection {
 
         // Validate URL before making request
         if (!fetchUrl || !(fetchUrl.startsWith("http://") || fetchUrl.startsWith("https://"))) {
-          throw new QueryError(`Invalid URL: ${fetchUrl}. Connection may not be properly initialized.`);
+          throw new QueryError(
+            `Invalid URL: ${fetchUrl}. Connection may not be properly initialized.`
+          );
         }
 
         const response = await fetch(fetchUrl, {

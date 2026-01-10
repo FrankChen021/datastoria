@@ -27,16 +27,18 @@ export function calculateTimeSpanParams(selectedTimeSpan: TimeSpan) {
 
 function toStringFormat(secondsSinceEpoch: number, timezone: string): string {
   const date = new Date(secondsSinceEpoch * 1000);
-  return date.toLocaleString('en-CA', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  }).replace(',', '');
+  return date
+    .toLocaleString("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    })
+    .replace(",", "");
 }
 
 /**
@@ -53,7 +55,11 @@ function toStringFormat(secondsSinceEpoch: number, timezone: string): string {
  * @param timezone The timezone to use for time-based queries
  * @returns The SQL query with parameters replaced
  */
-export function replaceTimeSpanParams(sql: string, timeSpan: TimeSpan | undefined, timezone: string): string {
+export function replaceTimeSpanParams(
+  sql: string,
+  timeSpan: TimeSpan | undefined,
+  timezone: string
+): string {
   if (!timeSpan) {
     return sql;
   }
@@ -67,5 +73,5 @@ export function replaceTimeSpanParams(sql: string, timeSpan: TimeSpan | undefine
   sql = sql.replace(/{from:String}/g, `'${toStringFormat(params.startTimestamp, timezone)}'`);
   sql = sql.replace(/{to:String}/g, `'${toStringFormat(params.endTimestamp, timezone)}'`);
 
-  return sql;
+  return sql.trim();
 }

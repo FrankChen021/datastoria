@@ -1,28 +1,44 @@
+import { AppLogo } from "@/components/app-logo";
+import { ChatPanel } from "@/components/chat/view/chat-panel";
+import { ChatTab } from "@/components/chat/view/chat-tab";
+import { DEFAULT_CHAT_QUESTIONS } from "@/components/chat/view/chat-view";
+import { useChatPanel } from "@/components/chat/view/use-chat-panel";
+import { useConnection } from "@/components/connection/connection-context";
 import { DatabaseTab } from "@/components/database-tab/database-tab";
 import { NodeTab } from "@/components/node-tab/node-tab";
-import { QueryLogTab } from "@/components/query-log-tab/query-log-tab";
+import { QueryLogInspectorTab } from "@/components/query-log-inspector/query-log-inspector-tab";
 import { QueryTab } from "@/components/query-tab/query-tab";
 import { TabManager, type TabInfo } from "@/components/tab-manager";
 import { TableTab } from "@/components/table-tab/table-tab";
 import { Button } from "@/components/ui/button";
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Connection } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
-import type { LucideIcon } from "lucide-react";
 import {
   ChevronLeft,
   ChevronRight,
   Database,
   Monitor,
-  Plus,
   Search,
+  Sparkles,
   Table as TableIcon,
   Terminal,
   X,
+  type LucideIcon,
 } from "lucide-react";
-import Image from "next/image";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+  type ImperativePanelHandle,
+} from "react-resizable-panels";
+import { v7 as uuidv7 } from "uuid";
 
 interface MainPageTabListProps {
   selectedConnection: Connection | null;
@@ -30,10 +46,22 @@ interface MainPageTabListProps {
 
 // Component for the "Ready" state (Welcome screen)
 function EmptyTabPlaceholderComponent() {
+  const questions = DEFAULT_CHAT_QUESTIONS;
+
+  const handleOpenChat = useCallback(() => {
+    TabManager.openChatTab();
+  }, []);
+
+  const handleQuestionClick = useCallback((question: { text: string; autoRun?: boolean }) => {
+    // Generate a new chat ID to ensure a fresh chat session
+    const newChatId = uuidv7();
+    TabManager.openChatTab(newChatId, undefined, question.text, question.autoRun ?? false);
+  }, []);
+
   return (
     <div className="h-full w-full flex flex-col items-center justify-center bg-muted/5 text-center animate-in fade-in zoom-in-95 duration-300">
       <div className="bg-background shadow-sm">
-        <Image src="/logo.png" alt="Data Scopic" width={64} height={64} />
+        <AppLogo width={64} height={64} />
       </div>
 
       <h3 className="text-2xl font-semibold tracking-tight mb-2">Welcome to Data Scopic</h3>
@@ -42,16 +70,42 @@ function EmptyTabPlaceholderComponent() {
         Select a table from the sidebar to view its details, or start by running a new SQL query.
       </p>
 
-      <Button onClick={() => TabManager.activateQueryTab()} className="gap-2 shadow-sm">
-        <Plus className="h-4 w-4" />
-        Open New Query
-      </Button>
+      {/* Primary Action Buttons */}
+      <div className="flex gap-3 mb-12">
+        <Button onClick={() => TabManager.activateQueryTab()} className="gap-2 shadow-sm">
+          <Terminal className="h-4 w-4" />
+          Write SQL to Query
+        </Button>
+        <Button onClick={handleOpenChat} className="gap-2 shadow-sm" variant="default">
+          <Sparkles className="h-4 w-4" />
+          Chat with AI Assistant
+        </Button>
+      </div>
+
+      {/* Question Suggestions Section - Less Prominent */}
+      <div className="w-full max-w-xl">
+        <p className="text-xs text-muted-foreground mb-2">Try asking the AI assistant:</p>
+        <div className="flex flex-wrap gap-2 justify-center">
+          {questions.map((question, index) => (
+            <Button
+              key={index}
+              variant="ghost"
+              size="sm"
+              className="h-auto py-1.5 px-3 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              onClick={() => handleQuestionClick(question)}
+            >
+              {question.text}
+            </Button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
 const MainPageTabListComponent = ({ selectedConnection }: MainPageTabListProps) => {
   const { isReady } = useConnection();
+  const { isVisible: isChatPanelVisible, toggle: toggleChatPanel } = useChatPanel();
   // Tab management state
   const [activeTab, setActiveTab] = useState<string>("");
   const [tabs, setTabs] = useState<TabInfo[]>([]);
@@ -65,6 +119,10 @@ const MainPageTabListComponent = ({ selectedConnection }: MainPageTabListProps) 
   const [canScrollRight, setCanScrollRight] = useState(false);
   const scrollStateRef = useRef({ canScrollLeft: false, canScrollRight: false });
   const scrollTimeoutRef = useRef<number | null>(null);
+
+  // Refs for panel control
+  const tabsPanelRef = useRef<ImperativePanelHandle>(null);
+  const chatPanelRef = useRef<ImperativePanelHandle>(null);
 
   // Handle open tab events (unified handler)
   useEffect(() => {
@@ -81,6 +139,7 @@ const MainPageTabListComponent = ({ selectedConnection }: MainPageTabListProps) 
             type: "query",
             initialQuery: event.detail.query,
             initialMode: event.detail.mode,
+            initialExecute: event.detail.execute,
           };
           break;
         case "table":
@@ -100,7 +159,24 @@ const MainPageTabListComponent = ({ selectedConnection }: MainPageTabListProps) 
           break;
         case "query-log":
           tabId = event.detail.queryId ? `Query Log: ${event.detail.queryId}` : "query-log";
-          newTab = { id: tabId, type: "query-log", queryId: event.detail.queryId, eventDate: event.detail.eventDate };
+          newTab = {
+            id: tabId,
+            type: "query-log",
+            queryId: event.detail.queryId,
+            eventDate: event.detail.eventDate,
+          };
+          break;
+        case "chat":
+          tabId =
+            event.detail.tabId ||
+            (event.detail.chatId ? `chat:${event.detail.chatId}` : `chat:${Date.now()}`);
+          newTab = {
+            id: tabId,
+            type: "chat",
+            chatId: event.detail.chatId,
+            initialPrompt: event.detail.initialPrompt,
+            autoRun: event.detail.autoRun,
+          };
           break;
         default:
           return;
@@ -385,7 +461,9 @@ const MainPageTabListComponent = ({ selectedConnection }: MainPageTabListProps) 
     if (!tabsScrollContainerRef.current) return;
 
     // Find the active tab trigger element
-    const activeTabTrigger = tabsScrollContainerRef.current.querySelector(`[data-state="active"]`) as HTMLElement;
+    const activeTabTrigger = tabsScrollContainerRef.current.querySelector(
+      `[data-state="active"]`
+    ) as HTMLElement;
 
     if (activeTabTrigger) {
       // Scroll the active tab into view with smooth behavior
@@ -444,6 +522,8 @@ const MainPageTabListComponent = ({ selectedConnection }: MainPageTabListProps) 
           return { id: tab.id, label: `${tab.database}`, icon: Database };
         } else if (tab.type === "table") {
           return { id: tab.id, label: `${tab.database}.${tab.table}`, icon: TableIcon };
+        } else if (tab.type === "chat") {
+          return { id: tab.id, label: "AI Assistant", icon: Sparkles };
         }
         return null;
       })
@@ -461,7 +541,12 @@ const MainPageTabListComponent = ({ selectedConnection }: MainPageTabListProps) 
             role="tabpanel"
             aria-hidden={activeTab !== tab.id}
           >
-            <QueryTab initialQuery={tab.initialQuery} initialMode={tab.initialMode} active={activeTab === tab.id} />
+            <QueryTab
+              initialQuery={tab.initialQuery}
+              initialMode={tab.initialMode}
+              initialExecute={tab.initialExecute}
+              active={activeTab === tab.id}
+            />
           </div>
         );
       }
@@ -509,7 +594,24 @@ const MainPageTabListComponent = ({ selectedConnection }: MainPageTabListProps) 
             role="tabpanel"
             aria-hidden={activeTab !== tab.id}
           >
-            <QueryLogTab initialQueryId={tab.queryId} initialEventDate={tab.eventDate} />
+            <QueryLogInspectorTab initialQueryId={tab.queryId} initialEventDate={tab.eventDate} />
+          </div>
+        );
+      }
+      if (tab.type === "chat") {
+        return (
+          <div
+            key={tab.id}
+            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
+            role="tabpanel"
+            aria-hidden={activeTab !== tab.id}
+          >
+            <ChatTab
+              initialChatId={tab.chatId}
+              active={activeTab === tab.id}
+              initialPrompt={tab.initialPrompt}
+              autoRun={tab.autoRun}
+            />
           </div>
         );
       }
@@ -517,106 +619,156 @@ const MainPageTabListComponent = ({ selectedConnection }: MainPageTabListProps) 
     });
   }, [sortedTabs, activeTab]);
 
+  // Resize panels when chat panel visibility changes
+  useEffect(() => {
+    if (!isChatPanelVisible) {
+      return;
+    }
+
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      // When chat panel is visible, use default split
+      tabsPanelRef.current?.resize(70);
+      chatPanelRef.current?.resize(30);
+    });
+  }, [isChatPanelVisible]);
+
+  // Determine panel sizes based on state
+  const tabsPanelSize = isChatPanelVisible ? 70 : 100;
+  const chatPanelSize = isChatPanelVisible ? 30 : 0;
+
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full w-full flex flex-col">
-      {tabs.length > 0 && (
-        <div className="relative w-full border-b bg-background h-9 flex items-center">
-          {showNavigationButtons && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-none shrink-0 z-10"
-              onClick={handleScrollLeft}
-              disabled={!canScrollLeft}
-              aria-label="Scroll tabs left"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
+    <PanelGroup direction="horizontal" className="h-full w-full">
+      {/* Tabs Panel */}
+      <Panel ref={tabsPanelRef} defaultSize={tabsPanelSize} minSize={30} className="bg-background">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="h-full w-full flex flex-col"
+        >
+          {tabs.length > 0 && (
+            <div className="relative w-full border-b bg-background h-9 flex items-center">
+              {showNavigationButtons && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-none shrink-0 z-10"
+                  onClick={handleScrollLeft}
+                  disabled={!canScrollLeft}
+                  aria-label="Scroll tabs left"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              )}
+              <div ref={tabsScrollContainerRef} className="flex-1 overflow-x-auto scrollbar-hide">
+                <TabsList className="inline-flex justify-start rounded-none border-0 h-auto p-0 bg-transparent flex-nowrap">
+                  {sortedTabs.map((tab, index) => {
+                    const hasTabsToRight = index < sortedTabs.length - 1;
+                    const hasOtherTabs = tabs.length > 1;
+                    const tabInfo = tabLabels.find((l) => l.id === tab.id);
+
+                    if (!tabInfo) {
+                      return null;
+                    }
+
+                    const { label: tabLabel, icon: TabIcon } = tabInfo;
+
+                    return (
+                      <ContextMenu key={tab.id}>
+                        <ContextMenuTrigger asChild>
+                          <div className="relative inline-flex items-center flex-shrink-0">
+                            <TabsTrigger
+                              value={tab.id}
+                              className="rounded-none border-t-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-muted data-[state=active]:font-semibold pr-8"
+                              onClick={() => setActiveTab(tab.id)}
+                            >
+                              <TabIcon className="h-4 w-4 mr-1.5" />
+                              <span>{tabLabel}</span>
+                            </TabsTrigger>
+                            <button
+                              onClick={(e) => handleCloseTab(tab.id, e)}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted z-10"
+                              aria-label="Close tab"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (activeTab === tab.id) {
+                                const previousTabId = getPreviousTabId(tab.id, tabs);
+                                setActiveTab(previousTabId);
+                              }
+                              handleCloseTab(tab.id);
+                            }}
+                          >
+                            Close this tab
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() => handleCloseTabsToRight(tab.id)}
+                            disabled={!hasTabsToRight}
+                          >
+                            Close to the right
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() => handleCloseOthers(tab.id)}
+                            disabled={!hasOtherTabs}
+                          >
+                            Close others
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={handleCloseAll} disabled={tabs.length === 0}>
+                            Close all
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
+                    );
+                  })}
+                </TabsList>
+              </div>
+              {showNavigationButtons && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-none shrink-0 z-10"
+                  onClick={handleScrollRight}
+                  disabled={!canScrollRight}
+                  aria-label="Scroll tabs right"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           )}
-          <div ref={tabsScrollContainerRef} className="flex-1 overflow-x-auto scrollbar-hide">
-            <TabsList className="inline-flex justify-start rounded-none border-0 h-auto p-0 bg-transparent flex-nowrap">
-              {sortedTabs.map((tab, index) => {
-                const hasTabsToRight = index < sortedTabs.length - 1;
-                const hasOtherTabs = tabs.length > 1;
-                const tabInfo = tabLabels.find((l) => l.id === tab.id);
+          <div className="flex-1 overflow-hidden relative">
+            {/* Show Smart Empty State when no tabs exist and chat panel is not visible, but only when ready */}
+            {tabs.length === 0 && isReady && <EmptyTabPlaceholderComponent />}
 
-                if (!tabInfo) {
-                  return null;
-                }
-
-                const { label: tabLabel, icon: TabIcon } = tabInfo;
-
-                return (
-                  <ContextMenu key={tab.id}>
-                    <ContextMenuTrigger asChild>
-                      <div className="relative inline-flex items-center flex-shrink-0">
-                        <TabsTrigger
-                          value={tab.id}
-                          className="rounded-none border-t-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-muted data-[state=active]:font-semibold pr-8"
-                          onClick={() => setActiveTab(tab.id)}
-                        >
-                          <TabIcon className="h-4 w-4 mr-1.5" />
-                          <span>{tabLabel}</span>
-                        </TabsTrigger>
-                        <button
-                          onClick={(e) => handleCloseTab(tab.id, e)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted z-10"
-                          aria-label="Close tab"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    </ContextMenuTrigger>
-                    <ContextMenuContent>
-                      <ContextMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (activeTab === tab.id) {
-                            const previousTabId = getPreviousTabId(tab.id, tabs);
-                            setActiveTab(previousTabId);
-                          }
-                          handleCloseTab(tab.id);
-                        }}
-                      >
-                        Close this tab
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => handleCloseTabsToRight(tab.id)} disabled={!hasTabsToRight}>
-                        Close to the right
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => handleCloseOthers(tab.id)} disabled={!hasOtherTabs}>
-                        Close others
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={handleCloseAll} disabled={tabs.length === 0}>
-                        Close all
-                      </ContextMenuItem>
-                    </ContextMenuContent>
-                  </ContextMenu>
-                );
-              })}
-            </TabsList>
+            {/* All Tabs - Always mounted */}
+            {tabContent}
           </div>
-          {showNavigationButtons && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-none shrink-0 z-10"
-              onClick={handleScrollRight}
-              disabled={!canScrollRight}
-              aria-label="Scroll tabs right"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      )}
-      <div className="flex-1 overflow-hidden relative">
-        {/* Show Smart Empty State when no tabs exist, but only when ready */}
-        {tabs.length === 0 && isReady && <EmptyTabPlaceholderComponent />}
+        </Tabs>
+      </Panel>
 
-        {/* All Tabs - Always mounted */}
-        {tabContent}
-      </div>
-    </Tabs>
+      {/* Resize Handle - only show when chat panel is visible */}
+      {isChatPanelVisible && (
+        <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
+      )}
+
+      {/* Chat Panel - only show when chat panel is visible */}
+      {isChatPanelVisible && (
+        <Panel
+          ref={chatPanelRef}
+          defaultSize={chatPanelSize}
+          minSize={20}
+          className="bg-background"
+        >
+          <ChatPanel onClose={toggleChatPanel} />
+        </Panel>
+      )}
+    </PanelGroup>
   );
 };
 

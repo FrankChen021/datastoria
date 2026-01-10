@@ -1,15 +1,20 @@
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
+import { ChatContext, type DatabaseContext } from "@/components/chat/chat-context";
+import { ChatFactory } from "@/components/chat/chat-factory";
+import { useConnection } from "@/components/connection/connection-context";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import type { AppUIMessage, TokenUsage } from "@/lib/ai/common-types";
-import { createChat, setChatContextBuilder } from "@/lib/chat";
-import type { DatabaseContext } from "@/lib/chat/types";
-import { useConnection } from "@/lib/connection/connection-context";
 import { toastManager } from "@/lib/toast";
-import type { Chat } from "@ai-sdk/react";
-import { useChat } from "@ai-sdk/react";
+import { useChat, type Chat } from "@ai-sdk/react";
 import { Loader2, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v7 as uuid } from "uuid";
-import { ChatMessageView } from "./chat/chat-message-view";
+import { ChatMessageView } from "../chat/message/chat-message-view";
+import type { ChatMessage } from "../chat/message/chat-messages";
 import { ChatExecutor } from "./query-execution/chat-executor";
 import { useQueryExecutor } from "./query-execution/query-executor";
 import { QueryListItemView } from "./query-list-item-view";
@@ -29,20 +34,6 @@ export interface QueryListViewProps {
   onNewSession?: () => void; // Callback to generate a new session when clearing screen
 }
 
-// Adapter interface for the merged list
-export interface ChatMessage {
-  type: "chat";
-  id: string;
-  role: "user" | "assistant" | "system";
-  parts: AppUIMessage["parts"];
-  usage?: AppUIMessage["usage"];
-  content: string; // Kept for search/display purposes
-  isLoading: boolean;
-  timestamp: number;
-  error?: Error | undefined;
-  sessionId?: string; // Session ID for grouping messages
-}
-
 export type Message = SQLMessage | ChatMessage;
 
 function QueryListViewContent({
@@ -58,7 +49,12 @@ function QueryListViewContent({
   messageIdToSessionIdRef: React.MutableRefObject<Map<string, string>>;
 }) {
   const { connection } = useConnection();
-  const { sqlMessages, isSqlExecuting, deleteQuery, deleteAllQueries: clearAllQueries } = useQueryExecutor();
+  const {
+    sqlMessages,
+    isSqlExecuting,
+    deleteQuery,
+    deleteAllQueries: clearAllQueries,
+  } = useQueryExecutor();
 
   const responseScrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollPlaceholderRef = useRef<HTMLDivElement>(null);
@@ -67,7 +63,9 @@ function QueryListViewContent({
   const messageTimestampsRef = useRef<Map<string, number>>(new Map());
   // Map to store sessionId for messages by their content and timestamp
   // Key: message content, Value: { sessionId, timestamp }
-  const pendingSessionIdsRef = useRef<Map<string, { sessionId: string; timestamp: number }>>(new Map());
+  const pendingSessionIdsRef = useRef<Map<string, { sessionId: string; timestamp: number }>>(
+    new Map()
+  );
   // Map to store errors by message ID
   // Key: message ID, Value: Error
   const messageErrorsRef = useRef<Map<string, Error>>(new Map());
@@ -121,7 +119,8 @@ function QueryListViewContent({
     if (scrollPlaceholderRef.current && responseScrollContainerRef.current) {
       // If instant, set scrollTop directly
       if (instant) {
-        responseScrollContainerRef.current.scrollTop = responseScrollContainerRef.current.scrollHeight;
+        responseScrollContainerRef.current.scrollTop =
+          responseScrollContainerRef.current.scrollHeight;
         return;
       }
 
@@ -308,10 +307,22 @@ function QueryListViewContent({
       }
     }
 
-    // Merge and sort
-    const all = [...sqlMessages, ...chatMessages];
+    // Merge and sort - add tabId to SQL messages
+    const sqlMessagesWithTabId = sqlMessages.map((msg) => ({ ...msg, tabId }));
+    const all = [...sqlMessagesWithTabId, ...chatMessages];
     return all.sort((a, b) => a.timestamp - b.timestamp);
-  }, [sqlMessages, rawMessages, isChatExecuting, currentSessionId, messageIdToSessionIdRef, chatError]);
+  }, [
+    sqlMessages,
+    rawMessages,
+    isChatExecuting,
+    currentSessionId,
+    messageIdToSessionIdRef,
+    chatError,
+    tabId,
+  ]);
+
+  // Track previous stats to avoid redundant updates
+  const prevStatsRef = useRef<ChatSessionStats | undefined>(undefined);
 
   // Update parent with current session stats (message count, token usage, and start time)
   useEffect(() => {
@@ -351,11 +362,24 @@ function QueryListViewContent({
         } as TokenUsage
       );
 
-      onChatSessionStatsChanged({
-        messageCount,
-        tokens: totalTokens,
-        startTime,
-      });
+      // Check if stats effectively changed
+      const prevStats = prevStatsRef.current;
+      const hasChanged =
+        !prevStats ||
+        prevStats.messageCount !== messageCount ||
+        prevStats.tokens.totalTokens !== totalTokens.totalTokens ||
+        prevStats.tokens.outputTokens !== totalTokens.outputTokens ||
+        prevStats.startTime?.getTime() !== startTime?.getTime();
+
+      if (hasChanged) {
+        const newStats = {
+          messageCount,
+          tokens: totalTokens,
+          startTime,
+        };
+        prevStatsRef.current = newStats;
+        onChatSessionStatsChanged(newStats);
+      }
     }
   }, [mergedMessageList, currentSessionId, onChatSessionStatsChanged]);
 
@@ -401,14 +425,15 @@ function QueryListViewContent({
           const clickHouseUser = connection?.user;
           const contextWithUser: DatabaseContext = {
             ...event.detail.context,
-            clickHouseUser: (event.detail.context as DatabaseContext).clickHouseUser || clickHouseUser,
+            clickHouseUser:
+              (event.detail.context as DatabaseContext).clickHouseUser || clickHouseUser,
           };
-          setChatContextBuilder(() => contextWithUser);
+          ChatContext.setBuilder(() => contextWithUser);
         } else {
           // If no context provided, create one with clickHouseUser
           const clickHouseUser = connection?.user;
           if (clickHouseUser) {
-            setChatContextBuilder(() => ({ clickHouseUser }));
+            ChatContext.setBuilder(() => ({ clickHouseUser }));
           }
         }
 
@@ -487,8 +512,8 @@ function QueryListViewContent({
         >
           {mergedMessageList.length === 0 ? (
             <div className="text-sm text-muted-foreground p-1">
-              Input your SQL in the editor below and execute it, then the results will appear here. Or input your
-              questions to chat with the AI assistant.
+              Input your SQL in the editor below and execute it, then the results will appear here.
+              Or input your questions to chat with the AI assistant.
             </div>
           ) : (
             <>
@@ -498,15 +523,20 @@ function QueryListViewContent({
 
                 const isNewSession = Boolean(
                   msg.type === "chat" &&
-                    msg.sessionId &&
-                    prevMsg?.type === "chat" &&
-                    (prevMsg as ChatMessage).sessionId !== msg.sessionId &&
-                    msg.role === "user"
+                  msg.sessionId &&
+                  prevMsg?.type === "chat" &&
+                  (prevMsg as ChatMessage).sessionId !== msg.sessionId &&
+                  msg.role === "user"
                 );
 
                 if (msg.type === "sql") {
                   return (
-                    <QueryListItemView key={msg.id} {...msg} onQueryDelete={handleQueryDelete} isFirst={index === 0} />
+                    <QueryListItemView
+                      key={msg.id}
+                      {...msg}
+                      onQueryDelete={handleQueryDelete}
+                      isFirst={index === 0}
+                    />
                   );
                 } else {
                   return (
@@ -566,13 +596,14 @@ export function QueryListView(props: QueryListViewProps) {
         // Set up context builder with clickHouseUser from connection
         const clickHouseUser = connection?.user;
         if (clickHouseUser) {
-          setChatContextBuilder(() => ({ clickHouseUser }));
+          ChatContext.setBuilder(() => ({ clickHouseUser }));
         }
-        const chat = await createChat({
+        const chat = await ChatFactory.create({
           id,
           skipStorage: false,
           getCurrentSessionId: () => currentSessionIdRef.current,
-          getMessageSessionId: (messageId: string) => messageIdToSessionIdRef.current.get(messageId),
+          getMessageSessionId: (messageId: string) =>
+            messageIdToSessionIdRef.current.get(messageId),
         });
         if (mounted) {
           setChatInstance(chat);
@@ -596,6 +627,10 @@ export function QueryListView(props: QueryListViewProps) {
   }
 
   return (
-    <QueryListViewContent {...props} chatInstance={chatInstance} messageIdToSessionIdRef={messageIdToSessionIdRef} />
+    <QueryListViewContent
+      {...props}
+      chatInstance={chatInstance}
+      messageIdToSessionIdRef={messageIdToSessionIdRef}
+    />
   );
 }

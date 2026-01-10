@@ -1,13 +1,17 @@
+import { useConnection } from "@/components/connection/connection-context";
 import type {
   Dashboard,
   DashboardGroup,
   StatDescriptor,
   TableDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
-import DashboardPanels, { type DashboardPanelsRef } from "@/components/shared/dashboard/dashboard-panels";
-import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
-import { BUILT_IN_TIME_SPAN_LIST } from "@/components/shared/dashboard/timespan-selector";
-import { useConnection } from "@/lib/connection/connection-context";
+import DashboardPanels, {
+  type DashboardPanelsRef,
+} from "@/components/shared/dashboard/dashboard-panels";
+import {
+  BUILT_IN_TIME_SPAN_LIST,
+  type TimeSpan,
+} from "@/components/shared/dashboard/timespan-selector";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { RefreshableTabViewRef } from "./table-tab";
 
@@ -18,7 +22,6 @@ export interface TableOverviewViewProps {
 }
 
 const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOverviewViewProps>(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ({ database, table, autoLoad: _autoLoad }, ref) => {
     const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | undefined>(undefined);
     const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
@@ -178,35 +181,36 @@ LIMIT 1
           //
           // Cluster - only available in cluster mode
           //
-          ...(isClusterMode ? [
-            {
-              title: "Cluster",
-              charts: [
+          ...(isClusterMode
+            ? [
                 {
-                  type: "stat",
-                  titleOption: {
-                    title: "Cluster Size",
-                  },
-                  width: 5,
-                  query: {
-                    sql: `
+                  title: "Cluster",
+                  charts: [
+                    {
+                      type: "stat",
+                      titleOption: {
+                        title: "Cluster Size",
+                      },
+                      width: 5,
+                      query: {
+                        sql: `
 SELECT sum(total_bytes) as total_bytes
 FROM clusterAllReplicas('{cluster}', system.tables)
 WHERE database = '${database}' AND name = '${table}'
 `,
-                  },
-                  valueOption: {
-                    format: "binary_size",
-                  },
-                } as StatDescriptor,
-                {
-                  type: "table",
-                  titleOption: {
-                    title: "Table Size On Cluster",
-                    align: "center",
-                  },
-                  query: {
-                    sql: `
+                      },
+                      valueOption: {
+                        format: "binary_size",
+                      },
+                    } as StatDescriptor,
+                    {
+                      type: "table",
+                      titleOption: {
+                        title: "Table Size On Cluster",
+                        align: "center",
+                      },
+                      query: {
+                        sql: `
 SELECT
   FQDN() as host, 
   count() as part_count, 
@@ -218,25 +222,26 @@ AND active
 GROUP BY host
 ORDER BY host
 `,
-                  },
-                  fieldOptions: {
-                    bytes_on_disk: {
-                      format: "binary_size",
-                    },
-                    rows: {
-                      format: "comma_number",
-                    },
-                  },
-                  sortOption: {
-                    initialSort: {
-                      column: "host",
-                      direction: "asc",
-                    },
-                  },
-                } as TableDescriptor,
-              ],
-            } as DashboardGroup,
-          ] : []),
+                      },
+                      fieldOptions: {
+                        bytes_on_disk: {
+                          format: "binary_size",
+                        },
+                        rows: {
+                          format: "comma_number",
+                        },
+                      },
+                      sortOption: {
+                        initialSort: {
+                          column: "host",
+                          direction: "asc",
+                        },
+                      },
+                    } as TableDescriptor,
+                  ],
+                } as DashboardGroup,
+              ]
+            : []),
 
           //
           // Sizes
@@ -543,7 +548,13 @@ ORDER BY 1, 2, 3`,
       };
     }, [database, table, connection]);
 
-    return <DashboardPanels ref={dashboardPanelsRef} dashboard={dashboard} selectedTimeSpan={currentTimeSpan} />;
+    return (
+      <DashboardPanels
+        ref={dashboardPanelsRef}
+        dashboard={dashboard}
+        selectedTimeSpan={currentTimeSpan}
+      />
+    );
   }
 );
 

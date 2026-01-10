@@ -1,12 +1,12 @@
-import { LocalStorage } from '@/lib/connection/LocalStorage';
+import { LocalStorage } from "@/lib/local-storage";
 
 export class QueryInputLocalStorage {
-  public static getInput(key: string = 'editing-sql'): string {
+  public static getInput(key: string = "editing-sql"): string {
     const value = LocalStorage.getInstance().getString(key);
-    return value || '';
+    return value || "";
   }
 
-  public static saveInput(text: string, key: string = 'editing-sql'): void {
+  public static saveInput(text: string, key: string = "editing-sql"): void {
     LocalStorage.getInstance().setString(key, text);
   }
 }

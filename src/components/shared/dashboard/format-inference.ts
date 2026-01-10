@@ -26,7 +26,10 @@ const NUMERIC_TYPES = new Set([
  * @param fieldName - The name of the field (e.g., "read_bytes", "memory_usage")
  * @returns The inferred format name, or undefined if no format can be inferred
  */
-export function inferFormatFromMetaType(typeString: string | undefined, fieldName: string): FormatName | undefined {
+export function inferFormatFromMetaType(
+  typeString: string | undefined,
+  fieldName: string
+): FormatName | undefined {
   if (!typeString) return undefined;
 
   const normalizedType = typeString.trim();
@@ -100,7 +103,10 @@ export function inferFormatFromMetaType(typeString: string | undefined, fieldNam
  * @param sampleRows - Array of sample data rows to analyze
  * @returns The inferred format name, or undefined if no format can be inferred
  */
-export function inferFieldFormat(fieldName: string, sampleRows: Record<string, unknown>[]): FormatName | undefined {
+export function inferFieldFormat(
+  fieldName: string,
+  sampleRows: Record<string, unknown>[]
+): FormatName | undefined {
   if (sampleRows.length === 0) return undefined;
 
   // Sample up to 10 rows to infer type
@@ -133,7 +139,9 @@ export function inferFieldFormat(fieldName: string, sampleRows: Record<string, u
 
   // Check for Array or other complex types
   if (isArray) {
-    const allArrays = samples.filter((val) => val !== null && val !== undefined).every((val) => Array.isArray(val));
+    const allArrays = samples
+      .filter((val) => val !== null && val !== undefined)
+      .every((val) => Array.isArray(val));
 
     if (allArrays) {
       return "complexType";

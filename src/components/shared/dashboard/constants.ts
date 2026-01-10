@@ -13,4 +13,3 @@ export const SKELETON_MIN_DISPLAY_TIME = 500;
  * Fade transition duration for skeleton loaders (in milliseconds)
  */
 export const SKELETON_FADE_DURATION = 150;
-

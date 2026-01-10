@@ -1,8 +1,8 @@
+import { useConnection } from "@/components/connection/connection-context";
 import { GraphvizComponent } from "@/components/shared/graphviz/GraphvizComponent";
 import { useTheme } from "@/components/theme-provider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type QueryError, type QueryResponse } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
 import { toastManager } from "@/lib/toast";
 import { memo, useEffect, useMemo, useState } from "react";
 import type { QueryResponseViewProps } from "../query-view-model";
@@ -148,7 +148,9 @@ function applyGraphvizStyling(dot: string, bgColor: string): string {
     // For dark themes, nodes should be slightly lighter than main but darker than subgraphs
     // For light themes, nodes should be slightly darker than main but lighter than subgraphs
     const isDark =
-      bgColor === "#1a1a2e" || bgColor === "#002B36" || parseInt(bgColor.replace("#", ""), 16) < parseInt("808080", 16);
+      bgColor === "#1a1a2e" ||
+      bgColor === "#002B36" ||
+      parseInt(bgColor.replace("#", ""), 16) < parseInt("808080", 16);
 
     // Subgraphs should be much more distinct - make them significantly lighter/darker
     const subgraphBgColor = isDark
@@ -182,7 +184,10 @@ function applyGraphvizStyling(dot: string, bgColor: string): string {
       return dot;
     }
 
-    let result = cleaned.substring(0, mainBraceIndex + 1) + mainGraphStyling + cleaned.substring(mainBraceIndex + 1);
+    let result =
+      cleaned.substring(0, mainBraceIndex + 1) +
+      mainGraphStyling +
+      cleaned.substring(mainBraceIndex + 1);
 
     // Find and style all subgraphs
     // Match patterns like: subgraph cluster_123 { or subgraph { or subgraph "name" {
@@ -275,7 +280,10 @@ const ExplainPipeCompleteGraphView = memo(
       // execute EXPLAIN query to get the text
       //
       if (connection === null || connection === undefined) {
-        toastManager.show("No connection selected. Please select a connection to run EXPLAIN.", "error");
+        toastManager.show(
+          "No connection selected. Please select a connection to run EXPLAIN.",
+          "error"
+        );
         return;
       }
 
@@ -365,7 +373,10 @@ const ExplainPipeLineTextView = memo(
       // execute EXPLAIN query to get the text
       //
       if (connection === null || connection === undefined) {
-        toastManager.show("No connection selected. Please select a connection to run EXPLAIN.", "error");
+        toastManager.show(
+          "No connection selected. Please select a connection to run EXPLAIN.",
+          "error"
+        );
         return;
       }
 
@@ -423,7 +434,10 @@ const ExplainPipeLineTextView = memo(
   }
 );
 
-const ExplainPipelineResponseViewComponent = ({ queryRequest, queryResponse }: QueryResponseViewProps) => {
+const ExplainPipelineResponseViewComponent = ({
+  queryRequest,
+  queryResponse,
+}: QueryResponseViewProps) => {
   const [selectedSubView, setSelectedSubView] = useState("compactGraph");
   const { theme } = useTheme();
   const [bgColor, setBgColor] = useState("#002B36");
@@ -519,7 +533,10 @@ const ExplainPipelineResponseViewComponent = ({ queryRequest, queryResponse }: Q
         />
       </TabsContent>
       <TabsContent value="text" className="overflow-auto">
-        <ExplainPipeLineTextView isActive={selectedSubView === "text"} sql={`EXPLAIN pipeline ${rawSQL}`} />
+        <ExplainPipeLineTextView
+          isActive={selectedSubView === "text"}
+          sql={`EXPLAIN pipeline ${rawSQL}`}
+        />
       </TabsContent>
       {queryResponse.httpHeaders && (
         <TabsContent value="headers" className="overflow-auto">

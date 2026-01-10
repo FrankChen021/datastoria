@@ -1,31 +1,30 @@
-import { auth, isAuthEnabled } from '@/auth'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { auth, isAuthEnabled } from "@/auth";
+import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
   // Skip authentication check if auth is not enabled
   if (!isAuthEnabled()) {
-    return NextResponse.next()
+    return NextResponse.next();
   }
 
-  const { pathname } = request.nextUrl
+  const { pathname } = request.nextUrl;
 
   // Allow access to login page and auth API routes
-  if (pathname.startsWith('/login') || pathname.startsWith('/api/auth')) {
-    return NextResponse.next()
+  if (pathname.startsWith("/login") || pathname.startsWith("/api/auth")) {
+    return NextResponse.next();
   }
 
   // Check if user is authenticated
-  const session = await auth()
-  
+  const session = await auth();
+
   if (!session?.user) {
     // Redirect to login page with callback URL
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('callbackUrl', pathname)
-    return NextResponse.redirect(loginUrl)
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next()
+  return NextResponse.next();
 }
 
 // Configure which routes to run proxy on
@@ -38,7 +37,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public folder
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
-}
-
+};

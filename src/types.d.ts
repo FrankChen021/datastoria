@@ -1,1 +1,1 @@
-declare module 'cmdk';
+declare module "cmdk";

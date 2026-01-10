@@ -3,8 +3,8 @@
  * This can be used for testing and as a reference for implementation
  */
 
-import { DataTable } from "./data-table";
 import type { FieldOption } from "./dashboard-model";
+import { DataTable } from "./data-table";
 
 export function DataTableExpansionExample() {
   // Sample data with multiple fields
@@ -162,11 +162,11 @@ export function DataTableExpansionExample() {
       <div className="mb-4">
         <h2 className="text-2xl font-bold mb-2">DataTable Row Expansion Example</h2>
         <p className="text-muted-foreground">
-          Click the chevron icon in the first column to expand/collapse row details.
-          The expanded view shows all fields in a transposed format for easier reading.
+          Click the chevron icon in the first column to expand/collapse row details. The expanded
+          view shows all fields in a transposed format for easier reading.
         </p>
       </div>
-      
+
       <DataTable
         data={data}
         meta={meta}
@@ -180,4 +180,3 @@ export function DataTableExpansionExample() {
     </div>
   );
 }
-

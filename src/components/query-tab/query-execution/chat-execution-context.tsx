@@ -1,5 +1,4 @@
-import type { ReactNode } from "react";
-import { createContext, useContext } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 
 interface ChatExecutionContextType {
   isChatExecuting: boolean;
@@ -15,7 +14,9 @@ export function ChatExecutionProvider({
   isChatExecuting: boolean;
 }) {
   return (
-    <ChatExecutionContext.Provider value={{ isChatExecuting }}>{children}</ChatExecutionContext.Provider>
+    <ChatExecutionContext.Provider value={{ isChatExecuting }}>
+      {children}
+    </ChatExecutionContext.Provider>
   );
 }
 
@@ -26,4 +27,3 @@ export function useChatExecution() {
   }
   return context;
 }
-

@@ -1,10 +1,9 @@
+import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useConnection } from "@/lib/connection/connection-context";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
 import { Pencil } from "lucide-react";
-import type { ReactNode } from "react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Input } from "../ui/input";
 import { showConnectionEditDialog } from "./connection-edit-component";
 import { ConnectionSelector } from "./connection-selector";
@@ -58,8 +57,8 @@ export function ConnectionSelectorPopover({
     if (connection) {
       // Find the actual Connection object from the manager/list to ensure we have all properties (like editable)
       const manager = ConnectionManager.getInstance();
-      const connectionToEdit = manager.getConnections().find(c => c.name === connection.name);
-      
+      const connectionToEdit = manager.getConnections().find((c) => c.name === connection.name);
+
       if (connectionToEdit) {
         showConnectionEditDialog({
           connection: connectionToEdit,
@@ -82,7 +81,7 @@ export function ConnectionSelectorPopover({
         <Input
           className="w-[350px] h-9 pr-9 cursor-pointer"
           title="Edit Connection"
-          value={connection ? `${connection.name}@${connection.url}` : ''}
+          value={connection ? `${connection.name}@${connection.url}` : ""}
           readOnly
         />
         <Button
@@ -115,13 +114,9 @@ export function ConnectionSelectorPopover({
           sideOffset={sideOffset ?? defaultSideOffset}
           side={side}
         >
-          <ConnectionSelector
-            isOpen={isCommandOpen}
-            onClose={() => setIsCommandOpen(false)}
-          />
+          <ConnectionSelector isOpen={isCommandOpen} onClose={() => setIsCommandOpen(false)} />
         </PopoverContent>
       </Popover>
     </div>
   );
 }
-

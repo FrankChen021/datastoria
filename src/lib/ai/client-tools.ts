@@ -5,8 +5,7 @@
  * They provide schema introspection and query execution capabilities.
  */
 import { QueryError, type Connection } from "@/lib/connection/connection";
-import type { InferToolInput, InferToolOutput, UIMessage } from "ai";
-import { tool } from "ai";
+import { tool, type InferToolInput, type InferToolOutput, type UIMessage } from "ai";
 import * as z from "zod";
 import type { AppUIMessage } from "./common-types";
 
@@ -29,8 +28,12 @@ export const ClientTools = {
           z.object({
             table: z
               .string()
-              .describe("The table name ONLY (without database prefix). For 'system.metric_log', use 'metric_log'."),
-            database: z.string().describe("The database name. For 'system.metric_log', use 'system'."),
+              .describe(
+                "The table name ONLY (without database prefix). For 'system.metric_log', use 'metric_log'."
+              ),
+            database: z
+              .string()
+              .describe("The database name. For 'system.metric_log', use 'system'."),
           })
         )
         .min(1)
@@ -59,7 +62,9 @@ export const ClientTools = {
       database: z
         .string()
         .optional()
-        .describe("The name of the database to query. If not provided, returns tables from all databases."),
+        .describe(
+          "The name of the database to query. If not provided, returns tables from all databases."
+        ),
     }),
     outputSchema: z.array(
       z.object({
@@ -85,7 +90,8 @@ export const ClientTools = {
     }),
   }),
   validate_sql: tool({
-    description: "Validate ClickHouse SQL query syntax without executing it. Returns error message if invalid.",
+    description:
+      "Validate ClickHouse SQL query syntax without executing it. Returns error message if invalid.",
     inputSchema: z.object({
       sql: z.string().describe("The SQL query to validate"),
     }) satisfies z.ZodType<ValidateSqlToolInput>,
@@ -206,7 +212,9 @@ ORDER BY database, table`;
 
       // Log the result size for monitoring
       const totalColumns = result.reduce((sum, t) => sum + t.columns.length, 0);
-      console.log(`✅ get_table_columns returned ${result.length} table(s) with ${totalColumns} total columns`);
+      console.log(
+        `✅ get_table_columns returned ${result.length} table(s) with ${totalColumns} total columns`
+      );
 
       return result;
     } catch (error) {
@@ -263,7 +271,6 @@ WHERE NOT startsWith(table, '.inner')`;
   execute_sql: async (input, connection) => {
     try {
       const { sql } = input;
-      console.log("🔧 execute_sql tool executing:", sql);
 
       const { response } = connection.query(sql, {
         default_format: "JSONCompact",
@@ -274,10 +281,12 @@ WHERE NOT startsWith(table, '.inner')`;
       // Transform ClickHouse JSONCompact response
       // JSONCompact response structure: { meta: [{name, type}, ...], data: [[...], ...], rows: number }
       const columns =
-        (responseData?.meta as { name: string; type: string }[])?.map((m: { name: string; type: string }) => ({
-          name: m.name,
-          type: m.type,
-        })) || [];
+        (responseData?.meta as { name: string; type: string }[])?.map(
+          (m: { name: string; type: string }) => ({
+            name: m.name,
+            type: m.type,
+          })
+        ) || [];
 
       const rowsData = (responseData?.data as unknown[][]) || [];
       const rows = rowsData.map((row: unknown[]) => {
@@ -317,7 +326,6 @@ WHERE NOT startsWith(table, '.inner')`;
   validate_sql: async (input, connection) => {
     try {
       const { sql } = input;
-      console.log("🔧 validate_sql tool executing:", sql);
 
       const { response } = connection.query("EXPLAIN SYNTAX " + sql);
       await response;

@@ -1,14 +1,20 @@
-import React, { type CSSProperties } from "react";
-import { type Graphviz, graphviz, type GraphvizOptions } from "d3-graphviz";
+import { Button } from "@/components/ui/button";
+import { graphviz, type Graphviz, type GraphvizOptions } from "d3-graphviz";
 import { select as d3_select, selectAll as d3_selectAll, type Selection } from "d3-selection";
 import { zoomIdentity as d3_zoomIdentity, zoomTransform as d3_zoomTransform } from "d3-zoom";
-import { ZoomIn, ZoomOut, Maximize, Minimize2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Maximize, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
+import React, { type CSSProperties } from "react";
 
 /**
  * type: node | edge
  */
-type OnGraphActionFn = (action: "click" | "r-click", x: number, y: number, type: string, key: string) => void;
+type OnGraphActionFn = (
+  action: "click" | "r-click",
+  x: number,
+  y: number,
+  type: string,
+  key: string
+) => void;
 type GraphvizEventHandler = () => void;
 type RegisterGraphEventHandler = (handler: GraphvizEventHandler) => void;
 
@@ -79,11 +85,14 @@ class GraphvizComponentImpl extends React.Component<
     this.renderGraph(true, false);
     this.onGraphAction = this.props.onGraphAction;
 
-    if (this.props.registerZoomInHandler !== undefined) this.props.registerZoomInHandler(this.zoomInHandler);
+    if (this.props.registerZoomInHandler !== undefined)
+      this.props.registerZoomInHandler(this.zoomInHandler);
 
-    if (this.props.registerZoomOutHandler !== undefined) this.props.registerZoomOutHandler(this.zoomOutHandler);
+    if (this.props.registerZoomOutHandler !== undefined)
+      this.props.registerZoomOutHandler(this.zoomOutHandler);
 
-    if (this.props.registerZoomResetHandler !== undefined) this.props.registerZoomResetHandler(this.zoomResetHandler);
+    if (this.props.registerZoomResetHandler !== undefined)
+      this.props.registerZoomResetHandler(this.zoomResetHandler);
 
     // Observe the DIV size change to set the SVG size
     const divHtmlElement = this.div.node();
@@ -107,7 +116,7 @@ class GraphvizComponentImpl extends React.Component<
 
     // // Start observing the parent <div> for size changes
     // resizeObserver.observe(divHtmlElement);
-    
+
     // Note: pinch zoom setup happens in renderGraph's render callback
   }
 
@@ -141,11 +150,11 @@ class GraphvizComponentImpl extends React.Component<
     if (!divNode) {
       return;
     }
-    
+
     if (!this.graphviz) {
       return;
     }
-    
+
     // Clean up existing handlers if any
     this.cleanupPinchZoom();
 
@@ -155,12 +164,12 @@ class GraphvizComponentImpl extends React.Component<
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        
+
         this.lastTouchDistance = this.getDistance(e.touches[0], e.touches[1]);
         this.initialScale = this.getCurrentScale();
-        
+
         // Mark that we're handling the pinch
-        (e.target as HTMLElement)?.setAttribute('data-pinch-active', 'true');
+        (e.target as HTMLElement)?.setAttribute("data-pinch-active", "true");
       }
     };
 
@@ -170,13 +179,13 @@ class GraphvizComponentImpl extends React.Component<
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        
+
         const currentDistance = this.getDistance(e.touches[0], e.touches[1]);
         if (this.lastTouchDistance === 0) {
           this.lastTouchDistance = currentDistance;
           return;
         }
-        
+
         const scaleChange = currentDistance / this.lastTouchDistance;
         const newScale = this.initialScale * scaleChange;
 
@@ -186,7 +195,7 @@ class GraphvizComponentImpl extends React.Component<
         // Use the existing setZoomScale method which is proven to work
         // Just apply the scale change
         this.setZoomScale(clampedScale, false);
-        
+
         this.lastTouchDistance = currentDistance;
         this.initialScale = clampedScale;
       } else if (e.touches.length === 2) {
@@ -200,36 +209,50 @@ class GraphvizComponentImpl extends React.Component<
       // Remove the pinch marker
       const target = e.target as HTMLElement;
       if (target) {
-        target.removeAttribute('data-pinch-active');
+        target.removeAttribute("data-pinch-active");
       }
-      
+
       this.lastTouchDistance = 0;
       this.initialScale = this.getCurrentScale();
     };
 
     // Use capture phase to intercept events before they bubble
-    divNode.addEventListener("touchstart", this.touchStartHandler, { passive: false, capture: true });
+    divNode.addEventListener("touchstart", this.touchStartHandler, {
+      passive: false,
+      capture: true,
+    });
     divNode.addEventListener("touchmove", this.touchMoveHandler, { passive: false, capture: true });
     divNode.addEventListener("touchend", this.touchEndHandler, { capture: true });
     divNode.addEventListener("touchcancel", this.touchEndHandler, { capture: true });
-    
-    // Also prevent gesture events (iOS Safari)
-    divNode.addEventListener("gesturestart", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    }, { passive: false, capture: true });
-    
-    divNode.addEventListener("gesturechange", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    }, { passive: false, capture: true });
-    
-    divNode.addEventListener("gestureend", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    }, { passive: false, capture: true });
-  }
 
+    // Also prevent gesture events (iOS Safari)
+    divNode.addEventListener(
+      "gesturestart",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      },
+      { passive: false, capture: true }
+    );
+
+    divNode.addEventListener(
+      "gesturechange",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      },
+      { passive: false, capture: true }
+    );
+
+    divNode.addEventListener(
+      "gestureend",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      },
+      { passive: false, capture: true }
+    );
+  }
 
   private cleanupPinchZoom() {
     const divNode = this.div.node();
@@ -245,7 +268,7 @@ class GraphvizComponentImpl extends React.Component<
       divNode.removeEventListener("touchend", this.touchEndHandler, true); // capture phase
       divNode.removeEventListener("touchcancel", this.touchEndHandler, true); // capture phase
     }
-    
+
     // Note: Gesture handlers are anonymous functions, so we can't clean them up individually
     // They will be replaced on the next setupPinchZoom call
   }
@@ -260,11 +283,14 @@ class GraphvizComponentImpl extends React.Component<
     // Update handlers
     this.onGraphAction = nextProps.onGraphAction;
 
-    if (nextProps.registerZoomInHandler !== undefined) nextProps.registerZoomInHandler(this.zoomInHandler);
+    if (nextProps.registerZoomInHandler !== undefined)
+      nextProps.registerZoomInHandler(this.zoomInHandler);
 
-    if (nextProps.registerZoomOutHandler !== undefined) nextProps.registerZoomOutHandler(this.zoomOutHandler);
+    if (nextProps.registerZoomOutHandler !== undefined)
+      nextProps.registerZoomOutHandler(this.zoomOutHandler);
 
-    if (nextProps.registerZoomResetHandler !== undefined) nextProps.registerZoomResetHandler(this.zoomResetHandler);
+    if (nextProps.registerZoomResetHandler !== undefined)
+      nextProps.registerZoomResetHandler(this.zoomResetHandler);
 
     return this.props.dot !== nextProps.dot || this.props.options !== nextProps.options;
   }
@@ -276,7 +302,10 @@ class GraphvizComponentImpl extends React.Component<
   ) {
     // Clean up and re-setup pinch zoom if the component is re-rendered
     this.cleanupPinchZoom();
-    this.renderGraph(prevProps.dot !== this.props.dot, prevProps.options?.zoom !== this.props.options?.zoom);
+    this.renderGraph(
+      prevProps.dot !== this.props.dot,
+      prevProps.options?.zoom !== this.props.options?.zoom
+    );
     // Re-setup happens in renderGraph's render callback
   }
 
@@ -328,11 +357,11 @@ class GraphvizComponentImpl extends React.Component<
     if (!node) return;
 
     let { x, y, k } = d3_zoomTransform(node as any);
-    let [x0, y0, scale0] = [x, y, k];
-    let xOffset0 = x0 + bbox.x * scale0;
-    let yOffset0 = y0 + bbox.y * scale0;
-    let xCenter = width / 2;
-    let yCenter = height / 2;
+    const [x0, y0, scale0] = [x, y, k];
+    const xOffset0 = x0 + bbox.x * scale0;
+    const yOffset0 = y0 + bbox.y * scale0;
+    const xCenter = width / 2;
+    const yCenter = height / 2;
     let xOffset;
     let yOffset;
     if (center) {
@@ -360,12 +389,14 @@ class GraphvizComponentImpl extends React.Component<
     //
     // NOTE: Need to re-render the dot so that zoom reset can work correctly
     //
-    this.graphviz = (graphviz(`#${this.state.id}`, {
-      fit: true,
-      zoom: true,
-      width: divNode.offsetWidth,
-      ...this.props.options,
-    }) as any)
+    this.graphviz = (
+      graphviz(`#${this.state.id}`, {
+        fit: true,
+        zoom: true,
+        width: divNode.offsetWidth,
+        ...this.props.options,
+      }) as any
+    )
       .renderDot(this.props.dot)
       .render(() => {
         this.svg = this.div!.select<SVGSVGElement>("svg");
@@ -593,7 +624,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
       clearTimeout(this.fixTimeoutId);
     }
     this.fixTimeoutId = setTimeout(fixSVG, 100);
-    
+
     if (this.fixIntervalId) {
       clearInterval(this.fixIntervalId);
     }
@@ -640,10 +671,10 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
     this.fullscreenChangeHandler = () => {
       const container = this.fullscreenContainerRef.current;
       const isCurrentlyFullscreen = !!(
-        (document.fullscreenElement === container) ||
-        ((document as any).webkitFullscreenElement === container) ||
-        ((document as any).mozFullScreenElement === container) ||
-        ((document as any).msFullscreenElement === container)
+        document.fullscreenElement === container ||
+        (document as any).webkitFullscreenElement === container ||
+        (document as any).mozFullScreenElement === container ||
+        (document as any).msFullscreenElement === container
       );
 
       // Sync state with actual fullscreen status
@@ -737,10 +768,10 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
           backgroundColor: "var(--background)",
         }
       : containerStyle;
-    
+
     return (
-      <div 
-        ref={this.fullscreenContainerRef} 
+      <div
+        ref={this.fullscreenContainerRef}
         style={fullscreenContainerStyle}
         onMouseEnter={this.handleMouseEnter}
         onMouseLeave={this.handleMouseLeave}
@@ -781,9 +812,9 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
                   display: block !important;
                 }
               `}</style>
-              <div 
+              <div
                 ref={this.containerRef}
-                data-graphviz-container 
+                data-graphviz-container
                 style={{ display: "inline-block", minWidth: "100%", height: "100%" }}
               >
                 <GraphvizComponentImpl
@@ -800,7 +831,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
           </div>
         </div>
         {/* Floating zoom buttons */}
-        <div 
+        <div
           className={`absolute top-2 right-2 flex flex-row gap-2 z-10 transition-opacity duration-200 ${
             this.state.isHovered ? "opacity-100" : "opacity-0"
           }`}
@@ -857,4 +888,3 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
     );
   }
 }
-

@@ -24,4 +24,3 @@ export interface GraphEdge {
 
   color?: string;
 }
-

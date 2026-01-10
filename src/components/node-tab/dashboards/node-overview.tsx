@@ -1,4 +1,7 @@
-import type { StatDescriptor, TableDescriptor } from "@/components/shared/dashboard/dashboard-model";
+import type {
+  StatDescriptor,
+  TableDescriptor,
+} from "@/components/shared/dashboard/dashboard-model";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 
@@ -225,7 +228,14 @@ ORDER BY size DESC
               const database = rowData.database as string;
               const engine = rowData.engine as string;
               const tableName = table as string;
-              return <OpenTableTabButton database={database} table={tableName} engine={engine} showDatabase={false} />;
+              return (
+                <OpenTableTabButton
+                  database={database}
+                  table={tableName}
+                  engine={engine}
+                  showDatabase={false}
+                />
+              );
             },
           },
           size: {
@@ -309,4 +319,3 @@ ORDER BY size DESC
     },
   } as StatDescriptor,
 ];
-

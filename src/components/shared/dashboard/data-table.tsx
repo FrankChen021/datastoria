@@ -4,7 +4,15 @@ import { Formatter, type FormatName } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight, Loader2 } from "lucide-react";
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
 import type { ActionColumn, FieldOption } from "./dashboard-model";
 import { inferFormatFromMetaType } from "./format-inference";
@@ -136,9 +144,10 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
   const skeletonTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Internal sort state for uncontrolled mode
-  const [internalSort, setInternalSort] = useState<{ column: string | null; direction: "asc" | "desc" | null }>(
-    defaultSort || { column: null, direction: null }
-  );
+  const [internalSort, setInternalSort] = useState<{
+    column: string | null;
+    direction: "asc" | "desc" | null;
+  }>(defaultSort || { column: null, direction: null });
 
   // Use controlled sort if provided, otherwise internal sort
   const sort = controlledSort !== undefined ? controlledSort : internalSort;
@@ -205,7 +214,9 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
     });
 
     // Only reorder if there are fields with position property
-    const hasPositionedFields = finalColumns.some((col) => col.position !== undefined && col.position >= 0);
+    const hasPositionedFields = finalColumns.some(
+      (col) => col.position !== undefined && col.position >= 0
+    );
     if (hasPositionedFields) {
       // Separate columns with position from those without
       // Note: columns with negative positions are excluded from positioning logic
@@ -256,7 +267,8 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
       const usedNonPositioned = new Set<FieldOption & { originalIndex: number }>();
 
       // Determine the maximum position we need to consider
-      const maxPosition = positionedColumns.length > 0 ? Math.max(...positionedColumns.map((c) => c.position!)) : 0;
+      const maxPosition =
+        positionedColumns.length > 0 ? Math.max(...positionedColumns.map((c) => c.position!)) : 0;
       const totalNeeded = Math.max(maxPosition, finalColumns.length);
 
       // Build result array: for each position from 1 to totalNeeded (1-indexed),
@@ -326,7 +338,9 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
     });
 
     // Filter out columns with negative positions (these should be hidden)
-    const visibleColumns = finalColumns.filter((col) => col.position === undefined || col.position >= 0);
+    const visibleColumns = finalColumns.filter(
+      (col) => col.position === undefined || col.position >= 0
+    );
 
     return visibleColumns;
   }, [meta, fieldOptions, actions]);
@@ -546,9 +560,15 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
 
   // Format cell value
   const formatCellValue = useCallback(
-    (value: unknown, fieldOption: FieldOption, context?: Record<string, unknown>): React.ReactNode => {
+    (
+      value: unknown,
+      fieldOption: FieldOption,
+      context?: Record<string, unknown>
+    ): React.ReactNode => {
       if (
-        (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) &&
+        (value === null ||
+          value === undefined ||
+          (typeof value === "string" && value.trim() === "")) &&
         !fieldOption.format
       ) {
         return <span className="text-muted-foreground">-</span>;
@@ -619,7 +639,8 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
   // Render helpers
   const renderError = () => {
     if (!error) return null;
-    const colSpan = visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0);
+    const colSpan =
+      visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0);
     return (
       <TableRow>
         <TableCell colSpan={colSpan} className="text-center text-destructive p-8">
@@ -637,7 +658,11 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
     return (
       <>
         {Array.from({ length: 10 }).map((_, index) => (
-          <TableRow key={index} className="transition-opacity duration-150" style={{ opacity: skeletonOpacity }}>
+          <TableRow
+            key={index}
+            className="transition-opacity duration-150"
+            style={{ opacity: skeletonOpacity }}
+          >
             {enableShowRowDetail && (
               <TableCell className="text-center whitespace-nowrap !p-2">
                 <Skeleton className="h-5 w-full" />
@@ -664,7 +689,8 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
 
   const renderNoData = () => {
     if (error || shouldShowSkeleton || processedData.length > 0) return null;
-    const colSpan = visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0);
+    const colSpan =
+      visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0);
     return (
       <TableRow>
         <TableCell colSpan={colSpan} className="text-center text-muted-foreground p-8">
@@ -685,7 +711,8 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
     if (shouldShowSkeleton || error) {
       return null;
     }
-    const colSpan = visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0);
+    const colSpan =
+      visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0);
     return (
       <TableRow>
         <TableCell colSpan={colSpan} className="p-0 text-muted-foreground">
@@ -717,12 +744,17 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
                   return (
                     <tr
                       key={fieldOption.name}
-                      className={cn("border-b last:border-b-0", index % 2 === 0 ? "bg-muted/20" : "bg-background")}
+                      className={cn(
+                        "border-b last:border-b-0",
+                        index % 2 === 0 ? "bg-muted/20" : "bg-background"
+                      )}
                     >
                       <td className="font-medium px-2 py-1 w-[180px] align-top text-muted-foreground">
                         {fieldOption.title || fieldOption.name}
                       </td>
-                      <td className="px-2 py-1">{formatCellValue(row[fieldOption.name], fieldOption, row)}</td>
+                      <td className="px-2 py-1">
+                        {formatCellValue(row[fieldOption.name], fieldOption, row)}
+                      </td>
                     </tr>
                   );
                 })}
@@ -735,8 +767,8 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
   };
 
   const renderRow = (
-    row: Record<string, unknown>, 
-    rowIndex: number, 
+    row: Record<string, unknown>,
+    rowIndex: number,
     key: React.Key,
     additionalProps?: React.HTMLAttributes<HTMLTableRowElement> & { "data-index"?: number }
   ) => {
@@ -756,7 +788,9 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
           {...additionalProps}
         >
           {enableShowRowDetail && (
-            <TableCell className={cn("text-center whitespace-nowrap py-0 pl-2 pr-0", cellPaddingClass)}>
+            <TableCell
+              className={cn("text-center whitespace-nowrap py-0 pl-2 pr-0", cellPaddingClass)}
+            >
               <button
                 type="button"
                 onClick={(e) => {
@@ -766,17 +800,19 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
                 className="inline-flex items-center justify-center rounded px-0 p-1 transition-colors"
                 aria-label={isExpanded ? "Collapse row" : "Expand row"}
               >
-                <ChevronRight 
+                <ChevronRight
                   className={cn(
                     "h-4 w-4 transition-transform duration-200",
                     isExpanded && "rotate-90"
-                  )} 
+                  )}
                 />
               </button>
             </TableCell>
           )}
           {enableIndexColumn && (
-            <TableCell className={cn("text-center whitespace-nowrap", cellPaddingClass)}>{rowIndex + 1}</TableCell>
+            <TableCell className={cn("text-center whitespace-nowrap", cellPaddingClass)}>
+              {rowIndex + 1}
+            </TableCell>
           )}
           {visibleColumns.map((fieldOption) => {
             if (!fieldOption.name) return null;
@@ -785,7 +821,11 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
               return (
                 <TableCell
                   key={fieldOption.name}
-                  className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap", cellPaddingClass)}
+                  className={cn(
+                    getCellAlignmentClass(fieldOption),
+                    "whitespace-nowrap",
+                    cellPaddingClass
+                  )}
                 >
                   {fieldOption.renderAction(row, rowIndex)}
                 </TableCell>
@@ -795,7 +835,11 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
             return (
               <TableCell
                 key={fieldOption.name}
-                className={cn(getCellAlignmentClass(fieldOption), "whitespace-nowrap", cellPaddingClass)}
+                className={cn(
+                  getCellAlignmentClass(fieldOption),
+                  "whitespace-nowrap",
+                  cellPaddingClass
+                )}
               >
                 {formatCellValue(row[fieldOption.name], fieldOption, row)}
               </TableCell>
@@ -814,14 +858,20 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
       const virtualItems = rowVirtualizer.getVirtualItems();
       const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
       const paddingBottom =
-        virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
+        virtualItems.length > 0
+          ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end
+          : 0;
 
       return (
         <>
           {paddingTop > 0 && (
             <TableRow style={{ height: `${paddingTop}px` }}>
               <TableCell
-                colSpan={visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0)}
+                colSpan={
+                  visibleColumns.length +
+                  (enableIndexColumn ? 1 : 0) +
+                  (enableShowRowDetail ? 1 : 0)
+                }
                 className="!p-0 !border-0"
               />
             </TableRow>
@@ -842,7 +892,11 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
           {paddingBottom > 0 && (
             <TableRow style={{ height: `${paddingBottom}px` }}>
               <TableCell
-                colSpan={visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0)}
+                colSpan={
+                  visibleColumns.length +
+                  (enableIndexColumn ? 1 : 0) +
+                  (enableShowRowDetail ? 1 : 0)
+                }
                 className="!p-0 !border-0"
               />
             </TableRow>
@@ -857,7 +911,10 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
   if (error && !isLoading && (!processedData || processedData.length === 0)) {
     return (
       <div className={cn("relative w-full h-full", className)}>
-        <div ref={scrollContainerRef} className="w-full h-full overflow-auto flex items-center justify-center p-4">
+        <div
+          ref={scrollContainerRef}
+          className="w-full h-full overflow-auto flex items-center justify-center p-4"
+        >
           <div className="flex flex-col items-center justify-center text-destructive gap-2 text-center">
             <p className="font-semibold">Error loading table data:</p>
             <p className="text-sm">{error}</p>
@@ -867,16 +924,19 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
     );
   }
 
+  const cellPaddingClass = enableCompactMode ? "!py-0.5" : "!p-2";
+
   return (
     <div className={cn("relative w-full h-full", className)}>
       <div ref={scrollContainerRef} className="w-full h-full overflow-auto" onScroll={handleScroll}>
         <table className="w-full caption-bottom text-sm">
           <TableHeader>
-            <TableRow className={cn("hover:bg-muted/50 select-none h-10", headerClassName)}>
+            <TableRow className={cn("hover:bg-muted/50 select-none", headerClassName)}>
               {enableShowRowDetail && (
                 <TableHead
                   className={cn(
-                    "w-[40px] text-center p-2",
+                    "w-[40px] text-center",
+                    cellPaddingClass,
                     stickyHeader &&
                       "sticky top-0 z-10 bg-background shadow-[0_1px_0_0_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.1)]"
                   )}
@@ -887,7 +947,8 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
               {enableIndexColumn && (
                 <TableHead
                   className={cn(
-                    "w-[50px] text-center p-2",
+                    "w-[50px] text-center",
+                    cellPaddingClass,
                     stickyHeader &&
                       "sticky top-0 z-10 bg-background shadow-[0_1px_0_0_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.1)]"
                   )}
@@ -899,7 +960,8 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
                 <TableHead
                   key={fieldOption.name}
                   className={cn(
-                    "whitespace-nowrap p-2",
+                    "whitespace-nowrap",
+                    cellPaddingClass,
                     getCellAlignmentClass(fieldOption),
                     fieldOption.sortable !== false && "cursor-pointer hover:bg-muted/50",
                     stickyHeader &&

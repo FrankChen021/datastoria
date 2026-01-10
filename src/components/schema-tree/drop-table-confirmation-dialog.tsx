@@ -21,12 +21,7 @@ interface DropTableConfirmationDialogProps {
   onCancel?: () => void;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
-function DropTableConfirmationDialogContent({
-  table,
-}: {
-  table: TableNodeData;
-}) {
+function DropTableConfirmationDialogContent({ table }: { table: TableNodeData }) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">

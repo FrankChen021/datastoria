@@ -1,5 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useModelConfig } from "@/hooks/use-model-config";
 import type { ModelProps } from "@/lib/ai/llm-provider-factory";
@@ -35,7 +41,11 @@ function ModelCommandItem({ model, isSelected, onSelect }: ModelCommandItemProps
   );
 }
 
-export function ModelSelector() {
+interface ModelSelectorProps {
+  className?: string;
+}
+
+export function ModelSelector({ className }: ModelSelectorProps = {}) {
   const [open, setOpen] = useState(false);
   const { availableModels, selectedModel, setSelectedModel } = useModelConfig();
   const [highlightedValue, setHighlightedValue] = useState<string | undefined>(
@@ -46,7 +56,9 @@ export function ModelSelector() {
     // If no model is selected, or the selected model is no longer available, select 'auto' as default
     const isSelectedModelAvailable =
       selectedModel &&
-      availableModels.some((m) => m.provider === selectedModel.provider && m.modelId === selectedModel.modelId);
+      availableModels.some(
+        (m) => m.provider === selectedModel.provider && m.modelId === selectedModel.modelId
+      );
 
     if (!selectedModel || !isSelectedModelAvailable) {
       setSelectedModel({ provider: "System", modelId: "Auto" });
@@ -70,7 +82,8 @@ export function ModelSelector() {
   );
 
   const currentModel = availableModels.find(
-    (m) => selectedModel && m.provider === selectedModel.provider && m.modelId === selectedModel.modelId
+    (m) =>
+      selectedModel && m.provider === selectedModel.provider && m.modelId === selectedModel.modelId
   );
 
   const highlightedModel = useMemo(() => {
@@ -90,41 +103,56 @@ export function ModelSelector() {
           size="sm"
           role="combobox"
           aria-expanded={open}
-          className="h-6 gap-1 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
+          className={cn(
+            "h-6 gap-1 px-2 text-xs font-normal text-muted-foreground hover:text-foreground",
+            className
+          )}
         >
           <span className="truncate max-w-[350px]">
-            {currentModel ? `${currentModel.provider} | ${currentModel.modelId}` : "Select model..."}
+            {currentModel
+              ? `${currentModel.provider} | ${currentModel.modelId}`
+              : "Select model..."}
           </span>
           <ChevronsUpDown className="ml-0.5 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="p-0 w-auto flex items-start z-[10000] bg-transparent border-0 shadow-none"
+        className="p-0 w-auto flex items-stretch bg-transparent border-0 shadow-none pointer-events-auto"
         align="start"
         side="top"
+        sideOffset={4}
       >
         <Command
           value={highlightedValue}
           onValueChange={setHighlightedValue}
-          className="flex-row items-start overflow-visible bg-transparent"
+          className="flex flex-row items-stretch max-h-[300px] overflow-visible bg-transparent shadow-none border-0"
           filter={(value: string, search: string) => {
             return value.toLowerCase().includes(search.toLowerCase());
           }}
         >
           <div
+            data-panel="left"
             className={cn(
-              "w-[300px] border bg-popover rounded-md overflow-hidden shadow-md flex flex-col",
+              "w-[300px] border bg-popover rounded-sm overflow-hidden shadow-md flex flex-col",
               highlightedModel?.description ? "rounded-r-none" : ""
             )}
           >
-            <CommandInput placeholder="Search models..." className="h-[32px] text-[10px] shrink-0" />
-            <CommandList id="model-list" className="max-h-[300px]">
-              <CommandEmpty className="h-[32px] py-2 text-center text-[10px]">No model found.</CommandEmpty>
+            <CommandInput
+              placeholder="Search models..."
+              className="h-[32px] text-[10px] shrink-0"
+            />
+            <CommandList id="model-list" className="flex-1 overflow-y-auto">
+              <CommandEmpty className="h-[32px] py-2 text-center text-[10px]">
+                No model found.
+              </CommandEmpty>
               {availableModels.map((model) => (
                 <ModelCommandItem
                   key={`${model.provider}-${model.modelId}`}
                   model={model}
-                  isSelected={selectedModel?.modelId === model.modelId && selectedModel?.provider === model.provider}
+                  isSelected={
+                    selectedModel?.modelId === model.modelId &&
+                    selectedModel?.provider === model.provider
+                  }
                   onSelect={handleSelect}
                 />
               ))}
@@ -147,7 +175,10 @@ export function ModelSelector() {
           </div>
 
           {highlightedModel?.description && (
-            <div className="w-[250px] max-h-[365px] overflow-y-auto p-2 bg-popover rounded-r-md border border-l-0 text-[10px] text-popover-foreground shadow-md self-start">
+            <div
+              data-panel="right"
+              className="w-[250px] overflow-y-auto p-2 bg-popover rounded-sm rounded-l-none border border-l-0 text-[10px] text-popover-foreground shadow-md"
+            >
               {highlightedModel.description}
             </div>
           )}

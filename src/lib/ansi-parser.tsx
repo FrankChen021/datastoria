@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import AnsiToHtml from "ansi-to-html";
 import { useMemo } from "react";
 
@@ -46,7 +45,7 @@ export function AnsiText({ children }: { children: string }) {
     });
     return converter.toHtml(children);
   }, [children]);
-  
+
   return (
     <div
       className="ansi-text"
@@ -55,4 +54,3 @@ export function AnsiText({ children }: { children: string }) {
     />
   );
 }
-

@@ -1,10 +1,10 @@
+import { useConnection } from "@/components/connection/connection-context";
 import FloatingProgressBar from "@/components/floating-progress-bar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tree, type TreeDataItem, type TreeRef } from "@/components/ui/tree";
 import type { DatabaseInfo, TableInfo } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
 import { hostNameManager } from "@/lib/host-name-manager";
 import { AlertCircle, Database, RotateCw, Search, Table as TableIcon, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -251,7 +251,9 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
   }, [search, scrollToNode]);
 
   const [contextMenuNode, setContextMenuNode] = useState<TreeDataItem | null>(null);
-  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(
+    null
+  );
 
   const onTreeNodeContextMenu = useCallback((node: TreeDataItem, event: React.MouseEvent) => {
     const nodeData = node.data as SchemaNodeData | undefined;
@@ -379,7 +381,10 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
         <FloatingProgressBar show={isLoading} />
         {error ? (
           <div className="h-full overflow-y-auto">
-            <Alert variant="destructive" className="border-0 p-3 bg-destructive/10 dark:bg-destructive/20">
+            <Alert
+              variant="destructive"
+              className="border-0 p-3 bg-destructive/10 dark:bg-destructive/20"
+            >
               <div className="flex items-start gap-2 w-full">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">

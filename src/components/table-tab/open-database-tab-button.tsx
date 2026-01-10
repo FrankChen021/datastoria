@@ -47,7 +47,12 @@ function truncateText(text: string, maxLength: number): string {
  * Automatically truncates long names to show first and last parts.
  */
 export const OpenDatabaseTabButton = memo(
-  ({ database, maxLength = 24, className = "", showLinkIcon = true }: OpenDatabaseTabButtonProps) => {
+  ({
+    database,
+    maxLength = 24,
+    className = "",
+    showLinkIcon = true,
+  }: OpenDatabaseTabButtonProps) => {
     const handleClick = () => {
       TabManager.openDatabaseTab(database);
       Dialog.close(); // Automatically close any parent dialog

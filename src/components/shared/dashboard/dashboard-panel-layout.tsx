@@ -4,7 +4,11 @@ import FloatingProgressBar from "@/components/floating-progress-bar";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { EllipsisVertical, RotateCw } from "lucide-react";
 import React, { useState } from "react";
@@ -82,17 +86,20 @@ const DashboardPanelHeader = React.memo<DashboardPanelHeaderProps>(
       if (!showRefreshButton || !onRefresh) return null;
 
       return (
-        <div className="absolute right-10 top-[calc(50%-6px)] -translate-y-1/2 z-10">
+        <div className="absolute right-8 top-[calc(50%-6px)] -translate-y-1/2 z-10">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="h-5 w-5 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20"
+            className={cn(
+              "h-4 w-4 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20",
+              isHovered ? "opacity-100" : "opacity-0"
+            )}
             title="Refresh panel"
             aria-label="Refresh panel"
             onClick={onRefresh}
           >
-            <RotateCw className="h-3.5 w-3.5" />
+            <RotateCw className="!h-3 !w-3" />
           </Button>
         </div>
       );
@@ -103,18 +110,23 @@ const DashboardPanelHeader = React.memo<DashboardPanelHeaderProps>(
       if (!dropdownItems) return null;
 
       return (
-        <div className={cn("absolute right-2 top-[calc(50%-6px)] -translate-y-1/2 z-10 transition-opacity", isHovered ? "opacity-100" : "opacity-0")}>
+        <div
+          className={cn(
+            "absolute right-2 top-[calc(50%-6px)] -translate-y-1/2 z-10 transition-opacity",
+            isHovered ? "opacity-100" : "opacity-0"
+          )}
+        >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-5 w-5 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20"
+                className="h-4 w-4 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20"
                 title="More options"
                 aria-label="More options"
               >
-                <EllipsisVertical className="h-3.5 w-3.5" />
+                <EllipsisVertical className="!h-3 !w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" sideOffset={0}>
@@ -127,18 +139,29 @@ const DashboardPanelHeader = React.memo<DashboardPanelHeaderProps>(
 
     // don't padding bottom so that we have more space for charts under the title
     const headerContent = (
-      <div className={cn("flex items-center px-2 py-1 transition-colors", headerBackground && "bg-muted/50")}>
+      <div
+        className={cn(
+          "flex items-center px-2 py-1 transition-colors",
+          headerBackground && "bg-muted/50"
+        )}
+      >
         <div className="flex-1 text-left min-w-0">
           <CardDescription
             className={cn(
-              titleOption.align ? "text-" + titleOption.align : isCollapsible ? "text-left" : "text-center",
+              titleOption.align
+                ? "text-" + titleOption.align
+                : isCollapsible
+                  ? "text-left"
+                  : "text-center",
               "text-xs text-muted-foreground m-0 truncate"
             )}
           >
             {titleOption.title}
           </CardDescription>
           {titleOption.description && (
-            <CardDescription className="text-xs mt-1 m-0 truncate">{titleOption.description}</CardDescription>
+            <CardDescription className="text-xs mt-1 m-0 truncate">
+              {titleOption.description}
+            </CardDescription>
           )}
         </div>
       </div>
@@ -153,7 +176,9 @@ const DashboardPanelHeader = React.memo<DashboardPanelHeaderProps>(
         onMouseLeave={() => setIsHovered(false)}
       >
         {wrapInTrigger ? (
-          <CollapsibleTrigger className={cn("w-full transition-all", hoverClasses)}>{headerContent}</CollapsibleTrigger>
+          <CollapsibleTrigger className={cn("w-full transition-all", hoverClasses)}>
+            {headerContent}
+          </CollapsibleTrigger>
         ) : (
           <div className={cn("w-full", hoverClasses)}>{headerContent}</div>
         )}
@@ -211,7 +236,10 @@ export function DashboardPanelLayout({
   return (
     <Card
       ref={componentRef}
-      className={cn("@container/card rounded-sm relative overflow-hidden h-full flex flex-col", className)}
+      className={cn(
+        "@container/card rounded-sm relative overflow-hidden h-full flex flex-col",
+        className
+      )}
       style={style}
     >
       <FloatingProgressBar show={isLoading} />

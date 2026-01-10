@@ -59,7 +59,9 @@ export class QuerySuggestionManager {
     const processCompletionItem = (eachRowObject: any) => {
       const description = eachRowObject[3];
       const docHTML =
-        description !== "" ? ["<b>", eachRowObject[0], "</b>", "<hr />", eachRowObject[3]].join("") : undefined;
+        description !== ""
+          ? ["<b>", eachRowObject[0], "</b>", "<hr />", eachRowObject[3]].join("")
+          : undefined;
 
       const completion: CompletionItem = {
         caption: eachRowObject[0],
@@ -116,12 +118,12 @@ export class QuerySuggestionManager {
     if (connection.metadata?.databaseNames && connection.metadata.databaseNames.size > 0) {
       // Use metadata to build database completions
       const databaseCompletions: CompletionItem[] = [];
-      
+
       for (const [dbName, dbInfo] of connection.metadata.databaseNames) {
         const comment = dbInfo.comment || "";
         // Build docHTML with comment if available
         const docHTML = comment ? ["<b>", dbName, "</b>", "<hr />", comment].join("") : undefined;
-        
+
         const completion: CompletionItem = {
           caption: dbName,
           value: dbName,
@@ -129,12 +131,12 @@ export class QuerySuggestionManager {
           score: -30,
           docHTML: docHTML,
         };
-        
+
         databaseCompletions.push(completion);
         // Add to miscCompletion too
         this.miscCompletion.push(completion);
       }
-      
+
       // Also add to databaseCompletion for specific database completion
       this.databaseCompletion = databaseCompletions;
     }
@@ -305,13 +307,13 @@ SELECT * FROM (
       this.tableCompletion.clear();
 
       const qualifiedTableCompletions: CompletionItem[] = [];
-      
+
       // Group tables by database for tableCompletion
       const tablesByDatabase = new Map<string, CompletionItem[]>();
-      
+
       for (const [qualifiedName, tableInfo] of connection.metadata.tableNames) {
         const { database, table, comment } = tableInfo;
-        
+
         // Build docHTML with comment if available
         const docHTML = comment ? ["<b>", table, "</b>", "<hr />", comment].join("") : undefined;
 
@@ -439,7 +441,9 @@ SELECT * FROM (
    * Get all qualified table names for highlighting
    */
   public getQualifiedTableNames(): string[] {
-    return this.qualifiedTableCompletions.map(c => c.value).filter((v): v is string => v !== undefined);
+    return this.qualifiedTableCompletions
+      .map((c) => c.value)
+      .filter((v): v is string => v !== undefined);
   }
 
   /**
@@ -453,20 +457,20 @@ SELECT * FROM (
 
     // Find the '@' before the cursor
     let startCol = pos.column;
-    while (startCol > 0 && line[startCol - 1] !== '@') {
+    while (startCol > 0 && line[startCol - 1] !== "@") {
       startCol--;
     }
-    if (startCol > 0 && line[startCol - 1] === '@') {
+    if (startCol > 0 && line[startCol - 1] === "@") {
       startCol--; // Include the '@' in the range to replace
     }
 
     // Replace from '@' to cursor position with the table name
     const range = {
       start: { row: pos.row, column: startCol },
-      end: { row: pos.row, column: pos.column }
+      end: { row: pos.row, column: pos.column },
     };
 
-    session.replace(range, table.value || table.caption || '');
+    session.replace(range, table.value || table.caption || "");
   }
 
   public getCompleters(completers: Ace.Completer[] | undefined): Ace.Completer[] {
@@ -489,7 +493,13 @@ SELECT * FROM (
          * 'ENGINE = anyInput'
          *
          */
-        getCompletions: (editor: Ace.Editor, session: Ace.EditSession, pos: Ace.Point, prefix: any, callback: any) => {
+        getCompletions: (
+          editor: Ace.Editor,
+          session: Ace.EditSession,
+          pos: Ace.Point,
+          prefix: any,
+          callback: any
+        ) => {
           if (session !== undefined) {
             // Get current token with 'start' and 'index' property assigned at the edit position
             let currentToken = session.getTokenAt(pos.row, pos.column);
@@ -497,7 +507,11 @@ SELECT * FROM (
             // If current token is the 'dot' and this dot token is not the first,
             // we can continue to check previous token
             // Since the token might contain leading space, we use 'endsWith' to compare
-            if (currentToken !== null && currentToken.index !== undefined && currentToken.index > 0) {
+            if (
+              currentToken !== null &&
+              currentToken.index !== undefined &&
+              currentToken.index > 0
+            ) {
               // tokens in the list does not contain the 'start' and 'index' property, the behavior is strange
               const tokenList = session.getTokens(pos.row);
 
@@ -508,7 +522,11 @@ SELECT * FROM (
               // In this case, we need to backward the previous token to make decision which completion list should be used.
               // Only once backward
               let iterations = 2;
-              if (currentTokenIndex > 0 && currentToken.type === "text" && StringUtils.isAllSpace(currentToken.value)) {
+              if (
+                currentTokenIndex > 0 &&
+                currentToken.type === "text" &&
+                StringUtils.isAllSpace(currentToken.value)
+              ) {
                 currentToken = tokenList[--currentTokenIndex];
 
                 // because here it's already backward
@@ -531,27 +549,51 @@ SELECT * FROM (
                     return;
                   }
                 } else {
-                  if (currentToken.value.localeCompare("CLUSTER", undefined, { sensitivity: "accent" }) === 0) {
+                  if (
+                    currentToken.value.localeCompare("CLUSTER", undefined, {
+                      sensitivity: "accent",
+                    }) === 0
+                  ) {
                     callback(null, this.clusterCompletion);
                     return;
                   }
-                  if (currentToken.value.localeCompare("SETTINGS", undefined, { sensitivity: "accent" }) === 0) {
+                  if (
+                    currentToken.value.localeCompare("SETTINGS", undefined, {
+                      sensitivity: "accent",
+                    }) === 0
+                  ) {
                     callback(null, this.allSettingsCompletion);
                     return;
                   }
-                  if (currentToken.value.localeCompare("SETTING", undefined, { sensitivity: "accent" }) === 0) {
+                  if (
+                    currentToken.value.localeCompare("SETTING", undefined, {
+                      sensitivity: "accent",
+                    }) === 0
+                  ) {
                     callback(null, this.allSettingsCompletion);
                     return;
                   }
-                  if (currentToken.value.localeCompare("FORMAT", undefined, { sensitivity: "accent" }) === 0) {
+                  if (
+                    currentToken.value.localeCompare("FORMAT", undefined, {
+                      sensitivity: "accent",
+                    }) === 0
+                  ) {
                     callback(null, this.formatCompletion);
                     return;
                   }
-                  if (currentToken.value.localeCompare("FROM", undefined, { sensitivity: "accent" }) === 0) {
+                  if (
+                    currentToken.value.localeCompare("FROM", undefined, {
+                      sensitivity: "accent",
+                    }) === 0
+                  ) {
                     callback(null, this.qualifiedTableCompletions);
                     return;
                   }
-                  if (currentToken.value.localeCompare("SET", undefined, { sensitivity: "accent" }) === 0) {
+                  if (
+                    currentToken.value.localeCompare("SET", undefined, {
+                      sensitivity: "accent",
+                    }) === 0
+                  ) {
                     callback(null, this.userSettingsCompletion);
                     return;
                   }
@@ -620,7 +662,13 @@ SELECT * FROM (
         id: "table-suggestion",
         triggerCharacters: ["@"],
 
-        getCompletions: (editor: Ace.Editor, session: Ace.EditSession, pos: Ace.Point, prefix: string, callback: (error: Error | null, completions: CompletionItem[]) => void) => {
+        getCompletions: (
+          editor: Ace.Editor,
+          session: Ace.EditSession,
+          pos: Ace.Point,
+          prefix: string,
+          callback: (error: Error | null, completions: CompletionItem[]) => void
+        ) => {
           const tokenList = session.getTokens(pos.row);
 
           // Check if we're in a context where '@' was typed
@@ -630,17 +678,17 @@ SELECT * FROM (
 
             // Filter completions based on the search prefix (after @)
             const tableCompletions = searchPrefix
-              ? this.qualifiedTableCompletions.filter(c =>
-                c.value && c.value.toLowerCase().includes(searchPrefix)
-              )
+              ? this.qualifiedTableCompletions.filter(
+                  (c) => c.value && c.value.toLowerCase().includes(searchPrefix)
+                )
               : this.qualifiedTableCompletions;
 
             // Add custom insertMatch to each completion item
-            const finalCompletionItems = tableCompletions.map(tableCompletion => ({
+            const finalCompletionItems = tableCompletions.map((tableCompletion) => ({
               ...tableCompletion,
               completer: {
-                insertMatch: QuerySuggestionManager.insertTableCompletion
-              }
+                insertMatch: QuerySuggestionManager.insertTableCompletion,
+              },
             })) as CompletionItem[];
 
             callback(null, finalCompletionItems);

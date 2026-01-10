@@ -1,3 +1,4 @@
+import { useConnection } from "@/components/connection/connection-context";
 import type {
   Dashboard,
   DashboardGroup,
@@ -5,10 +6,11 @@ import type {
   TableDescriptor,
   TransposeTableDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
-import DashboardPanels, { type DashboardPanelsRef } from "@/components/shared/dashboard/dashboard-panels";
+import DashboardPanels, {
+  type DashboardPanelsRef,
+} from "@/components/shared/dashboard/dashboard-panels";
 import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
-import { useConnection } from "@/lib/connection/connection-context";
 import type { FormatName } from "@/lib/formatter";
 import { forwardRef, useMemo } from "react";
 
@@ -513,15 +515,15 @@ WHERE
                   title: "Database Size by Node",
                   align: "center",
                 },
-              collapsed: false,
-              gridPos: {
-                w: 24,
-                h: 12,
-              },
-              miscOption: { enableIndexColumn: true },
-              headOption: {
-                isSticky: true,
-              },
+                collapsed: false,
+                gridPos: {
+                  w: 24,
+                  h: 12,
+                },
+                miscOption: { enableIndexColumn: true },
+                headOption: {
+                  isSticky: true,
+                },
                 sortOption: {
                   initialSort: {
                     column: "host",

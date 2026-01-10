@@ -2,8 +2,6 @@
  * Chat execution events for event-based communication between components
  */
 
-import { isAIChatMessage, removeAIChatPrefix } from '@/lib/ai/config';
-
 export interface ChatRequestEventDetail {
   message: string; // The user's message (without @ai prefix)
   originalMessage: string; // The full message including @ai prefix
@@ -37,7 +35,7 @@ export type ChatRequestEventHandler = (event: CustomEvent<ChatRequestEventDetail
  * ChatExecutor class for handling chat execution events
  */
 export class ChatExecutor {
-  private static readonly CHAT_REQUEST_EVENT = 'CHAT_REQUEST';
+  private static readonly CHAT_REQUEST_EVENT = "CHAT_REQUEST";
 
   /**
    * Emit a chat request event
@@ -48,35 +46,29 @@ export class ChatExecutor {
    */
   static sendChatRequest(
     message: string,
-    context?: ChatRequestEventDetail['context'],
+    context?: ChatRequestEventDetail["context"],
     tabId?: string,
     sessionId?: string
   ): void {
     try {
-      console.log('🚀 ChatExecutor.sendChatRequest called:', { message, hasContext: !!context, tabId, sessionId })
-
-      // Check if this is an AI chat message or a direct request
-      // If it starts with prefix, strip it. If not, pass through (assuming direct UI invocation)
-      const cleanMessage = isAIChatMessage(message) ? removeAIChatPrefix(message) : message;
-
-      console.log('✅ ChatExecutor: Processed message:', { original: message, clean: cleanMessage })
-
-      const event = new CustomEvent<ChatRequestEventDetail>(
-        ChatExecutor.CHAT_REQUEST_EVENT,
-        {
-          detail: {
-            message: cleanMessage,
-            originalMessage: message,
-            context,
-            tabId,
-            sessionId
-          },
-        }
-      );
+      const event = new CustomEvent<ChatRequestEventDetail>(ChatExecutor.CHAT_REQUEST_EVENT, {
+        detail: {
+          message: message,
+          originalMessage: message,
+          context,
+          tabId,
+          sessionId,
+        },
+      });
       window.dispatchEvent(event);
-      console.log('📤 ChatExecutor: Event dispatched successfully')
+      console.log("📤 ChatExecutor: Event dispatched successfully");
     } catch (error) {
-      console.error('❌ Error in ChatExecutor.sendChatRequest:', error, { message, context, tabId, sessionId })
+      console.error("❌ Error in ChatExecutor.sendChatRequest:", error, {
+        message,
+        context,
+        tabId,
+        sessionId,
+      });
     }
   }
 
@@ -88,11 +80,6 @@ export class ChatExecutor {
       handler(e as CustomEvent<ChatRequestEventDetail>);
     };
     window.addEventListener(ChatExecutor.CHAT_REQUEST_EVENT, wrappedHandler);
-    return () =>
-      window.removeEventListener(
-        ChatExecutor.CHAT_REQUEST_EVENT,
-        wrappedHandler
-      );
+    return () => window.removeEventListener(ChatExecutor.CHAT_REQUEST_EVENT, wrappedHandler);
   }
 }
-

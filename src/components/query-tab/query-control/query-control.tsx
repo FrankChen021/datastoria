@@ -1,3 +1,4 @@
+import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,11 +10,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useConnection } from "@/lib/connection/connection-context";
 import { StringUtils } from "@/lib/string-utils";
 import { cn } from "@/lib/utils";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
-import { AlertCircle, ChevronDown, Database, MessageSquare, MessageSquarePlus, Play, Sparkles } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronDown,
+  Database,
+  MessageSquare,
+  MessageSquarePlus,
+  Play,
+  Sparkles,
+} from "lucide-react";
 import { memo, useCallback, useState } from "react";
 import { useChatExecution } from "../query-execution/chat-execution-context";
 import { useQueryExecutor } from "../query-execution/query-executor";
@@ -26,7 +34,9 @@ interface NewConversationButtonProps {
   onNewConversation?: () => void;
 }
 
-const NewConversationButton = memo(function NewConversationButton({ onNewConversation }: NewConversationButtonProps) {
+const NewConversationButton = memo(function NewConversationButton({
+  onNewConversation,
+}: NewConversationButtonProps) {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleConfirm = useCallback(() => {
@@ -39,7 +49,12 @@ const NewConversationButton = memo(function NewConversationButton({ onNewConvers
   return (
     <Popover open={showConfirm} onOpenChange={setShowConfirm}>
       <PopoverTrigger asChild>
-        <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs" title="Start New Conversation">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 gap-1 px-2 text-xs"
+          title="Start New Conversation"
+        >
           <MessageSquarePlus className="h-3 w-3" />
           New Conversation
         </Button>
@@ -61,7 +76,13 @@ const NewConversationButton = memo(function NewConversationButton({ onNewConvers
               >
                 Cancel
               </Button>
-              <Button type="button" variant="default" size="sm" className="h-7 text-xs" onClick={handleConfirm}>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleConfirm}
+              >
                 Start New
               </Button>
             </div>
@@ -154,7 +175,7 @@ export function QueryControl({
   return (
     <TooltipProvider>
       <div className="flex h-8 w-full gap-2 rounded-sm items-center px-2 text-xs transition-colors">
-        <ToggleGroup
+        {/* <ToggleGroup
           type="single"
           value={mode}
           onValueChange={(val) => val && onModeChange(val as "sql" | "chat")}
@@ -177,7 +198,7 @@ export function QueryControl({
             <Sparkles className="h-3.5 w-3.5" />
           </ToggleGroupItem>
         </ToggleGroup>
-        <Separator orientation="vertical" className="h-4" />
+        <Separator orientation="vertical" className="h-4" /> */}
 
         <div>
           <Button
@@ -198,21 +219,34 @@ export function QueryControl({
           {mode === "sql" && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button disabled={isDisabled} size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs rounded-sm">
+                <Button
+                  disabled={isDisabled}
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 gap-1 px-2 text-xs rounded-sm"
+                >
                   <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => handleExplain("ast")}>Explain AST</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExplain("syntax")}>Explain Syntax</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExplain("ast")}>
+                  Explain AST
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExplain("syntax")}>
+                  Explain Syntax
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExplain("plan-indexes")}>
                   Explain Plan (indexes)
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExplain("plan-actions")}>
                   Explain Plan (actions)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExplain("pipeline")}>Explain Pipeline</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExplain("estimate")}>Explain Estimate</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExplain("pipeline")}>
+                  Explain Pipeline
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExplain("estimate")}>
+                  Explain Estimate
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -220,12 +254,12 @@ export function QueryControl({
 
         <Separator orientation="vertical" className="h-4" />
 
-        {mode === "chat" && (
+        {/* {mode === "chat" && (
           <>
             <ModelSelector />
             <Separator orientation="vertical" className="h-4" />
           </>
-        )}
+        )} */}
 
         {mode === "chat" && sessionStats && sessionStats.messageCount > 0 && (
           <>

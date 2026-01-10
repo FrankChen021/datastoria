@@ -2,7 +2,15 @@
 
 import { connect } from "echarts";
 import { ChevronRight } from "lucide-react";
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { Dashboard, DashboardGroup, GridPos, PanelDescriptor } from "./dashboard-model";
 import { DashboardPanel } from "./dashboard-panel";
 import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
@@ -421,7 +429,8 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
         .filter(
           (ref): ref is DashboardPanelComponent =>
             ref !== null &&
-            typeof (ref as unknown as { getEChartInstance?: () => echarts.ECharts }).getEChartInstance === "function"
+            typeof (ref as unknown as { getEChartInstance?: () => echarts.ECharts })
+              .getEChartInstance === "function"
         )
         .map((ref) => {
           const component = ref as unknown as { getEChartInstance: () => echarts.ECharts };
@@ -434,7 +443,9 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
       }
 
       const allCharts = getAllCharts(panels);
-      const chartNumber = allCharts.filter((chart: PanelDescriptor) => chart.type !== "table").length;
+      const chartNumber = allCharts.filter(
+        (chart: PanelDescriptor) => chart.type !== "table"
+      ).length;
       if (chartInstances.length === chartNumber) {
         // Connect all echarts together on this page
         connect(chartInstances);
@@ -529,8 +540,9 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
                               }}
                             >
                               <ChevronRight
-                                className={`h-4 w-4 transition-transform duration-200 shrink-0 ${!isCollapsed ? "rotate-90" : ""
-                                  }`}
+                                className={`h-4 w-4 transition-transform duration-200 shrink-0 ${
+                                  !isCollapsed ? "rotate-90" : ""
+                                }`}
                               />
                               <h3 className="text-md font-semibold">{group.title}</h3>
                             </div>
@@ -540,7 +552,8 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
                           {group.charts.map((chart: PanelDescriptor, chartIndex) => {
                             const panelIndex = groupInfo.startPanelIndex + chartIndex;
                             const isVisible = isPanelVisible(panelIndex) && !isCollapsed;
-                            const isPanelCollapsed = panelCollapseStates.get(panelIndex) ?? chart.collapsed ?? false;
+                            const isPanelCollapsed =
+                              panelCollapseStates.get(panelIndex) ?? chart.collapsed ?? false;
 
                             return (
                               <DashboardGridPanel
@@ -551,7 +564,9 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
                                 onSubComponentUpdated={onSubComponentUpdated}
                                 selectedTimeSpan={memoizedTimeSpan}
                                 isCollapsed={isPanelCollapsed}
-                                onCollapsedChange={(collapsed) => onPanelCollapsedChange(panelIndex, collapsed)}
+                                onCollapsedChange={(collapsed) =>
+                                  onPanelCollapsedChange(panelIndex, collapsed)
+                                }
                               />
                             );
                           })}
@@ -578,7 +593,9 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
                           onSubComponentUpdated={onSubComponentUpdated}
                           selectedTimeSpan={memoizedTimeSpan}
                           isCollapsed={isPanelCollapsed}
-                          onCollapsedChange={(collapsed) => onPanelCollapsedChange(panelIndex, collapsed)}
+                          onCollapsedChange={(collapsed) =>
+                            onPanelCollapsedChange(panelIndex, collapsed)
+                          }
                         />
                       );
                     }

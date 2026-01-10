@@ -1,9 +1,16 @@
-import type { Dashboard, StatDescriptor, TableDescriptor } from "@/components/shared/dashboard/dashboard-model";
-import DashboardPanels, { type DashboardPanelsRef } from "@/components/shared/dashboard/dashboard-panels";
-import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
-import { BUILT_IN_TIME_SPAN_LIST } from "@/components/shared/dashboard/timespan-selector";
+import type {
+  Dashboard,
+  StatDescriptor,
+  TableDescriptor,
+} from "@/components/shared/dashboard/dashboard-model";
+import DashboardPanels, {
+  type DashboardPanelsRef,
+} from "@/components/shared/dashboard/dashboard-panels";
+import {
+  BUILT_IN_TIME_SPAN_LIST,
+  type TimeSpan,
+} from "@/components/shared/dashboard/timespan-selector";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from "react";
-
 import type { RefreshableTabViewRef } from "./table-tab";
 
 export interface PartHistoryViewProps {
@@ -12,67 +19,68 @@ export interface PartHistoryViewProps {
   autoLoad?: boolean;
 }
 
-const PartHistoryView = memo(forwardRef<RefreshableTabViewRef, PartHistoryViewProps>(({ database, table }, ref) => {
-  const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | undefined>(undefined);
-  const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
-  const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan(), []);
+const PartHistoryView = memo(
+  forwardRef<RefreshableTabViewRef, PartHistoryViewProps>(({ database, table }, ref) => {
+    const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | undefined>(undefined);
+    const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
+    const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan(), []);
 
-  // Calculate current time span (use selected if available, otherwise default)
-  const currentTimeSpan = selectedTimeSpan ?? defaultTimeSpan;
+    // Calculate current time span (use selected if available, otherwise default)
+    const currentTimeSpan = selectedTimeSpan ?? defaultTimeSpan;
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      refresh: (timeSpan?: TimeSpan) => {
-        if (timeSpan) {
-          // Update state - prop change will trigger automatic refresh in DashboardPanels
-          setSelectedTimeSpan(timeSpan);
-        } else {
-          // No timeSpan provided - explicitly refresh with current time span
-          // This handles the case when clicking refresh without changing the time range
-          setTimeout(() => {
-            dashboardPanelsRef.current?.refresh(currentTimeSpan);
-          }, 10);
-        }
-      },
-      supportsTimeSpanSelector: true,
-    }),
-    [currentTimeSpan]
-  );
+    useImperativeHandle(
+      ref,
+      () => ({
+        refresh: (timeSpan?: TimeSpan) => {
+          if (timeSpan) {
+            // Update state - prop change will trigger automatic refresh in DashboardPanels
+            setSelectedTimeSpan(timeSpan);
+          } else {
+            // No timeSpan provided - explicitly refresh with current time span
+            // This handles the case when clicking refresh without changing the time range
+            setTimeout(() => {
+              dashboardPanelsRef.current?.refresh(currentTimeSpan);
+            }, 10);
+          }
+        },
+        supportsTimeSpanSelector: true,
+      }),
+      [currentTimeSpan]
+    );
 
-  // Create dashboard with the stat chart
-  const dashboard = useMemo<Dashboard>(() => {
-    return {
-      name: `part-history-${database}-${table}`,
-      folder: "",
-      title: "Part History",
-      filter: {
-        showTimeSpanSelector: false,
-        showRefresh: false,
-        showAutoRefresh: false,
-      },
-      charts: [
-        //
-        // New Part
-        //
-        {
-          type: "stat",
-          titleOption: {
-            title: "New Part",
-            align: "center",
-          },
-          collapsed: false,
-          width: 2,
-          minimapOption: {
-            type: "line",
-          },
-          valueOption: {
-            reducer: "sum",
-            align: "center",
-            format: "comma_number",
-          },
-          query: {
-            sql: `
+    // Create dashboard with the stat chart
+    const dashboard = useMemo<Dashboard>(() => {
+      return {
+        name: `part-history-${database}-${table}`,
+        folder: "",
+        title: "Part History",
+        filter: {
+          showTimeSpanSelector: false,
+          showRefresh: false,
+          showAutoRefresh: false,
+        },
+        charts: [
+          //
+          // New Part
+          //
+          {
+            type: "stat",
+            titleOption: {
+              title: "New Part",
+              align: "center",
+            },
+            collapsed: false,
+            width: 2,
+            minimapOption: {
+              type: "line",
+            },
+            valueOption: {
+              reducer: "sum",
+              align: "center",
+              format: "comma_number",
+            },
+            query: {
+              sql: `
 SELECT 
 toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
 count()
@@ -89,16 +97,16 @@ GROUP BY t
 ORDER BY t
 WITH FILL STEP {rounding:UInt32}
 `,
-          },
+            },
 
-          drilldown: {
-            minimap: {
-              type: "table",
-              titleOption: {
-                title: "Merge Log",
-              },
-              query: {
-                sql: `
+            drilldown: {
+              minimap: {
+                type: "table",
+                titleOption: {
+                  title: "Merge Log",
+                },
+                query: {
+                  sql: `
                 SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
                 AND 
                     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
@@ -108,38 +116,38 @@ WITH FILL STEP {rounding:UInt32}
                     AND event_type = 'NewPart'
                 ORDER BY event_time DESC
                 `,
-              },
-              sortOption: {
-                initialSort: {
-                  column: "event_time",
-                  direction: "desc",
                 },
-              },
-            } as TableDescriptor,
-          },
-        } as StatDescriptor,
+                sortOption: {
+                  initialSort: {
+                    column: "event_time",
+                    direction: "desc",
+                  },
+                },
+              } as TableDescriptor,
+            },
+          } as StatDescriptor,
 
-        //
-        // Download Part
-        //
-        {
-          type: "stat",
-          titleOption: {
-            title: "Replication Part",
-            align: "center",
-          },
-          collapsed: false,
-          width: 2,
-          minimapOption: {
-            type: "line",
-          },
-          valueOption: {
-            reducer: "sum",
-            align: "center",
-            format: "comma_number",
-          },
-          query: {
-            sql: `
+          //
+          // Download Part
+          //
+          {
+            type: "stat",
+            titleOption: {
+              title: "Replication Part",
+              align: "center",
+            },
+            collapsed: false,
+            width: 2,
+            minimapOption: {
+              type: "line",
+            },
+            valueOption: {
+              reducer: "sum",
+              align: "center",
+              format: "comma_number",
+            },
+            query: {
+              sql: `
 SELECT 
 toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
 count()
@@ -156,16 +164,16 @@ GROUP BY t
 ORDER BY t
 WITH FILL STEP {rounding:UInt32}
 `,
-          },
+            },
 
-          drilldown: {
-            minimap: {
-              type: "table",
-              titleOption: {
-                title: "Merge Log",
-              },
-              query: {
-                sql: `
+            drilldown: {
+              minimap: {
+                type: "table",
+                titleOption: {
+                  title: "Merge Log",
+                },
+                query: {
+                  sql: `
                 SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
                 AND 
                     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
@@ -175,38 +183,38 @@ WITH FILL STEP {rounding:UInt32}
                     AND event_type = 'DownloadPart'
                 ORDER BY event_time DESC
                 `,
-              },
-              sortOption: {
-                initialSort: {
-                  column: "event_time",
-                  direction: "desc",
                 },
-              },
-            } as TableDescriptor,
-          },
-        } as StatDescriptor,
+                sortOption: {
+                  initialSort: {
+                    column: "event_time",
+                    direction: "desc",
+                  },
+                },
+              } as TableDescriptor,
+            },
+          } as StatDescriptor,
 
-        //
-        // Merges
-        //
-        {
-          type: "stat",
-          titleOption: {
-            title: "Merges",
-            align: "center",
-          },
-          collapsed: false,
-          width: 2,
-          minimapOption: {
-            type: "line",
-          },
-          valueOption: {
-            reducer: "sum",
-            align: "center",
-            format: "comma_number",
-          },
-          query: {
-            sql: `
+          //
+          // Merges
+          //
+          {
+            type: "stat",
+            titleOption: {
+              title: "Merges",
+              align: "center",
+            },
+            collapsed: false,
+            width: 2,
+            minimapOption: {
+              type: "line",
+            },
+            valueOption: {
+              reducer: "sum",
+              align: "center",
+              format: "comma_number",
+            },
+            query: {
+              sql: `
 SELECT 
 toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
 count()
@@ -223,16 +231,16 @@ GROUP BY t
 ORDER BY t
 WITH FILL STEP {rounding:UInt32}
 `,
-          },
+            },
 
-          drilldown: {
-            minimap: {
-              type: "table",
-              titleOption: {
-                title: "Merge Log",
-              },
-              query: {
-                sql: `
+            drilldown: {
+              minimap: {
+                type: "table",
+                titleOption: {
+                  title: "Merge Log",
+                },
+                query: {
+                  sql: `
                 SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
                 AND 
                     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
@@ -242,38 +250,38 @@ WITH FILL STEP {rounding:UInt32}
                     AND event_type = 'MergeParts'
                 ORDER BY event_time DESC
                 `,
-              },
-              sortOption: {
-                initialSort: {
-                  column: "event_time",
-                  direction: "desc",
                 },
-              },
-            } as TableDescriptor,
-          },
-        } as StatDescriptor,
+                sortOption: {
+                  initialSort: {
+                    column: "event_time",
+                    direction: "desc",
+                  },
+                },
+              } as TableDescriptor,
+            },
+          } as StatDescriptor,
 
-        //
-        // Mutations
-        //
-        {
-          type: "stat",
-          titleOption: {
-            title: "Mutations",
-            align: "center",
-          },
-          collapsed: false,
-          width: 2,
-          minimapOption: {
-            type: "line",
-          },
-          valueOption: {
-            reducer: "sum",
-            align: "center",
-            format: "comma_number",
-          },
-          query: {
-            sql: `
+          //
+          // Mutations
+          //
+          {
+            type: "stat",
+            titleOption: {
+              title: "Mutations",
+              align: "center",
+            },
+            collapsed: false,
+            width: 2,
+            minimapOption: {
+              type: "line",
+            },
+            valueOption: {
+              reducer: "sum",
+              align: "center",
+              format: "comma_number",
+            },
+            query: {
+              sql: `
 SELECT 
 toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
 count()
@@ -290,16 +298,16 @@ GROUP BY t
 ORDER BY t
 WITH FILL STEP {rounding:UInt32}
 `,
-          },
+            },
 
-          drilldown: {
-            minimap: {
-              type: "table",
-              titleOption: {
-                title: "Merge Log",
-              },
-              query: {
-                sql: `
+            drilldown: {
+              minimap: {
+                type: "table",
+                titleOption: {
+                  title: "Merge Log",
+                },
+                query: {
+                  sql: `
                 SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
                 AND 
                     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
@@ -309,35 +317,35 @@ WITH FILL STEP {rounding:UInt32}
                     AND event_type = 'MutatePart'
                 ORDER BY event_time DESC
                 `,
-              },
-              sortOption: {
-                initialSort: {
-                  column: "event_time",
-                  direction: "desc",
                 },
-              },
-            } as TableDescriptor,
-          },
-        } as StatDescriptor,
+                sortOption: {
+                  initialSort: {
+                    column: "event_time",
+                    direction: "desc",
+                  },
+                },
+              } as TableDescriptor,
+            },
+          } as StatDescriptor,
 
-        {
-          type: "stat",
-          titleOption: {
-            title: "Removed Parts",
-            align: "center",
-          },
-          collapsed: false,
-          width: 2,
-          minimapOption: {
-            type: "line",
-          },
-          valueOption: {
-            reducer: "sum",
-            align: "center",
-            format: "comma_number",
-          },
-          query: {
-            sql: `
+          {
+            type: "stat",
+            titleOption: {
+              title: "Removed Parts",
+              align: "center",
+            },
+            collapsed: false,
+            width: 2,
+            minimapOption: {
+              type: "line",
+            },
+            valueOption: {
+              reducer: "sum",
+              align: "center",
+              format: "comma_number",
+            },
+            query: {
+              sql: `
 SELECT 
 toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
 count()
@@ -354,15 +362,15 @@ GROUP BY t
 ORDER BY t
 WITH FILL STEP {rounding:UInt32}
 `,
-          },
-          drilldown: {
-            minimap: {
-              type: "table",
-              titleOption: {
-                title: "Remove Part Log",
-              },
-              query: {
-                sql: `
+            },
+            drilldown: {
+              minimap: {
+                type: "table",
+                titleOption: {
+                  title: "Remove Part Log",
+                },
+                query: {
+                  sql: `
                 SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
                 AND 
                     event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
@@ -372,20 +380,27 @@ WITH FILL STEP {rounding:UInt32}
                     AND event_type = 'RemovePart'
                 ORDER BY event_time DESC
                 `,
-              },
-              sortOption: {
-                initialSort: {
-                  column: "event_time",
-                  direction: "desc",
                 },
-              },
-            } as TableDescriptor,
-          },
-        } as StatDescriptor,
-      ],
-    };
-  }, [database, table]);
+                sortOption: {
+                  initialSort: {
+                    column: "event_time",
+                    direction: "desc",
+                  },
+                },
+              } as TableDescriptor,
+            },
+          } as StatDescriptor,
+        ],
+      };
+    }, [database, table]);
 
-  return <DashboardPanels ref={dashboardPanelsRef} dashboard={dashboard} selectedTimeSpan={currentTimeSpan} />;
-}));
+    return (
+      <DashboardPanels
+        ref={dashboardPanelsRef}
+        dashboard={dashboard}
+        selectedTimeSpan={currentTimeSpan}
+      />
+    );
+  })
+);
 export { PartHistoryView };

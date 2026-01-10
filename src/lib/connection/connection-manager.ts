@@ -1,5 +1,5 @@
-import type { ConnectionConfig } from './connection-config';
-import { LocalStorage } from './LocalStorage';
+import { LocalStorage } from "../local-storage";
+import type { ConnectionConfig } from "./connection-config";
 
 export const ConnectionChangeType = {
   ADD: 0,
@@ -7,7 +7,8 @@ export const ConnectionChangeType = {
   REMOVE: 2,
 } as const;
 
-export type ConnectionChangeTypeValue = typeof ConnectionChangeType[keyof typeof ConnectionChangeType];
+export type ConnectionChangeTypeValue =
+  (typeof ConnectionChangeType)[keyof typeof ConnectionChangeType];
 
 export interface ConnectionChangeEventArgs {
   type: ConnectionChangeTypeValue;
@@ -15,7 +16,7 @@ export interface ConnectionChangeEventArgs {
   afterChange: ConnectionConfig | null;
 }
 
-const ConnectionKey: string = 'connections';
+const ConnectionKey: string = "connections";
 export class ConnectionManager {
   private static instance: ConnectionManager;
 
@@ -39,11 +40,11 @@ export class ConnectionManager {
     savedConnections.forEach((val) => {
       // Type guard for connection data
       if (
-        typeof val !== 'object' ||
+        typeof val !== "object" ||
         val === null ||
-        !('name' in val) ||
-        !('url' in val) ||
-        !('user' in val)
+        !("name" in val) ||
+        !("url" in val) ||
+        !("user" in val)
       ) {
         return;
       }
@@ -59,13 +60,16 @@ export class ConnectionManager {
       };
 
       // Process old data
-      const cluster = connData.cluster === undefined && connData.isCluster ? connData.name : (connData.cluster || '');
+      const cluster =
+        connData.cluster === undefined && connData.isCluster
+          ? connData.name
+          : connData.cluster || "";
 
       const connection: ConnectionConfig = {
         name: connData.name,
         url: connData.url,
         user: connData.user,
-        password: connData.password || '',
+        password: connData.password || "",
         cluster: cluster,
         editable: connData.editable !== undefined ? connData.editable : true,
       };
@@ -168,7 +172,7 @@ export class ConnectionManager {
   }
 
   public saveLastSelected(name: string | undefined) {
-    const key = ConnectionKey + '.selected';
+    const key = ConnectionKey + ".selected";
 
     if (name === undefined) {
       LocalStorage.getInstance().remove(key);
@@ -178,7 +182,7 @@ export class ConnectionManager {
   }
 
   public getLastSelectedOrFirst() {
-    const selected = LocalStorage.getInstance().getString(ConnectionKey + '.selected');
+    const selected = LocalStorage.getInstance().getString(ConnectionKey + ".selected");
     if (selected === null) {
       return this.first();
     }

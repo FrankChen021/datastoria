@@ -1,3 +1,7 @@
+import { AppLogo } from "@/components/app-logo";
+import { useConnection } from "@/components/connection/connection-context";
+import { ConnectionSelector } from "@/components/connection/connection-selector";
+import { SYSTEM_TABLE_REGISTRY } from "@/components/table-tab/system-table/system-table-registry";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
   Sidebar,
   SidebarContent,
@@ -16,22 +21,73 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserProfileImage } from "@/components/user-profile-image";
-import { useConnection } from "@/lib/connection/connection-context";
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
-import { Database, LogOut, Search, Settings, Terminal } from "lucide-react";
+import { Activity, Database, LogOut, Settings, Sparkles, Terminal } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
-import Image from "next/image";
-import { useEffect, useState } from "react";
-import { ConnectionSelectorPopover } from "./connection/connection-selector-popover";
+import React, { useCallback, useEffect, useState } from "react";
 import { showSettingsDialog } from "./settings/settings-dialog";
 import { TabManager } from "./tab-manager";
 import { useTheme } from "./theme-provider";
 
+function ConnectionManageSidebarMenuItem() {
+  const [isOpen, setIsOpen] = useState(false);
+  const isClickingRef = React.useRef(false);
+
+  const onOpenChange = useCallback((newState: boolean) => {
+    // This callback is invoked by HoverCard when it wants to change the open state.
+    // We add this callback because if user click the trigger, the hover card will close --> open --> close.
+    // We add this for better UX.
+    //
+    // The HoverCard will try to close when:
+    // 1. Mouse leaves both the trigger and content
+    // 2. User clicks on the trigger (which we want to prevent)
+    //
+    // When user clicks the trigger while the card is open:
+    // - handlePointerDown sets isClickingRef.current = true
+    // - HoverCard detects the click and calls onOpenChange(false)
+    // - We intercept this close request here and ignore it
+    // - Reset the flag so future legitimate close requests work
+    if (newState === false && isClickingRef.current) {
+      isClickingRef.current = false;
+      return; // Ignore the close request - keep the card open
+    }
+
+    // For all other cases (hover in/out), update the state normally
+    setIsOpen(newState);
+  }, []);
+
+  const onMenuItemPointerDown = useCallback(() => {
+    // When user clicks the trigger button while the hover card is already open,
+    // we set a flag so that onOpenChange can ignore the subsequent close request.
+    // This prevents the card from closing when clicking the trigger.
+    if (isOpen) {
+      isClickingRef.current = true;
+    }
+  }, [isOpen]);
+
+  return (
+    <SidebarMenuItem>
+      <HoverCard openDelay={200} open={isOpen} onOpenChange={onOpenChange}>
+        <HoverCardTrigger asChild>
+          <SidebarMenuButton
+            size="lg"
+            className="justify-center"
+            onPointerDown={onMenuItemPointerDown}
+          >
+            <Database className="h-5 w-5" />
+          </SidebarMenuButton>
+        </HoverCardTrigger>
+        <HoverCardContent side="right" align="start" className="w-[400px] p-0">
+          <ConnectionSelector isOpen={isOpen} onClose={() => setIsOpen(false)} />
+        </HoverCardContent>
+      </HoverCard>
+    </SidebarMenuItem>
+  );
+}
+
 export function AppSidebar() {
   const { isReady } = useConnection();
-  const [isConnectionSelectorOpen, setIsConnectionSelectorOpen] = useState(false);
   const { data: session } = useSession();
 
   return (
@@ -39,7 +95,7 @@ export function AppSidebar() {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem className="flex justify-center">
-            <Image src="/logo.png" alt="Data Scopic" width={24} height={24} />
+            <AppLogo width={24} height={24} />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
@@ -48,30 +104,11 @@ export function AppSidebar() {
           <SidebarMenu>
             {isReady && (
               <>
-                <SidebarMenuItem>
-                  <Tooltip open={isConnectionSelectorOpen ? false : undefined}>
-                    <TooltipTrigger asChild>
-                      <div>
-                        <ConnectionSelectorPopover
-                          trigger={
-                            <SidebarMenuButton size="lg" className="justify-center">
-                              <Database className="h-5 w-5" />
-                            </SidebarMenuButton>
-                          }
-                          sideOffset={5}
-                          side="right"
-                          onOpenChange={setIsConnectionSelectorOpen}
-                        />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" align="center">
-                      Manage Connections
-                    </TooltipContent>
-                  </Tooltip>
-                </SidebarMenuItem>
+                <ConnectionManageSidebarMenuItem />
+
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    tooltip="Query"
+                    tooltip="Click to open Query Tab"
                     size="lg"
                     className="justify-center"
                     onClick={() => TabManager.activateQueryTab()}
@@ -80,18 +117,40 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
+                  <HoverCard openDelay={200}>
+                    <HoverCardTrigger asChild>
+                      <SidebarMenuButton size="lg" className="justify-center">
+                        <Activity className="h-5 w-5" />
+                      </SidebarMenuButton>
+                    </HoverCardTrigger>
+                    <HoverCardContent side="right" align="start" className="w-64 p-2">
+                      <div className="space-y-1">
+                        {Array.from(SYSTEM_TABLE_REGISTRY.keys()).map((tableName) => (
+                          <button
+                            key={tableName}
+                            className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+                            onClick={() => TabManager.openTableTab("system", tableName)}
+                          >
+                            system.{tableName}
+                          </button>
+                        ))}
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
                   <SidebarMenuButton
-                    tooltip="Search Query Log"
+                    tooltip="Click to open AI Chat Tab"
                     size="lg"
                     className="justify-center"
-                    onClick={() => TabManager.openQueryLogTab()}
+                    onClick={() => TabManager.openChatTab()}
                   >
-                    <Search className="h-5 w-5" />
+                    <Sparkles className="h-5 w-5" />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    tooltip="Settings"
+                    tooltip="Click to open Settings"
                     size="lg"
                     className="justify-center"
                     onClick={() => showSettingsDialog()}
@@ -154,7 +213,12 @@ function ThemeToggleButton() {
   // Prevent hydration mismatch by not rendering icons until mounted
   if (!mounted) {
     return (
-      <SidebarMenuButton size="lg" onClick={toggleTheme} tooltip="Toggle theme" className="justify-center">
+      <SidebarMenuButton
+        size="lg"
+        onClick={toggleTheme}
+        tooltip="Toggle theme"
+        className="justify-center"
+      >
         <div className="h-5 w-5" />
       </SidebarMenuButton>
     );
@@ -172,7 +236,11 @@ function ThemeToggleButton() {
   );
 }
 
-function UserNavButton({ user }: { user: { name?: string | null; email?: string | null; image?: string | null } }) {
+function UserNavButton({
+  user,
+}: {
+  user: { name?: string | null; email?: string | null; image?: string | null };
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -191,7 +259,10 @@ function UserNavButton({ user }: { user: { name?: string | null; email?: string 
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer" onClick={() => signOut({ callbackUrl: "/login" })}>
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+        >
           <LogOut className="mr-2 h-4 w-4" />
           Log out
         </DropdownMenuItem>

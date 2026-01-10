@@ -1,12 +1,11 @@
 "use client";
 
+import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardFooter, CardTitle } from "@/components/ui/card";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog } from "@/components/use-dialog";
 import { type QueryResponse } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { Formatter } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
@@ -14,10 +13,18 @@ import NumberFlow from "@number-flow/react";
 import { format } from "date-fns";
 import * as echarts from "echarts";
 import { CircleAlert, TrendingDown, TrendingUpIcon } from "lucide-react";
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
 import { classifyColumns, transformRowsToChartData } from "./dashboard-data-utils";
 import { showQueryDialog } from "./dashboard-dialog-utils";
+import { DashboardDropdownMenuItem } from "./dashboard-dropdown-menu-item";
 import {
   applyReducer,
   type MinimapOption,
@@ -28,8 +35,11 @@ import {
   type TableDescriptor,
 } from "./dashboard-model";
 import { DashboardPanel } from "./dashboard-panel";
-import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
-import { DashboardPanelLayout } from "./dashboard-panel-layout";
+import {
+  DashboardPanelLayout,
+  type DashboardPanelComponent,
+  type RefreshOptions,
+} from "./dashboard-panel-layout";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
 import useIsDarkTheme from "./use-is-dark-theme";
@@ -114,7 +124,13 @@ interface StatMinimapProps {
   onBrushChange?: (startTimestamp: number, endTimestamp: number) => void;
 }
 
-const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data, isLoading, option, onBrushChange }) {
+const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
+  id,
+  data,
+  isLoading,
+  option,
+  onBrushChange,
+}) {
   const chartContainerRef = React.useRef<HTMLDivElement>(null);
   const chartInstanceRef = React.useRef<echarts.ECharts | null>(null);
   const brushHandlerRef = React.useRef<((params: unknown) => void) | null>(null);
@@ -132,14 +148,22 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({ id, data
       const computedColor = getComputedStyle(tempEl).color;
       document.body.removeChild(tempEl);
 
-      if (computedColor && computedColor !== "rgba(0, 0, 0, 0)" && computedColor !== "rgb(0, 0, 0)") {
+      if (
+        computedColor &&
+        computedColor !== "rgba(0, 0, 0, 0)" &&
+        computedColor !== "rgb(0, 0, 0)"
+      ) {
         setChartColor(computedColor);
       } else {
         tempEl.style.color = "var(--primary)";
         document.body.appendChild(tempEl);
         const fallbackColor = getComputedStyle(tempEl).color;
         document.body.removeChild(tempEl);
-        if (fallbackColor && fallbackColor !== "rgba(0, 0, 0, 0)" && fallbackColor !== "rgb(0, 0, 0)") {
+        if (
+          fallbackColor &&
+          fallbackColor !== "rgba(0, 0, 0, 0)" &&
+          fallbackColor !== "rgb(0, 0, 0)"
+        ) {
           setChartColor(fallbackColor);
         } else {
           const dark = document.documentElement.classList.contains("dark");
@@ -467,7 +491,9 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
     const [fontSize, setFontSize] = useState(3); // Start with 3rem (text-5xl equivalent)
     const fontSizeRef = useRef(3); // Keep ref in sync for effect optimization
     const [offset] = useState(() =>
-      descriptor.comparisonOption ? DateTimeExtension.parseOffsetExpression(descriptor.comparisonOption.offset) : 0
+      descriptor.comparisonOption
+        ? DateTimeExtension.parseOffsetExpression(descriptor.comparisonOption.offset)
+        : 0
     );
     const [offsetData] = useState(0);
     const [minimapData, setMinimapData] = useState<MinimapDataPoint[]>([]);
@@ -492,74 +518,86 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
       return true;
     }, [descriptor]);
 
-    const getMinimapDataFromResponse = useCallback((response: QueryResponse): MinimapDataPoint[] => {
-      if (!response.data) {
-        return [];
-      }
-
-      try {
-        const responseData = response.data.json<any>();
-
-        // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
-        const rows = responseData.data || [];
-        const meta = responseData.meta || [];
-
-        if (rows.length === 0) {
+    const getMinimapDataFromResponse = useCallback(
+      (response: QueryResponse): MinimapDataPoint[] => {
+        if (!response.data) {
           return [];
         }
 
-        // Transform rows to chart data format (with timestamp normalized)
-        const transformedData = transformRowsToChartData(rows, meta);
+        try {
+          const responseData = response.data.json<any>();
 
-        // Classify columns to find timestamp and metric columns
-        const allColumns =
-          meta.length > 0 ? meta.map((m: { name: string }) => m.name) : Object.keys(transformedData[0]);
-        const { timestampKey, metricColumns } = classifyColumns(allColumns, meta, transformedData);
+          // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
+          const rows = responseData.data || [];
+          const meta = responseData.meta || [];
 
-        // Use the first metric column as the value for the minimap
-        const valueColumn = metricColumns[0] || "value";
-
-        // Build minimap data points
-        const dataPoints: MinimapDataPoint[] = [];
-        transformedData.forEach((row) => {
-          const timestamp = row[timestampKey] as number;
-          const value = row[valueColumn];
-
-          if (timestamp && value !== null && value !== undefined) {
-            // Convert value to number
-            let numValue: number;
-            if (typeof value === "number") {
-              numValue = value;
-            } else if (typeof value === "string") {
-              numValue = parseFloat(value);
-              if (isNaN(numValue)) return; // Skip invalid values
-            } else {
-              return; // Skip non-numeric values
-            }
-
-            dataPoints.push({
-              timestamp,
-              value: numValue,
-            });
+          if (rows.length === 0) {
+            return [];
           }
-        });
 
-        // Sort by timestamp
-        dataPoints.sort((a, b) => a.timestamp - b.timestamp);
+          // Transform rows to chart data format (with timestamp normalized)
+          const transformedData = transformRowsToChartData(rows, meta);
 
-        return dataPoints;
-      } catch (error) {
-        console.error("Error processing minimap data:", error);
-        return [];
-      }
-    }, []);
+          // Classify columns to find timestamp and metric columns
+          const allColumns =
+            meta.length > 0
+              ? meta.map((m: { name: string }) => m.name)
+              : Object.keys(transformedData[0]);
+          const { timestampKey, metricColumns } = classifyColumns(
+            allColumns,
+            meta,
+            transformedData
+          );
 
-    const calculateReducedValue = useCallback((data: MinimapDataPoint[], reducer: Reducer): number => {
-      return applyReducer(
-        data.map((d) => d.value),
-        reducer
-      );
-    }, []);
+          // Use the first metric column as the value for the minimap
+          const valueColumn = metricColumns[0] || "value";
+
+          // Build minimap data points
+          const dataPoints: MinimapDataPoint[] = [];
+          transformedData.forEach((row) => {
+            const timestamp = row[timestampKey] as number;
+            const value = row[valueColumn];
+
+            if (timestamp && value !== null && value !== undefined) {
+              // Convert value to number
+              let numValue: number;
+              if (typeof value === "number") {
+                numValue = value;
+              } else if (typeof value === "string") {
+                numValue = parseFloat(value);
+                if (isNaN(numValue)) return; // Skip invalid values
+              } else {
+                return; // Skip non-numeric values
+              }
+
+              dataPoints.push({
+                timestamp,
+                value: numValue,
+              });
+            }
+          });
+
+          // Sort by timestamp
+          dataPoints.sort((a, b) => a.timestamp - b.timestamp);
+
+          return dataPoints;
+        } catch (error) {
+          console.error("Error processing minimap data:", error);
+          return [];
+        }
+      },
+      []
+    );
+
+    const calculateReducedValue = useCallback(
+      (data: MinimapDataPoint[], reducer: Reducer): number => {
+        return applyReducer(
+          data.map((d) => d.value),
+          reducer
+        );
+      },
+      []
+    );
 
     const loadData = useCallback(
       async (_param: RefreshOptions, isOffset: boolean = false) => {
@@ -633,7 +671,11 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
             const query = Object.assign({}, descriptor.query);
 
             // Replace time span template parameters in SQL if provided
-            const finalSql = replaceTimeSpanParams(query.sql, _param.selectedTimeSpan, connection!.metadata.timezone);
+            const finalSql = replaceTimeSpanParams(
+              query.sql,
+              _param.selectedTimeSpan,
+              connection!.metadata.timezone
+            );
             if (!isOffset) {
               setExecutedSql(finalSql);
             }
@@ -758,7 +800,8 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
         // Calculate available width (accounting for padding)
         const paddingLeft = parseFloat(containerStyles.paddingLeft) || 0;
         const paddingRight = parseFloat(containerStyles.paddingRight) || 0;
-        const containerWidth = container.clientWidth || container.offsetWidth - paddingLeft - paddingRight;
+        const containerWidth =
+          container.clientWidth || container.offsetWidth - paddingLeft - paddingRight;
         const containerHeight = container.offsetHeight;
 
         if (containerWidth <= 0 || containerHeight <= 0) return; // Not yet rendered
@@ -810,9 +853,12 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
 
         // If still too wide or too tall, scale down further with additional 2% margin
         if (verifiedWidth > availableWidth || verifiedHeight > availableHeight) {
-          const widthScaleVerify = verifiedWidth > availableWidth ? availableWidth / verifiedWidth : 1;
-          const heightScaleVerify = verifiedHeight > availableHeight ? availableHeight / verifiedHeight : 1;
-          const additionalScale = Math.min(widthScaleVerify, heightScaleVerify) * VERIFY_SAFETY_SCALE;
+          const widthScaleVerify =
+            verifiedWidth > availableWidth ? availableWidth / verifiedWidth : 1;
+          const heightScaleVerify =
+            verifiedHeight > availableHeight ? availableHeight / verifiedHeight : 1;
+          const additionalScale =
+            Math.min(widthScaleVerify, heightScaleVerify) * VERIFY_SAFETY_SCALE;
           newFontSizeRem = Math.max(0.75, newFontSizeRem * additionalScale);
         }
 
@@ -975,7 +1021,11 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
         disableContentScroll: false,
         mainContent: (
           <div className="w-full h-full overflow-auto">
-            <DashboardPanel descriptor={modifiedDescriptor} selectedTimeSpan={selectedTimeSpan} initialLoading={true} />
+            <DashboardPanel
+              descriptor={modifiedDescriptor}
+              selectedTimeSpan={selectedTimeSpan}
+              initialLoading={true}
+            />
           </div>
         ),
       });
@@ -1043,10 +1093,12 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
     );
 
     // Check if main drilldown is available
-    const hasMainDrilldown = descriptor.drilldown !== undefined && descriptor.drilldown.main !== undefined;
+    const hasMainDrilldown =
+      descriptor.drilldown !== undefined && descriptor.drilldown.main !== undefined;
 
     // Check if minimap drilldown is available
-    const hasMinimapDrilldown = descriptor.drilldown !== undefined && descriptor.drilldown.minimap !== undefined;
+    const hasMinimapDrilldown =
+      descriptor.drilldown !== undefined && descriptor.drilldown.minimap !== undefined;
 
     // Handler for showing query dialog
     const handleShowQuery = useCallback(() => {
@@ -1109,14 +1161,21 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
       }
 
       const delta = data - offsetData;
-      const change = delta === 0 && offsetData === 0 ? 0 : (delta / (offsetData === 0 ? delta : offsetData)) * 100;
+      const change =
+        delta === 0 && offsetData === 0
+          ? 0
+          : (delta / (offsetData === 0 ? delta : offsetData)) * 100;
 
       return (
         <div
           className="absolute right-4 top-4 text-xs flex items-center gap-1"
           title={"Compared to data in the same period of " + descriptor.comparisonOption?.offset}
         >
-          {change >= 0 ? <TrendingUpIcon className="size-3" /> : <TrendingDown className="h-3 w-3" />}
+          {change >= 0 ? (
+            <TrendingUpIcon className="size-3" />
+          ) : (
+            <TrendingDown className="h-3 w-3" />
+          )}
           {change > 0 ? "+" : ""}
           {change.toFixed(1)}%
         </div>
@@ -1128,9 +1187,15 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
     // Build dropdown menu items
     const dropdownItems = (
       <>
-        {descriptor.query?.sql && <DropdownMenuItem onClick={handleShowQuery}>Show query</DropdownMenuItem>}
+        {descriptor.query?.sql && (
+          <DashboardDropdownMenuItem onClick={handleShowQuery}>
+            Show query
+          </DashboardDropdownMenuItem>
+        )}
         {!hasTitle && hasMainDrilldown && (
-          <DropdownMenuItem onClick={handleDrilldownClick}>View details</DropdownMenuItem>
+          <DashboardDropdownMenuItem onClick={handleDrilldownClick}>
+            View details
+          </DashboardDropdownMenuItem>
         )}
       </>
     );
@@ -1158,7 +1223,9 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
           <CardContent className={cn("py-0 px-0 relative flex-1 min-h-0")}>
             <CardTitle
               className={cn(
-                descriptor.valueOption?.align ? "text-" + descriptor.valueOption.align : "text-center",
+                descriptor.valueOption?.align
+                  ? "text-" + descriptor.valueOption.align
+                  : "text-center",
                 "font-semibold h-full tabular-nums flex flex-col justify-center"
               )}
             >
@@ -1168,7 +1235,10 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
                 </div>
               )}
               {!error && (
-                <div ref={valueContainerRef} className="h-full flex items-center justify-center overflow-hidden">
+                <div
+                  ref={valueContainerRef}
+                  className="h-full flex items-center justify-center overflow-hidden"
+                >
                   <div
                     ref={valueTextRef}
                     className={cn(
@@ -1181,7 +1251,10 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
                     onClick={hasMainDrilldown ? handleDrilldownClick : undefined}
                   >
                     {shouldShowSkeleton ? (
-                      <div className="transition-opacity duration-150" style={{ opacity: skeletonOpacity }}>
+                      <div
+                        className="transition-opacity duration-150"
+                        style={{ opacity: skeletonOpacity }}
+                      >
                         <Skeleton className="w-20 h-10" />
                       </div>
                     ) : shouldUseNumberFlow() ? (
@@ -1204,11 +1277,19 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
                         } else if (formatStr === "percentage") {
                           // percentage format expects values already as percentages (e.g., 50 = 50%)
                           // NumberFlow with style: "percent" multiplies by 100, so we need to divide by 100 first
-                          numberFlowFormat = { style: "percent", minimumFractionDigits: 0, maximumFractionDigits: 2 };
+                          numberFlowFormat = {
+                            style: "percent",
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 2,
+                          };
                         } else if (formatStr === "percentage_0_1") {
                           // This format expects values in [0,1] range (e.g., 0.5 = 50%)
                           // NumberFlow with style: "percent" multiplies by 100, so we pass as-is
-                          numberFlowFormat = { style: "percent", minimumFractionDigits: 0, maximumFractionDigits: 2 };
+                          numberFlowFormat = {
+                            style: "percent",
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 2,
+                          };
                         } else if (formatStr === "binary_size") {
                           // binary_size format converts bytes to binary units (KB, MB, GB, etc.)
                           numberFlowFormat = { notation: "binary_size" };

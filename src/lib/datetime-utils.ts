@@ -4,12 +4,11 @@ import { format, formatISO } from "date-fns";
  * Utility class for date and time operations
  */
 export class DateTimeExtension {
-
   static toYYYYMMddHHmmss(date: Date): string {
     try {
       return format(date, "yyyy-MM-dd HH:mm:ss");
     } catch {
-      return 'Invalid date' + date;
+      return "Invalid date" + date;
     }
   }
 
@@ -84,7 +83,9 @@ export class DateTimeExtension {
     const match = expression.match(regex);
 
     if (!match) {
-      throw new Error(`Invalid offset expression: ${expression}. Expected format: (+|-)?\\d+(s|m|h|d)`);
+      throw new Error(
+        `Invalid offset expression: ${expression}. Expected format: (+|-)?\\d+(s|m|h|d)`
+      );
     }
 
     const [, sign = "+", value, unit] = match;

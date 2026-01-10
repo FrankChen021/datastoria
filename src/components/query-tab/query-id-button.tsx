@@ -26,4 +26,3 @@ export function QueryIdButton({ queryId, traceId, showLabel = true }: QueryIdBut
     </div>
   );
 }
-

@@ -34,4 +34,3 @@ export function QueryResponseHttpHeaderView({ headers }: QueryResponseHttpHeader
     </table>
   );
 }
-

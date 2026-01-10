@@ -26,7 +26,10 @@ function formatValueForDisplay(val: unknown, formatNumbers: boolean = false): st
 
 // Map table component with sorting support
 function MapTableComponent({ mapData }: { mapData: Array<{ key: unknown; value: unknown }> }) {
-  const [sort, setSort] = useState<{ column: "key" | "value" | null; direction: "asc" | "desc" | null }>({
+  const [sort, setSort] = useState<{
+    column: "key" | "value" | null;
+    direction: "asc" | "desc" | null;
+  }>({
     column: null,
     direction: null,
   });
@@ -149,7 +152,7 @@ export type FormatName =
   | "MMddHHmmss"
   | "MMddHHmmssSSS"
   | "timeDuration" // Format to string like: 1 day, 1 hour, 1 minute, 1 second
-  | "timeDiff"  // Format the difference of given number in milliseconds and current time stamp in the format of: xxx seconds ago
+  | "timeDiff" // Format the difference of given number in milliseconds and current time stamp in the format of: xxx seconds ago
   | "relativeTime" // Format the given number in milliseconds to string like: 1 day, 1 hour, 1 minute, 1 second
   | "days"
   | "index" // For compability, SHOULD not be used
@@ -161,12 +164,11 @@ export type FormatName =
   | "map" // For Map types - shows Map(N entries) with click-to-expand table dialog
   | "complexType" // For complex types (Array, Tuple, JSON) - shows truncated JSON with click-to-expand dialog
   | "truncatedText"
-  | "inline_sql" // render the SQL in place
-  ; // For long text - shows truncated text with click-to-expand dialog, accepts truncation length via formatArgs
+  | "inline_sql"; // render the SQL in place // For long text - shows truncated text with click-to-expand dialog, accepts truncation length via formatArgs
 
 // Formatter function interface - matches the signature used by Formatter class
 // Third parameter (context) is optional. For the formatter in a table, the context is the row object of a cell
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export interface ObjectFormatter {
   (v: any, params?: any[], context?: Record<string, unknown>): string | React.ReactNode;
 }
@@ -183,40 +185,58 @@ export class Formatter {
     this._formatters["binary_byte"] = (v) => {
       if (v === undefined || v === null) return "null";
       const numValue = typeof v === "number" ? v : Number(v);
-      return isNaN(numValue) ? "null" : (numValue as number & { formatBinarySize(): string }).formatBinarySize();
+      return isNaN(numValue)
+        ? "null"
+        : (numValue as number & { formatBinarySize(): string }).formatBinarySize();
     };
     this._formatters["binary_size"] = (v) => {
       if (v === undefined || v === null) return "null";
       const numValue = typeof v === "number" ? v : Number(v);
-      return isNaN(numValue) ? "null" : (numValue as number & { formatBinarySize(): string }).formatBinarySize();
+      return isNaN(numValue)
+        ? "null"
+        : (numValue as number & { formatBinarySize(): string }).formatBinarySize();
     };
 
     // For compatiblity only, use short_number instead
     this._formatters["compact_number"] = (v) => {
       if (v === undefined || v === null) return "null";
       const numValue = typeof v === "number" ? v : Number(v);
-      return isNaN(numValue) ? "null" : (numValue as number & { formatCompactNumber(): string }).formatCompactNumber();
+      return isNaN(numValue)
+        ? "null"
+        : (numValue as number & { formatCompactNumber(): string }).formatCompactNumber();
     };
     this._formatters["short_number"] = (v) => {
       if (v === undefined || v === null) return "null";
       const numValue = typeof v === "number" ? v : Number(v);
-      return isNaN(numValue) ? "null" : (numValue as number & { formatCompactNumber(): string }).formatCompactNumber();
+      return isNaN(numValue)
+        ? "null"
+        : (numValue as number & { formatCompactNumber(): string }).formatCompactNumber();
     };
 
     this._formatters["comma_number"] = (v) => {
-      return v === undefined || v === null ? "null" : v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      return v === undefined || v === null
+        ? "null"
+        : v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     };
 
     this._formatters["percentage"] = (v) => {
       if (v === "NaN" || v === undefined || v === null) return "0%";
       const numValue = typeof v === "number" ? v : Number(v);
-      return isNaN(numValue) ? "0%" : (numValue as number & { formatWithNoTrailingZeros(fraction: number): string }).formatWithNoTrailingZeros(2) + "%";
+      return isNaN(numValue)
+        ? "0%"
+        : (
+            numValue as number & { formatWithNoTrailingZeros(fraction: number): string }
+          ).formatWithNoTrailingZeros(2) + "%";
     };
     this._formatters["percentage_0_1"] = (v) => {
       if (v === "NaN" || v === undefined || v === null) return "0%";
       const numValue = typeof v === "number" ? v : Number(v);
       const multiplied = numValue * 100;
-      return isNaN(numValue) ? "0%" : (multiplied as number & { formatWithNoTrailingZeros(fraction: number): string }).formatWithNoTrailingZeros(2) + "%";
+      return isNaN(numValue)
+        ? "0%"
+        : (
+            multiplied as number & { formatWithNoTrailingZeros(fraction: number): string }
+          ).formatWithNoTrailingZeros(2) + "%";
     };
     this._formatters["percentage_bar"] = (v, params) => {
       // Ensure value is a number
@@ -250,32 +270,41 @@ export class Formatter {
     this._formatters["byte_rate"] = (v) => {
       if (v === undefined || v === null) return "null/s";
       const numValue = typeof v === "number" ? v : Number(v);
-      return isNaN(numValue) ? "null/s" : (numValue as number & { formatBinarySize(): string }).formatBinarySize() + "/s";
+      return isNaN(numValue)
+        ? "null/s"
+        : (numValue as number & { formatBinarySize(): string }).formatBinarySize() + "/s";
     };
     this._formatters["rate"] = (v) => {
       if (v === undefined || v === null) return "null/s";
       const numValue = typeof v === "number" ? v : Number(v);
-      return isNaN(numValue) ? "null/s" : (numValue as number & { formatCompactNumber(): string }).formatCompactNumber() + "/s";
+      return isNaN(numValue)
+        ? "null/s"
+        : (numValue as number & { formatCompactNumber(): string }).formatCompactNumber() + "/s";
     };
 
     // Deprecated
     this._formatters["dateTime"] = (v) => DateTimeExtension.toYYYYMMddHHmmss(new Date(v));
-    this._formatters["shortDateTime"] = (v) => DateTimeExtension.formatDateTime(new Date(v), "MM-dd HH:mm:ss");
+    this._formatters["shortDateTime"] = (v) =>
+      DateTimeExtension.formatDateTime(new Date(v), "MM-dd HH:mm:ss");
 
     this._formatters["yyyyMMddHHmmss"] = (v) => DateTimeExtension.toYYYYMMddHHmmss(new Date(v));
     this._formatters["yyyyMMddHHmmssSSS"] = (v) =>
       DateTimeExtension.formatDateTime(new Date(v), "yyyy-MM-dd HH:mm:ss.SSS");
-    this._formatters["MMddHHmmss"] = (v) => DateTimeExtension.formatDateTime(new Date(v), "MM-dd HH:mm:ss");
-    this._formatters["MMddHHmmssSSS"] = (v) => DateTimeExtension.formatDateTime(new Date(v), "MM-dd HH:mm:ss.SSS");
+    this._formatters["MMddHHmmss"] = (v) =>
+      DateTimeExtension.formatDateTime(new Date(v), "MM-dd HH:mm:ss");
+    this._formatters["MMddHHmmssSSS"] = (v) =>
+      DateTimeExtension.formatDateTime(new Date(v), "MM-dd HH:mm:ss.SSS");
 
     // For compatibility only, use DateTime formatter above instead
     this._formatters["time"] = (v) => {
       return DateTimeExtension.formatDateTime(new Date(v), "MM-dd hh:mm:ss.SSS" /*props.template*/);
     };
 
-    this._formatters["timeDuration"] = (v) => (v as number & { formatTimeDuration(): string }).formatTimeDuration();
+    this._formatters["timeDuration"] = (v) =>
+      (v as number & { formatTimeDuration(): string }).formatTimeDuration();
     this._formatters["timeDiff"] = (v) => this.timeDifference(v);
-    this._formatters["relativeTime"] = (v) => (v as number & { formatTimeDiff(): string }).formatTimeDiff();
+    this._formatters["relativeTime"] = (v) =>
+      (v as number & { formatTimeDiff(): string }).formatTimeDiff();
     this._formatters["days"] = (v) => (v as number & { formatDays(): string }).formatDays();
     this._formatters["template"] = (_v, params) => {
       // Template formatter - params[0] should be the template object
@@ -303,8 +332,11 @@ export class Formatter {
       // For complex types (Array, Tuple, JSON) - not Map
       const stringValue = typeof v === "object" ? JSON.stringify(v) : String(v);
       const truncated =
-        stringValue.length > truncateLength ? stringValue.substring(0, truncateLength) + "..." : stringValue;
-      const fullValue = typeof v === "object" && v !== null ? JSON.stringify(v, null, 2) : stringValue;
+        stringValue.length > truncateLength
+          ? stringValue.substring(0, truncateLength) + "..."
+          : stringValue;
+      const fullValue =
+        typeof v === "object" && v !== null ? JSON.stringify(v, null, 2) : stringValue;
 
       return (
         <span
@@ -373,7 +405,10 @@ export class Formatter {
               mainContent: (
                 <div className="overflow-auto">
                   {isJson ? (
-                    <ThemedSyntaxHighlighter language="json" customStyle={{ fontSize: "14px", margin: 0 }}>
+                    <ThemedSyntaxHighlighter
+                      language="json"
+                      customStyle={{ fontSize: "14px", margin: 0 }}
+                    >
                       {displayValue}
                     </ThemedSyntaxHighlighter>
                   ) : (
@@ -404,7 +439,9 @@ export class Formatter {
 
       const stringValue = String(v);
       const truncatedValue =
-        stringValue.length > truncateLength ? stringValue.substring(0, truncateLength) + "..." : stringValue;
+        stringValue.length > truncateLength
+          ? stringValue.substring(0, truncateLength) + "..."
+          : stringValue;
 
       return (
         <span
@@ -509,7 +546,11 @@ export class Formatter {
       val = time / 1000 ** index;
     }
 
-    return (val as number & { formatWithNoTrailingZeros(fraction: number): string }).formatWithNoTrailingZeros(fractionDigits) + units[index];
+    return (
+      (
+        val as number & { formatWithNoTrailingZeros(fraction: number): string }
+      ).formatWithNoTrailingZeros(fractionDigits) + units[index]
+    );
   }
 
   inlineSqlFormat(sql: string): React.ReactNode {
@@ -522,7 +563,10 @@ export class Formatter {
 
     return (
       <div className="overflow-auto">
-        <ThemedSyntaxHighlighter language="sql" customStyle={{ fontSize: "12px", margin: 0, padding: 8 }}>
+        <ThemedSyntaxHighlighter
+          language="sql"
+          customStyle={{ fontSize: "12px", margin: 0, padding: 8 }}
+        >
           {formattedSql}
         </ThemedSyntaxHighlighter>
       </div>

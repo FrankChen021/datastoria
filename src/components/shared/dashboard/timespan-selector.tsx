@@ -238,7 +238,14 @@ export const BUILT_IN_TIME_SPAN_LIST: DisplayTimeSpan[] = [
   new DisplayTimeSpan("Yesterday", "yesterday", "d", true),
 
   // Disabled by default
-  new DisplayTimeSpan("All", "all", "unit", false, "2000-01-01T00:00:00.000Z", "2099-12-31T23:59:59.000Z"),
+  new DisplayTimeSpan(
+    "All",
+    "all",
+    "unit",
+    false,
+    "2000-01-01T00:00:00.000Z",
+    "2099-12-31T23:59:59.000Z"
+  ),
 ];
 
 export function getDisplayTimeSpanByLabel(label: string): DisplayTimeSpan {
@@ -335,7 +342,10 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
         error: "",
       }));
     } else {
-      this.setState({ startDateInput, error: "Invalid value of start date. Please use yyyy-MM-dd HH:mm:ss" });
+      this.setState({
+        startDateInput,
+        error: "Invalid value of start date. Please use yyyy-MM-dd HH:mm:ss",
+      });
     }
   };
 
@@ -349,7 +359,10 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
         error: "",
       }));
     } else {
-      this.setState({ endDateInput, error: "Invalid value of end date. Please use yyyy-MM-dd HH:mm:ss" });
+      this.setState({
+        endDateInput,
+        error: "Invalid value of end date. Please use yyyy-MM-dd HH:mm:ss",
+      });
     }
   };
 
@@ -507,10 +520,14 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                         onSelect={(date) => {
                           this.setState({
                             startDateInput: date?.from
-                              ? DateTimeExtension.formatDateTime(date.from, "yyyy-MM-dd HH:mm:ss") || ""
+                              ? DateTimeExtension.formatDateTime(
+                                  date.from,
+                                  "yyyy-MM-dd HH:mm:ss"
+                                ) || ""
                               : "",
                             endDateInput: date?.to
-                              ? DateTimeExtension.formatDateTime(date.to, "yyyy-MM-dd HH:mm:ss") || ""
+                              ? DateTimeExtension.formatDateTime(date.to, "yyyy-MM-dd HH:mm:ss") ||
+                                ""
                               : "",
                             inputDateRange: date,
                             error: "",
@@ -519,7 +536,8 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                         numberOfMonths={2}
                         className="rounded-none"
                         classNames={{
-                          day_selected: "bg-primary text-primary-foreground hover:bg-primary/90 rounded-none",
+                          day_selected:
+                            "bg-primary text-primary-foreground hover:bg-primary/90 rounded-none",
                           day_range_middle: "bg-primary/20",
                           day_range_end: "bg-primary text-primary-foreground hover:bg-primary/90",
                           day_range_start: "bg-primary text-primary-foreground hover:bg-primary/90",
@@ -589,26 +607,30 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                 {/* Time Span Labels */}
                 <div className="p-2 w-[300px]">
                   <div className="grid grid-cols-2 gap-2">
-                    {BUILT_IN_TIME_SPAN_LIST.filter((timeSpan) => timeSpan.enabled).map((timeSpan) => (
-                      <Button
-                        key={timeSpan.label}
-                        variant="outline"
-                        className={cn(
-                          "rounded-none",
-                          selectedTimeSpan.label === timeSpan.label ? "bg-muted text-primary" : ""
-                        )}
-                        onClick={() => {
-                          this.setState({
-                            selectedTimeSpan: timeSpan,
-                            isSelectorOpen: false,
-                            error: "",
-                          });
-                        }}
-                      >
-                        {selectedTimeSpan.label === timeSpan.label && <Check className="mr-2 h-4 w-4" />}
-                        {timeSpan.label}
-                      </Button>
-                    ))}
+                    {BUILT_IN_TIME_SPAN_LIST.filter((timeSpan) => timeSpan.enabled).map(
+                      (timeSpan) => (
+                        <Button
+                          key={timeSpan.label}
+                          variant="outline"
+                          className={cn(
+                            "rounded-none",
+                            selectedTimeSpan.label === timeSpan.label ? "bg-muted text-primary" : ""
+                          )}
+                          onClick={() => {
+                            this.setState({
+                              selectedTimeSpan: timeSpan,
+                              isSelectorOpen: false,
+                              error: "",
+                            });
+                          }}
+                        >
+                          {selectedTimeSpan.label === timeSpan.label && (
+                            <Check className="mr-2 h-4 w-4" />
+                          )}
+                          {timeSpan.label}
+                        </Button>
+                      )
+                    )}
                   </div>
                 </div>
               </div>

@@ -20,14 +20,3 @@ export type AppUIMessage = UIMessage<
 > & {
   usage?: TokenUsage;
 };
-
-/**
- * Type for tool parts that have input, output, and state properties
- */
-export type ToolPart = AppUIMessage["parts"][0] & {
-  input?: unknown;
-  output?: unknown;
-  state?: string;
-  toolName?: string;
-};
-

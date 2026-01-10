@@ -26,3 +26,6 @@ tsconfig.tsbuildinfo
 *.sw?
 .next/*
 *.code-workspace
+
+# Next.js generated files
+next-env.d.ts

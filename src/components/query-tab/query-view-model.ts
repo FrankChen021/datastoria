@@ -61,4 +61,5 @@ export interface SQLMessage {
   };
   timestamp: number;
   sessionId?: string; // Optional session ID when SQL is added to chat
+  tabId?: string; // Optional tab ID for multi-tab support
 }

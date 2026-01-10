@@ -19,7 +19,14 @@ import { cn } from "@/lib/utils";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import axios from "axios";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from "react";
 
 // Type for test status
 type TestStatus = { type: "success" | "error"; message: string } | null;
@@ -83,7 +90,8 @@ export function ConnectionEditComponent({
   const [user, setUser] = useState(connection ? connection.user : "");
   const [password, setPassword] = useState(connection ? connection.password : "");
   const [editable, setEditable] = useState(connection ? connection.editable : true);
-  const [currentSelectedConnection, setCurrentSelectedConnection] = useState<ConnectionConfig | null>(connection);
+  const [currentSelectedConnection, setCurrentSelectedConnection] =
+    useState<ConnectionConfig | null>(connection);
 
   // Initialize isNameManuallyEdited: true if editing existing connection, false for new connection
   useEffect(() => {
@@ -261,7 +269,9 @@ export function ConnectionEditComponent({
     }
 
     // Get the saved connection from manager to ensure consistency
-    const savedConnection = manager.getConnections().find((conn) => conn.name === editingConnection.name);
+    const savedConnection = manager
+      .getConnections()
+      .find((conn) => conn.name === editingConnection.name);
     if (!savedConnection) {
       // This shouldn't happen, but handle gracefully
       console.error("Failed to retrieve saved connection from ConnectionManager.");
@@ -274,7 +284,14 @@ export function ConnectionEditComponent({
       onSave(savedConnection);
     }
     return true; // Close dialog
-  }, [getEditingConnection, currentSelectedConnection, isAddMode, onSave, clearFieldErrors, setFieldError]);
+  }, [
+    getEditingConnection,
+    currentSelectedConnection,
+    isAddMode,
+    onSave,
+    clearFieldErrors,
+    setFieldError,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -345,9 +362,15 @@ export function ConnectionEditComponent({
     [fieldErrors.user, setFieldError]
   );
 
-  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value), []);
+  const handlePasswordChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value),
+    []
+  );
 
-  const handleClusterChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setCluster(e.target.value), []);
+  const handleClusterChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setCluster(e.target.value),
+    []
+  );
 
   const handleNameChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -374,8 +397,14 @@ export function ConnectionEditComponent({
         {!isLoadingTemplates && loadingTemplateError === undefined && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-full justify-start" disabled={showDeleteConfirm}>
-                {currentSelectedConnection ? currentSelectedConnection.name : "Select a template..."}
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                disabled={showDeleteConfirm}
+              >
+                {currentSelectedConnection
+                  ? currentSelectedConnection.name
+                  : "Select a template..."}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-full">
@@ -453,9 +482,10 @@ export function ConnectionEditComponent({
 
         // For CLUSTER MODE, continue to check if the cluster exists
         try {
-          const { response: clusterResponse, abortController: clusterAbortController } = connection.query(
-            `SELECT 1 FROM system.clusters WHERE cluster = '${testConnectionConfig.cluster}' Format JSONCompact`
-          );
+          const { response: clusterResponse, abortController: clusterAbortController } =
+            connection.query(
+              `SELECT 1 FROM system.clusters WHERE cluster = '${testConnectionConfig.cluster}' Format JSONCompact`
+            );
 
           // Update the canceller for the cluster check
           setAbort(clusterAbortController);
@@ -602,9 +632,13 @@ export function ConnectionEditComponent({
           />
           <div></div>
           {fieldErrors.url ? (
-            <FieldDescription className="text-destructive text-xs">{fieldErrors.url}</FieldDescription>
+            <FieldDescription className="text-destructive text-xs">
+              {fieldErrors.url}
+            </FieldDescription>
           ) : (
-            <FieldDescription className="text-xs">The HTTP(s) URL of the ClickHouse server</FieldDescription>
+            <FieldDescription className="text-xs">
+              The HTTP(s) URL of the ClickHouse server
+            </FieldDescription>
           )}
         </Field>
 
@@ -620,9 +654,13 @@ export function ConnectionEditComponent({
           />
           <div></div>
           {fieldErrors.user ? (
-            <FieldDescription className="text-destructive text-xs">{fieldErrors.user}</FieldDescription>
+            <FieldDescription className="text-destructive text-xs">
+              {fieldErrors.user}
+            </FieldDescription>
           ) : (
-            <FieldDescription className="text-xs">The user name to access the ClickHouse server</FieldDescription>
+            <FieldDescription className="text-xs">
+              The user name to access the ClickHouse server
+            </FieldDescription>
           )}
         </Field>
 
@@ -656,14 +694,17 @@ export function ConnectionEditComponent({
         </Field>
 
         <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
-          <FieldLabel htmlFor="cluster" className={`text-right ${!editable ? "text-muted-foreground" : ""}`}>
+          <FieldLabel
+            htmlFor="cluster"
+            className={`text-right ${!editable ? "text-muted-foreground" : ""}`}
+          >
             Cluster
           </FieldLabel>
           <Input id="cluster" value={cluster} disabled={!editable} onChange={handleClusterChange} />
           <div></div>
           <FieldDescription className="text-xs">
-            Configure the cluster name to access full features of this console if the ClickHouse server is deployed as
-            cluster
+            Configure the cluster name to access full features of this console if the ClickHouse
+            server is deployed as cluster
           </FieldDescription>
         </Field>
 
@@ -679,7 +720,9 @@ export function ConnectionEditComponent({
           />
           <div></div>
           {fieldErrors.name ? (
-            <FieldDescription className="text-destructive text-xs">{fieldErrors.name}</FieldDescription>
+            <FieldDescription className="text-destructive text-xs">
+              {fieldErrors.name}
+            </FieldDescription>
           ) : (
             <FieldDescription className="text-xs">Name of the connection</FieldDescription>
           )}
@@ -735,7 +778,9 @@ export function ConnectionEditComponent({
                   }
                   side="top"
                   align="end"
-                  icon={<AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />}
+                  icon={
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
+                  }
                   title="Confirm deletion"
                 >
                   <div className="text-xs mb-3">

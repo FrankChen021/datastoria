@@ -1,7 +1,10 @@
 "use client";
 
-import { formatQueryLogType } from "@/components/query-log-tab/query-log-table-view";
-import DashboardFilterComponent, { type SelectedFilter } from "@/components/shared/dashboard/dashboard-filter";
+import { useConnection } from "@/components/connection/connection-context";
+import { formatQueryLogType } from "@/components/query-log-inspector/query-log-inspector-table-view";
+import DashboardFilterComponent, {
+  type SelectedFilter,
+} from "@/components/shared/dashboard/dashboard-filter";
 import type {
   DateTimeFilterSpec,
   FilterSpec,
@@ -19,7 +22,6 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import type { JSONCompactFormatResponse } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
 import { cn } from "@/lib/utils";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -29,30 +31,38 @@ interface QueryIdLinkProps {
   eventDate?: string;
 }
 
-const QueryIdLink = React.memo<QueryIdLinkProps>(({ displayQueryId, queryId, eventDate: event_date }) => {
-  const truncatedId = displayQueryId.length > 12 ? displayQueryId.slice(0, 6) + "..." + displayQueryId.slice(-6) : displayQueryId;
+const QueryIdLink = React.memo<QueryIdLinkProps>(
+  ({ displayQueryId, queryId, eventDate: event_date }) => {
+    const truncatedId =
+      displayQueryId.length > 12
+        ? displayQueryId.slice(0, 6) + "..." + displayQueryId.slice(-6)
+        : displayQueryId;
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    TabManager.openQueryLogTab(queryId, event_date);
-  };
+    const handleClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      TabManager.openQueryLogTab(queryId, event_date);
+    };
 
-  return (
-    <HoverCard>
-      <HoverCardTrigger asChild>
-        <span className="font-monotext-xs text-blue-500 hover:underline cursor-pointer" onClick={handleClick}>
-          {truncatedId}
-        </span>
-      </HoverCardTrigger>
-      <HoverCardContent className="p-2 max-w-[400px]">
-        <div className="flex items-center gap-2">
-          <div className="font-mono text-xs break-all">{displayQueryId}</div>
-          <CopyButton value={displayQueryId} className="!static !top-auto !right-auto shrink-0" />
-        </div>
-      </HoverCardContent>
-    </HoverCard>
-  );
-});
+    return (
+      <HoverCard>
+        <HoverCardTrigger asChild>
+          <span
+            className="font-monotext-xs text-blue-500 hover:underline cursor-pointer"
+            onClick={handleClick}
+          >
+            {truncatedId}
+          </span>
+        </HoverCardTrigger>
+        <HoverCardContent className="p-2 max-w-[400px]">
+          <div className="flex items-center gap-2">
+            <div className="font-mono text-xs break-all">{displayQueryId}</div>
+            <CopyButton value={displayQueryId} className="!static !top-auto !right-auto shrink-0" />
+          </div>
+        </HoverCardContent>
+      </HoverCard>
+    );
+  }
+);
 QueryIdLink.displayName = "QueryIdLink";
 
 interface SystemTableQueryLogProps {
@@ -277,11 +287,14 @@ const SystemTableQueryLog = ({ database: _database, table: _table }: SystemTable
   const tableDescriptor = useMemo<TableDescriptor>(() => {
     return {
       type: "table",
-      titleOption: { title: `Query Log Details`, showTitle: true },
+      titleOption: { title: `Query Log Records`, showTitle: true },
       query: {
         sql: TABLE_QUERY,
       },
-      sortOption: { serverSideSorting: true, initialSort: { column: "event_time", direction: "desc" } },
+      sortOption: {
+        serverSideSorting: true,
+        initialSort: { column: "event_time", direction: "desc" },
+      },
       pagination: { mode: "server", pageSize: 100 },
       headOption: { isSticky: true },
       miscOption: { enableIndexColumn: true, enableShowRowDetail: true, enableCompactMode: true },
@@ -293,7 +306,8 @@ const SystemTableQueryLog = ({ database: _database, table: _table }: SystemTable
           format: (value: unknown, _params?: unknown[], context?: Record<string, unknown>) => {
             if (!value) return "-";
             const queryId = typeof value === "string" ? value : String(value);
-            const eventDate = typeof context?.event_date === "string" ? context.event_date : undefined;
+            const eventDate =
+              typeof context?.event_date === "string" ? context.event_date : undefined;
             return <QueryIdLink displayQueryId={queryId} queryId={queryId} eventDate={eventDate} />;
           },
         },
@@ -303,8 +317,15 @@ const SystemTableQueryLog = ({ database: _database, table: _table }: SystemTable
           format: (value: unknown, _params?: unknown[], row?: Record<string, unknown>) => {
             const queryId = typeof value === "string" ? value : String(value);
             const eventDate = typeof row?.event_date === "string" ? row.event_date : undefined;
-            const initialQueryId = typeof row?.initial_query_id === "string" ? row.initial_query_id : queryId;
-            return <QueryIdLink displayQueryId={queryId} queryId={initialQueryId} eventDate={eventDate} />;
+            const initialQueryId =
+              typeof row?.initial_query_id === "string" ? row.initial_query_id : queryId;
+            return (
+              <QueryIdLink
+                displayQueryId={queryId}
+                queryId={initialQueryId}
+                eventDate={eventDate}
+              />
+            );
           },
         },
         memory_usage: { format: "binary_size" },
@@ -324,14 +345,23 @@ const SystemTableQueryLog = ({ database: _database, table: _table }: SystemTable
     }
     const filterExpression = parts.length > 0 ? parts.join(" AND ") : "1=1";
     tableDescriptor.query.sql = TABLE_QUERY.replace("{filterExpression:String}", filterExpression);
-    chartDescriptor.query.sql = DISTRIBUTION_QUERY.replace("{filterExpression:String}", filterExpression);
+    chartDescriptor.query.sql = DISTRIBUTION_QUERY.replace(
+      "{filterExpression:String}",
+      filterExpression
+    );
 
     const currentTimeSpan = selectedTimeSpanRef.current;
     if (!currentTimeSpan) {
       return;
     }
-    chartRef.current?.refresh({ selectedTimeSpan: currentTimeSpan, inputFilter: `filter_${Date.now()}` });
-    tableRef.current?.refresh({ selectedTimeSpan: currentTimeSpan, inputFilter: `filter_${Date.now()}` });
+    chartRef.current?.refresh({
+      selectedTimeSpan: currentTimeSpan,
+      inputFilter: `filter_${Date.now()}`,
+    });
+    tableRef.current?.refresh({
+      selectedTimeSpan: currentTimeSpan,
+      inputFilter: `filter_${Date.now()}`,
+    });
   }, [selectedFilters, inputFilter, tableDescriptor, chartDescriptor]);
 
   // Handlers
@@ -359,9 +389,14 @@ const SystemTableQueryLog = ({ database: _database, table: _table }: SystemTable
     async (query: SQLQuery) => {
       if (!connection) return [];
       try {
-        const { response } = connection.queryOnNode(query.sql, { default_format: "JSONCompact", ...query.params });
+        const { response } = connection.queryOnNode(query.sql, {
+          default_format: "JSONCompact",
+          ...query.params,
+        });
         const apiResponse = await response;
-        return apiResponse.data.json<JSONCompactFormatResponse>().data.map((row: unknown[]) => String(row[0]));
+        return apiResponse.data
+          .json<JSONCompactFormatResponse>()
+          .data.map((row: unknown[]) => String(row[0]));
       } catch (caught) {
         console.error(caught);
         return [];

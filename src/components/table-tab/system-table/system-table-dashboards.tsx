@@ -1,12 +1,16 @@
+import { useConnection } from "@/components/connection/connection-context";
 import DashboardContainer from "@/components/shared/dashboard/dashboard-container";
 import { DashboardGroupSection } from "@/components/shared/dashboard/dashboard-group-section";
-import type { Dashboard, DashboardGroup, TimeseriesDescriptor } from "@/components/shared/dashboard/dashboard-model";
+import type {
+  Dashboard,
+  DashboardGroup,
+  TimeseriesDescriptor,
+} from "@/components/shared/dashboard/dashboard-model";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/use-dialog";
 import { type QueryResponse } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
 import { AlertTriangle, EllipsisVertical } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 
@@ -85,7 +89,11 @@ const SystemTableDashboards = ({ database, table }: SystemTableDashboardsProps) 
                 const titleIndex = columnMap.get("title");
                 const queryIndex = columnMap.get("query");
 
-                if (dashboardIndex === undefined || titleIndex === undefined || queryIndex === undefined) {
+                if (
+                  dashboardIndex === undefined ||
+                  titleIndex === undefined ||
+                  queryIndex === undefined
+                ) {
                   return;
                 }
 
@@ -127,8 +135,10 @@ const SystemTableDashboards = ({ database, table }: SystemTableDashboardsProps) 
                 // Check if query references metric_log or asynchronous_metric_log
                 const queryLower = row.query.toLowerCase();
                 const referencesMetricLog =
-                  queryLower.includes("metric_log") && !queryLower.includes("asynchronous_metric_log");
-                const referencesAsynchronousMetricLog = queryLower.includes("asynchronous_metric_log");
+                  queryLower.includes("metric_log") &&
+                  !queryLower.includes("asynchronous_metric_log");
+                const referencesAsynchronousMetricLog =
+                  queryLower.includes("asynchronous_metric_log");
 
                 // Skip if query references metric_log but table doesn't exist
                 if (referencesMetricLog && !hasMetricLogTable) {
@@ -315,7 +325,10 @@ const SystemTableDashboards = ({ database, table }: SystemTableDashboardsProps) 
           >
             <div className="card-container flex flex-wrap gap-1">
               {skippedDashboards.map((s, i) => (
-                <div key={`skipped-${i}`} style={{ width: `calc(${(1 / 4) * 100}% - ${(3 * 0.25) / 4}rem)` }}>
+                <div
+                  key={`skipped-${i}`}
+                  style={{ width: `calc(${(1 / 4) * 100}% - ${(3 * 0.25) / 4}rem)` }}
+                >
                   <Card className="relative">
                     <CardHeader className="p-0">
                       <div className="flex items-center p-2 bg-muted/50 transition-colors gap-2">
@@ -344,7 +357,9 @@ const SystemTableDashboards = ({ database, table }: SystemTableDashboardsProps) 
                                     </ThemedSyntaxHighlighter>
                                   </div>
                                 ),
-                                dialogButtons: [{ text: "OK", onClick: async () => true, default: true }],
+                                dialogButtons: [
+                                  { text: "OK", onClick: async () => true, default: true },
+                                ],
                               });
                             }}
                           >

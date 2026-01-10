@@ -16,8 +16,8 @@ import {
 import { ChevronRight, X } from "lucide-react";
 import React, { useCallback, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { ModelsEdit } from "./models-edit";
-import { QueryContextEdit } from "./query-context-edit";
+import { ModelsEdit } from "./models/models-edit";
+import { QueryContextEdit } from "./query-context/query-context-edit";
 
 type SettingsSection = "query-context" | "models";
 
@@ -130,7 +130,9 @@ function SettingsDialogWrapper({
                     : "Configure AI model settings and API keys."}
                 </div>
                 {activeSection === "models" && (
-                  <div className="text-[11px] text-muted-foreground">API keys are only stored at your client side.</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    API keys are only stored at your client side.
+                  </div>
                 )}
               </div>
               <Button variant="ghost" size="icon" onClick={handleClose} className="h-8 w-8">

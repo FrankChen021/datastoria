@@ -1,4 +1,7 @@
-import type { StatDescriptor, TableDescriptor } from "@/components/shared/dashboard/dashboard-model";
+import type {
+  StatDescriptor,
+  TableDescriptor,
+} from "@/components/shared/dashboard/dashboard-model";
 
 export const queryDashboard: StatDescriptor[] = [
   {

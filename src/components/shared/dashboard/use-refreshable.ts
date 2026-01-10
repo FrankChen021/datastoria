@@ -75,19 +75,19 @@ export function useRefreshable({
     while (parent && parent !== document.body) {
       const style = window.getComputedStyle(parent);
       // Check if parent is hidden via display: none or visibility: hidden
-      if (style.display === 'none' || style.visibility === 'hidden') {
+      if (style.display === "none" || style.visibility === "hidden") {
         return false;
       }
       // Check if parent has hidden attribute
-      if (parent.hasAttribute('hidden')) {
+      if (parent.hasAttribute("hidden")) {
         return false;
       }
       // Check if parent has collapsed content (CollapsibleContent when closed)
       // CollapsibleContent uses data-state="closed" with hidden class
       // But we need to check if this parent itself is the CollapsibleContent, not just any parent with data-state
-      if (parent.hasAttribute('data-state') && parent.getAttribute('data-state') === 'closed') {
+      if (parent.hasAttribute("data-state") && parent.getAttribute("data-state") === "closed") {
         // Only treat as hidden if the computed style confirms it (display: none from the data-state:closed class)
-        if (style.display === 'none') {
+        if (style.display === "none") {
           return false;
         }
       }
@@ -117,7 +117,11 @@ export function useRefreshable({
       // Check if the parameters have actually changed
       // Skip refresh if we already have data with the same parameters (avoid unnecessary API calls)
       // UNLESS forceRefresh is true (e.g., when user clicks the refresh button)
-      if (!param.forceRefresh && lastRefreshParamRef.current && JSON.stringify(lastRefreshParamRef.current) === JSON.stringify(param)) {
+      if (
+        !param.forceRefresh &&
+        lastRefreshParamRef.current &&
+        JSON.stringify(lastRefreshParamRef.current) === JSON.stringify(param)
+      ) {
         return;
       }
 
@@ -150,14 +154,14 @@ export function useRefreshable({
   // Trigger initial refresh (deferred until visible if needed)
   useEffect(() => {
     if (!getInitialParams) {
-      // If no initial params getter, we still want to trigger an initial "blank" refresh 
+      // If no initial params getter, we still want to trigger an initial "blank" refresh
       // if the component supports raw execution
       refresh({} as RefreshOptions);
       return;
     }
     const params = getInitialParams();
     // Even if params is undefined, we trigger it. The component's loadData will handle validation.
-    refresh(params || {} as RefreshOptions);
+    refresh(params || ({} as RefreshOptions));
   }, [getInitialParams, refresh]);
 
   // Handle collapsed state changes - refresh when expanded if needed
@@ -167,7 +171,10 @@ export function useRefreshable({
       if (currentParam) {
         // Check if parameters have actually changed before refreshing
         // If parameters haven't changed, don't re-fetch - just clear the needRefresh flag
-        if (lastRefreshParamRef.current && JSON.stringify(lastRefreshParamRef.current) === JSON.stringify(currentParam)) {
+        if (
+          lastRefreshParamRef.current &&
+          JSON.stringify(lastRefreshParamRef.current) === JSON.stringify(currentParam)
+        ) {
           setNeedRefresh(false);
         } else {
           refreshInternal(currentParam);
@@ -194,7 +201,10 @@ export function useRefreshable({
         const currentParam = refreshParameterRef.current;
         if (currentParam) {
           // Check if parameters have actually changed before refreshing
-          if (lastRefreshParamRef.current && JSON.stringify(lastRefreshParamRef.current) === JSON.stringify(currentParam)) {
+          if (
+            lastRefreshParamRef.current &&
+            JSON.stringify(lastRefreshParamRef.current) === JSON.stringify(currentParam)
+          ) {
             setNeedRefresh(false);
           } else {
             refreshInternal(currentParam);
@@ -233,4 +243,3 @@ export function useRefreshable({
     getLastRefreshParameter,
   };
 }
-

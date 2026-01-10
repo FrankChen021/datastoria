@@ -2,7 +2,15 @@
  * Unified tab events for event-based communication between components
  */
 
-export type TabType = "query" | "table" | "dependency" | "database" | "node" | "dashboard" | "query-log";
+export type TabType =
+  | "query"
+  | "table"
+  | "dependency"
+  | "database"
+  | "node"
+  | "dashboard"
+  | "query-log"
+  | "chat";
 
 export interface BaseTabInfo {
   id: string;
@@ -13,6 +21,7 @@ export interface QueryTabInfo extends BaseTabInfo {
   type: "query";
   initialQuery?: string;
   initialMode?: "replace" | "insert";
+  initialExecute?: boolean;
 }
 
 export interface TableTabInfo extends BaseTabInfo {
@@ -43,7 +52,21 @@ export interface QueryLogTabInfo extends BaseTabInfo {
   eventDate?: string;
 }
 
-export type TabInfo = QueryTabInfo | TableTabInfo | DependencyTabInfo | DatabaseTabInfo | NodeTabInfo | QueryLogTabInfo;
+export interface ChatTabInfo extends BaseTabInfo {
+  type: "chat";
+  chatId?: string;
+  initialPrompt?: string;
+  autoRun?: boolean;
+}
+
+export type TabInfo =
+  | QueryTabInfo
+  | TableTabInfo
+  | DependencyTabInfo
+  | DatabaseTabInfo
+  | NodeTabInfo
+  | QueryLogTabInfo
+  | ChatTabInfo;
 
 export interface OpenTabEventDetail {
   type: TabType;
@@ -60,6 +83,12 @@ export interface OpenTabEventDetail {
   // Query tab fields
   query?: string;
   mode?: "replace" | "insert";
+  editorMode?: "sql" | "chat"; // Editor mode for query tab
+  execute?: boolean;
+  // Chat tab fields
+  chatId?: string;
+  initialPrompt?: string;
+  autoRun?: boolean;
 }
 
 /**
@@ -85,7 +114,7 @@ export type ActiveTabChangeEventHandler = (event: CustomEvent<ActiveTabChangeEve
  */
 export class TabManager {
   private static readonly OPEN_TAB_EVENT = "OPEN_TAB";
-  
+
   // Queue to store events when no listener is active
   private static eventQueue: CustomEvent<OpenTabEventDetail>[] = [];
   private static listenerCount = 0;
@@ -156,13 +185,35 @@ export class TabManager {
   /**
    * Emit an activate query tab event (query tab is always present, this just activates it)
    */
-  static activateQueryTab(options?: { query?: string; mode?: "replace" | "insert" }): void {
+  static activateQueryTab(options?: {
+    query?: string;
+    mode?: "replace" | "insert";
+    editorMode?: "sql" | "chat";
+    execute?: boolean;
+  }): void {
     const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
       detail: {
         type: "query",
         query: options?.query,
         mode: options?.mode,
+        editorMode: options?.editorMode,
+        execute: options?.execute,
       },
+    });
+    TabManager.dispatchOrQueue(event);
+  }
+
+  /**
+   * Emit an open chat tab event
+   */
+  static openChatTab(
+    chatId?: string,
+    tabId?: string,
+    initialPrompt?: string,
+    autoRun?: boolean
+  ): void {
+    const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
+      detail: { type: "chat", chatId, tabId, initialPrompt, autoRun },
     });
     TabManager.dispatchOrQueue(event);
   }
@@ -174,15 +225,15 @@ export class TabManager {
     const wrappedHandler = (e: Event) => {
       handler(e as CustomEvent<OpenTabEventDetail>);
     };
-    
+
     window.addEventListener(TabManager.OPEN_TAB_EVENT, wrappedHandler);
     TabManager.listenerCount++;
-    
+
     // Replay any queued events (only if this is the first listener)
     if (TabManager.listenerCount === 1 && TabManager.eventQueue.length > 0) {
       const queuedEvents = [...TabManager.eventQueue];
       TabManager.eventQueue = []; // Clear the queue
-      
+
       // Dispatch queued events asynchronously to avoid blocking
       setTimeout(() => {
         for (const event of queuedEvents) {
@@ -190,7 +241,7 @@ export class TabManager {
         }
       }, 0);
     }
-    
+
     return () => {
       window.removeEventListener(TabManager.OPEN_TAB_EVENT, wrappedHandler);
       TabManager.listenerCount = Math.max(0, TabManager.listenerCount - 1);
@@ -220,4 +271,3 @@ export class TabManager {
     return () => window.removeEventListener(TabManager.ACTIVE_TAB_CHANGE_EVENT, wrappedHandler);
   }
 }
-

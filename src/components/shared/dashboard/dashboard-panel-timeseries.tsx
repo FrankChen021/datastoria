@@ -1,19 +1,37 @@
 "use client";
 
+import { useConnection } from "@/components/connection/connection-context";
 import { CardContent } from "@/components/ui/card";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Dialog } from "@/components/use-dialog";
 import { type JSONFormatResponse, type QueryError } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { Formatter, type FormatName, type ObjectFormatter } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
 import * as echarts from "echarts";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { isTimestampColumn as isTimestampColumnUtil, transformRowsToChartData } from "./dashboard-data-utils";
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  isTimestampColumn as isTimestampColumnUtil,
+  transformRowsToChartData,
+} from "./dashboard-data-utils";
 import { showQueryDialog } from "./dashboard-dialog-utils";
+import { DashboardDropdownMenuItem } from "./dashboard-dropdown-menu-item";
 import {
   applyReducer,
   type FieldOption,
@@ -23,8 +41,11 @@ import {
   type TimeseriesDescriptor,
 } from "./dashboard-model";
 import { DashboardPanel } from "./dashboard-panel";
-import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
-import { DashboardPanelLayout } from "./dashboard-panel-layout";
+import {
+  DashboardPanelLayout,
+  type DashboardPanelComponent,
+  type RefreshOptions,
+} from "./dashboard-panel-layout";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
 import useIsDarkTheme from "./use-is-dark-theme";
@@ -64,7 +85,10 @@ interface LegendTableProps {
 const LegendTable: React.FC<LegendTableProps> = ({ chartInstance, legendOption, legendData }) => {
   const [legendToggleState] = useState<Map<string, number>>(new Map());
   const [unselectedSeries, setUnselectedSeries] = useState<Map<string, boolean>>(new Map());
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "ascending" | "descending" | null }>({
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: "ascending" | "descending" | null;
+  }>({
     key: "name",
     direction: null,
   });
@@ -192,7 +216,11 @@ const LegendTable: React.FC<LegendTableProps> = ({ chartInstance, legendOption, 
       if (sortConfig.key !== key || sortConfig.direction === null) {
         return null;
       }
-      return sortConfig.direction === "ascending" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
+      return sortConfig.direction === "ascending" ? (
+        <ChevronUp className="h-3 w-3" />
+      ) : (
+        <ChevronDown className="h-3 w-3" />
+      );
     },
     [sortConfig]
   );
@@ -209,7 +237,10 @@ const LegendTable: React.FC<LegendTableProps> = ({ chartInstance, legendOption, 
             {legendData.dimensionNames.map((title, index) => (
               <TableHead
                 key={title}
-                className={cn("h-0 p-0 whitespace-nowrap", index === 0 ? "pl-2" : "px-2 text-center")}
+                className={cn(
+                  "h-0 p-0 whitespace-nowrap",
+                  index === 0 ? "pl-2" : "px-2 text-center"
+                )}
                 onClick={() => sort(title)}
               >
                 <div className={cn("flex items-center", index === 0 ? "" : "justify-center")}>
@@ -217,7 +248,9 @@ const LegendTable: React.FC<LegendTableProps> = ({ chartInstance, legendOption, 
                   {index === 0 && <div className="w-4 mr-2" />}
                   <div className="flex items-center">
                     <span>{title}</span>
-                    <span className="w-4 h-4 flex items-center justify-center">{getSortDirectionIcon(title)}</span>
+                    <span className="w-4 h-4 flex items-center justify-center">
+                      {getSortDirectionIcon(title)}
+                    </span>
                   </div>
                 </div>
               </TableHead>
@@ -225,10 +258,16 @@ const LegendTable: React.FC<LegendTableProps> = ({ chartInstance, legendOption, 
 
             {/* Show Aggregated Columns for each legend */}
             {legendOption.values?.map((value) => (
-              <TableHead key={value} className="h-0 p-0 px-2 text-center whitespace-nowrap" onClick={() => sort(value)}>
+              <TableHead
+                key={value}
+                className="h-0 p-0 px-2 text-center whitespace-nowrap"
+                onClick={() => sort(value)}
+              >
                 <div className="flex items-center justify-center">
                   <span>{value}</span>
-                  <span className="w-4 h-4 flex items-center justify-center">{getSortDirectionIcon(value)}</span>
+                  <span className="w-4 h-4 flex items-center justify-center">
+                    {getSortDirectionIcon(value)}
+                  </span>
                 </div>
               </TableHead>
             ))}
@@ -249,14 +288,22 @@ const LegendTable: React.FC<LegendTableProps> = ({ chartInstance, legendOption, 
                       unselectedSeries.has(legend.series) ? "text-gray-400" : ""
                     )}
                   >
-                    {index === 0 && <div className="w-4 h-[6px] rounded-[1px]" style={{ backgroundColor: legend.color }} />}
+                    {index === 0 && (
+                      <div
+                        className="w-4 h-[6px] rounded-[1px]"
+                        style={{ backgroundColor: legend.color }}
+                      />
+                    )}
                     {legend.dimensionValues[title]}
                   </div>
                 </TableCell>
               ))}
 
               {legendOption.values?.map((value) => (
-                <TableCell key={value} className="h-[20px] px-2 py-0 text-xs text-center whitespace-nowrap">
+                <TableCell
+                  key={value}
+                  className="h-[20px] px-2 py-0 text-xs text-center whitespace-nowrap"
+                >
                   {legend.valueFormatter(legend.values.get(value) ?? 0)}
                 </TableCell>
               ))}
@@ -304,7 +351,13 @@ const DrilldownChartRendererWithRefresh: React.FC<{
   }
 
   // Render with stable key (not including timeSpan) and ref
-  return <DashboardPanel descriptor={descriptor} selectedTimeSpan={selectedTimeSpan} onRef={setComponentRef} />;
+  return (
+    <DashboardPanel
+      descriptor={descriptor}
+      selectedTimeSpan={selectedTimeSpan}
+      onRef={setComponentRef}
+    />
+  );
 };
 
 interface DashboardPanelTimeseriesProps {
@@ -349,36 +402,33 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
     const timestampsRef = useRef<number[]>([]);
     const hoveredSeriesRef = useRef<string | null>(null);
 
-    const toBucketTimeSpan = useCallback(
-      (dataIndex: number): TimeSpan | null => {
-        const timestamps = timestampsRef.current;
-        const ts = timestamps[dataIndex];
-        if (!ts) {
-          return null;
-        }
+    const toBucketTimeSpan = useCallback((dataIndex: number): TimeSpan | null => {
+      const timestamps = timestampsRef.current;
+      const ts = timestamps[dataIndex];
+      if (!ts) {
+        return null;
+      }
 
-        // Estimate bucket size from neighboring points.
-        let bucketMs = 60_000;
-        if (timestamps.length >= 2) {
-          if (dataIndex < timestamps.length - 1) {
-            bucketMs = timestamps[dataIndex + 1] - timestamps[dataIndex];
-          } else if (dataIndex > 0) {
-            bucketMs = timestamps[dataIndex] - timestamps[dataIndex - 1];
-          }
+      // Estimate bucket size from neighboring points.
+      let bucketMs = 60_000;
+      if (timestamps.length >= 2) {
+        if (dataIndex < timestamps.length - 1) {
+          bucketMs = timestamps[dataIndex + 1] - timestamps[dataIndex];
+        } else if (dataIndex > 0) {
+          bucketMs = timestamps[dataIndex] - timestamps[dataIndex - 1];
         }
-        if (!Number.isFinite(bucketMs) || bucketMs <= 0) {
-          bucketMs = 60_000;
-        }
+      }
+      if (!Number.isFinite(bucketMs) || bucketMs <= 0) {
+        bucketMs = 60_000;
+      }
 
-        const start = new Date(ts);
-        const end = new Date(ts + bucketMs);
-        return {
-          startISO8601: DateTimeExtension.formatISO8601(start) || start.toISOString(),
-          endISO8601: DateTimeExtension.formatISO8601(end) || end.toISOString(),
-        };
-      },
-      []
-    );
+      const start = new Date(ts);
+      const end = new Date(ts + bucketMs);
+      return {
+        startISO8601: DateTimeExtension.formatISO8601(start) || start.toISOString(),
+        endISO8601: DateTimeExtension.formatISO8601(end) || end.toISOString(),
+      };
+    }, []);
 
     // Check if drilldown is available (defined early for use in chart update)
     const hasDrilldown = useCallback((): boolean => {
@@ -623,7 +673,9 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
               // Filter out timestamp values if they somehow got included
               const labelKeyParts = labelColumns
                 .filter(
-                  (labelCol) => labelCol !== timestampKey && labelCol.toLowerCase() !== timestampKey.toLowerCase()
+                  (labelCol) =>
+                    labelCol !== timestampKey &&
+                    labelCol.toLowerCase() !== timestampKey.toLowerCase()
                 )
                 .map((labelCol) => {
                   const value = row[labelCol];
@@ -636,7 +688,8 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
                   // If it's empty and the column name suggests it's a hostname identifier, use 'empty-hostname'
                   if (
                     strValue === "" &&
-                    (labelCol.toLowerCase().includes("host") || labelCol.toLowerCase().includes("hostname"))
+                    (labelCol.toLowerCase().includes("host") ||
+                      labelCol.toLowerCase().includes("hostname"))
                   ) {
                     return "empty-hostname";
                   }
@@ -755,12 +808,12 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
           },
           brush: hasDrilldown()
             ? {
-              xAxisIndex: "all",
-              brushLink: "all",
-              outOfBrush: {
-                colorAlpha: 0.1,
-              },
-            }
+                xAxisIndex: "all",
+                brushLink: "all",
+                outOfBrush: {
+                  colorAlpha: 0.1,
+                },
+              }
             : undefined,
           tooltip: {
             trigger: "axis",
@@ -874,30 +927,33 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
                 });
               }
 
-              sortedParams.forEach((param: { value: number | null; seriesName: string; color: string }) => {
-                const value = param.value;
-                if (value !== null && value !== undefined) {
-                  // Find the metric column for this series
-                  // If labels exist, series name is the label value; otherwise it's the metric name
-                  let metricCol: string;
-                  if (labelColumns.length > 0) {
-                    // Series name is a label value, find the metric column
-                    metricCol = metricColumns[0] || "";
-                  } else {
-                    // Series name is the metric column name
-                    metricCol = param.seriesName;
-                  }
+              sortedParams.forEach(
+                (param: { value: number | null; seriesName: string; color: string }) => {
+                  const value = param.value;
+                  if (value !== null && value !== undefined) {
+                    // Find the metric column for this series
+                    // If labels exist, series name is the label value; otherwise it's the metric name
+                    let metricCol: string;
+                    if (labelColumns.length > 0) {
+                      // Series name is a label value, find the metric column
+                      metricCol = metricColumns[0] || "";
+                    } else {
+                      // Series name is the metric column name
+                      metricCol = param.seriesName;
+                    }
 
-                  const format = metricCol ? inferFormatFromMetricName(metricCol) : "short_number";
-                  const formatter = FormatterInstance.getFormatter(format);
-                  const formattedValue = formatter(value);
+                    const format = metricCol
+                      ? inferFormatFromMetricName(metricCol)
+                      : "short_number";
+                    const formatter = FormatterInstance.getFormatter(format);
+                    const formattedValue = formatter(value);
 
-                  // Highlight hovered series without changing font metrics (avoid tooltip width jitter)
-                  const isHovered = hoveredSeries !== null && hoveredSeries === param.seriesName;
-                  const rowBg = isHovered ? "rgba(255,255,255,0.08)" : "transparent";
-                  const rowBorder = isHovered ? param.color : "transparent";
+                    // Highlight hovered series without changing font metrics (avoid tooltip width jitter)
+                    const isHovered = hoveredSeries !== null && hoveredSeries === param.seriesName;
+                    const rowBg = isHovered ? "rgba(255,255,255,0.08)" : "transparent";
+                    const rowBorder = isHovered ? param.color : "transparent";
 
-                  result += `
+                    result += `
                     <div style="
                       display:flex;
                       align-items:center;
@@ -925,8 +981,9 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
                       ">${formattedValue}</span>
                     </div>
                   `;
+                  }
                 }
-              });
+              );
               return result;
             },
           },
@@ -935,7 +992,9 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
             // Show ECharts legend only if:
             // 1. There are series to display, AND
             // 2. Either no legendOption is configured, OR legendOption.placement is "inside"
-            show: series.length > 0 && (!descriptor.legendOption || descriptor.legendOption.placement === "inside"),
+            show:
+              series.length > 0 &&
+              (!descriptor.legendOption || descriptor.legendOption.placement === "inside"),
             top: 0,
             type: "scroll",
             icon: "circle",
@@ -946,7 +1005,8 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
             bottom: 8,
             // Adjust top margin based on whether ECharts legend is shown
             top:
-              series.length > 0 && (!descriptor.legendOption || descriptor.legendOption.placement === "inside")
+              series.length > 0 &&
+              (!descriptor.legendOption || descriptor.legendOption.placement === "inside")
                 ? 32
                 : 12,
             containLabel: true,
@@ -975,7 +1035,10 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
           const seriesList = chartModel.getSeries() as any[];
 
           seriesList.forEach((s) => {
-            const color = chartInstanceRef.current?.getVisual({ seriesIndex: s.seriesIndex }, "color") as string;
+            const color = chartInstanceRef.current?.getVisual(
+              { seriesIndex: s.seriesIndex },
+              "color"
+            ) as string;
             const seriesData = s.option.data as (number | null)[];
 
             const values = new Map<Reducer, number>();
@@ -1074,7 +1137,11 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
             if (brushAreas.length > 0) {
               const brushArea = brushAreas[0];
               // For category axis, coordRange is [startIndex, endIndex]
-              if (brushArea.coordRange && Array.isArray(brushArea.coordRange) && brushArea.coordRange.length === 2) {
+              if (
+                brushArea.coordRange &&
+                Array.isArray(brushArea.coordRange) &&
+                brushArea.coordRange.length === 2
+              ) {
                 const [startIndex, endIndex] = brushArea.coordRange;
 
                 // Get the actual timestamps from the stored array
@@ -1145,7 +1212,11 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
           const query = Object.assign({}, descriptor.query) as SQLQuery;
 
           // Replace time span template parameters in SQL if time span is provided
-          const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.metadata.timezone);
+          const finalSql = replaceTimeSpanParams(
+            query.sql,
+            param.selectedTimeSpan,
+            connection.metadata.timezone
+          );
           setExecutedSql(finalSql);
 
           const { response, abortController } = connection.queryOnNode(
@@ -1191,7 +1262,11 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
               // Auto-detect columns if not specified in descriptor
               // Convert fieldOptions to array format for backward compatibility
               let columns: (string | FieldOption)[] = [];
-              if (descriptor.type === "line" || descriptor.type === "bar" || descriptor.type === "area") {
+              if (
+                descriptor.type === "line" ||
+                descriptor.type === "bar" ||
+                descriptor.type === "area"
+              ) {
                 const timeseriesDescriptor = descriptor as TimeseriesDescriptor;
                 if (timeseriesDescriptor.fieldOptions) {
                   // Convert Map/Record to array, sorted by position if available
@@ -1219,7 +1294,9 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
 
                 if (isArrayFormat && meta.length > 0) {
                   // Use meta for array format - we have type information
-                  const allColumns = meta.map((colMeta: { name: string; type?: string }) => colMeta.name);
+                  const allColumns = meta.map(
+                    (colMeta: { name: string; type?: string }) => colMeta.name
+                  );
                   // Identify timestamp column using both name and type
                   const timestampCol = meta.find((colMeta: { name: string; type?: string }) =>
                     isTimestampColumnUtil(colMeta.name, colMeta.type)
@@ -1230,7 +1307,9 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
                   const firstRowObj = rows[0] as Record<string, unknown>;
                   const allColumns = Object.keys(firstRowObj);
                   // Identify timestamp column by name only
-                  const timestampCol = allColumns.find((name: string) => isTimestampColumnUtil(name));
+                  const timestampCol = allColumns.find((name: string) =>
+                    isTimestampColumnUtil(name)
+                  );
                   metricColumns = allColumns.filter((name: string) => name !== timestampCol);
                 } else {
                   // No rows available, set empty array
@@ -1279,7 +1358,9 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
     const refreshInternal = useCallback(
       (param: RefreshOptions) => {
         if (!descriptor.query) {
-          console.error(`No query defined for chart [${descriptor.titleOption?.title || descriptor.type}]`);
+          console.error(
+            `No query defined for chart [${descriptor.titleOption?.title || descriptor.type}]`
+          );
           setError("No query defined for this chart component.");
           return;
         }
@@ -1292,15 +1373,18 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
 
     // Use shared refreshable hook
     const getInitialParams = useCallback(() => {
-      return propSelectedTimeSpan ? ({ selectedTimeSpan: propSelectedTimeSpan } as RefreshOptions) : undefined;
+      return propSelectedTimeSpan
+        ? ({ selectedTimeSpan: propSelectedTimeSpan } as RefreshOptions)
+        : undefined;
     }, [propSelectedTimeSpan]);
 
-    const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
-      initialCollapsed: descriptor.collapsed ?? false,
-      refreshInternal,
-      getInitialParams,
-      onCollapsedChange: props.onCollapsedChange,
-    });
+    const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } =
+      useRefreshable({
+        initialCollapsed: descriptor.collapsed ?? false,
+        refreshInternal,
+        getInitialParams,
+        onCollapsedChange: props.onCollapsedChange,
+      });
 
     // Initial load when component mounts or when props change
     // No manual initial refresh here; useRefreshable handles it via getInitialParams
@@ -1466,29 +1550,32 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
 
     // Render drilldown component based on descriptor type
     // Use stable key and imperative refresh to prevent remounting
-    const renderDrilldownComponent = useCallback((drilldownDescriptor: PanelDescriptor, timeSpan: TimeSpan) => {
-      // Create a modified copy of the descriptor for drilldown
-      // Always hide title in drilldown by explicitly setting showTitle to false
-      const modifiedDescriptor: PanelDescriptor = {
-        ...drilldownDescriptor,
-        titleOption: drilldownDescriptor.titleOption
-          ? {
-            ...drilldownDescriptor.titleOption,
-            showTitle: false, // Explicitly set to false to hide title
-            // Keep title and description for potential future use, but hide it
-          }
-          : undefined, // If no titleOption, keep it undefined
-      };
+    const renderDrilldownComponent = useCallback(
+      (drilldownDescriptor: PanelDescriptor, timeSpan: TimeSpan) => {
+        // Create a modified copy of the descriptor for drilldown
+        // Always hide title in drilldown by explicitly setting showTitle to false
+        const modifiedDescriptor: PanelDescriptor = {
+          ...drilldownDescriptor,
+          titleOption: drilldownDescriptor.titleOption
+            ? {
+                ...drilldownDescriptor.titleOption,
+                showTitle: false, // Explicitly set to false to hide title
+                // Keep title and description for potential future use, but hide it
+              }
+            : undefined, // If no titleOption, keep it undefined
+        };
 
-      // Use stable key (not including timeSpan) and wrapper that calls refresh imperatively
-      return (
-        <DrilldownChartRendererWithRefresh
-          key={`drilldown-${modifiedDescriptor.titleOption?.title || modifiedDescriptor.type || "default"}`}
-          descriptor={modifiedDescriptor}
-          selectedTimeSpan={timeSpan}
-        />
-      );
-    }, []);
+        // Use stable key (not including timeSpan) and wrapper that calls refresh imperatively
+        return (
+          <DrilldownChartRendererWithRefresh
+            key={`drilldown-${modifiedDescriptor.titleOption?.title || modifiedDescriptor.type || "default"}`}
+            descriptor={modifiedDescriptor}
+            selectedTimeSpan={timeSpan}
+          />
+        );
+      },
+      []
+    );
 
     // Show raw data dialog
     const showRawDataDialog = useCallback(
@@ -1546,10 +1633,17 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
                           // Convert to milliseconds if it's in seconds (timestamp < 1e10)
                           const timestampMs = value > 1e10 ? value : value * 1000;
                           const date = new Date(timestampMs);
-                          const formatted = DateTimeExtension.formatDateTime(date, "yyyy-MM-dd HH:mm:ss");
+                          const formatted = DateTimeExtension.formatDateTime(
+                            date,
+                            "yyyy-MM-dd HH:mm:ss"
+                          );
                           displayValue = <span>{formatted || date.toISOString()}</span>;
                         } else if (typeof value === "object") {
-                          displayValue = <span className="font-mono text-xs">{JSON.stringify(value, null, 2)}</span>;
+                          displayValue = (
+                            <span className="font-mono text-xs">
+                              {JSON.stringify(value, null, 2)}
+                            </span>
+                          );
                         } else {
                           displayValue = <span>{String(value)}</span>;
                         }
@@ -1578,8 +1672,14 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
     // Build dropdown menu items
     const dropdownItems = (
       <>
-        {descriptor.query?.sql && <DropdownMenuItem onClick={handleShowQuery}>Show query</DropdownMenuItem>}
-        <DropdownMenuItem onClick={showRawDataDialog}>Show query result</DropdownMenuItem>
+        {descriptor.query?.sql && (
+          <DashboardDropdownMenuItem onClick={handleShowQuery}>
+            Show query
+          </DashboardDropdownMenuItem>
+        )}
+        <DashboardDropdownMenuItem onClick={showRawDataDialog}>
+          Show query result
+        </DashboardDropdownMenuItem>
       </>
     );
 
@@ -1616,9 +1716,14 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
       >
         <CardContent className="px-0 p-0 h-full flex flex-col">
           {error ? (
-            <div key="error" className="flex flex-col items-center justify-center h-full gap-2 text-destructive p-4 overflow-hidden">
+            <div
+              key="error"
+              className="flex flex-col items-center justify-center h-full gap-2 text-destructive p-4 overflow-hidden"
+            >
               <p className="font-semibold shrink-0">Error loading chart data:</p>
-              <p className="text-sm overflow-auto w-full text-center max-h-full custom-scrollbar">{error}</p>
+              <p className="text-sm overflow-auto w-full text-center max-h-full custom-scrollbar">
+                {error}
+              </p>
             </div>
           ) : (
             <>
@@ -1626,7 +1731,7 @@ const DashboardPanelTimeseries = forwardRef<DashboardPanelComponent, DashboardPa
                 ref={chartContainerRef}
                 className="flex-1 w-full min-h-0"
                 style={{
-                  height: descriptor.height ? `${descriptor.height}px` : '100%',
+                  height: descriptor.height ? `${descriptor.height}px` : "100%",
                   width: "100%",
                   minWidth: 0, // Ensure flex children can shrink
                 }}

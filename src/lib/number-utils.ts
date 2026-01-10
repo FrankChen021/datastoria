@@ -32,7 +32,7 @@ Number.prototype.formatBinarySize = function () {
   if (i <= 0) {
     s = `${Math.round(bytes * 100) / 100} ${units[0]}`;
   } else {
-    s = `${(bytes / 1024 ** i).toFixed(2)} ${units[i]}`;
+    s = `${(bytes / 1024 ** i).formatWithNoTrailingZeros(2)} ${units[i]}`;
   }
   return isNegative ? "-" + s : s;
 };
@@ -55,22 +55,13 @@ Number.prototype.formatCompactNumber = function () {
 };
 
 Number.prototype.formatWithNoTrailingZeros = function (fraction: number = 2) {
-  const n = this.valueOf().toFixed(fraction);
-
-  // remove trailing zeros to make the string compacted
-  const dot = n.indexOf(".");
-  if (dot !== -1) {
-    let i = n.length - 1;
-    for (; i >= dot; i--) {
-      if (n.charAt(i) !== "0") {
-        break;
-      }
-    }
-    const endExclusiveIndex = n.charAt(i) === "." ? i : i + 1;
-    return n.substring(0, endExclusiveIndex);
-  }
-
-  return n;
+  const value = this.valueOf();
+  // Round to the specified fraction, then convert back
+  // This avoids floating point precision issues while removing trailing zeros
+  const multiplier = 10 ** fraction;
+  const rounded = Math.round(value * multiplier) / multiplier;
+  // Use toString() which automatically removes trailing zeros
+  return rounded.toString();
 };
 
 /**
@@ -118,6 +109,13 @@ Number.prototype.formatTimeDiff = function () {
     return hours + "h ago";
   }
   const day = Math.floor(hours / 24);
+  if (day < 7) {
+    return day + "d ago";
+  }
+  const week = Math.floor(day / 7);
+  if (week < 5) {
+    return week + " wk ago";
+  }
   if (day < 365) {
     return day + "d ago";
   }

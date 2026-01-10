@@ -8,7 +8,7 @@ interface QueryExecutionTimerProps {
 export function QueryExecutionTimer({ isExecuting }: QueryExecutionTimerProps) {
   const [formattedTime, setFormattedTime] = useState("00:00.000");
   // Store startTime in state as requested, though we use the captured 'now' value in the interval
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   const [_, setStartTime] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -51,13 +51,13 @@ export function QueryExecutionTimer({ isExecuting }: QueryExecutionTimerProps) {
         intervalRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExecuting]);
 
   return (
-    <>
+    <div className="flex items-center gap-1.5">
       {isExecuting && <Loader2 className="!h-3 !w-3 animate-spin text-muted-foreground" />}
-      <span className="text-xs text-muted-foreground">Elapsed: </span><span className="text-xs text-muted-foreground font-mono">{formattedTime}</span>
-    </>
+      <span className="text-xs text-muted-foreground">Elapsed: </span>
+      <span className="text-xs text-muted-foreground font-mono">{formattedTime}</span>
+    </div>
   );
 }

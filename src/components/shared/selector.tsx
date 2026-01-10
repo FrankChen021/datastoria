@@ -1,8 +1,5 @@
 "use client";
 
-import { Check, ChevronsDown, X } from "lucide-react";
-import * as React from "react";
-
 import { HighlightableCommandItem } from "@/components/shared/cmdk/cmdk-extension";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,11 +21,13 @@ import {
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { type Comparator, ComparatorManager, QueryPattern } from "@/lib/query-utils";
+import { ComparatorManager, QueryPattern, type Comparator } from "@/lib/query-utils";
 import { cn } from "@/lib/utils";
 import NumberFlow from "@number-flow/react";
 import { ReloadIcon } from "@radix-ui/react-icons";
 import { Command as CommandPrimitive, useCommandState } from "cmdk";
+import { Check, ChevronsDown, X } from "lucide-react";
+import * as React from "react";
 import { useCallback, useEffect, useState } from "react";
 
 interface SelectorItem {
@@ -172,7 +171,7 @@ class PatternSelector extends React.Component<PatternSelectorProps, PatternSelec
             value: value,
             label: value,
             tag: this.getUserInputBadge(),
-          } as SelectorItem)
+          }) as SelectorItem
       );
 
     // Return the combined array with new items at the beginning
@@ -242,7 +241,9 @@ class PatternSelector extends React.Component<PatternSelectorProps, PatternSelec
       } else {
         // Single selection, apply a deselection logic
         return {
-          selectedPatterns: prevPatterns.has(newPattern) ? new Set<string>() : new Set<string>([newPattern]),
+          selectedPatterns: prevPatterns.has(newPattern)
+            ? new Set<string>()
+            : new Set<string>([newPattern]),
         };
       }
     });
@@ -277,13 +278,17 @@ class PatternSelector extends React.Component<PatternSelectorProps, PatternSelec
                       <Check
                         className={cn(
                           "mr-2 h-4 w-4",
-                          this.state.selectedComparator.name === comparator.name ? "opacity-100" : "opacity-0"
+                          this.state.selectedComparator.name === comparator.name
+                            ? "opacity-100"
+                            : "opacity-0"
                         )}
                       />
                       {comparator.name}
                     </CommandItem>
                   ))}
-                  {index < this.props.comparatorGroup.length - 1 && <CommandSeparator className="my-1" />}
+                  {index < this.props.comparatorGroup.length - 1 && (
+                    <CommandSeparator className="my-1" />
+                  )}
                 </React.Fragment>
               ))}
             </CommandGroup>
@@ -335,7 +340,10 @@ class PatternSelector extends React.Component<PatternSelectorProps, PatternSelec
                 >
                   <div className="flex">
                     <Check
-                      className={cn("mr-2 h-4 w-4", selectedPatterns.has(item.value) ? "opacity-100" : "opacity-0")}
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedPatterns.has(item.value) ? "opacity-100" : "opacity-0"
+                      )}
                     />
                     <HighlightableCommandItem text={item.label} />
                   </div>
@@ -371,7 +379,9 @@ const Selector: React.FC<SelectorProps> = React.memo(
       ComparatorManager.parseComparator(defaultPattern?.comparator)
     );
 
-    const [selectedValue, setSelectedValue] = useState(new Set<string>(defaultPattern ? defaultPattern.values : []));
+    const [selectedValue, setSelectedValue] = useState(
+      new Set<string>(defaultPattern ? defaultPattern.values : [])
+    );
     const [listItems, setListItems] = useState<SelectorItem[]>(defaultItems);
     const [isLoading, setIsLoading] = useState(false);
     const textInputRef = React.useRef<HTMLInputElement>(null);
@@ -419,7 +429,13 @@ const Selector: React.FC<SelectorProps> = React.memo(
             setSelectedValue(new Set<string>(inputValues));
 
             // Notification of change
-            onItemSelected(new QueryPattern(selectedComparator.allowMultiValue, selectedComparator.name, inputValues));
+            onItemSelected(
+              new QueryPattern(
+                selectedComparator.allowMultiValue,
+                selectedComparator.name,
+                inputValues
+              )
+            );
           } else {
             // Reset to empty selection
 
@@ -440,7 +456,9 @@ const Selector: React.FC<SelectorProps> = React.memo(
 
         if (selectedValue.size > 0) {
           // Notification of change only when there're selected patterns
-          onItemSelected(new QueryPattern(comparator.allowMultiValue, comparator.name, Array.from(selectedValue)));
+          onItemSelected(
+            new QueryPattern(comparator.allowMultiValue, comparator.name, Array.from(selectedValue))
+          );
         }
       },
       [selectedValue]
@@ -471,7 +489,9 @@ const Selector: React.FC<SelectorProps> = React.memo(
       if (selectedValues.length === 0) {
         onItemSelected(null);
       } else {
-        onItemSelected(new QueryPattern(isMultiValue, selectedComparator.name, Array.from(selectedPatterns)));
+        onItemSelected(
+          new QueryPattern(isMultiValue, selectedComparator.name, Array.from(selectedPatterns))
+        );
       }
     }, []);
 
@@ -510,7 +530,12 @@ const Selector: React.FC<SelectorProps> = React.memo(
                     {selectedComparator.display}
                   </span>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-40 rounded-none" align="start" side="bottom" sideOffset={0}>
+                <DropdownMenuContent
+                  className="w-40 rounded-none"
+                  align="start"
+                  side="bottom"
+                  sideOffset={0}
+                >
                   {comparatorGroups.map((comparators, index) => (
                     <React.Fragment key={index}>
                       {comparators.map((comparator) => (
@@ -519,19 +544,25 @@ const Selector: React.FC<SelectorProps> = React.memo(
                           onSelect={() => onComparatorSelected(comparator)}
                           className={cn(
                             "cursor-pointer rounded-none",
-                            selectedComparator.name === comparator.name ? "!bg-accent !text-accent-foreground" : ""
+                            selectedComparator.name === comparator.name
+                              ? "!bg-accent !text-accent-foreground"
+                              : ""
                           )}
                         >
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              selectedComparator.name === comparator.name ? "opacity-100" : "opacity-0"
+                              selectedComparator.name === comparator.name
+                                ? "opacity-100"
+                                : "opacity-0"
                             )}
                           />
                           {comparator.name}
                         </DropdownMenuItem>
                       ))}
-                      {index < comparatorGroups.length - 1 && <DropdownMenuSeparator className="my-1" />}
+                      {index < comparatorGroups.length - 1 && (
+                        <DropdownMenuSeparator className="my-1" />
+                      )}
                     </React.Fragment>
                   ))}
                 </DropdownMenuContent>
@@ -559,13 +590,25 @@ const Selector: React.FC<SelectorProps> = React.memo(
                   listItems={listItems}
                 />
                 <div className="flex justify-end p-2 gap-1 border-t">
-                  <Button variant="outline" className="px-3 py-1 h-8 text-xs" onClick={onClearSelection}>
+                  <Button
+                    variant="outline"
+                    className="px-3 py-1 h-8 text-xs"
+                    onClick={onClearSelection}
+                  >
                     Reset
                   </Button>
-                  <Button variant="outline" className="px-2 h-8 text-xs" onClick={() => setIsOpen(false)}>
+                  <Button
+                    variant="outline"
+                    className="px-2 h-8 text-xs"
+                    onClick={() => setIsOpen(false)}
+                  >
                     Cancel
                   </Button>
-                  <Button variant="outline" className="px-3 h-8 text-xs" onClick={onApplyFilterClicked}>
+                  <Button
+                    variant="outline"
+                    className="px-3 h-8 text-xs"
+                    onClick={onApplyFilterClicked}
+                  >
                     Apply
                   </Button>
                 </div>
@@ -577,7 +620,10 @@ const Selector: React.FC<SelectorProps> = React.memo(
         <div className="flex absolute right-1 top-1/2 transform -translate-y-1/2 ">
           {selectedValue.size > 0 && (
             <span title="clear selection">
-              <X className="h-4 w-4 shrink-0 opacity-50 cursor-pointer" onClick={onClearSelection} />
+              <X
+                className="h-4 w-4 shrink-0 opacity-50 cursor-pointer"
+                onClick={onClearSelection}
+              />
             </span>
           )}
           <ChevronsDown
@@ -600,4 +646,3 @@ const Selector: React.FC<SelectorProps> = React.memo(
 
 Selector.displayName = "Selector";
 export default Selector;
-

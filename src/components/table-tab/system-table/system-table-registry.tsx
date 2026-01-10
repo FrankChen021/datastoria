@@ -8,7 +8,10 @@ import SystemTableQueryLog from "./system-table-query-log";
  * - 1st element: display text of the tab
  * - 2nd element: the component to render
  */
-export type SystemTableTabEntry = [string, React.ComponentType<{ database: string; table: string }>];
+export type SystemTableTabEntry = [
+  string,
+  React.ComponentType<{ database: string; table: string }>,
+];
 
 /**
  * Registry for custom system table rendering components
@@ -16,24 +19,9 @@ export type SystemTableTabEntry = [string, React.ComponentType<{ database: strin
  * Value: list of tuples where 1st element is display text, 2nd element is the component
  */
 export const SYSTEM_TABLE_REGISTRY = new Map<string, SystemTableTabEntry[]>([
-  [
-    "dashboards",
-    [
-      ["Dashboard", SystemTableDashboards],
-    ],
-  ],
-  [
-    "distributed_ddl_queue",
-    [
-      ["DDL Queue", SystemTableDistributedDDLQueue],
-    ],
-  ],
-  [
-    "query_log",
-    [
-      ["Query Log", SystemTableQueryLog],
-    ],
-  ],
+  ["dashboards", [["Dashboard", SystemTableDashboards]]],
+  ["distributed_ddl_queue", [["DDL Queue", SystemTableDistributedDDLQueue]]],
+  ["query_log", [["Query Log", SystemTableQueryLog]]],
 ]);
 
 function normalizeSystemTableName(tableName: string): string {
@@ -43,7 +31,6 @@ function normalizeSystemTableName(tableName: string): string {
   }
   return tableName;
 }
-
 
 /**
  * Get custom tabs for a system table

@@ -164,7 +164,6 @@ export interface FieldOption {
   position?: number;
 }
 
-
 // Grid position for version 3+ dashboards (Grafana-style layout)
 // x, y are optional for auto-positioning; if provided, use manual positioning
 export interface GridPos {

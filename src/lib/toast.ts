@@ -1,4 +1,4 @@
-type ToastType = 'success' | 'error' | 'info' | 'warning';
+type ToastType = "success" | "error" | "info" | "warning";
 
 interface Toast {
   id: string;
@@ -25,7 +25,7 @@ class ToastManager {
     return [...this.toasts];
   }
 
-  show(message: string | React.ReactNode, type: ToastType = 'info') {
+  show(message: string | React.ReactNode, type: ToastType = "info") {
     const id = Math.random().toString(36).substring(7);
     const toast: Toast = { id, message, type };
     this.toasts.push(toast);

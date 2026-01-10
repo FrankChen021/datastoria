@@ -1,6 +1,6 @@
+import { useConnection } from "@/components/connection/connection-context";
 import DashboardContainer from "@/components/shared/dashboard/dashboard-container";
 import type { Dashboard, DashboardGroup } from "@/components/shared/dashboard/dashboard-model";
-import { useConnection } from "@/lib/connection/connection-context";
 import { memo } from "react";
 import { clusterMetricsDashboard } from "./dashboards/cluster-metrics";
 import { clusterStatusDashboard } from "./dashboards/cluster-status";
@@ -15,7 +15,6 @@ interface NodeTabProps {
   host: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const NodeTab = memo((_props: NodeTabProps) => {
   const { connection } = useConnection();
 

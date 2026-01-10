@@ -16,7 +16,11 @@ export function isTimestampColumn(colName: string, colType?: string): boolean {
   // Check by type if available (DateTime, Date, etc.)
   if (colType) {
     const typeLower = colType.toLowerCase();
-    if (typeLower.includes("datetime") || typeLower.includes("date") || typeLower.includes("timestamp")) {
+    if (
+      typeLower.includes("datetime") ||
+      typeLower.includes("date") ||
+      typeLower.includes("timestamp")
+    ) {
       return true;
     }
   }
@@ -134,19 +138,19 @@ export function sampleIsNumeric(data: Record<string, unknown>[], col: string): b
 export function pickTimestampColumn(metaNames: string[], data?: Record<string, unknown>[]): string {
   // Prefer common timestamp names first
   if (metaNames.includes("t")) return "t";
-  
+
   const metaTime = metaNames.find((n) => {
     const lower = n.toLowerCase();
     return lower.includes("time") || lower.includes("date");
   });
-  
+
   if (metaTime) return metaTime;
-  
+
   // Fallback to derived 'timestamp' in transformed rows
   if (data && data.length > 0 && Object.prototype.hasOwnProperty.call(data[0], "timestamp")) {
     return "timestamp";
   }
-  
+
   return "t";
 }
 
@@ -166,7 +170,9 @@ export function classifyColumns(
   const timestampKey = pickTimestampColumn(metaNames, data);
 
   // Classify non-time columns: numeric -> metric, otherwise label
-  const candidateCols = allColumns.filter((c) => !isTimestampColumn(c, meta.find((m) => m.name === c)?.type));
+  const candidateCols = allColumns.filter(
+    (c) => !isTimestampColumn(c, meta.find((m) => m.name === c)?.type)
+  );
   const metricColumns: string[] = [];
   const labelColumns: string[] = [];
 
@@ -181,5 +187,3 @@ export function classifyColumns(
 
   return { timestampKey, labelColumns, metricColumns };
 }
-
-

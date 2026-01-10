@@ -1,11 +1,17 @@
 "use client";
 
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import { TextHighlighter } from "@/lib/text-highlighter";
-import { useCommandState, useCommandStore } from "cmdk";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
+import { useCommandState, useCommandStore } from "cmdk";
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
 
@@ -74,7 +80,10 @@ function SuggestionDescription({ description }: { description: string }) {
  */
 const InputControl = React.forwardRef<
   HTMLInputElement,
-  React.ComponentProps<typeof Input> & { initialValue?: string; onValueChange?: (value: string) => void }
+  React.ComponentProps<typeof Input> & {
+    initialValue?: string;
+    onValueChange?: (value: string) => void;
+  }
 >((props, forwardedRef) => {
   const { onChange, initialValue, onValueChange, ...rest } = props;
   const search = useCommandState((state: any) => state.search);
@@ -153,7 +162,12 @@ function ItemList({
       <CommandEmpty>No settings found.</CommandEmpty>
       <CommandGroup>
         {items.map((item) => (
-          <CommandItem key={item.name} value={item.name} onSelect={handleSelect} className="cursor-pointer">
+          <CommandItem
+            key={item.name}
+            value={item.name}
+            onSelect={handleSelect}
+            className="cursor-pointer"
+          >
             <span className="font-medium text-sm flex-1 min-w-0 truncate">
               {TextHighlighter.highlight(item.name, search, "text-yellow-500 dark:text-yellow-400")}
             </span>
@@ -285,7 +299,11 @@ export const SuggestionList: React.FC<SuggestionListProps> = ({
           }}
           className="p-0 w-auto flex items-start z-[10000] bg-transparent border-0"
         >
-          <CommandList ref={leftPanelRef} data-panel="left" className="max-h-[300px] w-[400px] border bg-popover">
+          <CommandList
+            ref={leftPanelRef}
+            data-panel="left"
+            className="max-h-[300px] w-[400px] border bg-popover"
+          >
             <ItemList items={items} onSelect={setSelectedValue} onSelectItem={handleSelectItem} />
           </CommandList>
 

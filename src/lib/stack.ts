@@ -25,4 +25,3 @@ export class Stack<T> {
     return this.storage.length === 0;
   }
 }
-

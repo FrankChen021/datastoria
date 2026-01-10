@@ -13,7 +13,14 @@ export function defineChatMode() {
 
   ace.define(
     "ace/mode/chat",
-    ["require", "exports", "module", "ace/lib/oop", "ace/mode/text", "ace/mode/text_highlight_rules"],
+    [
+      "require",
+      "exports",
+      "module",
+      "ace/lib/oop",
+      "ace/mode/text",
+      "ace/mode/text_highlight_rules",
+    ],
     function (require: any, exports: any) {
       const oop = require("ace/lib/oop");
       const TextMode = require("ace/mode/text").Mode;
@@ -36,7 +43,8 @@ export function defineChatMode() {
 
         // Create a regex pattern that matches table names with word boundaries
         // Use \b for word boundaries to ensure exact matches (e.g., a.b won't match a.bb)
-        const tablePattern = tableNames.length > 0 ? `\\b(${tableNames.map(escapeRegex).join("|")})\\b` : null;
+        const tablePattern =
+          tableNames.length > 0 ? `\\b(${tableNames.map(escapeRegex).join("|")})\\b` : null;
 
         return {
           start: tablePattern

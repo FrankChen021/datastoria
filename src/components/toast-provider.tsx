@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { toastManager } from '@/lib/toast';
-import { Toast } from '@/components/ui/toast';
+import { Toast } from "@/components/ui/toast";
+import { toastManager } from "@/lib/toast";
+import { useEffect, useState } from "react";
 
 export function ToastProvider() {
   const [toasts, setToasts] = useState(toastManager.getToasts());

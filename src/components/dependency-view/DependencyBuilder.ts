@@ -1,6 +1,6 @@
 import type { GraphEdge } from "@/components/shared/graphviz/Graph";
-import { uuid2 } from "@/lib/uuid-utils";
 import { MD5 } from "crypto-js";
+import { v7 as uuidv7 } from "uuid";
 
 // The response data object
 interface Table {
@@ -45,7 +45,8 @@ type EngineProcessor = (source: Table) => DependencyInfo[];
 
 export class DependencyBuilder {
   private MV_SINK_TO_EXPR = /^CREATE MATERIALIZED VIEW [a-zA-Z_0-9\\.]* TO ([a-zA-Z_0-9\\.]*)/;
-  private DISTRIBUTED_REGEXPR = / +Distributed\('[a-zA-Z0-9_]+', '([a-zA-Z0-9_]+)', '([a-zA-Z0-9_]+)'/;
+  private DISTRIBUTED_REGEXPR =
+    / +Distributed\('[a-zA-Z0-9_]+', '([a-zA-Z0-9_]+)', '([a-zA-Z0-9_]+)'/;
   private MYSQL_ENGINE_REGEXPR = / +MySQL\('([^']+)', *'([^']+)', *'([^']+)'/;
   private BUFFER_ENGINE_REGEXPR = / +Buffer\('([^']+)', *'([^']+)'/;
   private KAFKA_BROKER_REGEXPR = /kafka_broker_list *= *'([^']+)'/;
@@ -92,7 +93,12 @@ export class DependencyBuilder {
     this.engineProcessors.set("Kafka", (source: Table): DependencyInfo[] => {
       const brokerMatch = source.tableQuery.match(this.KAFKA_BROKER_REGEXPR);
       const topicMatch = source.tableQuery.match(this.KAFKA_TOPIC_REGEXPR);
-      if (brokerMatch !== null && topicMatch !== null && brokerMatch[1] !== undefined && topicMatch[1] !== undefined) {
+      if (
+        brokerMatch !== null &&
+        topicMatch !== null &&
+        brokerMatch[1] !== undefined &&
+        topicMatch[1] !== undefined
+      ) {
         // Use the first broker in the list
         const broker = brokerMatch[1].split(",")[0];
         return [
@@ -176,7 +182,9 @@ export class DependencyBuilder {
         // NO 'TO' is found, there must be an inner table
         // The inner table is in the SAME database
         const innerTableKey =
-          source.uuid === "00000000-0000-0000-0000-000000000000" ? `.inner.${source.name}` : `.inner_id.${source.uuid}`;
+          source.uuid === "00000000-0000-0000-0000-000000000000"
+            ? `.inner.${source.name}`
+            : `.inner_id.${source.uuid}`;
         const toTable = this.innerTable.get(innerTableKey);
         if (toTable !== undefined) {
           return [
@@ -243,7 +251,8 @@ export class DependencyBuilder {
       }
     } else if (source.dependenciesDatabase && source.dependenciesTable) {
       // Handle single string values (legacy support)
-      const depDb = typeof source.dependenciesDatabase === "string" ? source.dependenciesDatabase : "";
+      const depDb =
+        typeof source.dependenciesDatabase === "string" ? source.dependenciesDatabase : "";
       const depTable = typeof source.dependenciesTable === "string" ? source.dependenciesTable : "";
       if (depDb && depTable) {
         this.addDependency(source, {
@@ -302,7 +311,10 @@ export class DependencyBuilder {
     return sourceNode;
   }
 
-  private getOrCreateTargetNode(depInfo: DependencyInfo): { node: DependencyGraphNode; targetTable?: Table } {
+  private getOrCreateTargetNode(depInfo: DependencyInfo): {
+    node: DependencyGraphNode;
+    targetTable?: Table;
+  } {
     if (depInfo.type === "Internal") {
       const targetTableId = depInfo.namespace + "." + depInfo.name;
       const targetTable = this.tableMap.get(targetTableId);
@@ -363,11 +375,16 @@ export class DependencyBuilder {
     // Create edge
     const finalEdgeLabel =
       edgeLabel === null
-        ? this.getDependencyDescription(sourceNode.category, sourceNode.query, targetNode.namespace, targetNode.name)
+        ? this.getDependencyDescription(
+            sourceNode.category,
+            sourceNode.query,
+            targetNode.namespace,
+            targetNode.name
+          )
         : edgeLabel;
 
     this.edges.push({
-      id: "e" + uuid2(),
+      id: "e" + uuidv7(),
       source: sourceNode.id,
       target: targetNode.id,
       label: finalEdgeLabel,

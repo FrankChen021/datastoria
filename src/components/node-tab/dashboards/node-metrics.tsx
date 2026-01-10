@@ -559,4 +559,3 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     },
   } as TimeseriesDescriptor,
 ];
-

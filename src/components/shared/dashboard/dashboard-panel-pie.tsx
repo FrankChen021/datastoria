@@ -2,25 +2,25 @@
 
 /**
  * Dashboard Pie Chart Component
- * 
+ *
  * Renders data as a pie chart using ECharts. Follows the same pattern as the timeseries component.
- * 
+ *
  * Expected data format:
  * - Query should return rows with at least 2 columns:
  *   1. Name/Label column (string): Used for pie slice names
  *   2. Value column (number): Used for pie slice values
- * 
+ *
  * Column detection:
  * - Looks for columns named: 'name', 'label', 'category' (for names) and 'value', 'count', 'amount' (for values)
  * - Falls back to first string column for names and first numeric column for values
- * 
+ *
  * Features:
  * - Supports drilldown: Click on pie slices to show detailed data in a dialog
  * - Configurable legend placement: inside, bottom, right, or none
  * - Configurable labels: show/hide and format options
  * - Value formatting support using Formatter
  * - Theme support (dark/light mode)
- * 
+ *
  * Example descriptor:
  * ```typescript
  * {
@@ -38,22 +38,29 @@
  * }
  * ```
  */
-
+import { useConnection } from "@/components/connection/connection-context";
 import { CardContent } from "@/components/ui/card";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/use-dialog";
 import { type JSONFormatResponse, type QueryError } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
 import { Formatter } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
 import * as echarts from "echarts";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { transformRowsToChartData } from "./dashboard-data-utils";
 import { showQueryDialog } from "./dashboard-dialog-utils";
-import { type PanelDescriptor, type PieDescriptor, type SQLQuery, type TableDescriptor } from "./dashboard-model";
+import { DashboardDropdownMenuItem } from "./dashboard-dropdown-menu-item";
+import {
+  type PanelDescriptor,
+  type PieDescriptor,
+  type SQLQuery,
+  type TableDescriptor,
+} from "./dashboard-model";
 import { DashboardPanel } from "./dashboard-panel";
-import type { DashboardPanelComponent, RefreshOptions } from "./dashboard-panel-layout";
-import { DashboardPanelLayout } from "./dashboard-panel-layout";
+import {
+  DashboardPanelLayout,
+  type DashboardPanelComponent,
+  type RefreshOptions,
+} from "./dashboard-panel-layout";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import type { TimeSpan } from "./timespan-selector";
 import useIsDarkTheme from "./use-is-dark-theme";
@@ -370,7 +377,9 @@ const DashboardPanelPie = forwardRef<DashboardPanelComponent, DashboardPanelPieP
         }
 
         // Get drilldown descriptor - use the slice name as key, or use the first drilldown if not found
-        const drilldownKey = descriptor.drilldown?.[sliceName] ? sliceName : Object.keys(descriptor.drilldown || {})[0];
+        const drilldownKey = descriptor.drilldown?.[sliceName]
+          ? sliceName
+          : Object.keys(descriptor.drilldown || {})[0];
         const drilldownDescriptor = descriptor.drilldown?.[drilldownKey];
 
         if (!drilldownDescriptor) {
@@ -451,7 +460,11 @@ const DashboardPanelPie = forwardRef<DashboardPanelComponent, DashboardPanelPieP
           const query = Object.assign({}, descriptor.query) as SQLQuery;
 
           // Replace time span template parameters in SQL if time span is provided
-          const finalSql = replaceTimeSpanParams(query.sql, param.selectedTimeSpan, connection.metadata.timezone);
+          const finalSql = replaceTimeSpanParams(
+            query.sql,
+            param.selectedTimeSpan,
+            connection.metadata.timezone
+          );
           setExecutedSql(finalSql);
 
           const { response, abortController } = connection.queryOnNode(
@@ -524,7 +537,9 @@ const DashboardPanelPie = forwardRef<DashboardPanelComponent, DashboardPanelPieP
     const refreshInternal = useCallback(
       (param: RefreshOptions) => {
         if (!descriptor.query) {
-          console.error(`No query defined for chart [${descriptor.titleOption?.title || descriptor.type}]`);
+          console.error(
+            `No query defined for chart [${descriptor.titleOption?.title || descriptor.type}]`
+          );
           setError("No query defined for this chart component.");
           return;
         }
@@ -536,15 +551,18 @@ const DashboardPanelPie = forwardRef<DashboardPanelComponent, DashboardPanelPieP
 
     // Use shared refreshable hook
     const getInitialParams = useCallback(() => {
-      return propSelectedTimeSpan ? ({ selectedTimeSpan: propSelectedTimeSpan } as RefreshOptions) : undefined;
+      return propSelectedTimeSpan
+        ? ({ selectedTimeSpan: propSelectedTimeSpan } as RefreshOptions)
+        : undefined;
     }, [propSelectedTimeSpan]);
 
-    const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } = useRefreshable({
-      initialCollapsed: descriptor.collapsed ?? false,
-      refreshInternal,
-      getInitialParams,
-      onCollapsedChange: props.onCollapsedChange,
-    });
+    const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } =
+      useRefreshable({
+        initialCollapsed: descriptor.collapsed ?? false,
+        refreshInternal,
+        getInitialParams,
+        onCollapsedChange: props.onCollapsedChange,
+      });
 
     // Initialize echarts instance with theme support
     useEffect(() => {
@@ -666,7 +684,11 @@ const DashboardPanelPie = forwardRef<DashboardPanelComponent, DashboardPanelPieP
     // Build dropdown menu items
     const dropdownItems = (
       <>
-        {descriptor.query?.sql && <DropdownMenuItem onClick={handleShowQuery}>Show query</DropdownMenuItem>}
+        {descriptor.query?.sql && (
+          <DashboardDropdownMenuItem onClick={handleShowQuery}>
+            Show query
+          </DashboardDropdownMenuItem>
+        )}
       </>
     );
 
@@ -690,9 +712,14 @@ const DashboardPanelPie = forwardRef<DashboardPanelComponent, DashboardPanelPieP
       >
         <CardContent className="px-0 p-0 h-full flex flex-col">
           {error ? (
-            <div key="error" className="flex flex-col items-center justify-center h-full gap-2 text-destructive p-4 overflow-hidden">
+            <div
+              key="error"
+              className="flex flex-col items-center justify-center h-full gap-2 text-destructive p-4 overflow-hidden"
+            >
               <p className="font-semibold shrink-0">Error loading chart data:</p>
-              <p className="text-sm overflow-auto w-full text-center max-h-full custom-scrollbar">{error}</p>
+              <p className="text-sm overflow-auto w-full text-center max-h-full custom-scrollbar">
+                {error}
+              </p>
             </div>
           ) : (
             <div
@@ -714,4 +741,3 @@ const DashboardPanelPie = forwardRef<DashboardPanelComponent, DashboardPanelPieP
 DashboardPanelPie.displayName = "DashboardPanelPie";
 
 export default DashboardPanelPie;
-

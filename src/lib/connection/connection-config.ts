@@ -6,4 +6,3 @@ export interface ConnectionConfig {
   cluster: string;
   editable: boolean;
 }
-

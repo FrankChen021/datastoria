@@ -77,26 +77,36 @@ export function ChatSessionStatus({
                 <div className="space-y-1">
                   <div className="flex justify-between">
                     <span>Total Tokens:</span>
-                    <span className="font-medium text-foreground">{sessionStats.tokens.totalTokens}</span>
+                    <span className="font-medium text-foreground">
+                      {sessionStats.tokens.totalTokens}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Input Tokens:</span>
-                    <span className="font-medium text-foreground">{sessionStats.tokens.inputTokens}</span>
+                    <span className="font-medium text-foreground">
+                      {sessionStats.tokens.inputTokens}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Output Tokens:</span>
-                    <span className="font-medium text-foreground">{sessionStats.tokens.outputTokens}</span>
+                    <span className="font-medium text-foreground">
+                      {sessionStats.tokens.outputTokens}
+                    </span>
                   </div>
                   {sessionStats.tokens.reasoningTokens > 0 && (
                     <div className="flex justify-between">
                       <span>Reasoning Tokens:</span>
-                      <span className="font-medium text-foreground">{sessionStats.tokens.reasoningTokens}</span>
+                      <span className="font-medium text-foreground">
+                        {sessionStats.tokens.reasoningTokens}
+                      </span>
                     </div>
                   )}
                   {sessionStats.tokens.cachedInputTokens > 0 && (
                     <div className="flex justify-between">
                       <span>Cached Tokens:</span>
-                      <span className="font-medium text-foreground">{sessionStats.tokens.cachedInputTokens}</span>
+                      <span className="font-medium text-foreground">
+                        {sessionStats.tokens.cachedInputTokens}
+                      </span>
                     </div>
                   )}
                 </div>

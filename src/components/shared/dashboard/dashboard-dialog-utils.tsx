@@ -8,7 +8,11 @@ import type { SQLQuery } from "./dashboard-model";
 /**
  * Shows a dialog displaying the SQL query
  */
-export function showQueryDialog(query: SQLQuery | undefined, title?: string, executedSql?: string): void {
+export function showQueryDialog(
+  query: SQLQuery | undefined,
+  title?: string,
+  executedSql?: string
+): void {
   if (!query?.sql) {
     return;
   }

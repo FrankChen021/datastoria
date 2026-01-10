@@ -8,12 +8,17 @@ import { cn } from "@/lib/utils";
 import { RefreshCcw } from "lucide-react";
 import React, { Component } from "react";
 import Selector from "../selector";
-import type { DateTimeFilterSpec, FilterSpec, SQLQuery, SelectorFilterSpec } from "./dashboard-model";
+import type {
+  DateTimeFilterSpec,
+  FilterSpec,
+  SelectorFilterSpec,
+  SQLQuery,
+} from "./dashboard-model";
 import { replaceTimeSpanParams } from "./sql-time-utils";
 import TimeSpanSelector, {
   DisplayTimeSpan,
-  type TimeSpan,
   getDisplayTimeSpanByLabel,
+  type TimeSpan,
 } from "./timespan-selector";
 
 export interface SelectedFilter {
@@ -65,11 +70,11 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
   constructor(props: FilterProps) {
     super(props);
 
-    this.timeFilterSpec = props.filterSpecs.find((f): f is DateTimeFilterSpec => f.filterType === "date_time");
+    this.timeFilterSpec = props.filterSpecs.find(
+      (f): f is DateTimeFilterSpec => f.filterType === "date_time"
+    );
     const defaultTimeSpanLabel =
-      this.timeFilterSpec?.defaultTimeSpan ||
-      props.defaultTimeSpan ||
-      "Last 15 Mins";
+      this.timeFilterSpec?.defaultTimeSpan || props.defaultTimeSpan || "Last 15 Mins";
     this.defaultTimeSpan = getDisplayTimeSpanByLabel(defaultTimeSpanLabel);
 
     this.reloadingRequiredState = new Map();
@@ -117,7 +122,9 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
     if (this.props.filterSpecs !== nextProps.filterSpecs) {
       this.selectedFilters = new Map<string, QueryPattern>();
 
-      this.timeFilterSpec = nextProps.filterSpecs.find((f): f is DateTimeFilterSpec => f.filterType === "date_time");
+      this.timeFilterSpec = nextProps.filterSpecs.find(
+        (f): f is DateTimeFilterSpec => f.filterType === "date_time"
+      );
       this.nameConverts = new Map();
       this.filterSpecByName = new Map();
       nextProps.filterSpecs.forEach((filter) => {
@@ -147,7 +154,11 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
     }
   }
 
-  onItemSelectedCallback = (index: number, filterSpec: SelectorFilterSpec, pattern: QueryPattern) => {
+  onItemSelectedCallback = (
+    index: number,
+    filterSpec: SelectorFilterSpec,
+    pattern: QueryPattern
+  ) => {
     const { filterSpecs, onFilterChange } = this.props;
 
     if (pattern === null) {
@@ -214,7 +225,7 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
     }
 
     if (!onLoadSourceData) {
-        return [];
+      return [];
     }
 
     const timezone = this.props.timezone ?? "UTC";
@@ -225,7 +236,10 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
     const timeColumn = this.timeFilterSpec?.timeColumn ?? "event_time";
     const timeFilter = `${timeColumn} >= {from:String} AND ${timeColumn} <= {to:String}`;
 
-    let sql = thisFilterSpec.datasource.sql.replace(/{filterExpression:String}/g, `(${finalFilterExpression})`);
+    let sql = thisFilterSpec.datasource.sql.replace(
+      /{filterExpression:String}/g,
+      `(${finalFilterExpression})`
+    );
     sql = sql.replace(/{timeFilter:String}/g, `(${timeFilter})`);
     sql = replaceTimeSpanParams(sql, currentTimeSpan, timezone);
 
@@ -264,7 +278,11 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
     return input.split(token).join(value);
   }
 
-  private buildExpressionFromTemplate(template: string, name: string, pattern: QueryPattern): string {
+  private buildExpressionFromTemplate(
+    template: string,
+    name: string,
+    pattern: QueryPattern
+  ): string {
     const values = pattern.values ?? [];
     const value = this.asSqlString(values[0] ?? "");
     const valuesList = values.map((v) => this.asSqlString(v)).join(",");
@@ -293,26 +311,30 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
 
   public getSelectedTimeSpan(): TimeSpan {
     // If all time span components are disabled, return a default time span
-    if (this.props.showTimeSpanSelector === false && this.props.showRefresh === false && this.props.showAutoRefresh === false) {
+    if (
+      this.props.showTimeSpanSelector === false &&
+      this.props.showRefresh === false &&
+      this.props.showAutoRefresh === false
+    ) {
       // Return a default 1 hour timespan from now
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
       return {
         startISO8601: oneHourAgo.toISOString(),
-        endISO8601: now.toISOString()
+        endISO8601: now.toISOString(),
       };
     }
-    
+
     // If time span selector specifically is disabled but others are enabled, still return default
     if (this.props.showTimeSpanSelector === false || !this.timeSpanSelectorRef.current) {
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
       return {
         startISO8601: oneHourAgo.toISOString(),
-        endISO8601: now.toISOString()
+        endISO8601: now.toISOString(),
       };
     }
-    
+
     return this.timeSpanSelectorRef.current?.getSelectedTimeSpan().getTimeSpan();
   }
 
@@ -335,7 +357,10 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
 
       // Show right button if not fully scrolled to the right
       // Directly control the DOM to avoid re-rendering
-      this.scrollRightButtonRef.current?.classList.toggle("hidden", scrollLeft + clientWidth >= scrollWidth);
+      this.scrollRightButtonRef.current?.classList.toggle(
+        "hidden",
+        scrollLeft + clientWidth >= scrollWidth
+      );
     }
   };
 
@@ -388,7 +413,10 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
                       defaultValue=" "
                       disabled
                     />
-                    <FloatingLabel htmlFor={timeFilterInputId} className="pointer-events-none bg-transparent dark:bg-transparent">
+                    <FloatingLabel
+                      htmlFor={timeFilterInputId}
+                      className="pointer-events-none bg-transparent dark:bg-transparent"
+                    >
                       {filter.timeColumn}
                     </FloatingLabel>
                     <TimeSpanSelector
@@ -447,16 +475,16 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
             (this.props.showTimeSpanSelector !== false ||
               this.props.showRefresh !== false ||
               this.props.showAutoRefresh !== false) && (
-            <TimeSpanSelector
-              ref={this.timeSpanSelectorRef}
-              defaultTimeSpan={this.defaultTimeSpan}
-              size="sm"
-              showTimeSpanSelector={this.props.showTimeSpanSelector}
-              showRefresh={this.props.showRefresh}
-              showAutoRefresh={this.props.showAutoRefresh}
-              onSelectedSpanChanged={this.onTimeSpanChangeCallback}
-            />
-          )}
+              <TimeSpanSelector
+                ref={this.timeSpanSelectorRef}
+                defaultTimeSpan={this.defaultTimeSpan}
+                size="sm"
+                showTimeSpanSelector={this.props.showTimeSpanSelector}
+                showRefresh={this.props.showRefresh}
+                showAutoRefresh={this.props.showAutoRefresh}
+                onSelectedSpanChanged={this.onTimeSpanChangeCallback}
+              />
+            )}
         </div>
       </div>
     );
@@ -464,4 +492,3 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
 }
 
 export default DashboardFilterComponent;
-

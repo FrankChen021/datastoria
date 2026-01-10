@@ -1,9 +1,9 @@
-import { SignJWT, jwtVerify } from "jose";
+import { jwtVerify, SignJWT } from "jose";
 import NextAuth, { type NextAuthConfig } from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-import GitHubProvider from "next-auth/providers/github";
-import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import type { Provider } from "next-auth/providers";
+import GitHubProvider from "next-auth/providers/github";
+import GoogleProvider from "next-auth/providers/google";
+import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 
 function getAuthProviders(): Provider[] {
   const providers: Provider[] = [];
@@ -31,9 +31,9 @@ function getAuthProviders(): Provider[] {
   }
 
   // Add Microsoft Entra ID (formerly Azure AD) Auth Provider
-  const isMicrosoftAuthEnabled = 
-    process.env.MICROSOFT_CLIENT_ID && 
-    process.env.MICROSOFT_CLIENT_SECRET && 
+  const isMicrosoftAuthEnabled =
+    process.env.MICROSOFT_CLIENT_ID &&
+    process.env.MICROSOFT_CLIENT_SECRET &&
     process.env.MICROSOFT_TENANT_ID;
   if (isMicrosoftAuthEnabled) {
     providers.push(
@@ -54,7 +54,7 @@ const authConfig: NextAuthConfig = {
   providers: getAuthProviders(),
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
-    signIn: '/login',
+    signIn: "/login",
   },
   jwt: {
     maxAge: 7 * 24 * 60 * 60, // 7 days
@@ -66,10 +66,10 @@ const authConfig: NextAuthConfig = {
       const iat = token.iat ? token.iat : Math.floor(Date.now() / 1000);
       const exp = token.exp ? token.exp : iat + 7 * 24 * 60 * 60; // 7 days
 
-      return await new SignJWT({ 
-        name: token.name, 
-        email: token.email, 
-        picture: token.picture 
+      return await new SignJWT({
+        name: token.name,
+        email: token.email,
+        picture: token.picture,
       })
         // Store email as subject for identification
         .setSubject((token.email as string) || "")
@@ -84,11 +84,9 @@ const authConfig: NextAuthConfig = {
       if (!token) {
         throw new Error("Token is required for decoding");
       }
-      const { payload } = await jwtVerify(
-        token, 
-        new TextEncoder().encode(secret as string), 
-        { algorithms: ["HS256"] }
-      );
+      const { payload } = await jwtVerify(token, new TextEncoder().encode(secret as string), {
+        algorithms: ["HS256"],
+      });
       // Keep the raw token in the payload to pass it to the session callback
       payload.accessToken = token;
       return payload;
@@ -134,7 +132,6 @@ export function isAuthEnabled() {
   return authConfig.providers && authConfig.providers.length > 0;
 }
 
-export const { handlers, auth, signIn, signOut } = isAuthEnabled() 
-  ? NextAuth(authConfig) 
+export const { handlers, auth, signIn, signOut } = isAuthEnabled()
+  ? NextAuth(authConfig)
   : ({} as any);
-

@@ -1,8 +1,15 @@
+import { useConnection } from "@/components/connection/connection-context";
 import type { QueryError } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
 import { StringUtils } from "@/lib/string-utils";
-import type { ReactNode } from "react";
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { v7 as uuid } from "uuid";
 import type { QueryResponseViewModel, SQLMessage } from "../query-view-model";
 
@@ -12,7 +19,12 @@ interface QueryExecutionContextType {
   isSqlExecuting: boolean;
   // SQL Message management
   sqlMessages: SQLMessage[];
-  executeQuery: (sql: string, rawSQL?: string, options?: { view?: string }, params?: Record<string, unknown>) => void;
+  executeQuery: (
+    sql: string,
+    rawSQL?: string,
+    options?: { view?: string },
+    params?: Record<string, unknown>
+  ) => void;
   cancelQuery: (queryId: string) => void;
   deleteQuery: (queryId: string) => void;
   deleteAllQueries: () => void;
@@ -31,7 +43,12 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
   const isSqlExecuting = useMemo(() => sqlMessages.some((msg) => msg.isExecuting), [sqlMessages]);
 
   const executeQuery = useCallback(
-    (sql: string, rawSQL?: string, options?: { view?: string }, params?: Record<string, unknown>) => {
+    (
+      sql: string,
+      rawSQL?: string,
+      options?: { view?: string },
+      params?: Record<string, unknown>
+    ) => {
       // Process SQL: remove comments and check for vertical format
       let processedSQL = StringUtils.removeComments(sql);
       let useVerticalFormat = false;
@@ -74,7 +91,11 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
       }
 
       // Add row numbers for pretty formats (unless explicitly disabled)
-      if (!isExplainQuery && !useVerticalFormat && queryParams.output_format_pretty_row_numbers === undefined) {
+      if (
+        !isExplainQuery &&
+        !useVerticalFormat &&
+        queryParams.output_format_pretty_row_numbers === undefined
+      ) {
         queryParams.output_format_pretty_row_numbers = true;
       }
 
@@ -138,7 +159,10 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
       // Execute query
       (async () => {
         try {
-          const { response, abortController: apiAbortController } = connection.query(processedSQL, queryParams);
+          const { response, abortController: apiAbortController } = connection.query(
+            processedSQL,
+            queryParams
+          );
 
           // Store abort controller
           abortControllersRef.current.set(queryId, apiAbortController);

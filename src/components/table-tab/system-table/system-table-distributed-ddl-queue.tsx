@@ -1,15 +1,24 @@
-import type { Dashboard, FieldOption, TimeseriesDescriptor } from "@/components/shared/dashboard/dashboard-model";
-import DashboardPanels, { type DashboardPanelsRef } from "@/components/shared/dashboard/dashboard-panels";
+import { useConnection } from "@/components/connection/connection-context";
+import type {
+  Dashboard,
+  FieldOption,
+  TimeseriesDescriptor,
+} from "@/components/shared/dashboard/dashboard-model";
+import DashboardPanels, {
+  type DashboardPanelsRef,
+} from "@/components/shared/dashboard/dashboard-panels";
 import { DataTable } from "@/components/shared/dashboard/data-table";
 import { replaceTimeSpanParams } from "@/components/shared/dashboard/sql-time-utils";
-import TimeSpanSelector, { BUILT_IN_TIME_SPAN_LIST, type TimeSpan } from "@/components/shared/dashboard/timespan-selector";
+import TimeSpanSelector, {
+  BUILT_IN_TIME_SPAN_LIST,
+  type TimeSpan,
+} from "@/components/shared/dashboard/timespan-selector";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useConnection } from "@/lib/connection/connection-context";
 import { Formatter } from "@/lib/formatter";
 import { hostNameManager } from "@/lib/host-name-manager";
 import { cn } from "@/lib/utils";
@@ -18,624 +27,681 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 interface DDLRecord {
-    entry: string;
-    entry_version: number;
-    initiator_host: string;
-    initiator_port: number;
-    cluster: string;
-    query: string;
-    settings: string;
-    query_create_time: string;
-    host: string;
-    port: number;
-    status: string;
-    exception_code: number;
-    exception_text: string;
-    query_finish_time: string;
-    query_duration_ms: number;
+  entry: string;
+  entry_version: number;
+  initiator_host: string;
+  initiator_port: number;
+  cluster: string;
+  query: string;
+  settings: string;
+  query_create_time: string;
+  host: string;
+  port: number;
+  status: string;
+  exception_code: number;
+  exception_text: string;
+  query_finish_time: string;
+  query_duration_ms: number;
 }
 
 interface GroupedDDLEntry {
-    entry: string;
-    entry_version: number;
-    initiator_host: string;
-    initiator_port: number;
-    cluster: string;
-    query: string;
-    statusCounts: Record<string, number>;
-    records: DDLRecord[];
-    hosts_count: number;
-    query_create_time: string;
+  entry: string;
+  entry_version: number;
+  initiator_host: string;
+  initiator_port: number;
+  cluster: string;
+  query: string;
+  statusCounts: Record<string, number>;
+  records: DDLRecord[];
+  hosts_count: number;
+  query_create_time: string;
 }
 
 const StatusIcon = ({ status, className }: { status: string; className?: string }) => {
-    switch (status) {
-        case "Finished":
-            return <CheckCircle2 className={cn("h-4 w-4 text-green-500", className)} />;
-        case "Active":
-            return <PlayCircle className={cn("h-4 w-4 text-blue-500", className)} />;
-        case "Queued":
-            return <Clock className={cn("h-4 w-4 text-amber-500", className)} />;
-        case "Failed":
-            return <XCircle className={cn("h-4 w-4 text-red-500", className)} />;
-        default:
-            return <AlertCircle className={cn("h-4 w-4 text-muted-foreground", className)} />;
-    }
+  switch (status) {
+    case "Finished":
+      return <CheckCircle2 className={cn("h-4 w-4 text-green-500", className)} />;
+    case "Active":
+      return <PlayCircle className={cn("h-4 w-4 text-blue-500", className)} />;
+    case "Queued":
+      return <Clock className={cn("h-4 w-4 text-amber-500", className)} />;
+    case "Failed":
+      return <XCircle className={cn("h-4 w-4 text-red-500", className)} />;
+    default:
+      return <AlertCircle className={cn("h-4 w-4 text-muted-foreground", className)} />;
+  }
 };
 
-const StatusSummary = memo(({ statusCounts, total }: { statusCounts: Record<string, number>, total: number }) => {
+const StatusSummary = memo(
+  ({ statusCounts, total }: { statusCounts: Record<string, number>; total: number }) => {
     if (total === 0) return <span className="text-xs text-muted-foreground">-</span>;
 
     // Sort all status keys by count descending
     const sortedStats = Object.entries(statusCounts)
-        .filter(([_, count]) => count > 0)
-        .sort((a, b) => b[1] - a[1]);
+      .filter(([_, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1]);
 
     const parts = sortedStats.map(([status, count]) => {
-        const pct = Math.round((count / total) * 100);
-        return `${pct}% ${status}`;
+      const pct = Math.round((count / total) * 100);
+      return `${pct}% ${status}`;
     });
 
     return (
-
-        <div className="flex items-center gap-2 overflow-hidden">
-            <div className="flex-1 flex items-center gap-1.5 min-w-0">
-                <span className="text-[11px] font-medium truncate tabular-nums">
-                    {parts.join(", ") || "0%"}
-                </span>
-            </div>
+      <div className="flex items-center gap-2 overflow-hidden">
+        <div className="flex-1 flex items-center gap-1.5 min-w-0">
+          <span className="text-[11px] font-medium truncate tabular-nums">
+            {parts.join(", ") || "0%"}
+          </span>
         </div>
+      </div>
     );
-});
-
+  }
+);
 
 const truncateQuery = (text: string, maxLength: number = 80) => {
-    if (!text || text.length <= maxLength) return text;
-    const half = Math.floor((maxLength - 3) / 2);
-    return text.slice(0, half) + "..." + text.slice(-half);
+  if (!text || text.length <= maxLength) return text;
+  const half = Math.floor((maxLength - 3) / 2);
+  return text.slice(0, half) + "..." + text.slice(-half);
 };
 
 interface DDLDistributedQueueHostLogTableProps {
-    records: DDLRecord[];
+  records: DDLRecord[];
 }
 
-const DDLDistributedQueueHostLogTable = memo(({ records }: DDLDistributedQueueHostLogTableProps) => {
-    const tableMeta = useMemo(() => [
+const DDLDistributedQueueHostLogTable = memo(
+  ({ records }: DDLDistributedQueueHostLogTableProps) => {
+    const tableMeta = useMemo(
+      () => [
         { name: "host", type: "String" },
         { name: "status", type: "String" },
         { name: "query_create_time", type: "String" },
         { name: "query_duration_ms", type: "Int64" },
-    ], []);
+      ],
+      []
+    );
 
-    const fieldOptions: FieldOption[] = useMemo(() => [
+    const fieldOptions: FieldOption[] = useMemo(
+      () => [
         {
-            name: "host",
-            title: "Host",
-            format: (val) => (
-                <span className="font-mono text-[10px] truncate block" title={String(val)}>
-                    {String(val)}
-                </span>
-            )
+          name: "host",
+          title: "Host",
+          format: (val) => (
+            <span className="font-mono text-[10px] truncate block" title={String(val)}>
+              {String(val)}
+            </span>
+          ),
         },
         {
-            name: "status",
-            title: "Status",
-            format: (val, _, context) => {
-                const row = context as unknown as DDLRecord;
-                return (
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex items-center gap-2">
-                                    <StatusIcon status={String(val)} className="h-3 w-3" />
-                                    <span className="text-[11px]">{String(val)}</span>
-                                </div>
-                            </TooltipTrigger>
-                            {row?.exception_code !== 0 && (
-                                <TooltipContent className="max-w-[400px] p-3 border-red-500/20 shadow-lg">
-                                    <div className="flex flex-col gap-1.5">
-                                        <div className="flex items-center justify-between gap-4">
-                                            <span className="font-bold text-[10px] uppercase tracking-wider text-red-500">Exception Code {row.exception_code}</span>
-                                        </div>
-                                        <div className="text-[11px] font-mono leading-relaxed break-words whitespace-pre-wrap text-foreground">
-                                            {String(row.exception_text)}
-                                        </div>
-                                    </div>
-                                </TooltipContent>
-                            )}
-                        </Tooltip>
-                    </TooltipProvider>
-                );
-            }
+          name: "status",
+          title: "Status",
+          format: (val, _, context) => {
+            const row = context as unknown as DDLRecord;
+            return (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2">
+                      <StatusIcon status={String(val)} className="h-3 w-3" />
+                      <span className="text-[11px]">{String(val)}</span>
+                    </div>
+                  </TooltipTrigger>
+                  {row?.exception_code !== 0 && (
+                    <TooltipContent className="max-w-[400px] p-3 border-red-500/20 shadow-lg">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="font-bold text-[10px] uppercase tracking-wider text-red-500">
+                            Exception Code {row.exception_code}
+                          </span>
+                        </div>
+                        <div className="text-[11px] font-mono leading-relaxed break-words whitespace-pre-wrap text-foreground">
+                          {String(row.exception_text)}
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+            );
+          },
         },
         {
-            name: "query_create_time",
-            title: "Created",
-            align: "right",
-            format: (val) => (
-                <span className="text-muted-foreground font-mono text-[10px]">
-                    {String(val)}
-                </span>
-            )
+          name: "query_create_time",
+          title: "Created",
+          align: "right",
+          format: (val) => (
+            <span className="text-muted-foreground font-mono text-[10px]">{String(val)}</span>
+          ),
         },
         {
-            name: "query_duration_ms",
-            title: "Duration",
-            align: "right",
-            format: (val) => (
-                <span className="font-mono text-[10px] text-muted-foreground">
-                    {Number(val) > 0 ? `${Formatter.getInstance().getFormatter("millisecond")(val)}` : "-"}
-                </span>
-            )
-        }
-    ], []);
+          name: "query_duration_ms",
+          title: "Duration",
+          align: "right",
+          format: (val) => (
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {Number(val) > 0
+                ? `${Formatter.getInstance().getFormatter("millisecond")(val)}`
+                : "-"}
+            </span>
+          ),
+        },
+      ],
+      []
+    );
 
     return (
-        <div className="bg-background border rounded-md overflow-hidden shadow-sm">
-            <DataTable
-                data={records as any}
-                meta={tableMeta}
-                fieldOptions={fieldOptions}
-                showIndexColumn
-                stickyHeader
-                headerClassName="text-[10px]"
-                className="max-h-[300px]"
-            />
-        </div>
+      <div className="bg-background border rounded-md overflow-hidden shadow-sm">
+        <DataTable
+          data={records as any}
+          meta={tableMeta}
+          fieldOptions={fieldOptions}
+          showIndexColumn
+          stickyHeader
+          headerClassName="text-[10px]"
+          className="max-h-[300px]"
+        />
+      </div>
     );
-});
-
+  }
+);
 
 interface DDLDistributedQueueDetailPaneProps {
-    selectedEntry: GroupedDDLEntry;
-    onClose: () => void;
+  selectedEntry: GroupedDDLEntry;
+  onClose: () => void;
 }
 
-const DDLDistributedQueueDetailPane = memo(({ selectedEntry, onClose }: DDLDistributedQueueDetailPaneProps) => {
+const DDLDistributedQueueDetailPane = memo(
+  ({ selectedEntry, onClose }: DDLDistributedQueueDetailPaneProps) => {
     return (
-        <div className="bg-muted/5 flex flex-col h-full border-l">
-            <div className="flex items-center justify-between pl-4 pr-2 h-10 border-b bg-background/50 flex-shrink-0">
-                <div className="flex flex-col gap-0.5 min-w-0">
-                    <div className="text-[14px]">{selectedEntry.entry}</div>
-                </div>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-                    <X className="h-3.5 w-3.5" />
-                </Button>
+      <div className="bg-muted/5 flex flex-col h-full border-l">
+        <div className="flex items-center justify-between pl-4 pr-2 h-10 border-b bg-background/50 flex-shrink-0">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <div className="text-[14px]">{selectedEntry.entry}</div>
+          </div>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+
+        <ScrollArea className="flex-1">
+          <div className="flex flex-col gap-3 pt-3 pl-2 pr-3 pb-10">
+            {/* Metadata Transposed Table */}
+            <div className="flex flex-col gap-2">
+              <div className="text-[10px] font-bold text-muted-foreground">Entry Details</div>
+              <div className="bg-background border rounded-md overflow-hidden shadow-sm">
+                <table className="w-full text-xs">
+                  <tbody className="divide-y">
+                    <tr>
+                      <td className="px-3 py-2 bg-muted/20 w-32 font-medium text-muted-foreground">
+                        Cluster
+                      </td>
+                      <td className="px-3 py-2 font-mono">{selectedEntry.cluster}</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2 bg-muted/20 w-32 font-medium text-muted-foreground">
+                        Create Time
+                      </td>
+                      <td className="px-3 py-2 font-mono">
+                        {selectedEntry.records[0]?.query_create_time || "-"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2 bg-muted/20 w-32 font-medium text-muted-foreground">
+                        Entry Version
+                      </td>
+                      <td className="px-3 py-2 font-mono">{selectedEntry.entry_version}</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2 bg-muted/20 w-32 font-medium text-muted-foreground">
+                        Initiator Host
+                      </td>
+                      <td className="px-3 py-2 font-mono break-all leading-tight">
+                        {selectedEntry.initiator_host}:{selectedEntry.initiator_port}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            <ScrollArea className="flex-1">
-                <div className="flex flex-col gap-3 pt-3 pl-2 pr-3 pb-10">
-                    {/* Metadata Transposed Table */}
-                    <div className="flex flex-col gap-2">
-                        <div className="text-[10px] font-bold text-muted-foreground">Entry Details</div>
-                        <div className="bg-background border rounded-md overflow-hidden shadow-sm">
-                            <table className="w-full text-xs">
-                                <tbody className="divide-y">
-                                    <tr>
-                                        <td className="px-3 py-2 bg-muted/20 w-32 font-medium text-muted-foreground">Cluster</td>
-                                        <td className="px-3 py-2 font-mono">{selectedEntry.cluster}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="px-3 py-2 bg-muted/20 w-32 font-medium text-muted-foreground">Create Time</td>
-                                        <td className="px-3 py-2 font-mono">{selectedEntry.records[0]?.query_create_time || "-"}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="px-3 py-2 bg-muted/20 w-32 font-medium text-muted-foreground">Entry Version</td>
-                                        <td className="px-3 py-2 font-mono">{selectedEntry.entry_version}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="px-3 py-2 bg-muted/20 w-32 font-medium text-muted-foreground">Initiator Host</td>
-                                        <td className="px-3 py-2 font-mono break-all leading-tight">
-                                            {selectedEntry.initiator_host}:{selectedEntry.initiator_port}
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 min-w-0 gap-2">
-                        <div className="text-[10px] font-bold text-muted-foreground">Distributed DDL Query</div>
-                        <div className="border rounded-md bg-background overflow-hidden min-w-0">
-                            <div className="overflow-x-auto min-w-0">
-                                <ThemedSyntaxHighlighter
-                                    language="sql"
-                                    wrapLongLines
-                                    customStyle={{
-                                        margin: 0,
-                                        padding: '0.5rem',
-                                        fontSize: '11px',
-                                        backgroundColor: 'transparent',
-                                        whiteSpace: 'pre',
-                                        width: '100%',
-                                    }}
-                                >
-                                    {selectedEntry.query}
-                                </ThemedSyntaxHighlighter>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Host Log Table */}
-                    <div className="flex flex-col gap-3">
-                        <div className="text-[10px] font-bold text-muted-foreground">Per-Host Execution Log</div>
-                        <DDLDistributedQueueHostLogTable records={selectedEntry.records} />
-                    </div>
-
+            <div className="grid grid-cols-1 min-w-0 gap-2">
+              <div className="text-[10px] font-bold text-muted-foreground">
+                Distributed DDL Query
+              </div>
+              <div className="border rounded-md bg-background overflow-hidden min-w-0">
+                <div className="overflow-x-auto min-w-0">
+                  <ThemedSyntaxHighlighter
+                    language="sql"
+                    wrapLongLines
+                    customStyle={{
+                      margin: 0,
+                      padding: "0.5rem",
+                      fontSize: "11px",
+                      backgroundColor: "transparent",
+                      whiteSpace: "pre",
+                      width: "100%",
+                    }}
+                  >
+                    {selectedEntry.query}
+                  </ThemedSyntaxHighlighter>
                 </div>
-            </ScrollArea>
-        </div>
-    );
-});
+              </div>
+            </div>
 
+            {/* Host Log Table */}
+            <div className="flex flex-col gap-3">
+              <div className="text-[10px] font-bold text-muted-foreground">
+                Per-Host Execution Log
+              </div>
+              <DDLDistributedQueueHostLogTable records={selectedEntry.records} />
+            </div>
+          </div>
+        </ScrollArea>
+      </div>
+    );
+  }
+);
 
 interface DistributedDDLQueueAggregateViewProps {
-    records: DDLRecord[];
-    isLoading: boolean;
+  records: DDLRecord[];
+  isLoading: boolean;
 }
 
-const DistributedDDLQueueAggregateView = memo(({
-    records,
-    isLoading
-}: DistributedDDLQueueAggregateViewProps) => {
+const DistributedDDLQueueAggregateView = memo(
+  ({ records, isLoading }: DistributedDDLQueueAggregateViewProps) => {
     const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
 
     const data = useMemo(() => {
-        const grouped: GroupedDDLEntry[] = [];
-        let currentEntry: GroupedDDLEntry | null = null;
+      const grouped: GroupedDDLEntry[] = [];
+      let currentEntry: GroupedDDLEntry | null = null;
 
-        records.forEach((row) => {
-            if (!currentEntry || currentEntry.entry !== row.entry) {
-                currentEntry = {
-                    entry: row.entry,
-                    entry_version: row.entry_version,
-                    initiator_host: row.initiator_host,
-                    initiator_port: row.initiator_port,
-                    cluster: row.cluster,
-                    query: row.query,
-                    query_create_time: row.query_create_time,
-                    statusCounts: {},
-                    records: [],
-                    hosts_count: 0,
-                };
-                grouped.push(currentEntry);
-            }
-            currentEntry.records.push(row);
-            currentEntry.hosts_count++;
-            currentEntry.statusCounts[row.status] = (currentEntry.statusCounts[row.status] || 0) + 1;
-        });
-        return grouped;
+      records.forEach((row) => {
+        if (!currentEntry || currentEntry.entry !== row.entry) {
+          currentEntry = {
+            entry: row.entry,
+            entry_version: row.entry_version,
+            initiator_host: row.initiator_host,
+            initiator_port: row.initiator_port,
+            cluster: row.cluster,
+            query: row.query,
+            query_create_time: row.query_create_time,
+            statusCounts: {},
+            records: [],
+            hosts_count: 0,
+          };
+          grouped.push(currentEntry);
+        }
+        currentEntry.records.push(row);
+        currentEntry.hosts_count++;
+        currentEntry.statusCounts[row.status] = (currentEntry.statusCounts[row.status] || 0) + 1;
+      });
+      return grouped;
     }, [records]);
 
     const selectedEntry = useMemo(() => {
-        if (!selectedEntryId) return null;
-        return data.find(g => g.entry === selectedEntryId) || null;
+      if (!selectedEntryId) return null;
+      return data.find((g) => g.entry === selectedEntryId) || null;
     }, [data, selectedEntryId]);
 
-    const tableMeta = useMemo(() => [
+    const tableMeta = useMemo(
+      () => [
         { name: "entry", type: "String" },
         { name: "query_create_time", type: "DateTime" },
         { name: "cluster", type: "String" },
         { name: "query", type: "String" },
         { name: "statusCounts", type: "Object" },
         { name: "hosts_count", type: "UInt64" },
-    ], []);
-
-    const fieldOptions: FieldOption[] = useMemo(() => [
-        {
-            name: "entry",
-            title: "Entry",
-            width: 180,
-            format: (val) => <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
-        },
-        {
-            name: "query_create_time",
-            title: "Created",
-            width: 140,
-            format: (val) => <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
-        },
-        {
-            name: "cluster",
-            title: "Cluster",
-            width: 150,
-            format: (val) => <span className="text-xs text-muted-foreground">{String(val)}</span>
-        },
-        {
-            name: "query",
-            title: "Query",
-            format: (val) => (
-                <HoverCard openDelay={200} closeDelay={100}>
-                    <HoverCardTrigger asChild>
-                        <div className="truncate text-xs text-muted-foreground opacity-80">
-                            {truncateQuery(String(val))}
-                        </div>
-                    </HoverCardTrigger>
-                    <HoverCardContent className="w-[600px] p-0 shadow-2xl border-muted overflow-hidden">
-                        <ScrollArea className="max-h-[300px]">
-                            <div className="p-3">
-                                <ThemedSyntaxHighlighter
-                                    language="sql"
-                                    customStyle={{ margin: 0, padding: 0, fontSize: "11px" }}
-                                    showLineNumbers={false}
-                                    wrapLongLines={true}
-                                >
-                                    {String(val)}
-                                </ThemedSyntaxHighlighter>
-                            </div>
-                        </ScrollArea>
-                    </HoverCardContent>
-                </HoverCard>
-            )
-        },
-        {
-            name: "statusCounts",
-            title: "Status",
-            width: 140,
-            format: (val) => {
-                const counts = val as Record<string, number>;
-                const total = Object.values(counts).reduce((a, b) => a + b, 0);
-                return <StatusSummary statusCounts={counts} total={total} />;
-            }
-        },
-        {
-            name: "hosts_count",
-            title: "Hosts",
-            width: 60,
-            align: "right",
-            format: (val) => (
-                <span className="font-bold tabular-nums text-xs text-muted-foreground">{String(val)}</span>
-            )
-        }
-    ], []);
-
-    return (
-        <PanelGroup direction="horizontal" className="h-full">
-            {/* Left Panel: Table */}
-            <Panel defaultSize={selectedEntry ? 60 : 100} minSize={30} className="flex flex-col overflow-hidden">
-                <DataTable
-                    data={data as any}
-                    meta={tableMeta}
-                    defaultSort={{
-                        column: "entry",
-                        direction: "asc"
-                    }}
-                    fieldOptions={fieldOptions}
-                    showIndexColumn
-                    isLoading={isLoading}
-                    onRowClick={(row) => setSelectedEntryId(row.entry as string)}
-                    selectedRowId={selectedEntryId}
-                    idField="entry"
-                    stickyHeader
-                    className="flex-1"
-                />
-            </Panel>
-
-            {selectedEntry && (
-                <>
-                    <PanelResizeHandle className="w-[1px] bg-border hover:bg-primary/50 transition-colors cursor-col-resize active:bg-primary" />
-                    <Panel defaultSize={40} minSize={25} className="flex flex-col overflow-hidden text-clip">
-                        <DDLDistributedQueueDetailPane
-                            selectedEntry={selectedEntry}
-                            onClose={() => setSelectedEntryId(null)}
-                        />
-                    </Panel>
-                </>
-            )}
-        </PanelGroup>
+      ],
+      []
     );
-});
 
-
-interface DistributedDDLQueueRawViewProps {
-    data: DDLRecord[];
-    isLoading: boolean;
-}
-
-const DistributedDDLQueueRawView = memo(({ data, isLoading }: DistributedDDLQueueRawViewProps) => {
-    const tableMeta = useMemo(() => [
-        { name: "entry", type: "String" },
-        { name: "query_create_time", type: "DateTime" },
-        { name: "host", type: "String" },
-        { name: "status", type: "String" },
-        { name: "query", type: "String" },
-        { name: "query_duration_ms", type: "UInt64" },
-    ], []);
-
-    const fieldOptions: FieldOption[] = useMemo(() => [
+    const fieldOptions: FieldOption[] = useMemo(
+      () => [
         {
-            name: "entry",
-            title: "Entry",
-            width: 180,
-            format: (val) => <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
+          name: "entry",
+          title: "Entry",
+          width: 180,
+          format: (val) => (
+            <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
+          ),
         },
         {
-            name: "query_create_time",
-            title: "Created",
-            width: 180,
-            format: (val) => <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
+          name: "query_create_time",
+          title: "Created",
+          width: 140,
+          format: (val) => (
+            <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
+          ),
         },
         {
-            name: "host",
-            title: "Host",
-            width: 150,
-            format: (val) => <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
+          name: "cluster",
+          title: "Cluster",
+          width: 150,
+          format: (val) => <span className="text-xs text-muted-foreground">{String(val)}</span>,
         },
         {
-            name: "status",
-            title: "Status",
-            width: 100,
-            format: (val) => (
-                <div className="flex items-center gap-1.5 min-w-[80px]">
-                    <StatusIcon status={String(val)} />
-                    <span className="text-xs font-medium tabular-nums text-muted-foreground">{String(val)}</span>
+          name: "query",
+          title: "Query",
+          format: (val) => (
+            <HoverCard openDelay={200} closeDelay={100}>
+              <HoverCardTrigger asChild>
+                <div className="truncate text-xs text-muted-foreground opacity-80">
+                  {truncateQuery(String(val))}
                 </div>
-            )
+              </HoverCardTrigger>
+              <HoverCardContent className="w-[600px] p-0 shadow-2xl border-muted overflow-hidden">
+                <ScrollArea className="max-h-[300px]">
+                  <div className="p-3">
+                    <ThemedSyntaxHighlighter
+                      language="sql"
+                      customStyle={{ margin: 0, padding: 0, fontSize: "11px" }}
+                      showLineNumbers={false}
+                      wrapLongLines={true}
+                    >
+                      {String(val)}
+                    </ThemedSyntaxHighlighter>
+                  </div>
+                </ScrollArea>
+              </HoverCardContent>
+            </HoverCard>
+          ),
         },
         {
-            name: "query",
-            title: "Query",
-            format: (val) => (
-                <HoverCard openDelay={200} closeDelay={100}>
-                    <HoverCardTrigger asChild>
-                        <div className="truncate text-xs text-muted-foreground opacity-80">
-                            {truncateQuery(String(val))}
-                        </div>
-                    </HoverCardTrigger>
-                    <HoverCardContent className="w-[600px] p-0 shadow-2xl border-muted overflow-hidden">
-                        <ScrollArea className="max-h-[300px]">
-                            <div className="p-3">
-                                <ThemedSyntaxHighlighter
-                                    language="sql"
-                                    customStyle={{ margin: 0, padding: 0, fontSize: "11px" }}
-                                    showLineNumbers={false}
-                                    wrapLongLines={true}
-                                >
-                                    {String(val)}
-                                </ThemedSyntaxHighlighter>
-                            </div>
-                        </ScrollArea>
-                    </HoverCardContent>
-                </HoverCard>
-            )
+          name: "statusCounts",
+          title: "Status",
+          width: 140,
+          format: (val) => {
+            const counts = val as Record<string, number>;
+            const total = Object.values(counts).reduce((a, b) => a + b, 0);
+            return <StatusSummary statusCounts={counts} total={total} />;
+          },
         },
         {
-            name: "query_duration_ms",
-            title: "Duration",
-            width: 80,
-            align: "right",
-            format: (val) => (
-                <span className="text-xs tabular-nums text-muted-foreground">
-                    {val !== undefined ? `${Formatter.getInstance().getFormatter("millisecond")(val)}` : "-"}
-                </span>
-            )
-        }
-    ], []);
+          name: "hosts_count",
+          title: "Hosts",
+          width: 60,
+          align: "right",
+          format: (val) => (
+            <span className="font-bold tabular-nums text-xs text-muted-foreground">
+              {String(val)}
+            </span>
+          ),
+        },
+      ],
+      []
+    );
 
     return (
-        <DataTable
+      <PanelGroup direction="horizontal" className="h-full">
+        {/* Left Panel: Table */}
+        <Panel
+          defaultSize={selectedEntry ? 60 : 100}
+          minSize={30}
+          className="flex flex-col overflow-hidden"
+        >
+          <DataTable
             data={data as any}
             meta={tableMeta}
+            defaultSort={{
+              column: "entry",
+              direction: "asc",
+            }}
             fieldOptions={fieldOptions}
             showIndexColumn
             isLoading={isLoading}
+            onRowClick={(row) => setSelectedEntryId(row.entry as string)}
+            selectedRowId={selectedEntryId}
+            idField="entry"
             stickyHeader
             className="flex-1"
-        />
+          />
+        </Panel>
+
+        {selectedEntry && (
+          <>
+            <PanelResizeHandle className="w-[1px] bg-border hover:bg-primary/50 transition-colors cursor-col-resize active:bg-primary" />
+            <Panel
+              defaultSize={40}
+              minSize={25}
+              className="flex flex-col overflow-hidden text-clip"
+            >
+              <DDLDistributedQueueDetailPane
+                selectedEntry={selectedEntry}
+                onClose={() => setSelectedEntryId(null)}
+              />
+            </Panel>
+          </>
+        )}
+      </PanelGroup>
     );
-});
+  }
+);
 
-
-interface DDLDistributedQueueLogViewProps {
-    timeSpan: TimeSpan;
-    refreshKey: string;
+interface DistributedDDLQueueRawViewProps {
+  data: DDLRecord[];
+  isLoading: boolean;
 }
 
-const DDLDistributedQueueLogView = memo(({ timeSpan, refreshKey }: DDLDistributedQueueLogViewProps) => {
+const DistributedDDLQueueRawView = memo(({ data, isLoading }: DistributedDDLQueueRawViewProps) => {
+  const tableMeta = useMemo(
+    () => [
+      { name: "entry", type: "String" },
+      { name: "query_create_time", type: "DateTime" },
+      { name: "host", type: "String" },
+      { name: "status", type: "String" },
+      { name: "query", type: "String" },
+      { name: "query_duration_ms", type: "UInt64" },
+    ],
+    []
+  );
+
+  const fieldOptions: FieldOption[] = useMemo(
+    () => [
+      {
+        name: "entry",
+        title: "Entry",
+        width: 180,
+        format: (val) => (
+          <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
+        ),
+      },
+      {
+        name: "query_create_time",
+        title: "Created",
+        width: 180,
+        format: (val) => (
+          <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
+        ),
+      },
+      {
+        name: "host",
+        title: "Host",
+        width: 150,
+        format: (val) => (
+          <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
+        ),
+      },
+      {
+        name: "status",
+        title: "Status",
+        width: 100,
+        format: (val) => (
+          <div className="flex items-center gap-1.5 min-w-[80px]">
+            <StatusIcon status={String(val)} />
+            <span className="text-xs font-medium tabular-nums text-muted-foreground">
+              {String(val)}
+            </span>
+          </div>
+        ),
+      },
+      {
+        name: "query",
+        title: "Query",
+        format: (val) => (
+          <HoverCard openDelay={200} closeDelay={100}>
+            <HoverCardTrigger asChild>
+              <div className="truncate text-xs text-muted-foreground opacity-80">
+                {truncateQuery(String(val))}
+              </div>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-[600px] p-0 shadow-2xl border-muted overflow-hidden">
+              <ScrollArea className="max-h-[300px]">
+                <div className="p-3">
+                  <ThemedSyntaxHighlighter
+                    language="sql"
+                    customStyle={{ margin: 0, padding: 0, fontSize: "11px" }}
+                    showLineNumbers={false}
+                    wrapLongLines={true}
+                  >
+                    {String(val)}
+                  </ThemedSyntaxHighlighter>
+                </div>
+              </ScrollArea>
+            </HoverCardContent>
+          </HoverCard>
+        ),
+      },
+      {
+        name: "query_duration_ms",
+        title: "Duration",
+        width: 80,
+        align: "right",
+        format: (val) => (
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {val !== undefined
+              ? `${Formatter.getInstance().getFormatter("millisecond")(val)}`
+              : "-"}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
+  return (
+    <DataTable
+      data={data as any}
+      meta={tableMeta}
+      fieldOptions={fieldOptions}
+      showIndexColumn
+      isLoading={isLoading}
+      stickyHeader
+      className="flex-1"
+    />
+  );
+});
+
+interface DDLDistributedQueueLogViewProps {
+  timeSpan: TimeSpan;
+  refreshKey: string;
+}
+
+const DDLDistributedQueueLogView = memo(
+  ({ timeSpan, refreshKey }: DDLDistributedQueueLogViewProps) => {
     const { connection } = useConnection();
     const [rawRows, setRawRows] = useState<DDLRecord[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
-        if (!connection) return;
+      if (!connection) return;
 
-        setIsLoading(true);
-        setError(null);
-        try {
-            let sql = `
+      setIsLoading(true);
+      setError(null);
+      try {
+        let sql = `
 SELECT * 
 FROM system.distributed_ddl_queue 
 WHERE query_create_time >= {from:String} AND query_create_time <= {to:String}
 ORDER BY entry, host`;
-            sql = replaceTimeSpanParams(sql, timeSpan, connection.metadata.timezone || "UTC");
-            const response = await connection.query(sql, { default_format: "JSON" }).response;
-            const fetchedRawRows = response.data.json<any>().data as DDLRecord[];
+        sql = replaceTimeSpanParams(sql, timeSpan, connection.metadata.timezone || "UTC");
+        const response = await connection.query(sql, { default_format: "JSON" }).response;
+        const fetchedRawRows = response.data.json<any>().data as DDLRecord[];
 
-            // Find common suffix from first 5 records
-            const first5Hosts = fetchedRawRows.slice(0, 5).map(r => r.host);
-            const commonSuffix = hostNameManager.findCommonSuffix(first5Hosts);
+        // Find common suffix from first 5 records
+        const first5Hosts = fetchedRawRows.slice(0, 5).map((r) => r.host);
+        const commonSuffix = hostNameManager.findCommonSuffix(first5Hosts);
 
-            const rows = fetchedRawRows.map(row => ({
-                ...row,
-                host: (commonSuffix.length > 0 && row.host.endsWith(commonSuffix))
-                    ? row.host.slice(0, -commonSuffix.length)
-                    : row.host,
-                initiator_host: (commonSuffix.length > 0 && row.initiator_host.endsWith(commonSuffix))
-                    ? row.initiator_host.slice(0, -commonSuffix.length)
-                    : row.initiator_host,
-            }));
+        const rows = fetchedRawRows.map((row) => ({
+          ...row,
+          host:
+            commonSuffix.length > 0 && row.host.endsWith(commonSuffix)
+              ? row.host.slice(0, -commonSuffix.length)
+              : row.host,
+          initiator_host:
+            commonSuffix.length > 0 && row.initiator_host.endsWith(commonSuffix)
+              ? row.initiator_host.slice(0, -commonSuffix.length)
+              : row.initiator_host,
+        }));
 
-            setRawRows(rows);
-        } catch (err: any) {
-            console.error("Error fetching DDL queue data:", err);
-            setError(err.message || "Failed to fetch data");
-        } finally {
-            setIsLoading(false);
-        }
+        setRawRows(rows);
+      } catch (err: any) {
+        console.error("Error fetching DDL queue data:", err);
+        setError(err.message || "Failed to fetch data");
+      } finally {
+        setIsLoading(false);
+      }
     }, [connection, timeSpan]);
 
     useEffect(() => {
-        fetchData();
+      fetchData();
     }, [fetchData, refreshKey]);
 
     if (error) {
-        return <div className="p-4 text-red-500 text-center flex-1 flex items-center justify-center">Error: {error}</div>;
+      return (
+        <div className="p-4 text-red-500 text-center flex-1 flex items-center justify-center">
+          Error: {error}
+        </div>
+      );
     }
 
     return (
-        <Tabs defaultValue="aggregate" className="flex flex-col h-full">
-            <div className="flex-shrink-0 px-2 py-0 border-b">
-                <TabsList className="bg-transparent h-8 p-0 gap-4">
-                    <TabsTrigger
-                        value="aggregate"
-                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 pb-1 h-8 text-xs font-semibold"
-                    >
-                        Aggregated Entries
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="raw"
-                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 pb-1 h-8 text-xs font-semibold"
-                    >
-                        Raw Entries
-                    </TabsTrigger>
-                </TabsList>
-            </div>
+      <Tabs defaultValue="aggregate" className="flex flex-col h-full">
+        <div className="flex-shrink-0 px-2 py-0 border-b">
+          <TabsList className="bg-transparent h-8 p-0 gap-4">
+            <TabsTrigger
+              value="aggregate"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 pb-1 h-8 text-xs font-semibold"
+            >
+              Aggregated Entries
+            </TabsTrigger>
+            <TabsTrigger
+              value="raw"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 pb-1 h-8 text-xs font-semibold"
+            >
+              Raw Entries
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-            <div className="flex-1 min-h-0">
-                <TabsContent value="aggregate" className="h-full m-0 p-0 focus-visible:outline-none">
-                    <DistributedDDLQueueAggregateView
-                        records={rawRows}
-                        isLoading={isLoading}
-                    />
-                </TabsContent>
-                <TabsContent value="raw" className="h-full m-0 p-0 focus-visible:outline-none">
-                    <DistributedDDLQueueRawView
-                        data={rawRows}
-                        isLoading={isLoading}
-                    />
-                </TabsContent>
-            </div>
-        </Tabs>
+        <div className="flex-1 min-h-0">
+          <TabsContent value="aggregate" className="h-full m-0 p-0 focus-visible:outline-none">
+            <DistributedDDLQueueAggregateView records={rawRows} isLoading={isLoading} />
+          </TabsContent>
+          <TabsContent value="raw" className="h-full m-0 p-0 focus-visible:outline-none">
+            <DistributedDDLQueueRawView data={rawRows} isLoading={isLoading} />
+          </TabsContent>
+        </div>
+      </Tabs>
     );
-});
-
+  }
+);
 
 const ddlQueueDashboard: Dashboard = {
-    version: 3,
-    filter: {},
-    charts: [
-        {
-            type: "line",
-            titleOption: {
-                title: "DDL Queue Entries",
-                align: "center",
-            },
-            width: 12,
-            legendOption: {
-                placement: "none",
-            },
-            query: {
-                sql: `
+  version: 3,
+  filter: {},
+  charts: [
+    {
+      type: "line",
+      titleOption: {
+        title: "DDL Queue Entries",
+        align: "center",
+      },
+      width: 12,
+      legendOption: {
+        placement: "none",
+      },
+      query: {
+        sql: `
 SELECT 
     toStartOfInterval(query_create_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
     count() AS query_count
@@ -644,21 +710,21 @@ WHERE query_create_time >= now() - {seconds:UInt32}
 GROUP BY t
 ORDER BY t
 `,
-            },
-        } as TimeseriesDescriptor,
-        {
-            type: "line",
-            titleOption: {
-                title: "DDL Queue Entries By Host",
-                align: "center",
-            },
-            width: 12,
-            legendOption: {
-                placement: "bottom",
-                values: ["sum"]
-            },
-            query: {
-                sql: `
+      },
+    } as TimeseriesDescriptor,
+    {
+      type: "line",
+      titleOption: {
+        title: "DDL Queue Entries By Host",
+        align: "center",
+      },
+      width: 12,
+      legendOption: {
+        placement: "bottom",
+        values: ["sum"],
+      },
+      query: {
+        sql: `
 SELECT 
     toStartOfInterval(query_create_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
     host,
@@ -668,72 +734,71 @@ WHERE query_create_time >= now() - {seconds:UInt32}
 GROUP BY t, host
 ORDER BY t
 `,
-            },
-        } as TimeseriesDescriptor,
-    ],
+      },
+    } as TimeseriesDescriptor,
+  ],
 };
 
 const SystemTableDistributedDDLQueue = () => {
-    const filterRef = useRef<TimeSpanSelector | null>(null);
-    const panelsRef = useRef<DashboardPanelsRef>(null);
-    const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | null>(null);
-    const [refreshKey, setRefreshKey] = useState<string>(`init_${Date.now()}`);
+  const filterRef = useRef<TimeSpanSelector | null>(null);
+  const panelsRef = useRef<DashboardPanelsRef>(null);
+  const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | null>(null);
+  const [refreshKey, setRefreshKey] = useState<string>(`init_${Date.now()}`);
 
-    const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3], []);
+  const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3], []);
 
-    const onQueryConditionChange = useCallback(() => {
-        if (filterRef.current) {
-            const span = filterRef.current.getSelectedTimeSpan();
-            if (span) {
-                const timeSpan = span.getTimeSpan();
-                setSelectedTimeSpan(timeSpan);
-                setRefreshKey(`refresh_${Date.now()}`);
-            }
-        }
-    }, []);
+  const onQueryConditionChange = useCallback(() => {
+    if (filterRef.current) {
+      const span = filterRef.current.getSelectedTimeSpan();
+      if (span) {
+        const timeSpan = span.getTimeSpan();
+        setSelectedTimeSpan(timeSpan);
+        setRefreshKey(`refresh_${Date.now()}`);
+      }
+    }
+  }, []);
 
-    useEffect(() => {
-        if (!selectedTimeSpan) {
-            if (filterRef.current) {
-                const span = filterRef.current.getSelectedTimeSpan();
-                setSelectedTimeSpan(span ? span.getTimeSpan() : defaultTimeSpan.getTimeSpan());
-            } else {
-                setSelectedTimeSpan(defaultTimeSpan.getTimeSpan());
-            }
-        }
-    }, [defaultTimeSpan, selectedTimeSpan]);
+  useEffect(() => {
+    if (!selectedTimeSpan) {
+      if (filterRef.current) {
+        const span = filterRef.current.getSelectedTimeSpan();
+        setSelectedTimeSpan(span ? span.getTimeSpan() : defaultTimeSpan.getTimeSpan());
+      } else {
+        setSelectedTimeSpan(defaultTimeSpan.getTimeSpan());
+      }
+    }
+  }, [defaultTimeSpan, selectedTimeSpan]);
 
-    const currentTimeSpan = useMemo(() => {
-        if (selectedTimeSpan) return selectedTimeSpan;
-        if (filterRef.current) {
-            const span = filterRef.current.getSelectedTimeSpan();
-            if (span) return span.getTimeSpan();
-        }
-        return defaultTimeSpan.getTimeSpan();
-    }, [selectedTimeSpan, defaultTimeSpan]);
+  const currentTimeSpan = useMemo(() => {
+    if (selectedTimeSpan) return selectedTimeSpan;
+    if (filterRef.current) {
+      const span = filterRef.current.getSelectedTimeSpan();
+      if (span) return span.getTimeSpan();
+    }
+    return defaultTimeSpan.getTimeSpan();
+  }, [selectedTimeSpan, defaultTimeSpan]);
 
-    return (
-        <div className="h-full w-full bg-background overflow-hidden px-2 flex flex-col">
-            {/* Header with Time Selector */}
-            <div className="flex-shrink-0 flex justify-end items-center gap-2 pt-2 pb-2">
-                <TimeSpanSelector
-                    ref={filterRef}
-                    size="sm"
-                    defaultTimeSpan={defaultTimeSpan}
-                    onSelectedSpanChanged={onQueryConditionChange}
-                />
-            </div>
+  return (
+    <div className="h-full w-full bg-background overflow-hidden px-2 flex flex-col">
+      {/* Header with Time Selector */}
+      <div className="flex-shrink-0 flex justify-end items-center gap-2 pt-2 pb-2">
+        <TimeSpanSelector
+          ref={filterRef}
+          size="sm"
+          defaultTimeSpan={defaultTimeSpan}
+          onSelectedSpanChanged={onQueryConditionChange}
+        />
+      </div>
 
-            <DashboardPanels
-                ref={panelsRef}
-                dashboard={ddlQueueDashboard}
-                selectedTimeSpan={currentTimeSpan}
-            >
-                <DDLDistributedQueueLogView timeSpan={currentTimeSpan} refreshKey={refreshKey} />
-            </DashboardPanels>
-
-        </div>
-    );
+      <DashboardPanels
+        ref={panelsRef}
+        dashboard={ddlQueueDashboard}
+        selectedTimeSpan={currentTimeSpan}
+      >
+        <DDLDistributedQueueLogView timeSpan={currentTimeSpan} refreshKey={refreshKey} />
+      </DashboardPanels>
+    </div>
+  );
 };
 
 export default memo(SystemTableDistributedDDLQueue);

@@ -1,8 +1,13 @@
+import { useConnection } from "@/components/connection/connection-context";
 import { HighlightableCommandItem } from "@/components/shared/cmdk/cmdk-extension";
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-
-import { useConnection } from "@/lib/connection/connection-context";
 import { hostNameManager } from "@/lib/host-name-manager";
 import { cn } from "@/lib/utils";
 import { useCommandState } from "cmdk";
@@ -43,7 +48,11 @@ export const CommandItemTableHeader: React.FC<React.PropsWithChildren> = ({ chil
   );
 };
 
-export function SchemaTreeHostSelector({ clusterName, nodeName, onHostChange }: SchemaTreeHostSelectorProps) {
+export function SchemaTreeHostSelector({
+  clusterName,
+  nodeName,
+  onHostChange,
+}: SchemaTreeHostSelectorProps) {
   const { connection } = useConnection();
   const [isOpen, setIsOpen] = useState(false);
   const [data, setData] = useState<HostInfo[]>([]);
@@ -52,7 +61,9 @@ export function SchemaTreeHostSelector({ clusterName, nodeName, onHostChange }: 
   const [initialSelectedValue, setInitialSelectedValue] = useState<string | null>(null);
 
   // Strip the Kubernetes cluster suffix if present for shorter name
-  const [initialSelectedHost, setInitialSelectedHost] = useState<string>(nodeName.replace(/\.svc\.cluster\.local$/, ""));
+  const [initialSelectedHost, setInitialSelectedHost] = useState<string>(
+    nodeName.replace(/\.svc\.cluster\.local$/, "")
+  );
 
   useEffect(() => {
     setData([]);
@@ -81,7 +92,7 @@ ORDER BY shard, replica`,
             const rawHosts = (response.data.data || []) as any[];
             const hosts: HostInfo[] = rawHosts.map((h) => ({
               ...h,
-              shortName: hostNameManager.getShortHostname(h.name)
+              shortName: hostNameManager.getShortHostname(h.name),
             }));
 
             setData(hosts);
@@ -126,7 +137,10 @@ ORDER BY shard, replica`,
       </PopoverTrigger>
       <PopoverContent className="w-[450px] p-0" align="start">
         {loading ? (
-          <div className="p-4 text-sm items-center flex gap-2 justify-center text-center text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />Loading...</div>
+          <div className="p-4 text-sm items-center flex gap-2 justify-center text-center text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            Loading...
+          </div>
         ) : (
           <Command
             defaultValue={initialSelectedValue}
@@ -145,7 +159,8 @@ ORDER BY shard, replica`,
                 <>
                   <CommandEmpty className="p-2 text-xs text-center">No hosts found.</CommandEmpty>
                   {data.map((node, idx) => {
-                    const isSelected = node.shortName === initialSelectedHost || node.address === nodeName;
+                    const isSelected =
+                      node.shortName === initialSelectedHost || node.address === nodeName;
 
                     return (
                       <CommandItem
@@ -182,7 +197,12 @@ ORDER BY shard, replica`,
 
                         {/* Hostname column */}
                         <div className="flex items-center min-w-0">
-                          <span className={cn("text-xs truncate", isSelected && "text-primary font-medium")}>
+                          <span
+                            className={cn(
+                              "text-xs truncate",
+                              isSelected && "text-primary font-medium"
+                            )}
+                          >
                             <HighlightableCommandItem text={node.shortName} />
                           </span>
                         </div>

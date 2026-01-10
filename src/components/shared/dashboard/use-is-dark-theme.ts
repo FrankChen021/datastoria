@@ -41,4 +41,3 @@ const useIsDarkTheme = (): boolean => {
 };
 
 export default useIsDarkTheme;
-

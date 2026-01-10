@@ -1,16 +1,13 @@
-import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnsiText, containsAnsiCodes } from "@/lib/ansi-parser";
-import { parseErrorLocation, type ErrorLocation } from "@/lib/clickhouse-error-parser";
-import { AlertCircleIcon } from "lucide-react";
-import { memo, useMemo, useState } from "react";
-import { Alert, AlertDescription, AlertTitle } from "../../ui/alert";
+import { useMemo, useState } from "react";
 import type { QueryRequestViewModel, QueryResponseViewModel } from "../query-view-model";
 import { ExplainASTResponseView } from "./explain-ast-response-view";
 import { ExplainPipelineResponseView } from "./explain-pipeline-response-view";
 import { ExplainQueryResponseView } from "./explain-query-response-view";
 import { ExplainSyntaxResponseView } from "./explain-syntax-response-view";
+import { QueryResponseErrorView, type QueryErrorDisplay } from "./query-response-error-view";
 import { QueryResponseHttpHeaderView } from "./query-response-http-header-view";
 
 interface QueryResponseViewProps {
@@ -19,118 +16,7 @@ interface QueryResponseViewProps {
   isLoading?: boolean;
   sql?: string;
   view?: string;
-}
-
-export interface QueryErrorDisplay {
-  message: string;
-  data: unknown;
-  httpHeaders?: Record<string, string>;
-}
-
-interface ErrorLocationViewProps {
-  errorLocation: ErrorLocation;
-}
-
-const ErrorLocationView = memo(function ErrorLocationView({ errorLocation }: ErrorLocationViewProps) {
-  const codeString = useMemo(() => {
-    return errorLocation.contextLines
-      .map((line) => {
-        const linePrefix = `${String(line.lineNum).padStart(4, " ")} | `;
-        let text = `${linePrefix}${line.content}`;
-        if (line.isErrorLine) {
-          const pointerPrefix = `${" ".repeat(4)} | `;
-          const pointer = `${" ".repeat(errorLocation.caretPosition)}^${errorLocation.message ? ` ${errorLocation.message}` : ""}`;
-          text += `\n${pointerPrefix}${pointer}`;
-        }
-        return text;
-      })
-      .join("\n");
-  }, [errorLocation]);
-
-  return (
-    <div className="mb-3">
-      <div className="my-2 font-medium">
-        Error Context: Line {errorLocation.lineNumber}, Col {errorLocation.columnNumber}:
-      </div>
-      <div className="font-mono text-sm rounded overflow-hidden">
-        <ThemedSyntaxHighlighter language="sql" customStyle={{ margin: 0, fontSize: "0.875rem" }}>
-          {codeString}
-        </ThemedSyntaxHighlighter>
-      </div>
-    </div>
-  );
-});
-
-export function ApiErrorView({ error, sql }: { error: QueryErrorDisplay; sql?: string }) {
-  const clickHouseErrorCode = error.httpHeaders?.["x-clickhouse-exception-code"];
-
-  // Memoize detailMessage computation
-  const detailMessage = useMemo(() => {
-    if (typeof error.data === "object" && error.data !== null) {
-      return JSON.stringify(error.data, null, 2);
-    }
-    if (typeof error.data === "string") {
-      return error.data;
-    }
-    return null;
-  }, [error.data]);
-
-  // Parse line and column for exception code 62 - memoized to avoid recalculation
-  const errorLocation = useMemo(() => {
-    return parseErrorLocation(clickHouseErrorCode, detailMessage, sql);
-  }, [clickHouseErrorCode, detailMessage, sql]);
-
-  const [showFullDetailMessage, setShowFullDetailMessage] = useState(false);
-
-  // Memoize truncation logic
-  const shouldTruncateDetailMessage = useMemo(
-    () => errorLocation && detailMessage && detailMessage.length > 128,
-    [errorLocation, detailMessage]
-  );
-
-  const displayDetailMessage = useMemo(
-    () =>
-      shouldTruncateDetailMessage && !showFullDetailMessage && detailMessage
-        ? detailMessage.substring(0, 128)
-        : detailMessage,
-    [shouldTruncateDetailMessage, showFullDetailMessage, detailMessage]
-  );
-
-  return (
-    <Alert variant="destructive" className="border-0 p-1 text-destructive">
-      <div className="flex items-center gap-2">
-        <AlertCircleIcon />
-        <AlertTitle className="mb-0">{error.message}</AlertTitle>
-      </div>
-      <AlertDescription className="mt-2">
-        {detailMessage && detailMessage.length > 0 && (
-          <div className="whitespace-pre-wrap overflow-x-auto font-mono text-xs bg-muted/50 dark:bg-muted/30">
-            {displayDetailMessage}
-            {shouldTruncateDetailMessage && !showFullDetailMessage && (
-              <>
-                {" "}
-                <span
-                  className="text-primary underline cursor-pointer hover:text-primary/80 font-mono inline"
-                  onClick={() => setShowFullDetailMessage(true)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setShowFullDetailMessage(true);
-                    }
-                  }}
-                >
-                  ...
-                </span>
-              </>
-            )}
-          </div>
-        )}
-        {errorLocation && <ErrorLocationView errorLocation={errorLocation} />}
-      </AlertDescription>
-    </Alert>
-  );
+  tabId?: string;
 }
 
 export function QueryResponseView({
@@ -139,6 +25,7 @@ export function QueryResponseView({
   isLoading = false,
   sql,
   view = "query",
+  tabId,
 }: QueryResponseViewProps) {
   const [selectedTab, setSelectedTab] = useState("result");
 
@@ -158,7 +45,9 @@ export function QueryResponseView({
   // Memoize response text computation
   const responseText = useMemo(
     () =>
-      typeof queryResponse.data === "string" ? queryResponse.data : JSON.stringify(queryResponse.data, null, 2) || "",
+      typeof queryResponse.data === "string"
+        ? queryResponse.data
+        : JSON.stringify(queryResponse.data, null, 2) || "",
     [queryResponse.data]
   );
 
@@ -176,7 +65,9 @@ export function QueryResponseView({
     }
 
     if (view === "syntax") {
-      return <ExplainSyntaxResponseView queryRequest={queryRequest} queryResponse={queryResponse} />;
+      return (
+        <ExplainSyntaxResponseView queryRequest={queryRequest} queryResponse={queryResponse} />
+      );
     }
 
     // Default query view rendering
@@ -219,12 +110,14 @@ export function QueryResponseView({
   }
 
   if (view === "pipeline") {
-    return <ExplainPipelineResponseView queryRequest={queryRequest} queryResponse={queryResponse} />;
+    return (
+      <ExplainPipelineResponseView queryRequest={queryRequest} queryResponse={queryResponse} />
+    );
   }
 
   // For all other views, use the standard Result + Response Headers tab structure
   return (
-    <Tabs value={selectedTab} onValueChange={setSelectedTab} className="mt-2">
+    <Tabs value={selectedTab} onValueChange={setSelectedTab}>
       <div className="w-full border-b bg-background">
         <TabsList className="inline-flex min-w-full justify-start rounded-none border-0 h-auto p-0 bg-transparent flex-nowrap">
           <TabsTrigger
@@ -246,7 +139,7 @@ export function QueryResponseView({
 
       {error && (
         <TabsContent value="result">
-          <ApiErrorView error={error} sql={sql} />
+          <QueryResponseErrorView error={error} sql={sql} />
         </TabsContent>
       )}
 

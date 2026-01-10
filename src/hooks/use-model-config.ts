@@ -1,4 +1,7 @@
-import { ModelManager, MODEL_CONFIG_UPDATED_EVENT } from "@/lib/models/model-manager";
+import {
+  MODEL_CONFIG_UPDATED_EVENT,
+  ModelManager,
+} from "@/components/settings/models/model-manager";
 import { useCallback, useEffect, useState } from "react";
 
 export function useModelConfig() {

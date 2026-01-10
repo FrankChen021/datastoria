@@ -94,15 +94,19 @@ function searchNodes(
   currentPath: string[] = []
 ): TreeDataItem | null {
   const { segments, highlight, isGlobal } = context;
-  const isFolderNode = node.type ? node.type === "folder" : node.children !== undefined && node.children.length > 0;
+  const isFolderNode = node.type
+    ? node.type === "folder"
+    : node.children !== undefined && node.children.length > 0;
   const labelText = String(node.labelContent);
 
   // Global mode: fuzzy match at ANY level and recurse
   if (isGlobal) {
     const currentSegment = segments[0];
     const fuzzyMatch = context.match(node, currentSegment);
-    let matches = fuzzyMatch.matches;
-    let highlightedLabel = matches ? highlight(labelText, fuzzyMatch.start, fuzzyMatch.end) : labelText;
+    const matches = fuzzyMatch.matches;
+    const highlightedLabel = matches
+      ? highlight(labelText, fuzzyMatch.start, fuzzyMatch.end)
+      : labelText;
 
     // Always search children in global mode to find deeper matches
     const childrenResults: TreeDataItem[] = [];
@@ -304,7 +308,12 @@ function searchTreeFromGivenLevel(
     const result: TreeDataItem[] = [];
     for (const node of nodes) {
       if (node.children) {
-        const matchedChildren = searchTreeFromGivenLevel(node.children, context, startLevel, currentLevel + 1);
+        const matchedChildren = searchTreeFromGivenLevel(
+          node.children,
+          context,
+          startLevel,
+          currentLevel + 1
+        );
         if (matchedChildren.length > 0) {
           // Although we search from given level, we only show parent nodes when there's match
           // So that we can show some text to indicate no match found
@@ -337,7 +346,10 @@ export function searchTree(
     pathSeparator?: string;
     highlighter?: (text: string, start: number, end: number) => React.ReactNode;
     startLevel?: number; // Level to start searching from (0 = root, 1 = children of root, etc.)
-    match?: (node: TreeDataItem, pattern: string) => { matches: boolean; start: number; end: number };
+    match?: (
+      node: TreeDataItem,
+      pattern: string
+    ) => { matches: boolean; start: number; end: number };
   }
 ): TreeDataItem[] {
   if (search === "") {
@@ -352,7 +364,8 @@ export function searchTree(
   const startLevel = options?.startLevel ?? 0;
   const highlight =
     options?.highlighter ??
-    ((text: string, start: number, end: number) => TextHighlighter.highlight2(text, start, end, "text-yellow-500"));
+    ((text: string, start: number, end: number) =>
+      TextHighlighter.highlight2(text, start, end, "text-yellow-500"));
 
   // Default substringMatch implementation (case-sensitive)
   const substringMatch =
@@ -403,4 +416,3 @@ export function searchTree(
   // (when currentLevel < startLevel is false, it searches normally)
   return searchTreeFromGivenLevel(tree, context, startLevel);
 }
-

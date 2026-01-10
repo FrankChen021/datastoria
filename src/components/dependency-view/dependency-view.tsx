@@ -1,10 +1,10 @@
+import { useConnection } from "@/components/connection/connection-context";
 import FloatingProgressBar from "@/components/floating-progress-bar";
 import type { GraphEdge } from "@/components/shared/graphviz/Graph";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
 import { type DependencyTableInfo, type QueryError } from "@/lib/connection/connection";
-import { useConnection } from "@/lib/connection/connection-context";
 import { StringUtils } from "@/lib/string-utils";
 import { toastManager } from "@/lib/toast";
 import { X } from "lucide-react";
@@ -121,7 +121,8 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
         const tables: TableResponse[] = [];
         for (const [, tableInfo] of dependencyTables.entries()) {
           const isInTargetDatabase = tableInfo.database === database;
-          const dependsOnTargetDatabase = tableInfo.dependenciesDatabase?.includes(database) ?? false;
+          const dependsOnTargetDatabase =
+            tableInfo.dependenciesDatabase?.includes(database) ?? false;
 
           if (isInTargetDatabase || dependsOnTargetDatabase) {
             tables.push({
@@ -238,7 +239,9 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
       // Don't open the pane if the node is marked as "NOT FOUND"
       // A node is "NOT FOUND" when engine is empty or query is "NOT FOUND"
       const shouldReturn =
-        graphNode.category === "" || graphNode.query === "NOT FOUND" || graphNode.category === "Kafka";
+        graphNode.category === "" ||
+        graphNode.query === "NOT FOUND" ||
+        graphNode.category === "Kafka";
       if (shouldReturn) {
         return;
       }
@@ -259,7 +262,11 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
       {nodes.size > 0 && (
         <>
           {/* Left Panel: Dependency View */}
-          <Panel defaultSize={showTableNode ? 60 : 100} minSize={showTableNode ? 30 : 0} className="bg-background">
+          <Panel
+            defaultSize={showTableNode ? 60 : 100}
+            minSize={showTableNode ? 30 : 0}
+            className="bg-background"
+          >
             <DependencyGraphFlow
               nodes={nodes}
               edges={edges}
@@ -277,7 +284,12 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
 
           {/* Right Panel: Selected Table View */}
           {showTableNode && (
-            <Panel defaultSize={40} minSize={5} maxSize={70} className="bg-background shadow-lg flex flex-col">
+            <Panel
+              defaultSize={40}
+              minSize={5}
+              maxSize={70}
+              className="bg-background shadow-lg flex flex-col"
+            >
               {/* Header with close button */}
               <div className="flex items-center justify-between pl-2 border-b flex-shrink-0">
                 <OpenTableTabButton
@@ -288,7 +300,12 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
                   showDatabase={true}
                   className="truncate"
                 />
-                <Button variant="ghost" size="icon" onClick={handleCloseTableNode} className="h-8 w-8">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCloseTableNode}
+                  className="h-8 w-8"
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </div>

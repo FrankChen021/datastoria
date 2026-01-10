@@ -1,7 +1,7 @@
+import { useConnection } from "@/components/connection/connection-context";
 import { QueryListView, type ChatSessionStats } from "@/components/query-tab/query-list-view";
 import { TabManager } from "@/components/tab-manager";
 import { NUM_COLORS } from "@/lib/color-generator";
-import { useConnection } from "@/lib/connection/connection-context";
 import { Hash } from "@/lib/hash";
 import dynamic from "next/dynamic";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -46,18 +46,28 @@ function generateNewSessionId(previousSessionId: string | undefined): string {
 }
 
 // Dynamically import QueryInputView to prevent SSR issues with ace editor
-const QueryInputView = dynamic(() => import("./query-input/query-input-view").then((mod) => mod.QueryInputView), {
-  ssr: false,
-});
+const QueryInputView = dynamic(
+  () => import("./query-input/query-input-view").then((mod) => mod.QueryInputView),
+  {
+    ssr: false,
+  }
+);
 
 export interface QueryTabProps {
   tabId?: string;
   initialQuery?: string;
   initialMode?: "replace" | "insert";
+  initialExecute?: boolean;
   active?: boolean;
 }
 
-const QueryTabContent = ({ tabId, initialQuery, initialMode, active }: QueryTabProps) => {
+const QueryTabContent = ({
+  tabId,
+  initialQuery,
+  initialMode,
+  initialExecute,
+  active,
+}: QueryTabProps) => {
   const [mode, setMode] = useState<"sql" | "chat">("sql");
   const [isChatExecuting, setIsChatExecuting] = useState(false);
   const queryInputRef = useRef<QueryInputViewRef>(null);
@@ -66,7 +76,10 @@ const QueryTabContent = ({ tabId, initialQuery, initialMode, active }: QueryTabP
   const { executeQuery, isSqlExecuting } = useQueryExecutor();
 
   // Pending query state for handling mode switching
-  const [pendingQueryInfo, setPendingQueryInfo] = useState<{ query: string; mode: "replace" | "insert" } | null>(null);
+  const [pendingQueryInfo, setPendingQueryInfo] = useState<{
+    query: string;
+    mode: "replace" | "insert";
+  } | null>(null);
 
   // Session tracking for chat conversations
   const [currentSessionId, setCurrentSessionId] = useState<string>(() => uuidv7());
@@ -157,20 +170,35 @@ const QueryTabContent = ({ tabId, initialQuery, initialMode, active }: QueryTabP
   // Listen for query tab activation events
   useEffect(() => {
     const handler = (event: CustomEvent<import("@/components/tab-manager").OpenTabEventDetail>) => {
-      if (event.detail.type === "query" && event.detail.query) {
-        // Switch to SQL mode if not already
-        setMode("sql");
-        // Store query to be applied after mode switch renders
-        setPendingQueryInfo({
-          query: event.detail.query,
-          mode: event.detail.mode || "replace",
-        });
+      if (event.detail.type === "query") {
+        // Handle editor mode switch if specified
+        if (event.detail.editorMode) {
+          setMode(event.detail.editorMode);
+        }
+
+        // Handle query insertion if provided
+        if (event.detail.query) {
+          // Switch to SQL mode if not already (unless editorMode explicitly set to chat)
+          if (!event.detail.editorMode) {
+            setMode("sql");
+          }
+          // Store query to be applied after mode switch renders
+          setPendingQueryInfo({
+            query: event.detail.query,
+            mode: event.detail.mode || "replace",
+          });
+
+          // Trigger execution if requested
+          if (event.detail.execute) {
+            executeQuery(event.detail.query);
+          }
+        }
       }
     };
 
     const unsubscribe = TabManager.onOpenTab(handler);
     return unsubscribe;
-  }, []);
+  }, [executeQuery]);
 
   // Apply pending query when mode is sql and editor is ready
   useEffect(() => {
@@ -184,6 +212,17 @@ const QueryTabContent = ({ tabId, initialQuery, initialMode, active }: QueryTabP
       }, 50);
     }
   }, [mode, pendingQueryInfo]);
+
+  // Execute initial query on mount if requested
+  useEffect(() => {
+    if (initialExecute && initialQuery) {
+      // Small delay to ensure the execution state is ready and connection is available
+      const timer = setTimeout(() => {
+        executeQuery(initialQuery);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [initialExecute, initialQuery, executeQuery]);
 
   // Focus editor when tab becomes active (existing effect)
   useEffect(() => {

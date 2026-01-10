@@ -15,6 +15,7 @@ interface QueryListItemViewProps extends QueryViewProps {
   isFirst?: boolean;
   queryResponse?: QueryResponseViewModel;
   isExecuting: boolean;
+  tabId?: string;
 }
 
 const QuerySummary = memo(({ summaryText }: { summaryText: string | undefined }) => {
@@ -52,6 +53,7 @@ export function QueryListItemView({
   isFirst,
   queryResponse,
   isExecuting,
+  tabId,
 }: QueryListItemViewProps) {
   const { cancelQuery } = useQueryExecutor();
   const [collapsed, setCollapsed] = useState(queryRequest.showRequest === "collapse");
@@ -96,7 +98,11 @@ export function QueryListItemView({
           <div className="flex items-center gap-2 mb-2">
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm">
-                {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                {collapsed ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronUp className="h-4 w-4" />
+                )}
               </Button>
             </CollapsibleTrigger>
           </div>
@@ -136,14 +142,16 @@ export function QueryListItemView({
       {renderQueryRequest()}
 
       {/* Query Response */}
-      {queryResponse && (queryResponse.data !== undefined || queryResponse.message !== undefined) && (
-        <QueryResponseView
-          queryResponse={queryResponse}
-          queryRequest={queryRequest}
-          sql={queryRequest.sql}
-          view={view}
-        />
-      )}
+      {queryResponse &&
+        (queryResponse.data !== undefined || queryResponse.message !== undefined) && (
+          <QueryResponseView
+            queryResponse={queryResponse}
+            queryRequest={queryRequest}
+            sql={queryRequest.sql}
+            view={view}
+            tabId={tabId}
+          />
+        )}
 
       <div className="flex items-center gap-2 mt-1">
         <QueryExecutionTimer isExecuting={isExecuting} />
@@ -162,7 +170,10 @@ export function QueryListItemView({
       {/* Query Status */}
       <div ref={scrollPlaceholderRef} className="flex flex-col">
         {queryResponse && (queryResponse.queryId || queryRequest.queryId) && (
-          <QueryIdButton queryId={queryResponse.queryId || queryRequest.queryId} traceId={queryRequest.traceId} />
+          <QueryIdButton
+            queryId={queryResponse.queryId || queryRequest.queryId}
+            traceId={queryRequest.traceId}
+          />
         )}
         {/* <div className="text-xs text-muted-foreground">Request Server: {queryRequest.requestServer}</div> */}
         {queryResponse?.httpHeaders?.["x-clickhouse-server-display-name"] && (
