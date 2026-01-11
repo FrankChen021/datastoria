@@ -1,3 +1,19 @@
+/**
+ * @deprecated This component is deprecated and will be removed in a future version.
+ *
+ * Use DashboardPanel facade instead, which now handles table visualization
+ * through the refactored architecture (dashboard-panel-new.tsx + dashboard-visualization-table.tsx).
+ *
+ * The new architecture separates:
+ * - Data fetching (handled by facade)
+ * - Rendering (handled by TableVisualization)
+ *
+ * This component is kept temporarily for backward compatibility during the migration period.
+ * All new code should use the DashboardPanel facade.
+ *
+ * Migration: Simply use <DashboardPanel descriptor={tableDescriptor} /> instead of
+ * <DashboardPanelTable descriptor={tableDescriptor} />
+ */
 "use client";
 
 import { useConnection } from "@/components/connection/connection-context";

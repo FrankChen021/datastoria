@@ -1,7 +1,7 @@
 import { useConnection } from "@/components/connection/connection-context";
 import type { FieldOption, TableDescriptor } from "@/components/shared/dashboard/dashboard-model";
+import { DashboardPanel } from "@/components/shared/dashboard/dashboard-panel";
 import type { DashboardPanelComponent } from "@/components/shared/dashboard/dashboard-panel-layout";
-import DashboardPanelTable from "@/components/shared/dashboard/dashboard-panel-table";
 import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
 import { Button } from "@/components/ui/button";
 import { Connection, QueryError } from "@/lib/connection/connection";
@@ -311,7 +311,7 @@ ORDER BY
       };
     }, [database, table, handleDropPartitionClick]);
 
-    return <DashboardPanelTable ref={tableComponentRef} descriptor={tableDescriptor} />;
+    return <DashboardPanel onRef={tableComponentRef} descriptor={tableDescriptor} />;
   }
 );
 

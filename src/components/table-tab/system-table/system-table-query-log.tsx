@@ -13,9 +13,8 @@ import type {
   TableDescriptor,
   TimeseriesDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
+import { DashboardPanel } from "@/components/shared/dashboard/dashboard-panel";
 import type { DashboardPanelComponent } from "@/components/shared/dashboard/dashboard-panel-layout";
-import DashboardPanelTable from "@/components/shared/dashboard/dashboard-panel-table";
-import DashboardPanelTimeseries from "@/components/shared/dashboard/dashboard-panel-timeseries";
 import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
 import { TabManager } from "@/components/tab-manager";
 import { CopyButton } from "@/components/ui/copy-button";
@@ -433,8 +432,12 @@ const SystemTableQueryLog = ({ database: _database, table: _table }: SystemTable
       {/* Chart Section */}
       <div className="shrink-0 overflow-hidden">
         {selectedTimeSpan && (
-          <DashboardPanelTimeseries
-            ref={chartRef}
+          <DashboardPanel
+            onRef={(r) => {
+              if (chartRef.current !== r) {
+                chartRef.current = r;
+              }
+            }}
             descriptor={chartDescriptor}
             selectedTimeSpan={selectedTimeSpan}
             onTimeSpanSelect={handleChartTimeSpanSelect}
@@ -445,11 +448,14 @@ const SystemTableQueryLog = ({ database: _database, table: _table }: SystemTable
 
       {/* Table Section */}
       <div className={cn("min-h-0 overflow-hidden")}>
-        <DashboardPanelTable
-          ref={tableRef}
+        <DashboardPanel
+          onRef={(r) => {
+            if (tableRef.current !== r) {
+              tableRef.current = r;
+            }
+          }}
           descriptor={tableDescriptor}
           selectedTimeSpan={selectedTimeSpan}
-          className="w-full h-full"
         />
       </div>
     </div>

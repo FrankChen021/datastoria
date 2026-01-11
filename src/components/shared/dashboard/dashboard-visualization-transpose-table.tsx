@@ -1,14 +1,5 @@
 "use client";
 
-/**
- * @deprecated This component is deprecated. Use DashboardPanel facade instead.
- * This component will be removed in a future version.
- * Kept temporarily for backward compatibility.
- *
- * Migration: Simply use <DashboardPanel descriptor={transposeTableDescriptor} /> instead of
- * <DashboardPanelTransposedTable descriptor={transposeTableDescriptor} />
- */
-import { useConnection } from "@/components/connection/connection-context";
 import { CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -19,67 +10,41 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { type QueryError, type QueryResponse } from "@/lib/connection/connection";
 import { Formatter, type FormatName } from "@/lib/formatter";
-import React, {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { SKELETON_FADE_DURATION, SKELETON_MIN_DISPLAY_TIME } from "./constants";
-import { showQueryDialog } from "./dashboard-dialog-utils";
-import { DashboardDropdownMenuItem } from "./dashboard-dropdown-menu-item";
-import type { FieldOption, SQLQuery, TransposeTableDescriptor } from "./dashboard-model";
-import {
-  DashboardPanelLayout,
-  type DashboardPanelComponent,
-  type RefreshOptions,
-} from "./dashboard-panel-layout";
+import type { FieldOption, TransposeTableDescriptor } from "./dashboard-model";
 import { inferFieldFormat } from "./format-inference";
-import { replaceTimeSpanParams } from "./sql-time-utils";
-import type { TimeSpan } from "./timespan-selector";
-import { useRefreshable } from "./use-refreshable";
 
-interface DashboardPanelTransposedTableProps {
-  // The transposed table descriptor configuration
+export interface TransposeTableVisualizationProps {
+  // Data from facade
+  data: Record<string, unknown> | null;
   descriptor: TransposeTableDescriptor;
-
-  // Runtime
-  selectedTimeSpan?: TimeSpan;
-
-  // Additional className for the Card component
-  className?: string;
-
-  // Initial loading state (useful for drilldown dialogs)
-  initialLoading?: boolean;
-
-  // Callback when collapsed state changes
-  onCollapsedChange?: (isCollapsed: boolean) => void;
+  isLoading: boolean;
+  error: string;
 }
 
-const DashboardPanelTransposedTable = forwardRef<
-  DashboardPanelComponent,
-  DashboardPanelTransposedTableProps
->(function DashboardPanelTransposedTable(props, ref) {
-  const { descriptor } = props;
-  const { connection } = useConnection();
+export interface TransposeTableVisualizationRef {
+  getDropdownItems: () => React.ReactNode;
+}
 
-  // State
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
-  const [isLoading, setIsLoading] = useState(props.initialLoading ?? false);
-  const [error, setError] = useState("");
+/**
+ * Pure transpose-table visualization component.
+ * Receives data as props and handles only rendering and UI interactions.
+ * No data fetching, no useConnection, no useRefreshable.
+ */
+export const TransposeTableVisualization = React.forwardRef<
+  TransposeTableVisualizationRef,
+  TransposeTableVisualizationProps
+>(function TransposeTableVisualization(props, ref) {
+  const { data, descriptor, isLoading, error } = props;
+
   // Store inferred formats for fields that don't have explicit formats
   const [inferredFormats, setInferredFormats] = useState<Map<string, FormatName>>(new Map());
-  const [executedSql, setExecutedSql] = useState<string>("");
   // Skeleton timing state for smooth transitions
   const [shouldShowSkeleton, setShouldShowSkeleton] = useState(false);
   const [skeletonOpacity, setSkeletonOpacity] = useState(1);
 
-  // Refs
-  const apiCancellerRef = useRef<AbortController | null>(null);
   // Refs for skeleton timing
   const skeletonStartTimeRef = useRef<number | null>(null);
   const skeletonTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -101,159 +66,29 @@ const DashboardPanelTransposedTable = forwardRef<
     [descriptor.fieldOptions]
   );
 
-  // Load data from API
-  const loadData = useCallback(
-    async (param: RefreshOptions) => {
-      if (!connection) {
-        setError("No connection selected");
-        return;
-      }
+  // Infer formats when data changes
+  useEffect(() => {
+    if (!data) {
+      setInferredFormats(new Map());
+      return;
+    }
 
-      if (!descriptor.query) {
-        setError("No query defined for this transposed table component.");
-        return;
-      }
+    const formats = new Map<string, FormatName>();
+    const sampleRows = [data]; // Single row for transpose table
 
-      setIsLoading(true);
-      setError("");
-
-      try {
-        // Cancel previous request if any
-        if (apiCancellerRef.current) {
-          apiCancellerRef.current.abort();
-          apiCancellerRef.current = null;
+    Object.keys(data).forEach((key) => {
+      const fieldOption = getFieldOption(key);
+      // Only infer if no format is specified in the descriptor
+      if (!fieldOption?.format) {
+        const inferredFormat = inferFieldFormat(key, sampleRows);
+        if (inferredFormat) {
+          formats.set(key, inferredFormat);
         }
-
-        // Build query from descriptor
-        const query = Object.assign({}, descriptor.query) as SQLQuery;
-
-        // If query has interval (time series), we might need to update it with selectedTimeSpan
-        if (param.selectedTimeSpan && query.interval) {
-          query.interval = {
-            ...query.interval,
-            startISO8601: param.selectedTimeSpan.startISO8601,
-            endISO8601: param.selectedTimeSpan.endISO8601,
-          };
-        }
-
-        // Replace time span template parameters in SQL if provided
-        const finalSql = replaceTimeSpanParams(
-          query.sql,
-          param.selectedTimeSpan,
-          connection.metadata.timezone
-        );
-        setExecutedSql(finalSql);
-
-        const { response, abortController } = connection.query(
-          finalSql,
-          {
-            default_format: "JSON",
-            output_format_json_quote_64bit_integers: 0,
-            ...query.params,
-          },
-          {
-            "Content-Type": "text/plain",
-            ...query.headers,
-          }
-        );
-
-        apiCancellerRef.current = abortController;
-
-        response
-          .then((apiResponse: QueryResponse) => {
-            try {
-              const responseData = apiResponse.data.json<any>();
-
-              // JSON format returns { meta: [...], data: [...], rows: number, statistics: {...} }
-              const rows = responseData.data || [];
-
-              // For transposed table, we expect a single object (first row)
-              if (rows.length > 0) {
-                const rowData = rows[0] as Record<string, unknown>;
-                setData(rowData);
-
-                // Infer formats for fields that don't have explicit formats
-                const formats = new Map<string, FormatName>();
-                const sampleRows = rows as Record<string, unknown>[];
-
-                Object.keys(rowData).forEach((key) => {
-                  const fieldOption = getFieldOption(key);
-                  // Only infer if no format is specified in the descriptor
-                  if (!fieldOption?.format) {
-                    const inferredFormat = inferFieldFormat(key, sampleRows);
-                    if (inferredFormat) {
-                      formats.set(key, inferredFormat);
-                    }
-                  }
-                });
-
-                setInferredFormats(formats);
-              } else {
-                setData(null);
-                setInferredFormats(new Map());
-              }
-              setError("");
-            } catch (err) {
-              const errorMessage = err instanceof Error ? err.message : String(err);
-              setError(errorMessage);
-            } finally {
-              setIsLoading(false);
-            }
-          })
-          .catch((error: QueryError) => {
-            const errorMessage = error.message || "Unknown error occurred";
-            const lowerErrorMessage = errorMessage.toLowerCase();
-            if (lowerErrorMessage.includes("cancel") || lowerErrorMessage.includes("abort")) {
-              setIsLoading(false);
-              return;
-            }
-
-            setError(errorMessage);
-            setIsLoading(false);
-          });
-      } catch (error) {
-        const errorMessage = (error as Error).message || "Unknown error occurred";
-        setError(errorMessage);
-        setIsLoading(false);
       }
-    },
-    [descriptor, connection, getFieldOption]
-  );
-
-  // Internal refresh function
-  const refreshInternal = useCallback(
-    (param: RefreshOptions) => {
-      if (!descriptor.query) {
-        setError("No query defined for this transposed table component.");
-        return;
-      }
-
-      loadData(param);
-    },
-    [descriptor, loadData]
-  );
-
-  // Use shared refreshable hook
-  const getInitialParams = useCallback(() => {
-    return props.selectedTimeSpan
-      ? ({ selectedTimeSpan: props.selectedTimeSpan } as RefreshOptions)
-      : ({} as RefreshOptions);
-  }, [props.selectedTimeSpan]);
-
-  const { componentRef, isCollapsed, setIsCollapsed, refresh, getLastRefreshParameter } =
-    useRefreshable({
-      initialCollapsed: descriptor.collapsed ?? false,
-      refreshInternal,
-      getInitialParams,
-      onCollapsedChange: props.onCollapsedChange,
     });
 
-  // Expose methods via ref
-  useImperativeHandle(ref, () => ({
-    refresh,
-    getLastRefreshParameter,
-    getLastRefreshOptions: getLastRefreshParameter, // Alias for compatibility
-  }));
+    setInferredFormats(formats);
+  }, [data, getFieldOption]);
 
   // Skeleton timing logic: minimum display time + fade transition
   useEffect(() => {
@@ -301,16 +136,6 @@ const DashboardPanelTransposedTable = forwardRef<
       }
     };
   }, [isLoading, data]);
-
-  // Cleanup API canceller on unmount
-  useEffect(() => {
-    return () => {
-      if (apiCancellerRef.current) {
-        apiCancellerRef.current.abort();
-        apiCancellerRef.current = null;
-      }
-    };
-  }, []);
 
   // Format cell value based on field options
   const formatCellValue = useCallback(
@@ -433,7 +258,6 @@ const DashboardPanelTransposedTable = forwardRef<
 
   const renderData = useCallback(() => {
     // Don't show data while skeleton is visible (during minimum display time)
-    // Don't hide data during refresh - keep showing existing data until new data arrives
     if (error || !data || shouldShowSkeleton) return null;
 
     // Get all field entries and preserve natural order
@@ -490,57 +314,29 @@ const DashboardPanelTransposedTable = forwardRef<
     );
   }, [error, data, shouldShowSkeleton, formatCellValue, getFieldOption]);
 
-  // Handler for showing query dialog
-  const handleShowQuery = useCallback(() => {
-    showQueryDialog(descriptor.query, descriptor.titleOption?.title, executedSql);
-  }, [descriptor.query, descriptor.titleOption, executedSql]);
-
-  // Build dropdown menu items
-  const dropdownItems = (
-    <>
-      {descriptor.query?.sql && (
-        <DashboardDropdownMenuItem onClick={handleShowQuery}>Show query</DashboardDropdownMenuItem>
-      )}
-    </>
-  );
-
-  // Handler for refresh button
-  const handleRefresh = useCallback(() => {
-    const lastParams = getLastRefreshParameter();
-    refresh({ ...lastParams, forceRefresh: true });
-  }, [getLastRefreshParameter, refresh]);
+  // Expose methods via ref
+  React.useImperativeHandle(ref, () => ({
+    getDropdownItems: () => null, // No visualization-specific dropdown items for transpose-table
+  }));
 
   return (
-    <DashboardPanelLayout
-      componentRef={componentRef}
-      className={props.className}
-      isLoading={isLoading}
-      isCollapsed={isCollapsed}
-      setIsCollapsed={setIsCollapsed}
-      titleOption={descriptor.titleOption}
-      dropdownItems={dropdownItems}
-      onRefresh={handleRefresh}
-    >
-      <CardContent className="px-0 pb-0 h-full overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-muted/50 select-none h-10">
-              <TableHead className="text-left whitespace-nowrap p-2">Name</TableHead>
-              <TableHead className="text-left whitespace-nowrap p-2">Value</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {renderError()}
-            {renderLoading()}
-            {renderNoData()}
-            {renderData()}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </DashboardPanelLayout>
+    <CardContent className="px-0 pb-0 h-full overflow-auto">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-muted/50 select-none h-10">
+            <TableHead className="text-left whitespace-nowrap p-2">Name</TableHead>
+            <TableHead className="text-left whitespace-nowrap p-2">Value</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {renderError()}
+          {renderLoading()}
+          {renderNoData()}
+          {renderData()}
+        </TableBody>
+      </Table>
+    </CardContent>
   );
 });
 
-DashboardPanelTransposedTable.displayName = "DashboardPanelTransposedTable";
-
-export default DashboardPanelTransposedTable;
+TransposeTableVisualization.displayName = "TransposeTableVisualization";

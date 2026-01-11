@@ -1184,21 +1184,23 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
 
     const hasTitle = !!descriptor.titleOption?.title && descriptor.titleOption?.showTitle !== false;
 
-    // Build dropdown menu items
-    const dropdownItems = (
-      <>
-        {descriptor.query?.sql && (
-          <DashboardDropdownMenuItem onClick={handleShowQuery}>
-            Show query
-          </DashboardDropdownMenuItem>
-        )}
-        {!hasTitle && hasMainDrilldown && (
-          <DashboardDropdownMenuItem onClick={handleDrilldownClick}>
-            View details
-          </DashboardDropdownMenuItem>
-        )}
-      </>
-    );
+    // Build dropdown menu items callback (only called when dropdown is rendered)
+    const getDropdownItems = useCallback(() => {
+      return (
+        <>
+          {descriptor.query?.sql && (
+            <DashboardDropdownMenuItem onClick={handleShowQuery}>
+              Show query
+            </DashboardDropdownMenuItem>
+          )}
+          {!hasTitle && hasMainDrilldown && (
+            <DashboardDropdownMenuItem onClick={handleDrilldownClick}>
+              View details
+            </DashboardDropdownMenuItem>
+          )}
+        </>
+      );
+    }, [descriptor.query?.sql, hasTitle, hasMainDrilldown, handleShowQuery, handleDrilldownClick]);
 
     // Handler for refresh button
     const handleRefresh = useCallback(() => {
@@ -1214,7 +1216,7 @@ const DashboardPanelStat = forwardRef<DashboardPanelComponent, DashboardPanelSta
         style={{ height: descriptor.height ? `${descriptor.height}px` : "100%" }}
         isLoading={isLoadingValue}
         titleOption={descriptor.titleOption}
-        dropdownItems={dropdownItems}
+        getDropdownItems={getDropdownItems}
         onRefresh={handleRefresh}
         headerBackground={true}
       >

@@ -1,6 +1,13 @@
 "use client";
 
 /**
+ * @deprecated This component is deprecated. Use DashboardPanel facade instead.
+ * This component will be removed in a future version.
+ * Kept temporarily for backward compatibility.
+ *
+ * Migration: Simply use <DashboardPanel descriptor={pieDescriptor} /> instead of
+ * <DashboardPanelPie descriptor={pieDescriptor} />
+ *
  * Dashboard Pie Chart Component
  *
  * Renders data as a pie chart using ECharts. Follows the same pattern as the timeseries component.

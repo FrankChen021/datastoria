@@ -43,8 +43,8 @@ export interface DashboardPanelLayoutProps {
   // Title/header configuration
   titleOption?: TitleOption;
 
-  // Dropdown menu items
-  dropdownItems?: React.ReactNode;
+  // Dropdown menu items callback (only called when dropdown is rendered)
+  getDropdownItems?: () => React.ReactNode;
 
   // Refresh callback (called when refresh button is clicked)
   onRefresh?: () => void;
@@ -65,7 +65,7 @@ interface DashboardPanelHeaderProps {
   wrapInTrigger: boolean;
   showRefreshButton: boolean;
   onRefresh?: () => void;
-  dropdownItems?: React.ReactNode;
+  getDropdownItems?: () => React.ReactNode;
 }
 
 const DashboardPanelHeader = React.memo<DashboardPanelHeaderProps>(
@@ -77,24 +77,23 @@ const DashboardPanelHeader = React.memo<DashboardPanelHeaderProps>(
     wrapInTrigger,
     showRefreshButton,
     onRefresh,
-    dropdownItems,
+    getDropdownItems,
   }) => {
-    const [isHovered, setIsHovered] = useState(false);
+    // Lazy load dropdown menu - only render when hovered to avoid deep provider stack
+    const [shouldRenderDropdown, setShouldRenderDropdown] = useState(false);
+    const hasActions = showRefreshButton || getDropdownItems;
 
     // Render refresh button (absolutely positioned, before dropdown menu)
     const renderRefreshButton = () => {
       if (!showRefreshButton || !onRefresh) return null;
 
       return (
-        <div className="absolute right-8 top-[calc(50%-6px)] -translate-y-1/2 z-10">
+        <div className="absolute right-8 top-[calc(50%-6px)] -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className={cn(
-              "h-4 w-4 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20",
-              isHovered ? "opacity-100" : "opacity-0"
-            )}
+            className="h-4 w-4 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20"
             title="Refresh panel"
             aria-label="Refresh panel"
             onClick={onRefresh}
@@ -106,33 +105,48 @@ const DashboardPanelHeader = React.memo<DashboardPanelHeaderProps>(
     };
 
     // Render dropdown menu button (absolutely positioned, only visible on hover)
+    // Lazy load the DropdownMenu component tree to avoid rendering deep provider stack
+    // Only call getDropdownItems when actually rendering the dropdown
     const renderDropdownMenu = () => {
-      if (!dropdownItems) return null;
+      if (!getDropdownItems) return null;
 
       return (
         <div
-          className={cn(
-            "absolute right-2 top-[calc(50%-6px)] -translate-y-1/2 z-10 transition-opacity",
-            isHovered ? "opacity-100" : "opacity-0"
-          )}
+          className="absolute right-2 top-[calc(50%-6px)] -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+          onMouseEnter={() => setShouldRenderDropdown(true)}
         >
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-4 w-4 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20"
-                title="More options"
-                aria-label="More options"
-              >
-                <EllipsisVertical className="!h-3 !w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={0}>
-              {dropdownItems}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {shouldRenderDropdown ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-4 w-4 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20"
+                  title="More options"
+                  aria-label="More options"
+                >
+                  <EllipsisVertical className="!h-3 !w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sideOffset={0}>
+                {getDropdownItems()}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            // Render just the button without DropdownMenu providers to avoid deep stack
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-4 w-4 p-0 flex items-center justify-center bg-transparent hover:bg-muted hover:ring-2 hover:ring-foreground/20"
+              title="More options"
+              aria-label="More options"
+              onMouseEnter={() => setShouldRenderDropdown(true)}
+            >
+              <EllipsisVertical className="!h-3 !w-3" />
+            </Button>
+          )}
         </div>
       );
     };
@@ -171,9 +185,12 @@ const DashboardPanelHeader = React.memo<DashboardPanelHeaderProps>(
 
     const headerElement = (
       <CardHeader
-        className={cn("p-0 relative", headerClassName)}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        className={cn("p-0 relative", hasActions && "group", headerClassName)}
+        onMouseEnter={() => {
+          if (getDropdownItems && !shouldRenderDropdown) {
+            setShouldRenderDropdown(true);
+          }
+        }}
       >
         {wrapInTrigger ? (
           <CollapsibleTrigger className={cn("w-full transition-all", hoverClasses)}>
@@ -205,7 +222,7 @@ export function DashboardPanelLayout({
   isCollapsed,
   setIsCollapsed,
   titleOption,
-  dropdownItems,
+  getDropdownItems,
   onRefresh,
   children,
   headerClassName,
@@ -228,7 +245,7 @@ export function DashboardPanelLayout({
         wrapInTrigger={wrapInTrigger}
         showRefreshButton={showRefreshButton}
         onRefresh={onRefresh}
-        dropdownItems={dropdownItems}
+        getDropdownItems={getDropdownItems}
       />
     );
   };
