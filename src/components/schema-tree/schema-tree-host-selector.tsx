@@ -33,8 +33,10 @@ interface SchemaTreeHostSelectorProps {
   onHostChange: (hostName: string) => void;
 }
 
-export const CommandItemTableHeader: React.FC<React.PropsWithChildren> = ({ children }) => {
-  const filterCount = useCommandState((state: any) => state.filtered.count);
+export const CommandItemTableHeader: React.FC = () => {
+  const filterCount = useCommandState(
+    (state: { filtered: { count: number } }) => state.filtered.count
+  );
 
   return (
     <div className="grid grid-cols-[32px_28px_minmax(auto,200px)_100px_40px_40px] gap-1 px-2 py-2 text-[10px] font-medium text-muted-foreground bg-muted/30 border-b sticky top-0 z-10">
@@ -65,15 +67,29 @@ export function SchemaTreeHostSelector({
     nodeName.replace(/\.svc\.cluster\.local$/, "")
   );
 
+  // Reset data when connection or cluster changes
   useEffect(() => {
     setData([]);
     setLoading(false);
     setError(null);
   }, [connection, clusterName]);
 
+  // Update initialSelectedHost when nodeName changes
   useEffect(() => {
-    if (isOpen && data.length === 0 && !loading && connection && clusterName.length > 0) {
+    const shortName = nodeName.replace(/\.svc\.cluster\.local$/, "");
+    setInitialSelectedHost(shortName);
+  }, [nodeName]);
+
+  // Fetch data when popover opens
+  useEffect(() => {
+    if (!isOpen || !connection || clusterName.length === 0) {
+      return;
+    }
+
+    // Only fetch if we don't have data and we're not already loading
+    if (data.length === 0 && !loading) {
       setLoading(true);
+
       connection
         .query(
           `
@@ -89,7 +105,10 @@ ORDER BY shard, replica`,
         )
         .response.then((response) => {
           try {
-            const rawHosts = (response.data.data || []) as any[];
+            const responseData = response.data.json<{
+              data: Array<{ name: string; address: string; shard: number; replica: number }>;
+            }>();
+            const rawHosts = responseData.data || [];
             const hosts: HostInfo[] = rawHosts.map((h) => ({
               ...h,
               shortName: hostNameManager.getShortHostname(h.name),
@@ -116,7 +135,9 @@ ORDER BY shard, replica`,
           setLoading(false);
         });
     }
-  }, [isOpen, connection, clusterName, data.length, loading, nodeName]);
+    // Note: data.length and loading are read but not in dependencies to avoid infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, connection, clusterName, nodeName]);
 
   // If no cluster name (empty string), just render the display name without popover
   if (clusterName.length === 0) {

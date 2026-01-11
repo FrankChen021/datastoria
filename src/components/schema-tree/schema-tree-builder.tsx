@@ -524,12 +524,10 @@ export function buildSchemaTree(
   const canSwitchServer = (connection.cluster || "").length > 0;
 
   if (!targetServerNode || targetServerNode === undefined) {
-    if (canSwitchServer) {
-      targetServerNode = "Host";
-    } else {
-      // Priority: 1. serverDisplayName from header, 2. connection.name
-      targetServerNode = schemaData.serverDisplayName || connection.name || "Unknown";
-    }
+    // Priority: 1. serverDisplayName from header, 2. connection.name
+    // Use serverDisplayName even when canSwitchServer is true
+    targetServerNode =
+      schemaData.serverDisplayName || connection.name || (canSwitchServer ? "Host" : "Unknown");
   }
 
   // Ensure responseServer is a string

@@ -30,7 +30,15 @@ import { showSettingsDialog } from "./settings/settings-dialog";
 import { TabManager } from "./tab-manager";
 import { useTheme } from "./theme-provider";
 
-function ConnectionManageSidebarMenuItem() {
+function HoverCardSidebarMenuItem({
+  icon,
+  content,
+  contentClassName,
+}: {
+  icon: React.ReactNode;
+  content: (isOpen: boolean, onClose: () => void) => React.ReactNode;
+  contentClassName?: string;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const isClickingRef = React.useRef(false);
 
@@ -66,6 +74,10 @@ function ConnectionManageSidebarMenuItem() {
     }
   }, [isOpen]);
 
+  const onClose = useCallback(() => {
+    setIsOpen(false);
+  }, []);
+
   return (
     <SidebarMenuItem>
       <HoverCard openDelay={200} open={isOpen} onOpenChange={onOpenChange}>
@@ -75,14 +87,46 @@ function ConnectionManageSidebarMenuItem() {
             className="justify-center"
             onPointerDown={onMenuItemPointerDown}
           >
-            <Database className="h-5 w-5" />
+            {icon}
           </SidebarMenuButton>
         </HoverCardTrigger>
-        <HoverCardContent side="right" align="start" className="w-[400px] p-0">
-          <ConnectionSelector isOpen={isOpen} onClose={() => setIsOpen(false)} />
+        <HoverCardContent side="right" align="start" className={contentClassName}>
+          {content(isOpen, onClose)}
         </HoverCardContent>
       </HoverCard>
     </SidebarMenuItem>
+  );
+}
+
+function ConnectionManageSidebarMenuItem() {
+  return (
+    <HoverCardSidebarMenuItem
+      icon={<Database className="h-5 w-5" />}
+      content={(isOpen, onClose) => <ConnectionSelector isOpen={isOpen} onClose={onClose} />}
+      contentClassName="w-[400px] p-0"
+    />
+  );
+}
+
+function SystemTableIntrospectionSidebarMenuItem() {
+  return (
+    <HoverCardSidebarMenuItem
+      icon={<Activity className="h-5 w-5" />}
+      content={() => (
+        <div className="space-y-1">
+          {Array.from(SYSTEM_TABLE_REGISTRY.keys()).map((tableName) => (
+            <button
+              key={tableName}
+              className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+              onClick={() => TabManager.openTableTab("system", tableName)}
+            >
+              system.{tableName}
+            </button>
+          ))}
+        </div>
+      )}
+      contentClassName="w-64 p-2"
+    />
   );
 }
 
@@ -116,28 +160,7 @@ export function AppSidebar() {
                     <Terminal className="h-5 w-5" />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <HoverCard openDelay={200}>
-                    <HoverCardTrigger asChild>
-                      <SidebarMenuButton size="lg" className="justify-center">
-                        <Activity className="h-5 w-5" />
-                      </SidebarMenuButton>
-                    </HoverCardTrigger>
-                    <HoverCardContent side="right" align="start" className="w-64 p-2">
-                      <div className="space-y-1">
-                        {Array.from(SYSTEM_TABLE_REGISTRY.keys()).map((tableName) => (
-                          <button
-                            key={tableName}
-                            className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
-                            onClick={() => TabManager.openTableTab("system", tableName)}
-                          >
-                            system.{tableName}
-                          </button>
-                        ))}
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
-                </SidebarMenuItem>
+                <SystemTableIntrospectionSidebarMenuItem />
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     tooltip="Click to open AI Chat Tab"
