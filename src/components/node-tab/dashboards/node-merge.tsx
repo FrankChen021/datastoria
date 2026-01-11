@@ -182,8 +182,10 @@ ORDER BY elapsed DESC
     description: "The total number of merged launched in background",
     query: {
       sql: `SELECT sum(ProfileEvent_Merge) FROM system.metric_log 
-WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}`,
+WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}`,
     },
     valueOption: {
       format: "short_number",
@@ -202,8 +204,10 @@ WHERE event_date >= toDate(now() - {seconds:UInt32})
     description: "The total number of parts merged launched in background",
     query: {
       sql: `SELECT sum(ProfileEvent_MergeSourceParts) FROM system.metric_log 
-WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}`,
+WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}`,
     },
     valueOption: {
       format: "short_number",
@@ -222,8 +226,10 @@ WHERE event_date >= toDate(now() - {seconds:UInt32})
     description: "The total number of mutation parts launched in background",
     query: {
       sql: `SELECT sum(ProfileEvent_MutationTotalParts) FROM system.metric_log 
-WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}`,
+WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}`,
     },
     valueOption: {
       format: "short_number",

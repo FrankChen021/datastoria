@@ -25,8 +25,10 @@ SELECT
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertQuery) AS metric
   FROM clusterAllReplicas({cluster}, merge('system', '^metric_log'))
-  WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}
+  WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}
   GROUP BY event_time, server)
  GROUP BY t, server
 ORDER BY t WITH FILL STEP {rounding:UInt32} SETTINGS skip_unavailable_shards = 1`,
@@ -60,8 +62,10 @@ SELECT
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_SelectQuery) AS metric
   FROM clusterAllReplicas({cluster}, merge('system', '^metric_log'))
-  WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}
+  WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}
   GROUP BY event_time, server)
  GROUP BY t, server
 ORDER BY t WITH FILL STEP {rounding:UInt32} SETTINGS skip_unavailable_shards = 1`,
@@ -95,8 +99,10 @@ SELECT
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_FailedQuery) AS metric
   FROM clusterAllReplicas({cluster}, merge('system', '^metric_log'))
-  WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}
+  WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}
   GROUP BY event_time, server)
  GROUP BY t, server
 ORDER BY t WITH FILL STEP {rounding:UInt32} SETTINGS skip_unavailable_shards = 1`,
@@ -135,8 +141,10 @@ SELECT
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertedBytes) AS metric
   FROM clusterAllReplicas({cluster}, merge('system', '^metric_log'))
-  WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}
+  WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}
   GROUP BY event_time, server)
  GROUP BY t, server
 ORDER BY t WITH FILL STEP {rounding:UInt32} SETTINGS skip_unavailable_shards = 1`,
@@ -175,8 +183,10 @@ SELECT
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertedRows) AS metric
   FROM clusterAllReplicas({cluster}, merge('system', '^metric_log'))
-  WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}
+  WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}
   GROUP BY event_time, server)
  GROUP BY t, server
 ORDER BY t WITH FILL STEP {rounding:UInt32} SETTINGS skip_unavailable_shards = 1`,

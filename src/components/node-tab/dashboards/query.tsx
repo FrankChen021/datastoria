@@ -84,8 +84,10 @@ export const queryDashboard: StatDescriptor[] = [
     description: "The number of SELECT queries",
     query: {
       sql: `SELECT sum(ProfileEvent_SelectQuery) FROM system.metric_log 
-WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}`,
+WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}`,
     },
     valueOption: {
       format: "short_number",
@@ -104,8 +106,10 @@ WHERE event_date >= toDate(now() - {seconds:UInt32})
     description: "The number of Failed SELECT queries",
     query: {
       sql: `SELECT sum(ProfileEvent_FailedSelectQuery) FROM system.metric_log 
-WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}`,
+WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}`,
     },
     valueOption: {
       format: "short_number",
@@ -124,8 +128,10 @@ WHERE event_date >= toDate(now() - {seconds:UInt32})
     description: "The number of INSERT queries",
     query: {
       sql: `SELECT sum(ProfileEvent_InsertQuery) FROM system.metric_log 
-WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}`,
+WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}`,
     },
     valueOption: {
       format: "short_number",
@@ -144,8 +150,10 @@ WHERE event_date >= toDate(now() - {seconds:UInt32})
     description: "The number of Failed INSERT queries",
     query: {
       sql: `SELECT sum(ProfileEvent_FailedInsertQuery) FROM system.metric_log 
-WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}`,
+WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}`,
     },
     valueOption: {
       format: "short_number",
@@ -163,8 +171,10 @@ WHERE event_date >= toDate(now() - {seconds:UInt32})
     description: "The number of INSERT rows",
     query: {
       sql: `SELECT sum(ProfileEvent_InsertedRows) FROM system.metric_log 
-WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}`,
+WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}`,
     },
     valueOption: {
       format: "short_number",
@@ -183,8 +193,10 @@ WHERE event_date >= toDate(now() - {seconds:UInt32})
     description: "The total number of INSERT bytes",
     query: {
       sql: `SELECT sum(ProfileEvent_InsertedBytes) FROM system.metric_log 
-WHERE event_date >= toDate(now() - {seconds:UInt32})
-  AND event_time >= now() - {seconds:UInt32}`,
+WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}`,
     },
     valueOption: {
       format: "binary_size",
