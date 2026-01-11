@@ -84,9 +84,11 @@ const FILTER_SPECS: FilterSpec[] = [
     filterType: "select",
     name: "type",
     displayText: "type",
-    defaultValue: "",
-    width: 100,
     onPreviousFilters: true,
+    defaultPattern: {
+      comparator: "!=",
+      values: ["QueryStart"],
+    },
     datasource: {
       type: "inline",
       values: [
@@ -101,8 +103,6 @@ const FILTER_SPECS: FilterSpec[] = [
     filterType: "select",
     name: "query_kind",
     displayText: "query_kind",
-    defaultValue: "",
-    width: 200,
     onPreviousFilters: true,
     datasource: {
       type: "sql",
@@ -122,8 +122,6 @@ LIMIT 100`,
     filterType: "select",
     name: "databases",
     displayText: "databases",
-    defaultValue: "",
-    width: 200,
     onPreviousFilters: true,
     expressionTemplate: {
       "=": "has({name}, {value})",
@@ -150,8 +148,6 @@ ORDER BY database
     filterType: "select",
     name: "tables",
     displayText: "tables",
-    defaultValue: "",
-    width: 200,
     onPreviousFilters: true,
     supportedComparators: ["=", "!=", "in", "not in"],
     expressionTemplate: {
@@ -179,8 +175,6 @@ ORDER BY table
     filterType: "select",
     name: "exception_code",
     displayText: "exception_code",
-    defaultValue: "",
-    width: 200,
     onPreviousFilters: true,
     datasource: {
       type: "sql",
@@ -201,8 +195,6 @@ LIMIT 100
     filterType: "select",
     name: "initial_user",
     displayText: "initial_user",
-    defaultValue: "",
-    width: 150,
     onPreviousFilters: true,
     datasource: {
       type: "sql",

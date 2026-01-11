@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { FloatingLabel } from "@/components/ui/floating-label-input";
 import { Input } from "@/components/ui/input";
-import { QueryPattern } from "@/lib/query-utils";
+import { ComparatorManager, QueryPattern } from "@/lib/query-utils";
 import { cn } from "@/lib/utils";
 import { RefreshCcw } from "lucide-react";
 import React, { Component } from "react";
@@ -93,6 +93,18 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
       } else {
         this.nameConverts.set(filter.name, (name) => name);
       }
+
+      // Initialize defaultPattern if provided
+      if (filter.defaultPattern) {
+        const comparator = ComparatorManager.parseComparator(filter.defaultPattern.comparator);
+        const isMultiValue = comparator.allowMultiValue ?? false;
+        const pattern = new QueryPattern(
+          isMultiValue,
+          filter.defaultPattern.comparator,
+          filter.defaultPattern.values
+        );
+        this.selectedFilters.set(filter.name, pattern);
+      }
     });
 
     this.onTimeSpanChangeCallback = this.onTimeSpanChangeCallback.bind(this);
@@ -106,15 +118,22 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
     // Init the scroll button visibility
     this.handleSelectorContainerScroll();
 
-    // Emit initial values so parent components can load data on first render.
-    // This is important because many pages gate rendering (e.g. charts) on selectedTimeSpan being set.
-    // const initialTimeSpan = this.getSelectedTimeSpan();
-    // if (this.props.onTimeSpanChange && initialTimeSpan) {
-    //   this.props.onTimeSpanChange(initialTimeSpan);
-    // }
-    // if (this.props.onFilterChange) {
-    //   this.props.onFilterChange(this.getSelectedFilter());
-    // }
+    // Emit initial filter state if default patterns were set
+    // This ensures parent components receive the initial filter and can apply it to queries
+    if (this.props.onFilterChange && this.selectedFilters.size > 0) {
+      this.props.onFilterChange(this.getSelectedFilter());
+    }
+  }
+
+  componentDidUpdate(prevProps: FilterProps): void {
+    // Emit filter changes when filterSpecs change and defaultPatterns are initialized
+    if (
+      this.props.filterSpecs !== prevProps.filterSpecs &&
+      this.props.onFilterChange &&
+      this.selectedFilters.size > 0
+    ) {
+      this.props.onFilterChange(this.getSelectedFilter());
+    }
   }
 
   shouldComponentUpdate(nextProps: FilterProps): boolean {
@@ -136,6 +155,18 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
           this.nameConverts.set(filter.name, filter.nameConverter);
         } else {
           this.nameConverts.set(filter.name, (name) => name);
+        }
+
+        // Initialize defaultPattern if provided
+        if (filter.defaultPattern) {
+          const comparator = ComparatorManager.parseComparator(filter.defaultPattern.comparator);
+          const isMultiValue = comparator.allowMultiValue ?? false;
+          const pattern = new QueryPattern(
+            isMultiValue,
+            filter.defaultPattern.comparator,
+            filter.defaultPattern.values
+          );
+          this.selectedFilters.set(filter.name, pattern);
         }
       });
     }

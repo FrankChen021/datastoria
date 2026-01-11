@@ -36,8 +36,6 @@ export interface SelectorFilterSpec {
   filterType: "select";
   name: string;
   displayText: string;
-  defaultValue: string;
-  width: number;
   /**
    * Data source for loading selector values.
    * - If type is "inline", uses the provided values array directly.
@@ -72,6 +70,19 @@ export interface SelectorFilterSpec {
    * - "in": "hasAny({name}, {valuesArray})"
    */
   expressionTemplate?: ExpressionTemplateMap;
+
+  /**
+   * Optional initial filter pattern to apply when the component mounts.
+   * If provided, this filter will be automatically applied on initialization.
+   * 
+   * Example:
+   * - { comparator: "!=", values: ["QueryStart"] } for `type <> 'QueryStart'`
+   * - { comparator: "in", values: ["value1", "value2"] } for `type IN ('value1', 'value2')`
+   */
+  defaultPattern?: {
+    comparator: string;
+    values: string[];
+  };
 }
 
 export interface DateTimeFilterSpec {
@@ -87,11 +98,6 @@ export interface DateTimeFilterSpec {
    * Default time span label used by TimeSpanSelector (e.g. "Last 15 Mins")
    */
   defaultTimeSpan?: string;
-}
-
-// Formatter function type
-export interface FormatterFn {
-  (value: string | number | Date): string | React.ReactNode;
 }
 
 // SQL Query interface
