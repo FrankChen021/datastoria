@@ -35,9 +35,20 @@ export interface QueryResponseViewModel {
   data?: unknown;
 }
 
+export interface QueryErrorDisplay {
+  message: string;
+  data: unknown;
+
+  /**
+   * ClickHouse exception code
+   */
+  exceptionCode?: string;
+}
+
 export interface QueryResponseViewProps {
   queryRequest: QueryRequestViewModel;
   queryResponse: QueryResponseViewModel;
+  error?: QueryErrorDisplay;
 }
 
 export interface QueryViewProps {

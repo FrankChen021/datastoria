@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMemo, useState } from "react";
 import type {
+  QueryErrorDisplay,
   QueryRequestViewModel,
   QueryResponseViewModel,
   QueryViewType,
@@ -9,7 +10,7 @@ import { ExplainASTResponseView } from "./explain-ast-response-view";
 import { ExplainPipelineResponseView } from "./explain-pipeline-response-view";
 import { ExplainQueryResponseView } from "./explain-query-response-view";
 import { ExplainSyntaxResponseView } from "./explain-syntax-response-view";
-import { QueryResponseErrorView, type QueryErrorDisplay } from "./query-response-error-view";
+import { QueryResponseErrorView } from "./query-response-error-view";
 import { QueryResponseHttpHeaderView } from "./query-response-http-header-view";
 import { QueryResponseTableView } from "./query-response-table-view";
 import { QueryResponseTextView } from "./query-response-text-view";
@@ -41,7 +42,7 @@ export function QueryResponseView({
         : {
             message: queryResponse.message as string,
             data: queryResponse.data,
-            httpHeaders: queryResponse.httpHeaders,
+            exceptionCode: queryResponse.httpHeaders?.["x-clickhouse-exception-code"],
           },
     [queryResponse.message, queryResponse.data, queryResponse.httpHeaders]
   );
@@ -57,12 +58,22 @@ export function QueryResponseView({
   // For EXPLAIN AST and Pipeline views, render their tabs directly at the top level
   // This avoids nested tabs (Result -> Graph/Text) and provides better UX
   if (view === "ast") {
-    return <ExplainASTResponseView queryRequest={queryRequest} queryResponse={queryResponse} />;
+    return (
+      <ExplainASTResponseView
+        queryRequest={queryRequest}
+        queryResponse={queryResponse}
+        error={error}
+      />
+    );
   }
 
   if (view === "pipeline") {
     return (
-      <ExplainPipelineResponseView queryRequest={queryRequest} queryResponse={queryResponse} />
+      <ExplainPipelineResponseView
+        queryRequest={queryRequest}
+        queryResponse={queryResponse}
+        error={error}
+      />
     );
   }
 

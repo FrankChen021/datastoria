@@ -5,12 +5,7 @@ import { parseErrorLocation, type ErrorLocation } from "@/lib/clickhouse-error-p
 import { AlertCircleIcon, SparklesIcon } from "lucide-react";
 import { memo, useMemo, useState } from "react";
 import { useChatPanel } from "../../chat/view/use-chat-panel";
-
-export interface QueryErrorDisplay {
-  message: string;
-  data: unknown;
-  httpHeaders?: Record<string, string>;
-}
+import type { QueryErrorDisplay } from "../query-view-model";
 
 interface ErrorLocationViewProps {
   errorLocation: ErrorLocation;
@@ -22,27 +17,37 @@ const ErrorLocationView = memo(function ErrorLocationView({
   const codeString = useMemo(() => {
     return errorLocation.contextLines
       .map((line) => {
-        const linePrefix = `${String(line.lineNum).padStart(4, " ")} | `;
-        let text = `${linePrefix}${line.content}`;
+        let text = `${line.content}`;
         if (line.isErrorLine) {
-          const pointerPrefix = `${" ".repeat(4)} | `;
-          const pointer = `${" ".repeat(errorLocation.caretPosition)}^${errorLocation.message ? ` ${errorLocation.message}` : ""}`;
-          text += `\n${pointerPrefix}${pointer}`;
+          const errorLength = errorLocation.errorLength ?? 1;
+          const pointer = `${" ".repeat(errorLocation.caretPosition)}${"^".repeat(errorLength)}${errorLocation.message ? ` --- ${errorLocation.message}` : ""}`;
+          text += `\n${pointer}`;
         }
         return text;
       })
       .join("\n");
   }, [errorLocation]);
 
+  // Determine the starting line number for the snippet
+  const startLineNumber = errorLocation.contextLines[0]?.lineNum ?? 1;
+
   return (
     <div className="mb-3">
       <div className="my-2 font-medium">
         Error Context: Line {errorLocation.lineNumber}, Col {errorLocation.columnNumber}:
       </div>
-      <div className="font-mono text-sm rounded overflow-hidden">
+      <div className="font-mono text-sm rounded-sm overflow-hidden border bg-background">
         <ThemedSyntaxHighlighter
           language="sql"
-          customStyle={{ padding: 0, margin: 0, fontSize: "0.875rem" }}
+          showLineNumbers={true}
+          startingLineNumber={startLineNumber}
+          wrapLines={true}
+          customStyle={{
+            padding: "0.5rem",
+            margin: 0,
+            fontSize: "0.875rem",
+            lineHeight: "1.5",
+          }}
         >
           {codeString}
         </ThemedSyntaxHighlighter>
@@ -61,7 +66,7 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
   sql,
 }: QueryResponseErrorViewProps) {
   const { postMessage } = useChatPanel();
-  const clickHouseErrorCode = error.httpHeaders?.["x-clickhouse-exception-code"];
+  const clickHouseErrorCode = error.exceptionCode;
 
   // Memoize detailMessage computation
   const detailMessage = useMemo(() => {
@@ -124,6 +129,7 @@ ${detailMessage}
         <AlertTitle className="mb-0">{error.message}</AlertTitle>
       </div>
       <AlertDescription className="mt-2 gap-2">
+        {errorLocation && <ErrorLocationView errorLocation={errorLocation} />}
         {detailMessage && detailMessage.length > 0 && (
           <div className="whitespace-pre-wrap overflow-x-auto font-medium bg-muted/50 dark:bg-muted/30">
             {displayDetailMessage}
@@ -148,7 +154,6 @@ ${detailMessage}
             )}
           </div>
         )}
-        {errorLocation && <ErrorLocationView errorLocation={errorLocation} />}
         {detailMessage && detailMessage.length > 0 && sql && sql.length > 0 && !isAskAIClicked && (
           <div className="mt-3">
             <Button

@@ -17,7 +17,6 @@ marked.use({
         const rule = /^:::note\s*\n([\s\S]*?)\n:::/;
         const match = rule.exec(src);
         if (match) {
-          console.log("match", match);
           const token = {
             type: "note",
             raw: match[0],

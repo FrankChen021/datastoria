@@ -6,6 +6,7 @@ import { type QueryError, type QueryResponse } from "@/lib/connection/connection
 import { toastManager } from "@/lib/toast";
 import { memo, useEffect, useMemo, useState } from "react";
 import type { QueryResponseViewProps } from "../query-view-model";
+import { QueryResponseErrorView } from "./query-response-error-view";
 import { QueryResponseHttpHeaderView } from "./query-response-http-header-view";
 
 // Convert HSL color (from CSS variable) to hex
@@ -437,8 +438,9 @@ const ExplainPipeLineTextView = memo(
 const ExplainPipelineResponseViewComponent = ({
   queryRequest,
   queryResponse,
+  error,
 }: QueryResponseViewProps) => {
-  const [selectedSubView, setSelectedSubView] = useState("compactGraph");
+  const [selectedSubView, setSelectedSubView] = useState(error ? "result" : "compactGraph");
   const { theme } = useTheme();
   const [bgColor, setBgColor] = useState("#002B36");
 
@@ -475,6 +477,7 @@ const ExplainPipelineResponseViewComponent = ({
       return cleaned && cleaned.trim().length > 0 ? cleaned : undefined;
     }
   }, [queryResponse.data, bgColor]);
+
   // Extract the raw SQL from the query request
   // The queryRequest.sql might be "EXPLAIN pipeline graph = 1\nSELECT ..."
   // We need to extract just the SELECT part for the other views
@@ -491,7 +494,15 @@ const ExplainPipelineResponseViewComponent = ({
     <Tabs value={selectedSubView} onValueChange={setSelectedSubView} className="mt-2">
       <div className="w-full border-b bg-background">
         <TabsList className="inline-flex min-w-full justify-start rounded-none border-0 h-auto p-0 bg-transparent flex-nowrap">
-          {graphModeResult && (
+          {error && (
+            <TabsTrigger
+              value="result"
+              className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            >
+              Result
+            </TabsTrigger>
+          )}
+          {!error && graphModeResult && (
             <TabsTrigger
               value="compactGraph"
               className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
@@ -499,18 +510,22 @@ const ExplainPipelineResponseViewComponent = ({
               Compact Graph
             </TabsTrigger>
           )}
-          <TabsTrigger
-            value="completeGraph"
-            className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-          >
-            Complete Graph
-          </TabsTrigger>
-          <TabsTrigger
-            value="text"
-            className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-          >
-            Text
-          </TabsTrigger>
+          {!error && (
+            <>
+              <TabsTrigger
+                value="completeGraph"
+                className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Complete Graph
+              </TabsTrigger>
+              <TabsTrigger
+                value="text"
+                className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Text
+              </TabsTrigger>
+            </>
+          )}
           {queryResponse.httpHeaders && (
             <TabsTrigger
               value="headers"
@@ -521,23 +536,32 @@ const ExplainPipelineResponseViewComponent = ({
           )}
         </TabsList>
       </div>
-      {graphModeResult && (
+      {error && (
+        <TabsContent value="result">
+          <QueryResponseErrorView error={error} sql={queryRequest.sql} />
+        </TabsContent>
+      )}
+      {!error && graphModeResult && (
         <TabsContent value="compactGraph" className="overflow-auto">
           <GraphvizComponent dot={graphModeResult} style={{ width: "100%", height: "100%" }} />
         </TabsContent>
       )}
-      <TabsContent value="completeGraph" className="overflow-auto">
-        <ExplainPipeCompleteGraphView
-          isActive={selectedSubView === "completeGraph"}
-          sql={`EXPLAIN pipeline graph = 1, compact = 0 ${rawSQL}`}
-        />
-      </TabsContent>
-      <TabsContent value="text" className="overflow-auto">
-        <ExplainPipeLineTextView
-          isActive={selectedSubView === "text"}
-          sql={`EXPLAIN pipeline ${rawSQL}`}
-        />
-      </TabsContent>
+      {!error && (
+        <>
+          <TabsContent value="completeGraph" className="overflow-auto">
+            <ExplainPipeCompleteGraphView
+              isActive={selectedSubView === "completeGraph"}
+              sql={`EXPLAIN pipeline graph = 1, compact = 0 ${rawSQL}`}
+            />
+          </TabsContent>
+          <TabsContent value="text" className="overflow-auto">
+            <ExplainPipeLineTextView
+              isActive={selectedSubView === "text"}
+              sql={`EXPLAIN pipeline ${rawSQL}`}
+            />
+          </TabsContent>
+        </>
+      )}
       {queryResponse.httpHeaders && (
         <TabsContent value="headers" className="overflow-auto">
           <QueryResponseHttpHeaderView headers={queryResponse.httpHeaders} />

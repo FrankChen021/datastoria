@@ -1,7 +1,10 @@
 import { useTheme } from "@/components/theme-provider";
 import { useEffect, useMemo, useState } from "react";
-import SyntaxHighlighter, { type SyntaxHighlighterProps } from "react-syntax-highlighter";
-import { atomOneDark, atomOneLight } from "react-syntax-highlighter/dist/cjs/styles/hljs";
+import { Prism as SyntaxHighlighter, type SyntaxHighlighterProps } from "react-syntax-highlighter";
+import {
+  vscDarkPlus as darkStyle,
+  vs as lightStyle,
+} from "react-syntax-highlighter/dist/cjs/styles/prism";
 
 interface ThemedSyntaxHighlighterProps extends Omit<SyntaxHighlighterProps, "style"> {
   language?: string;
@@ -64,20 +67,13 @@ export function ThemedSyntaxHighlighter({
 
   // Use memoized style that updates when theme actually changes
   const syntaxStyle = useMemo(() => {
-    const baseStyle = currentDarkMode ? atomOneDark : atomOneLight;
-    return {
-      ...baseStyle,
-      hljs: {
-        ...baseStyle.hljs,
-        background: "transparent",
-      },
-    };
+    return currentDarkMode ? darkStyle : lightStyle;
   }, [currentDarkMode]);
 
   return (
     <SyntaxHighlighter
       key={`${currentDarkMode ? "dark" : "light"}-${theme}`}
-      customStyle={customStyle}
+      customStyle={{ background: "transparent", ...customStyle }}
       language={language}
       style={syntaxStyle}
       {...props}

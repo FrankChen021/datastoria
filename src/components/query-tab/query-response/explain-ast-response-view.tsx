@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Stack } from "@/lib/stack";
 import { memo, useEffect, useState } from "react";
 import type { QueryResponseViewProps } from "../query-view-model";
+import { QueryResponseErrorView } from "./query-response-error-view";
 import { QueryResponseHttpHeaderView } from "./query-response-http-header-view";
 
 interface ASTNode {
@@ -74,184 +75,194 @@ function getCSSVariable(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-const ExplainASTResponseViewComponent = ({
-  queryRequest: _queryRequest,
-  queryResponse,
-}: QueryResponseViewProps) => {
-  const text =
-    typeof queryResponse.data === "string" ? queryResponse.data : String(queryResponse.data || "");
-  const { theme } = useTheme();
-  const [bgColor, setBgColor] = useState("#002B36");
+/**
+ * Although ClickHouse can generate graph directly by setting graph = 1, it uses the default visual style.
+ * To make the result more controllable, we generate the graph by ourselves
+ *
+ * Input:
+ *     SelectWithUnionQuery (children 1)
+ *      ExpressionList (children 1)
+ *      SelectQuery (children 4)
+ *       ExpressionList (children 2)
+ *        Identifier table
+ *        Function count (children 1)
+ *         ExpressionList
+ *       TablesInSelectQuery (children 1)
+ *        TablesInSelectQueryElement (children 1)
+ *         TableExpression (children 1)
+ *          TableIdentifier system.parts
+ *       Identifier active
+ *       ExpressionList (children 1)
+ *        Identifier table
+ *
+ * Output:
+ *    digraph {
+ *        _background="c 7 -#ff0000 p 4 4 4 36 4 36 36 4 36";
+ *        node [margin=0 fontcolor=blue fontsize=32 width=0.5 shape=circle style=filled]
+ *        n4752328920[label="SelectWithUnionQuery (children 1)"];
+ *        n4988202216[label="ExpressionList (children 1)"];
+ *        n5003235576[label="SelectQuery (children 4)"];
+ *        n4989427352[label="ExpressionList (children 2)"];
+ *        ...
+ *        n4987340568 -> n5038776808;
+ *        ...
+ *    }
+ */
+const toGraphvizFormat = (text: string, bgColor: string): string | undefined => {
+  if (text.length === 0) {
+    return undefined;
+  }
 
-  // Update background color based on current theme
-  useEffect(() => {
-    const isDark =
-      theme === "dark" ||
-      (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches) ||
-      (typeof window !== "undefined" && document.documentElement.classList.contains("dark"));
+  const nodes = new Array<ASTNode>();
+  const edges = new Array<ASTNodeEdge>();
 
-    if (isDark) {
-      // Dark mode
-      const bgHsl = getCSSVariable("--background");
-      setBgColor(bgHsl ? hslToHex(bgHsl) : "#1a1a2e");
-    } else {
-      // Light mode
-      const bgHsl = getCSSVariable("--background");
-      setBgColor(bgHsl ? hslToHex(bgHsl) : "#ffffff");
-    }
-  }, [theme]);
+  // intermediate state
+  const stack = new Stack<ASTNode>();
+  let nodeId = new Date().getTime();
 
-  /**
-   * Although ClickHouse can generate graph directly by setting graph = 1, it uses the default visual style.
-   * To make the result more controllable, we generate the graph by ourselves
-   *
-   * Input:
-   *     SelectWithUnionQuery (children 1)
-   *      ExpressionList (children 1)
-   *      SelectQuery (children 4)
-   *       ExpressionList (children 2)
-   *        Identifier table
-   *        Function count (children 1)
-   *         ExpressionList
-   *       TablesInSelectQuery (children 1)
-   *        TablesInSelectQueryElement (children 1)
-   *         TableExpression (children 1)
-   *          TableIdentifier system.parts
-   *       Identifier active
-   *       ExpressionList (children 1)
-   *        Identifier table
-   *
-   * Output:
-   *    digraph {
-   *        _background="c 7 -#ff0000 p 4 4 4 36 4 36 36 4 36";
-   *        node [margin=0 fontcolor=blue fontsize=32 width=0.5 shape=circle style=filled]
-   *        n4752328920[label="SelectWithUnionQuery (children 1)"];
-   *        n4988202216[label="ExpressionList (children 1)"];
-   *        n5003235576[label="SelectQuery (children 4)"];
-   *        n4989427352[label="ExpressionList (children 2)"];
-   *        ...
-   *        n4987340568 -> n5038776808;
-   *        ...
-   *    }
-   */
-  const toGraphvizFormat = (text: string, bgColor: string): string | undefined => {
-    if (text.length === 0) {
-      return undefined;
+  //
+  // to graph
+  //
+  const lines = text.split("\n");
+  lines.forEach((line) => {
+    if (line.length === 0) {
+      return;
     }
 
-    const nodes = new Array<ASTNode>();
-    const edges = new Array<ASTNodeEdge>();
+    let i = 0;
+    while (line.charAt(i) === " ") i++;
 
-    // intermediate state
-    const stack = new Stack<ASTNode>();
-    let nodeId = new Date().getTime();
+    const nodeText = line.substring(i);
+    const nodeLevel = i;
+    while (stack.isNotEmpty() && stack.peek().level >= nodeLevel) {
+      stack.pop();
+    }
 
-    //
-    // to graph
-    //
-    const lines = text.split("\n");
-    lines.forEach((line) => {
-      if (line.length === 0) {
-        return;
-      }
+    // create a new node
+    const node: ASTNode = {
+      // assign a unique id
+      id: "n" + nodeId++,
+      text: nodeText,
+      level: nodeLevel,
+    };
 
-      let i = 0;
-      while (line.charAt(i) === " ") i++;
+    if (stack.isNotEmpty()) {
+      edges.push({
+        from: stack.peek().id,
+        to: node.id,
+      });
+    }
+    nodes.push(node);
+    stack.push(node);
+  });
 
-      const nodeText = line.substring(i);
-      const nodeLevel = i;
-      while (stack.isNotEmpty() && stack.peek().level >= nodeLevel) {
-        stack.pop();
-      }
+  //
+  // to GraphViz format
+  let graphText = "digraph struct {\n";
+  graphText += `bgcolor="${bgColor}"\n`;
+  graphText += 'fontsize="9"\n';
+  graphText += 'edge [arrowhead="oopen" fontsize="10" fontcolor="#D3E4E6" color="#839496"];\n';
+  graphText += 'node [shape=record fontsize="10" fontcolor="#D3E4E6" color="#839496"];\n';
+  nodes.forEach((node) => {
+    // n4752328920[label="SelectWithUnionQuery (children 1)"];
+    graphText += `${node.id}[label="${node.text}"];\n`;
+  });
+  edges.forEach((edge) => {
+    // n4987340568 -> n5038776808;
+    graphText += `${edge.from} -> ${edge.to}\n`;
+  });
+  graphText += "}";
 
-      // create a new node
-      const node: ASTNode = {
-        // assign a unique id
-        id: "n" + nodeId++,
-        text: nodeText,
-        level: nodeLevel,
-      };
-
-      if (stack.isNotEmpty()) {
-        edges.push({
-          from: stack.peek().id,
-          to: node.id,
-        });
-      }
-      nodes.push(node);
-      stack.push(node);
-    });
-
-    //
-    // to GraphViz format
-    let graphText = "digraph struct {\n";
-    graphText += `bgcolor="${bgColor}"\n`;
-    graphText += 'fontsize="9"\n';
-    graphText += 'edge [arrowhead="oopen" fontsize="10" fontcolor="#D3E4E6" color="#839496"];\n';
-    graphText += 'node [shape=record fontsize="10" fontcolor="#D3E4E6" color="#839496"];\n';
-    nodes.forEach((node) => {
-      // n4752328920[label="SelectWithUnionQuery (children 1)"];
-      graphText += `${node.id}[label="${node.text}"];\n`;
-    });
-    edges.forEach((edge) => {
-      // n4987340568 -> n5038776808;
-      graphText += `${edge.from} -> ${edge.to}\n`;
-    });
-    graphText += "}";
-
-    return graphText;
-  };
-
-  const graphModeResult = toGraphvizFormat(text, bgColor);
-  const textModeResult = text;
-
-  return (
-    <Tabs defaultValue="graph" className="mt-2">
-      <div className="w-full border-b bg-background">
-        <TabsList className="inline-flex min-w-full justify-start rounded-none border-0 h-auto p-0 bg-transparent flex-nowrap">
-          {graphModeResult && (
-            <TabsTrigger
-              value="graph"
-              className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-            >
-              Graph Mode
-            </TabsTrigger>
-          )}
-          {textModeResult && (
-            <TabsTrigger
-              value="text"
-              className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-            >
-              Text Mode
-            </TabsTrigger>
-          )}
-          {queryResponse.httpHeaders && (
-            <TabsTrigger
-              value="headers"
-              className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-            >
-              Response Headers
-            </TabsTrigger>
-          )}
-        </TabsList>
-      </div>
-      {graphModeResult && (
-        <TabsContent value="graph" className="overflow-auto">
-          <GraphvizComponent dot={graphModeResult} style={{ width: "100%", height: "100%" }} />
-        </TabsContent>
-      )}
-      {textModeResult && (
-        <TabsContent value="text" className="overflow-auto">
-          <pre className="whitespace-pre-wrap text-xs">{textModeResult}</pre>
-        </TabsContent>
-      )}
-      {queryResponse.httpHeaders && (
-        <TabsContent value="headers" className="overflow-auto">
-          <QueryResponseHttpHeaderView headers={queryResponse.httpHeaders} />
-        </TabsContent>
-      )}
-    </Tabs>
-  );
+  return graphText;
 };
 
-export const ExplainASTResponseView = memo(ExplainASTResponseViewComponent);
+export const ExplainASTResponseView = memo(
+  ({ queryRequest, queryResponse, error }: QueryResponseViewProps) => {
+    const { theme } = useTheme();
+    const [bgColor, setBgColor] = useState("#002B36");
+
+    // Update background color based on current theme
+    useEffect(() => {
+      const isDark =
+        theme === "dark" ||
+        (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches) ||
+        (typeof window !== "undefined" && document.documentElement.classList.contains("dark"));
+
+      if (isDark) {
+        // Dark mode
+        const bgHsl = getCSSVariable("--background");
+        setBgColor(bgHsl ? hslToHex(bgHsl) : "#1a1a2e");
+      } else {
+        // Light mode
+        const bgHsl = getCSSVariable("--background");
+        setBgColor(bgHsl ? hslToHex(bgHsl) : "#ffffff");
+      }
+    }, [theme]);
+
+    const graphModeResult = error
+      ? undefined
+      : toGraphvizFormat(String(queryResponse.data || ""), bgColor);
+    const textModeResult = error ? undefined : String(queryResponse.data || "");
+
+    return (
+      <Tabs defaultValue={error ? "result" : "graph"} className="mt-2">
+        <div className="w-full border-b bg-background">
+          <TabsList className="inline-flex min-w-full justify-start rounded-none border-0 h-auto p-0 bg-transparent flex-nowrap">
+            {error && (
+              <TabsTrigger
+                value="result"
+                className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Result
+              </TabsTrigger>
+            )}
+            {graphModeResult && (
+              <TabsTrigger
+                value="graph"
+                className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Graph Mode
+              </TabsTrigger>
+            )}
+            {textModeResult && (
+              <TabsTrigger
+                value="text"
+                className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Text Mode
+              </TabsTrigger>
+            )}
+            {queryResponse.httpHeaders && (
+              <TabsTrigger
+                value="headers"
+                className="rounded-none text-xs border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Response Headers
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </div>
+        {error && (
+          <TabsContent value="result">
+            <QueryResponseErrorView error={error} sql={queryRequest.sql} />
+          </TabsContent>
+        )}
+        {graphModeResult && (
+          <TabsContent value="graph" className="overflow-auto">
+            <GraphvizComponent dot={graphModeResult} style={{ width: "100%", height: "100%" }} />
+          </TabsContent>
+        )}
+        {textModeResult && (
+          <TabsContent value="text" className="overflow-auto">
+            <pre className="whitespace-pre-wrap text-xs">{textModeResult}</pre>
+          </TabsContent>
+        )}
+        {queryResponse.httpHeaders && (
+          <TabsContent value="headers" className="overflow-auto">
+            <QueryResponseHttpHeaderView headers={queryResponse.httpHeaders} />
+          </TabsContent>
+        )}
+      </Tabs>
+    );
+  }
+);

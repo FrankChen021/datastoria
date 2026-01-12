@@ -3,6 +3,7 @@ export interface ErrorLocation {
   columnNumber: number;
   contextLines: Array<{ lineNum: number; content: string; isErrorLine: boolean }>;
   caretPosition: number;
+  errorLength?: number;
   message?: string;
 }
 
@@ -12,7 +13,8 @@ function buildErrorLocation(
   lineNumber: number,
   columnNumber: number,
   sql: string,
-  message?: string
+  message?: string,
+  errorLength: number = 1
 ): ErrorLocation | null {
   if (isNaN(lineNumber) || isNaN(columnNumber) || lineNumber < 1 || columnNumber < 1) {
     return null;
@@ -36,12 +38,8 @@ function buildErrorLocation(
     const lineContent = sqlLines[lineIndex] || "";
     const isErrorLine = i === lineNumber;
 
-    // For error line, show only first 50 characters if column is smaller than 50
-    let displayContent = lineContent;
-    if (isErrorLine && columnNumber <= 50) {
-      displayContent = lineContent.substring(0, 50);
-    }
-
+    // Remove the 50 char truncation limit to show full context
+    const displayContent = lineContent;
     if (isErrorLine) {
       errorLineContent = displayContent;
     }
@@ -61,6 +59,7 @@ function buildErrorLocation(
     columnNumber,
     contextLines,
     caretPosition,
+    errorLength,
     message,
   };
 }
@@ -92,32 +91,30 @@ const handleCode62: ErrorHandler = (detailMessage, sql) => {
 
 const isIdentifierChar = (char: string) => /[a-zA-Z0-9_]/.test(char);
 
+const CODE_46_PATTERNS = [/(Unknown function ([a-zA-Z0-9_]+))/i];
+
 const CODE_47_PATTERNS = [
   /(Unknown expression identifier) [`']([^`']+)['`]/i,
+  /(Unknown expression or function identifier) [`']([^`']+)['`]/i,
   /(Missing columns): [`']([^`']+)['`]/i,
+  /(Identifier [`']([^`']+)['`] cannot be resolved)/i,
 ];
 
+const CODE_60_PATTERNS = [
+  /(Unknown table expression identifier) [`']([^`']+)['`]/i,
+  /(Table ([^ ]+) doesn't exist)/i,
+];
+
+const CODE_81_PATTERNS = [/(Database ([^ ]+) doesn't exist)/i];
+
 /**
- * Unknown expression identifier `compressed_size` in scope
- * OR
- * Missing columns: 'compressed_size' while processing query
+ * Helper to find location of an unknown identifier in SQL
  */
-const handleCode47: ErrorHandler = (detailMessage, sql) => {
-  let message = "";
-  let identifier: string | null = null;
-  for (const pattern of CODE_47_PATTERNS) {
-    const match = detailMessage.match(pattern);
-    if (match) {
-      message = match[1];
-      identifier = match[2];
-      break;
-    }
-  }
-
-  if (!identifier) {
-    return null;
-  }
-
+function findIdentifierLocation(
+  identifier: string,
+  sql: string,
+  message: string
+): ErrorLocation | null {
   let identifierIndex = -1;
   let startIndex = 0;
 
@@ -151,12 +148,93 @@ const handleCode47: ErrorHandler = (detailMessage, sql) => {
   const lastNewlineIndex = sqlBeforeError.lastIndexOf("\n");
   const columnNumber = identifierIndex - lastNewlineIndex; // 1-based column since lastNewlineIndex is -1 if not found, or index of \n.
 
-  return buildErrorLocation(lineNumber, columnNumber, sql, message);
+  return buildErrorLocation(lineNumber, columnNumber, sql, message, identifier.length);
+}
+
+const createIdentifierHandler = (patterns: RegExp[]): ErrorHandler => {
+  return (detailMessage, sql) => {
+    let message = "";
+    let identifier: string | null = null;
+    for (const pattern of patterns) {
+      const match = detailMessage.match(pattern);
+      if (match) {
+        message = match[1];
+        identifier = match[2];
+        break;
+      }
+    }
+
+    if (!identifier) {
+      return null;
+    }
+
+    return findIdentifierLocation(identifier, sql, message);
+  };
+};
+
+/**
+ * Code: 42. DB::Exception: Number of arguments for function version doesn't match: passed 1, should be 0.
+ */
+const handleCode42: ErrorHandler = (detailMessage, sql) => {
+  const match = detailMessage.match(
+    /Number of arguments for function ([a-zA-Z0-9_]+) doesn't match/i
+  );
+  if (!match) {
+    return null;
+  }
+  const functionName = match[1];
+
+  let identifierIndex = -1;
+  let startIndex = 0;
+
+  while (true) {
+    const index = sql.indexOf(functionName, startIndex);
+    if (index === -1) {
+      break;
+    }
+
+    // Check if it's a whole word (not part of another identifier)
+    const charBefore = index > 0 ? sql[index - 1] : "";
+    const charAfter =
+      index + functionName.length < sql.length ? sql[index + functionName.length] : "";
+
+    if (!isIdentifierChar(charBefore) && !isIdentifierChar(charAfter)) {
+      identifierIndex = index;
+      break;
+    }
+
+    startIndex = index + 1;
+  }
+
+  if (identifierIndex === -1) {
+    return null;
+  }
+
+  // Calculate line number and column number from index
+  const sqlBeforeError = sql.substring(0, identifierIndex);
+  const newlines = sqlBeforeError.match(/\n/g);
+  const lineNumber = (newlines ? newlines.length : 0) + 1;
+
+  const lastNewlineIndex = sqlBeforeError.lastIndexOf("\n");
+  const columnNumber = identifierIndex - lastNewlineIndex;
+
+  // Extract detailed error info
+  // "Number of arguments for function version doesn't match: passed 1, should be 0:"
+  const detailMatch = detailMessage.match(/doesn't match:([^:]+)/i);
+  const message = detailMatch
+    ? `Number of arguments mismatch: ${detailMatch[1].trim()}`
+    : "Invalid arguments";
+
+  return buildErrorLocation(lineNumber, columnNumber, sql, message, functionName.length);
 };
 
 const ERROR_HANDLERS: Record<string, ErrorHandler> = {
-  "47": handleCode47,
+  "42": handleCode42,
+  "46": createIdentifierHandler(CODE_46_PATTERNS),
+  "47": createIdentifierHandler(CODE_47_PATTERNS),
+  "60": createIdentifierHandler(CODE_60_PATTERNS),
   "62": handleCode62,
+  "81": createIdentifierHandler(CODE_81_PATTERNS),
 };
 
 /**

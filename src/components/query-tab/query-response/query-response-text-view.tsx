@@ -28,7 +28,7 @@ export const QueryResponseTextView = memo(function QueryResponseTextView({
   // Default query view rendering
   if (!rawQueryResponse || rawQueryResponse.length === 0) {
     return (
-      <div className="pb-4 text-sm text-muted-foreground">
+      <div className="my-3 text-muted-foreground">
         Query was executed successfully. No data is returned to show.
       </div>
     );
