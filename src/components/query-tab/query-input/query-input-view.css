@@ -54,8 +54,29 @@
   font-size: 12px;
 
   /* Add padding for better readability */
-  padding: 8px 12px !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
   box-sizing: border-box !important;
+}
+
+/* Solarized Dark theme overrides */
+.ace-solarized-dark .ace_tooltip {
+  background-color: #25282c !important;
+  color: #c5c8c6 !important;
+  border: 1px solid #586e75 !important;
+}
+
+/* Ensure the head text color matches */
+.ace-solarized-dark .ace_tooltip .ace-tooltip-head {
+  color: #c5c8c6 !important;
+  border-bottom: 1px solid #586e75 !important;
+}
+
+/* Light mode overrides */
+.ace-xcode .ace_tooltip {
+  background-color: #ffffff !important;
+  color: #333333 !important;
+  border: 1px solid #e1e4e8 !important;
 }
 
 /* Ensure any scrollable divs inside tooltip work properly */
@@ -65,17 +86,43 @@
   display: block !important;
   position: relative !important;
   /* Ensure it can actually scroll */
+  max-height: 320px !important;
   min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 4px 0 !important;
+  box-sizing: border-box !important;
   /* Prevent scroll chaining - stop scroll from propagating to parent */
   overscroll-behavior: contain !important;
   overscroll-behavior-y: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+
+  /* Use normal whitespace handling since we convert newlines to <br> via markdown */
+  white-space: normal !important;
+}
+
+.ace-tooltip-head {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid;
+}
+
+.ace_tooltip p, 
+.ace_tooltip ul,
+.ace_tooltip li {
+  margin-bottom: 8px;
+}
+
+.ace_tooltip ul {
+  padding-left: 20px;
+  list-style-type: disc;
 }
 
 /*
  * Increase the width of the autocomplete suggestion dialog
  */
 .ace_autocomplete {
-  /* Default: 280px, increased to 600px to show more content */
+  /* Default: 280px, increased to 400px to show more content */
   width: 400px !important;
 }
 
@@ -105,6 +152,30 @@
 /* Prevent text truncation */
 .ace_autocomplete .ace_line {
   text-overflow: clip !important;
+}
+
+/* Admonition / Note Styles */
+.admonition.note {
+  border-left: 1px solid;
+  margin: 8px 0;
+  padding-left: 8px;
+  padding-top: 4px;
+  padding-bottom: 0px;
+  border-radius: 0px;
+  font-size: 12px;
+}
+
+.admonition-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+/* Ensure content inside note looks good */
+.admonition-content {
+  /* Restore normal whitespace handling to collapse trailing newlines from markdown parser */
+  white-space: normal;
 }
 
 

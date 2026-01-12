@@ -4,6 +4,38 @@ import type { Ace } from "ace-builds";
 import { marked } from "marked";
 import { QuerySnippetManager } from "../snippet/QuerySnippetManager";
 
+// Register the custom extension for :::note blocks
+marked.use({
+  extensions: [
+    {
+      name: "note",
+      level: "block",
+      start(src) {
+        return src.match(/^:::note/)?.index;
+      },
+      tokenizer(src) {
+        const rule = /^:::note\s*\n([\s\S]*?)\n:::/;
+        const match = rule.exec(src);
+        if (match) {
+          console.log("match", match);
+          const token = {
+            type: "note",
+            raw: match[0],
+            text: match[1].trim(),
+            tokens: [],
+          };
+          // Parse the content inside the note as markdown
+          this.lexer.blockTokens(token.text, token.tokens);
+          return token;
+        }
+      },
+      renderer(token) {
+        return `<div class="admonition note"><div class="admonition-title">Note</div><div class="admonition-content">${(this.parser.parse(token.tokens || []) as string).trim()}</div></div>`;
+      },
+    },
+  ],
+});
+
 type CompletionItem = {
   doc?: string;
 } & Ace.Completion;
@@ -33,49 +65,58 @@ export class QuerySuggestionManager {
   private qualifiedTableCompletions: CompletionItem[] = [];
 
   /**
-   * Convert relative URL to absolute URL for ClickHouse documentation
-   */
-  private static normalizeUrl(url: string | null): string {
-    if (!url) return "";
-    // If it's already an absolute URL (starts with http:// or https://), return as is
-    if (/^https?:\/\//.test(url)) {
-      return url;
-    }
-
-    // If it's a relative URL, prepend the ClickHouse docs base URL
-    // Remove leading slash if present to avoid double slashes
-    let cleanUrl = url.startsWith("/") ? url.slice(1) : url;
-    
-    // Remove .md suffix (e.g., "test.md" -> "test", "test.md#anchor" -> "test#anchor")
-    cleanUrl = cleanUrl.replace(/\.md(#|$)/g, "$1");
-    return `https://clickhouse.com/docs/sql-reference/functions/${cleanUrl}`;
-  }
-
-  /**
    * Convert markdown text to HTML for ACE editor docHTML
    */
-  private static markdownToHtml(markdown: string): string {
+  private static markdownToHtml(markdown: string, type?: string): string {
     if (!markdown) return "";
     try {
       // Create a custom renderer to customize link rendering
       const renderer = new marked.Renderer();
-      
+
       // Override link renderer to add target="_blank", styling, and normalize URLs
       // marked v17 uses an object parameter: {href, title, tokens}
       // Use regular function (not arrow) to access 'this.parser'
-      renderer.link = function({ href, title, tokens }: { href: string | null; title?: string | null; tokens: any }) {
+      renderer.link = function ({
+        href,
+        title,
+        tokens,
+      }: {
+        href: string | null;
+        title?: string | null;
+        tokens: any;
+      }) {
         if (!href) {
           // If no href, render just the text content
-          const text = this.parser ? this.parser.parseInline(tokens) : tokens.map((t: any) => t.raw || t.text || "").join("");
+          const text = this.parser
+            ? this.parser.parseInline(tokens)
+            : tokens.map((t: any) => t.raw || t.text || "").join("");
           return text;
         }
-        
-        const absoluteUrl = QuerySuggestionManager.normalizeUrl(href);
+
+        let absoluteUrl = href;
+        if (!/^https?:\/\//.test(href)) {
+          // If it's a relative URL, prepend the ClickHouse docs base URL
+          // Remove leading slash if present to avoid double slashes
+          let cleanUrl = href.startsWith("/") ? href.slice(1) : href;
+
+          // Remove .md suffix (e.g., "test.md" -> "test", "test.md#anchor" -> "test#anchor")
+          cleanUrl = cleanUrl.replace(/\.md(#|$)/g, "$1");
+          if (type === "function") {
+            absoluteUrl = `https://clickhouse.com/docs/sql-reference/functions/${cleanUrl}`;
+          } else if (type === "setting") {
+            absoluteUrl = `https://clickhouse.com/docs/operations/settings/settings${cleanUrl}`;
+          } else {
+            absoluteUrl = `https://clickhouse.com/docs/${cleanUrl}`;
+          }
+        }
+
         const titleAttr = title ? ` title="${title}"` : "";
-        
+
         // Parse tokens to get the link text using the parser
-        const text = this.parser ? this.parser.parseInline(tokens) : tokens.map((t: any) => t.raw || t.text || "").join("");
-        
+        const text = this.parser
+          ? this.parser.parseInline(tokens)
+          : tokens.map((t: any) => t.raw || t.text || "").join("");
+
         // Style links with underline and color, open in new window
         return `<a href="${absoluteUrl}" target="_blank" rel="noopener noreferrer"${titleAttr} style="text-decoration: underline; cursor: pointer;">${text}</a>`;
       };
@@ -95,6 +136,36 @@ export class QuerySuggestionManager {
         .replace(/>/g, "&gt;")
         .replace(/\n/g, "<br />");
     }
+  }
+
+  /**
+   * Helper function to create docHTML with standard styling
+   */
+  private static createDescriptionHTML(
+    title: string,
+    markdownContent: string,
+    type?: string,
+    extraHtml?: string
+  ): string {
+    if (!markdownContent && !extraHtml) return "";
+
+    const contentHtml = markdownContent
+      ? QuerySuggestionManager.markdownToHtml(markdownContent, type)
+      : "";
+
+    if (!contentHtml && !extraHtml) return "";
+
+    const parts = [
+      '<div class="ace-tooltip-head">',
+      title,
+      "</div>",
+      // Use max-height: 320px for scrollable content, but allow it to shrink for short content
+      '<div class="ace-tooltip-scrollable">',
+      contentHtml,
+      extraHtml || "",
+      "</div>",
+    ];
+    return parts.join("");
   }
 
   public onConnectionSelected(connection: Connection) {
@@ -123,30 +194,17 @@ export class QuerySuggestionManager {
 
     // Helper function to process completion items
     const processCompletionItem = (eachRowObject: any) => {
-      const description = eachRowObject[3];
-      const descriptionHtml = description
-        ? QuerySuggestionManager.markdownToHtml(description)
-        : "";
-      const docHTML =
-        description !== ""
-          ? [
-              "<b>",
-              eachRowObject[0],
-              "</b>",
-              "<hr />",
-              '<div class="ace-tooltip-scrollable" style="height: 320px; max-height: 320px; overflow-y: auto; overflow-x: hidden; padding: 4px 0; box-sizing: border-box; display: block; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;">',
-              descriptionHtml,
-              "</div>",
-            ].join("")
-          : undefined;
-
       const type = eachRowObject[1];
       const completion: CompletionItem = {
         caption: eachRowObject[0],
         value: eachRowObject[0],
         meta: type,
         score: eachRowObject[2],
-        docHTML: docHTML,
+        docHTML: QuerySuggestionManager.createDescriptionHTML(
+          eachRowObject[0],
+          eachRowObject[3] || "",
+          eachRowObject[1]
+        ),
       };
 
       // Add custom insertMatch for function completions to position cursor inside parentheses
@@ -204,29 +262,16 @@ export class QuerySuggestionManager {
       const databaseCompletions: CompletionItem[] = [];
 
       for (const [dbName, dbInfo] of connection.metadata.databaseNames) {
-        const comment = dbInfo.comment || "";
-        // Build docHTML with comment if available
-        const commentHtml = comment
-          ? QuerySuggestionManager.markdownToHtml(comment)
-          : "";
-        const docHTML = comment
-          ? [
-              "<b>",
-              dbName,
-              "</b>",
-              "<hr />",
-              '<div class="ace-tooltip-scrollable" style="height: 320px; max-height: 320px; overflow-y: auto; overflow-x: hidden; padding: 4px 0; box-sizing: border-box; display: block; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;">',
-              commentHtml,
-              "</div>",
-            ].join("")
-          : undefined;
-
         const completion: CompletionItem = {
           caption: dbName,
           value: dbName,
           meta: "database",
           score: -30,
-          docHTML: docHTML,
+          docHTML: QuerySuggestionManager.createDescriptionHTML(
+            dbName,
+            dbInfo.comment || "",
+            "database"
+          ),
         };
 
         databaseCompletions.push(completion);
@@ -291,7 +336,7 @@ SELECT * FROM (
     // Query 4: Settings
     connection
       .query(
-        `SELECT name, 'setting', -60, concat(description, '<br/><br/>Current value: ', value) FROM system.settings ORDER BY name`,
+        `SELECT name, 'setting', -60, concat(description, '\n\nCurrent value: ', value) FROM system.settings ORDER BY name`,
         {
           default_format: "JSONCompact",
         }
@@ -309,7 +354,7 @@ SELECT * FROM (
     // Query 5: Merge Tree Settings
     connection
       .query(
-        `SELECT name, 'merge_tree_setting', -100, concat(description, '<br/><br/>Current value: ', value) FROM system.merge_tree_settings ORDER BY name`,
+        `SELECT name, 'merge_tree_setting', -100, concat(description, '\n\nCurrent value: ', value) FROM system.merge_tree_settings ORDER BY name`,
         {
           default_format: "JSONCompact",
         }
@@ -326,7 +371,7 @@ SELECT * FROM (
 
     connection
       .query(
-        `SELECT name, 'server_setting', -100, concat(description, '<br/><br/>Current value: ', value) FROM system.server_settings ORDER BY name`,
+        `SELECT name, 'server_setting', -100, concat(description, '\n\nCurrent value: ', value) FROM system.server_settings ORDER BY name`,
         {
           default_format: "JSONCompact",
         }
@@ -411,26 +456,12 @@ SELECT * FROM (
       for (const [qualifiedName, tableInfo] of connection.metadata.tableNames) {
         const { database, table, comment } = tableInfo;
 
-        // Build docHTML with comment if available
-        const commentHtml = comment
-          ? QuerySuggestionManager.markdownToHtml(comment)
-          : "";
-        const docHTML = comment
-          ? [
-              "<b>",
-              table,
-              "</b>",
-              "<hr />",
-              '<div class="ace-tooltip-scrollable" style="height: 320px; max-height: 320px; overflow-y: auto; overflow-x: hidden; padding: 4px 0; box-sizing: border-box; display: block; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;">',
-              commentHtml,
-              "</div>",
-            ].join("")
-          : undefined;
-
         // Add to database-specific table completion
         if (!tablesByDatabase.has(database)) {
           tablesByDatabase.set(database, []);
         }
+
+        const docHTML = QuerySuggestionManager.createDescriptionHTML(table, comment || "", "table");
         tablesByDatabase.get(database)?.push({
           caption: table,
           value: table,
@@ -481,23 +512,10 @@ SELECT * FROM (
 
         const returnList = response.data.json<JSONCompactFormatResponse>().data;
         returnList.forEach((eachRowObject) => {
-          const table = eachRowObject[0];
-          const column = eachRowObject[1];
-          const type = eachRowObject[2];
-          const comment = eachRowObject[3] || "";
-
-          // Build docHTML with type and comment if available
-          const docHTMLParts = ["<b>", column, "</b>", "<hr />", "type: ", type];
-          if (comment) {
-            const commentHtml = QuerySuggestionManager.markdownToHtml(comment);
-            docHTMLParts.push(
-              "<hr />",
-              '<div class="ace-tooltip-scrollable" style="height: 320px; max-height: 320px; overflow-y: auto; overflow-x: hidden; padding: 4px 0; box-sizing: border-box; display: block; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;">',
-              commentHtml,
-              "</div>"
-            );
-          }
-          const docHTML = docHTMLParts.join("");
+          const table = eachRowObject[0] as string;
+          const column = eachRowObject[1] as string;
+          const type = eachRowObject[2] as string;
+          const comment = (eachRowObject[3] as string) || "";
 
           if (!this.columnCompletion.has(table)) {
             this.columnCompletion.set(table, []);
@@ -508,7 +526,12 @@ SELECT * FROM (
             value: column,
             meta: "column",
             score: 100,
-            docHTML: docHTML,
+            docHTML: QuerySuggestionManager.createDescriptionHTML(
+              column,
+              comment,
+              "column",
+              `type: ${type}`
+            ),
           });
         });
       })

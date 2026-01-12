@@ -586,7 +586,10 @@ const Selector = React.forwardRef<SelectorRef, SelectorProps>(
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <span
-                    className="h-5 text-gray-500 text-xs absolute left-2 top-1/2 transform -translate-y-1/3 cursor-pointer"
+                    className={cn(
+                      "h-5 text-xs absolute left-2 top-1/2 transform -translate-y-1/3 cursor-pointer",
+                      selectedValue.size > 0 ? "" : "text-gray-500"
+                    )}
                     title={selectedComparator.name}
                   >
                     {selectedComparator.display}

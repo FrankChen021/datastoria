@@ -412,7 +412,7 @@ export class Formatter {
                       {displayValue}
                     </ThemedSyntaxHighlighter>
                   ) : (
-                    <pre className="whitespace-pre text-sm font-mono p-2 bg-muted rounded overflow-x-auto">
+                    <pre className="whitespace-pre-wrap break-all text-sm font-mono p-2 bg-muted rounded overflow-x-auto">
                       {displayValue}
                     </pre>
                   )}
