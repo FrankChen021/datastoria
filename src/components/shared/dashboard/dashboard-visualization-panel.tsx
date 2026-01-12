@@ -1,6 +1,7 @@
 "use client";
 
 import { useConnection } from "@/components/connection/connection-context";
+import { AskAIButton } from "@/components/shared/ask-ai-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog } from "@/components/use-dialog";
 import { QueryError } from "@/lib/connection/connection";
@@ -453,6 +454,7 @@ export const DashboardVisualizationPanel = forwardRef<
   // Render error state
   const renderError = () => (
     <div className="flex h-full w-full flex-col items-center justify-center p-1 text-sm text-destructive gap-1">
+      <AskAIButton sql={executedSql} errorMessage={error} hideAfterClick={false} />
       <div className="text-center overflow-auto w-full max-h-full custom-scrollbar">{error}</div>
     </div>
   );

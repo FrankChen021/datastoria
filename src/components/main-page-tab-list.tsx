@@ -40,6 +40,12 @@ import {
 } from "react-resizable-panels";
 import { v7 as uuidv7 } from "uuid";
 
+// Panel size constants for split view with chat
+const DEFAULT_TABS_PANEL_SIZE = 60;
+const DEFAULT_CHAT_PANEL_SIZE = 40;
+const FULL_TABS_PANEL_SIZE = 100;
+const HIDDEN_CHAT_PANEL_SIZE = 0;
+
 interface MainPageTabListProps {
   selectedConnection: Connection | null;
 }
@@ -627,14 +633,14 @@ export const MainPageTabList = memo(function MainPageTabList({
     // Use requestAnimationFrame to ensure DOM is ready
     requestAnimationFrame(() => {
       // When chat panel is visible, use default split
-      tabsPanelRef.current?.resize(70);
-      chatPanelRef.current?.resize(30);
+      tabsPanelRef.current?.resize(DEFAULT_TABS_PANEL_SIZE);
+      chatPanelRef.current?.resize(DEFAULT_CHAT_PANEL_SIZE);
     });
   }, [isChatPanelVisible]);
 
   // Determine panel sizes based on state
-  const tabsPanelSize = isChatPanelVisible ? 70 : 100;
-  const chatPanelSize = isChatPanelVisible ? 30 : 0;
+  const tabsPanelSize = isChatPanelVisible ? DEFAULT_TABS_PANEL_SIZE : FULL_TABS_PANEL_SIZE;
+  const chatPanelSize = isChatPanelVisible ? DEFAULT_CHAT_PANEL_SIZE : HIDDEN_CHAT_PANEL_SIZE;
 
   return (
     <PanelGroup direction="horizontal" className="h-full w-full">

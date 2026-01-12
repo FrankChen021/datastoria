@@ -1,10 +1,9 @@
+import { AskAIButton } from "@/components/shared/ask-ai-button";
 import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { parseErrorLocation, type ErrorLocation } from "@/lib/clickhouse-error-parser";
-import { AlertCircleIcon, SparklesIcon } from "lucide-react";
+import { AlertCircleIcon } from "lucide-react";
 import { memo, useMemo, useState } from "react";
-import { useChatPanel } from "../../chat/view/use-chat-panel";
 import type { QueryErrorDisplay } from "../query-view-model";
 
 interface ErrorLocationViewProps {
@@ -65,7 +64,6 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
   error,
   sql,
 }: QueryResponseErrorViewProps) {
-  const { postMessage } = useChatPanel();
   const clickHouseErrorCode = error.exceptionCode;
 
   // Memoize detailMessage computation
@@ -85,7 +83,6 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
   }, [clickHouseErrorCode, detailMessage, sql]);
 
   const [showFullDetailMessage, setShowFullDetailMessage] = useState(false);
-  const [isAskAIClicked, setIsAskAIClicked] = useState(false);
 
   // Memoize truncation logic
   const shouldTruncateDetailMessage = useMemo(
@@ -100,27 +97,6 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
         : detailMessage,
     [shouldTruncateDetailMessage, showFullDetailMessage, detailMessage]
   );
-
-  // Handle "Ask AI to explain and fix" button click
-  const handleAskAI = () => {
-    // Build the message with SQL and error details
-    const message = `I got an error when executing this SQL query. Please explain what went wrong in short and provide a fix.
-
-### SQL
-\`\`\`sql
-${sql}
-\`\`\`
-
-### Error Message
-${detailMessage}
-`;
-
-    // Post message to the global chat panel
-    postMessage(message, { forceNewChat: true });
-
-    // Hide the button after clicking
-    setIsAskAIClicked(true);
-  };
 
   return (
     <Alert variant="destructive" className="border-0 p-1 text-destructive">
@@ -154,17 +130,9 @@ ${detailMessage}
             )}
           </div>
         )}
-        {detailMessage && detailMessage.length > 0 && sql && sql.length > 0 && !isAskAIClicked && (
+        {detailMessage && detailMessage.length > 0 && sql && sql.length > 0 && (
           <div className="mt-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAskAI}
-              className="gap-2 rounded-sm text-primary bg-primary/10 hover:bg-primary/20 hover:text-primary border-primary/50 font-semibold animate-pulse"
-            >
-              <SparklesIcon className="h-4 w-4" />
-              Ask AI About This Error
-            </Button>
+            <AskAIButton sql={sql} errorMessage={detailMessage} hideAfterClick={true} />
           </div>
         )}
       </AlertDescription>
