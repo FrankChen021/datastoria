@@ -751,6 +751,7 @@ export const DashboardVisualizationPanel = forwardRef<
                 selectedTimeSpan={props.selectedTimeSpan}
                 isSecondaryLoading={isSecondaryLoading}
                 secondaryError={secondaryError}
+                isLoading={isLoading}
               />
             ) : null}
           </div>

@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { CardContent, CardFooter, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog } from "@/components/use-dialog";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { Formatter } from "@/lib/formatter";
@@ -152,6 +153,7 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
     return () => observer.disconnect();
   }, []);
 
+  const hasData = data.length > 0;
   // Initialize echarts instance with theme support (separate from data updates)
   React.useEffect(() => {
     const chartDom = chartContainerRef.current;
@@ -216,7 +218,7 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
         chartInstanceRef.current = null;
       }
     };
-  }, [isDark]);
+  }, [isDark, hasData]);
 
   // Update chart when data changes (separate from initialization)
   React.useEffect(() => {
@@ -452,6 +454,7 @@ export interface StatVisualizationProps {
   secondaryData?: Record<string, unknown>[];
   descriptor: StatDescriptor;
   selectedTimeSpan?: TimeSpan;
+  isLoading?: boolean;
   isSecondaryLoading?: boolean;
   secondaryError?: string;
 }
@@ -470,6 +473,7 @@ export const StatVisualization = forwardRef<StatVisualizationRef, StatVisualizat
       secondaryData: inputSecondaryData,
       descriptor,
       selectedTimeSpan,
+      isLoading,
       isSecondaryLoading = false,
       secondaryError = "",
     } = props;
@@ -797,15 +801,15 @@ export const StatVisualization = forwardRef<StatVisualizationRef, StatVisualizat
           description,
           className: "max-w-[60vw] h-[70vh]",
           disableContentScroll: false,
-          mainContent: (
-            <div className="w-full h-full overflow-auto">
-              <DashboardPanel
-                descriptor={modifiedDescriptor}
-                selectedTimeSpan={selectedTimeSpan}
-                initialLoading={true}
-              />
-            </div>
-          ),
+        mainContent: (
+          <div className="w-full h-full overflow-auto">
+            <DashboardVisualizationPanel
+              descriptor={modifiedDescriptor}
+              selectedTimeSpan={selectedTimeSpan}
+              initialLoading={true}
+            />
+          </div>
+        ),
         });
       },
       [descriptor.drilldown]
@@ -929,7 +933,7 @@ export const StatVisualization = forwardRef<StatVisualizationRef, StatVisualizat
             <StatMinimap
               id={"stat"}
               data={minimapData}
-              isLoading={false}
+              isLoading={isLoading ?? false}
               option={descriptor.minimapOption!}
               onBrushChange={hasMinimapDrilldown ? handleMinimapDrilldown : undefined}
             />

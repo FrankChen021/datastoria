@@ -187,6 +187,7 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
     return () => observer.disconnect();
   }, []);
 
+  const hasData = data.length > 0;
   // Initialize echarts instance with theme support (separate from data updates)
   React.useEffect(() => {
     const chartDom = chartContainerRef.current;
@@ -251,7 +252,7 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
         chartInstanceRef.current = null;
       }
     };
-  }, [isDark]);
+  }, [isDark, hasData]);
 
   // Update chart when data changes (separate from initialization)
   React.useEffect(() => {
@@ -1081,15 +1082,15 @@ const DashboardPanelStat = forwardRef<DashboardVisualizationComponent, Dashboard
           description,
           className: "max-w-[60vw] h-[70vh]",
           disableContentScroll: false,
-          mainContent: (
-            <div className="w-full h-full overflow-auto">
-              <DashboardPanel
-                descriptor={modifiedDescriptor}
-                selectedTimeSpan={selectedTimeSpan}
-                initialLoading={true}
-              />
-            </div>
-          ),
+        mainContent: (
+          <div className="w-full h-full overflow-auto">
+            <DashboardVisualizationPanel
+              descriptor={modifiedDescriptor}
+              selectedTimeSpan={selectedTimeSpan}
+              initialLoading={true}
+            />
+          </div>
+        ),
         });
       },
       [descriptor.drilldown]

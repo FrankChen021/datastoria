@@ -100,6 +100,39 @@ WITH FILL STEP {rounding:UInt32}
             },
 
             drilldown: {
+              main: {
+                type: "table",
+                titleOption: {
+                  title: "New Part Log",
+                },
+                query: {
+                  sql: `
+                SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
+                AND 
+                    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+                    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+                    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+                    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+                    AND event_type = 'NewPart'
+                ORDER BY event_time DESC
+                `,
+                },
+                sortOption: {
+                  initialSort: {
+                    column: "event_time",
+                    direction: "desc",
+                  },
+                  serverSideSorting: true,
+                },
+                miscOption: {
+                  enableCompactMode: true,
+                  enableIndexColumn: true
+                },
+                pagination: {
+                  mode: "server",
+                  pageSize: 100,
+                },
+              } as TableDescriptor,
               minimap: {
                 type: "table",
                 titleOption: {
@@ -167,6 +200,39 @@ WITH FILL STEP {rounding:UInt32}
             },
 
             drilldown: {
+              main: {
+                type: "table",
+                titleOption: {
+                  title: "Replicate Part Log",
+                },
+                query: {
+                  sql: `
+                SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
+                AND 
+                    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+                    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+                    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+                    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+                    AND event_type = 'DownloadPart'
+                ORDER BY event_time DESC
+                `,
+                },
+                sortOption: {
+                  initialSort: {
+                    column: "event_time",
+                    direction: "desc",
+                    serverSideSorting: true,
+                  },
+                },
+                miscOption: {
+                  enableCompactMode: true,
+                  enableIndexColumn: true
+                },
+                pagination: {
+                  mode: "server",
+                  pageSize: 100,
+                },
+              } as TableDescriptor,
               minimap: {
                 type: "table",
                 titleOption: {
@@ -234,10 +300,43 @@ WITH FILL STEP {rounding:UInt32}
             },
 
             drilldown: {
+              main: {
+                type: "table",
+                titleOption: {
+                  title: "Merge Part Log",
+                },
+                query: {
+                  sql: `
+                SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
+                AND 
+                    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+                    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+                    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+                    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+                    AND event_type = 'MergeParts'
+                ORDER BY event_time DESC
+                `,
+                },
+                sortOption: {
+                  initialSort: {
+                    column: "event_time",
+                    direction: "desc",
+                  },
+                  serverSideSorting: true,
+                },
+                miscOption: {
+                  enableCompactMode: true,
+                  enableIndexColumn: true
+                },
+                pagination: {
+                  mode: "server",
+                  pageSize: 100,
+                },
+              } as TableDescriptor,
               minimap: {
                 type: "table",
                 titleOption: {
-                  title: "Merge Log",
+                  title: "Merge Part Log",
                 },
                 query: {
                   sql: `
@@ -301,6 +400,39 @@ WITH FILL STEP {rounding:UInt32}
             },
 
             drilldown: {
+              main: {
+                type: "table",
+                titleOption: {
+                  title: "Mutate Part Log",
+                },
+                query: {
+                  sql: `
+                SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
+                AND 
+                    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+                    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+                    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+                    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+                    AND event_type = 'MutatePart'
+                ORDER BY event_time DESC
+                `,
+                },
+                sortOption: {
+                  initialSort: {
+                    column: "event_time",
+                    direction: "desc",
+                  },
+                  serverSideSorting: true,
+                },
+                miscOption: {
+                  enableCompactMode: true,
+                  enableIndexColumn: true
+                },
+                pagination: {
+                  mode: "server",
+                  pageSize: 100,
+                },
+              } as TableDescriptor,
               minimap: {
                 type: "table",
                 titleOption: {
@@ -364,6 +496,39 @@ WITH FILL STEP {rounding:UInt32}
 `,
             },
             drilldown: {
+              main: {
+                type: "table",
+                titleOption: {
+                  title: "Remove Part Log",
+                },
+                query: {
+                  sql: `
+                SELECT * FROM system.part_log WHERE database = '${database}' AND table = '${table}'
+                AND 
+                    event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+                    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+                    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+                    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+                    AND event_type = 'RemovePart'
+                ORDER BY event_time DESC
+                `,
+                },
+                sortOption: {
+                  initialSort: {
+                    column: "event_time",
+                    direction: "desc",
+                  },
+                  serverSideSorting: true,
+                },
+                miscOption: {
+                  enableCompactMode: true,
+                  enableIndexColumn: true
+                },
+                pagination: {
+                  mode: "server",
+                  pageSize: 100,
+                },
+              } as TableDescriptor,
               minimap: {
                 type: "table",
                 titleOption: {
