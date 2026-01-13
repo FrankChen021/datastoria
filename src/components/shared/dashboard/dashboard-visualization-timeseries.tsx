@@ -20,7 +20,6 @@ import {
   isTimestampColumn as isTimestampColumnUtil,
   transformRowsToChartData,
 } from "./dashboard-data-utils";
-import { DashboardDropdownMenuItem } from "./dashboard-dropdown-menu-item";
 import {
   applyReducer,
   type FieldOption,
@@ -301,7 +300,6 @@ export interface TimeseriesVisualizationProps {
     timeSpan: TimeSpan,
     { name, series, value }: { name: string; series: string; value: number }
   ) => void;
-  onShowRawData?: () => void;
 }
 
 export type TimeseriesVisualizationRef = VisualizationRef;
@@ -315,14 +313,7 @@ export const TimeseriesVisualization = React.forwardRef<
   TimeseriesVisualizationRef,
   TimeseriesVisualizationProps
 >(function TimeseriesVisualization(props, ref) {
-  const {
-    data,
-    meta,
-    descriptor,
-    selectedTimeSpan: _selectedTimeSpan,
-    onChartSelection,
-    onShowRawData,
-  } = props;
+  const { data, meta, descriptor, selectedTimeSpan: _selectedTimeSpan, onChartSelection } = props;
   const isDark = useIsDarkTheme();
 
   // Refs
@@ -1304,15 +1295,7 @@ export const TimeseriesVisualization = React.forwardRef<
 
   // Expose methods via ref
   React.useImperativeHandle(ref, () => ({
-    getDropdownItems: () => (
-      <>
-        {onShowRawData && (
-          <DashboardDropdownMenuItem onClick={onShowRawData}>
-            Show query result
-          </DashboardDropdownMenuItem>
-        )}
-      </>
-    ),
+    getDropdownItems: () => null,
     prepareDataFetchSql: (sql: string, _pageNumber?: number) => sql,
   }));
 

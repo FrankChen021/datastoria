@@ -39,13 +39,31 @@ export function showQueryDialog(
           </TabsTrigger>
         </TabsList>
         <TabsContent value="executed" className="flex-1 overflow-auto mt-2 min-h-0">
-          <ThemedSyntaxHighlighter language="sql" showLineNumbers={true}>
+          <ThemedSyntaxHighlighter
+            language="sql"
+            showLineNumbers={true}
+            customStyle={{
+              padding: "0rem",
+              margin: 0,
+              fontSize: "0.875rem",
+              lineHeight: "1.5",
+            }}
+          >
             {executedSql!.trim()}
           </ThemedSyntaxHighlighter>
         </TabsContent>
         <TabsContent value="template" className="flex-1 overflow-auto mt-2 min-h-0">
           {/* Note: TabsContent has its own focus handling, but we need ensure overflow works */}
-          <ThemedSyntaxHighlighter language="sql" showLineNumbers={true}>
+          <ThemedSyntaxHighlighter
+            language="sql"
+            showLineNumbers={true}
+            customStyle={{
+              padding: "0rem",
+              margin: 0,
+              fontSize: "0.875rem",
+              lineHeight: "1.5",
+            }}
+          >
             {query.sql.trim()}
           </ThemedSyntaxHighlighter>
         </TabsContent>

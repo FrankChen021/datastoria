@@ -306,9 +306,7 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
                 className="py-0 px-0 [&_[cmdk-group-heading]]:px-1 [&_[cmdk-group-heading]]:py-0.5"
                 key={group.label}
                 heading={
-                  <span className="text-[10px] text-muted-foreground px-1 py-0">
-                    {group.label}
-                  </span>
+                  <span className="text-[10px] text-muted-foreground px-1 py-0">{group.label}</span>
                 }
               >
                 {group.items.map((item) => (

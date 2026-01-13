@@ -530,7 +530,7 @@ export const DashboardVisualizationPanel = forwardRef<
     // Get visualization-specific dropdown items (without "Show query")
     const vizItems = visualizationRefInternal.current?.getDropdownItems();
 
-    // Combine with facade-level "Show query" item
+    // Combine with facade-level items
     return (
       <>
         {typedDescriptor.query?.sql && (
@@ -538,10 +538,15 @@ export const DashboardVisualizationPanel = forwardRef<
             Show query
           </DashboardDropdownMenuItem>
         )}
+        {data.length > 0 && (
+          <DashboardDropdownMenuItem onClick={handleShowRawData}>
+            Show query result
+          </DashboardDropdownMenuItem>
+        )}
         {vizItems}
       </>
     );
-  }, [typedDescriptor.query, handleShowQuery]);
+  }, [typedDescriptor.query, handleShowQuery, data.length, handleShowRawData]);
 
   // Render error state
   const renderError = () => (
@@ -731,7 +736,6 @@ export const DashboardVisualizationPanel = forwardRef<
                 descriptor={typedDescriptor as TimeseriesDescriptor}
                 selectedTimeSpan={props.selectedTimeSpan}
                 onChartSelection={props.onChartSelection}
-                onShowRawData={handleShowRawData}
               />
             ) : typedDescriptor.type === "gauge" ? (
               <GaugeVisualization

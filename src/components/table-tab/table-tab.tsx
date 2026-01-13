@@ -306,7 +306,7 @@ const TableTabComponent = ({ database, table, engine }: TableTabProps) => {
                   value="query-history"
                   className="border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:rounded-b-none data-[state=active]:bg-transparent"
                 >
-                  Query History
+                  Query Dashboard
                 </TabsTrigger>
               )}
               {availableTabs.has("part-history") && (

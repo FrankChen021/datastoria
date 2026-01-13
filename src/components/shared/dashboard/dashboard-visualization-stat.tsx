@@ -801,15 +801,15 @@ export const StatVisualization = forwardRef<StatVisualizationRef, StatVisualizat
           description,
           className: "max-w-[60vw] h-[70vh]",
           disableContentScroll: false,
-        mainContent: (
-          <div className="w-full h-full overflow-auto">
-            <DashboardVisualizationPanel
-              descriptor={modifiedDescriptor}
-              selectedTimeSpan={selectedTimeSpan}
-              initialLoading={true}
-            />
-          </div>
-        ),
+          mainContent: (
+            <div className="w-full h-full overflow-auto">
+              <DashboardVisualizationPanel
+                descriptor={modifiedDescriptor}
+                selectedTimeSpan={selectedTimeSpan}
+                initialLoading={true}
+              />
+            </div>
+          ),
         });
       },
       [descriptor.drilldown]

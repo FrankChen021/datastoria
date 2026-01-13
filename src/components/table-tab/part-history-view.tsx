@@ -126,7 +126,7 @@ WITH FILL STEP {rounding:UInt32}
                 },
                 miscOption: {
                   enableCompactMode: true,
-                  enableIndexColumn: true
+                  enableIndexColumn: true,
                 },
                 pagination: {
                   mode: "server",
@@ -226,7 +226,7 @@ WITH FILL STEP {rounding:UInt32}
                 },
                 miscOption: {
                   enableCompactMode: true,
-                  enableIndexColumn: true
+                  enableIndexColumn: true,
                 },
                 pagination: {
                   mode: "server",
@@ -326,7 +326,7 @@ WITH FILL STEP {rounding:UInt32}
                 },
                 miscOption: {
                   enableCompactMode: true,
-                  enableIndexColumn: true
+                  enableIndexColumn: true,
                 },
                 pagination: {
                   mode: "server",
@@ -426,7 +426,7 @@ WITH FILL STEP {rounding:UInt32}
                 },
                 miscOption: {
                   enableCompactMode: true,
-                  enableIndexColumn: true
+                  enableIndexColumn: true,
                 },
                 pagination: {
                   mode: "server",
@@ -522,7 +522,7 @@ WITH FILL STEP {rounding:UInt32}
                 },
                 miscOption: {
                   enableCompactMode: true,
-                  enableIndexColumn: true
+                  enableIndexColumn: true,
                 },
                 pagination: {
                   mode: "server",
