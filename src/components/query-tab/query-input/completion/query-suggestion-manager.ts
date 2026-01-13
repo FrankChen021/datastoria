@@ -184,6 +184,9 @@ export class QuerySuggestionManager {
     markdownContent = markdownContent.trim();
 
     const descriptionHtml = QuerySuggestionManager.markdownToHtml(markdownContent, type);
+    if (markdownContent === "" && extraHtml === "") {
+      return "";
+    }
 
     return (
       '<div class="ace-tooltip-head">' +

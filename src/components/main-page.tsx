@@ -85,13 +85,13 @@ function MainPageLoadStatusComponent({
 }: MainPageLoadStatusComponentProps) {
   return (
     <div
-      className={`h-full w-full flex flex-col items-center justify-center bg-muted/5 p-8 text-center animate-in duration-500 ${
-        status === "error" ? "slide-in-from-bottom-4 duration-300" : "fade-in"
+      className={`flex flex-col items-center justify-center p-8 text-center animate-in duration-500 bg-background border shadow-lg rounded-sm min-w-[600px] min-h-[320px] ${
+        status === "error" ? "slide-in-from-bottom-4 duration-300" : "fade-in zoom-in-95"
       }`}
     >
       {status === "initializing" && (
         <>
-          <div className="bg-background p-4 ">
+          <div className="p-4">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
           </div>
           <h3 className="text-lg font-medium mb-2">Initializing application...</h3>
@@ -102,7 +102,7 @@ function MainPageLoadStatusComponent({
 
       {status === "connecting" && (
         <>
-          <div className="bg-background p-4 ">
+          <div className="p-4">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
           </div>
           <h3 className="text-lg font-medium items-center mb-2">
@@ -326,22 +326,24 @@ export function MainPage() {
     return <ConnectionWizard />;
   }
 
-  // Show Full Page Status (Initializing/Connecting/Error)
-  if (initStatus === "initializing" || initStatus === "connecting" || initStatus === "error") {
-    return (
-      <MainPageLoadStatusComponent
-        status={initStatus}
-        connectionName={pendingConfig ? pendingConfig.name : connection?.name}
-        error={initError}
-        onRetry={() => {
-          setRetryCount((prev) => prev + 1);
-        }}
-      />
-    );
-  }
+  const isLoadingOrError =
+    initStatus === "initializing" || initStatus === "connecting" || initStatus === "error";
 
   return (
-    <div className="h-full w-full flex min-w-0 overflow-hidden">
+    <div className="relative h-full w-full flex min-w-0 overflow-hidden">
+      {isLoadingOrError && (
+        <div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-[2px] flex items-center justify-center">
+          <MainPageLoadStatusComponent
+            status={initStatus}
+            connectionName={pendingConfig ? pendingConfig.name : connection?.name}
+            error={initError}
+            onRetry={() => {
+              setRetryCount((prev) => prev + 1);
+            }}
+          />
+        </div>
+      )}
+
       <PanelGroup direction="horizontal" className="h-full w-full min-w-0">
         {/* Left Panel: Schema Tree View */}
         <Panel defaultSize={20} minSize={10} className="bg-background">

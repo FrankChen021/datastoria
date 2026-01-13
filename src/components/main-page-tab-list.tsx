@@ -187,20 +187,32 @@ export const MainPageTabList = memo(function MainPageTabList({
 
   // Close all tabs when connection changes or is updated
   useEffect(() => {
-    const currentConnectionId =
-      selectedConnection === undefined ? null : selectedConnection!.connectionId;
+    const currentConnectionId = selectedConnection?.connectionId ?? null;
     const previousConnectionId = previousConnectionKeyRef.current;
 
     // Close tabs if connection key changed (switching connections or connection was updated)
     if (previousConnectionId !== null && previousConnectionId !== currentConnectionId) {
-      setTabs([]);
-      setActiveTab("");
-      hasOpenedInitialQueryTabRef.current = false;
+      const keptTabs = tabs.filter((t) => t.type === "query");
+      setTabs(keptTabs);
+
+      if (keptTabs.length > 0) {
+        // If we have preserved tabs, we don't need to open a new initial query tab
+        hasOpenedInitialQueryTabRef.current = true;
+
+        // If the previously active tab is gone, activate the last preserved tab
+        if (!keptTabs.some((t) => t.id === activeTab)) {
+          setActiveTab(keptTabs[keptTabs.length - 1].id);
+        }
+      } else {
+        // No tabs preserved
+        setActiveTab("");
+        hasOpenedInitialQueryTabRef.current = false;
+      }
     }
 
     // Update the ref to track the current connection
     previousConnectionKeyRef.current = currentConnectionId;
-  }, [selectedConnection]);
+  }, [selectedConnection, tabs, activeTab]);
 
   // Open query tab when schema is loaded (only once per connection)
   useEffect(() => {
