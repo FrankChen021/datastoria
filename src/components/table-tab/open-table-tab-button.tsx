@@ -60,7 +60,13 @@ export const OpenTableTabButton = memo(
     showLinkIcon = true,
   }: OpenTableTabButtonProps) => {
     const handleClick = () => {
-      TabManager.openTableTab(database, table, engine);
+      TabManager.openTab({
+        id: `table:${database}.${table}`,
+        type: "table",
+        database,
+        table,
+        engine,
+      });
       Dialog.close(); // Automatically close any parent dialog
     };
 

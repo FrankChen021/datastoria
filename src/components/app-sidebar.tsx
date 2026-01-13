@@ -118,7 +118,13 @@ function SystemTableIntrospectionSidebarMenuItem() {
             <button
               key={tableName}
               className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
-              onClick={() => TabManager.openIntrospectionTab(tableName)}
+              onClick={() =>
+                TabManager.openTab({
+                  id: `introspection:${tableName}`,
+                  type: "introspection",
+                  tableName,
+                })
+              }
             >
               {entry.title}
             </button>

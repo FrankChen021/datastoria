@@ -18,7 +18,12 @@ export const QueryIdLink = React.memo<QueryIdLinkProps>(
 
     const handleClick = (e: React.MouseEvent) => {
       e.stopPropagation();
-      TabManager.openQueryLogTab(queryId, event_date);
+      TabManager.openTab({
+        id: `Query Log: ${queryId}`,
+        type: "query-log",
+        queryId,
+        eventDate: event_date,
+      });
     };
 
     return (

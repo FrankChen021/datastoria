@@ -54,7 +54,11 @@ export const OpenDatabaseTabButton = memo(
     showLinkIcon = true,
   }: OpenDatabaseTabButtonProps) => {
     const handleClick = () => {
-      TabManager.openDatabaseTab(database);
+      TabManager.openTab({
+        id: `database:${database}`,
+        type: "database",
+        database,
+      });
       Dialog.close(); // Automatically close any parent dialog
     };
 

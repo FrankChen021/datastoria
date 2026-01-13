@@ -16,7 +16,13 @@ export function QueryIdButton({ queryId, traceId, showLabel = true }: QueryIdBut
     <div className="text-xs text-muted-foreground">
       {showLabel && "Query Id: "}
       <button
-        onClick={() => TabManager.openQueryLogTab(queryId)}
+        onClick={() =>
+          TabManager.openTab({
+            id: `Query Log: ${queryId}`,
+            type: "query-log",
+            queryId,
+          })
+        }
         className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
       >
         {queryId}

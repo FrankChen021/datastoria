@@ -136,66 +136,9 @@ export const MainPageTabList = memo(function MainPageTabList({
 
   // Handle open tab events (unified handler)
   useEffect(() => {
-    const handler = (event: CustomEvent<import("@/components/tab-manager").OpenTabEventDetail>) => {
-      const { type, database, table, engine, host } = event.detail;
-      let tabId: string;
-      let newTab: TabInfo | null = null;
-
-      switch (type) {
-        case "query":
-          tabId = "query";
-          newTab = {
-            id: "query",
-            type: "query",
-            initialQuery: event.detail.query,
-            initialMode: event.detail.mode,
-            initialExecute: event.detail.execute,
-          };
-          break;
-        case "table":
-          if (!database || !table) return;
-          tabId = `table:${database}.${table}`;
-          newTab = { id: tabId, type: "table", database, table, engine };
-          break;
-        case "introspection":
-          if (!event.detail.tableName) return;
-          tabId = `introspection:${event.detail.tableName}`;
-          newTab = { id: tabId, type: "introspection", tableName: event.detail.tableName };
-          break;
-        case "database":
-          if (!database) return;
-          tabId = `database:${database}`;
-          newTab = { id: tabId, type: "database", database };
-          break;
-        case "node":
-          if (!host) return;
-          tabId = `node:${host}`;
-          newTab = { id: tabId, type: "node", host };
-          break;
-        case "query-log":
-          tabId = event.detail.queryId ? `Query Log: ${event.detail.queryId}` : "query-log";
-          newTab = {
-            id: tabId,
-            type: "query-log",
-            queryId: event.detail.queryId,
-            eventDate: event.detail.eventDate,
-          };
-          break;
-        case "chat":
-          tabId =
-            event.detail.tabId ||
-            (event.detail.chatId ? `chat:${event.detail.chatId}` : `chat:${Date.now()}`);
-          newTab = {
-            id: tabId,
-            type: "chat",
-            chatId: event.detail.chatId,
-            initialPrompt: event.detail.initialPrompt,
-            autoRun: event.detail.autoRun,
-          };
-          break;
-        default:
-          return;
-      }
+    const handler = (event: CustomEvent<TabInfo>) => {
+      const newTab = event.detail;
+      const tabId = newTab.id;
 
       if (!newTab) return;
 
@@ -211,7 +154,7 @@ export const MainPageTabList = memo(function MainPageTabList({
 
         // Tab doesn't exist, add it and set pending activation
         setPendingTabId(tabId);
-        return [...prevTabs, newTab!];
+        return [...prevTabs, newTab];
       });
     };
 

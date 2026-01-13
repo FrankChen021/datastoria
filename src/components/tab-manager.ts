@@ -22,6 +22,7 @@ export interface QueryTabInfo extends BaseTabInfo {
   type: "query";
   initialQuery?: string;
   initialMode?: "replace" | "insert";
+  initialEditorMode?: "sql" | "chat";
   initialExecute?: boolean;
 }
 
@@ -75,31 +76,6 @@ export type TabInfo =
   | IntrospectionTabInfo
   | ChatTabInfo;
 
-export interface OpenTabEventDetail {
-  type: TabType;
-  tabId?: string; // Optional tab ID to target specific tab
-  // Table tab fields
-  database?: string;
-  table?: string;
-  engine?: string;
-  // Introspection tab fields
-  tableName?: string;
-  // Dashboard tab fields
-  host?: string;
-  // Query log tab fields
-  queryId?: string;
-  eventDate?: string;
-  // Query tab fields
-  query?: string;
-  mode?: "replace" | "insert";
-  editorMode?: "sql" | "chat"; // Editor mode for query tab
-  execute?: boolean;
-  // Chat tab fields
-  chatId?: string;
-  initialPrompt?: string;
-  autoRun?: boolean;
-}
-
 /**
  * Event detail for active tab changes
  */
@@ -111,7 +87,7 @@ export interface ActiveTabChangeEventDetail {
 /**
  * Type-safe event listener for tab requests
  */
-export type OpenTabEventHandler = (event: CustomEvent<OpenTabEventDetail>) => void;
+export type OpenTabEventHandler = (event: CustomEvent<TabInfo>) => void;
 
 /**
  * Type-safe event listener for active tab changes
@@ -125,13 +101,13 @@ export class TabManager {
   private static readonly OPEN_TAB_EVENT = "OPEN_TAB";
 
   // Queue to store events when no listener is active
-  private static eventQueue: CustomEvent<OpenTabEventDetail>[] = [];
+  private static eventQueue: CustomEvent<TabInfo>[] = [];
   private static listenerCount = 0;
 
   /**
    * Dispatch an event immediately or queue it if no listener is active
    */
-  private static dispatchOrQueue(event: CustomEvent<OpenTabEventDetail>): void {
+  private static dispatchOrQueue(event: CustomEvent<TabInfo>): void {
     if (TabManager.listenerCount > 0) {
       // Listener is active, dispatch immediately
       window.dispatchEvent(event);
@@ -142,62 +118,10 @@ export class TabManager {
   }
 
   /**
-   * Emit an open table tab event
+   * Open a tab with the specified information
    */
-  static openTableTab(database: string, table: string, engine?: string, tabId?: string): void {
-    const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
-      detail: { type: "table", database, table, engine, tabId },
-    });
-    TabManager.dispatchOrQueue(event);
-  }
-
-  /**
-   * Emit an open dependency tab event
-   */
-  static openDependencyTab(database: string, tabId?: string): void {
-    const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
-      detail: { type: "dependency", database, tabId },
-    });
-    TabManager.dispatchOrQueue(event);
-  }
-
-  /**
-   * Emit an open database tab event
-   */
-  static openDatabaseTab(database: string, tabId?: string): void {
-    const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
-      detail: { type: "database", database, tabId },
-    });
-    TabManager.dispatchOrQueue(event);
-  }
-
-  /**
-   * Emit an open node tab event
-   */
-  static openNodeTab(host: string, tabId?: string): void {
-    const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
-      detail: { type: "node", host, tabId },
-    });
-    TabManager.dispatchOrQueue(event);
-  }
-
-  /**
-   * Emit an open introspection tab event
-   */
-  static openIntrospectionTab(tableName: string, tabId?: string): void {
-    const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
-      detail: { type: "introspection", tableName, tabId },
-    });
-    TabManager.dispatchOrQueue(event);
-  }
-
-  /**
-   * Emit an open query log tab event
-   */
-  static openQueryLogTab(queryId?: string, eventDate?: string, tabId?: string): void {
-    const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
-      detail: { type: "query-log", queryId, eventDate, tabId },
-    });
+  static openTab(tabInfo: TabInfo): void {
+    const event = new CustomEvent<TabInfo>(TabManager.OPEN_TAB_EVENT, { detail: tabInfo });
     TabManager.dispatchOrQueue(event);
   }
 
@@ -210,16 +134,15 @@ export class TabManager {
     editorMode?: "sql" | "chat";
     execute?: boolean;
   }): void {
-    const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
-      detail: {
-        type: "query",
-        query: options?.query,
-        mode: options?.mode,
-        editorMode: options?.editorMode,
-        execute: options?.execute,
-      },
+    // Query tab always has ID "query"
+    TabManager.openTab({
+      id: "query",
+      type: "query",
+      initialQuery: options?.query,
+      initialMode: options?.mode,
+      initialEditorMode: options?.editorMode,
+      initialExecute: options?.execute,
     });
-    TabManager.dispatchOrQueue(event);
   }
 
   /**
@@ -231,10 +154,14 @@ export class TabManager {
     initialPrompt?: string,
     autoRun?: boolean
   ): void {
-    const event = new CustomEvent<OpenTabEventDetail>(TabManager.OPEN_TAB_EVENT, {
-      detail: { type: "chat", chatId, tabId, initialPrompt, autoRun },
+    const id = tabId || (chatId ? `chat:${chatId}` : `chat:${Date.now()}`);
+    TabManager.openTab({
+      id,
+      type: "chat",
+      chatId,
+      initialPrompt,
+      autoRun,
     });
-    TabManager.dispatchOrQueue(event);
   }
 
   /**
@@ -242,7 +169,7 @@ export class TabManager {
    */
   static onOpenTab(handler: OpenTabEventHandler): () => void {
     const wrappedHandler = (e: Event) => {
-      handler(e as CustomEvent<OpenTabEventDetail>);
+      handler(e as CustomEvent<TabInfo>);
     };
 
     window.addEventListener(TabManager.OPEN_TAB_EVENT, wrappedHandler);

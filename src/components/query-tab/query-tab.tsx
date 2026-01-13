@@ -169,28 +169,30 @@ const QueryTabContent = ({
 
   // Listen for query tab activation events
   useEffect(() => {
-    const handler = (event: CustomEvent<import("@/components/tab-manager").OpenTabEventDetail>) => {
+    const handler = (event: CustomEvent<import("@/components/tab-manager").TabInfo>) => {
       if (event.detail.type === "query") {
+        const queryTabInfo = event.detail as import("@/components/tab-manager").QueryTabInfo;
+
         // Handle editor mode switch if specified
-        if (event.detail.editorMode) {
-          setMode(event.detail.editorMode);
+        if (queryTabInfo.initialEditorMode) {
+          setMode(queryTabInfo.initialEditorMode);
         }
 
         // Handle query insertion if provided
-        if (event.detail.query) {
+        if (queryTabInfo.initialQuery) {
           // Switch to SQL mode if not already (unless editorMode explicitly set to chat)
-          if (!event.detail.editorMode) {
+          if (!queryTabInfo.initialEditorMode) {
             setMode("sql");
           }
           // Store query to be applied after mode switch renders
           setPendingQueryInfo({
-            query: event.detail.query,
-            mode: event.detail.mode || "replace",
+            query: queryTabInfo.initialQuery,
+            mode: queryTabInfo.initialMode || "replace",
           });
 
           // Trigger execution if requested
-          if (event.detail.execute) {
-            executeQuery(event.detail.query);
+          if (queryTabInfo.initialExecute) {
+            executeQuery(queryTabInfo.initialQuery);
           }
         }
       }

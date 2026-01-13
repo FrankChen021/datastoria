@@ -165,7 +165,11 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
       if (!hasOpenedNodeTabRef.current && tree.length > 0) {
         const firstNodeData = tree[0]?.data as HostNodeData;
         if (firstNodeData?.type === "host" && firstNodeData.shortName) {
-          TabManager.openNodeTab(firstNodeData.shortName);
+          TabManager.openTab({
+            id: `node:${firstNodeData.shortName}`,
+            type: "node",
+            host: firstNodeData.shortName,
+          });
           hasOpenedNodeTabRef.current = true;
         }
       }
@@ -319,17 +323,31 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
     // If a host node is clicked, open the dashboard tab
     if (data.type === "host") {
       const hostData = data as HostNodeData;
-      TabManager.openNodeTab(hostData.shortName);
+      TabManager.openTab({
+        id: `node:${hostData.shortName}`,
+        type: "node",
+        host: hostData.shortName,
+      });
     }
     // If a database node is clicked, open the database tab
     else if (data.type === "database") {
       const databaseData = data as DatabaseNodeData;
-      TabManager.openDatabaseTab(databaseData.name);
+      TabManager.openTab({
+        id: `database:${databaseData.name}`,
+        type: "database",
+        database: databaseData.name,
+      });
     }
     // If a table node is clicked, open the table tab
     else if (data.type === "table") {
       const tableData = data as TableNodeData;
-      TabManager.openTableTab(tableData.database, tableData.table, tableData.fullTableEngine);
+      TabManager.openTab({
+        id: `table:${tableData.database}.${tableData.table}`,
+        type: "table",
+        database: tableData.database,
+        table: tableData.table,
+        engine: tableData.fullTableEngine,
+      });
     }
   }, []);
 
