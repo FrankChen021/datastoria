@@ -151,6 +151,21 @@ interface ChatHistoryListProps {
   onClearCurrentChat?: () => void;
 }
 
+const getGroupLabel = (dateStr: string) => {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const itemDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const diffTime = today.getTime() - itemDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return "Earlier";
+};
+
 const ClearAllButton: React.FC<{ onClearAll: () => void }> = ({ onClearAll }) => {
   const [open, setOpen] = React.useState(false);
   return (
@@ -159,9 +174,9 @@ const ClearAllButton: React.FC<{ onClearAll: () => void }> = ({ onClearAll }) =>
         <Button
           variant="ghost"
           size="sm"
-          className="text-xs h-8 text-muted-foreground hover:text-destructive gap-2"
+          className="text-xs h-7 text-muted-foreground hover:text-destructive gap-2"
         >
-          <Eraser className="h-3.5 w-3.5" />
+          <Eraser className="h-3 w-3" />
           Clear All
         </Button>
       </PopoverTrigger>
@@ -261,6 +276,21 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
       [fetchHistory]
     );
 
+    const groupedHistory = React.useMemo(() => {
+      const groups: { label: string; items: Chat[] }[] = [];
+      const map: Record<string, number> = {};
+
+      for (const item of history) {
+        const label = getGroupLabel(item.updatedAt);
+        if (map[label] === undefined) {
+          map[label] = groups.length;
+          groups.push({ label, items: [] });
+        }
+        groups[map[label]].items.push(item);
+      }
+      return groups;
+    }, [history]);
+
     return (
       <div className="flex flex-col h-[300px]">
         <Command
@@ -271,33 +301,43 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
           <CommandInput placeholder="Search conversations..." className="h-9" />
           <CommandList className="flex-1 max-h-none">
             <CommandEmpty>No conversations found.</CommandEmpty>
-            <CommandGroup>
-              {history.map((item) => (
-                <HistoryItem
-                  key={item.chatId}
-                  item={item}
-                  isSelected={item.chatId === currentChatId}
-                  onDelete={handleDeleteChat}
-                  onEdit={handleEditTitle}
-                  onSelect={() => {
-                    if (item.chatId !== currentChatId) {
-                      onSelectChat?.(item.chatId);
-                    }
-                    onClose();
-                  }}
-                />
-              ))}
-            </CommandGroup>
+            {groupedHistory.map((group) => (
+              <CommandGroup
+                className="py-0 px-0 [&_[cmdk-group-heading]]:px-1 [&_[cmdk-group-heading]]:py-0.5"
+                key={group.label}
+                heading={
+                  <span className="text-[10px] text-muted-foreground px-1 py-0">
+                    {group.label}
+                  </span>
+                }
+              >
+                {group.items.map((item) => (
+                  <HistoryItem
+                    key={item.chatId}
+                    item={item}
+                    isSelected={item.chatId === currentChatId}
+                    onDelete={handleDeleteChat}
+                    onEdit={handleEditTitle}
+                    onSelect={() => {
+                      if (item.chatId !== currentChatId) {
+                        onSelectChat?.(item.chatId);
+                      }
+                      onClose();
+                    }}
+                  />
+                ))}
+              </CommandGroup>
+            ))}
           </CommandList>
         </Command>
-        <div className="p-2 border-t flex items-center justify-between gap-2 bg-muted/30 shrink-0">
+        <div className="p-1 border-t flex items-center justify-between gap-2 bg-muted/30 shrink-0">
           <Button
             variant="ghost"
             size="sm"
-            className="text-xs h-8 flex-1 justify-start gap-2"
+            className="text-xs h-7 flex-1 justify-start gap-2"
             onClick={onNewChat}
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-3 w-3" />
             New Conversation
           </Button>
           <ClearAllButton onClearAll={handleClearAll} />
