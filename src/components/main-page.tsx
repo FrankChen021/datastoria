@@ -6,16 +6,20 @@ import {
 } from "@/components/schema-tree/schema-tree-loader";
 import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Connection,
+  type ConnectionConfig,
   type ConnectionMetadata,
   type DatabaseInfo,
+  type JSONCompactFormatResponse,
   type TableInfo,
 } from "@/lib/connection/connection";
 import { hostNameManager } from "@/lib/host-name-manager";
-import { AlertCircle, Loader2, RotateCcw } from "lucide-react";
+import { AlertCircle, CheckCircle2, Circle, Loader2, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { AppLogo } from "./app-logo";
 import { ConnectionSelectorDialog } from "./connection/connection-selector-dialog";
 import { MainPageTabList } from "./main-page-tab-list";
 
@@ -67,86 +71,6 @@ function extractTableNames(result: SchemaLoadResult): {
   return { tableNames, databaseNames };
 }
 
-export type AppInitStatus = "initializing" | "connecting" | "ready" | "error";
-
-interface MainPageLoadStatusComponentProps {
-  status: AppInitStatus;
-  connectionName?: string;
-  error?: string | null;
-  onRetry: () => void;
-}
-
-// Component for Initializing, Connecting or Error states (covers the whole page)
-function MainPageLoadStatusComponent({
-  status,
-  connectionName,
-  error,
-  onRetry,
-}: MainPageLoadStatusComponentProps) {
-  return (
-    <div
-      className={`flex flex-col items-center justify-center p-8 text-center animate-in duration-500 bg-background border shadow-lg rounded-sm min-w-[600px] min-h-[320px] ${
-        status === "error" ? "slide-in-from-bottom-4 duration-300" : "fade-in zoom-in-95"
-      }`}
-    >
-      {status === "initializing" && (
-        <>
-          <div className="p-4">
-            <Loader2 className="h-8 w-8 text-primary animate-spin" />
-          </div>
-          <h3 className="text-lg font-medium mb-2">Initializing application...</h3>
-          {/* Invisible spacer to match button height in error state */}
-          <div className="h-10" />
-        </>
-      )}
-
-      {status === "connecting" && (
-        <>
-          <div className="p-4">
-            <Loader2 className="h-8 w-8 text-primary animate-spin" />
-          </div>
-          <h3 className="text-lg font-medium items-center mb-2">
-            {connectionName ? (
-              <>
-                Connecting to <span className="underline">{connectionName}</span>
-              </>
-            ) : (
-              "Connecting..."
-            )}
-          </h3>
-          {/* Invisible spacer to match button height in error state */}
-          <div className="h-10" />
-        </>
-      )}
-
-      {status === "error" && (
-        <>
-          <div className="bg-destructive/10 p-4 rounded-full">
-            <AlertCircle className="h-10 w-10 text-destructive" />
-          </div>
-          <h3 className="text-lg font-medium mb-2">Connection Failed</h3>
-          <p className="text-muted-foreground max-w-md text-sm whitespace-pre-wrap mb-8">
-            {error || "Unable to establish a connection to the server."}
-          </p>
-          <div className="flex gap-3">
-            <Button onClick={onRetry} variant="outline" className="gap-2">
-              <RotateCcw className="h-4 w-4" />
-              Retry
-            </Button>
-            <ConnectionSelectorDialog
-              trigger={
-                <Button variant="outline" className="gap-2">
-                  Switch Connection
-                </Button>
-              }
-            />
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 // Initialize cluster info on a temporary connection and return the updates
 async function getConnectionMetadata(connection: Connection): Promise<Partial<ConnectionMetadata>> {
   const metadataQuery = connection.query(
@@ -172,7 +96,7 @@ async function getConnectionMetadata(connection: Connection): Promise<Partial<Co
   const metadataResponse = await metadataQuery.response;
   if (metadataResponse.httpStatus === 200) {
     const returnNode = metadataResponse.httpHeaders["x-clickhouse-server-display-name"];
-    const data = metadataResponse.data.json<any>();
+    const data = metadataResponse.data.json<JSONCompactFormatResponse>();
     const internalUser = data.data[0][0];
     const timezone = data.data[0][1];
 
@@ -182,8 +106,8 @@ async function getConnectionMetadata(connection: Connection): Promise<Partial<Co
       connection.metadata.targetNode === undefined;
     metadata = {
       targetNode: isCluster ? returnNode : undefined,
-      internalUser: internalUser,
-      timezone: timezone,
+      internalUser: internalUser as string,
+      timezone: timezone as string,
       function_table_has_description_column: data.data[0][2] ? true : false,
       metric_log_table_has_ProfileEvent_MergeSourceParts: data.data[0][3] ? true : false,
       metric_log_table_has_ProfileEvent_MutationTotalParts: data.data[0][4] ? true : false,
@@ -193,7 +117,7 @@ async function getConnectionMetadata(connection: Connection): Promise<Partial<Co
   {
     const response = await functionQuery.response;
     if (response.httpStatus === 200) {
-      const data = response.data.json<any>();
+      const data = response.data.json<JSONCompactFormatResponse>();
       if (data.data.length > 0) {
         const has_format_query_function = data.data[0][0];
         metadata.has_format_query_function = has_format_query_function ? true : false;
@@ -204,40 +128,69 @@ async function getConnectionMetadata(connection: Connection): Promise<Partial<Co
   return metadata;
 }
 
-export function MainPage() {
-  const { connection, pendingConfig, commitConnection, isInitialized, isConnectionAvailable } =
-    useConnection();
+type StepStatus = "pending" | "loading" | "success" | "error";
 
-  // State for global initialization status (driven by SchemaTreeView)
-  const [initStatus, setInitStatus] = useState<AppInitStatus>("initializing");
-  const [initError, setInitError] = useState<string | null>(null);
-  const [loadedSchemaData, setLoadedSchemaData] = useState<SchemaLoadResult | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+interface LoadingStep {
+  id: string;
+  text: string;
+  status: StepStatus;
+}
 
-  // Main Loading Effect
+interface ConnectionInitializerProps {
+  config: ConnectionConfig | null;
+  onReady: (connection: Connection, schemaData: SchemaLoadResult) => void;
+}
+
+function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) {
+  const [steps, setSteps] = useState<LoadingStep[]>([
+    { id: "init", text: "Initializing, please wait...", status: "loading" },
+    { id: "cluster", text: "Load cluster", status: "pending" },
+    { id: "schema", text: "Load schema", status: "pending" },
+  ]);
+
+  const [error, setError] = useState<string | null>(null);
+
+  const updateStep = (id: string, status: StepStatus, label?: string) => {
+    setSteps((prev) =>
+      prev.map((step) => (step.id === id ? { ...step, status, text: label ?? step.text } : step))
+    );
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setSteps((prev) =>
+      prev.map((step) => {
+        if (step.id === "init" && !config) return { ...step, status: "loading" };
+        if (step.id === "init" && config) return { ...step, status: "success" };
+        return { ...step, status: "pending" };
+      })
+    );
+  };
+
   useEffect(() => {
-    // If we have a pending config but no active public connection (or it doesn't match), we need to load.
-    if (!pendingConfig) {
+    // Prevent double execution or execution when already failed
+    if (error) return;
+
+    // If no config, we just stay in init loading state
+    if (!config) {
+      updateStep("init", "loading");
       return;
     }
 
-    // Optimization: If public connection already matches pendingConfig and connection is available, we are done.
-    if (connection && connection.name === pendingConfig.name && isConnectionAvailable) {
-      return;
-    }
-
-    setInitStatus("connecting");
-    setInitError(null);
+    // Config is present, mark init as success
+    updateStep("init", "success", `Load connection information: ${config.name}`);
 
     let isMounted = true;
     const schemaLoader = new SchemaTreeLoader();
+    const newConnection = Connection.create(config);
 
-    // 1. Create temporary runtime connection for initialization
-    const newConnection = Connection.create(pendingConfig);
-
-    const load = async () => {
+    const run = async () => {
       try {
+        // Clear hostname cache (simple operation, no step needed)
         hostNameManager.clear();
+
+        // Step 1: Cluster & Metadata
+        updateStep("cluster", "loading", "Load cluster from " + config.url);
 
         // Pre-load hostnames for shortening if cluster is configured
         if (newConnection.cluster) {
@@ -246,101 +199,189 @@ export function MainPage() {
               `SELECT host_name FROM system.clusters WHERE cluster = '${newConnection.cluster}'`,
               { default_format: "JSONCompact" }
             ).response;
-            const data = response.data.json<any>();
+            const data = response.data.json<JSONCompactFormatResponse>();
             if (data && Array.isArray(data.data)) {
               const hostNames = data.data.map((row: any) => row[0]);
               hostNameManager.shortenHostnames(hostNames);
             }
           } catch (e) {
-            // Ignore errors during hostname shortening initialization
             console.warn("Failed to load cluster hosts for shortening:", e);
           }
         }
 
-        // 1. Initialize cluster info and get the updates
         const newMetadata = await getConnectionMetadata(newConnection);
-
-        // 2. Apply metadata updates to tempConnection
         if (Object.keys(newMetadata).length > 0) {
           newConnection.metadata = { ...newConnection.metadata, ...newMetadata };
         }
+        updateStep("cluster", "success");
 
+        // Step 2: Schema
+        updateStep("schema", "loading", "Load schema from " + config.url);
         const startTime = Date.now();
-
-        // 3. Load Schema data using the temporary connection
         const result = await schemaLoader.load(newConnection);
 
-        if (isMounted) {
-          // 4. Extract table names and database names from schema result
-          const { tableNames, databaseNames } = extractTableNames(result);
+        if (!isMounted) return;
 
-          // 5. Apply table and database names to tempConnection metadata
-          newConnection.metadata = {
-            ...newConnection.metadata,
-            tableNames,
-            databaseNames,
-          };
+        const { tableNames, databaseNames } = extractTableNames(result);
+        newConnection.metadata = {
+          ...newConnection.metadata,
+          tableNames,
+          databaseNames,
+        };
 
-          const post = () => {
-            setLoadedSchemaData(result);
-            setInitStatus("ready");
-            // 6. Commit the fully initialized connection to context
-            commitConnection(newConnection);
-          };
-
-          const endTime = Date.now();
-          const duration = endTime - startTime;
-          if (duration < 800) {
-            // Delay a little for better UX
-            setTimeout(() => post(), 800 - duration);
-          } else {
-            post();
-          }
+        // Small delay for UX if it loads too fast
+        // Finish
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        if (duration < 1_000) {
+          setTimeout(() => {
+            if (isMounted) {
+              updateStep("schema", "success");
+              onReady(newConnection, result);
+            }
+          }, 1_000 - duration);
+        } else {
+          updateStep("schema", "success");
+          onReady(newConnection, result);
         }
       } catch (err) {
         if (isMounted) {
-          setTimeout(() => {
-            setInitStatus("error");
-            setInitError(err instanceof Error ? err.message : String(err));
-          }, 300);
+          setSteps((prev) => {
+            const failedStepIndex = prev.findIndex((s) => s.status === "loading");
+            if (failedStepIndex !== -1) {
+              const newSteps = [...prev];
+              newSteps[failedStepIndex] = {
+                ...newSteps[failedStepIndex],
+                status: "error",
+              };
+              return newSteps;
+            }
+            // Fallback if error happened before any step started loading or after
+            return prev.map((s) => (s.id === "cluster" ? { ...s, status: "error" } : s));
+          });
+          setError(err instanceof Error ? err.message : String(err));
         }
       }
     };
 
-    load();
+    run();
 
     return () => {
       isMounted = false;
       schemaLoader.abort();
     };
-  }, [pendingConfig, connection, commitConnection, retryCount, isConnectionAvailable]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config, error]); // Only re-run if config changes or we retry (clearing error)
 
-  useEffect(() => {
-    if (isInitialized && !pendingConfig && !connection) {
-      setInitStatus("connecting");
-    }
-  }, [isInitialized, pendingConfig, connection]);
+  // Show executed steps (success) and the current executing step (loading/pending/error)
+  const visibleSteps = steps.filter((step) => {
+    // Show all completed steps
+    if (step.status === "success") return true;
+    // Show the first non-success step (current executing step)
+    const firstNonSuccessIndex = steps.findIndex((s) => s.status !== "success");
+    return firstNonSuccessIndex !== -1 && steps.indexOf(step) === firstNonSuccessIndex;
+  });
 
-  // Show wizard if no connections exist
-  if (isInitialized && !pendingConfig && !connection) {
+  return (
+    <div className="w-full max-w-2xl flex flex-col overflow-hidden">
+      <Card className="w-full relative flex-shrink-0">
+        <CardHeader className="text-center space-y-1 pb-4">
+          <div className="flex justify-center items-center">
+            <AppLogo width={64} height={64} />
+            <CardTitle>Data Scopic</CardTitle>
+          </div>
+          <CardDescription className="text-base">
+            AI-powered ClickHouse management console with visualization and insights
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            {visibleSteps.map((step) => (
+              <div key={step.id} className="flex items-center gap-3 text-sm w-full py-1">
+                <div className="shrink-0 w-5 h-5 flex items-center justify-center">
+                  {step.status === "loading" && (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  )}
+                  {step.status === "success" && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                  {step.status === "error" && <AlertCircle className="h-4 w-4 text-destructive" />}
+                  {step.status === "pending" && (
+                    <Circle className="h-3 w-3 text-muted-foreground/30" />
+                  )}
+                </div>
+                <span
+                  className={`truncate flex-1 text-left
+                    ${step.status === "pending" ? "text-muted-foreground" : "text-foreground"}
+                    ${step.status === "error" ? "text-destructive font-medium" : ""}
+                    ${step.status === "loading" ? "font-medium" : ""}
+                  `}
+                >
+                  {step.text}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {error && (
+            <div className="w-full max-h-[200px] overflow-y-auto px-3 py-2 bg-destructive/10 rounded-md text-sm text-destructive whitespace-pre-wrap break-words border border-destructive/20 text-left">
+              {error}
+            </div>
+          )}
+
+          {error && (
+            <div className="flex gap-3 pt-2 items-center justify-center">
+              <Button onClick={handleRetry} variant="outline" className="gap-2 w-40">
+                <RotateCcw className="h-4 w-4" />
+                Retry
+              </Button>
+              <ConnectionSelectorDialog
+                trigger={
+                  <Button variant="outline" className="gap-2 w-40">
+                    Switch Connection
+                  </Button>
+                }
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function MainPage() {
+  const { connection, pendingConfig, commitConnection, isInitialized, isConnectionAvailable } =
+    useConnection();
+
+  const [loadedSchemaData, setLoadedSchemaData] = useState<SchemaLoadResult | null>(null);
+
+  // Determine if we should show the initializer overlay
+  // Case 1: App is not initialized yet (booting up)
+  // Case 2: App initialized, but switching connections (initializing new connection)
+  const showInitializer =
+    !isInitialized ||
+    (!!pendingConfig &&
+      (!connection || connection.name !== pendingConfig.name || !isConnectionAvailable));
+
+  const handleReady = (newConnection: Connection, result: SchemaLoadResult) => {
+    setLoadedSchemaData(result);
+    commitConnection(newConnection);
+  };
+
+  // Show wizard ONLY if:
+  // 1. App is fully initialized
+  // 2. No pending config (not currently connecting)
+  // 3. No active connection (fresh state)
+  const showWizard = isInitialized && !pendingConfig && !connection;
+
+  if (showWizard) {
     return <ConnectionWizard />;
   }
 
-  const isLoadingOrError =
-    initStatus === "initializing" || initStatus === "connecting" || initStatus === "error";
-
   return (
     <div className="relative h-full w-full flex min-w-0 overflow-hidden">
-      {isLoadingOrError && (
-        <div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-[2px] flex items-center justify-center">
-          <MainPageLoadStatusComponent
-            status={initStatus}
-            connectionName={pendingConfig ? pendingConfig.name : connection?.name}
-            error={initError}
-            onRetry={() => {
-              setRetryCount((prev) => prev + 1);
-            }}
-          />
+      {showInitializer && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center pt-[20vh] px-8 pb-8">
+          <ConnectionInitializer config={pendingConfig || null} onReady={handleReady} />
         </div>
       )}
 

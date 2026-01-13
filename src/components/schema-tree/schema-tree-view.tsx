@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tree, type TreeDataItem, type TreeRef } from "@/components/ui/tree";
 import type { DatabaseInfo, TableInfo } from "@/lib/connection/connection";
-import { hostNameManager } from "@/lib/host-name-manager";
 import { AlertCircle, Database, RotateCw, Search, Table as TableIcon, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -350,15 +349,6 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
       });
     }
   }, []);
-
-  if (!connection) {
-    return (
-      <div className="h-full w-full overflow-auto p-4 flex flex-col">
-        <div className="text-sm font-semibold mb-4">Schema</div>
-        <div className="text-sm text-muted-foreground flex-1">No connection selected</div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-full w-full flex flex-col">

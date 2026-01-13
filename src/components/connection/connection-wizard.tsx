@@ -29,22 +29,17 @@ export function ConnectionWizard() {
   };
 
   return (
-    <div className="fixed inset-0 bg-background flex items-center justify-center p-8">
-      <div
-        className={`w-full max-w-2xl flex flex-col overflow-hidden justify-center ${!isCreatingConnection ? "h-[80vh]" : ""}`}
-      >
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center pt-[20vh] px-8 pb-8">
+      <div className="w-full max-w-2xl flex flex-col overflow-hidden">
         {!isCreatingConnection ? (
           <Card className="w-full">
-            <CardHeader className="text-center space-y-2">
-              <div className="flex justify-center">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <AppLogo width={64} height={64} />
-                </div>
+            <CardHeader className="text-center space-y-1 pb-4">
+              <div className="flex justify-center items-center">
+                <AppLogo width={64} height={64} />
+                <CardTitle>Data Scopic</CardTitle>
               </div>
-              <CardTitle className="text-3xl">Welcome to Data Scopic</CardTitle>
               <CardDescription className="text-base">
-                Get started by creating your first connection to a ClickHouse server. <br />
-                You'll be able to query data, monitor server performance and chat with your data.
+                AI-powered ClickHouse management console with visualization and insights
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
