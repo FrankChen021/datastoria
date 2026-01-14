@@ -479,8 +479,8 @@ export const StatVisualization = forwardRef<StatVisualizationRef, StatVisualizat
     } = props;
 
     // State
-    const [data, setData] = useState(0);
-    const [offsetData, setOffsetData] = useState(0);
+    const [data, setData] = useState<string | number>(0);
+    const [offsetData, setOffsetData] = useState<string | number>(0);
     const [minimapData, setMinimapData] = useState<MinimapDataPoint[]>([]);
 
     const valueTextRef = useRef<HTMLDivElement>(null);
@@ -507,7 +507,7 @@ export const StatVisualization = forwardRef<StatVisualizationRef, StatVisualizat
     );
 
     const processData = useCallback(
-      (rows: Record<string, unknown>[]): { value: number; minimap: MinimapDataPoint[] } => {
+      (rows: Record<string, unknown>[]): { value: string | number; minimap: MinimapDataPoint[] } => {
         if (!rows || rows.length === 0) {
           return { value: 0, minimap: [] };
         }
@@ -567,8 +567,12 @@ export const StatVisualization = forwardRef<StatVisualizationRef, StatVisualizat
               if (typeof val === "number") {
                 return { value: val, minimap: [] };
               } else if (typeof val === "string") {
+                // Try to parse as number, but preserve string if it's not a valid number
                 const num = parseFloat(val);
-                return { value: isNaN(num) ? 0 : num, minimap: [] };
+                return { value: isNaN(num) ? val : num, minimap: [] };
+              } else {
+                // For other types, convert to string
+                return { value: String(val), minimap: [] };
               }
             }
           }
@@ -845,6 +849,11 @@ export const StatVisualization = forwardRef<StatVisualizationRef, StatVisualizat
             <Skeleton className="h-3 w-8" />
           </div>
         );
+      }
+
+      // Only show comparison if both values are numbers
+      if (typeof data !== "number" || typeof offsetData !== "number") {
+        return null;
       }
 
       const delta = data - offsetData;
