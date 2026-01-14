@@ -167,6 +167,16 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
     );
   };
 
+  // Clear error and reset steps when config changes (e.g., when switching connections)
+  useEffect(() => {
+    setError(null);
+    setSteps([
+      { id: "init", text: "Initializing, please wait...", status: "loading" },
+      { id: "cluster", text: "Load cluster", status: "pending" },
+      { id: "schema", text: "Load schema", status: "pending" },
+    ]);
+  }, [config]);
+
   useEffect(() => {
     // Prevent double execution or execution when already failed
     if (error) return;

@@ -137,8 +137,12 @@ function SystemTableIntrospectionSidebarMenuItem() {
 }
 
 export function AppSidebar() {
-  const { isConnectionAvailable } = useConnection();
+  const { isConnectionAvailable, pendingConfig } = useConnection();
   const { data: session } = useSession();
+
+  // Show connection selector if connection is available OR if there's a pending config (failed initialization)
+  // This allows users to switch connections even after a failure
+  const showConnectionSelector = isConnectionAvailable || !!pendingConfig;
 
   return (
     <Sidebar collapsible="icon">
@@ -152,10 +156,9 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup className="pt-0">
           <SidebarMenu>
+            {showConnectionSelector && <ConnectionManageSidebarMenuItem />}
             {isConnectionAvailable && (
               <>
-                <ConnectionManageSidebarMenuItem />
-
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     tooltip="Click to open query tab to write and execute SQL"

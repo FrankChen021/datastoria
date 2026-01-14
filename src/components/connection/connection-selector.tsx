@@ -38,9 +38,15 @@ interface ConnectionSelectorProps {
  * the popover and dialog variants. It manages its own state and handlers.
  */
 export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSelectorProps) {
-  const { connection, switchConnection } = useConnection();
+  const { connection, pendingConfig, isConnectionAvailable, switchConnection } = useConnection();
   const [connections, setConnections] = useState<ConnectionConfig[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Determine which connection to highlight:
+  // - If there's a pending config and connection is not available, highlight the pending (failed) connection
+  // - Otherwise, highlight the active connection
+  const highlightedConnectionName =
+    pendingConfig && !isConnectionAvailable ? pendingConfig.name : connection?.name;
 
   // Load connections
   const reloadConnections = () => {
@@ -77,7 +83,12 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
   };
 
   const handleConnectionSelect = (newConnection: ConnectionConfig) => {
-    if (newConnection.name !== connection?.name) {
+    // Switch if it's different from current connection OR different from pending config
+    // This allows switching even when initialization failed (pendingConfig exists but connection is old)
+    const isDifferentFromCurrent = newConnection.name !== connection?.name;
+    const isDifferentFromPending = newConnection.name !== pendingConfig?.name;
+    
+    if (isDifferentFromCurrent || isDifferentFromPending) {
       switchConnection(newConnection);
     }
     onClose();
@@ -133,7 +144,7 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
           if (value.toLowerCase().includes(search.toLowerCase())) return 1;
           return 0;
         }}
-        value={connection?.name}
+        value={highlightedConnectionName}
       >
         <CommandInput ref={inputRef} placeholder="Search connections..." className="!h-9 text-sm" />
         <CommandList className="!rounded-none max-h-[300px]">
@@ -141,7 +152,7 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
           {connections.length > 0 && (
             <CommandGroup className="!py-1 !px-1 !rounded-none">
               {connections.map((conn) => {
-                const isSelected = connection?.name === conn.name;
+                const isSelected = highlightedConnectionName === conn.name;
                 return (
                   <CommandItem
                     key={conn.name}
