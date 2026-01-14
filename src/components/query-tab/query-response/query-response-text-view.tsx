@@ -34,18 +34,17 @@ export const QueryResponseTextView = memo(function QueryResponseTextView({
     );
   }
 
-  // If response contains ANSI codes, render with ANSI parser
-  if (hasAnsiCodes) {
-    return <AnsiText>{rawQueryResponse}</AnsiText>;
-  }
-
   return (
     <div className="relative group mt-2">
       <CopyButton
         value={rawQueryResponse}
         className="left-0 top-0 right-auto opacity-0 group-hover:opacity-100 transition-opacity"
       />
-      <pre className="text-xs">{rawQueryResponse}</pre>
+      {hasAnsiCodes ? (
+        <AnsiText>{rawQueryResponse}</AnsiText>
+      ) : (
+        <pre className="text-xs">{rawQueryResponse}</pre>
+      )}
     </div>
   );
 });
