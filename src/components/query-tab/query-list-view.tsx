@@ -138,24 +138,35 @@ function QueryListViewContent({
   const mergedMessageList = useMemo(() => {
     if (!rawMessages) return sqlMessages;
 
+    const getRecord = (value: unknown): Record<string, unknown> | null =>
+      typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
+
+    const getOptionalField = (value: unknown, key: string): unknown => {
+      const rec = getRecord(value);
+      return rec ? rec[key] : undefined;
+    };
+
+    const getOptionalStringField = (value: unknown, key: string): string | undefined => {
+      const v = getOptionalField(value, key);
+      return typeof v === "string" ? v : undefined;
+    };
+
     const chatMessages: ChatMessage[] = (rawMessages as AppUIMessage[])
       .filter((m) => {
-        const exclude = (m as any).type === "step-start" || (m as any).type === "step-finish";
+        const type = getOptionalStringField(m, "type");
+        const exclude = type === "step-start" || type === "step-finish";
         // Filter internal messages if needed, matching chat-list-item-view logic
         // For now, allow all, or filter raw text parts
         return !exclude;
       })
       .map((m) => {
-        // Access generic properties safely
-        const mAny = m as any;
-
         // Stable timestamp logic:
         // 1. If message has createdAt, use it.
         // 2. If not, check if we already assigned a timestamp in our ref map.
         // 3. If not, assign Date.now() and store it.
         let ts: number;
-        if (mAny.createdAt) {
-          ts = new Date(mAny.createdAt).getTime();
+        if (m.metadata?.createdAt instanceof Date) {
+          ts = m.metadata.createdAt.getTime();
         } else {
           const existingTs = messageTimestampsRef.current.get(m.id);
           if (existingTs) {
@@ -169,14 +180,12 @@ function QueryListViewContent({
         // Ensure parts exist and are up to date with streaming content
         // If parts is empty or undefined, but content exists (streaming text), use content.
         let parts = m.parts;
-        if ((!parts || parts.length === 0) && mAny.content) {
-          parts = [{ type: "text", text: mAny.content }];
-        } else if (!parts) {
+        if (!parts) {
           parts = [];
         }
 
         // Compute content string for display fallback or search
-        let content = mAny.content || "";
+        let content = "";
         if (!content && parts.length > 0) {
           content = parts
             .filter((p) => p.type === "text")
@@ -188,23 +197,11 @@ function QueryListViewContent({
         let role = m.role as string;
         if (role === "data") role = "system";
 
-        // Extract usage from metadata, usage property, or finish part
-        let usage = (m as any).metadata?.usage || (m as any).usage;
-
-        if (!usage && parts) {
-          const finishPart = parts.find((p: any) => p.type === "finish");
-          if (finishPart) {
-            const partMetadata = (finishPart as any).messageMetadata;
-            if (partMetadata?.usage) {
-              usage = partMetadata.usage;
-            } else if ((finishPart as any).usage) {
-              usage = (finishPart as any).usage;
-            }
-          }
-        }
+        // Extract usage from metadata or usage property
+        const usage: TokenUsage | undefined = m.metadata?.usage ?? m.usage;
 
         // Determine sessionId for this message
-        let sessionId: string | undefined = (m as any).sessionId;
+        let sessionId: string | undefined = getOptionalStringField(m, "sessionId");
 
         // Check if we already stored a sessionId for this message ID
         if (!sessionId) {
@@ -250,9 +247,7 @@ function QueryListViewContent({
         }
 
         // Fallback to currentSessionId if still no sessionId
-        if (!sessionId) {
-          sessionId = currentSessionId;
-        }
+        if (!sessionId) sessionId = currentSessionId;
 
         // Store sessionId by message ID for future reference (especially for assistant messages)
         if (sessionId) {
@@ -473,7 +468,7 @@ function QueryListViewContent({
     return () => {
       unsubscribeChat();
     };
-  }, [tabId, sendMessage, currentSessionId]);
+  }, [tabId, sendMessage, currentSessionId, connection?.user]);
 
   // Deletion Handlers
   const handleQueryDelete = useCallback(
@@ -536,6 +531,7 @@ function QueryListViewContent({
                       {...msg}
                       onQueryDelete={handleQueryDelete}
                       isFirst={index === 0}
+                      scrollRootRef={responseScrollContainerRef}
                     />
                   );
                 } else {

@@ -3,19 +3,20 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Formatter } from "@/lib/formatter";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Square, X } from "lucide-react";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { QueryExecutionTimer } from "./query-execution-timer";
 import { useQueryExecutor } from "./query-execution/query-executor";
 import { QueryIdButton } from "./query-id-button";
 import { QueryRequestView } from "./query-request-view";
 import { QueryResponseView } from "./query-response/query-response-view";
-import type { QueryResponseViewModel, QueryViewProps } from "./query-view-model";
+import type { QueryResponseViewModel, QueryViewProps, QueryViewType } from "./query-view-model";
 
 interface QueryListItemViewProps extends QueryViewProps {
   isFirst?: boolean;
   queryResponse?: QueryResponseViewModel;
   isExecuting: boolean;
   tabId?: string;
+  scrollRootRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 const QuerySummary = memo(({ summaryText }: { summaryText: string | undefined }) => {
@@ -54,14 +55,98 @@ export function QueryListItemView({
   queryResponse,
   isExecuting,
   tabId,
+  scrollRootRef,
 }: QueryListItemViewProps) {
   const { cancelQuery } = useQueryExecutor();
   const [collapsed, setCollapsed] = useState(queryRequest.showRequest === "collapse");
-  const [showDelete, setShowDelete] = useState(false);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
   const scrollPlaceholderRef = useRef<HTMLDivElement>(null);
+  const thisComponentRef = useRef<HTMLDivElement>(null);
+  const scrollUpButtonWrapperRef = useRef<HTMLDivElement>(null);
+  const scrollDownButtonWrapperRef = useRef<HTMLDivElement>(null);
 
   const timestamp = format(new Date(queryRequest.timestamp), "yyyy-MM-dd HH:mm:ss");
+
+  const setScrollButtonVisibility = useCallback(() => {
+    const root = scrollRootRef?.current ?? null;
+    const section = thisComponentRef.current;
+    if (!root || !section) return;
+
+    const rootRect = root.getBoundingClientRect();
+    const sectionRect = section.getBoundingClientRect();
+
+    const isInView = sectionRect.bottom > rootRect.top && sectionRect.top < rootRect.bottom;
+    if (!isInView) {
+      if (scrollUpButtonWrapperRef.current) {
+        scrollUpButtonWrapperRef.current.style.display = "none";
+      }
+      if (scrollDownButtonWrapperRef.current) {
+        scrollDownButtonWrapperRef.current.style.display = "none";
+      }
+      return;
+    }
+
+    const clippedTop = sectionRect.top < rootRect.top - 1;
+    const clippedBottom = sectionRect.bottom > rootRect.bottom + 1;
+
+    if (scrollUpButtonWrapperRef.current) {
+      scrollUpButtonWrapperRef.current.style.display = clippedTop ? "" : "none";
+    }
+    if (scrollDownButtonWrapperRef.current) {
+      scrollDownButtonWrapperRef.current.style.display = clippedBottom ? "" : "none";
+    }
+  }, [scrollRootRef]);
+
+  const handleMouseEnter = useCallback(() => {
+    if (deleteButtonRef.current) {
+      deleteButtonRef.current.style.opacity = "1";
+      deleteButtonRef.current.style.pointerEvents = "auto";
+    }
+    setScrollButtonVisibility();
+  }, [setScrollButtonVisibility]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (deleteButtonRef.current) {
+      deleteButtonRef.current.style.opacity = "0";
+      deleteButtonRef.current.style.pointerEvents = "none";
+    }
+    if (scrollUpButtonWrapperRef.current) {
+      scrollUpButtonWrapperRef.current.style.display = "none";
+    }
+    if (scrollDownButtonWrapperRef.current) {
+      scrollDownButtonWrapperRef.current.style.display = "none";
+    }
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    const root = scrollRootRef?.current ?? null;
+    const section = thisComponentRef.current;
+    if (!root || !section) return;
+
+    const rootRect = root.getBoundingClientRect();
+    const sectionRect = section.getBoundingClientRect();
+
+    const delta = sectionRect.top - rootRect.top - 8;
+    root.scrollBy({ top: delta, behavior: "smooth" });
+    requestAnimationFrame(() => {
+      setScrollButtonVisibility();
+    });
+  }, [scrollRootRef, setScrollButtonVisibility]);
+
+  const scrollToBottom = useCallback(() => {
+    const root = scrollRootRef?.current ?? null;
+    const section = thisComponentRef.current;
+    if (!root || !section) return;
+
+    const rootRect = root.getBoundingClientRect();
+    const sectionRect = section.getBoundingClientRect();
+
+    const delta = sectionRect.bottom - rootRect.bottom + 8;
+    root.scrollBy({ top: delta, behavior: "smooth" });
+    requestAnimationFrame(() => {
+      setScrollButtonVisibility();
+    });
+  }, [scrollRootRef, setScrollButtonVisibility]);
 
   // Scroll to placeholder when execution completes
   useEffect(() => {
@@ -118,10 +203,46 @@ export function QueryListItemView({
 
   return (
     <div
-      className={`pl-2 py-3 ${isFirst ? "" : "border-t"}`}
-      onMouseEnter={() => setShowDelete(true)}
-      onMouseLeave={() => setShowDelete(false)}
+      ref={thisComponentRef}
+      className={`relative group/query-item pl-2 py-3 ${isFirst ? "" : "border-t"}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
+      {/* Floating buttons (based on the ENTIRE query-list-item) */}
+      <div
+        ref={scrollUpButtonWrapperRef}
+        className="pointer-events-none absolute bottom-5 left-1/2 z-20 -translate-x-1/2"
+        style={{ display: "none" }}
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          type="button"
+          title="Scroll up"
+          className="h-6 w-6 rounded-full border opacity-0 group-hover/query-item:opacity-100 transition-opacity pointer-events-auto"
+          onClick={scrollToTop}
+        >
+          <ChevronUp className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div
+        ref={scrollDownButtonWrapperRef}
+        className="pointer-events-none absolute top-2 left-1/2 z-20 -translate-x-1/2"
+        style={{ display: "none" }}
+      >
+        <Button
+          variant="ghost"
+          size="icon"
+          type="button"
+          title="Scroll down"
+          className="h-6 w-6 rounded-full border opacity-0 group-hover/query-item:opacity-100 transition-opacity pointer-events-auto"
+          onClick={scrollToBottom}
+        >
+          <ChevronDown className="h-4 w-4" />
+        </Button>
+      </div>
+
       {/* Header */}
       <div className="flex items-center gap-2 mb-1">
         <h4 className="text-sm font-semibold text-muted-foreground">{timestamp}</h4>
@@ -130,7 +251,8 @@ export function QueryListItemView({
             ref={deleteButtonRef}
             variant="ghost"
             size="icon"
-            className={`h-5 w-5 transition-opacity ${showDelete ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+            className="h-5 w-5 transition-opacity"
+            style={{ opacity: 0, pointerEvents: "none" }}
             onClick={handleDelete}
           >
             <X className="h-4 w-4" />
@@ -148,7 +270,7 @@ export function QueryListItemView({
             queryResponse={queryResponse}
             queryRequest={queryRequest}
             sql={queryRequest.sql}
-            view={view}
+            view={view as QueryViewType}
             tabId={tabId}
           />
         )}
