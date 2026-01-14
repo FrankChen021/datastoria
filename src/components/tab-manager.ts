@@ -195,6 +195,7 @@ export class TabManager {
   }
 
   private static readonly ACTIVE_TAB_CHANGE_EVENT = "ACTIVE_TAB_CHANGE";
+  private static readonly CLOSE_TAB_EVENT = "CLOSE_TAB";
 
   /**
    * Emit an active tab change event
@@ -204,6 +205,27 @@ export class TabManager {
       detail: { tabId, tabInfo },
     });
     window.dispatchEvent(event);
+  }
+
+  /**
+   * Emit a close tab event
+   */
+  static closeTab(tabId: string): void {
+    const event = new CustomEvent<string>(TabManager.CLOSE_TAB_EVENT, {
+      detail: tabId,
+    });
+    window.dispatchEvent(event);
+  }
+
+  /**
+   * Add a listener for close tab events
+   */
+  static onCloseTab(handler: (event: CustomEvent<string>) => void): () => void {
+    const wrappedHandler = (e: Event) => {
+      handler(e as CustomEvent<string>);
+    };
+    window.addEventListener(TabManager.CLOSE_TAB_EVENT, wrappedHandler);
+    return () => window.removeEventListener(TabManager.CLOSE_TAB_EVENT, wrappedHandler);
   }
 
   /**

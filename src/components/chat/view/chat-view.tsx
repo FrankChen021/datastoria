@@ -7,9 +7,9 @@ import type { AppUIMessage, TokenUsage } from "@/lib/ai/common-types";
 import "@/lib/number-utils"; // Ensure formatTimeDiff is available
 
 import { useChat, type Chat } from "@ai-sdk/react";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { ChatContext } from "../chat-context";
-import { ChatInput } from "../input/chat-input";
+import { ChatInput, type ChatInputHandle } from "../input/chat-input";
 import { getTableContextByMentions } from "../input/mention-utils";
 import { ChatMessages, type ChatMessage } from "../message/chat-messages";
 
@@ -49,6 +49,8 @@ interface ChatViewProps {
 
 export interface ChatViewHandle {
   send: (text: string) => void;
+  getInput: () => string;
+  focus: () => void;
 }
 
 export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatView(
@@ -56,6 +58,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   ref
 ) {
   const { connection } = useConnection();
+  const chatInputRef = useRef<ChatInputHandle | null>(null);
 
   const [promptInput, setPromptInput] = useState<string | undefined>(externalInput);
 
@@ -66,6 +69,15 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     }
   }, [externalInput]);
   const { messages, error, sendMessage, status, stop } = useChat({ chat });
+
+  // Focus input when ChatView is mounted
+  useEffect(() => {
+    // Use a small delay to ensure ChatInput is fully mounted
+    const timer = setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSubmit = useCallback(
     async (text: string) => {
@@ -87,12 +99,18 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     [chat, sendMessage, connection, currentQuery, currentDatabase, availableTables]
   );
 
-  // Expose send to parent component via imperative handle
+  // Expose send and getInput to parent component via imperative handle
   useImperativeHandle(
     ref,
     () => ({
       send: async (text: string) => {
         await handleSubmit(text);
+      },
+      getInput: () => {
+        return chatInputRef.current?.getInput() || "";
+      },
+      focus: () => {
+        chatInputRef.current?.focus();
       },
     }),
     [handleSubmit]
@@ -240,6 +258,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         <ChatMessages messages={chatMessages} error={error || null} />
       )}
       <ChatInput
+        ref={chatInputRef}
         onSubmit={handleSubmit}
         onStop={stop}
         isStreaming={isStreaming}

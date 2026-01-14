@@ -289,6 +289,17 @@ export const MainPageTabList = memo(function MainPageTabList({
     [activeTab, getNextOrPreviousTabId]
   );
 
+  // Handle close tab events
+  useEffect(() => {
+    const handler = (event: CustomEvent<string>) => {
+      const tabIdToClose = event.detail;
+      handleCloseTab(tabIdToClose);
+    };
+
+    const unsubscribe = TabManager.onCloseTab(handler);
+    return unsubscribe;
+  }, [handleCloseTab]);
+
   // Handle closing tabs to the right of a given tab
   const handleCloseTabsToRight = useCallback(
     (tabId: string) => {
@@ -600,6 +611,7 @@ export const MainPageTabList = memo(function MainPageTabList({
               active={activeTab === tab.id}
               initialPrompt={tab.initialPrompt}
               autoRun={tab.autoRun}
+              tabId={tab.id}
             />
           </div>
         );

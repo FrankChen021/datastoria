@@ -24,15 +24,13 @@ interface ChatInputProps {
   externalInput?: string;
 }
 
-export const ChatInput = ({
-  onSubmit,
-  onStop,
-  isStreaming,
-  hasMessages = false,
-  tokenUsage,
-  onNewChat,
-  externalInput,
-}: ChatInputProps) => {
+export interface ChatInputHandle {
+  getInput: () => string;
+  focus: () => void;
+}
+
+export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
+  ({ onSubmit, onStop, isStreaming, hasMessages = false, tokenUsage, onNewChat, externalInput }, ref) => {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const suggestionRef = React.useRef<ChatInputSuggestionsType>(null);
   const [input, setInput] = React.useState("");
@@ -176,6 +174,20 @@ export const ChatInput = ({
     }
   };
 
+  // Expose getInput and focus methods via ref
+  React.useImperativeHandle(
+    ref,
+    () => ({
+      getInput: () => input,
+      focus: () => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      },
+    }),
+    [input]
+  );
+
   return (
     <div className="px-3 pb-3">
       <div className="relative group border rounded-md bg-muted/30 focus-within:bg-background focus-within:ring-1 focus-within:ring-ring transition-all duration-200">
@@ -240,4 +252,7 @@ export const ChatInput = ({
       </div>
     </div>
   );
-};
+  }
+);
+
+ChatInput.displayName = "ChatInput";

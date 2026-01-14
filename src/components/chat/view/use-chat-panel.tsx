@@ -10,6 +10,9 @@ interface ChatPanelContextType {
   postMessage: (text: string, options?: { forceNewChat?: boolean }) => void;
   pendingCommand: { text: string; timestamp: number; forceNewChat?: boolean } | null;
   consumeCommand: () => void;
+  setInitialInput: (text: string, chatId?: string) => void;
+  initialInput: { text: string; chatId?: string } | null;
+  clearInitialInput: () => void;
 }
 
 const ChatPanelContext = createContext<ChatPanelContextType>({
@@ -30,6 +33,13 @@ const ChatPanelContext = createContext<ChatPanelContextType>({
   consumeCommand: () => {
     // Default implementation
   },
+  setInitialInput: () => {
+    // Default implementation
+  },
+  initialInput: null,
+  clearInitialInput: () => {
+    // Default implementation
+  },
 });
 
 export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
@@ -40,6 +50,7 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     timestamp: number;
     forceNewChat?: boolean;
   } | null>(null);
+  const [initialInput, setInitialInputState] = useState<{ text: string; chatId?: string } | null>(null);
 
   const toggle = () => {
     setIsVisible((prev) => !prev);
@@ -62,6 +73,15 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     setPendingCommand(null);
   };
 
+  const setInitialInput = (text: string, chatId?: string) => {
+    setInitialInputState({ text, chatId });
+    setIsVisible(true);
+  };
+
+  const clearInitialInput = () => {
+    setInitialInputState(null);
+  };
+
   return (
     <ChatPanelContext.Provider
       value={{
@@ -72,6 +92,9 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
         postMessage,
         pendingCommand,
         consumeCommand,
+        setInitialInput,
+        initialInput,
+        clearInitialInput,
       }}
     >
       {children}

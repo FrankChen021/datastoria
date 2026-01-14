@@ -5,6 +5,7 @@ import { chatStorage } from "@/components/chat/storage/chat-storage";
 import { useConnection } from "@/components/connection/connection-context";
 import { TabManager } from "@/components/tab-manager";
 import { Button } from "@/components/ui/button";
+import type { AppUIMessage } from "@/lib/ai/common-types";
 import type { Chat } from "@ai-sdk/react";
 import { Loader2, Maximize2, X } from "lucide-react";
 import * as React from "react";
@@ -39,6 +40,8 @@ const ChatHeader = React.memo(
         <h2 className="text-sm font-semibold"></h2>
         <div className="flex items-center">
           <OpenHistoryButton
+            className="h-6 w-6"
+            iconClassName="!h-3.5 !w-3.5"
             currentChatId={currentChatId}
             onNewChat={onNewChat}
             onSelectChat={onSelectChat}
@@ -48,22 +51,22 @@ const ChatHeader = React.memo(
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-6 w-6"
               onClick={onMaximize}
               title="Maximize to tab"
             >
-              <Maximize2 className="h-4 w-4" />
+              <Maximize2 className="!h-3.5 !w-3.5" />
             </Button>
           )}
           {onClose && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-6 w-6"
               onClick={onClose}
               title="Close chat panel"
             >
-              <X className="h-4 w-4" />
+              <X className="!h-3.5 !w-3.5" />
             </Button>
           )}
         </div>
@@ -91,8 +94,8 @@ export function ChatPanel({
   availableTables,
   onClose,
 }: ChatPanelProps) {
-  const { pendingCommand, consumeCommand } = useChatPanel();
-  const [chat, setChat] = useState<Chat<any> | null>(null);
+  const { pendingCommand, consumeCommand, initialInput, clearInitialInput } = useChatPanel();
+  const [chat, setChat] = useState<Chat<AppUIMessage> | null>(null);
   const [chatId, setChatId] = useState<string | undefined>(undefined);
   const chatViewRef = useRef<ChatViewHandle | null>(null);
   const [isChatViewReady, setIsChatViewReady] = useState(false);
@@ -121,10 +124,13 @@ export function ChatPanel({
 
       // If no explicit ID, determine what to load
       if (!idToLoad) {
-        // If there's a pending command when component mounts (panel was closed, now opening)
-        // OR if explicitly forcing new chat, create a new chat
-        const hasPendingCommand = pendingCommand?.text || pendingCommand?.forceNewChat;
-        if (hasPendingCommand) {
+        // Check if initialInput has a specific chatId
+        if (initialInput?.chatId) {
+          idToLoad = initialInput.chatId;
+          setChatId(idToLoad);
+        } else if (pendingCommand?.text || pendingCommand?.forceNewChat) {
+          // If there's a pending command when component mounts (panel was closed, now opening)
+          // OR if explicitly forcing new chat, create a new chat
           idToLoad = uuidv7();
           previousChatIdRef.current = null;
           setChatId(idToLoad);
@@ -143,7 +149,7 @@ export function ChatPanel({
     };
     loadSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connection?.connectionId, chatId, chat]);
+  }, [connection?.connectionId, chatId, chat, initialInput]);
 
   // Handle pending command when chat already exists (panel was already open)
   useEffect(() => {
@@ -176,6 +182,17 @@ export function ChatPanel({
       clickHouseUser: connection?.metadata.internalUser,
     }));
   }, [currentQuery, currentDatabase, availableTables, connection]);
+
+  // Clear initialInput after it's been used
+  useEffect(() => {
+    if (initialInput && chat && (!initialInput.chatId || initialInput.chatId === chat.id)) {
+      // Clear after a short delay to ensure ChatView has processed it
+      const timer = setTimeout(() => {
+        clearInitialInput();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [initialInput, chat, clearInitialInput]);
 
   // Handle new chat creation (from user action)
   const handleNewChat = useCallback(async () => {
@@ -234,7 +251,8 @@ export function ChatPanel({
 
   const handleMaximize = useCallback(() => {
     if (chat) {
-      TabManager.openChatTab(chat.id);
+      const currentInput = chatViewRef.current?.getInput() || "";
+      TabManager.openChatTab(chat.id, undefined, currentInput || undefined, false);
     }
   }, [chat]);
 
@@ -268,6 +286,11 @@ export function ChatPanel({
           currentQuery={currentQuery}
           currentDatabase={currentDatabase}
           availableTables={availableTables}
+          externalInput={
+            initialInput && (!initialInput.chatId || initialInput.chatId === chat.id)
+              ? initialInput.text
+              : undefined
+          }
         />
       </div>
     </SqlExecutionProvider>
