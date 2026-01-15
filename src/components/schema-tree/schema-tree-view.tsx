@@ -80,10 +80,6 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
   const wasInSearchModeRef = useRef(false);
   // Ref to store the latest handleHostChange to avoid circular dependency
   const handleHostChangeRef = useRef<((hostName: string) => void) | undefined>(undefined);
-  // Track if we've opened the node tab for the first time (per connection)
-  const hasOpenedNodeTabRef = useRef(false);
-  // Track the connection name to detect actual connection changes
-  const lastConnectionNameRef = useRef<string | null>(null);
 
   // Build tree from schema data
   const buildTree = useCallback(
@@ -133,9 +129,6 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
 
       // Refresh the tree to load data from the new host
       loadDatabases();
-
-      // Reset the node tab flag when host changes
-      hasOpenedNodeTabRef.current = false;
     },
     [connection, updateConnectionMetadata, loadDatabases]
   );
@@ -145,33 +138,11 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
     handleHostChangeRef.current = handleHostChange;
   }, [handleHostChange]);
 
-  // Reset the node tab flag when connection name changes (actual connection switch)
-  useEffect(() => {
-    const currentConnectionName = connection?.name ?? null;
-    if (lastConnectionNameRef.current !== currentConnectionName) {
-      hasOpenedNodeTabRef.current = false;
-      lastConnectionNameRef.current = currentConnectionName;
-    }
-  }, [connection?.name]);
-
   // Update tree when initial schema data changes
   useEffect(() => {
     if (initialSchemaData && connection) {
       const tree = buildTree(initialSchemaData);
       setTreeData(tree);
-
-      // Open node tab only on the first load
-      if (!hasOpenedNodeTabRef.current && tree.length > 0) {
-        const firstNodeData = tree[0]?.data as HostNodeData;
-        if (firstNodeData?.type === "host" && firstNodeData.shortName) {
-          TabManager.openTab({
-            id: `node:${firstNodeData.shortName}`,
-            type: "node",
-            host: firstNodeData.shortName,
-          });
-          hasOpenedNodeTabRef.current = true;
-        }
-      }
     }
   }, [initialSchemaData, connection, buildTree]);
 
@@ -323,7 +294,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
     if (data.type === "host") {
       const hostData = data as HostNodeData;
       TabManager.openTab({
-        id: `node:${hostData.shortName}`,
+        id: `node:${hostData.fullName}`,
         type: "node",
         host: hostData.shortName,
       });

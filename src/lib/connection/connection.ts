@@ -80,7 +80,14 @@ export interface DependencyTableInfo {
 }
 
 export interface ConnectionMetadata {
+  // The display name of the connection, will be used to display in the UI
+  displayName: string;
+
+  // The node that initial query is performed on
+  // It will be used to execute future queries in users intend to perform query on that node
   targetNode?: string;
+
+  // The current user at server side, will be used to execute queries that require the internal user name instead of the client side configured user name
   internalUser: string;
 
   // Server timezone

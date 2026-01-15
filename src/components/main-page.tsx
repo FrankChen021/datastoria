@@ -105,6 +105,7 @@ async function getConnectionMetadata(connection: Connection): Promise<Partial<Co
       connection.cluster.length > 0 &&
       connection.metadata.targetNode === undefined;
     metadata = {
+      displayName: returnNode,
       targetNode: isCluster ? returnNode : undefined,
       internalUser: internalUser as string,
       timezone: timezone as string,

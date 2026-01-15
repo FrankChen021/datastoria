@@ -3,7 +3,6 @@ import { ChatPanel } from "@/components/chat/view/chat-panel";
 import { ChatTab } from "@/components/chat/view/chat-tab";
 import { DEFAULT_CHAT_QUESTIONS } from "@/components/chat/view/chat-view";
 import { useChatPanel } from "@/components/chat/view/use-chat-panel";
-import { useConnection } from "@/components/connection/connection-context";
 import { DatabaseTab } from "@/components/database-tab/database-tab";
 import { SYSTEM_TABLE_REGISTRY } from "@/components/introspection/system-table-registry";
 import { NodeTab } from "@/components/node-tab/node-tab";
@@ -20,6 +19,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Connection } from "@/lib/connection/connection";
+import { hostNameManager } from "@/lib/host-name-manager";
 import {
   ChevronLeft,
   ChevronRight,
@@ -114,14 +114,12 @@ function EmptyTabPlaceholderComponent() {
 export const MainPageTabList = memo(function MainPageTabList({
   selectedConnection,
 }: MainPageTabListProps) {
-  const { isConnectionAvailable } = useConnection();
   const { isVisible: isChatPanelVisible, toggle: toggleChatPanel } = useChatPanel();
   // Tab management state
   const [activeTab, setActiveTab] = useState<string>("");
   const [tabs, setTabs] = useState<TabInfo[]>([]);
   const [pendingTabId, setPendingTabId] = useState<string | null>(null);
   const previousConnectionKeyRef = useRef<string | null>(null);
-  const hasOpenedInitialQueryTabRef = useRef(false);
 
   // Scroll state
   const tabsScrollContainerRef = useRef<HTMLDivElement>(null);
@@ -192,35 +190,49 @@ export const MainPageTabList = memo(function MainPageTabList({
 
     // Close tabs if connection key changed (switching connections or connection was updated)
     if (previousConnectionId !== null && previousConnectionId !== currentConnectionId) {
-      const keptTabs = tabs.filter((t) => t.type === "query");
-      setTabs(keptTabs);
+      const openTabs: TabInfo[] = tabs.filter((t) => t.type === "query");
 
-      if (keptTabs.length > 0) {
-        // If we have preserved tabs, we don't need to open a new initial query tab
-        hasOpenedInitialQueryTabRef.current = true;
-
-        // If the previously active tab is gone, activate the last preserved tab
-        if (!keptTabs.some((t) => t.id === activeTab)) {
-          setActiveTab(keptTabs[keptTabs.length - 1].id);
+      // Find the activated query tab, if not founded, activate the last one
+      let activeTabId = "";
+      if (openTabs.length > 0) {
+        if (!openTabs.some((t) => t.id === activeTab)) {
+          // Activate the last query tab
+          activeTabId = openTabs[openTabs.length - 1].id;
+        } else {
+          // Keep current activated tab unchanged
+          activeTabId = activeTab;
         }
       } else {
-        // No tabs preserved
-        setActiveTab("");
-        hasOpenedInitialQueryTabRef.current = false;
+        // Open and activate query tab
+        openTabs.push({
+          id: "query",
+          type: "query",
+        });
+        activeTabId = "query";
       }
+
+      // Open query tab and node tab if connection has a target node
+      if (selectedConnection?.metadata.displayName) {
+        const hostName = selectedConnection.metadata.displayName;
+        const shortHostName = hostNameManager.getShortHostname(hostName);
+
+        // Open node tab
+        openTabs.push({
+          id: `node:${hostName}`,
+          type: "node",
+          host: shortHostName,
+        });
+
+        // If node tab opens, always activate the node tab
+        activeTabId = `node:${hostName}`;
+      }
+      setTabs(openTabs);
+      setActiveTab(activeTabId);
     }
 
     // Update the ref to track the current connection
     previousConnectionKeyRef.current = currentConnectionId;
   }, [selectedConnection, tabs, activeTab]);
-
-  // Open query tab when schema is loaded (only once per connection)
-  useEffect(() => {
-    if (isConnectionAvailable && !hasOpenedInitialQueryTabRef.current) {
-      TabManager.activateQueryTab();
-      hasOpenedInitialQueryTabRef.current = true;
-    }
-  }, [isConnectionAvailable]);
 
   // Helper function to get the next tab ID, or previous if no next exists
   const getNextOrPreviousTabId = useCallback((tabId: string, tabsList: TabInfo[]) => {
@@ -744,8 +756,8 @@ export const MainPageTabList = memo(function MainPageTabList({
             </div>
           )}
           <div className="flex-1 overflow-hidden relative">
-            {/* Show Smart Empty State when no tabs exist and chat panel is not visible, but only when ready */}
-            {tabs.length === 0 && isConnectionAvailable && <EmptyTabPlaceholderComponent />}
+            {/* Show Smart Empty State when no tabs exist */}
+            {tabs.length === 0 && <EmptyTabPlaceholderComponent />}
 
             {/* All Tabs - Always mounted */}
             {tabContent}
