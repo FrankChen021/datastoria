@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tree, type TreeDataItem, type TreeRef } from "@/components/ui/tree";
 import type { DatabaseInfo, TableInfo } from "@/lib/connection/connection";
+import { cn } from "@/lib/utils";
 import { AlertCircle, Database, RotateCw, Search, Table as TableIcon, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -330,7 +331,10 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
           placeholder="Search databases/tables/columns"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-8 pr-20 rounded-none border-none flex-1 h-9"
+          className={cn(
+            "pl-8 pr-20 rounded-none border-none flex-1 h-9",
+            search.length > 0 ? "pr-16" : "pr-8"
+          )}
           disabled={!connection || isLoading}
         />
         {search && (
