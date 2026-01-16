@@ -35,7 +35,7 @@ export const SERVER_TOOL_OPTIMIZE_SQL = "optimize_sql" as const;
 export function createSqlOptimizationTool(inputModel: InputModel, _context?: DatabaseContext) {
   return tool({
     description:
-      "Optimize ClickHouse SQL queries based on evidence. This tool analyzes query performance and provides ranked recommendations.",
+      "Optimize ClickHouse SQL queries based on evidence. This tool analyzes query performance and provides ranked recommendations. **CRITICAL**: The result from this tool is already formatted for the user and MUST be output verbatim without any modifications, additions, or rephrasing.",
     inputSchema: z.object({
       relevant_chat: z
         .array(
@@ -63,6 +63,14 @@ export function createSqlOptimizationTool(inputModel: InputModel, _context?: Dat
             evidenceContext,
             inputModel: inputModel,
           });
+      
+      // If result is a string (markdown recommendations), wrap it with explicit instructions
+      // to ensure the orchestrator outputs it verbatim
+      if (typeof result === "string") {
+        return `[DIRECT_OUTPUT_REQUIRED: Output the following content EXACTLY as shown, without any modifications, additions, introductions, or conclusions:]\n\n${result}`;
+      }
+      
+      // If result is EvidenceRequest, return as-is
       return result;
     },
   });
@@ -91,31 +99,48 @@ export async function sqlOptimizationAgent(
 You optimize ClickHouse SQL based on provided evidence. You do NOT call tools directly.
 If evidence is insufficient, you MUST request evidence via a structured EvidenceRequest.
 
+**FIRST STEP - EVIDENCE CHECK (MANDATORY)**:
+Before doing ANY analysis, check the EvidenceContext provided. If EvidenceContext is:
+- Empty/missing → Output EvidenceRequest immediately
+- Missing required fields (goal, or all performance evidence) → Output EvidenceRequest immediately
+- Has required evidence → Proceed with analysis
+
 INPUTS YOU MAY RECEIVE:
-- relevant_chat: minimal conversation slice
-- EvidenceContext (may be empty):
+- relevant_chat: minimal conversation slice (may contain SQL, but this is NOT sufficient evidence)
+- EvidenceContext (may be empty or incomplete):
   {
     goal, sql, query_id, symptoms, tables,
     table_schema, table_stats, explain_index, explain_pipeline, query_log,
     settings, constraints, cluster
   }
 
-RULES:
-1) Do NOT ask free-form questions to the user.
-2) If missing critical evidence, output ONLY an EvidenceRequest JSON block (and nothing else).
-3) Base recommendations on evidence provided; if you infer, label it as "Assumption".
-4) Rank recommendations by Impact/Risk/Effort.
-5) Prefer low-risk query rewrites first, then table/layout changes, then settings/ops.
-6) If you propose rewritten SQL, keep it minimal and compatible with ClickHouse.
+**IMPORTANT**: SQL in relevant_chat is NOT sufficient. You need EvidenceContext with goal and performance evidence.
 
-CRITICAL EVIDENCE REQUIREMENTS:
-- Must have (sql OR query_id).
-- Must have goal.
-- Must have at least ONE of:
-  - explain_index OR explain_pipeline
-  - query_log summary (duration/read_rows/read_bytes/memory/error)
-  - table_schema for primary table
-If not met → EvidenceRequest.
+RULES:
+1) **FIRST**: Check EvidenceContext. If empty or missing required fields → Output EvidenceRequest ONLY (no analysis, no recommendations).
+2) Do NOT ask free-form questions to the user.
+3) **STRICT**: Do NOT make recommendations based on assumptions. If evidence is missing, you MUST request it via EvidenceRequest.
+4) Base recommendations ONLY on evidence provided in EvidenceContext; DO NOT infer goal from SQL or assume table structures.
+5) If you cannot proceed due to missing evidence, output EvidenceRequest - do NOT provide recommendations labeled as "Assumption".
+6) Rank recommendations by Impact/Risk/Effort.
+7) Prefer low-risk query rewrites first, then table/layout changes, then settings/ops.
+8) If you propose rewritten SQL, keep it minimal and compatible with ClickHouse.
+9) **SQL Comments for Changes**: When proposing optimized SQL, add short inline comments (-- comment) to highlight key changes from the original query. Comments should explain what was changed and why (e.g., "-- Added filter to reduce rows", "-- Changed interval alignment", "-- Added index hint").
+
+CRITICAL EVIDENCE REQUIREMENTS (STRICT ENFORCEMENT):
+1. **SQL or Query ID**: Must be present in EvidenceContext.sql OR EvidenceContext.query_id OR extracted from relevant_chat. If only in relevant_chat, extract it but still need other evidence.
+2. **Goal**: Must be explicitly provided in EvidenceContext.goal. DO NOT infer goal from SQL. If goal is missing → EvidenceRequest.
+3. **Performance Evidence**: Must have at least ONE of the following ACTUAL evidence in EvidenceContext (NOT assumptions):
+   - explain_index OR explain_pipeline (actual EXPLAIN output as string)
+   - query_log with actual metrics (object with duration_ms, read_rows, read_bytes, memory_usage, result_rows, or error fields)
+   - table_schema for primary table (actual schema structure as string/object, not assumptions about system tables)
+
+**STRICT ENFORCEMENT RULES**:
+- Check EvidenceContext first. If it's empty or missing required fields → EvidenceRequest.
+- DO NOT infer goal from SQL query purpose. Goal must be explicitly stated.
+- DO NOT assume table structure even for system tables. Require actual table_schema.
+- DO NOT proceed with recommendations if any of the above requirements are missing.
+- If evidence is missing, output ONLY the EvidenceRequest JSON block - nothing else.
 
 EVIDENCE REQUEST FORMAT (STRICT JSON, single code block):
 \`\`\`json
@@ -129,7 +154,13 @@ EVIDENCE REQUEST FORMAT (STRICT JSON, single code block):
 \`\`\`
 
 FINAL RESPONSE FORMAT (markdown):
+**ONLY use this format if you have ALL required evidence. If evidence is missing, use EvidenceRequest instead.**
+
 ## Findings (evidence-based)
+- **Goal**: [from EvidenceContext.goal, NOT inferred]
+- **SQL Provided**: [Yes/No - from EvidenceContext.sql or query_id]
+- **Evidence Available**: [List what evidence you have: query_log, explain, table_schema, etc.]
+- **Missing Evidence**: [If any critical evidence is missing, DO NOT proceed - use EvidenceRequest instead]
 - ...
 ## Recommendations (ranked)
 1. **Title** (Impact: H/M/L, Risk: H/M/L, Effort: H/M/L)
@@ -137,9 +168,20 @@ FINAL RESPONSE FORMAT (markdown):
    - Change (steps)
    - Verify (what metric improves)
 ## Proposed SQL (optional)
+When providing optimized SQL, include short inline comments to highlight key changes:
 \`\`\`sql
-...
-\`\`\``;
+-- Original query optimized with the following changes:
+-- 1. [Brief description of change 1]
+-- 2. [Brief description of change 2]
+SELECT ...
+\`\`\`
+
+**Comment Guidelines**:
+- Add comments above or inline with changed clauses
+- Keep comments concise (one line per change)
+- Explain what changed and why (e.g., "-- Added WHERE filter to reduce scanned rows by 80%")
+- Highlight performance-critical changes (filters, indexes, aggregations, etc.)
+`;
 
   try {
     // Use provided model config

@@ -24,7 +24,7 @@ function createToolProgressCallback(
   toolName: string,
   progressStore: ReturnType<typeof useToolProgressStore.getState>
 ): ToolProgressCallback {
-  return (stage: string, progress: number, status?: StageStatus, error?: string) => {
+  return (stage: string, progress: number, status: StageStatus, error?: string) => {
     progressStore.updateProgress(toolCallId, {
       toolName,
       stage,

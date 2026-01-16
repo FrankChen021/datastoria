@@ -154,7 +154,7 @@ export class TabManager {
     initialPrompt?: string,
     autoRun?: boolean
   ): void {
-    const id = tabId || (chatId ? `chat:${chatId}` : `chat:${Date.now()}`);
+    const id = tabId || (chatId ? `chat:${chatId}` : `chat`);
     TabManager.openTab({
       id,
       type: "chat",

@@ -50,14 +50,15 @@ async function collectQueryLog(
   progressCallback?: ToolProgressCallback
 ): Promise<number> {
   const stageId = "collect query log";
-  progressCallback?.(stageId, 10);
+  progressCallback?.(stageId, 10, "started");
   console.log("[DEBUG] collectQueryLog: Starting 20s sleep...");
   await new Promise((resolve) => setTimeout(resolve, 20000));
   console.log("[DEBUG] collectQueryLog: Sleep complete, continuing...");
   try {
-    const queryLogSql = `
+    const { response } = connection.query(
+      `
 SELECT 
-  query_duration_ms as duration_ms,
+  query_duration_ms,
   read_rows,
   read_bytes,
   memory_usage,
@@ -66,9 +67,9 @@ SELECT
 FROM system.query_log
 WHERE query_id = '${escapeSqlString(queryId)}'
 ORDER BY event_time DESC
-LIMIT 1`;
-
-    const { response } = connection.query(queryLogSql, { default_format: "JSONCompact" });
+LIMIT 1`,
+      { default_format: "JSONCompact" }
+    );
     const apiResponse = await response;
     const responseData = apiResponse.data.json() as JsonCompactResponse;
 
@@ -117,7 +118,7 @@ async function collectExplainIndex(
   progressCallback?: ToolProgressCallback
 ): Promise<number> {
   const stageId = "explain indexes";
-  progressCallback?.(stageId, 30);
+  progressCallback?.(stageId, 30, "started");
   console.log("[DEBUG] collectExplainIndex: Starting 20s sleep...");
   await new Promise((resolve) => setTimeout(resolve, 20000));
   console.log("[DEBUG] collectExplainIndex: Sleep complete, continuing...");
@@ -151,7 +152,7 @@ async function collectExplainPipeline(
   progressCallback?: ToolProgressCallback
 ): Promise<number> {
   const stageId = "explain pipeline";
-  progressCallback?.(stageId, 40);
+  progressCallback?.(stageId, 40, "started");
   console.log("[DEBUG] collectExplainPipeline: Starting 20s sleep...");
   await new Promise((resolve) => setTimeout(resolve, 20000));
   console.log("[DEBUG] collectExplainPipeline: Sleep complete, continuing...");
@@ -184,7 +185,7 @@ async function parseTableNames(
   progressCallback?: ToolProgressCallback
 ): Promise<TableName[]> {
   const stageId = "analyze table names";
-  progressCallback?.(stageId, 50);
+  progressCallback?.(stageId, 50, "started");
   console.log("[DEBUG] parseTableNames: Starting 20s sleep...");
   await new Promise((resolve) => setTimeout(resolve, 20000));
   console.log("[DEBUG] parseTableNames: Sleep complete, continuing...");
@@ -262,19 +263,20 @@ async function fetchTableMetadata(
   progressCallback?: ToolProgressCallback
 ): Promise<Map<string, TableMetadata>> {
   const stageId = "fetch table metadata";
-  progressCallback?.(stageId, 60);
+  progressCallback?.(stageId, 60, "started");
 
   const metaByTable = new Map<string, TableMetadata>();
 
   try {
-    const tableInfoSql = `
+    const { response: tableInfoResponse } = connection.query(
+      `
 SELECT database, table, engine, partition_key, primary_key, sorting_key
 FROM system.tables
-WHERE ${whereClause}`;
-
-    const { response: tableInfoResponse } = connection.query(tableInfoSql, {
-      default_format: "JSONCompact",
-    });
+WHERE ${whereClause}`,
+      {
+        default_format: "JSONCompact",
+      }
+    );
     const tableInfoApiResponse = await tableInfoResponse;
     const tableInfoData = tableInfoApiResponse.data.json() as JsonCompactResponse;
 
@@ -319,18 +321,20 @@ async function fetchTableColumns(
   progressCallback?: ToolProgressCallback
 ): Promise<Map<string, Array<[string, string]>>> {
   const stageId = "fetch table columns";
+  progressCallback?.(stageId, 65, "started");
   const columnsByTable = new Map<string, Array<[string, string]>>();
 
   try {
-    const columnsSql = `
+    const { response: columnsResponse } = connection.query(
+      `
 SELECT database, table, name, type
 FROM system.columns
 WHERE ${whereClause}
-ORDER BY database, table, position`;
-
-    const { response: columnsResponse } = connection.query(columnsSql, {
-      default_format: "JSONCompact",
-    });
+ORDER BY database, table, position`,
+      {
+        default_format: "JSONCompact",
+      }
+    );
     const columnsApiResponse = await columnsResponse;
     const columnsData = columnsApiResponse.data.json() as JsonCompactResponse;
 
@@ -373,9 +377,10 @@ async function fetchTableStats(
 ): Promise<Map<string, TableStats>> {
   const statsByTable = new Map<string, TableStats>();
   const stageId = "fetch table stats";
-  progressCallback?.(stageId, 70);
+  progressCallback?.(stageId, 70, "started");
   try {
-    const statsSql = `
+    const { response } = connection.query(
+      `
 SELECT 
   database,
   table,
@@ -385,29 +390,28 @@ SELECT
   uniqExact(partition) as partitions
 FROM system.parts
 WHERE active = 1 AND (${whereClause})
-GROUP BY database, table`;
-
-    const { response: statsResponse } = connection.query(statsSql, {
-      default_format: "JSONCompact",
-    });
-    const statsApiResponse = await statsResponse;
-    const statsData = statsApiResponse.data.json() as JsonCompactResponse;
+GROUP BY database, table`,
+      {
+        default_format: "JSONCompact",
+      }
+    );
+    const statsData = (await response).data.json() as JsonCompactResponse;
 
     if (statsData?.data && Array.isArray(statsData.data)) {
       for (const row of statsData.data) {
         const rowArray = row as unknown[];
         const database = String(rowArray[0] || "");
         const table = String(rowArray[1] || "");
-        const rowsValue = Number(rowArray[2]) || 0;
-        const bytesValue = Number(rowArray[3]) || 0;
-        const partsValue = Number(rowArray[4]) || 0;
-        const partitionsValue = Number(rowArray[5]) || 0;
-        const key = `${database}.${table}`;
-        statsByTable.set(key, {
-          rows: rowsValue,
-          bytes: bytesValue,
-          parts: partsValue,
-          partitions: partitionsValue,
+        const rows = Number(rowArray[2]) || 0;
+        const bytes = Number(rowArray[3]) || 0;
+        const parts = Number(rowArray[4]) || 0;
+        const partitions = Number(rowArray[5]) || 0;
+        const tableId = `${database}.${table}`;
+        statsByTable.set(tableId, {
+          rows: rows,
+          bytes: bytes,
+          parts: parts,
+          partitions: partitions,
         });
       }
     }
@@ -502,7 +506,7 @@ async function collectSettings(
   progressCallback?: ToolProgressCallback
 ): Promise<number> {
   const stageId = "fetch settings";
-  progressCallback?.(stageId, 80);
+  progressCallback?.(stageId, 80, "started");
   try {
     const settingsSql = `
 SELECT name, value
@@ -580,9 +584,7 @@ export const collectSqlOptimizationEvidenceExecutor: ToolExecutor<
       parallelTasks.push(collectExplainPipeline(sql, context, connection, progressCallback));
     }
 
-    if (mode === "full") {
-      parallelTasks.push(collectSettings(context, connection, progressCallback));
-    }
+    parallelTasks.push(collectSettings(context, connection, progressCallback));
 
     // Wait for all parallel tasks to complete
     const parallelResults = await Promise.all(parallelTasks);

@@ -55,7 +55,7 @@ export function CollapsiblePart({
   // Get status text based on state
   const getStatusText = () => {
     if (state === "input-streaming") return "receiving input...";
-    if (state === "input-available") return "running tool...";
+    if (state === "input-available") return "running...";
     if (state === "output-available" && duration !== null) {
       // Format duration
       if (duration < 1000) {

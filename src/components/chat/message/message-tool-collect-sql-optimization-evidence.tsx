@@ -38,7 +38,7 @@ export const MessageToolCollectSqlOptimizationEvidence = memo(
       <CollapsiblePart
         toolName={CLIENT_TOOL_NAMES.COLLECT_SQL_OPTIMIZATION_EVIDENCE}
         state={state}
-        defaultExpanded={state === "input-available"}
+        defaultExpanded={true}
       >
         {/* Show input parameters */}
         {input && (
@@ -75,7 +75,7 @@ export const MessageToolCollectSqlOptimizationEvidence = memo(
         )}
 
         {/* Show progress indicator when tool is running */}
-        <ToolProgressIndicator toolCallId={toolCallId} />
+        {showProgress && <ToolProgressIndicator toolCallId={toolCallId} />}
 
         {/* Show output/evidence summary */}
         {toolPart.output != null && (

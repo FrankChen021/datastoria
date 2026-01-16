@@ -3,7 +3,7 @@ import type { Connection } from "@/lib/connection/connection";
 /**
  * Status of a tool execution stage
  */
-export type StageStatus = "success" | "failed" | "skipped";
+export type StageStatus = "started" | "success" | "failed" | "skipped";
 
 /**
  * Progress update callback for tools that support progress tracking
@@ -11,7 +11,7 @@ export type StageStatus = "success" | "failed" | "skipped";
 export type ToolProgressCallback = (
   stage: string,
   progress: number,
-  status?: StageStatus,
+  status: StageStatus,
   error?: string
 ) => void;
 

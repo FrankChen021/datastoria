@@ -28,7 +28,7 @@ export const ToolProgressIndicator = memo(function ToolProgressIndicator({
       <div className="text-muted-foreground">stages:</div>
       {progress.stages.map((stage, i) => (
         <div key={i} className="flex items-center gap-2 px-2 text-[10px]">
-          {!stage.status && <Loader2 className="h-3 w-3 animate-spin" />}
+          {stage.status === "started" && <Loader2 className="h-3 w-3 animate-spin" />}
           {stage.status === "success" && <span className="text-green-600">✓</span>}
           {stage.status === "failed" && <span className="text-red-600">✗</span>}
           {stage.status === "skipped" && <span className="text-muted-foreground">⊘</span>}

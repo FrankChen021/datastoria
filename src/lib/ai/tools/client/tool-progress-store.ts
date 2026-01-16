@@ -30,7 +30,8 @@ interface ToolProgressState {
   updateProgress: (
     toolCallId: string,
     update: Partial<ToolProgress> & {
-      stageStatus?: StageStatus;
+      stage: string;
+      stageStatus: StageStatus;
       stageError?: string;
     }
   ) => void;
@@ -52,7 +53,8 @@ export const useToolProgressStore = create<ToolProgressState>((set, get) => ({
   updateProgress: (
     toolCallId: string,
     update: Partial<ToolProgress> & {
-      stageStatus?: StageStatus;
+      stage: string;
+      stageStatus: StageStatus;
       stageError?: string;
     }
   ) => {
@@ -61,16 +63,32 @@ export const useToolProgressStore = create<ToolProgressState>((set, get) => ({
       const newProgress: ToolProgress = {
         toolCallId,
         toolName: update.toolName || existing?.toolName || "unknown",
-        stage: update.stage || existing?.stage || "Initializing...",
+        stage: update.stage,
         progress: update.progress !== undefined ? update.progress : existing?.progress || 0,
         stages: existing?.stages || [],
       };
 
-      // If stageStatus is provided, add this stage to history
-      if (update.stageStatus && update.stage) {
+      // Add or update the stage in the stages array
+      const stageProgress = update.progress !== undefined ? update.progress : newProgress.progress;
+      
+      // Check if this stage already exists
+      const existingStageIndex = newProgress.stages.findIndex((s) => s.stage === update.stage);
+      
+      if (existingStageIndex >= 0) {
+        // Update existing stage
+        const existingStage = newProgress.stages[existingStageIndex]!;
+        newProgress.stages[existingStageIndex] = {
+          ...existingStage,
+          progress: stageProgress,
+          status: update.stageStatus,
+          // Only update error if provided
+          ...(update.stageError !== undefined && { error: update.stageError }),
+        };
+      } else {
+        // Add new stage
         newProgress.stages.push({
           stage: update.stage,
-          progress: update.progress !== undefined ? update.progress : newProgress.progress,
+          progress: stageProgress,
           status: update.stageStatus,
           error: update.stageError,
         });
