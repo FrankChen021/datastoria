@@ -20,7 +20,7 @@ import { MessageToolExecuteSql } from "./message-tool-execute-sql";
 import { MessageToolGeneral } from "./message-tool-general";
 import { MessageToolGenerateSql } from "./message-tool-generate-sql";
 import { MessageToolGenerateVisualization } from "./message-tool-generate-visualization";
-import { MessageToolGetTableColumns } from "./message-tool-get-table-columns";
+import { MessageToolExploreSchema } from "./message-tool-explore-schema";
 import { MessageToolGetTables } from "./message-tool-get-tables";
 import { MessageToolPlan } from "./message-tool-plan";
 import { MessageToolValidateSql } from "./message-tool-validate-sql";
@@ -121,8 +121,8 @@ function ChatMessagePart({ part, isUser }: { part: AppUIMessage["parts"][0]; isU
     return <MessageToolExecuteSql part={part} />;
   } else if (toolName === CLIENT_TOOL_NAMES.VALIDATE_SQL) {
     return <MessageToolValidateSql part={part} />;
-  } else if (toolName === CLIENT_TOOL_NAMES.GET_TABLE_COLUMNS) {
-    return <MessageToolGetTableColumns part={part} />;
+  } else if (toolName === CLIENT_TOOL_NAMES.EXPLORE_SCHEMA) {
+    return <MessageToolExploreSchema part={part} />;
   } else if (toolName === CLIENT_TOOL_NAMES.GET_TABLES) {
     return <MessageToolGetTables part={part} />;
   } else if (toolName === CLIENT_TOOL_NAMES.COLLECT_SQL_OPTIMIZATION_EVIDENCE) {

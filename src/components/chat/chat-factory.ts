@@ -279,7 +279,7 @@ export class ChatFactory {
           console.error(`Unknown tool: ${toolName}`);
           chat.addToolResult({
             tool: toolName as
-              | typeof CLIENT_TOOL_NAMES.GET_TABLE_COLUMNS
+              | typeof CLIENT_TOOL_NAMES.EXPLORE_SCHEMA
               | typeof CLIENT_TOOL_NAMES.GET_TABLES
               | typeof CLIENT_TOOL_NAMES.EXECUTE_SQL,
             toolCallId,

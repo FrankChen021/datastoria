@@ -256,7 +256,7 @@ export async function POST(req: Request) {
 
                   // Check if this is an identify_intent tool call
                   if (
-                    toolMsg.toolName === "identify_intent" ||
+                    toolMsg.toolName === SERVER_TOOL_PLAN ||
                     toolMsg.toolCallId?.startsWith("router-")
                   ) {
                     // Extract output - handle different formats

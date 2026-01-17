@@ -10,7 +10,7 @@ import type { AppUIMessage } from "../../common-types";
 import type { ToolExecutor } from "./client-tool-types";
 import { collectSqlOptimizationEvidenceExecutor } from "./collect-sql-optimization-evidence";
 import { executeSqlExecutor } from "./execute-sql";
-import { getTableColumnsExecutor } from "./get-table-columns";
+import { exploreSchemaExecutor } from "./explore-schema";
 import { getTablesExecutor } from "./get-tables";
 import { validateSqlExecutor } from "./validate-sql";
 
@@ -24,21 +24,27 @@ export type ValidateSqlToolOutput = {
 };
 
 export const ClientTools = {
-  get_table_columns: tool({
+  explore_schema: tool({
     description:
-      "Use this tool if you need to get the list of columns in one or more tables. You can query multiple tables at once by providing an array of tables. IMPORTANT: If the user provides a fully qualified table name (e.g., 'system.metric_log'), you MUST split it into database='system' and table='metric_log'. The 'table' field should ONLY contain the table name without the database prefix.",
+      "Use this tool to explore table schemas in detail, including columns, primary key, and partition key. You can query multiple tables at once. IMPORTANT: If the user provides a fully qualified table name (e.g., 'system.metric_log'), you MUST split it into database='system' and table='metric_log'. The 'table' field should ONLY contain the table name without the database prefix. OPTIMIZATION: If user mentions specific column names for a table, provide them in the 'columns' array for that table to fetch only those columns (saves tokens for large tables).",
     inputSchema: z.object({
-      tablesAndSchemas: z
+      tables: z
         .array(
           z.object({
+            database: z
+              .string()
+              .describe("The database name. For 'system.metric_log', use 'system'."),
             table: z
               .string()
               .describe(
                 "The table name ONLY (without database prefix). For 'system.metric_log', use 'metric_log'."
               ),
-            database: z
-              .string()
-              .describe("The database name. For 'system.metric_log', use 'system'."),
+            columns: z
+              .array(z.string())
+              .optional()
+              .describe(
+                "Optional: Fetch only these specific columns for this table. Omit to fetch all columns. Use this when user mentions specific column names to reduce token usage for large tables."
+              ),
           })
         )
         .min(1)
@@ -57,6 +63,8 @@ export const ClientTools = {
             comment: z.string().optional(),
           })
         ),
+        primaryKey: z.string().optional(),
+        partitionBy: z.string().optional(),
       })
     ),
   }),
@@ -145,7 +153,7 @@ export const ClientTools = {
  */
 export const CLIENT_TOOL_NAMES = {
   // Client-side introspection and execution tools
-  GET_TABLE_COLUMNS: "get_table_columns",
+  EXPLORE_SCHEMA: "explore_schema",
   GET_TABLES: "get_tables",
   EXECUTE_SQL: "execute_sql",
   VALIDATE_SQL: "validate_sql",
@@ -165,7 +173,7 @@ export const ClientToolExecutors: {
     InferToolOutput<(typeof ClientTools)[K]>
   >;
 } = {
-  get_table_columns: getTableColumnsExecutor,
+  explore_schema: exploreSchemaExecutor,
   get_tables: getTablesExecutor,
   execute_sql: executeSqlExecutor,
   validate_sql: validateSqlExecutor,

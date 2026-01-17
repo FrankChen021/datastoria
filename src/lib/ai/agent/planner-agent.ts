@@ -161,7 +161,7 @@ export async function callPlanAgent(
       if (msg.role === "tool") {
         const toolMessages = Array.isArray(msg.content) ? msg.content : [msg];
         for (const toolMsg of toolMessages) {
-          if ((toolMsg as any).toolName === "identify_intent") {
+          if ((toolMsg as any).toolName === SERVER_TOOL_PLAN) {
             const result = (toolMsg as any).result || (toolMsg as any).content;
             if (result?.agentName) {
               const lastAgentId = result.agentName.toLowerCase();
@@ -170,7 +170,7 @@ export async function callPlanAgent(
                 SUB_AGENTS.general;
               return {
                 intent: agent.id as Intent,
-                reasoning: "Resuming agent from identify_intent tool result",
+                reasoning: "Resuming agent from plan tool result",
                 agent,
                 usage: undefined,
                 title: undefined,
@@ -261,56 +261,6 @@ export async function callPlanAgent(
         usage: undefined,
         title: undefined,
       };
-    }
-  }
-
-  // 3. Execution Trace Stickiness
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (msg.role === "assistant" && typeof msg.content === "string") {
-      const traceMatch = msg.content.match(/### Execution Trace:\s*agentName:\s*([\w-]+)/);
-      if (traceMatch) {
-        const lastAgent = traceMatch[1].toLowerCase();
-        const isStickyFollowup =
-          content.length < 100 &&
-          (content.includes("fix") ||
-            content.includes("more") ||
-            content.includes("update") ||
-            content.includes("change") ||
-            content.includes("explain") ||
-            content.includes("why") ||
-            content.includes("tell me more"));
-
-        if (isStickyFollowup) {
-          if (lastAgent.includes("optimizer")) {
-            return {
-              intent: "optimizer",
-              reasoning: "Execution trace stickiness",
-              agent: SUB_AGENTS.optimizer,
-              usage: undefined,
-              title: undefined,
-            };
-          }
-          if (lastAgent.includes("generator")) {
-            return {
-              intent: "generator",
-              reasoning: "Execution trace stickiness",
-              agent: SUB_AGENTS.generator,
-              usage: undefined,
-              title: undefined,
-            };
-          }
-          if (lastAgent.includes("general")) {
-            return {
-              intent: "general",
-              reasoning: "Execution trace stickiness",
-              agent: SUB_AGENTS.general,
-              usage: undefined,
-              title: undefined,
-            };
-          }
-        }
-      }
     }
   }
 

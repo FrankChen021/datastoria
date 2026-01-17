@@ -33,7 +33,7 @@ export const MessageToolGenerateVisualization = memo(function MessageToolGenerat
       panelDescriptor.height = 300;
     }
   }
-
+console.log("Rendering MessageToolGenerateVisualization", { toolPart, panelDescriptor });
   return (
     <>
       <CollapsiblePart

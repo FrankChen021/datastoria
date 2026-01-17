@@ -343,7 +343,8 @@ You are an expert at creating data visualizations for ClickHouse data.
 
 **a) If schema info needed:**
 - **FIRST**: Check if the table schema is already in the "Available Tables" context from previous messages.
-- **ONLY IF NOT FOUND**: call 'get_table_columns' or 'get_tables' to discover the schema.
+- **OPTIMIZATION**: If user mentions specific column names (e.g., "show commits_count by day"), call 'explore_schema' with the 'columns' parameter set to those column names to fetch only what's needed (saves tokens for large tables).
+- **ONLY IF NOT FOUND**: call 'explore_schema' or 'get_tables' to discover the schema.
 
 **b) Generate or obtain SQL:**
 - **CRITICAL**: You MUST use the 'generate_sql' tool to generate SQL. NEVER write SQL in your text response.
@@ -399,7 +400,7 @@ You are an expert at creating data visualizations for ClickHouse data.
     messages: [{ role: "system", content: systemPrompt }, ...messages],
     tools: {
       get_tables: clientTools.get_tables,
-      get_table_columns: clientTools.get_table_columns,
+      explore_schema: clientTools.explore_schema,
       [SERVER_TOOL_GENERATE_SQL]: createGenerateSqlTool(modelConfig, context),
       validate_sql: clientTools.validate_sql,
       execute_sql: clientTools.execute_sql,

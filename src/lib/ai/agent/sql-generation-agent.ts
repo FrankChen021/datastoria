@@ -5,6 +5,7 @@ import { isMockMode, LanguageModelProviderFactory } from "../llm/llm-provider-fa
 import { ClientTools as clientTools } from "../tools/client/client-tools";
 import type { InputModel } from "./planner-agent";
 import { mockSqlGenerationAgent } from "./sql-generation-agent.mock";
+import type { TableSchemaOutput } from "../tools/client/explore-schema";
 
 /**
  * SQL Generation Agent Output Schema
@@ -74,13 +75,7 @@ function buildSqlGenerationPrompt({
   includeValidationInstructions = true,
 }: {
   context?: ServerDatabaseContext;
-  schemaHints?: {
-    database?: string;
-    tables?: Array<{
-      name: string;
-      columns: Array<{ name: string; type: string }>;
-    }>;
-  };
+  schemaHints?: Array<TableSchemaOutput>;
   previousValidationError?: string;
   allowSchemaDiscovery?: boolean;
   includeValidationInstructions?: boolean;
@@ -91,11 +86,9 @@ function buildSqlGenerationPrompt({
 } {
   // Build schema context from schemaHints (for backward compatibility) or context
   const schemaContext = [];
-  const database = schemaHints?.database || context?.database;
-  // Use schemaHints tables if available (has type info), otherwise fall back to context tables (string[] format)
-  const tables =
-    schemaHints?.tables ||
-    (context?.tables as Array<{ name: string; columns: string[] }> | undefined);
+  const database = context?.database;
+  // Use schemaHints if available (has type info), otherwise fall back to context tables
+  const tables = schemaHints || (context?.tables as Array<TableSchemaOutput> | undefined);
 
   if (database) {
     schemaContext.push(`Current database: ${database}`);
@@ -103,14 +96,27 @@ function buildSqlGenerationPrompt({
   if (tables && tables.length > 0) {
     schemaContext.push("Available tables:");
     tables.forEach((table) => {
-      // Handle both old format (string[]) and new format (Array<{name, type}>)
-      const columnList =
-        table.columns.length > 0 && typeof table.columns[0] === "string"
-          ? (table.columns as unknown as string[]).join(", ")
-          : (table.columns as unknown as Array<{ name: string; type: string }>)
-              .map((col) => `${col.name} (${col.type})`)
-              .join(", ");
-      schemaContext.push(`- ${table.name}: ${columnList}`);
+      const columnList = table.columns
+        .map((col) => `${col.name} (${col.type})`)
+        .join(", ");
+      
+      // Use fully qualified table name (database.table)
+      const qualifiedTableName = `${table.database}.${table.table}`;
+      let tableInfo = `- ${qualifiedTableName}: ${columnList}`;
+      
+      // Add primary key and partition key info if available
+      if (table.primaryKey || table.partitionBy) {
+        const keyInfo = [];
+        if (table.primaryKey) {
+          keyInfo.push(`PRIMARY KEY: ${table.primaryKey}`);
+        }
+        if (table.partitionBy) {
+          keyInfo.push(`PARTITION BY: ${table.partitionBy}`);
+        }
+        tableInfo += ` [${keyInfo.join(", ")}]`;
+      }
+      
+      schemaContext.push(tableInfo);
     });
   }
 
@@ -136,12 +142,12 @@ Generate a corrected SQL query that will pass validation.`
 
   const schemaDiscoverySection = allowSchemaDiscovery
     ? `\n## Schema Discovery
-- You have access to schema discovery tools: 'get_tables' and 'get_table_columns'.
+- You have access to schema discovery tools: 'get_tables' and 'explore_schema'.
 - If you need schema information that's not provided, use these tools to discover it.
 - Call 'get_tables' to list available tables in a database.
-- Call 'get_table_columns' to get detailed column information for a specific table.`
+- Call 'explore_schema' to get detailed column information for a specific table.`
     : `\n## Important
-- You do NOT have access to schema discovery tools (get_tables, get_table_columns).
+- You do NOT have access to schema discovery tools (get_tables, explore_schema).
 - The orchestrator has already gathered all necessary schema information.
 - Use the Schema Context provided above to generate the SQL.
 - If schema information is missing, note it in your response and return needs_clarification=true.`;
@@ -164,6 +170,7 @@ Generate a corrected SQL query that will pass validation.`
 
 ## Requirements
 - Generate ONLY valid ClickHouse SQL syntax
+- **CRITICAL**: Always use fully qualified table names in the format \`database.table\` (e.g., \`system.query_log\`, \`default.events\`). NEVER use unqualified table names.
 - Always use LIMIT clauses for SQL queries which will be executed to fetch data.
 - Use bounded time windows for time-series queries (e.g., last 24 hours, last 7 days)
 - For performance queries, use system tables: system.query_log, system.processes, system.metrics, etc.
@@ -172,6 +179,21 @@ Generate a corrected SQL query that will pass validation.`
   * Check the schema context to find the exact enum values for that column (the column type will show the enum definition, e.g., Enum8('MutatePart' = 1, 'MergePart' = 2))
   * Use the exact enum literal value as shown in the column type definition - enum values are CASE-SENSITIVE
   * Do NOT guess enum values or use variations - only use values that appear in the enum type definition
+
+## Performance Optimization (CRITICAL - ALWAYS APPLY)
+When the Schema Context shows PRIMARY KEY or PARTITION BY for a table, you MUST optimize your SQL:
+
+**PRIMARY KEY Usage**:
+- If PRIMARY KEY is shown (e.g., \`PRIMARY KEY: event_date, event_time\`), add filters on these columns in WHERE clause if possible
+- Order results by primary key columns when possible for efficient scanning
+- Example: For \`PRIMARY KEY: event_date, event_time\`, add \`WHERE event_date >= today() - 7\` and \`ORDER BY event_date, event_time\`
+
+**PARTITION BY Usage**:
+- If PARTITION BY is shown (e.g., \`PARTITION BY: toYYYYMM(event_date)\`), include a filter on the partition column if possible
+- This enables partition pruning - ClickHouse skips entire partitions not matching the filter
+- Example: For \`PARTITION BY: toYYYYMM(event_date)\`, add \`WHERE event_date >= today() - 30\` to limit partitions scanned
+
+**MANDATORY**: If the schema shows both PRIMARY KEY and PARTITION BY, your WHERE clause MUST include filters on at least the partition key column(s) to ensure efficient query execution.
 ${userContextSection}${currentQuerySection}${validationErrorSection}
 ## Schema Context
 ${schemaContext.length > 0 ? schemaContext.join("\n") : "No schema context provided. Generate SQL based on the user question."}
@@ -199,25 +221,22 @@ export function createGenerateSqlTool(inputModel: InputModel, context?: ServerDa
           "If this is a retry after validation failure, include the validation error message here to help fix the SQL"
         ),
       schemaHints: z
-        .object({
-          database: z.string().optional().describe("Current database name"),
-          tables: z
-            .array(
+        .array(
+          z.object({
+            database: z.string(),
+            table: z.string(),
+            columns: z.array(
               z.object({
                 name: z.string(),
-                columns: z.array(
-                  z.object({
-                    name: z.string(),
-                    type: z.string(),
-                  })
-                ),
+                type: z.string(),
               })
-            )
-            .optional()
-            .describe("Available tables and their columns with types"),
-        })
+            ),
+            primaryKey: z.string().optional().describe("Primary key expression"),
+            partitionBy: z.string().optional().describe("Partition key expression"),
+          })
+        )
         .optional()
-        .describe("Schema context to help generate accurate SQL"),
+        .describe("Schema context: array of table schemas with columns, primary key, and partition key"),
       context: z
         .object({
           currentQuery: z.string().optional(),
@@ -279,13 +298,7 @@ export function createGenerateSqlTool(inputModel: InputModel, context?: ServerDa
 export interface SQLGenerationAgentInput {
   userQuestion: string;
   previousValidationError?: string;
-  schemaHints?: {
-    database?: string;
-    tables?: Array<{
-      name: string;
-      columns: Array<{ name: string; type: string }>;
-    }>;
-  };
+  schemaHints?: Array<TableSchemaOutput>;
   context?: ServerDatabaseContext;
   inputModel: InputModel;
 }
@@ -447,7 +460,7 @@ LIMIT 10
     messages: [{ role: "system", content: systemPrompt }, ...messages],
     tools: {
       get_tables: clientTools.get_tables,
-      get_table_columns: clientTools.get_table_columns,
+      explore_schema: clientTools.explore_schema,
       validate_sql: clientTools.validate_sql,
     },
     temperature,
