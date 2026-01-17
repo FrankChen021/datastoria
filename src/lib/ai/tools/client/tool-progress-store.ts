@@ -70,10 +70,10 @@ export const useToolProgressStore = create<ToolProgressState>((set, get) => ({
 
       // Add or update the stage in the stages array
       const stageProgress = update.progress !== undefined ? update.progress : newProgress.progress;
-      
+
       // Check if this stage already exists
       const existingStageIndex = newProgress.stages.findIndex((s) => s.stage === update.stage);
-      
+
       if (existingStageIndex >= 0) {
         // Update existing stage
         const existingStage = newProgress.stages[existingStageIndex]!;

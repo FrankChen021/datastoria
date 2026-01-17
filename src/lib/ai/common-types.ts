@@ -1,3 +1,4 @@
+import type { DatabaseContext } from "@/components/chat/chat-context";
 import type { InferUITools, UIDataTypes, UIMessage } from "ai";
 import type { ClientTools } from "./tools/client/client-tools";
 
@@ -86,4 +87,14 @@ export interface EvidenceRequest {
   required: string[];
   optional: string[];
   notes?: string;
+}
+
+/**
+ * Server-side database context that extends DatabaseContext with server-specific fields
+ */
+export interface ServerDatabaseContext extends DatabaseContext {
+  /**
+   * User email from authentication session
+   */
+  userEmail: string;
 }

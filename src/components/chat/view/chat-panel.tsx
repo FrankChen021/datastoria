@@ -1,6 +1,7 @@
 "use client";
 
 import { ChatFactory } from "@/components/chat/chat-factory";
+import { ChatUIContext } from "@/components/chat/chat-ui-context";
 import { chatStorage } from "@/components/chat/storage/chat-storage";
 import { useConnection } from "@/components/connection/connection-context";
 import { TabManager } from "@/components/tab-manager";
@@ -24,6 +25,7 @@ interface ChatHeaderProps {
   onSelectChat?: (id: string) => void;
   onClearCurrentChat?: () => void;
   onMaximize?: () => void;
+  title?: string;
 }
 
 const ChatHeader = React.memo(
@@ -34,10 +36,11 @@ const ChatHeader = React.memo(
     onSelectChat,
     onClearCurrentChat,
     onMaximize,
+    title,
   }: ChatHeaderProps) => {
     return (
       <div className="h-9 border-b flex items-center justify-between px-2 shrink-0 bg-background/50 backdrop-blur-sm z-10">
-        <h2 className="text-sm font-semibold"></h2>
+        <h2 className="text-sm font-semibold">{title || "AI Assistant"}</h2>
         <div className="flex items-center">
           <OpenHistoryButton
             className="h-6 w-6"
@@ -96,62 +99,85 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const { pendingCommand, consumeCommand, initialInput, clearInitialInput } = useChatPanel();
   const [chat, setChat] = useState<Chat<AppUIMessage> | null>(null);
-  const [chatId, setChatId] = useState<string | undefined>(undefined);
+  const [chatTitle, setChatTitle] = useState<string | undefined>(undefined);
   const chatViewRef = useRef<ChatViewHandle | null>(null);
   const [isChatViewReady, setIsChatViewReady] = useState(false);
   const previousChatIdRef = useRef<string | null>(null);
   const processedPendingCommandRef = useRef<string | null>(null);
+  const isInitializedRef = useRef(false);
   const { connection } = useConnection();
 
-  // Create a new chat instance
-  const createChat = useCallback(
-    async (id: string, connection: ReturnType<typeof useConnection>["connection"]) => {
-      const newChat = await ChatFactory.create({ id, connection });
+  const loadChat = useCallback(
+    async (chatIdToLoad: string): Promise<void> => {
+      const chatData = await chatStorage.getChat(chatIdToLoad);
+      if (chatData) {
+        setChatTitle(chatData.title);
+      }
+
+      const newChat = await ChatFactory.create({
+        // We still use this id if it's not found in the storage because it might be a new chat id
+        id: chatIdToLoad,
+        connection: connection!,
+      });
       setChat(newChat);
       chatViewRef.current = null;
       setIsChatViewReady(false);
     },
-    []
+    [connection]
   );
 
-  // Load or create initial chat session
+  // Initial chat loading - only run once when chat is null
   useEffect(() => {
-    // If we already have a chat loaded with the correct ID, do nothing
-    if (chat && chat.id === chatId) return;
+    // Skip if already initialized or chat already exists
+    if (isInitializedRef.current || chat) return;
 
-    const loadSession = async () => {
+    const initializeChat = async () => {
       const connectionId = connection?.connectionId;
       if (!connectionId) return;
 
-      let idToLoad = chatId;
+      // Capture pendingCommand at initialization time to avoid re-running when it changes
+      const currentPendingCommand = pendingCommand;
+      let idToLoad: string | undefined;
 
-      // If no explicit ID, determine what to load
-      if (!idToLoad) {
-        // Check if initialInput has a specific chatId
-        if (initialInput?.chatId) {
-          idToLoad = initialInput.chatId;
-          setChatId(idToLoad);
-        } else if (pendingCommand?.text || pendingCommand?.forceNewChat) {
-          // If there's a pending command when component mounts (panel was closed, now opening)
-          // OR if explicitly forcing new chat, create a new chat
-          idToLoad = uuidv7();
-          previousChatIdRef.current = null;
-          setChatId(idToLoad);
+      // Check if initialInput has a specific chatId
+      if (initialInput?.chatId) {
+        idToLoad = initialInput.chatId;
+      } else if (currentPendingCommand?.forceNewChat) {
+        // If explicitly forcing new chat, create a new chat
+        idToLoad = uuidv7();
+        previousChatIdRef.current = null;
+        // Mark this command as processed to prevent duplicate handling
+        const commandKey = `${currentPendingCommand.timestamp}-${currentPendingCommand.forceNewChat}`;
+        processedPendingCommandRef.current = commandKey;
+      } else if (currentPendingCommand?.text) {
+        // If there's a pending command (but not forcing new chat), still need to load a chat
+        // Load the latest chat or create new one
+        const latestChat = await chatStorage.getLatestChatIdForConnection(connectionId);
+        if (latestChat) {
+          idToLoad = latestChat.chatId;
         } else {
-          // Otherwise, load latest chat or create new one
-          const latestId = await chatStorage.getLatestChatIdForConnection(connectionId);
-          idToLoad = latestId || uuidv7();
-          setChatId(idToLoad);
+          idToLoad = uuidv7();
+        }
+      } else {
+        // Load the latest chat
+        const latestChat = await chatStorage.getLatestChatIdForConnection(connectionId);
+        if (latestChat) {
+          idToLoad = latestChat.chatId;
+        } else {
+          // Create a new one
+          idToLoad = uuidv7();
         }
       }
 
-      // Create chat instance
       if (idToLoad) {
-        await createChat(idToLoad, connection);
+        await loadChat(idToLoad);
+        isInitializedRef.current = true;
       }
     };
-    loadSession();
-  }, [connection, chatId, chat, initialInput]);
+
+    initializeChat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connection?.connectionId, initialInput?.chatId, chat, loadChat]);
 
   // Handle pending command when chat already exists (panel was already open)
   useEffect(() => {
@@ -165,9 +191,23 @@ export function ChatPanel({
     const newChatId = uuidv7();
     previousChatIdRef.current = chat.id;
     processedPendingCommandRef.current = commandKey;
-    setChatId(newChatId);
-    createChat(newChatId, connection);
-  }, [pendingCommand?.forceNewChat, pendingCommand?.timestamp, connection, chat, createChat]);
+    loadChat(newChatId);
+  }, [pendingCommand?.forceNewChat, pendingCommand?.timestamp, connection, chat, loadChat]);
+
+  // // Handle pending command when chat already exists (panel was already open)
+  // useEffect(() => {
+  //   if (!connection?.connectionId || !chat || !pendingCommand?.forceNewChat) return;
+
+  //   // Skip if we've already processed this pending command
+  //   const commandKey = `${pendingCommand.timestamp}-${pendingCommand.forceNewChat}`;
+  //   if (processedPendingCommandRef.current === commandKey) return;
+
+  //   // Create new chat
+  //   const newChatId = uuidv7();
+  //   previousChatIdRef.current = chat.id;
+  //   processedPendingCommandRef.current = commandKey;
+  //   loadChat(newChatId);
+  // }, [pendingCommand?.forceNewChat, pendingCommand?.timestamp, connection, chat, loadChat]);
 
   // Update context builder when props change
   useEffect(() => {
@@ -210,9 +250,8 @@ export function ChatPanel({
     // Create new chat
     const newChatId = uuidv7();
     previousChatIdRef.current = chat?.id || null;
-    setChatId(newChatId);
-    await createChat(newChatId, connection);
-  }, [chat, connection?.connectionId, createChat]);
+    await loadChat(newChatId);
+  }, [chat, connection?.connectionId, loadChat]);
 
   // Handle sending pending messages
   useEffect(() => {
@@ -234,10 +273,12 @@ export function ChatPanel({
     return () => clearTimeout(timer);
   }, [pendingCommand, isChatViewReady, chat, consumeCommand]);
 
-  const handleSelectChat = useCallback((id: string) => {
-    setChatId(id);
-    setChat(null);
-  }, []);
+  const handleSelectChat = useCallback(
+    (id: string) => {
+      loadChat(id);
+    },
+    [loadChat]
+  );
 
   const handleClearCurrentChat = useCallback(() => {
     if (chat) {
@@ -250,6 +291,19 @@ export function ChatPanel({
       const currentInput = chatViewRef.current?.getInput() || "";
       TabManager.openChatTab(chat.id, undefined, currentInput || undefined, false);
     }
+  }, [chat]);
+
+  // Listen for title changes and apply to current chat
+  useEffect(() => {
+    if (!chat) return;
+
+    const handler = (event: CustomEvent<{ title: string }>) => {
+      const title = event.detail.title;
+      setChatTitle(title);
+    };
+
+    const unsubscribe = ChatUIContext.onTitleChange(handler);
+    return unsubscribe;
   }, [chat]);
 
   if (!chat) {
@@ -270,6 +324,7 @@ export function ChatPanel({
           currentChatId={chat.id}
           onClearCurrentChat={handleClearCurrentChat}
           onMaximize={handleMaximize}
+          title={chatTitle}
         />
         <ChatView
           ref={(ref) => {

@@ -25,18 +25,18 @@ export type Question = { text: string; autoRun?: boolean };
 
 export const DEFAULT_CHAT_QUESTIONS: Question[] = [
   {
-    text: "How many INSERT queries as well as insert rows, insert bytes were executed in the last 1 hour from @system.query_log?",
-    autoRun: false,
+    text: "Show me the number of error queries by hour from @system.query_log over the past 3 hours in line chart",
+    autoRun: true,
   },
   {
-    text: "Show me the number of error queries by hour from @system.query_log over the past 3 hours in line chart",
-    autoRun: false,
+    text: "How many INSERT queries as well as insert rows, insert bytes were executed in the last 1 hour from @system.query_log?",
+    autoRun: true,
   },
   {
     text: "What's the top 3 query that consumes the most CPU time over the past 3 hours from @system.query_log?",
-    autoRun: false,
+    autoRun: true,
   },
-  { text: "Show me table schema and structure", autoRun: false },
+  { text: "Please help me optimize a slow SQL", autoRun: true },
   { text: "Help me write a JOIN query", autoRun: false },
   { text: "What are the best practices for partitioning?", autoRun: false },
 ];
@@ -131,6 +131,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     if (!messages) return [];
 
     const msgs = (messages as AppUIMessage[]).map((m) => {
+      console.log("m", m);
       const mAny = m as any;
       const ts = mAny.createdAt ? new Date(mAny.createdAt).getTime() : Date.now();
       let parts = m.parts;

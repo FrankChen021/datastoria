@@ -8,7 +8,7 @@ import { SYSTEM_TABLE_REGISTRY } from "@/components/introspection/system-table-r
 import { NodeTab } from "@/components/node-tab/node-tab";
 import { QueryLogInspectorTab } from "@/components/query-log-inspector/query-log-inspector-tab";
 import { QueryTab } from "@/components/query-tab/query-tab";
-import { TabManager, type TabInfo } from "@/components/tab-manager";
+import { TabManager, type ChatTabInfo, type TabInfo } from "@/components/tab-manager";
 import { TableTab } from "@/components/table-tab/table-tab";
 import { Button } from "@/components/ui/button";
 import {
@@ -167,6 +167,19 @@ export const MainPageTabList = memo(function MainPageTabList({
       setPendingTabId(null);
     }
   }, [pendingTabId, tabs]);
+
+  // Handle tab title updates
+  useEffect(() => {
+    const handler = (event: CustomEvent<{ tabId: string; title: string }>) => {
+      const { tabId, title } = event.detail;
+      setTabs((prevTabs) =>
+        prevTabs.map((tab) => (tab.id === tabId && tab.type === "chat" ? { ...tab, title } : tab))
+      );
+    };
+
+    const unsubscribe = TabManager.onUpdateTabTitle(handler);
+    return unsubscribe;
+  }, []);
 
   // Emit active tab change events
   useEffect(() => {
@@ -516,7 +529,8 @@ export const MainPageTabList = memo(function MainPageTabList({
           const entry = SYSTEM_TABLE_REGISTRY.get(tab.tableName);
           return { id: tab.id, label: entry?.title || tab.tableName, icon: Telescope };
         } else if (tab.type === "chat") {
-          return { id: tab.id, label: "AI Assistant", icon: Sparkles };
+          const chatTab = tab as ChatTabInfo;
+          return { id: tab.id, label: chatTab.title || "AI Assistant", icon: Sparkles };
         }
         return null;
       })

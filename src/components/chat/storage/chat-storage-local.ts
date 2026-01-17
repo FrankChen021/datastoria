@@ -123,9 +123,9 @@ export class LocalStorageChatStorage implements ChatStorage {
     return allChats.filter((chat) => chat.databaseId === connectionId);
   }
 
-  async getLatestChatIdForConnection(connectionId: string): Promise<string | undefined> {
+  async getLatestChatIdForConnection(connectionId: string): Promise<Chat | undefined> {
     const chats = await this.getChatsForConnection(connectionId);
-    return chats[0]?.chatId;
+    return chats.length > 0 ? chats[0] : undefined;
   }
 
   // Message operations

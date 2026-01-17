@@ -2,10 +2,11 @@ import { useConnection } from "@/components/connection/connection-context";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { cn } from "@/lib/utils";
-import { memo, useMemo, useRef, useEffect } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MessageMarkdownSql } from "./message-markdown-sql";
+import { CopyButton } from "@/components/ui/copy-button";
 
 /**
  * Render text message with markdown support
@@ -22,12 +23,12 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   showExecuteButton = true,
 }: MessageMarkdownProps) {
   const { connection } = useConnection();
-  
+
   // Use refs to store stable references to metadata maps to avoid infinite loops
   // The connection object may be mutated, but we only care about the map references
   const tableNamesRef = useRef(connection?.metadata?.tableNames);
   const databaseNamesRef = useRef(connection?.metadata?.databaseNames);
-  
+
   // Update refs when connection metadata changes
   useEffect(() => {
     tableNamesRef.current = connection?.metadata?.tableNames;
@@ -210,7 +211,8 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   );
 
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
+    <div className="prose prose-sm dark:prose-invert max-w-none text-sm relative">
+      <CopyButton value={text} />
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {text}
       </ReactMarkdown>

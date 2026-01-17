@@ -1,6 +1,7 @@
 "use client";
 
 import { ChatFactory } from "@/components/chat/chat-factory";
+import { ChatUIContext } from "@/components/chat/chat-ui-context";
 import { OpenHistoryButton } from "@/components/chat/history/open-history-button";
 import { SqlExecutionProvider } from "@/components/chat/sql-execution-context";
 import { chatStorage } from "@/components/chat/storage/chat-storage";
@@ -33,9 +34,7 @@ interface ChatTabProps {
 }
 
 export function ChatTab({ initialChatId, active, initialPrompt, autoRun, tabId }: ChatTabProps) {
-  const [chat, setChat] = useState<Chat<AppUIMessage> | null>(null);
-  const [chatId, setChatId] = useState<string | undefined>(initialChatId);
-  const isCreatingChatRef = useRef(false);
+  const [chatController, setChatController] = useState<Chat<AppUIMessage> | null>(null);
   const chatViewRef = useRef<ChatViewHandle | null>(null);
   const hasSentInitialPromptRef = useRef(false);
   const { connection } = useConnection();
@@ -48,50 +47,51 @@ export function ChatTab({ initialChatId, active, initialPrompt, autoRun, tabId }
     }
   }, [active, close]);
 
+  const loadChat = useCallback(async (chatIdToLoad: string): Promise<void> => {
+    const chat = await chatStorage.getChat(chatIdToLoad);
+    if (chat) {
+      TabManager.updateTabTitle(tabId, chat.title);
+    }
+
+    const newChatController = await ChatFactory.create({
+      // We still use this id if it's not found in the storage because it might be a new chat id
+      id: chatIdToLoad,
+      connection: connection!,
+    });
+    setChatController(newChatController);
+  }, []);
+
+  // Initial chat loading
   useEffect(() => {
-    // If we already have a chat loaded with the correct ID, do nothing
-    if (chat && chat.id === chatId) return;
-
-    // Determine which chat ID to load
-    const loadSession = async () => {
-      const connectionId = connection?.connectionId;
-      if (!connectionId) return;
-
-      let idToLoad = chatId;
-
-      // If no explicit ID, try to load latest or create new
-      if (!idToLoad) {
-        const latestId = await chatStorage.getLatestChatIdForConnection(connectionId);
-        if (latestId) {
-          idToLoad = latestId;
+    const initializeChat = async () => {
+      let idToLoad = initialChatId;
+      if (initialChatId) {
+        idToLoad = initialChatId;
+      } else {
+        // Load the latest chat
+        const latestChat = await chatStorage.getLatestChatIdForConnection(connection?.connectionId);
+        if (latestChat) {
+          idToLoad = latestChat.chatId;
         } else {
+          // Create a new one
           idToLoad = uuidv7();
         }
-        setChatId(idToLoad);
       }
-
-      // Create chat instance
-      if (!isCreatingChatRef.current && idToLoad) {
-        try {
-          const newChat = await ChatFactory.create({ id: idToLoad, connection });
-          setChat(newChat);
-        } catch (e) {
-          console.error("Failed to load chat", e);
-        }
-      }
+      await loadChat(idToLoad);
     };
-    loadSession();
-  }, [connection?.connectionId, chatId, chat]);
+
+    initializeChat();
+  }, []);
 
   const handleNewChat = useCallback(async () => {
     // Check if current chat is empty (no messages)
-    if (chat) {
-      const messages = await chatStorage.getMessages(chat.id);
+    if (chatController) {
+      const messages = await chatStorage.getMessages(chatController.id);
       const hasMessages = messages.length > 0;
 
       // If chat is empty, just update the timestamp instead of creating a new chat
       if (!hasMessages) {
-        const existingChat = await chatStorage.getChat(chat.id);
+        const existingChat = await chatStorage.getChat(chatController.id);
         if (existingChat) {
           await chatStorage.saveChat({
             ...existingChat,
@@ -102,44 +102,40 @@ export function ChatTab({ initialChatId, active, initialPrompt, autoRun, tabId }
       }
     }
 
-    // Generate new chat ID and create chat immediately to minimize loading state
+    // Create new chat
     const newChatId = uuidv7();
-    // Set flag to prevent useEffect from creating duplicate chat
-    isCreatingChatRef.current = true;
-    // Create new chat first, then update state
-    ChatFactory.create({ id: newChatId, connection }).then((newChat) => {
-      setChatId(newChatId);
-      setChat(newChat);
-      isCreatingChatRef.current = false;
-    });
-  }, [chat, connection?.connectionId]);
+    const newChat = await ChatFactory.create({ id: newChatId, connection: connection! });
+    setChatController(newChat);
+  }, [chatController, connection]);
 
+  /**
+   * When a chat is selected from history, update the chatId
+   * This will trigger the main useEffect to load the selected chat
+   */
   const handleSelectChat = useCallback((id: string) => {
-    setChatId(id);
-    // Reset chat to null to force reload
-    setChat(null);
+    loadChat(id);
   }, []);
 
   const handleClearCurrentChat = useCallback(() => {
-    if (chat) {
-      chat.messages = [];
+    if (chatController) {
+      chatController.messages = [];
     }
-  }, [chat]);
+  }, [chatController]);
 
   const handleCloseToPanel = useCallback(() => {
-    if (chat && tabId) {
+    if (chatController && tabId) {
       const currentInput = chatViewRef.current?.getInput() || "";
-      setInitialInput(currentInput, chat.id);
+      setInitialInput(currentInput, chatController.id);
       TabManager.closeTab(tabId);
     }
-  }, [chat, tabId, setInitialInput]);
+  }, [chatController, tabId, setInitialInput]);
 
   // Handle initial prompt: send if autoRun is true, otherwise set in input
   const initialPromptInput = initialPrompt && !autoRun ? initialPrompt : undefined;
 
   // Send initial prompt when chat is ready and autoRun is true
   useEffect(() => {
-    if (chat && initialPrompt && autoRun && !hasSentInitialPromptRef.current && active) {
+    if (chatController && initialPrompt && autoRun && !hasSentInitialPromptRef.current && active) {
       // Wait a bit for chat to be fully initialized
       const timer = setTimeout(() => {
         if (chatViewRef.current) {
@@ -149,9 +145,22 @@ export function ChatTab({ initialChatId, active, initialPrompt, autoRun, tabId }
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [chat, initialPrompt, autoRun, active]);
+  }, [chatController, initialPrompt, autoRun, active]);
 
-  if (!chat) {
+  // Listen for title changes and apply to current chat
+  useEffect(() => {
+    if (!chatController || !tabId) return;
+
+    const handler = (event: CustomEvent<{ title: string }>) => {
+      const title = event.detail.title;
+      TabManager.updateTabTitle(tabId, title);
+    };
+
+    const unsubscribe = ChatUIContext.onTitleChange(handler);
+    return unsubscribe;
+  }, [chatController, tabId]);
+
+  if (!chatController) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="h-6 w-6 animate-spin" />
@@ -176,7 +185,7 @@ export function ChatTab({ initialChatId, active, initialPrompt, autoRun, tabId }
             </Button>
           )}
           <OpenHistoryButton
-            currentChatId={chat.id}
+            currentChatId={chatController.id}
             onNewChat={handleNewChat}
             onSelectChat={handleSelectChat}
             onClearCurrentChat={handleClearCurrentChat}
@@ -188,7 +197,7 @@ export function ChatTab({ initialChatId, active, initialPrompt, autoRun, tabId }
 
         <ChatView
           ref={chatViewRef}
-          chat={chat}
+          chat={chatController}
           // No onClose because Tabs handle their own closing
           onNewChat={handleNewChat}
           questions={DEFAULT_CHAT_QUESTIONS}

@@ -168,9 +168,7 @@ export const ChatInputSuggestions = React.memo(
                             )}
                             ref={index === activeIndex ? activeItemRef : null}
                           >
-                            <span>
-                            {TextHighlighter.highlight(table.name, searchQuery)}
-                            </span>
+                            <span>{TextHighlighter.highlight(table.name, searchQuery)}</span>
                             {table.badge && (
                               <Badge
                                 variant="outline"

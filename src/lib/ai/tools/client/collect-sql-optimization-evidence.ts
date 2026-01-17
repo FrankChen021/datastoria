@@ -51,9 +51,6 @@ async function collectQueryLog(
 ): Promise<number> {
   const stageId = "collect query log";
   progressCallback?.(stageId, 10, "started");
-  console.log("[DEBUG] collectQueryLog: Starting 20s sleep...");
-  await new Promise((resolve) => setTimeout(resolve, 20000));
-  console.log("[DEBUG] collectQueryLog: Sleep complete, continuing...");
   try {
     const { response } = connection.query(
       `
@@ -119,9 +116,6 @@ async function collectExplainIndex(
 ): Promise<number> {
   const stageId = "explain indexes";
   progressCallback?.(stageId, 30, "started");
-  console.log("[DEBUG] collectExplainIndex: Starting 20s sleep...");
-  await new Promise((resolve) => setTimeout(resolve, 20000));
-  console.log("[DEBUG] collectExplainIndex: Sleep complete, continuing...");
   try {
     const { response: planResponse } = connection.query(`EXPLAIN PLAN indexes=1 ${sql}`, {
       default_format: "TabSeparatedRaw",
@@ -153,9 +147,6 @@ async function collectExplainPipeline(
 ): Promise<number> {
   const stageId = "explain pipeline";
   progressCallback?.(stageId, 40, "started");
-  console.log("[DEBUG] collectExplainPipeline: Starting 20s sleep...");
-  await new Promise((resolve) => setTimeout(resolve, 20000));
-  console.log("[DEBUG] collectExplainPipeline: Sleep complete, continuing...");
   try {
     const { response: pipelineResponse } = connection.query(`EXPLAIN PIPELINE ${sql}`, {
       default_format: "TabSeparatedRaw",
@@ -186,9 +177,6 @@ async function parseTableNames(
 ): Promise<TableName[]> {
   const stageId = "analyze table names";
   progressCallback?.(stageId, 50, "started");
-  console.log("[DEBUG] parseTableNames: Starting 20s sleep...");
-  await new Promise((resolve) => setTimeout(resolve, 20000));
-  console.log("[DEBUG] parseTableNames: Sleep complete, continuing...");
   const tableNames: TableName[] = [];
 
   try {
@@ -553,7 +541,7 @@ export const collectSqlOptimizationEvidenceExecutor: ToolExecutor<
   CollectSqlOptimizationEvidenceInput,
   EvidenceContext
 > = async (input, connection, progressCallback) => {
-  const { sql, query_id, goal, mode = "light" } = input;
+  const { sql, query_id, goal, mode: _mode = "light" } = input;
   const context: EvidenceContext = {
     goal: goal || "latency",
     evidence_score: 0,

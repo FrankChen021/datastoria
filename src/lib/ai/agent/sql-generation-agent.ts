@@ -1,6 +1,6 @@
 import { Output, streamText, tool, type ModelMessage } from "ai";
 import { z } from "zod";
-import type { DatabaseContext } from "../../../components/chat/chat-context";
+import type { ServerDatabaseContext } from "../common-types";
 import { isMockMode, LanguageModelProviderFactory } from "../llm/llm-provider-factory";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
 import type { InputModel } from "./planner-agent";
@@ -29,7 +29,7 @@ export const SERVER_TOOL_GENERATE_SQL = "generate_sql" as const;
 /**
  * Build user context section for SQL generation prompts
  */
-function buildUserContextSection(context?: DatabaseContext): string {
+function buildUserContextSection(context?: ServerDatabaseContext): string {
   const clickHouseUser = context?.clickHouseUser;
   if (!clickHouseUser) return "";
 
@@ -51,7 +51,7 @@ function buildUserContextSection(context?: DatabaseContext): string {
 /**
  * Build current query context section for SQL generation prompts
  */
-function buildCurrentQuerySection(context?: DatabaseContext): string {
+function buildCurrentQuerySection(context?: ServerDatabaseContext): string {
   if (!context?.currentQuery) return "";
 
   return `\n## Current Query Context
@@ -73,7 +73,7 @@ function buildSqlGenerationPrompt({
   allowSchemaDiscovery = false,
   includeValidationInstructions = true,
 }: {
-  context?: DatabaseContext;
+  context?: ServerDatabaseContext;
   schemaHints?: {
     database?: string;
     tables?: Array<{
@@ -93,7 +93,9 @@ function buildSqlGenerationPrompt({
   const schemaContext = [];
   const database = schemaHints?.database || context?.database;
   // Use schemaHints tables if available (has type info), otherwise fall back to context tables (string[] format)
-  const tables = schemaHints?.tables || (context?.tables as Array<{ name: string; columns: string[] }> | undefined);
+  const tables =
+    schemaHints?.tables ||
+    (context?.tables as Array<{ name: string; columns: string[] }> | undefined);
 
   if (database) {
     schemaContext.push(`Current database: ${database}`);
@@ -185,7 +187,7 @@ ${schemaDiscoverySection}${validationSection}`,
  * @param inputModel - Model configuration to use for the sub-agent
  * @param context - Database context (user, database, tables, currentQuery) to pass to sub-agent
  */
-export function createGenerateSqlTool(inputModel: InputModel, context?: DatabaseContext) {
+export function createGenerateSqlTool(inputModel: InputModel, context?: ServerDatabaseContext) {
   return tool({
     description: "Generate ClickHouse SQL query based on user question and schema context",
     inputSchema: z.object({
@@ -245,10 +247,10 @@ export function createGenerateSqlTool(inputModel: InputModel, context?: Database
       context: providedContext,
     }) => {
       // Merge provided context with the one from tool creation (provided context takes precedence)
-      // Note: providedContext may have new format with column types, but DatabaseContext expects string[]
+      // Note: providedContext may have new format with column types, but ServerDatabaseContext expects string[]
       // We'll pass it through and handle the conversion in buildSqlGenerationPrompt
       const mergedContext = providedContext
-        ? ({ ...context, ...providedContext } as DatabaseContext)
+        ? ({ ...context, ...providedContext } as ServerDatabaseContext)
         : context;
       // Use mock generation agent in mock mode to avoid recursive LLM calls
       const result = isMockMode
@@ -284,7 +286,7 @@ export interface SQLGenerationAgentInput {
       columns: Array<{ name: string; type: string }>;
     }>;
   };
-  context?: DatabaseContext;
+  context?: ServerDatabaseContext;
   inputModel: InputModel;
 }
 
@@ -358,10 +360,7 @@ export async function sqlGenerationAgent(
       output: Output.object({
         schema: sqlSubAgentOutputSchema,
       }),
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...messages,
-      ],
+      messages: [{ role: "system", content: systemPrompt }, ...messages],
       temperature,
     });
 
@@ -412,7 +411,7 @@ export async function streamSqlGeneration({
 }: {
   messages: ModelMessage[];
   modelConfig: InputModel;
-  context?: DatabaseContext;
+  context?: ServerDatabaseContext;
 }) {
   const [model] = LanguageModelProviderFactory.createModel(
     modelConfig.provider,

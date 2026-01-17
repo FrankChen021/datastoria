@@ -1,3 +1,4 @@
+import type { PlanOutput } from "@/app/api/chat/route";
 import { ModelManager } from "@/components/settings/models/model-manager";
 import { SERVER_TOOL_PLAN } from "@/lib/ai/agent/planner-agent";
 import { SERVER_TOOL_GENERATE_SQL } from "@/lib/ai/agent/sql-generation-agent";
@@ -12,11 +13,10 @@ import { Connection } from "@/lib/connection/connection";
 import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { v7 as uuidv7 } from "uuid";
+import { TabManager } from "../tab-manager";
 import { ChatContext, type DatabaseContext } from "./chat-context";
 import type { Message } from "./chat-message-types";
 import { chatStorage } from "./storage/chat-storage";
-import type { PlanOutput } from "@/app/api/chat/route";
-import { TabManager } from "../tab-manager";
 
 /**
  * Create a progress callback for tool execution
@@ -349,16 +349,16 @@ export class ChatFactory {
               };
             }
 
-            // Use the generated title
-            console.log("Identified intent:", message);
-            if (message.role === "assistant" 
-              && message.parts.length > 1 
-              && message.parts[0].type === "dynamic-tool" 
-              && message.parts[0].toolName === SERVER_TOOL_PLAN) {
-                const output = (message.parts[0].output as PlanOutput);
-                if (output.title) {
-                  chat.title = output.title;
-                }
+            if (
+              message.role === "assistant" &&
+              message.parts.length > 1 &&
+              message.parts[0].type === "dynamic-tool" &&
+              message.parts[0].toolName === SERVER_TOOL_PLAN
+            ) {
+              const output = message.parts[0].output as PlanOutput;
+              if (output.title) {
+                chat.title = output.title;
+              }
             }
 
             // Always update the chat's updatedAt timestamp when a message is saved.

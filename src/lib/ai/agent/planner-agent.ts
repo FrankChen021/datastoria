@@ -1,5 +1,5 @@
 import type { DatabaseContext } from "@/components/chat/chat-context";
-import type { TokenUsage } from "@/lib/ai/common-types";
+import type { ServerDatabaseContext, TokenUsage } from "@/lib/ai/common-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import { generateText, Output, type ModelMessage } from "ai";
 import { z } from "zod";
@@ -32,7 +32,7 @@ export interface SubAgent {
   stream: (args: {
     messages: ModelMessage[];
     modelConfig: InputModel;
-    context?: DatabaseContext;
+    context?: ServerDatabaseContext;
   }) => Promise<any>;
   heuristics?: RegExp;
 }

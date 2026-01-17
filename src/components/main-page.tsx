@@ -68,7 +68,11 @@ function extractTableNames(result: SchemaLoadResult): {
             tableInfo.columns = [];
           }
           // If columns is string[], convert to object format
-          if (Array.isArray(tableInfo.columns) && tableInfo.columns.length > 0 && typeof tableInfo.columns[0] === "string") {
+          if (
+            Array.isArray(tableInfo.columns) &&
+            tableInfo.columns.length > 0 &&
+            typeof tableInfo.columns[0] === "string"
+          ) {
             const oldColumns = tableInfo.columns as string[];
             tableInfo.columns = oldColumns.map((name) => ({ name, type: "Unknown" }));
           }

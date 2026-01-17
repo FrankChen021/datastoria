@@ -11,7 +11,7 @@ export interface ChatStorage {
   getCharts(): Promise<Chat[]>;
   getLatestChatId(): Promise<string | undefined>;
   getChatsForConnection(connectionId: string): Promise<Chat[]>;
-  getLatestChatIdForConnection(connectionId: string): Promise<string | undefined>;
+  getLatestChatIdForConnection(connectionId: string): Promise<Chat | undefined>;
 
   // Message operations
   getMessages(chatId: string): Promise<Message[]>;

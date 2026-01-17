@@ -1,32 +1,32 @@
 import { streamText } from "ai";
+import type { ServerDatabaseContext } from "../common-types";
 import { LanguageModelProviderFactory } from "../llm/llm-provider-factory";
-import type { InputModel } from "./planner-agent";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
+import type { InputModel } from "./planner-agent";
 import { createGenerateSqlTool, SERVER_TOOL_GENERATE_SQL } from "./sql-generation-agent";
-import type { DatabaseContext } from "@/components/chat/chat-context";
 
 /**
  * General Agent
- * 
+ *
  * Handles greetings, general ClickHouse questions, and off-topic requests.
  * Does not have tool access by default to keep it simple and safe.
  */
 export async function createGeneralAgent({
-    messages,
-    modelConfig,
-    context,
+  messages,
+  modelConfig,
+  context,
 }: {
-    messages: any[];
-    modelConfig: InputModel;
-    context?: DatabaseContext;
+  messages: any[];
+  modelConfig: InputModel;
+  context?: ServerDatabaseContext;
 }) {
-    const [model] = LanguageModelProviderFactory.createModel(
-        modelConfig.provider,
-        modelConfig.modelId,
-        modelConfig.apiKey
-    );
+  const [model] = LanguageModelProviderFactory.createModel(
+    modelConfig.provider,
+    modelConfig.modelId,
+    modelConfig.apiKey
+  );
 
-    const systemPrompt = `You are a helpful ClickHouse Assistant.
+  const systemPrompt = `You are a helpful ClickHouse Assistant.
 Your goal is to answer questions about ClickHouse, help with greetings, or explain what you can do.
 
 If the user asks about specific tables, the current schema, or requests DATA (counts, lists, specific rows, partition distribution, storage layout), use the tools provided to look up information.
@@ -50,25 +50,23 @@ Guidelines:
 - If a user mentions a table (e.g., @table_name), call 'get_table_columns' to see its structure before answering.
 - For complex SQL generation (new analytics) or optimization, the orchestrator might route those to specialized agents, but you are the primary entry point for general questions.
 - Respond in a professional, helpful tone. Use markdown for formatting.
+`;
 
-### Execution Trace:
-agentName: general-agent`;
-
-    return streamText({
-        model,
-        messages: [
-            {
-                role: "system",
-                content: systemPrompt,
-            },
-            ...messages,
-        ],
-        tools: {
-            get_tables: clientTools.get_tables,
-            get_table_columns: clientTools.get_table_columns,
-            [SERVER_TOOL_GENERATE_SQL]: createGenerateSqlTool(modelConfig, context),
-            validate_sql: clientTools.validate_sql,
-            execute_sql: clientTools.execute_sql,
-        },
-    });
+  return streamText({
+    model,
+    messages: [
+      {
+        role: "system",
+        content: systemPrompt,
+      },
+      ...messages,
+    ],
+    tools: {
+      get_tables: clientTools.get_tables,
+      get_table_columns: clientTools.get_table_columns,
+      [SERVER_TOOL_GENERATE_SQL]: createGenerateSqlTool(modelConfig, context),
+      validate_sql: clientTools.validate_sql,
+      execute_sql: clientTools.execute_sql,
+    },
+  });
 }

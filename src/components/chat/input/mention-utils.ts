@@ -25,11 +25,13 @@ export const MAX_COLUMNS_PER_TABLE = 100;
 export function getTableContextByMentions(
   text: string,
   connection: Connection
-): Array<{
-  name: string;
-  columns: Array<{ name: string; type: string }>;
-  totalColumns?: number;
-}> | undefined {
+):
+  | Array<{
+      name: string;
+      columns: Array<{ name: string; type: string }>;
+      totalColumns?: number;
+    }>
+  | undefined {
   const mentions = extractTableMentions(text);
   if (mentions.length === 0) return undefined;
 
@@ -53,9 +55,7 @@ export function getTableContextByMentions(
 
       const totalColumns = allColumns.length;
       const isTruncated = totalColumns > MAX_COLUMNS_PER_TABLE;
-      const columns = isTruncated
-        ? allColumns.slice(0, MAX_COLUMNS_PER_TABLE)
-        : allColumns;
+      const columns = isTruncated ? allColumns.slice(0, MAX_COLUMNS_PER_TABLE) : allColumns;
 
       results.push({
         name: mention,

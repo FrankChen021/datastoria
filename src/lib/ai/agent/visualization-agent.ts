@@ -1,11 +1,11 @@
 import { Output, streamText, tool, type ModelMessage } from "ai";
 import { z } from "zod";
-import type { DatabaseContext } from "@/components/chat/chat-context";
+import type { ServerDatabaseContext } from "../common-types";
 import { isMockMode, LanguageModelProviderFactory } from "../llm/llm-provider-factory";
+import { ClientTools as clientTools } from "../tools/client/client-tools";
 import type { InputModel } from "./planner-agent";
 import { createGenerateSqlTool, SERVER_TOOL_GENERATE_SQL } from "./sql-generation-agent";
 import { mockVisualizationAgent } from "./visualization-agent.mock";
-import { ClientTools as clientTools } from "../tools/client/client-tools";
 
 /**
  * Visualization Agent Input
@@ -324,7 +324,7 @@ export async function streamVisualization({
 }: {
   messages: ModelMessage[];
   modelConfig: InputModel;
-  context?: DatabaseContext;
+  context?: ServerDatabaseContext;
 }) {
   const [model] = LanguageModelProviderFactory.createModel(
     modelConfig.provider,
@@ -396,10 +396,7 @@ You are an expert at creating data visualizations for ClickHouse data.
 
   return streamText({
     model,
-    messages: [
-      { role: "system", content: systemPrompt },
-      ...messages,
-    ],
+    messages: [{ role: "system", content: systemPrompt }, ...messages],
     tools: {
       get_tables: clientTools.get_tables,
       get_table_columns: clientTools.get_table_columns,

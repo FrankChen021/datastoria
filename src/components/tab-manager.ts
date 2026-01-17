@@ -64,6 +64,7 @@ export interface ChatTabInfo extends BaseTabInfo {
   chatId?: string;
   initialPrompt?: string;
   autoRun?: boolean;
+  title?: string;
 }
 
 export type TabInfo =
@@ -93,6 +94,19 @@ export type OpenTabEventHandler = (event: CustomEvent<TabInfo>) => void;
  * Type-safe event listener for active tab changes
  */
 export type ActiveTabChangeEventHandler = (event: CustomEvent<ActiveTabChangeEventDetail>) => void;
+
+/**
+ * Event detail for tab title updates
+ */
+export interface TabTitleUpdateEventDetail {
+  tabId: string;
+  title: string;
+}
+
+/**
+ * Type-safe event listener for tab title updates
+ */
+export type TabTitleUpdateEventHandler = (event: CustomEvent<TabTitleUpdateEventDetail>) => void;
 
 /**
  * Unified TabManager class for handling all tab events
@@ -196,6 +210,7 @@ export class TabManager {
 
   private static readonly ACTIVE_TAB_CHANGE_EVENT = "ACTIVE_TAB_CHANGE";
   private static readonly CLOSE_TAB_EVENT = "CLOSE_TAB";
+  private static readonly UPDATE_TAB_TITLE_EVENT = "UPDATE_TAB_TITLE";
 
   /**
    * Emit an active tab change event
@@ -237,5 +252,26 @@ export class TabManager {
     };
     window.addEventListener(TabManager.ACTIVE_TAB_CHANGE_EVENT, wrappedHandler);
     return () => window.removeEventListener(TabManager.ACTIVE_TAB_CHANGE_EVENT, wrappedHandler);
+  }
+
+  /**
+   * Update a tab's title
+   */
+  static updateTabTitle(tabId: string, title: string): void {
+    const event = new CustomEvent<TabTitleUpdateEventDetail>(TabManager.UPDATE_TAB_TITLE_EVENT, {
+      detail: { tabId, title },
+    });
+    window.dispatchEvent(event);
+  }
+
+  /**
+   * Add a listener for tab title update events
+   */
+  static onUpdateTabTitle(handler: TabTitleUpdateEventHandler): () => void {
+    const wrappedHandler = (e: Event) => {
+      handler(e as CustomEvent<TabTitleUpdateEventDetail>);
+    };
+    window.addEventListener(TabManager.UPDATE_TAB_TITLE_EVENT, wrappedHandler);
+    return () => window.removeEventListener(TabManager.UPDATE_TAB_TITLE_EVENT, wrappedHandler);
   }
 }

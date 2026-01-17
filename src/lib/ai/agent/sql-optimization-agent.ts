@@ -1,7 +1,6 @@
 import { streamText, tool } from "ai";
 import { z } from "zod";
-import type { DatabaseContext } from "../../../components/chat/chat-context";
-import type { EvidenceContext, EvidenceRequest } from "../common-types";
+import type { EvidenceContext, EvidenceRequest, ServerDatabaseContext } from "../common-types";
 import { isMockMode, LanguageModelProviderFactory } from "../llm/llm-provider-factory";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
 import type { InputModel } from "./planner-agent";
@@ -33,7 +32,10 @@ export const SERVER_TOOL_OPTIMIZE_SQL = "optimize_sql" as const;
  * @param inputModel - Model configuration to use for the sub-agent
  * @param context - Database context (user, database, tables, currentQuery) to pass to sub-agent
  */
-export function createSqlOptimizationTool(inputModel: InputModel, _context?: DatabaseContext) {
+export function createSqlOptimizationTool(
+  inputModel: InputModel,
+  _context?: ServerDatabaseContext
+) {
   return tool({
     description:
       "Optimize ClickHouse SQL queries based on evidence. This tool analyzes query performance and provides ranked recommendations. **CRITICAL**: The result from this tool is already formatted for the user and MUST be output verbatim without any modifications, additions, or rephrasing.",
@@ -55,15 +57,15 @@ export function createSqlOptimizationTool(inputModel: InputModel, _context?: Dat
     execute: async ({ relevant_chat, evidenceContext }) => {
       const result = isMockMode
         ? await mockSqlOptimizationAgent({
-          relevant_chat,
-          evidenceContext,
-          inputModel: inputModel,
-        })
+            relevant_chat,
+            evidenceContext,
+            inputModel: inputModel,
+          })
         : await sqlOptimizationAgent({
-          relevant_chat,
-          evidenceContext,
-          inputModel: inputModel,
-        });
+            relevant_chat,
+            evidenceContext,
+            inputModel: inputModel,
+          });
 
       // If result is a string (markdown recommendations), wrap it with explicit instructions
       // to ensure the orchestrator outputs it verbatim
@@ -298,7 +300,7 @@ export async function streamSqlOptimization({
 }: {
   messages: any[];
   modelConfig: InputModel;
-  context?: DatabaseContext;
+  context?: ServerDatabaseContext;
 }) {
   const [model] = LanguageModelProviderFactory.createModel(
     modelConfig.provider,
@@ -324,10 +326,7 @@ agentName: sql-optimizer`;
 
   return streamText({
     model,
-    messages: [
-      { role: "system", content: systemPrompt },
-      ...messages,
-    ],
+    messages: [{ role: "system", content: systemPrompt }, ...messages],
     tools: {
       collect_sql_optimization_evidence: clientTools.collect_sql_optimization_evidence,
       validate_sql: clientTools.validate_sql,

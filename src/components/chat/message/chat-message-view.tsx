@@ -22,7 +22,7 @@ import { MessageToolGenerateSql } from "./message-tool-generate-sql";
 import { MessageToolGenerateVisualization } from "./message-tool-generate-visualization";
 import { MessageToolGetTableColumns } from "./message-tool-get-table-columns";
 import { MessageToolGetTables } from "./message-tool-get-tables";
-import { MessageToolPlan } from "./message-tool-intent";
+import { MessageToolPlan } from "./message-tool-plan";
 import { MessageToolValidateSql } from "./message-tool-validate-sql";
 import { MessageUser } from "./message-user";
 

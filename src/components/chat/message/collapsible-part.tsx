@@ -53,9 +53,7 @@ export function CollapsiblePart({
   // Determine if tool is complete
   // Use external success value if provided, otherwise use state-based logic
   const isError =
-    success !== undefined
-      ? !success
-      : state?.includes("error") || state === "output-error";
+    success !== undefined ? !success : state?.includes("error") || state === "output-error";
   const isComplete = state === "output-available" || state === "done" || isError;
 
   // Get status text based on state

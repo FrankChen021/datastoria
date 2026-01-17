@@ -8,7 +8,7 @@ import {
   type Intent,
   type SubAgent,
 } from "@/lib/ai/agent/planner-agent";
-import type { TokenUsage } from "@/lib/ai/common-types";
+import type { ServerDatabaseContext, TokenUsage } from "@/lib/ai/common-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import { APICallError } from "@ai-sdk/provider";
 import { convertToModelMessages, RetryError, type ModelMessage } from "ai";
@@ -134,8 +134,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Extract user ID from session (email is stored in token subject)
-    const _userId = session.user.email || undefined;
+    // Extract user email from session
+    const userEmail = session.user.email || undefined;
 
     // Parse request body with size validation
     let apiRequest: ChatRequest;
@@ -163,9 +163,11 @@ export async function POST(req: Request) {
       return new Response("Invalid request format: messages must be an array", { status: 400 });
     }
 
-    // Validate clickHouseUser is provided in context
-    const context: DatabaseContext | undefined = apiRequest.context;
-    if (!context?.clickHouseUser || typeof context.clickHouseUser !== "string") {
+    // Validate clickHouseUser is provided in context and add userEmail
+    const context: ServerDatabaseContext = apiRequest.context
+      ? { ...apiRequest.context, userEmail }
+      : { userEmail };
+    if (!context.clickHouseUser || typeof context.clickHouseUser !== "string") {
       return new Response("Missing or invalid clickHouseUser in context (required string)", {
         status: 400,
       });
@@ -309,13 +311,14 @@ export async function POST(req: Request) {
 
             agent = SUB_AGENTS[foundIntent] || SUB_AGENTS.general;
           } else {
-            const result = await doPlan(
-              controller,
-              encoder,
-              messageId,
-              modelMessages,
-              modelConfig
+            // 1. Send start events
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: "start", messageId })}\n\n`)
             );
+
+            sayGreeting(controller, encoder, modelMessages, context);
+
+            const result = await doPlan(controller, encoder, messageId, modelMessages, modelConfig);
             agent = result.agent;
             routerUsage = result.usage;
           }
@@ -455,9 +458,6 @@ async function doPlan(
   // The length MUST be <= 40
   const toolCallId = `router-${uuidv7().replace(/-/g, "")}`;
 
-  // 1. Send start events
-  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "start", messageId })}\n\n`));
-
   // 2. Send simulated tool call start
   controller.enqueue(
     encoder.encode(
@@ -491,4 +491,41 @@ async function doPlan(
   );
 
   return { intent, agent, usage };
+}
+function sayGreeting(
+  controller: ReadableStreamDefaultController<any>,
+  encoder: TextEncoder,
+  modelMessages: ModelMessage[],
+  context: ServerDatabaseContext
+) {
+  const hasRepliedBefore = modelMessages.some((m) => m.role === "assistant");
+  if (hasRepliedBefore) {
+    return;
+  }
+
+  const username = context.userEmail?.split("@")[0];
+
+  const greetingTemplates = [
+    `Hello `,
+    `Hi `,
+    `Hey `,
+    `Welcome `,
+    `Greetings `,
+    `Hello there, `,
+    `Hi there, `,
+    `Good to see you, `,
+    `Nice to meet you, `,
+    `Hey there, `,
+    `Welcome back, `,
+    `Hello and welcome, `,
+  ];
+
+  const greeting = greetingTemplates[Math.floor(Math.random() * greetingTemplates.length)];
+  controller.enqueue(encoder.encode(`data: { "type": "text-start", "id": "txt-0" }\n\n`));
+  controller.enqueue(
+    encoder.encode(
+      `data: { "type": "text-delta", "id": "txt-0", "delta": "${greeting} ${username}! I'm working on your request." }\n\n`
+    )
+  );
+  controller.enqueue(encoder.encode(`data: { "type": "text-end", "id": "txt-0" }\n\n`));
 }
