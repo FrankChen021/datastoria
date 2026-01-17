@@ -13,10 +13,9 @@ import {
 } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { QueryInputLocalStorage } from "../query-input/query-input-local-storage";
-import { defineChatMode, updateChatModeTableNames } from "./completion/chat-mode";
 import { QuerySuggestionManager } from "./completion/query-suggestion-manager";
 import "./query-input-view.css";
-import { QuerySnippetManager } from "./snippet/QuerySnippetManager";
+import { QuerySnippetManager } from "./snippet/query-snippet-manager";
 import { updateQueryInputState } from "./use-query-input";
 
 // Dynamically import AceEditor to prevent SSR issues
@@ -54,7 +53,6 @@ interface QueryInputViewProps {
   initialMode?: "replace" | "insert";
   storageKey?: string;
   language?: string;
-  onToggleMode?: () => void;
   onRun?: (text: string) => void;
 }
 
@@ -104,7 +102,6 @@ const getKeyBindings = () => {
     return {
       execute: "CTRL + ENTER or COMMAND + ENTER",
       autocomplete: "ALT + SPACE or OPTION + SPACE",
-      toggle: "CTRL + I or COMMAND + I",
     };
   }
 
@@ -113,23 +110,16 @@ const getKeyBindings = () => {
 
   // Check for Mac
   if (platform.includes("mac") || userAgent.includes("mac")) {
-    return { execute: "COMMAND + ENTER", autocomplete: "OPTION + SPACE", toggle: "COMMAND + I" };
+    return { execute: "COMMAND + ENTER", autocomplete: "OPTION + SPACE" };
   }
 
   // Default to Windows/Linux
-  return { execute: "CTRL + ENTER", autocomplete: "ALT + SPACE", toggle: "CTRL + I" };
+  return { execute: "CTRL + ENTER", autocomplete: "ALT + SPACE" };
 };
 
 export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>(
   (
-    {
-      initialQuery,
-      initialMode = "replace",
-      storageKey = "editing-sql",
-      language = "dsql",
-      onToggleMode,
-      onRun,
-    },
+    { initialQuery, initialMode = "replace", storageKey = "editing-sql", language = "dsql", onRun },
     ref
   ) => {
     const { connection } = useConnection();
@@ -139,13 +129,7 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
     const [editorHeight, setEditorHeight] = useState(200);
     const [editorWidth, setEditorWidth] = useState(800);
     const lastConnectionRef = useRef<string | null>(null);
-    const latestOnToggleMode = useRef(onToggleMode);
     const latestOnRun = useRef(onRun);
-
-    // Keep the ref updated with the latest callback
-    useEffect(() => {
-      latestOnToggleMode.current = onToggleMode;
-    }, [onToggleMode]);
 
     useEffect(() => {
       latestOnRun.current = onRun;
@@ -341,16 +325,6 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
         // Only valid for SQL
         if (language === "dsql") {
           editor.completers = QuerySuggestionManager.getInstance().getCompleters(editor.completers);
-        } else if (language === "chat") {
-          // Define and set up chat mode with table name highlighting FIRST
-          defineChatMode();
-          session.setMode("ace/mode/chat");
-
-          // Then set completers (after mode is set)
-          editor.completers = QuerySuggestionManager.getInstance().getTableCompleters();
-
-          // Update table names in the highlighter
-          updateChatModeTableNames(editor);
         } else {
           // Clear completers for other modes
           editor.completers = [];
@@ -432,17 +406,6 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
         extendedEditor.completers = QuerySuggestionManager.getInstance().getCompleters(
           extendedEditor.completers
         );
-      } else if (language === "chat") {
-        // Update chat mode and table name highlighting FIRST
-        const session = editorRef.current.getSession();
-        defineChatMode();
-        session.setMode("ace/mode/chat");
-
-        // Then set completers (after mode is set)
-        const extendedEditor = editorRef.current as ExtendedEditor;
-        extendedEditor.completers = QuerySuggestionManager.getInstance().getTableCompleters();
-
-        updateChatModeTableNames(editorRef.current);
       } else {
         const extendedEditor = editorRef.current as ExtendedEditor;
         extendedEditor.completers = [];
@@ -487,17 +450,12 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
 Press ${keyBindings.execute} to execute query.
 Press ${keyBindings.autocomplete} to show suggestions.
   `;
-    } else if (language === "chat") {
-      placeholderText = `Ask AI anything about your data...
-Press ${keyBindings.execute} to send message.
-Press ${keyBindings.toggle} to switch to SQL mode.
-  `;
     }
 
     return (
       <div ref={containerRef} className="query-editor-container h-full w-full">
         <AceEditor
-          mode={language === "chat" ? "ace/mode/chat" : language}
+          mode={language}
           theme={aceTheme}
           className="no-background placeholder-padding h-full w-full"
           name="ace-editor"
@@ -515,8 +473,8 @@ Press ${keyBindings.toggle} to switch to SQL mode.
             foldStyle: "markbeginend",
             showFoldWidgets: true,
           }}
-          enableBasicAutocompletion={language === "dsql" || language === "chat"}
-          enableLiveAutocompletion={language === "dsql" || language === "chat"}
+          enableBasicAutocompletion={language === "dsql"}
+          enableLiveAutocompletion={language === "dsql"}
           enableSnippets={language === "dsql"}
           width={`${editorWidth}px`}
           height={`${editorHeight}px`}

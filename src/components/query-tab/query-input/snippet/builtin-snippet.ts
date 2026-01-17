@@ -1,4 +1,4 @@
-import type { Snippet } from "./Snippet";
+import type { Snippet } from "./snippet";
 
 export const builtinSnippet: Snippet[] = [
   {

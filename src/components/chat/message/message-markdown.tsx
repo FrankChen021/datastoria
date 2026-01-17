@@ -1,12 +1,12 @@
 import { useConnection } from "@/components/connection/connection-context";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
+import { CopyButton } from "@/components/ui/copy-button";
 import { cn } from "@/lib/utils";
 import { memo, useEffect, useMemo, useRef } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MessageMarkdownSql } from "./message-markdown-sql";
-import { CopyButton } from "@/components/ui/copy-button";
 
 /**
  * Render text message with markdown support

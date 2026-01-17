@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useModelConfig } from "@/hooks/use-model-config";
-import type { ModelProps } from "@/lib/ai/llm-provider-factory";
+import type { ModelProps } from "@/lib/ai/llm/llm-provider-factory";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";

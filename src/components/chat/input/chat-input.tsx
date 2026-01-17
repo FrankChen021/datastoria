@@ -6,13 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import type { TokenUsage } from "@/lib/ai/common-types";
 import { MessageSquarePlus, Send, Square } from "lucide-react";
 import * as React from "react";
-import { ModelSelector } from "../../query-tab/query-control/model-selector";
 import { ChatTokenStatus } from "../message/chat-token-status";
 import {
   ChatInputSuggestions,
   type ChatInputSuggestionItem,
   type ChatInputSuggestionsType,
 } from "./chat-input-suggestions";
+import { ModelSelector } from "./model-selector";
 
 interface ChatInputProps {
   onSubmit: (text: string) => void;
