@@ -27,42 +27,103 @@ interface SystemTableQueryLogProps {
   table: string;
 }
 
-const FILTER_SPECS: FilterSpec[] = [
-  {
-    filterType: "date_time",
-    alias: "_interval",
-    displayText: "time",
-    timeColumn: "event_time",
-    defaultTimeSpan: "Last 15 Mins",
-  } as DateTimeFilterSpec,
-  {
-    filterType: "select",
-    name: "type",
-    displayText: "type",
-    onPreviousFilters: true,
-    defaultPattern: {
-      comparator: "!=",
-      values: ["QueryStart"],
-    },
-    datasource: {
-      type: "inline",
-      values: [
-        { label: "QueryStart", value: "QueryStart" },
-        { label: "QueryFinish", value: "QueryFinish" },
-        { label: "ExceptionBeforeStart", value: "ExceptionBeforeStart" },
-        { label: "ExceptionWhileProcessing", value: "ExceptionWhileProcessing" },
-      ],
-    },
-  },
-  {
-    filterType: "select",
-    name: "query_kind",
-    displayText: "query_kind",
-    onPreviousFilters: true,
-    datasource: {
-      type: "sql",
-      sql: `SELECT DISTINCT query_kind
-FROM system.query_log
+const SystemTableQueryLog = ({ database: _database, table: _table }: SystemTableQueryLogProps) => {
+  const { connection } = useConnection();
+
+  // Refs
+  const inputFilterRef = useRef<HTMLInputElement>(null);
+  const filterRef = useRef<DashboardFilterComponent>(null);
+  const chartRef = useRef<DashboardVisualizationComponent | null>(null);
+  const tableRef = useRef<DashboardVisualizationComponent | null>(null);
+
+  // NOTE: keep the {cluster} replacement, it will be processed by the underlying connection object
+  const DISTRIBUTION_QUERY = useMemo(
+    () => `
+SELECT
+    toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
+    type,
+    count(1) as count
+FROM 
+${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
+WHERE 
+  {filterExpression:String}
+  AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}
+GROUP BY t, type
+ORDER BY t, type
+`,
+    []
+  );
+
+  const TABLE_QUERY = useMemo(
+    () => `
+SELECT ${connection!.metadata.query_log_table_has_hostname_column ? "hostname(), " : ""} * FROM
+${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
+WHERE 
+  {filterExpression:String}
+  AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+AND event_time <= {to:String}
+ORDER BY event_time DESC
+`,
+    []
+  );
+
+  const filterSpecs = useMemo<FilterSpec[]>(() => {
+    return [
+      {
+        filterType: "date_time",
+        alias: "_interval",
+        displayText: "time",
+        timeColumn: "event_time",
+        defaultTimeSpan: "Last 15 Mins",
+      } as DateTimeFilterSpec,
+      {
+        filterType: "select",
+        name: "hostname()",
+        displayText: "hostname()",
+        onPreviousFilters: true,
+        datasource: {
+          type: "sql",
+          sql: `select distinct host_name from system.clusters WHERE cluster = '${connection!.cluster}' order by host_name`,
+        },
+
+        defaultPattern: {
+          comparator: "=",
+          values: [connection!.metadata.remoteHostName],
+        },
+      } as SelectorFilterSpec,
+      {
+        filterType: "select",
+        name: "type",
+        displayText: "type",
+        onPreviousFilters: true,
+        defaultPattern: {
+          comparator: "!=",
+          values: ["QueryStart"],
+        },
+        datasource: {
+          type: "inline",
+          values: [
+            { label: "QueryStart", value: "QueryStart" },
+            { label: "QueryFinish", value: "QueryFinish" },
+            { label: "ExceptionBeforeStart", value: "ExceptionBeforeStart" },
+            { label: "ExceptionWhileProcessing", value: "ExceptionWhileProcessing" },
+          ],
+        },
+      },
+      {
+        filterType: "select",
+        name: "query_kind",
+        displayText: "query_kind",
+        onPreviousFilters: true,
+        datasource: {
+          type: "sql",
+          sql: `SELECT DISTINCT query_kind
+FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
 WHERE ({filterExpression:String})
     AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
@@ -71,24 +132,24 @@ WHERE ({filterExpression:String})
     AND query_kind <> ''
 ORDER BY query_kind
 LIMIT 100`,
-    },
-  },
-  {
-    filterType: "select",
-    name: "databases",
-    displayText: "databases",
-    onPreviousFilters: true,
-    expressionTemplate: {
-      "=": "has({name}, {value})",
-      "!=": "NOT has({name}, {value})",
-      in: "hasAny({name}, {valuesArray})",
-      "not in": "NOT hasAny({name}, {valuesArray})",
-    },
-    datasource: {
-      type: "sql",
-      sql: `SELECT DISTINCT arrayJoin(databases) as database FROM (
+        },
+      },
+      {
+        filterType: "select",
+        name: "databases",
+        displayText: "databases",
+        onPreviousFilters: true,
+        expressionTemplate: {
+          "=": "has({name}, {value})",
+          "!=": "NOT has({name}, {value})",
+          in: "hasAny({name}, {valuesArray})",
+          "not in": "NOT hasAny({name}, {valuesArray})",
+        },
+        datasource: {
+          type: "sql",
+          sql: `SELECT DISTINCT arrayJoin(databases) as database FROM (
 SELECT DISTINCT databases
-FROM system.query_log
+FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
 WHERE ({filterExpression:String})
     AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
@@ -97,25 +158,25 @@ WHERE ({filterExpression:String})
 LIMIT 100)
 ORDER BY database
 `,
-    },
-  } as SelectorFilterSpec,
-  {
-    filterType: "select",
-    name: "tables",
-    displayText: "tables",
-    onPreviousFilters: true,
-    supportedComparators: ["=", "!=", "in", "not in"],
-    expressionTemplate: {
-      "=": "has({name}, {value})",
-      "!=": "NOT has({name}, {value})",
-      in: "hasAny({name}, {valuesArray})",
-      "not in": "NOT hasAny({name}, {valuesArray})",
-    },
-    datasource: {
-      type: "sql",
-      sql: `SELECT DISTINCT arrayJoin(tables) as table FROM (
+        },
+      } as SelectorFilterSpec,
+      {
+        filterType: "select",
+        name: "tables",
+        displayText: "tables",
+        onPreviousFilters: true,
+        supportedComparators: ["=", "!=", "in", "not in"],
+        expressionTemplate: {
+          "=": "has({name}, {value})",
+          "!=": "NOT has({name}, {value})",
+          in: "hasAny({name}, {valuesArray})",
+          "not in": "NOT hasAny({name}, {valuesArray})",
+        },
+        datasource: {
+          type: "sql",
+          sql: `SELECT DISTINCT arrayJoin(tables) as table FROM (
 SELECT DISTINCT tables
-FROM system.query_log
+FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
 WHERE ({filterExpression:String})
     AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
@@ -124,18 +185,18 @@ WHERE ({filterExpression:String})
 LIMIT 100)
 ORDER BY table
 `,
-    },
-  } as SelectorFilterSpec,
-  {
-    filterType: "select",
-    name: "exception_code",
-    displayText: "exception_code",
-    onPreviousFilters: true,
-    datasource: {
-      type: "sql",
-      sql: `
+        },
+      } as SelectorFilterSpec,
+      {
+        filterType: "select",
+        name: "exception_code",
+        displayText: "exception_code",
+        onPreviousFilters: true,
+        datasource: {
+          type: "sql",
+          sql: `
 SELECT DISTINCT exception_code
-FROM system.query_log
+FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
 WHERE ({filterExpression:String})
     AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
@@ -144,19 +205,19 @@ WHERE ({filterExpression:String})
 ORDER BY exception_code
 LIMIT 100
 `,
-    },
-  } as SelectorFilterSpec,
-  {
-    filterType: "select",
-    name: "initial_user",
-    displayText: "initial_user",
-    onPreviousFilters: true,
-    datasource: {
-      type: "sql",
-      // NOTE: don't use ORDER BY 1, some old release does not support this well
-      sql: `
+        },
+      } as SelectorFilterSpec,
+      {
+        filterType: "select",
+        name: "initial_user",
+        displayText: "initial_user",
+        onPreviousFilters: true,
+        datasource: {
+          type: "sql",
+          // NOTE: don't use ORDER BY 1, some old release does not support this well
+          sql: `
 SELECT DISTINCT initial_user
-FROM system.query_log
+FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
 WHERE ({filterExpression:String})
     AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
     AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
@@ -166,43 +227,19 @@ WHERE ({filterExpression:String})
 ORDER BY initial_user
 LIMIT 100
 `,
-    },
-  } as SelectorFilterSpec,
-];
-
-const DISTRIBUTION_QUERY = `
-SELECT
-    toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
-    type,
-    count(1) as count
-FROM system.query_log
-WHERE 
-  {filterExpression:String}
-  AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
-  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
-  AND event_time >= {from:String} 
-  AND event_time <= {to:String}
-GROUP BY t, type
-ORDER BY t, type`;
-
-const TABLE_QUERY = `
-SELECT * FROM system.query_log 
-WHERE 
-  {filterExpression:String}
-  AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
-  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
-  AND event_time >= {from:String} 
-AND event_time <= {to:String}
-ORDER BY event_time DESC`;
-
-const SystemTableQueryLog = ({ database: _database, table: _table }: SystemTableQueryLogProps) => {
-  const { connection } = useConnection();
-
-  // Refs
-  const inputFilterRef = useRef<HTMLInputElement>(null);
-  const filterRef = useRef<DashboardFilterComponent>(null);
-  const chartRef = useRef<DashboardVisualizationComponent | null>(null);
-  const tableRef = useRef<DashboardVisualizationComponent | null>(null);
+        },
+      } as SelectorFilterSpec,
+    ].filter((spec) => {
+      const hasCluster = connection?.cluster && connection?.cluster.length > 0;
+      if (hasCluster) {
+        return spec;
+      } else if (spec.filterType === "select" && spec.name === "hostname()") {
+        // NOT in the cluster mode, remove the hostname filter
+        return false;
+      }
+      return true;
+    });
+  }, []);
 
   // Chart Descriptor
   const chartDescriptor = useMemo<TimeseriesDescriptor>(() => {
@@ -273,7 +310,7 @@ const SystemTableQueryLog = ({ database: _database, table: _table }: SystemTable
         query: { format: "sql" },
       },
     };
-  }, []);
+  }, [TABLE_QUERY]);
 
   // Helper function to update SQLs and refresh panels
   const updateAndRefresh = useCallback(
@@ -400,7 +437,7 @@ const SystemTableQueryLog = ({ database: _database, table: _table }: SystemTable
       {/* Filter Section */}
       <DashboardFilterComponent
         ref={filterRef}
-        filterSpecs={FILTER_SPECS}
+        filterSpecs={filterSpecs}
         onFilterChange={handleSelectionFilterChange}
         onTimeSpanChange={handleTimeSpanChange}
         onLoadSourceData={handleLoadFilterData}

@@ -26,138 +26,6 @@ interface SystemTablePartLogProps {
   table: string;
 }
 
-const FILTER_SPECS: FilterSpec[] = [
-  {
-    filterType: "date_time",
-    alias: "_interval",
-    displayText: "time",
-    timeColumn: "event_time",
-    defaultTimeSpan: "Last 15 Mins",
-  } as DateTimeFilterSpec,
-  {
-    filterType: "select",
-    name: "event_type",
-    displayText: "event_type",
-    onPreviousFilters: true,
-    defaultPattern: {
-      comparator: "!=",
-      values: ["RemovePart"],
-    },
-    datasource: {
-      type: "inline",
-      values: [
-        { label: "NewPart", value: "NewPart" },
-        { label: "MergeParts", value: "MergeParts" },
-        { label: "DownloadPart", value: "DownloadPart" },
-        { label: "RemovePart", value: "RemovePart" },
-        { label: "MutatePart", value: "MutatePart" },
-        { label: "MovePart", value: "MovePart" },
-      ],
-    },
-  },
-  {
-    filterType: "select",
-    name: "database",
-    displayText: "database",
-    onPreviousFilters: true,
-    datasource: {
-      type: "sql",
-      sql: `SELECT DISTINCT database
-FROM system.part_log
-WHERE ({filterExpression:String})
-    AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
-    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
-    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
-    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
-    AND database <> ''
-ORDER BY database
-LIMIT 100`,
-    },
-  },
-  {
-    filterType: "select",
-    name: "table",
-    displayText: "table",
-    onPreviousFilters: true,
-    datasource: {
-      type: "sql",
-      sql: `
-SELECT DISTINCT table
-FROM system.part_log
-WHERE ({filterExpression:String})
-    AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
-    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
-    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
-    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
-`,
-    },
-  } as SelectorFilterSpec,
-  {
-    filterType: "select",
-    name: "part_type",
-    displayText: "part_type",
-    onPreviousFilters: true,
-    datasource: {
-      type: "sql",
-      sql: `
-SELECT DISTINCT part_type
-FROM system.part_log
-WHERE ({filterExpression:String})
-    AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32}))
-    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
-    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
-    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
-ORDER BY part_type
-`,
-    },
-  } as SelectorFilterSpec,
-  {
-    filterType: "select",
-    name: "error",
-    displayText: "error",
-    onPreviousFilters: true,
-    datasource: {
-      type: "sql",
-      sql: `
-SELECT DISTINCT error
-FROM system.part_log
-WHERE ({filterExpression:String})
-    AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
-    AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
-    AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
-    AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
-ORDER BY error
-LIMIT 100
-`,
-    },
-  } as SelectorFilterSpec,
-];
-
-const DISTRIBUTION_QUERY = `
-SELECT
-    toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
-    event_type,
-    count(1) as count
-FROM system.part_log
-WHERE 
-  {filterExpression:String}
-  AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
-  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
-  AND event_time >= {from:String} 
-  AND event_time <= {to:String}
-GROUP BY t, event_type
-ORDER BY t, event_type`;
-
-const TABLE_QUERY = `
-SELECT * FROM system.part_log 
-WHERE 
-  {filterExpression:String}
-  AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
-  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
-  AND event_time >= {from:String} 
-AND event_time <= {to:String}
-ORDER BY event_time DESC`;
-
 const SystemTablePartLog = ({ database: _database, table: _table }: SystemTablePartLogProps) => {
   const { connection } = useConnection();
 
@@ -166,6 +34,174 @@ const SystemTablePartLog = ({ database: _database, table: _table }: SystemTableP
   const filterRef = useRef<DashboardFilterComponent>(null);
   const chartRef = useRef<DashboardVisualizationComponent | null>(null);
   const tableRef = useRef<DashboardVisualizationComponent | null>(null);
+
+  // NOTE: keep the {cluster} replacement, it will be processed by the underlying connection object
+  const DISTRIBUTION_QUERY = useMemo(
+    () => `
+SELECT
+    toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
+    event_type,
+    count(1) as count
+FROM 
+${connection!.cluster ? `clusterAllReplicas('{cluster}', system.part_log)` : "system.part_log"}
+WHERE 
+  {filterExpression:String}
+  AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+  AND event_time <= {to:String}
+GROUP BY t, event_type
+ORDER BY t, event_type
+`,
+    []
+  );
+
+  const TABLE_QUERY = useMemo(
+    () => `
+SELECT ${connection!.metadata.part_log_table_has_node_name_column ? "hostname(), " : ""} * FROM
+${connection!.cluster ? `clusterAllReplicas('{cluster}', system.part_log)` : "system.part_log"}
+WHERE 
+  {filterExpression:String}
+  AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+  AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+  AND event_time >= {from:String} 
+AND event_time <= {to:String}
+ORDER BY event_time DESC
+`,
+    []
+  );
+
+  const filterSpecs = useMemo<FilterSpec[]>(() => {
+    return [
+      {
+        filterType: "date_time",
+        alias: "_interval",
+        displayText: "time",
+        timeColumn: "event_time",
+        defaultTimeSpan: "Last 15 Mins",
+      } as DateTimeFilterSpec,
+      {
+        filterType: "select",
+        name: "hostname()",
+        displayText: "hostname()",
+        onPreviousFilters: true,
+        datasource: {
+          type: "sql",
+          sql: `select distinct host_name from system.clusters WHERE cluster = '${connection!.cluster}' order by host_name`,
+        },
+
+        defaultPattern: {
+          comparator: "=",
+          values: [connection!.metadata.remoteHostName],
+        },
+      } as SelectorFilterSpec,
+      {
+        filterType: "select",
+        name: "event_type",
+        displayText: "event_type",
+        onPreviousFilters: true,
+        defaultPattern: {
+          comparator: "!=",
+          values: ["RemovePart"],
+        },
+        datasource: {
+          type: "inline",
+          values: [
+            { label: "NewPart", value: "NewPart" },
+            { label: "MergeParts", value: "MergeParts" },
+            { label: "DownloadPart", value: "DownloadPart" },
+            { label: "RemovePart", value: "RemovePart" },
+            { label: "MutatePart", value: "MutatePart" },
+            { label: "MovePart", value: "MovePart" },
+          ],
+        },
+      } as SelectorFilterSpec,
+      {
+        filterType: "select",
+        name: "database",
+        displayText: "database",
+        onPreviousFilters: true,
+        datasource: {
+          type: "sql",
+          sql: `SELECT DISTINCT database
+    FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.part_log)` : "system.part_log"}
+    WHERE ({filterExpression:String})
+        AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+        AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+        AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+        AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+        AND database <> ''
+    ORDER BY database
+    LIMIT 100`,
+        },
+      } as SelectorFilterSpec,
+      {
+        filterType: "select",
+        name: "table",
+        displayText: "table",
+        onPreviousFilters: true,
+        datasource: {
+          type: "sql",
+          sql: `
+    SELECT DISTINCT table
+    FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.part_log)` : "system.part_log"}
+    WHERE ({filterExpression:String})
+        AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+        AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+        AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+        AND event_time < fromUnixTimestamp({endTimestamp:UInt32})`,
+        },
+      } as SelectorFilterSpec,
+      {
+        filterType: "select",
+        name: "part_type",
+        displayText: "part_type",
+        onPreviousFilters: true,
+        datasource: {
+          type: "sql",
+          sql: `
+    SELECT DISTINCT part_type
+    FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.part_log)` : "system.part_log"}
+    WHERE ({filterExpression:String})
+        AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32}))
+        AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+        AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+        AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+    ORDER BY part_type
+    `,
+        },
+      } as SelectorFilterSpec,
+      {
+        filterType: "select",
+        name: "error",
+        displayText: "error",
+        onPreviousFilters: true,
+        datasource: {
+          type: "sql",
+          sql: `
+    SELECT DISTINCT error
+    FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.part_log)` : "system.part_log"}
+    WHERE ({filterExpression:String})
+        AND event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
+        AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
+        AND event_time >= fromUnixTimestamp({startTimestamp:UInt32})
+        AND event_time < fromUnixTimestamp({endTimestamp:UInt32})
+    ORDER BY error
+    LIMIT 100
+    `,
+        },
+      } as SelectorFilterSpec,
+    ].filter((spec) => {
+      const hasCluster = connection?.cluster && connection?.cluster.length > 0;
+      if (hasCluster) {
+        return spec;
+      } else if (spec.filterType === "select" && spec.name === "hostname()") {
+        // NOT in the cluster mode, remove the hostname filter
+        return false;
+      }
+      return true;
+    });
+  }, []);
 
   // Chart Descriptor
   const chartDescriptor = useMemo<TimeseriesDescriptor>(() => {
@@ -235,7 +271,7 @@ const SystemTablePartLog = ({ database: _database, table: _table }: SystemTableP
         query: { format: "sql" },
       },
     };
-  }, []);
+  }, [TABLE_QUERY]);
 
   // Helper function to update SQLs and refresh panels
   const updateAndRefresh = useCallback(
@@ -255,6 +291,7 @@ const SystemTablePartLog = ({ database: _database, table: _table }: SystemTableP
           parts.push(value);
         }
       }
+
       const filterExpression = parts.length > 0 ? parts.join(" AND ") : "1=1";
       tableDescriptor.query.sql = TABLE_QUERY.replace(
         "{filterExpression:String}",
@@ -362,7 +399,7 @@ const SystemTablePartLog = ({ database: _database, table: _table }: SystemTableP
       {/* Filter Section */}
       <DashboardFilterComponent
         ref={filterRef}
-        filterSpecs={FILTER_SPECS}
+        filterSpecs={filterSpecs}
         onFilterChange={handleSelectionFilterChange}
         onTimeSpanChange={handleTimeSpanChange}
         onLoadSourceData={handleLoadFilterData}

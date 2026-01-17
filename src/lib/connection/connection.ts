@@ -15,6 +15,9 @@ export class QueryError extends Error {
     this.httpHeaders = httpHeaders;
     this.data = data;
 
+    // Explicitly set prototype to ensure instanceof works correctly across async boundaries
+    Object.setPrototypeOf(this, QueryError.prototype);
+
     // Maintains proper stack trace for where our error was thrown (only available on V8)
     if (typeof (Error as any).captureStackTrace === "function") {
       (Error as any).captureStackTrace(this, QueryError);
@@ -94,11 +97,21 @@ export interface ConnectionMetadata {
   // Server timezone
   timezone: string;
 
+  //
   // Capabilities
+  //
+  // Table columns
   function_table_has_description_column: boolean;
   metric_log_table_has_ProfileEvent_MergeSourceParts: boolean;
   metric_log_table_has_ProfileEvent_MutationTotalParts: boolean;
+  query_log_table_has_hostname_column: boolean;
+  part_log_table_has_node_name_column: boolean;
+
+  // Functions
   has_format_query_function: boolean;
+
+  // Settings
+  is_readonly_skip_unavailable_shards: boolean;
 
   tableNames?: Map<string, TableInfo>;
   databaseNames?: Map<string, DatabaseInfo>;
@@ -154,12 +167,23 @@ export class Connection {
 
     // Initialize metadata with defaults
     this.metadata = {
+      displayName: config.name,
+
       internalUser: config.user, // Default to external configured user
       timezone: "UTC", // Default timezone
+
+      // Tables
       function_table_has_description_column: false,
       metric_log_table_has_ProfileEvent_MergeSourceParts: false,
       metric_log_table_has_ProfileEvent_MutationTotalParts: false,
+      query_log_table_has_hostname_column: false,
+      part_log_table_has_node_name_column: false,
+
+      // Functions
       has_format_query_function: false,
+
+      // Settings, Assume it's readonly by default in case we can't access the settings
+      is_readonly_skip_unavailable_shards: true,
     };
   }
 
@@ -308,6 +332,14 @@ export class Connection {
     if (this.cluster && this.cluster.length > 0 && sql.includes("{cluster}")) {
       // Do replacement
       sql = sql.replaceAll("{cluster}", this.cluster);
+
+      // For cluster query, skip unavailable shard by default
+      if (!this.metadata.is_readonly_skip_unavailable_shards) {
+        params = {
+          ...params,
+          skip_unavailable_shards: 1,
+        };
+      }
 
       // Since cluster/clusterAllReplica is used, don't use remote function to execute this sql
       return this.query(sql, params, headers);

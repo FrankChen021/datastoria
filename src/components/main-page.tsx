@@ -97,7 +97,9 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
     hostname(),
     hasColumnInTable('system', 'functions', 'description'),
     hasColumnInTable('system', 'metric_log', 'ProfileEvent_MergeSourceParts'),
-    hasColumnInTable('system', 'metric_log', 'ProfileEvent_MutationTotalParts')
+    hasColumnInTable('system', 'metric_log', 'ProfileEvent_MutationTotalParts'),
+    hasColumnInTable('system', 'query_log', 'hostname'),
+    hasColumnInTable('system', 'part_log', 'node_name')
 `,
       { default_format: "JSONCompact" }
     )
@@ -115,9 +117,13 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
           remoteHostName: isCluster ? hostname : undefined,
           internalUser: internalUser as string,
           timezone: timezone as string,
+
+          // Table columns
           function_table_has_description_column: data.data[0][2] ? true : false,
           metric_log_table_has_ProfileEvent_MergeSourceParts: data.data[0][3] ? true : false,
           metric_log_table_has_ProfileEvent_MutationTotalParts: data.data[0][4] ? true : false,
+          query_log_table_has_hostname_column: data.data[0][5] ? true : false,
+          part_log_table_has_node_name_column: data.data[0][6] ? true : false,
         };
       }
     });
@@ -160,7 +166,26 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
         })
     : Promise.resolve();
 
-  await Promise.all([metadataQuery, functionQuery, clusterHostQuery]);
+  const settingsQuery = connection
+    .query(
+      `SELECT name, value, readonly FROM system.settings WHERE name in ('skip_unavailable_shards')`,
+      {
+        default_format: "JSONCompact",
+      }
+    )
+    .response.then((settingsResponse) => {
+      if (settingsResponse.httpStatus === 200) {
+        const data = settingsResponse.data.json<JSONCompactFormatResponse>();
+        if (data.data.length > 0) {
+          connection.metadata = {
+            ...connection.metadata,
+            is_readonly_skip_unavailable_shards: data.data[0][2] ? true : false,
+          };
+        }
+      }
+    });
+
+  await Promise.all([metadataQuery, functionQuery, clusterHostQuery, settingsQuery]);
 }
 
 type StepStatus = "pending" | "loading" | "success" | "error";

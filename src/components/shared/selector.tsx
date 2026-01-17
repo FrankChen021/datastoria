@@ -259,11 +259,11 @@ class PatternSelector extends React.Component<PatternSelectorProps, PatternSelec
     return (
       <div className="flex">
         {/* Comparator */}
-        <Command disablePointerSelection className="rounded-none w-[150px]">
+        <Command value={this.state.selectedComparator.name} disablePointerSelection className="rounded-none w-[150px]">
           <div className="relative flex items-center rounded-none px-2 py-2 text-center text-sm border-b">
             <b>Comparators</b>
           </div>
-          <CommandList className="min-h-[200px] max-h-[300px]">
+          <CommandList className="min-h-[200px] max-h-none">
             <CommandGroup>
               {this.props.comparatorGroup.map((comparators, index) => (
                 <React.Fragment key={index}>
@@ -635,7 +635,7 @@ const Selector = React.forwardRef<SelectorRef, SelectorProps>(
             </FloatingLabelInput>
           </PopoverAnchor>
           <PopoverContent
-            className="p-0 rounded-none dark:border-gray-700 bg-white dark:bg-gray-800 !w-auto min-w-[240px] max-h-[600px]"
+            className="p-0 rounded-sm dark:border-gray-700 bg-white dark:bg-gray-800 !w-auto min-w-[240px] max-h-[600px]"
             align="start"
             side="bottom"
             sideOffset={-1}

@@ -55,11 +55,24 @@ function replaceOrderByClause(
 // SQL utility function for pagination
 function applyLimitOffset(sql: string, limit: number, offset: number): string {
   const trimmed = sql.trim();
-  const trailingLimitRegex = /\s+LIMIT\s+\d+(?:\s+OFFSET\s+\d+)?\s*$/i;
+  const limitOffsetClause = ` LIMIT ${limit} OFFSET ${offset}`;
+  
+  // Check if there's an existing LIMIT/OFFSET clause
+  const trailingLimitRegex = /\s+LIMIT\s+\d+(?:\s+OFFSET\s+\d+)?\s*(?=SETTINGS|$)/i;
   if (trailingLimitRegex.test(trimmed)) {
-    return trimmed.replace(trailingLimitRegex, ` LIMIT ${limit} OFFSET ${offset}`);
+    // Replace existing LIMIT/OFFSET
+    return trimmed.replace(trailingLimitRegex, limitOffsetClause);
   }
-  return `${trimmed} LIMIT ${limit} OFFSET ${offset}`;
+  
+  // Check if there's a SETTINGS clause - LIMIT/OFFSET must come before SETTINGS
+  const settingsRegex = /\s+SETTINGS\s+/i;
+  if (settingsRegex.test(trimmed)) {
+    // Insert LIMIT/OFFSET before SETTINGS
+    return trimmed.replace(settingsRegex, `${limitOffsetClause}$&`);
+  }
+  
+  // No SETTINGS clause, append LIMIT/OFFSET at the end
+  return `${trimmed}${limitOffsetClause}`;
 }
 
 export interface TableVisualizationProps {
