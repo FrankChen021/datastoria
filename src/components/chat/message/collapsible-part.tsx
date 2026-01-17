@@ -1,7 +1,47 @@
+import { Formatter } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
 import { Check, ChevronDown, ChevronRight, CircleX, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "../../ui/badge";
+
+export function Timer({ isRunning }: { isRunning: boolean }) {
+  const [formattedTime, setFormattedTime] = useState("");
+
+  const [_, setStartTime] = useState<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (isRunning) {
+      // Start timing
+      const now = Date.now();
+      setStartTime(now);
+
+      // Update every 100ms
+      // Use the captured 'now' value directly since state updates are async
+      intervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - now;
+        setFormattedTime(Formatter.getInstance().milliFormat(elapsed, 2));
+      }, 100);
+    } else {
+      // Stop timing
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setStartTime(null);
+    }
+
+    // Cleanup on unmount or when isExecuting changes
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isRunning]);
+
+  return <span className="text-xs text-muted-foreground text-[10px]">{formattedTime}</span>;
+}
 
 /**
  * Render a collapsible tool section with timing tracking
@@ -22,33 +62,6 @@ export function CollapsiblePart({
   success?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-  const [duration, setDuration] = useState<number | null>(null);
-  const startTimeRef = useRef<number | null>(null);
-  const prevStateRef = useRef<string | undefined>(state);
-
-  // useEffect(() => {
-  //   setIsExpanded(defaultExpanded);
-  // }, [defaultExpanded]);
-
-  // Track timing when state changes
-  useEffect(() => {
-    const prevState = prevStateRef.current;
-    prevStateRef.current = state;
-
-    // Start timing when tool becomes available (input-available means tool is running)
-    if (prevState !== "input-available" && state === "input-available") {
-      startTimeRef.current = Date.now();
-      setDuration(null);
-    }
-
-    // Calculate duration when tool completes
-    if ((state === "output-available" || state === "done") && startTimeRef.current !== null) {
-      const endTime = Date.now();
-      const durationMs = endTime - startTimeRef.current;
-      setDuration(durationMs);
-      startTimeRef.current = null;
-    }
-  }, [state]);
 
   // Determine if tool is complete
   // Use external success value if provided, otherwise use state-based logic
@@ -60,13 +73,6 @@ export function CollapsiblePart({
   const getStatusText = () => {
     if (state === "input-streaming") return "receiving input...";
     if (state === "input-available") return "running...";
-    if (state === "output-available" && duration !== null) {
-      // Format duration
-      if (duration < 1000) {
-        return `${duration}ms`;
-      }
-      return `${(duration / 1000).toFixed(2)}s`;
-    }
     return null;
   };
 
@@ -101,7 +107,8 @@ export function CollapsiblePart({
               ))}
             {toolName}
           </Badge>
-          {statusText && <span className="text-muted-foreground">- {statusText}</span>}
+          {statusText && <span className="text-muted-foreground">{statusText}</span>}
+          <Timer isRunning={!isComplete} />
         </div>
       </div>
       {(isExpanded || keepChildrenMounted) && (
@@ -109,7 +116,7 @@ export function CollapsiblePart({
           className="pl-3 border-l ml-1.5 mb-1 border-muted/50 transition-all"
           style={keepChildrenMounted && !isExpanded ? { display: "none" } : undefined}
         >
-          {isComplete ? children : children ? children : "running..."}
+          {isComplete ? children : children ? children : "running"}
         </div>
       )}
     </div>

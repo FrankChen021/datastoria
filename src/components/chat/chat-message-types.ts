@@ -65,4 +65,5 @@ export type ToolPart = AppUIMessage["parts"][0] & {
   output?: unknown;
   state?: string;
   toolName?: string;
+  toolCallId?: string;
 };

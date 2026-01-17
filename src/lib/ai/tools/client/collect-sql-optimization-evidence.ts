@@ -75,7 +75,7 @@ LIMIT 1`,
 
     if (responseData?.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
       const row = responseData.data[0] as unknown[];
-      
+
       // Parse ProfileEvents (Map type from ClickHouse)
       let profileEvents: Record<string, number> | undefined;
       const profileEventsRaw = row[6];
@@ -103,7 +103,7 @@ LIMIT 1`,
           }
         }
       }
-      
+
       context.query_log = {
         duration_ms: Number(row[0]) || undefined,
         read_rows: Number(row[1]) || undefined,

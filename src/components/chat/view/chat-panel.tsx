@@ -200,7 +200,6 @@ export function ChatPanel({
     loadChat(newChatId);
   }, [pendingCommand?.forceNewChat, pendingCommand?.timestamp, connection, chat, loadChat]);
 
-
   // Update context builder when props change
   useEffect(() => {
     ChatContext.setBuilder(() => ({

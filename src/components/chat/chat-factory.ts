@@ -13,8 +13,7 @@ import { Connection } from "@/lib/connection/connection";
 import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { v7 as uuidv7 } from "uuid";
-import { TabManager } from "../tab-manager";
-import { ChatContext, type DatabaseContext } from "./chat-context";
+import { ChatContext } from "./chat-context";
 import type { Message } from "./chat-message-types";
 import { chatStorage } from "./storage/chat-storage";
 
@@ -113,8 +112,6 @@ export class ChatFactory {
     connection: Connection;
     skipStorage?: boolean;
     apiEndpoint?: string;
-    getCurrentSessionId?: () => string | undefined;
-    getMessageSessionId?: (messageId: string) => string | undefined;
     model?: {
       provider: string;
       modelId: string;
@@ -124,25 +121,23 @@ export class ChatFactory {
     const chatId = options.id || uuidv7();
     const skipStorage = options.skipStorage ?? false;
     const apiEndpoint = options.apiEndpoint ?? "/api/chat";
-    const getCurrentSessionId = options.getCurrentSessionId;
-    const getMessageSessionId = options.getMessageSessionId;
     const modelConfig = options.model;
     const connection = options.connection;
 
     // Clear all progress when a new session starts
     useToolProgressStore.getState().clearAllProgress();
 
-    // Load existing messages from storage (skip for single-use chats)
-    const existingMessages = skipStorage ? [] : await chatStorage.getMessages(chatId);
+    // Load existing messages from storage to restore chat history
+    const historicalMessages = skipStorage ? [] : await chatStorage.getMessages(chatId);
 
     // Create Chat instance
     const chat = new Chat<AppUIMessage>({
       id: chatId,
       generateId: uuidv7,
+
       // Automatically send tool results back to the API when all tool calls are complete
       sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
 
-      // Configure custom API endpoint with message filtering by sessionId
       transport: new DefaultChatTransport({
         api: apiEndpoint,
         prepareSendMessagesRequest: async ({
@@ -206,46 +201,13 @@ export class ChatFactory {
             }
           }
 
-          // Filter messages to only include those from the current session
-          const currentSessionId = getCurrentSessionId?.();
-          if (!currentSessionId) {
-            return {
-              body: {
-                ...body,
-                messages,
-                trigger,
-                messageId,
-                ...(ChatContext.build() && { context: ChatContext.build() }),
-                ...(currentModel && { model: currentModel }),
-              },
-              headers,
-              credentials,
-            };
-          }
-
-          const filteredMessages = messages.filter((msg) => {
-            let msgSessionId = (msg as { sessionId?: string }).sessionId;
-            if (!msgSessionId && getMessageSessionId) {
-              msgSessionId = getMessageSessionId(msg.id);
-            }
-            return msgSessionId === currentSessionId;
-          });
-
-          const currentContext = ChatContext.build();
-          const historicalContext = ChatContext.extractFromMessages(filteredMessages as any);
-
-          const contextWithUser: DatabaseContext = {
-            ...currentContext,
-            tables: [...(currentContext?.tables || []), ...(historicalContext?.tables || [])],
-          };
-
           return {
             body: {
               ...body,
-              messages: filteredMessages,
+              messages,
               trigger,
               messageId,
-              ...(contextWithUser && { context: contextWithUser }),
+              ...(ChatContext.build() && { context: ChatContext.build() }),
               ...(currentModel && { model: currentModel }),
             },
             headers,
@@ -254,7 +216,7 @@ export class ChatFactory {
         },
       }),
 
-      messages: existingMessages.map((msg) => ({
+      messages: historicalMessages.map((msg) => ({
         id: msg.id,
         role: msg.role,
         parts: msg.parts,
@@ -265,7 +227,6 @@ export class ChatFactory {
 
       onToolCall: async ({ toolCall }) => {
         const { toolName, toolCallId, input } = toolCall;
-
         if (
           toolName === SERVER_TOOL_GENERATE_SQL ||
           toolName === SERVER_TOOL_GENEREATE_VISUALIZATION ||
@@ -277,7 +238,7 @@ export class ChatFactory {
 
         if (!(toolName in ClientToolExecutors)) {
           console.error(`Unknown tool: ${toolName}`);
-          chat.addToolResult({
+          chat.addToolOutput({
             tool: toolName as
               | typeof CLIENT_TOOL_NAMES.EXPLORE_SCHEMA
               | typeof CLIENT_TOOL_NAMES.GET_TABLES
@@ -290,15 +251,16 @@ export class ChatFactory {
 
         const executor = ClientToolExecutors[toolName as keyof typeof ClientToolExecutors];
 
-        // Get progress store for tools that support progress tracking
-        const progressStore = useToolProgressStore.getState();
-
         try {
           // Create progress callback for all tools (tools that don't use it will simply ignore it)
-          const progressCallback = createToolProgressCallback(toolCallId, toolName, progressStore);
+          const progressCallback = createToolProgressCallback(
+            toolCallId,
+            toolName,
+            useToolProgressStore.getState()
+          );
 
           const output = await executor(input as any, connection, progressCallback);
-          chat.addToolResult({
+          chat.addToolOutput({
             tool: toolName as any,
             toolCallId,
             output,
@@ -306,7 +268,7 @@ export class ChatFactory {
         } catch (error) {
           console.error(`Error executing tool ${toolName}:`, error);
 
-          chat.addToolResult({
+          chat.addToolOutput({
             tool: toolName as any,
             toolCallId,
             output: {

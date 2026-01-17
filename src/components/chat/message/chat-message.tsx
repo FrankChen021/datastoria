@@ -11,16 +11,15 @@ import NumberFlow from "@number-flow/react";
 import { Info, Sparkles } from "lucide-react";
 import { memo } from "react";
 import type { ToolPart } from "../chat-message-types";
-import type { ChatMessage } from "./chat-messages";
 import { ErrorMessageDisplay } from "./message-error";
 import { MessageMarkdown } from "./message-markdown";
 import { MessageReasoning } from "./message-reasoning";
 import { MessageToolCollectSqlOptimizationEvidence } from "./message-tool-collect-sql-optimization-evidence";
 import { MessageToolExecuteSql } from "./message-tool-execute-sql";
+import { MessageToolExploreSchema } from "./message-tool-explore-schema";
 import { MessageToolGeneral } from "./message-tool-general";
 import { MessageToolGenerateSql } from "./message-tool-generate-sql";
 import { MessageToolGenerateVisualization } from "./message-tool-generate-visualization";
-import { MessageToolExploreSchema } from "./message-tool-explore-schema";
 import { MessageToolGetTables } from "./message-tool-get-tables";
 import { MessageToolPlan } from "./message-tool-plan";
 import { MessageToolValidateSql } from "./message-tool-validate-sql";
@@ -92,65 +91,95 @@ const TokenUsageDisplay = memo(function TokenUsageDisplay({
 /**
  * Render a single message part
  */
-function ChatMessagePart({ part, isUser }: { part: AppUIMessage["parts"][0]; isUser: boolean }) {
-  if (part.type === "text") {
-    if (isUser) {
-      return <MessageUser text={part.text} />;
+const ChatMessagePart = memo(
+  function ChatMessagePart({ part, isUser }: { part: AppUIMessage["parts"][0]; isUser: boolean }) {
+    if (part.type === "text") {
+      if (isUser) {
+        return <MessageUser text={part.text} />;
+      }
+      return (
+        <MessageMarkdown text={part.text} customStyle={{ fontSize: "0.9rem", lineHeight: "1.6" }} />
+      );
     }
-    return (
-      <MessageMarkdown text={part.text} customStyle={{ fontSize: "0.9rem", lineHeight: "1.6" }} />
-    );
-  }
-  if (part.type === "reasoning") {
-    return <MessageReasoning part={part} />;
-  }
+    if (part.type === "reasoning") {
+      return <MessageReasoning part={part} />;
+    }
 
-  // Handle tool calls and responses
-  let toolName: string | undefined;
-  if (part.type === "dynamic-tool") {
-    toolName = (part as ToolPart).toolName;
-  } else if (typeof part.type === "string" && part.type.startsWith("tool-")) {
-    toolName = part.type.replace("tool-", "");
+    // Handle tool calls and responses
+    let toolName: string | undefined;
+    if (part.type === "dynamic-tool") {
+      toolName = (part as ToolPart).toolName;
+    } else if (typeof part.type === "string" && part.type.startsWith("tool-")) {
+      toolName = part.type.replace("tool-", "");
+    }
+
+    if (toolName === SERVER_TOOL_GENERATE_SQL) {
+      return <MessageToolGenerateSql part={part} />;
+    } else if (toolName === SERVER_TOOL_GENEREATE_VISUALIZATION) {
+      return <MessageToolGenerateVisualization part={part} />;
+    } else if (toolName === CLIENT_TOOL_NAMES.EXECUTE_SQL) {
+      return <MessageToolExecuteSql part={part} />;
+    } else if (toolName === CLIENT_TOOL_NAMES.VALIDATE_SQL) {
+      return <MessageToolValidateSql part={part} />;
+    } else if (toolName === CLIENT_TOOL_NAMES.EXPLORE_SCHEMA) {
+      return <MessageToolExploreSchema part={part} />;
+    } else if (toolName === CLIENT_TOOL_NAMES.GET_TABLES) {
+      return <MessageToolGetTables part={part} />;
+    } else if (toolName === CLIENT_TOOL_NAMES.COLLECT_SQL_OPTIMIZATION_EVIDENCE) {
+      return <MessageToolCollectSqlOptimizationEvidence part={part} />;
+    } else if (toolName === SERVER_TOOL_PLAN) {
+      return <MessageToolPlan part={part} />;
+    } else if (toolName) {
+      return <MessageToolGeneral toolName={toolName} part={part} />;
+    }
+
+    return null;
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison: only re-render if the part actually changed
+    if (prevProps.isUser !== nextProps.isUser) return false;
+    if (prevProps.part === nextProps.part) return true;
+    // For tool parts, compare by toolCallId and state
+    const prevPart = prevProps.part as ToolPart;
+    const nextPart = nextProps.part as ToolPart;
+    if (prevPart.toolCallId && nextPart.toolCallId) {
+      return prevPart.toolCallId === nextPart.toolCallId && prevPart.state === nextPart.state;
+    }
+    // For text parts, compare by text content
+    if (prevPart.type === "text" && nextPart.type === "text") {
+      return (
+        (prevProps.part as { text: string }).text === (nextProps.part as { text: string }).text
+      );
+    }
+    return false;
   }
+);
 
-  if (toolName === SERVER_TOOL_GENERATE_SQL) {
-    return <MessageToolGenerateSql part={part} />;
-  } else if (toolName === SERVER_TOOL_GENEREATE_VISUALIZATION) {
-    return <MessageToolGenerateVisualization part={part} />;
-  } else if (toolName === CLIENT_TOOL_NAMES.EXECUTE_SQL) {
-    return <MessageToolExecuteSql part={part} />;
-  } else if (toolName === CLIENT_TOOL_NAMES.VALIDATE_SQL) {
-    return <MessageToolValidateSql part={part} />;
-  } else if (toolName === CLIENT_TOOL_NAMES.EXPLORE_SCHEMA) {
-    return <MessageToolExploreSchema part={part} />;
-  } else if (toolName === CLIENT_TOOL_NAMES.GET_TABLES) {
-    return <MessageToolGetTables part={part} />;
-  } else if (toolName === CLIENT_TOOL_NAMES.COLLECT_SQL_OPTIMIZATION_EVIDENCE) {
-    return <MessageToolCollectSqlOptimizationEvidence part={part} />;
-  } else if (toolName === SERVER_TOOL_PLAN) {
-    return <MessageToolPlan part={part} />;
-  } else if (toolName) {
-    return <MessageToolGeneral toolName={toolName} part={part} />;
-  }
-
-  return null;
-}
-
-interface ChatMessageViewProps {
-  message: ChatMessage;
+interface ChatMessageProps {
+  message: AppUIMessage;
+  isLoading?: boolean;
   isFirst?: boolean; // Whether this is a new user request (needs top spacing)
-  isLast?: boolean; // Whether this is the last message in a sequenceÒ
+  isLast?: boolean; // Whether this is the last message in a sequence
 }
 /**
  * Render a single message with session styling and visualization
  */
-export const ChatMessageView = memo(function ChatMessageView({
+export const ChatMessage = memo(function ChatMessage({
   message,
+  isLoading = false,
   isFirst = false,
-}: ChatMessageViewProps) {
+}: ChatMessageProps) {
   const isUser = message.role === "user";
+  const msgRecord = message as unknown as Record<string, unknown>;
+  const timestamp = msgRecord.createdAt
+    ? new Date(msgRecord.createdAt as string | number).getTime()
+    : Date.now();
+  const parts = message.parts || [];
+  const metadata = msgRecord.metadata as Record<string, unknown> | undefined;
+  const usage = (metadata?.usage || msgRecord.usage) as TokenUsage | undefined;
+  const error = msgRecord.error as Error | undefined;
 
-  const showLoading = !isUser && message.isLoading;
+  const showLoading = !isUser && isLoading;
   return (
     <div
       className={cn(
@@ -161,12 +190,9 @@ export const ChatMessageView = memo(function ChatMessageView({
     >
       <div className="pl-2 py-1">
         {/* Timestamp above profile for user messages - reserve space for alignment */}
-        {isUser && message.timestamp && (
-          // <div className="text-[10px] text-muted-foreground font-medium whitespace-nowrap pl-1">
-          //   {DateTimeExtension.toYYYYMMddHHmmss(new Date(message.timestamp))}
-          // </div>
+        {isUser && timestamp && (
           <h4 className="text-sm font-semibold mb-2 text-muted-foreground">
-            {DateTimeExtension.toYYYYMMddHHmmss(new Date(message.timestamp))}
+            {DateTimeExtension.toYYYYMMddHHmmss(new Date(timestamp))}
           </h4>
         )}
 
@@ -183,21 +209,16 @@ export const ChatMessageView = memo(function ChatMessageView({
           </div>
 
           <div className="flex-1 overflow-hidden min-w-0 text-sm pr-6">
-            {message.parts.length === 0 && message.isLoading && (
+            {parts.length === 0 && isLoading && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <span>Thinking</span>
               </div>
             )}
-            {message.parts.length === 0 &&
-              !message.isLoading &&
-              !message.error &&
-              "Nothing returned"}
-            {message.parts.map((part, i) => (
+            {parts.length === 0 && !isLoading && !error && "Nothing returned"}
+            {parts.map((part, i) => (
               <ChatMessagePart key={i} part={part} isUser={isUser} />
             ))}
-            {message.error && (
-              <ErrorMessageDisplay errorText={message.error.message || String(message.error)} />
-            )}
+            {error && <ErrorMessageDisplay errorText={error.message || String(error)} />}
             {showLoading && (
               <div className="mt-2 flex items-center gap-2 text-muted-foreground">
                 <TypingDots />
@@ -207,9 +228,7 @@ export const ChatMessageView = memo(function ChatMessageView({
         </div>
 
         {/* Show the token even when it's loading */}
-        {!isUser && message.usage && (
-          <TokenUsageDisplay id={message.id + "-usage"} usage={message.usage} />
-        )}
+        {!isUser && usage && <TokenUsageDisplay id={message.id + "-usage"} usage={usage} />}
       </div>
     </div>
   );

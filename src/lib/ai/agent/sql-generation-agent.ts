@@ -3,9 +3,9 @@ import { z } from "zod";
 import type { ServerDatabaseContext } from "../common-types";
 import { isMockMode, LanguageModelProviderFactory } from "../llm/llm-provider-factory";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
+import type { TableSchemaOutput } from "../tools/client/explore-schema";
 import type { InputModel } from "./planner-agent";
 import { mockSqlGenerationAgent } from "./sql-generation-agent.mock";
-import type { TableSchemaOutput } from "../tools/client/explore-schema";
 
 /**
  * SQL Generation Agent Output Schema
@@ -96,14 +96,12 @@ function buildSqlGenerationPrompt({
   if (tables && tables.length > 0) {
     schemaContext.push("Available tables:");
     tables.forEach((table) => {
-      const columnList = table.columns
-        .map((col) => `${col.name} (${col.type})`)
-        .join(", ");
-      
+      const columnList = table.columns.map((col) => `${col.name} (${col.type})`).join(", ");
+
       // Use fully qualified table name (database.table)
       const qualifiedTableName = `${table.database}.${table.table}`;
       let tableInfo = `- ${qualifiedTableName}: ${columnList}`;
-      
+
       // Add primary key and partition key info if available
       if (table.primaryKey || table.partitionBy) {
         const keyInfo = [];
@@ -115,7 +113,7 @@ function buildSqlGenerationPrompt({
         }
         tableInfo += ` [${keyInfo.join(", ")}]`;
       }
-      
+
       schemaContext.push(tableInfo);
     });
   }
@@ -236,7 +234,9 @@ export function createGenerateSqlTool(inputModel: InputModel, context?: ServerDa
           })
         )
         .optional()
-        .describe("Schema context: array of table schemas with columns, primary key, and partition key"),
+        .describe(
+          "Schema context: array of table schemas with columns, primary key, and partition key"
+        ),
       context: z
         .object({
           currentQuery: z.string().optional(),

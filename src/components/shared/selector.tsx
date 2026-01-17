@@ -259,7 +259,11 @@ class PatternSelector extends React.Component<PatternSelectorProps, PatternSelec
     return (
       <div className="flex">
         {/* Comparator */}
-        <Command value={this.state.selectedComparator.name} disablePointerSelection className="rounded-none w-[150px]">
+        <Command
+          value={this.state.selectedComparator.name}
+          disablePointerSelection
+          className="rounded-none w-[150px]"
+        >
           <div className="relative flex items-center rounded-none px-2 py-2 text-center text-sm border-b">
             <b>Comparators</b>
           </div>

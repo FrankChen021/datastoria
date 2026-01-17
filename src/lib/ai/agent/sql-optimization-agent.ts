@@ -3,11 +3,11 @@ import type { ServerDatabaseContext } from "../common-types";
 import { LanguageModelProviderFactory } from "../llm/llm-provider-factory";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
 import type { InputModel } from "./planner-agent";
+
 /**
  * Server-side tool name for SQL optimization
  */
 export const SERVER_TOOL_OPTIMIZE_SQL = "optimize_sql" as const;
-
 
 /**
  * Streaming SQL Optimization Agent

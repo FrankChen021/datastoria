@@ -19,7 +19,7 @@ import {
 import { ChatContext } from "../chat-context";
 import { ChatInput, type ChatInputHandle } from "../input/chat-input";
 import { getTableContextByMentions } from "../input/mention-utils";
-import { ChatMessages, type ChatMessage } from "../message/chat-messages";
+import { ChatMessageList } from "../message/chat-message-list";
 
 export type Question = { text: string; autoRun?: boolean };
 
@@ -126,78 +126,37 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
 
   const isStreaming = status === "streaming" || status === "submitted";
 
-  // Convert AI SDK messages to ChatMessage format
-  const chatMessages = useMemo((): ChatMessage[] => {
-    if (!messages) return [];
-
-    const msgs = (messages as AppUIMessage[]).map((m) => {
-      const mAny = m as any;
-      const ts = mAny.createdAt ? new Date(mAny.createdAt).getTime() : Date.now();
-      let parts = m.parts;
-      if ((!parts || parts.length === 0) && mAny.content) {
-        parts = [{ type: "text", text: mAny.content }];
-      } else if (!parts) {
-        parts = [];
-      }
-
-      let content = mAny.content || "";
-      if (!content && parts.length > 0) {
-        content = parts
-          .filter((p) => p.type === "text")
-          .map((p) => p.text)
-          .join("");
-      }
-
-      let role = m.role as string;
-      if (role === "data") role = "system";
-
-      let usage = mAny.metadata?.usage || mAny.usage;
-      if (!usage && parts) {
-        const finishPart = parts.find((p: any) => p.type === "finish");
-        if (finishPart) {
-          const partMetadata = (finishPart as any).messageMetadata;
-          usage = partMetadata?.usage || (finishPart as any).usage;
-        }
-      }
-
-      return {
-        type: "chat" as const,
-        id: m.id,
-        role: role as "user" | "assistant" | "system",
-        parts: parts,
-        usage: usage,
-        content: content,
-        isLoading: false,
-        timestamp: ts,
-        error: undefined,
-      };
-    });
-
-    // Mark the last assistant message as loading if global loading is true
-    // AND the message is not yet finished (no 'finish' part)
-    if (isStreaming && msgs.length > 0) {
-      const last = msgs[msgs.length - 1];
-      if (last.role === "assistant") {
-        const isFinished = last.parts.some((p) => (p as any).type === "finish");
-        if (!isFinished) {
-          last.isLoading = true;
-        }
-      }
+  // Determine which message is currently loading
+  const loadingMessageId = useMemo(() => {
+    if (!isStreaming || !messages || messages.length === 0) return null;
+    const last = messages[messages.length - 1];
+    if (last.role === "assistant") {
+      const isFinished = last.parts?.some((p: any) => p.type === "finish");
+      if (!isFinished) return last.id;
     }
-
-    return msgs;
+    return null;
   }, [messages, isStreaming]);
 
   // Calculate total token usage
   const tokenUsage = useMemo((): TokenUsage => {
-    return chatMessages.reduce(
+    if (!messages)
+      return {
+        totalTokens: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        reasoningTokens: 0,
+        cachedInputTokens: 0,
+      };
+    return (messages as AppUIMessage[]).reduce(
       (acc, msg) => {
-        if (msg.usage) {
-          acc.totalTokens += msg.usage.totalTokens || 0;
-          acc.inputTokens += msg.usage.inputTokens || 0;
-          acc.outputTokens += msg.usage.outputTokens || 0;
-          acc.reasoningTokens += msg.usage.reasoningTokens || 0;
-          acc.cachedInputTokens += msg.usage.cachedInputTokens || 0;
+        const mAny = msg as any;
+        const usage = mAny.metadata?.usage || mAny.usage;
+        if (usage) {
+          acc.totalTokens += usage.totalTokens || 0;
+          acc.inputTokens += usage.inputTokens || 0;
+          acc.outputTokens += usage.outputTokens || 0;
+          acc.reasoningTokens += usage.reasoningTokens || 0;
+          acc.cachedInputTokens += usage.cachedInputTokens || 0;
         }
         return acc;
       },
@@ -209,9 +168,9 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         cachedInputTokens: 0,
       }
     );
-  }, [chatMessages]);
+  }, [messages]);
 
-  const isEmpty = chatMessages.length === 0;
+  const isEmpty = !messages || messages.length === 0;
 
   const handleQuestionClick = useCallback(
     (question: { text: string; autoRun?: boolean }) => {
@@ -263,14 +222,18 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
           </div>
         )
       ) : (
-        <ChatMessages messages={chatMessages} error={error || null} />
+        <ChatMessageList
+          messages={messages as AppUIMessage[]}
+          loadingMessageId={loadingMessageId}
+          error={error || null}
+        />
       )}
       <ChatInput
         ref={chatInputRef}
         onSubmit={handleSubmit}
         onStop={stop}
         isStreaming={isStreaming}
-        hasMessages={chatMessages.length > 0}
+        hasMessages={messages.length > 0}
         tokenUsage={tokenUsage}
         onNewChat={onNewChat}
         externalInput={promptInput}

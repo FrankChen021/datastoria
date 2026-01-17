@@ -22,12 +22,12 @@ export type TableSchemaOutput = {
 };
 export type ExploreSchemaOutput = Array<TableSchemaOutput>;
 
-export const exploreSchemaExecutor: ToolExecutor<
-  ExploreSchemaInput,
-  ExploreSchemaOutput
-> = async (input, connection) => {
+export const exploreSchemaExecutor: ToolExecutor<ExploreSchemaInput, ExploreSchemaOutput> = async (
+  input,
+  connection
+) => {
   const { tables } = input;
-  
+
   //
   // Build SQL query to get columns for multiple tables
   // Handle per-table column filtering
@@ -136,17 +136,7 @@ ${tableFilters.join(" OR ")}`;
       schemaByTable.get(key)!.columns.push({ name, type });
     }
 
-    const result = Array.from(schemaByTable.values());
-
-    // Log the result size for monitoring
-    const totalColumns = result.reduce((sum, t) => sum + t.columns.length, 0);
-    const tablesWithFilters = tables.filter((t) => t.columns && t.columns.length > 0).length;
-    const filterInfo = tablesWithFilters > 0 ? ` (${tablesWithFilters} table(s) with column filters)` : "";
-    console.log(
-      `✅ explore_schema returned ${result.length} table(s) with ${totalColumns} total columns${filterInfo}`
-    );
-
-    return result;
+    return Array.from(schemaByTable.values());
   } catch (error) {
     console.error("Error executing explore_schema tool:", error);
     return [];

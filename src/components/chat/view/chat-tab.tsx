@@ -47,22 +47,25 @@ export function ChatTab({ initialChatId, active, initialPrompt, autoRun, tabId }
     }
   }, [active, close]);
 
-  const loadChat = useCallback(async (chatIdToLoad: string): Promise<void> => {
-    const chat = await chatStorage.getChat(chatIdToLoad);
-    if (chat) {
-      TabManager.updateTabTitle(tabId, chat.title);
-    } else if (tabId) {
-      // New chat - set title to "New Chat"
-      TabManager.updateTabTitle(tabId, "New Chat");
-    }
+  const loadChat = useCallback(
+    async (chatIdToLoad: string): Promise<void> => {
+      const chat = await chatStorage.getChat(chatIdToLoad);
+      if (chat) {
+        TabManager.updateTabTitle(tabId, chat.title);
+      } else if (tabId) {
+        // New chat - set title to "New Chat"
+        TabManager.updateTabTitle(tabId, "New Chat");
+      }
 
-    const newChatController = await ChatFactory.create({
-      // We still use this id if it's not found in the storage because it might be a new chat id
-      id: chatIdToLoad,
-      connection: connection!,
-    });
-    setChatController(newChatController);
-  }, [tabId, connection]);
+      const newChatController = await ChatFactory.create({
+        // We still use this id if it's not found in the storage because it might be a new chat id
+        id: chatIdToLoad,
+        connection: connection!,
+      });
+      setChatController(newChatController);
+    },
+    [tabId, connection]
+  );
 
   // Initial chat loading
   useEffect(() => {
