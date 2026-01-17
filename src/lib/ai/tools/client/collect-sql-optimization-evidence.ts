@@ -52,17 +52,20 @@ async function collectQueryLog(
   const stageId = "collect query log";
   progressCallback?.(stageId, 10, "started");
   try {
+    const isCluster = connection.cluster!.length > 0;
     const { response } = connection.query(
       `
-SELECT 
+SELECT
   query_duration_ms,
   read_rows,
   read_bytes,
   memory_usage,
   result_rows,
-  exception
-FROM system.query_log
-WHERE query_id = '${escapeSqlString(queryId)}'
+  exception,
+  ProfileEvents
+FROM ${isCluster ? `clusterAllReplicas("${connection.cluster}", system.query_log)` : "system.query_log"}
+WHERE 
+query_id = '${escapeSqlString(queryId)}'
 ORDER BY event_time DESC
 LIMIT 1`,
       { default_format: "JSONCompact" }
@@ -72,6 +75,35 @@ LIMIT 1`,
 
     if (responseData?.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
       const row = responseData.data[0] as unknown[];
+      
+      // Parse ProfileEvents (Map type from ClickHouse)
+      let profileEvents: Record<string, number> | undefined;
+      const profileEventsRaw = row[6];
+      if (profileEventsRaw != null) {
+        if (typeof profileEventsRaw === "object" && !Array.isArray(profileEventsRaw)) {
+          // If it's already an object, convert values to numbers
+          profileEvents = {};
+          for (const [key, value] of Object.entries(profileEventsRaw)) {
+            const numValue = Number(value);
+            if (!isNaN(numValue)) {
+              profileEvents[key] = numValue;
+            }
+          }
+        } else if (Array.isArray(profileEventsRaw)) {
+          // If it's an array of [key, value] pairs
+          profileEvents = {};
+          for (const pair of profileEventsRaw) {
+            if (Array.isArray(pair) && pair.length >= 2) {
+              const key = String(pair[0]);
+              const numValue = Number(pair[1]);
+              if (!isNaN(numValue)) {
+                profileEvents[key] = numValue;
+              }
+            }
+          }
+        }
+      }
+      
       context.query_log = {
         duration_ms: Number(row[0]) || undefined,
         read_rows: Number(row[1]) || undefined,
@@ -79,6 +111,7 @@ LIMIT 1`,
         memory_usage: Number(row[3]) || undefined,
         result_rows: Number(row[4]) || undefined,
         exception: row[5] ? String(row[5]) : null,
+        profile_events: profileEvents,
       };
       context.symptoms = {
         latency_ms: context.query_log.duration_ms,
