@@ -33,7 +33,7 @@ export const DEFAULT_CHAT_QUESTIONS: Question[] = [
     autoRun: true,
   },
   {
-    text: "What's the top 3 query that consumes the most CPU time over the past 3 hours from @system.query_log?",
+    text: "What's the top 3 SELECT queries that consumes the most CPU time over the past 3 hours from @system.query_log?",
     autoRun: true,
   },
   { text: "Please help me optimize a slow SQL", autoRun: true },

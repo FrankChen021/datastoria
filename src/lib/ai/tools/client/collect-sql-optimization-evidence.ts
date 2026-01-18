@@ -201,16 +201,17 @@ async function collectExplainPipeline(
 }
 
 /**
- * Step 3: Parse table names from SQL using EXPLAIN AST
+ * Step 3: Parse table names and referenced columns from SQL using EXPLAIN AST
  */
 async function parseTableNames(
   sql: string,
   connection: Connection,
   progressCallback?: ToolProgressCallback
-): Promise<TableName[]> {
+): Promise<{ tableNames: TableName[]; referencedColumns: Set<string> }> {
   const stageId = "analyze table names";
   progressCallback?.(stageId, 50, "started");
   const tableNames: TableName[] = [];
+  const referencedColumns = new Set<string>();
 
   try {
     const { response: astResponse } = connection.query(`EXPLAIN AST ${sql}`, {
@@ -222,18 +223,31 @@ async function parseTableNames(
     // Example lines:
     // - TableIdentifier system.databases (qualified)
     // - TableIdentifier mytable (unqualified)
-    // Match both patterns: database.table or just table
+    // - Identifier column_name (column reference)
+    
+    // Match table identifiers: database.table or just table
     const tableIdRegex = /TableIdentifier\s+(([a-zA-Z0-9_]+)\.)?([a-zA-Z0-9_]+)/g;
-    const seen = new Set<string>();
+    const seenTables = new Set<string>();
     let match: RegExpExecArray | null;
 
     while ((match = tableIdRegex.exec(astText)) !== null) {
       const database = match[2] || "default"; // Use "default" if no database prefix
       const table = match[3]!;
       const key = `${database}.${table}`;
-      if (!seen.has(key)) {
-        seen.add(key);
+      if (!seenTables.has(key)) {
+        seenTables.add(key);
         tableNames.push({ database, table });
+      }
+    }
+
+    // Extract column identifiers (leading with 'Identifier ')
+    // Example: "Identifier user_id", "Identifier created_at"
+    // The SQL query to system.columns will naturally filter out non-existent columns
+    const columnIdRegex = /Identifier\s+([a-zA-Z0-9_]+)/g;
+    while ((match = columnIdRegex.exec(astText)) !== null) {
+      const columnName = match[1]!;
+      if (columnName) {
+        referencedColumns.add(columnName);
       }
     }
 
@@ -248,7 +262,7 @@ async function parseTableNames(
     );
   }
 
-  return tableNames;
+  return { tableNames, referencedColumns };
 }
 
 /**
@@ -335,22 +349,33 @@ WHERE ${whereClause}`,
 
 /**
  * Fetch columns from system.columns
+ * @param referencedColumns - Optional set of column names to filter by (only fetch these columns)
  */
 async function fetchTableColumns(
   whereClause: string,
   connection: Connection,
-  progressCallback?: ToolProgressCallback
+  progressCallback?: ToolProgressCallback,
+  referencedColumns?: Set<string>
 ): Promise<Map<string, Array<[string, string]>>> {
   const stageId = "fetch table columns";
   progressCallback?.(stageId, 65, "started");
   const columnsByTable = new Map<string, Array<[string, string]>>();
 
   try {
+    // Build column name filter if referenced columns are provided
+    let columnNameFilter = "";
+    if (referencedColumns && referencedColumns.size > 0) {
+      const columnList = Array.from(referencedColumns)
+        .map((col) => `'${escapeSqlString(col)}'`)
+        .join(", ");
+      columnNameFilter = ` AND name IN (${columnList})`;
+    }
+
     const { response: columnsResponse } = connection.query(
       `
 SELECT database, table, name, type
 FROM system.columns
-WHERE ${whereClause}
+WHERE ${whereClause}${columnNameFilter}
 ORDER BY database, table, position`,
       {
         default_format: "JSONCompact",
@@ -453,12 +478,14 @@ GROUP BY database, table`,
 
 /**
  * Step 4: Fetch table DDL and stats (batched)
+ * @param referencedColumns - Optional set of column names to limit column fetching
  */
 async function collectTableSchemas(
   tableNames: TableName[],
   context: EvidenceContext,
   connection: Connection,
-  progressCallback?: ToolProgressCallback
+  progressCallback?: ToolProgressCallback,
+  referencedColumns?: Set<string>
 ): Promise<number> {
   if (tableNames.length === 0) {
     return 0;
@@ -471,7 +498,7 @@ async function collectTableSchemas(
   // Fetch all table data in parallel
   const [metaByTable, columnsByTable, statsByTable] = await Promise.all([
     fetchTableMetadata(whereClause, connection, progressCallback),
-    fetchTableColumns(whereClause, connection, progressCallback),
+    fetchTableColumns(whereClause, connection, progressCallback, referencedColumns),
     fetchTableStats(whereClause, connection, progressCallback),
   ]);
 
@@ -612,15 +639,16 @@ export const collectSqlOptimizationEvidenceExecutor: ToolExecutor<
     evidenceScore += parallelResults.reduce((sum, score) => sum + score, 0);
 
     // Step 4: Fetch table DDL and stats (depends on Step 3)
-    // Step 3: Parse table names from SQL using EXPLAIN AST
+    // Step 3: Parse table names and referenced columns from SQL using EXPLAIN AST
     if (sql) {
-      const tableNames = await parseTableNames(sql, connection, progressCallback);
+      const { tableNames, referencedColumns } = await parseTableNames(sql, connection, progressCallback);
       if (tableNames.length > 0) {
         evidenceScore += await collectTableSchemas(
           tableNames,
           context,
           connection,
-          progressCallback
+          progressCallback,
+          referencedColumns.size > 0 ? referencedColumns : undefined
         );
       }
     }

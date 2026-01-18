@@ -185,7 +185,29 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
       }
     });
 
-  await Promise.all([metadataQuery, functionQuery, clusterHostQuery, settingsQuery]);
+  // Fetch ProfileEvents from system.events for SQL validation
+  const profileEventsQuery = connection
+    .query(
+      `SELECT DISTINCT name FROM system.events ORDER BY name`,
+      {
+        default_format: "JSONCompact",
+      }
+    )
+    .response.then((eventsResponse) => {
+      if (eventsResponse.httpStatus === 200) {
+        const data = eventsResponse.data.json<JSONCompactFormatResponse>();
+        connection.metadata = {
+          ...connection.metadata,
+          profileEvents: new Set(data.data.map((row) => row[0] as string)),
+        };
+      }
+    })
+    .catch((e) => {
+      console.warn("Failed to load ProfileEvents:", e);
+      // Don't fail initialization if ProfileEvents fetch fails
+    });
+
+  await Promise.all([metadataQuery, functionQuery, clusterHostQuery, settingsQuery, profileEventsQuery]);
 }
 
 type StepStatus = "pending" | "loading" | "success" | "error";

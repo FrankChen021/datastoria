@@ -64,6 +64,21 @@ Consider this query when generating the new SQL.`;
 }
 
 /**
+ * Build ProfileEvents section for SQL generation prompts
+ */
+function buildProfileEventsSection(): string {
+  return `\n## ProfileEvents Usage
+When generating SQL that accesses ProfileEvents:
+- Use syntax: ProfileEvents['EventName']
+- Event names are case-sensitive and must match exactly
+- Common events: Query, SelectQuery, InsertQuery, OSCPUVirtualTimeMicroseconds
+- CPU/Time events often contain: CPU, Time, Microseconds (e.g., OSCPUVirtualTimeMicroseconds, OSCPUWaitMicroseconds)
+- Query events: Query, SelectQuery, InsertQuery, FailedQuery
+- Network events: NetworkSendBytes, NetworkReceiveBytes
+- The validate_sql tool will verify event names exist in system.events table`;
+}
+
+/**
  * Build SQL generation system prompt with shared logic
  * Returns both the prompt and context sections for reuse
  */
@@ -121,6 +136,7 @@ function buildSqlGenerationPrompt({
   // Build context sections using shared helpers
   const userContextSection = buildUserContextSection(context);
   const currentQuerySection = buildCurrentQuerySection(context);
+  const profileEventsSection = buildProfileEventsSection();
 
   // Add validation error context if this is a retry
   const validationErrorSection = previousValidationError
@@ -192,7 +208,7 @@ When the Schema Context shows PRIMARY KEY or PARTITION BY for a table, you MUST 
 - Example: For \`PARTITION BY: toYYYYMM(event_date)\`, add \`WHERE event_date >= today() - 30\` to limit partitions scanned
 
 **MANDATORY**: If the schema shows both PRIMARY KEY and PARTITION BY, your WHERE clause MUST include filters on at least the partition key column(s) to ensure efficient query execution.
-${userContextSection}${currentQuerySection}${validationErrorSection}
+${userContextSection}${currentQuerySection}${profileEventsSection}${validationErrorSection}
 ## Schema Context
 ${schemaContext.length > 0 ? schemaContext.join("\n") : "No schema context provided. Generate SQL based on the user question."}
 ${schemaDiscoverySection}${validationSection}`,

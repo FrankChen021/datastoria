@@ -1,14 +1,18 @@
 import { escapeSqlString, type ToolExecutor } from "./client-tool-types";
 
-type GetTablesInput = {
+export type GetTablesInput = {
+  name_pattern?: string;
   database?: string;
+  engine?: string;
+  partition_key?: string;
+  limit?: number;
 };
 
-type GetTablesOutput = Array<{
+export type GetTablesOutput = Array<{
   database: string;
   table: string;
   engine: string;
-  comment: string | null;
+  partition_key?: string;
 }>;
 
 type JsonCompactResponse = {
@@ -19,19 +23,37 @@ export const getTablesExecutor: ToolExecutor<GetTablesInput, GetTablesOutput> = 
   input,
   connection
 ) => {
-  const { database } = input;
+  const { name_pattern, database, engine, partition_key, limit = 100 } = input;
 
-  // Build SQL query to get tables
-  let sql = `
-SELECT 
-  database, table, engine, comment
-FROM
-  system.tables
-WHERE NOT startsWith(table, '.inner')`;
-  if (database) {
-    sql += ` AND database = '${escapeSqlString(database)}'`;
+  // Build WHERE clause with filters
+  const whereClauses: string[] = ["NOT startsWith(table, '.inner')"];
+  
+  if (name_pattern) {
+    whereClauses.push(`name LIKE '${escapeSqlString(name_pattern)}'`);
   }
-  sql += ` ORDER BY database, table`;
+  if (database) {
+    whereClauses.push(`database = '${escapeSqlString(database)}'`);
+  }
+  if (engine) {
+    whereClauses.push(`engine LIKE '${escapeSqlString(engine)}%'`);
+  }
+  if (partition_key) {
+    whereClauses.push(`partition_key LIKE '${escapeSqlString(partition_key)}'`);
+  }
+
+  const whereClause = whereClauses.join(' AND ');
+
+  // Build SQL query to get tables with metadata
+  const sql = `
+SELECT 
+  database,
+  name as table,
+  engine,
+  partition_key
+FROM system.tables
+WHERE ${whereClause}
+ORDER BY database, name
+LIMIT ${limit}`;
 
   try {
     const { response } = connection.query(sql, { default_format: "JSONCompact" });
@@ -52,7 +74,7 @@ WHERE NOT startsWith(table, '.inner')`;
         database: String(rowArray[0] || ""),
         table: String(rowArray[1] || ""),
         engine: String(rowArray[2] || ""),
-        comment: rowArray[3] ? String(rowArray[3]) : null,
+        partition_key: rowArray[3] ? String(rowArray[3]) : undefined,
       };
     });
 

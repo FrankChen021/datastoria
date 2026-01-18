@@ -118,6 +118,9 @@ export interface ConnectionMetadata {
 
   // Cached dependency data - loaded on demand and cached here
   dependencyTables?: Map<string, DependencyTableInfo>;
+
+  // Cached ProfileEvents from system.events - used for SQL validation
+  profileEvents?: Set<string>;
 }
 
 const USER_CANCELLED_ERROR_MESSAGE = "User cancelled";

@@ -1,10 +1,10 @@
-import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import type { AppUIMessage } from "@/lib/ai/common-types";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
 import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
 import { memo } from "react";
 import type { ToolPart } from "../chat-message-types";
 import { CollapsiblePart } from "./collapsible-part";
+import { MessageMarkdownSql } from "./message-markdown-sql";
 import { ToolProgressIndicator } from "./tool-progress-indicator";
 
 export const MessageToolCollectSqlOptimizationEvidence = memo(
@@ -45,19 +45,7 @@ export const MessageToolCollectSqlOptimizationEvidence = memo(
             {input.sql && (
               <>
                 <div className="text-[10px] text-muted-foreground">input.sql:</div>
-                <ThemedSyntaxHighlighter
-                  language="sql"
-                  customStyle={{
-                    marginLeft: "0.5rem",
-                    paddingLeft: "0.5rem",
-                    paddingTop: "0rem",
-                    paddingBottom: "0rem",
-                    borderRadius: "0.375rem",
-                    fontSize: "10px",
-                  }}
-                >
-                  {input.sql}
-                </ThemedSyntaxHighlighter>
+                <MessageMarkdownSql code={input.sql} showLineNumbers={true}></MessageMarkdownSql>
               </>
             )}
             {input.query_id && (

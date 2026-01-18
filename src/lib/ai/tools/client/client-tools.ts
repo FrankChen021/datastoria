@@ -70,13 +70,38 @@ export const ClientTools = {
   }),
   get_tables: tool({
     description:
-      "Use this tool if you need to get the list of tables in a database. Optionally filter by database name.",
+      "Use this tool to get a list of tables from the database with optional filters. IMPORTANT: ALWAYS use filters to narrow down results - NEVER call without filters on large databases. Use filters to find tables by name patterns, database, engine type, or partition key. Examples: name_pattern='%user%' for user-related tables, partition_key='%date%' for date-partitioned tables, engine='MergeTree' for MergeTree tables.",
     inputSchema: z.object({
+      name_pattern: z
+        .string()
+        .optional()
+        .describe(
+          "SQL LIKE pattern for table name filtering (e.g., '%user%', 'fact_%', '%_log'). Extract keywords from user query to build this pattern."
+        ),
       database: z
         .string()
         .optional()
         .describe(
-          "The name of the database to query. If not provided, returns tables from all databases."
+          "Filter by specific database name. If not provided, searches all databases."
+        ),
+      engine: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by table engine type (e.g., 'MergeTree', 'ReplicatedMergeTree', 'Log'). Use exact engine name or prefix."
+        ),
+      partition_key: z
+        .string()
+        .optional()
+        .describe(
+          "SQL LIKE pattern for partition key expression (e.g., '%date%', '%toYYYYMM%'). Use this for queries about partitioning scheme."
+        ),
+      limit: z
+        .number()
+        .optional()
+        .default(100)
+        .describe(
+          "Maximum number of tables to return. Default: 100. Use this to prevent token overflow on large databases."
         ),
     }),
     outputSchema: z.array(
@@ -84,7 +109,7 @@ export const ClientTools = {
         database: z.string(),
         table: z.string(),
         engine: z.string(),
-        comment: z.string().nullable(),
+        partition_key: z.string().optional(),
       })
     ),
   }),
