@@ -27,7 +27,7 @@ export const getTablesExecutor: ToolExecutor<GetTablesInput, GetTablesOutput> = 
 
   // Build WHERE clause with filters
   const whereClauses: string[] = ["NOT startsWith(table, '.inner')"];
-  
+
   if (name_pattern) {
     whereClauses.push(`name LIKE '${escapeSqlString(name_pattern)}'`);
   }
@@ -41,7 +41,7 @@ export const getTablesExecutor: ToolExecutor<GetTablesInput, GetTablesOutput> = 
     whereClauses.push(`partition_key LIKE '${escapeSqlString(partition_key)}'`);
   }
 
-  const whereClause = whereClauses.join(' AND ');
+  const whereClause = whereClauses.join(" AND ");
 
   // Build SQL query to get tables with metadata
   const sql = `

@@ -14,6 +14,7 @@ type CollectSqlOptimizationEvidenceInput = {
   query_id?: string;
   goal?: "latency" | "memory" | "bytes" | "dashboard" | "other";
   mode?: "light" | "full";
+  time_window?: number;
   time_range?: {
     from: string;
     to: string;
@@ -48,18 +49,41 @@ type TableStats = {
 };
 
 /**
+ * Build time filter SQL clause for query_log lookups
+ */
+function buildQueryLogTimeFilter(
+  time_window?: number,
+  time_range?: { from: string; to: string }
+): string {
+  if (time_range?.from && time_range?.to) {
+    return `AND event_date >= toDate('${time_range.from}') AND event_date <= toDate('${time_range.to}') AND event_time >= toDateTime('${time_range.from}') AND event_time <= toDateTime('${time_range.to}')`;
+  }
+
+  if (time_window) {
+    return `AND event_date >= toDate(now() - INTERVAL ${time_window} MINUTE) AND event_time >= now() - INTERVAL ${time_window} MINUTE`;
+  }
+
+  return "";
+}
+
+/**
  * Step 1: Collect query log from system.query_log
+ * Also retrieves SQL text if not provided in input
  */
 async function collectQueryLog(
   queryId: string,
   context: EvidenceContext,
   connection: Connection,
-  progressCallback?: ToolProgressCallback
-): Promise<number> {
+  progressCallback?: ToolProgressCallback,
+  time_window?: number,
+  time_range?: { from: string; to: string }
+): Promise<{ score: number; sql?: string }> {
   const stageId = "collect query log";
   progressCallback?.(stageId, 10, "started");
   try {
     const isCluster = connection.cluster!.length > 0;
+    // Build time filter clause for faster query_log lookups
+    const timeFilter = buildQueryLogTimeFilter(time_window, time_range);
     const { response } = connection.query(
       `
 SELECT
@@ -69,12 +93,16 @@ SELECT
   memory_usage,
   result_rows,
   exception,
-  ProfileEvents
+  ProfileEvents,
+  query
 FROM ${isCluster ? `clusterAllReplicas("${connection.cluster}", system.query_log)` : "system.query_log"}
 WHERE 
 query_id = '${escapeSqlString(queryId)}'
+${timeFilter}
 ORDER BY event_time DESC
-LIMIT 1`,
+LIMIT 1
+SETTINGS max_execution_time = 0
+`,
       { default_format: "JSONCompact" }
     );
     const apiResponse = await response;
@@ -111,6 +139,9 @@ LIMIT 1`,
         }
       }
 
+      // Extract SQL text from query_log (row[7])
+      const sqlFromLog = row[7] ? String(row[7]) : undefined;
+
       context.query_log = {
         duration_ms: Number(row[0]) || undefined,
         read_rows: Number(row[1]) || undefined,
@@ -128,20 +159,15 @@ LIMIT 1`,
         errors: context.query_log.exception,
       };
       progressCallback?.(stageId, 10, "success");
-      return 3; // Evidence score contribution
+      return { score: 3, sql: sqlFromLog }; // Return SQL for further analysis
     } else {
       progressCallback?.(stageId, 10, "failed", "query_log: not found");
-      return 0;
+      return { score: 0 };
     }
   } catch (error) {
     console.error("Error fetching query log:", error);
-    progressCallback?.(
-      "Collecting query log...",
-      10,
-      "failed",
-      getErrorMessage(error)
-    );
-    return 0;
+    progressCallback?.("Collecting query log...", 10, "failed", getErrorMessage(error));
+    return { score: 0 };
   }
 }
 
@@ -166,12 +192,7 @@ async function collectExplainIndex(
     return 2; // Evidence score contribution
   } catch (error) {
     console.error("Error running EXPLAIN PLAN:", error);
-    progressCallback?.(
-      stageId,
-      30,
-      "failed",
-      getErrorMessage(error)
-    );
+    progressCallback?.(stageId, 30, "failed", getErrorMessage(error));
     return 0;
   }
 }
@@ -197,12 +218,7 @@ async function collectExplainPipeline(
     return 2; // Evidence score contribution
   } catch (error) {
     console.error("Error running EXPLAIN PIPELINE:", error);
-    progressCallback?.(
-      stageId,
-      40,
-      "failed",
-      getErrorMessage(error)
-    );
+    progressCallback?.(stageId, 40, "failed", getErrorMessage(error));
     return 0;
   }
 }
@@ -231,7 +247,7 @@ async function parseTableNames(
     // - TableIdentifier system.databases (qualified)
     // - TableIdentifier mytable (unqualified)
     // - Identifier column_name (column reference)
-    
+
     // Match table identifiers: database.table or just table
     const tableIdRegex = /TableIdentifier\s+(([a-zA-Z0-9_]+)\.)?([a-zA-Z0-9_]+)/g;
     const seenTables = new Set<string>();
@@ -261,12 +277,7 @@ async function parseTableNames(
     progressCallback?.(stageId, 50, "success");
   } catch (error) {
     console.error("Error running EXPLAIN AST for table discovery:", error);
-    progressCallback?.(
-      stageId,
-      50,
-      "failed",
-      getErrorMessage(error)
-    );
+    progressCallback?.(stageId, 50, "failed", getErrorMessage(error));
   }
 
   return { tableNames, referencedColumns };
@@ -343,12 +354,7 @@ WHERE ${whereClause}`,
     progressCallback?.(stageId, 60, "success");
   } catch (error) {
     console.error("Error fetching table metadata from system.tables:", error);
-    progressCallback?.(
-      stageId,
-      60,
-      "failed",
-      getErrorMessage(error)
-    );
+    progressCallback?.(stageId, 60, "failed", getErrorMessage(error));
   }
 
   return metaByTable;
@@ -409,12 +415,7 @@ ORDER BY database, table, position`,
     progressCallback?.(stageId, 65, "success");
   } catch (error) {
     console.error("Error fetching columns from system.columns:", error);
-    progressCallback?.(
-      stageId,
-      65,
-      "failed",
-      getErrorMessage(error)
-    );
+    progressCallback?.(stageId, 65, "failed", getErrorMessage(error));
   }
 
   return columnsByTable;
@@ -472,12 +473,7 @@ GROUP BY database, table`,
     progressCallback?.(stageId, 70, "success");
   } catch (error) {
     console.error("Error fetching stats from system.parts:", error);
-    progressCallback?.(
-      stageId,
-      70,
-      "failed",
-      getErrorMessage(error)
-    );
+    progressCallback?.(stageId, 70, "failed", getErrorMessage(error));
   }
 
   return statsByTable;
@@ -590,12 +586,7 @@ WHERE name IN ('max_threads', 'max_memory_usage', 'max_bytes_before_external_gro
     }
   } catch (error) {
     console.error("Error fetching settings:", error);
-    progressCallback?.(
-      stageId,
-      80,
-      "failed",
-      getErrorMessage(error)
-    );
+    progressCallback?.(stageId, 80, "failed", getErrorMessage(error));
   }
 
   return 0;
@@ -608,11 +599,13 @@ export const collectSqlOptimizationEvidenceExecutor: ToolExecutor<
   CollectSqlOptimizationEvidenceInput,
   EvidenceContext
 > = async (input, connection, progressCallback) => {
-  const { sql, query_id, goal, mode: _mode = "light" } = input;
+  const { sql: inputSql, query_id, goal, mode: _mode = "light", time_window, time_range } = input;
   const context: EvidenceContext = {
     goal: goal || "latency",
-    evidence_score: 0,
   };
+
+  // Track SQL - may come from input or be retrieved from query_log
+  let sql = inputSql;
 
   if (sql) {
     context.sql = sql;
@@ -621,19 +614,30 @@ export const collectSqlOptimizationEvidenceExecutor: ToolExecutor<
     context.query_id = query_id;
   }
 
-  let evidenceScore = 0;
-  const maxScore = 10;
-
   try {
-    // Collect all independent evidence in parallel
-    const parallelTasks: Promise<number>[] = [];
-
     // Step 1: Collect query log if query_id is provided
+    // This also retrieves SQL text if not provided in input
     if (query_id) {
-      parallelTasks.push(collectQueryLog(query_id, context, connection, progressCallback));
+      const queryLogResult = await collectQueryLog(
+        query_id,
+        context,
+        connection,
+        progressCallback,
+        time_window,
+        time_range
+      );
+
+      // If SQL was not provided but found in query_log, use it for further analysis
+      if (!sql && queryLogResult.sql) {
+        sql = queryLogResult.sql;
+        context.sql = sql;
+      }
     }
 
-    // Step 2: Run EXPLAIN if SQL is provided
+    // Collect remaining evidence in parallel
+    const parallelTasks: Promise<number>[] = [];
+
+    // Step 2: Run EXPLAIN if SQL is available (from input or query_log)
     if (sql) {
       parallelTasks.push(collectExplainIndex(sql, context, connection, progressCallback));
       parallelTasks.push(collectExplainPipeline(sql, context, connection, progressCallback));
@@ -642,15 +646,18 @@ export const collectSqlOptimizationEvidenceExecutor: ToolExecutor<
     parallelTasks.push(collectSettings(context, connection, progressCallback));
 
     // Wait for all parallel tasks to complete
-    const parallelResults = await Promise.all(parallelTasks);
-    evidenceScore += parallelResults.reduce((sum, score) => sum + score, 0);
+    await Promise.all(parallelTasks);
 
-    // Step 4: Fetch table DDL and stats (depends on Step 3)
     // Step 3: Parse table names and referenced columns from SQL using EXPLAIN AST
+    // Step 4: Fetch table DDL and stats
     if (sql) {
-      const { tableNames, referencedColumns } = await parseTableNames(sql, connection, progressCallback);
+      const { tableNames, referencedColumns } = await parseTableNames(
+        sql,
+        connection,
+        progressCallback
+      );
       if (tableNames.length > 0) {
-        evidenceScore += await collectTableSchemas(
+        await collectTableSchemas(
           tableNames,
           context,
           connection,
@@ -660,20 +667,11 @@ export const collectSqlOptimizationEvidenceExecutor: ToolExecutor<
       }
     }
 
-    // Calculate final evidence score (0-1)
-    context.evidence_score = Math.min(evidenceScore / maxScore, 1);
-
     return context;
   } catch (error) {
     console.error("Error in collect_sql_optimization_evidence:", error);
     // Signal error - progressCallback will handle setting status to "error"
-    progressCallback?.(
-      "Error",
-      0,
-      "failed",
-      getErrorMessage(error)
-    );
-    context.evidence_score = 0;
+    progressCallback?.("Error", 0, "failed", getErrorMessage(error));
     return context;
   }
 };

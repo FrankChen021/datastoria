@@ -47,22 +47,22 @@ function validateProfileEvents(
 
   // Find missing events
   const missingEvents = inputEvents.filter((eventName) => !availableEvents.has(eventName));
-  
+
   if (missingEvents.length > 0) {
     const eventNames = missingEvents.join(", ");
-    
+
     // Suggest similar events if available
     let suggestion = "";
     if (missingEvents.length === 1) {
       const missing = missingEvents[0].toLowerCase();
       const similar = Array.from(availableEvents)
-        .filter(e => e.toLowerCase().includes(missing) || missing.includes(e.toLowerCase()))
+        .filter((e) => e.toLowerCase().includes(missing) || missing.includes(e.toLowerCase()))
         .slice(0, 5);
       if (similar.length > 0) {
         suggestion = ` Did you mean: ${similar.join(", ")}?`;
       }
     }
-    
+
     return {
       success: false,
       error: `ProfileEvents not found in system.events table: ${eventNames}.${suggestion} Query system.events table to find the correct event names.`,

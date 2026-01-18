@@ -76,7 +76,6 @@ export interface EvidenceContext {
     shards?: number;
     replicas?: number;
   };
-  evidence_score?: number;
 }
 
 /**

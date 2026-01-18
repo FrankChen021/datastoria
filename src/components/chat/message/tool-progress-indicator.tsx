@@ -33,11 +33,7 @@ export const ToolProgressIndicator = memo(function ToolProgressIndicator({
           {stage.status === "failed" && <span className="text-red-600">✗</span>}
           {stage.status === "skipped" && <span className="text-muted-foreground">⊘</span>}
           <span className="flex-shrink-0">{stage.stage}</span>
-          {stage.error && (
-            <span className="text-red-600 text-[9px]">
-              {stage.error}
-            </span>
-          )}
+          {stage.error && <span className="text-red-600 text-[9px]">{stage.error}</span>}
         </div>
       ))}
     </div>

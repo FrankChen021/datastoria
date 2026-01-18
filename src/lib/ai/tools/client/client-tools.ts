@@ -11,6 +11,7 @@ import type { ToolExecutor } from "./client-tool-types";
 import { collectSqlOptimizationEvidenceExecutor } from "./collect-sql-optimization-evidence";
 import { executeSqlExecutor } from "./execute-sql";
 import { exploreSchemaExecutor } from "./explore-schema";
+import { findExpensiveQueriesExecutor } from "./find-expensive-queries";
 import { getTablesExecutor } from "./get-tables";
 import { validateSqlExecutor } from "./validate-sql";
 
@@ -81,9 +82,7 @@ export const ClientTools = {
       database: z
         .string()
         .optional()
-        .describe(
-          "Filter by specific database name. If not provided, searches all databases."
-        ),
+        .describe("Filter by specific database name. If not provided, searches all databases."),
       engine: z
         .string()
         .optional()
@@ -155,12 +154,21 @@ export const ClientTools = {
         .enum(["light", "full"])
         .default("light")
         .describe("light: minimal safe evidence; full: includes more stats/settings."),
+      time_window: z
+        .number()
+        .min(5)
+        .max(1440)
+        .optional()
+        .describe(
+          "Relative lookback window in minutes from now (5-1440). Use this OR time_range, not both. When called after find_expensive_queries, pass the same value."
+        ),
       time_range: z
         .object({
-          from: z.string().describe("ISO timestamp or date."),
-          to: z.string().describe("ISO timestamp or date."),
+          from: z.string().describe("Start datetime (ISO 8601 format, e.g., '2025-01-01')."),
+          to: z.string().describe("End datetime (ISO 8601 format, e.g., '2025-02-01')."),
         })
-        .optional(),
+        .optional()
+        .describe("Absolute time range for query_log lookup. Use for specific date ranges."),
       requested: z
         .object({
           required: z.array(z.string()).optional(),
@@ -170,6 +178,77 @@ export const ClientTools = {
         .describe("Fields requested by EvidenceRequest."),
     }),
     outputSchema: z.custom<import("../../common-types").EvidenceContext>(),
+  }),
+  find_expensive_queries: tool({
+    description:
+      "Find expensive queries from system.query_log by resource metric. Use when user asks to find/optimize heavy queries without providing specific SQL or query_id. Supported metrics: cpu (CPU time), memory (peak RAM usage), disk (bytes read), duration (execution time). NOT supported: filtering by user, database, table name, or query pattern. Time filtering: use 'time_window' for relative time (last N minutes) or 'time_range' for absolute dates.",
+    inputSchema: z.object({
+      metric: z
+        .enum(["cpu", "memory", "disk", "duration"])
+        .describe(
+          "Resource metric to sort by: 'cpu' (CPU time), 'memory' (peak RAM usage), 'disk' (bytes read from disk), 'duration' (query execution time)"
+        ),
+      limit: z
+        .number()
+        .min(1)
+        .max(10)
+        .default(3)
+        .describe("Number of queries to return (1-10, default: 3)"),
+      time_window: z
+        .number()
+        .min(5)
+        .max(1440)
+        .optional()
+        .describe(
+          "Relative lookback window in minutes from now (5-1440, default: 60). Use this OR time_range, not both."
+        ),
+      time_range: z
+        .object({
+          from: z
+            .string()
+            .describe(
+              "Start datetime (ISO 8601 format, e.g., '2025-01-01' or '2025-01-01T00:00:00')."
+            ),
+          to: z
+            .string()
+            .describe(
+              "End datetime (ISO 8601 format, e.g., '2025-02-01' or '2025-02-01T23:59:59')."
+            ),
+        })
+        .optional()
+        .describe(
+          "Absolute time range for specific date ranges like 'between 2025-01-01 and 2025-02-01'."
+        ),
+    }),
+    outputSchema: z.object({
+      success: z.boolean(),
+      message: z.string().optional(),
+      metric: z.string(),
+      metric_label: z.string(),
+      time_window: z.number().optional(),
+      time_range: z
+        .object({
+          from: z.string(),
+          to: z.string(),
+        })
+        .optional(),
+      time_description: z.string(),
+      queries: z.array(
+        z.object({
+          rank: z.number(),
+          query_id: z.string(),
+          user: z.string(),
+          sql_preview: z.string(),
+          metric_value: z.number(),
+          metric_formatted: z.string(),
+          duration_ms: z.number(),
+          memory_bytes: z.number(),
+          read_rows: z.number(),
+          read_bytes: z.number(),
+          event_time: z.string(),
+        })
+      ),
+    }),
   }),
 };
 
@@ -183,6 +262,7 @@ export const CLIENT_TOOL_NAMES = {
   EXECUTE_SQL: "execute_sql",
   VALIDATE_SQL: "validate_sql",
   COLLECT_SQL_OPTIMIZATION_EVIDENCE: "collect_sql_optimization_evidence",
+  FIND_EXPENSIVE_QUERIES: "find_expensive_queries",
 } as const;
 
 export function convertToAppUIMessage(message: UIMessage): AppUIMessage {
@@ -203,4 +283,5 @@ export const ClientToolExecutors: {
   execute_sql: executeSqlExecutor,
   validate_sql: validateSqlExecutor,
   collect_sql_optimization_evidence: collectSqlOptimizationEvidenceExecutor,
+  find_expensive_queries: findExpensiveQueriesExecutor,
 };
