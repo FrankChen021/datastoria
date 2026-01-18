@@ -17,7 +17,7 @@ export const nodeZkMetricsDashboard: TimeseriesDescriptor[] = [
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperBytesReceived)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -44,7 +44,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperBytesSent)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -71,7 +71,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperCheck)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -98,7 +98,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperClose)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -125,7 +125,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperCreate)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -152,7 +152,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperExists)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -179,7 +179,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperGet)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -206,7 +206,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperHardwareExceptions)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -233,7 +233,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperInit)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -260,7 +260,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperList)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -287,7 +287,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperMulti)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -314,7 +314,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperMultiRead)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -341,7 +341,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
     sum(ProfileEvent_ZooKeeperMultiWrite)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -368,7 +368,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperOtherExceptions)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -395,7 +395,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperReconfig)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -422,7 +422,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperRemove)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -449,7 +449,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperSet)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -476,7 +476,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperSync)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -503,7 +503,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperTransactions)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -530,7 +530,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperUserExceptions)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -557,7 +557,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperWaitMicroseconds)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -584,7 +584,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   sum(ProfileEvent_ZooKeeperWatchResponse)
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 

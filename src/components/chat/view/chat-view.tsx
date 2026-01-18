@@ -29,11 +29,15 @@ export const DEFAULT_CHAT_QUESTIONS: Question[] = [
     autoRun: true,
   },
   {
-    text: "How many INSERT queries as well as insert rows, insert bytes were executed in the last 1 hour from @system.query_log?",
+    text: "How many INSERT queries as well as insert rows, insert bytes were executed in the last 1 hour from @system.query_log",
     autoRun: true,
   },
   {
-    text: "What's the top 3 SELECT queries that consumes the most CPU time over the past 3 hours from @system.query_log?",
+    text: "What's the top 3 SELECT queries that consumes the most CPU time over the past 3 hours from @system.query_log",
+    autoRun: true,
+  },
+  {
+    text: "Visualize the trend of ProfileEvent_DistributedConnectionFailTry from the @system.metric_log by hour in the last 12 hours",
     autoRun: true,
   },
   { text: "Please help me optimize a slow SQL", autoRun: true },
@@ -194,15 +198,15 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
               <AppLogo width={64} height={64} />
             </div>
             <div className="w-full max-w-xl">
-              <p className="text-sm mb-2">Start a conversation with the AI assistant</p>
-              <p className="text-xs text-muted-foreground mb-2">Try asking the AI assistant:</p>
+              <p className="text-lg font-medium mb-4">Start a conversation with the AI assistant</p>
+              <p className="text-sm text-muted-foreground mb-4">Try asking the AI assistant:</p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {questions.map((question, index) => (
                   <Button
                     key={index}
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="h-auto py-1.5 px-3 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                    className="h-auto py-2 px-4 text-sm font-normal text-muted-foreground hover:text-foreground hover:bg-muted transition-colors rounded-full"
                     onClick={() => handleQuestionClick(question)}
                   >
                     {question.text}
@@ -217,7 +221,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
               <AppLogo width={64} height={64} />
             </div>
             <div className="space-y-2 w-full max-w-md">
-              <p className="text-sm">Start a conversation with the AI assistant</p>
+              <p className="text-lg font-medium">Start a conversation with the AI assistant</p>
             </div>
           </div>
         )

@@ -20,7 +20,7 @@ export const nodeMetricsDashboard: TimeseriesDescriptor[] = [
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(ProfileEvent_Query) AS query_qps
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -50,7 +50,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(ProfileEvent_OSCPUVirtualTimeMicroseconds) / 1000000 AS cpu_cores
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -80,7 +80,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(CurrentMetric_Query) AS queries_running
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -110,7 +110,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(CurrentMetric_Merge) AS merges_running
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -145,7 +145,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(ProfileEvent_SelectedBytes) AS selected_bytes
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -175,7 +175,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(ProfileEvent_OSIOWaitMicroseconds) / 1000000 AS io_wait
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -205,7 +205,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(ProfileEvent_OSCPUWaitMicroseconds) / 1000000 AS cpu_wait
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -235,7 +235,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(value) AS OSUserTimeNormalized
-FROM merge('system', '^asynchronous_metric_log')
+FROM system.asynchronous_metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -266,7 +266,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(value) AS OSSystemTimeNormalized
-FROM merge('system', '^asynchronous_metric_log')
+FROM system.asynchronous_metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -302,7 +302,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(ProfileEvent_OSReadBytes) AS OSReadBytes
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -332,7 +332,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(ProfileEvent_OSReadChars) AS OSReadChars
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -367,7 +367,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(CurrentMetric_MemoryTracking) AS memory_tracking_bytes
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -402,7 +402,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   arraySum([COLUMNS('CurrentMetric_.*CacheBytes') EXCEPT 'CurrentMetric_FilesystemCache.*' APPLY avg]) AS cache_bytes
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -432,7 +432,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(value) AS LoadAverage15
-FROM merge('system', '^asynchronous_metric_log')
+FROM system.asynchronous_metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -463,7 +463,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(ProfileEvent_SelectedRows) AS selected_rows_per_second
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -493,7 +493,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(ProfileEvent_InsertedRows) AS inserted_rows_per_second
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -523,7 +523,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   avg(ProfileEvent_MergeSourceParts) AS TotalPartsOfMergeTreeTables
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -553,7 +553,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
   max(value) AS MaxPartCountForPartition
-FROM merge('system', '^asynchronous_metric_log')
+FROM system.asynchronous_metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 
@@ -586,7 +586,7 @@ SELECT
   max(CurrentMetric_MySQLConnection) AS MySQL_Connections,
   max(CurrentMetric_HTTPConnection) AS HTTP_Connections,
   max(CurrentMetric_InterserverConnection) AS Interserver_Connections
-FROM merge('system', '^metric_log')
+FROM system.metric_log
 WHERE event_date >= toDate(fromUnixTimestamp({startTimestamp:UInt32})) 
   AND event_date <= toDate(fromUnixTimestamp({endTimestamp:UInt32}))
   AND event_time >= {from:String} 

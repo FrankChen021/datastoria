@@ -1,6 +1,13 @@
-import type { Connection } from "@/lib/connection/connection";
+import { QueryError, type Connection } from "@/lib/connection/connection";
 import type { EvidenceContext } from "../../common-types";
 import { escapeSqlString, type ToolExecutor, type ToolProgressCallback } from "./client-tool-types";
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof QueryError && error.data) {
+    return typeof error.data === "string" ? error.data : JSON.stringify(error.data);
+  }
+  return error instanceof Error ? error.message : String(error);
+}
 
 type CollectSqlOptimizationEvidenceInput = {
   sql?: string;
@@ -132,7 +139,7 @@ LIMIT 1`,
       "Collecting query log...",
       10,
       "failed",
-      error instanceof Error ? error.message : String(error)
+      getErrorMessage(error)
     );
     return 0;
   }
@@ -163,7 +170,7 @@ async function collectExplainIndex(
       stageId,
       30,
       "failed",
-      error instanceof Error ? error.message : String(error)
+      getErrorMessage(error)
     );
     return 0;
   }
@@ -194,7 +201,7 @@ async function collectExplainPipeline(
       stageId,
       40,
       "failed",
-      error instanceof Error ? error.message : String(error)
+      getErrorMessage(error)
     );
     return 0;
   }
@@ -258,7 +265,7 @@ async function parseTableNames(
       stageId,
       50,
       "failed",
-      error instanceof Error ? error.message : String(error)
+      getErrorMessage(error)
     );
   }
 
@@ -340,7 +347,7 @@ WHERE ${whereClause}`,
       stageId,
       60,
       "failed",
-      error instanceof Error ? error.message : String(error)
+      getErrorMessage(error)
     );
   }
 
@@ -406,7 +413,7 @@ ORDER BY database, table, position`,
       stageId,
       65,
       "failed",
-      error instanceof Error ? error.message : String(error)
+      getErrorMessage(error)
     );
   }
 
@@ -469,7 +476,7 @@ GROUP BY database, table`,
       stageId,
       70,
       "failed",
-      error instanceof Error ? error.message : String(error)
+      getErrorMessage(error)
     );
   }
 
@@ -587,7 +594,7 @@ WHERE name IN ('max_threads', 'max_memory_usage', 'max_bytes_before_external_gro
       stageId,
       80,
       "failed",
-      error instanceof Error ? error.message : String(error)
+      getErrorMessage(error)
     );
   }
 
@@ -664,7 +671,7 @@ export const collectSqlOptimizationEvidenceExecutor: ToolExecutor<
       "Error",
       0,
       "failed",
-      error instanceof Error ? error.message : String(error)
+      getErrorMessage(error)
     );
     context.evidence_score = 0;
     return context;

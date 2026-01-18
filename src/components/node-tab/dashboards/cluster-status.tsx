@@ -40,7 +40,6 @@ SELECT
   count() 
 FROM system.clusters
 WHERE cluster = '{cluster}'
-SETTINGS skip_unavailable_shards=1
 `,
     },
     drilldown: {
@@ -79,7 +78,6 @@ SELECT
 sum(bytes_on_disk) as bytes_on_disk
 FROM clusterAllReplicas('{cluster}', system.parts)
 WHERE active
-SETTINGS skip_unavailable_shards=1
 `,
     },
     valueOption: {
@@ -105,7 +103,6 @@ FROM clusterAllReplicas('{cluster}', system.parts)
 WHERE active
 GROUP BY host
 ORDER BY host
-SETTINGS skip_unavailable_shards=1
     `,
         },
         fieldOptions: {
