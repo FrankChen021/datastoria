@@ -4,6 +4,9 @@ import { MessageMarkdown } from "./message-markdown";
 
 /**
  * Component to render user message with table mention support
+ * We use markdown component to render the user message.
+ * To correctly render new line characters in user messages, we need to replace the single \n with \n\n
+ * But some places given markdown text, like using ``` code blocks, in this case, we should not do the replacement.
  */
 export const MessageUser = memo(function MessageUser({ text }: { text: string }) {
   const processedText = !text
@@ -17,8 +20,14 @@ export const MessageUser = memo(function MessageUser({ text }: { text: string })
           // Keep the @ symbol and wrap the rest in backticks
           return `@\`${match.substring(1)}\``;
         })
-        // Replace newlines with double newlines to prevent markdown from treating them as paragraphs
-        .replace(/\n/g, "\n\n");
+        // Replace newlines with double newlines for proper paragraph breaks,
+        // but skip content inside fenced code blocks (```...```)
+        .replace(/(```[\s\S]*?```)|(\n)/g, (_match, codeBlock, _newline) => {
+          // If it's a code block, return it unchanged
+          if (codeBlock) return codeBlock;
+          // If it's a newline outside code block, double it
+          return "\n\n";
+        });
 
   return (
     <MessageMarkdown

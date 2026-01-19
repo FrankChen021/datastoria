@@ -54,7 +54,7 @@ export interface DataTableProps {
   // Field options configuration
   fieldOptions: FieldOption[];
   // Action columns configuration (optional)
-  actions?: ActionColumn | ActionColumn[];
+  actions?: ActionColumn[];
   // Loading state
   isLoading?: boolean;
   // Error message
@@ -193,7 +193,7 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
     });
 
     // Normalize actions
-    const actionColumns = actions ? (Array.isArray(actions) ? actions : [actions]) : [];
+    const actionColumns = actions ?? [];
 
     // Strategy:
     // 1. Start with all server columns in their natural order
@@ -326,22 +326,48 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
       }
     });
 
-    // Add action columns at the end
-    actionColumns.forEach((actionColumn, index) => {
+    // Filter out columns with negative positions (these should be hidden)
+    const visibleColumns = finalColumns.filter(
+      (col) => col.position === undefined || col.position >= 0
+    );
+
+    // Add action columns - either at specified position or at the end
+    // Separate action columns with position from those without
+    const positionedActionColumns = actionColumns.filter((ac) => ac.position !== undefined);
+    const nonPositionedActionColumns = actionColumns.filter((ac) => ac.position === undefined);
+
+    // Insert positioned action columns at their specified positions (1-indexed)
+    // Sort by position to insert from lowest to highest
+    positionedActionColumns
+      .sort((a, b) => a.position! - b.position!)
+      .forEach((actionColumn, _) => {
+        const actionFieldOption: FieldOption = {
+          name: `__action_${actionColumns.indexOf(actionColumn)}__`, // Special name to identify action columns
+          title: actionColumn.title || "Action",
+          align: actionColumn.align || "center",
+          sortable: false,
+          renderAction: actionColumn.renderAction,
+        };
+        // Position is 1-indexed, convert to 0-indexed for array insertion
+        // Clamp to valid range [0, visibleColumns.length]
+        const insertIndex = Math.min(
+          Math.max(0, actionColumn.position! - 1),
+          visibleColumns.length
+        );
+        visibleColumns.splice(insertIndex, 0, actionFieldOption);
+      });
+
+    // Add non-positioned action columns at the end
+    nonPositionedActionColumns.forEach((actionColumn) => {
       const actionFieldOption: FieldOption = {
-        name: `__action_${index}__`, // Special name to identify action columns
+        name: `__action_${actionColumns.indexOf(actionColumn)}__`, // Special name to identify action columns
         title: actionColumn.title || "Action",
         align: actionColumn.align || "center",
         sortable: false,
         renderAction: actionColumn.renderAction,
       };
-      finalColumns.push(actionFieldOption);
+      visibleColumns.push(actionFieldOption);
     });
-
-    // Filter out columns with negative positions (these should be hidden)
-    const visibleColumns = finalColumns.filter(
-      (col) => col.position === undefined || col.position >= 0
-    );
 
     return visibleColumns;
   }, [meta, fieldOptions, actions]);

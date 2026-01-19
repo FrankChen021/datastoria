@@ -283,24 +283,26 @@ ORDER BY
           },
         } as Record<string, FieldOption>,
 
-        actions: {
-          title: "Action",
-          align: "center",
+        actions: [
+          {
+            title: "Action",
+            align: "center",
 
-          renderAction: (row: Record<string, unknown>, _rowIndex: number) => {
-            const partition = String(row.partition || "");
-            return (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDropPartitionClick(partition)}
-                className="h-4 w-4 p-0"
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            );
+            renderAction: (row: Record<string, unknown>, _rowIndex: number) => {
+              const partition = String(row.partition || "");
+              return (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDropPartitionClick(partition)}
+                  className="h-4 w-4 p-0"
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              );
+            },
           },
-        },
+        ],
 
         sortOption: {
           initialSort: {

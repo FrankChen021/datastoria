@@ -217,10 +217,13 @@ export interface PanelDescriptor {
 export interface ActionColumn {
   // Title for the action column header, default is 'Action'
   title?: string;
-  // Alignment of the action column, default is 'center'
+  // Alignment of the action title in column, default is 'center'
   align?: "left" | "right" | "center";
   // Render function for action buttons/cells
   renderAction: (row: Record<string, unknown>, rowIndex: number) => React.ReactNode;
+  // Position in the table (for ordering) starting from 1, relative to data columns.
+  // If not provided, action columns will be shown at the end of the table.
+  position?: number;
 }
 
 // Miscellaneous options for table display
@@ -242,7 +245,7 @@ export interface TableDescriptor extends PanelDescriptor {
   fieldOptions?: Map<string, FieldOption> | Record<string, FieldOption>;
 
   // Action columns configuration (rendered as separate columns, typically at the end)
-  actions?: ActionColumn | ActionColumn[];
+  actions?: ActionColumn[];
 
   // Sorting configuration
   sortOption?: {

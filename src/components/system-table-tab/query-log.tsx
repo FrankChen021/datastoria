@@ -3,6 +3,7 @@
 import { useConnection } from "@/components/connection/connection-context";
 import { formatQueryLogType } from "@/components/query-log-inspector/query-log-inspector-table-view";
 import type {
+  ActionColumn,
   Dashboard,
   DateTimeFilterSpec,
   FilterSpec,
@@ -12,7 +13,12 @@ import type {
 } from "@/components/shared/dashboard/dashboard-model";
 import DashboardPage from "@/components/shared/dashboard/dashboard-page";
 import { QueryIdLink } from "@/components/shared/query-id-link";
-import { useMemo } from "react";
+import type { JSONCompactFormatResponse } from "@/lib/connection/connection";
+import { AlertCircle, Sparkle, Wand2 } from "lucide-react";
+import { useCallback, useMemo } from "react";
+import { useChatPanel } from "../chat/view/use-chat-panel";
+import { Button } from "../ui/button";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "../ui/hover-card";
 
 interface QueryLogProps {
   database: string;
@@ -306,10 +312,84 @@ LIMIT 100
             query: { format: "sql" },
           },
           gridPos: { w: 24, h: 18 },
+          actions: [
+            {
+              title: "Action",
+              position: 1,
+              renderAction: (row: Record<string, unknown>, _rowIndex: number) => {
+                const hasException = row.exception !== null && row.exception !== "";
+                return (
+                  <HoverCard openDelay={100} closeDelay={100}>
+                    <HoverCardTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                        <Sparkle className="!h-3 !w-3" />
+                      </Button>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="max-w-[220px] p-1" align="start" side="right">
+                      <div className="flex flex-col">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="justify-start h-8 px-2"
+                          onClick={() => handleAskAI(row)}
+                        >
+                          <Wand2 className="mr-2 h-4 w-4" />
+                          Ask AI for Optimization
+                        </Button>
+                        {hasException && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="justify-start h-8 px-2"
+                            onClick={() => {}}
+                          >
+                            <AlertCircle className="mr-2 h-4 w-4" />
+                            Explain Error
+                          </Button>
+                        )}
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                );
+              },
+            } as ActionColumn,
+          ],
         } as TableDescriptor,
       ],
     };
   }, [DISTRIBUTION_QUERY, TABLE_QUERY]);
+
+  const { postMessage } = useChatPanel();
+  const handleAskAI = useCallback(async (row: Record<string, unknown>) => {
+    let query = row.formatted_query as string;
+    if (query === undefined || query === null || query === "") {
+      query = row.query as string;
+
+      // Try to format it for better readability
+      if (connection?.metadata.has_format_query_function) {
+        const response = connection.query(`SELECT formatQuery('${query.replaceAll("'", "''")}')`, {
+          default_format: "JSONCompact",
+        }).response;
+        try {
+          const data = (await response).data.json<JSONCompactFormatResponse>();
+          query = data.data[0][0] as string;
+          console.log(query);
+        } catch {
+          // Ignore error
+        }
+      }
+    }
+
+    postMessage(
+      `I got a SQL, please analyze it and see if we can optimize it.
+### SQL
+\`\`\`sql
+${query.trim()}
+\`\`\`
+`,
+      { forceNewChat: true }
+    );
+  }, []);
 
   return (
     <DashboardPage
