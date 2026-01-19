@@ -11,12 +11,12 @@ export const TERMS_OF_SERVICE = `
 Last Updated: December 27, 2025
 
 ## 1. Acceptance of Terms
-By accessing or using Data Scopic, you agree to be bound by these Terms of Service. 
+By accessing or using Data Storia, you agree to be bound by these Terms of Service. 
 
 If you **DO NOT** agree, please **DO NOT** use the service.
 
 ## 2. Description of Service
-Data Scopic is an AI-powered ClickHouse database management console. We provide tools for database introspection, query execution, and data visualization.
+Data Storia is an AI-powered ClickHouse database management console. We provide tools for database introspection, query execution, and data visualization.
 
 ## 3. User Responsibilities
 - You are responsible for maintaining the security of your account and any credentials used to connect to your databases.
@@ -29,7 +29,7 @@ Your privacy is important to us. Please refer to our Privacy Policy for informat
 We **DO NOT** store your database credentials on our servers unless explicitly configured to do so for shared access.
 
 ## 5. Limitation of Liability
-Data Scopic is provided "as is" without any warranties. In no event shall we be liable for any damages arising out of the use or inability to use the service.
+Data Storia is provided "as is" without any warranties. In no event shall we be liable for any damages arising out of the use or inability to use the service.
 
 ## 6. Changes to Terms
 We reserve the right to modify these terms at any time. Your continued use of the service after such changes constitutes acceptance of the new terms.

@@ -364,7 +364,7 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
         <CardHeader className="text-center space-y-1 pb-4">
           <div className="flex justify-center items-center">
             <AppLogo width={64} height={64} />
-            <CardTitle>Data Scopic</CardTitle>
+            <CardTitle>Data Storia</CardTitle>
           </div>
           <CardDescription className="text-base">
             AI-powered ClickHouse management console with visualization and insights

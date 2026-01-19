@@ -5,8 +5,8 @@ import type { ChatStorage } from "./chat-storage";
  * LocalStorage-based implementation of ChatStorage for simplicity
  */
 export class LocalStorageChatStorage implements ChatStorage {
-  private readonly CHATS_KEY = "datascopic:chats";
-  private readonly MESSAGES_PREFIX = "datascopic:messages:";
+  private readonly CHATS_KEY = "datastoria:chats";
+  private readonly MESSAGES_PREFIX = "datastoria:messages:";
 
   /**
    * Get the localStorage key for a specific chat's messages

@@ -41,7 +41,7 @@ function LoginForm() {
               <AppLogo width={64} height={64} />
             </div>
           </div>
-          <CardTitle className="text-3xl">Sign in to Data Scopic</CardTitle>
+          <CardTitle className="text-3xl">Sign in to Data Storia</CardTitle>
           <CardDescription className="text-base">
             Choose your authentication provider to continue
           </CardDescription>

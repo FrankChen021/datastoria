@@ -2,8 +2,8 @@ import "@/index.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Data Scopic",
-  description: "AI-powered ClickHouse database management console",
+  title: "Data Storia",
+  description: "AI-powered ClickHouse database management console with visualization capabilities",
   icons: {
     icon: "/logo.png",
   },

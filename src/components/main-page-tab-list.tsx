@@ -74,7 +74,7 @@ function EmptyTabPlaceholderComponent() {
         <AppLogo width={64} height={64} />
       </div>
 
-      <h3 className="text-2xl font-semibold tracking-tight mb-2">Welcome to Data Scopic</h3>
+      <h3 className="text-2xl font-semibold tracking-tight mb-2">Welcome to Data Storia</h3>
 
       <p className="text-muted-foreground max-w-xl mb-4 text-sm leading-relaxed">
         Select a table from the sidebar to view its details, or start by running a new SQL query.
