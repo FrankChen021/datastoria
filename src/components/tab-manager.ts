@@ -8,6 +8,7 @@ export type TabType =
   | "dependency"
   | "database"
   | "node"
+  | "cluster"
   | "dashboard"
   | "query-log"
   | "introspection"
@@ -48,6 +49,11 @@ export interface NodeTabInfo extends BaseTabInfo {
   host: string;
 }
 
+export interface ClusterTabInfo extends BaseTabInfo {
+  type: "cluster";
+  cluster: string;
+}
+
 export interface QueryLogTabInfo extends BaseTabInfo {
   type: "query-log";
   queryId?: string;
@@ -73,6 +79,7 @@ export type TabInfo =
   | DependencyTabInfo
   | DatabaseTabInfo
   | NodeTabInfo
+  | ClusterTabInfo
   | QueryLogTabInfo
   | IntrospectionTabInfo
   | ChatTabInfo;

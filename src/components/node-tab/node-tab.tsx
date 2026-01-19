@@ -2,8 +2,6 @@ import { useConnection } from "@/components/connection/connection-context";
 import DashboardContainer from "@/components/shared/dashboard/dashboard-container";
 import type { Dashboard, DashboardGroup } from "@/components/shared/dashboard/dashboard-model";
 import { memo } from "react";
-import { clusterMetricsDashboard } from "./dashboards/cluster-metrics";
-import { clusterStatusDashboard } from "./dashboards/cluster-status";
 import { nodeMergeDashboard } from "./dashboards/node-merge";
 import { nodeMetricsDashboard } from "./dashboards/node-metrics";
 import { nodeOverviewDashboard } from "./dashboards/node-overview";
@@ -54,15 +52,6 @@ export const NodeTab = memo((_props: NodeTabProps) => {
     charts: nodeReplicationDashboard,
   } as DashboardGroup);
 
-  const isClusterMode = connection && connection.cluster && connection.cluster.length > 0;
-  if (isClusterMode) {
-    dashboard.charts.push({
-      title: "Cluster Status",
-      collapsed: false,
-      charts: clusterStatusDashboard,
-    } as DashboardGroup);
-  }
-
   dashboard.charts.push({
     title: "Node Metrics",
     collapsed: false,
@@ -74,14 +63,6 @@ export const NodeTab = memo((_props: NodeTabProps) => {
     collapsed: true,
     charts: nodeZkMetricsDashboard,
   } as DashboardGroup);
-
-  if (isClusterMode) {
-    dashboard.charts.push({
-      title: "Cluster Metrics",
-      collapsed: true,
-      charts: clusterMetricsDashboard,
-    } as DashboardGroup);
-  }
 
   return (
     <div className="flex flex-col px-2" style={{ height: "calc(100vh - 49px)" }}>

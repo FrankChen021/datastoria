@@ -3,6 +3,7 @@ import { ChatPanel } from "@/components/chat/view/chat-panel";
 import { ChatTab } from "@/components/chat/view/chat-tab";
 import { DEFAULT_CHAT_QUESTIONS } from "@/components/chat/view/chat-view";
 import { useChatPanel } from "@/components/chat/view/use-chat-panel";
+import { ClusterTab } from "@/components/cluster-tab/cluster-tab";
 import { DatabaseTab } from "@/components/database-tab/database-tab";
 import { SYSTEM_TABLE_REGISTRY } from "@/components/introspection/system-table-registry";
 import { NodeTab } from "@/components/node-tab/node-tab";
@@ -25,6 +26,7 @@ import {
   ChevronRight,
   Database,
   Monitor,
+  Network,
   Search,
   Sparkles,
   Table as TableIcon,
@@ -522,6 +524,8 @@ export const MainPageTabList = memo(function MainPageTabList({
           return { id: tab.id, label: tab.queryId || "Query Log Viewer", icon: Search };
         } else if (tab.type === "node") {
           return { id: tab.id, label: `${tab.host}`, icon: Monitor };
+        } else if (tab.type === "cluster") {
+          return { id: tab.id, label: `${tab.cluster}`, icon: Network };
         } else if (tab.type === "database") {
           return { id: tab.id, label: `${tab.database}`, icon: Database };
         } else if (tab.type === "table") {
@@ -567,6 +571,18 @@ export const MainPageTabList = memo(function MainPageTabList({
             aria-hidden={activeTab !== tab.id}
           >
             <NodeTab host={tab.host} />
+          </div>
+        );
+      }
+      if (tab.type === "cluster") {
+        return (
+          <div
+            key={tab.id}
+            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
+            role="tabpanel"
+            aria-hidden={activeTab !== tab.id}
+          >
+            <ClusterTab />
           </div>
         );
       }

@@ -22,8 +22,19 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { UserProfileImage } from "@/components/user-profile-image";
+import { hostNameManager } from "@/lib/host-name-manager";
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
-import { Database, LogOut, Settings, Sparkles, Telescope, Terminal } from "lucide-react";
+import {
+  ChartLine,
+  Database,
+  LogOut,
+  Monitor,
+  Network,
+  Settings,
+  Sparkles,
+  Telescope,
+  Terminal,
+} from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useState } from "react";
 import { showSettingsDialog } from "./settings/settings-dialog";
@@ -136,6 +147,75 @@ function SystemTableIntrospectionSidebarMenuItem() {
   );
 }
 
+function DashboardSidebarMenuItem() {
+  const { connection } = useConnection();
+  const isClusterMode = connection?.cluster && connection.cluster.length > 0;
+
+  const openNodeTab = () => {
+    TabManager.openTab({
+      id: `node:${connection?.metadata.displayName}`,
+      type: "node",
+      host: hostNameManager.getShortHostname(connection!.metadata.displayName),
+    });
+  };
+
+  const openClusterTab = () => {
+    TabManager.openTab({
+      id: `cluster:${connection!.cluster}`,
+      type: "cluster",
+      cluster: connection!.cluster!,
+    });
+  };
+
+  // When cluster is supported, show hover card with submenu items
+  if (isClusterMode) {
+    return (
+      <HoverCardSidebarMenuItem
+        icon={<ChartLine className="h-5 w-5" />}
+        content={(_isOpen, onClose) => (
+          <div className="space-y-1">
+            <button
+              className="w-full flex items-center gap-2 text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+              onClick={() => {
+                openNodeTab();
+                onClose();
+              }}
+            >
+              <Monitor className="h-4 w-4" />
+              Node Status
+            </button>
+            <button
+              className="w-full flex items-center gap-2 text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+              onClick={() => {
+                openClusterTab();
+                onClose();
+              }}
+            >
+              <Network className="h-4 w-4" />
+              Cluster Status
+            </button>
+          </div>
+        )}
+        contentClassName="w-48 p-2"
+      />
+    );
+  }
+
+  // When cluster is not supported, show a simple icon button
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        tooltip="Click to open node status dashboard"
+        size="lg"
+        className="justify-center"
+        onClick={openNodeTab}
+      >
+        <ChartLine className="h-5 w-5" />
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
 export function AppSidebar() {
   const { isConnectionAvailable, pendingConfig } = useConnection();
   const { data: session } = useSession();
@@ -180,6 +260,8 @@ export function AppSidebar() {
                     <Sparkles className="h-5 w-5" />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+
+                <DashboardSidebarMenuItem />
 
                 <SystemTableIntrospectionSidebarMenuItem />
 
