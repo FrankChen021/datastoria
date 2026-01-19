@@ -1,5 +1,5 @@
 import { useConnection } from "@/components/connection/connection-context";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/components/shared/theme-provider";
 import type { Ace } from "ace-builds";
 import dynamic from "next/dynamic";
 import {

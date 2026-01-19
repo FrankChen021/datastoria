@@ -1,6 +1,6 @@
 import { useConnection } from "@/components/connection/connection-context";
 import { GraphvizComponent } from "@/components/shared/graphviz/GraphvizComponent";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/components/shared/theme-provider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type QueryError, type QueryResponse } from "@/lib/connection/connection";
 import { toastManager } from "@/lib/toast";

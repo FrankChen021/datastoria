@@ -1,9 +1,9 @@
 import { useConnection } from "@/components/connection/connection-context";
-import FloatingProgressBar from "@/components/floating-progress-bar";
 import TimeSpanSelector, {
   BUILT_IN_TIME_SPAN_LIST,
   DisplayTimeSpan,
 } from "@/components/shared/dashboard/timespan-selector";
+import FloatingProgressBar from "@/components/shared/floating-progress-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";

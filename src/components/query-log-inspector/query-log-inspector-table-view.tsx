@@ -1,4 +1,4 @@
-import { CollapsibleSection } from "@/components/collapsible-section";
+import { CollapsibleSection } from "@/components/shared/collapsible-section";
 import type { FieldOption } from "@/components/shared/dashboard/dashboard-model";
 import { DataTable } from "@/components/shared/dashboard/data-table";
 import { useMemo } from "react";

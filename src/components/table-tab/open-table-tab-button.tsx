@@ -1,6 +1,6 @@
+import { Dialog } from "@/components/shared/use-dialog";
 import { TabManager } from "@/components/tab-manager";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/use-dialog";
 import { ExternalLink } from "lucide-react";
 import { memo, useMemo } from "react";
 

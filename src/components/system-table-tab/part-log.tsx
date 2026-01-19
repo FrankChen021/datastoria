@@ -21,12 +21,12 @@ import type { JSONCompactFormatResponse } from "@/lib/connection/connection";
 import { cn } from "@/lib/utils";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 
-interface SystemTablePartLogProps {
+interface PartLogProps {
   database: string;
   table: string;
 }
 
-const SystemTablePartLog = ({ database: _database, table: _table }: SystemTablePartLogProps) => {
+const PartLog = ({ database: _database, table: _table }: PartLogProps) => {
   const { connection } = useConnection();
 
   // Refs
@@ -450,4 +450,4 @@ ORDER BY event_time DESC
   );
 };
 
-export default SystemTablePartLog;
+export default PartLog;

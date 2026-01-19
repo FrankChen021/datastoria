@@ -1,4 +1,4 @@
-import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
+import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { memo } from "react";
 import type { QueryResponseViewProps } from "../query-view-model";
 

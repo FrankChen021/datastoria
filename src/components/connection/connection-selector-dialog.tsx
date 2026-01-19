@@ -1,4 +1,4 @@
-import { Dialog } from "@/components/use-dialog";
+import { Dialog } from "@/components/shared/use-dialog";
 import type { ReactNode } from "react";
 import { ConnectionSelector } from "./connection-selector";
 

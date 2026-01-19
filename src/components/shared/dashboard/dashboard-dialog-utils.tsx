@@ -1,7 +1,7 @@
+import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
+import { Dialog } from "@/components/shared/use-dialog";
 import { TabManager } from "@/components/tab-manager";
-import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog } from "@/components/use-dialog";
 import { ExternalLink } from "lucide-react";
 import type { SQLQuery } from "./dashboard-model";
 

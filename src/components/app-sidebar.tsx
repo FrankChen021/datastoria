@@ -1,7 +1,7 @@
 import { AppLogo } from "@/components/app-logo";
 import { useConnection } from "@/components/connection/connection-context";
 import { ConnectionSelector } from "@/components/connection/connection-selector";
-import { SYSTEM_TABLE_REGISTRY } from "@/components/introspection/system-table-registry";
+import { SYSTEM_TABLE_REGISTRY } from "@/components/system-table-tab/system-table-registry";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,8 +38,8 @@ import {
 import { signOut, useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useState } from "react";
 import { showSettingsDialog } from "./settings/settings-dialog";
+import { useTheme } from "./shared/theme-provider";
 import { TabManager } from "./tab-manager";
-import { useTheme } from "./theme-provider";
 
 function HoverCardSidebarMenuItem({
   icon,
@@ -131,8 +131,8 @@ function SystemTableIntrospectionSidebarMenuItem() {
               className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
               onClick={() =>
                 TabManager.openTab({
-                  id: `introspection:${tableName}`,
-                  type: "introspection",
+                  id: `system-table:${tableName}`,
+                  type: "system-table",
                   tableName,
                 })
               }

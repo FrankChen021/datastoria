@@ -1,6 +1,6 @@
 "use client";
 
-import FloatingProgressBar from "@/components/floating-progress-bar";
+import FloatingProgressBar from "@/components/shared/floating-progress-bar";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";

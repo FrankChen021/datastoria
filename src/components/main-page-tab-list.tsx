@@ -5,10 +5,10 @@ import { DEFAULT_CHAT_QUESTIONS } from "@/components/chat/view/chat-view";
 import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { ClusterTab } from "@/components/cluster-tab/cluster-tab";
 import { DatabaseTab } from "@/components/database-tab/database-tab";
-import { SYSTEM_TABLE_REGISTRY } from "@/components/introspection/system-table-registry";
 import { NodeTab } from "@/components/node-tab/node-tab";
 import { QueryLogInspectorTab } from "@/components/query-log-inspector/query-log-inspector-tab";
 import { QueryTab } from "@/components/query-tab/query-tab";
+import { SYSTEM_TABLE_REGISTRY } from "@/components/system-table-tab/system-table-registry";
 import { TabManager, type ChatTabInfo, type TabInfo } from "@/components/tab-manager";
 import { TableTab } from "@/components/table-tab/table-tab";
 import { Button } from "@/components/ui/button";
@@ -530,7 +530,7 @@ export const MainPageTabList = memo(function MainPageTabList({
           return { id: tab.id, label: `${tab.database}`, icon: Database };
         } else if (tab.type === "table") {
           return { id: tab.id, label: `${tab.database}.${tab.table}`, icon: TableIcon };
-        } else if (tab.type === "introspection") {
+        } else if (tab.type === "system-table") {
           const entry = SYSTEM_TABLE_REGISTRY.get(tab.tableName);
           return { id: tab.id, label: entry?.title || tab.tableName, icon: Telescope };
         } else if (tab.type === "chat") {
@@ -610,7 +610,7 @@ export const MainPageTabList = memo(function MainPageTabList({
           </div>
         );
       }
-      if (tab.type === "introspection") {
+      if (tab.type === "system-table") {
         const EntryComponent = SYSTEM_TABLE_REGISTRY.get(tab.tableName)?.component;
         return (
           <div

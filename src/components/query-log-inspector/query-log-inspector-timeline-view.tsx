@@ -1,4 +1,4 @@
-import DebouncedSearchInput from "@/components/debounced-search-input";
+import DebouncedSearchInput from "@/components/shared/debounced-search-input";
 import { Button } from "@/components/ui/button";
 import { Formatter } from "@/lib/formatter";
 import { cn } from "@/lib/utils";

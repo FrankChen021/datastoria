@@ -16,7 +16,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { Dialog } from "../use-dialog";
+import { Dialog } from "../shared/use-dialog";
 import type { RefreshableTabViewRef } from "./table-tab";
 
 interface DropPartitionDialogProps {

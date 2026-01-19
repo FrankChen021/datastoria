@@ -1,5 +1,6 @@
 "use client";
 
+import { Dialog } from "@/components/shared/use-dialog";
 import { CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -9,7 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Dialog } from "@/components/use-dialog";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { Formatter, type FormatName, type ObjectFormatter } from "@/lib/formatter";
 import { cn } from "@/lib/utils";

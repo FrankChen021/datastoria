@@ -1,10 +1,10 @@
 "use client";
 
 import { useConnection } from "@/components/connection/connection-context";
+import { Dialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog } from "@/components/use-dialog";
 import { type QueryResponse } from "@/lib/connection/connection";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { Formatter } from "@/lib/formatter";

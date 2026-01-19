@@ -11,7 +11,7 @@ export type TabType =
   | "cluster"
   | "dashboard"
   | "query-log"
-  | "introspection"
+  | "system-table"
   | "chat";
 
 export interface BaseTabInfo {
@@ -60,8 +60,8 @@ export interface QueryLogTabInfo extends BaseTabInfo {
   eventDate?: string;
 }
 
-export interface IntrospectionTabInfo extends BaseTabInfo {
-  type: "introspection";
+export interface SystemTableTabInfo extends BaseTabInfo {
+  type: "system-table";
   tableName: string;
 }
 
@@ -81,7 +81,7 @@ export type TabInfo =
   | NodeTabInfo
   | ClusterTabInfo
   | QueryLogTabInfo
-  | IntrospectionTabInfo
+  | SystemTableTabInfo
   | ChatTabInfo;
 
 /**

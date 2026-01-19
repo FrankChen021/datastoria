@@ -1,5 +1,5 @@
 import { useConnection } from "@/components/connection/connection-context";
-import FloatingProgressBar from "@/components/floating-progress-bar";
+import FloatingProgressBar from "@/components/shared/floating-progress-bar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

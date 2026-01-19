@@ -1,5 +1,5 @@
-import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
-import { Dialog } from "@/components/use-dialog";
+import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
+import { Dialog } from "@/components/shared/use-dialog";
 import { Connection, type QueryError } from "@/lib/connection/connection";
 import { StringUtils } from "@/lib/string-utils";
 import { toastManager } from "@/lib/toast";

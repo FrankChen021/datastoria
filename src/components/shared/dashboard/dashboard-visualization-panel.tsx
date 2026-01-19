@@ -2,8 +2,8 @@
 
 import { useConnection } from "@/components/connection/connection-context";
 import { AskAIButton } from "@/components/shared/ask-ai-button";
+import { Dialog } from "@/components/shared/use-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog } from "@/components/use-dialog";
 import { QueryError } from "@/lib/connection/connection";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import {

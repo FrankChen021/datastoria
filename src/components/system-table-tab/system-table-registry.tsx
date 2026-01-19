@@ -1,7 +1,7 @@
-import SystemTableDashboards from "./system-table-dashboards";
-import SystemTableDistributedDDLQueue from "./system-table-distributed-ddl-queue";
-import SystemTablePartLog from "./system-table-part-log";
-import SystemTableQueryLog from "./system-table-query-log";
+import Dashboards from "./dashboards";
+import DistributedDDLQueue from "./distributed-ddl-queue";
+import PartLog from "./part-log";
+import QueryLog from "./query-log";
 
 /**
  * Type definition for a system table tab entry
@@ -17,10 +17,10 @@ export type SystemTableTabEntry = {
  * Value: tab entry
  */
 export const SYSTEM_TABLE_REGISTRY = new Map<string, SystemTableTabEntry>([
-  ["dashboards", { title: "System Dashboard", component: SystemTableDashboards }],
-  ["distributed_ddl_queue", { title: "DDL Queue", component: SystemTableDistributedDDLQueue }],
-  ["query_log", { title: "Query Log", component: SystemTableQueryLog }],
-  ["part_log", { title: "Part Log", component: SystemTablePartLog }],
+  ["dashboards", { title: "System Dashboard", component: Dashboards }],
+  ["distributed_ddl_queue", { title: "DDL Queue", component: DistributedDDLQueue }],
+  ["query_log", { title: "Query Log", component: QueryLog }],
+  ["part_log", { title: "Part Log", component: PartLog }],
 ]);
 
 function normalizeSystemTableName(tableName: string): string {

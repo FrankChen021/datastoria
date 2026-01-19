@@ -1,6 +1,6 @@
 import { showQueryDialog } from "@/components/shared/dashboard/dashboard-dialog-utils";
-import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
-import { Dialog } from "@/components/use-dialog";
+import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
+import { Dialog } from "@/components/shared/use-dialog";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { DateTimeExtension } from "./datetime-utils";

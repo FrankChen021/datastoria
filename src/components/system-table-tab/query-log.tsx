@@ -22,12 +22,12 @@ import type { JSONCompactFormatResponse } from "@/lib/connection/connection";
 import { cn } from "@/lib/utils";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 
-interface SystemTableQueryLogProps {
+interface QueryLogProps {
   database: string;
   table: string;
 }
 
-const SystemTableQueryLog = ({ database: _database, table: _table }: SystemTableQueryLogProps) => {
+const QueryLog = ({ database: _database, table: _table }: QueryLogProps) => {
   const { connection } = useConnection();
 
   // Refs
@@ -488,4 +488,4 @@ LIMIT 100
   );
 };
 
-export default SystemTableQueryLog;
+export default QueryLog;

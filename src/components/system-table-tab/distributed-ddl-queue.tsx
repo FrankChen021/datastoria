@@ -13,7 +13,7 @@ import TimeSpanSelector, {
   BUILT_IN_TIME_SPAN_LIST,
   type TimeSpan,
 } from "@/components/shared/dashboard/timespan-selector";
-import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
+import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -739,7 +739,7 @@ ORDER BY t
   ],
 };
 
-const SystemTableDistributedDDLQueue = () => {
+const DistributedDDLQueue = () => {
   const filterRef = useRef<TimeSpanSelector | null>(null);
   const panelsRef = useRef<DashboardPanelsRef>(null);
   const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | null>(null);
@@ -801,4 +801,4 @@ const SystemTableDistributedDDLQueue = () => {
   );
 };
 
-export default memo(SystemTableDistributedDDLQueue);
+export default memo(DistributedDDLQueue);

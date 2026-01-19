@@ -46,8 +46,8 @@
  * ```
  */
 import { useConnection } from "@/components/connection/connection-context";
+import { Dialog } from "@/components/shared/use-dialog";
 import { CardContent } from "@/components/ui/card";
-import { Dialog } from "@/components/use-dialog";
 import { type JSONFormatResponse, type QueryError } from "@/lib/connection/connection";
 import { Formatter } from "@/lib/formatter";
 import { cn } from "@/lib/utils";

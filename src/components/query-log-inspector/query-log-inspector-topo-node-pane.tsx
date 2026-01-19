@@ -1,4 +1,4 @@
-import { CollapsibleSection } from "@/components/collapsible-section";
+import { CollapsibleSection } from "@/components/shared/collapsible-section";
 import { Button } from "@/components/ui/button";
 import { Formatter } from "@/lib/formatter";
 import { ArrowDown, ArrowUp, ArrowUpDown, X } from "lucide-react";

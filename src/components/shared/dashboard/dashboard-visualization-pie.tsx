@@ -1,7 +1,7 @@
 "use client";
 
+import { Dialog } from "@/components/shared/use-dialog";
 import { CardContent } from "@/components/ui/card";
-import { Dialog } from "@/components/use-dialog";
 import { Formatter } from "@/lib/formatter";
 import * as echarts from "echarts";
 import React, { useCallback, useEffect, useRef } from "react";

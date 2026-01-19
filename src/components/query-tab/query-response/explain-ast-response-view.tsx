@@ -1,5 +1,5 @@
 import { GraphvizComponent } from "@/components/shared/graphviz/GraphvizComponent";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/components/shared/theme-provider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Stack } from "@/lib/stack";
 import { memo, useEffect, useState } from "react";

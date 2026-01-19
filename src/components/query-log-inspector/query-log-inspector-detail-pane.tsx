@@ -1,7 +1,7 @@
-import { CollapsibleSection } from "@/components/collapsible-section";
+import { CollapsibleSection } from "@/components/shared/collapsible-section";
 import type { FieldOption } from "@/components/shared/dashboard/dashboard-model";
 import { DataTable } from "@/components/shared/dashboard/data-table";
-import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
+import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
 import { Formatter, type ObjectFormatter } from "@/lib/formatter";
 import { StringUtils } from "@/lib/string-utils";

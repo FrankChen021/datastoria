@@ -6,10 +6,10 @@ import type {
   DashboardGroup,
   TimeseriesDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
-import { ThemedSyntaxHighlighter } from "@/components/themed-syntax-highlighter";
+import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
+import { Dialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog } from "@/components/use-dialog";
 import { type QueryResponse } from "@/lib/connection/connection";
 import { AlertTriangle, EllipsisVertical } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -27,12 +27,12 @@ interface SkippedDashboard {
   reason: string;
 }
 
-interface SystemTableDashboardsProps {
+interface DashboardsProps {
   database: string;
   table: string;
 }
 
-const SystemTableDashboards = ({ database, table }: SystemTableDashboardsProps) => {
+const Dashboards = ({ database, table }: DashboardsProps) => {
   const { connection } = useConnection();
   const [dashboard, setDashboard] = useState<Dashboard>({
     filter: {},
@@ -382,4 +382,4 @@ const SystemTableDashboards = ({ database, table }: SystemTableDashboardsProps) 
   );
 };
 
-export default memo(SystemTableDashboards);
+export default memo(Dashboards);

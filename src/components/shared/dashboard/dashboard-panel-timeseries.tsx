@@ -9,6 +9,7 @@
  * <DashboardPanelTimeseries descriptor={timeseriesDescriptor} />
  */
 import { useConnection } from "@/components/connection/connection-context";
+import { Dialog } from "@/components/shared/use-dialog";
 import { CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -18,7 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Dialog } from "@/components/use-dialog";
 import { type JSONFormatResponse, type QueryError } from "@/lib/connection/connection";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { Formatter, type FormatName, type ObjectFormatter } from "@/lib/formatter";

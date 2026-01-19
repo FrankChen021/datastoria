@@ -11,8 +11,8 @@ import { memo, useState } from "react";
 import { v7 as uuid } from "uuid";
 import { QueryResponseView } from "../../query-tab/query-response/query-response-view";
 import type { QueryResponseViewModel } from "../../query-tab/query-view-model";
+import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
 import { TabManager } from "../../tab-manager";
-import { ThemedSyntaxHighlighter } from "../../themed-syntax-highlighter";
 import { Button } from "../../ui/button";
 
 interface MessageMarkdownSqlProps {
