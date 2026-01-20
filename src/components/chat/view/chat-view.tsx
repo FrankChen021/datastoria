@@ -23,6 +23,14 @@ import { ChatMessageList } from "../message/chat-message-list";
 
 export type Question = { text: string; autoRun?: boolean };
 
+const GREETINGS = [
+  "Hello there! How can I help you today?",
+  "Hi there! What would you like to explore?",
+  "Good to see you! Ready to dive into your data?",
+  "Nice to meet you! What can I help you analyze?",
+  "Hello and welcome! Let's explore your ClickHouse data!",
+];
+
 export const DEFAULT_CHAT_QUESTIONS: Question[] = [
   {
     text: "Show me the number of error queries by hour from @system.query_log over the past 3 hours in line chart",
@@ -191,6 +199,11 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
 
   const isEmpty = !messages || messages.length === 0;
 
+  // Pick a random greeting once per chat session
+  const greeting = useMemo(() => {
+    return GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+  }, []);
+
   const handleQuestionClick = useCallback(
     (question: { text: string; autoRun?: boolean }) => {
       if (question.autoRun) {
@@ -207,39 +220,27 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden relative">
       {isEmpty ? (
-        questions && questions.length > 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="bg-background shadow-sm">
+        <div className="flex-1 overflow-y-auto px-2">
+          <div className="flex flex-col items-center justify-center min-h-full py-8 mx-auto" style={{ maxWidth: "min(100%, 800px)" }}>
+            <div className="mb-0">
               <AppLogo width={64} height={64} />
             </div>
-            <div className="w-full max-w-xl">
-              <p className="text-lg font-medium mb-4">Start a conversation with the AI assistant</p>
-              <p className="text-sm text-muted-foreground mb-4">Try asking the AI assistant:</p>
-              <div className="flex flex-wrap gap-2 justify-center">
+            <p className="text-base font-medium mb-4">{greeting}</p>
+            {questions && questions.length > 0 && (
+              <div className="w-full space-y-2">
                 {questions.map((question, index) => (
-                  <Button
+                  <button
                     key={index}
-                    variant="outline"
-                    size="sm"
-                    className="h-auto py-2 px-4 text-sm font-normal text-muted-foreground hover:text-foreground hover:bg-muted transition-colors rounded-full"
+                    className="w-full text-center px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg border border-border/50 whitespace-normal hover:border-border transition-colors"
                     onClick={() => handleQuestionClick(question)}
                   >
                     {question.text}
-                  </Button>
+                  </button>
                 ))}
               </div>
-            </div>
+            )}
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="bg-background shadow-sm">
-              <AppLogo width={64} height={64} />
-            </div>
-            <div className="space-y-2 w-full max-w-md">
-              <p className="text-lg font-medium">Start a conversation with the AI assistant</p>
-            </div>
-          </div>
-        )
+        </div>
       ) : (
         <ChatMessageList
           messages={messages as AppUIMessage[]}

@@ -1,4 +1,5 @@
 import { AppLogo } from "@/components/app-logo";
+import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { useConnection } from "@/components/connection/connection-context";
 import { ConnectionSelector } from "@/components/connection/connection-selector";
 import { SYSTEM_TABLE_REGISTRY } from "@/components/system-table-tab/system-table-registry";
@@ -228,6 +229,7 @@ function DashboardSidebarMenuItem() {
 export function AppSidebar() {
   const { isConnectionAvailable, pendingConfig } = useConnection();
   const { data: session } = useSession();
+  const { open: openChatPanel } = useChatPanel();
 
   // Show connection selector if connection is available OR if there's a pending config (failed initialization)
   // This allows users to switch connections even after a failure
@@ -272,7 +274,7 @@ export function AppSidebar() {
                     }}
                     size="lg"
                     className="justify-center"
-                    onClick={() => TabManager.openChatTab()}
+                    onClick={openChatPanel}
                   >
                     <Sparkles className="h-5 w-5" />
                   </SidebarMenuButton>

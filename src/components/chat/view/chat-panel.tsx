@@ -4,19 +4,18 @@ import { ChatFactory } from "@/components/chat/chat-factory";
 import { ChatUIContext } from "@/components/chat/chat-ui-context";
 import { chatStorage } from "@/components/chat/storage/chat-storage";
 import { useConnection } from "@/components/connection/connection-context";
-import { TabManager } from "@/components/tab-manager";
 import { Button } from "@/components/ui/button";
 import type { AppUIMessage } from "@/lib/ai/common-types";
 import type { Chat } from "@ai-sdk/react";
-import { Loader2, Maximize2, X } from "lucide-react";
+import { Loader2, Maximize2, Minimize2, Square, X } from "lucide-react";
 import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { ChatContext } from "../chat-context";
 import { OpenHistoryButton } from "../history/open-history-button";
 import { SqlExecutionProvider } from "../sql-execution-context";
-import { ChatView, type ChatViewHandle } from "./chat-view";
-import { useChatPanel } from "./use-chat-panel";
+import { ChatView, DEFAULT_CHAT_QUESTIONS, type ChatViewHandle } from "./chat-view";
+import { useChatPanel, type ChatPanelDisplayMode } from "./use-chat-panel";
 
 interface ChatHeaderProps {
   onClose?: () => void;
@@ -24,9 +23,41 @@ interface ChatHeaderProps {
   currentChatId: string;
   onSelectChat?: (id: string) => void;
   onClearCurrentChat?: () => void;
-  onMaximize?: () => void;
+  onCycleDisplayMode?: () => void;
+  displayMode?: ChatPanelDisplayMode;
   title?: string;
   isStreaming?: boolean;
+}
+
+/**
+ * Get the icon and tooltip for the display mode cycle button
+ */
+function getDisplayModeButtonInfo(displayMode: ChatPanelDisplayMode): {
+  icon: React.ReactNode;
+  tooltip: string;
+} {
+  switch (displayMode) {
+    case "panel":
+      return {
+        icon: <Maximize2 className="!h-3.5 !w-3.5" />,
+        tooltip: "Expand to tab width",
+      };
+    case "tabWidth":
+      return {
+        icon: <Square className="!h-3.5 !w-3.5" />,
+        tooltip: "Expand to fullscreen",
+      };
+    case "fullscreen":
+      return {
+        icon: <Minimize2 className="!h-3.5 !w-3.5" />,
+        tooltip: "Restore to panel",
+      };
+    default:
+      return {
+        icon: <Maximize2 className="!h-3.5 !w-3.5" />,
+        tooltip: "Expand",
+      };
+  }
 }
 
 const ChatHeader = React.memo(
@@ -36,10 +67,13 @@ const ChatHeader = React.memo(
     currentChatId,
     onSelectChat,
     onClearCurrentChat,
-    onMaximize,
+    onCycleDisplayMode,
+    displayMode = "panel",
     title,
     isStreaming,
   }: ChatHeaderProps) => {
+    const { icon, tooltip } = getDisplayModeButtonInfo(displayMode);
+
     return (
       <div className="h-9 border-b flex items-center justify-between px-2 shrink-0 bg-background/50 backdrop-blur-sm z-10">
         <h2 className="text-sm font-semibold">{title || "AI Assistant"}</h2>
@@ -52,16 +86,16 @@ const ChatHeader = React.memo(
             onSelectChat={onSelectChat}
             onClearCurrentChat={onClearCurrentChat}
           />
-          {onMaximize && (
+          {onCycleDisplayMode && (
             <Button
               variant="ghost"
               size="icon"
               className="h-6 w-6"
-              onClick={onMaximize}
+              onClick={onCycleDisplayMode}
               disabled={isStreaming}
-              title="Maximize to tab"
+              title={tooltip}
             >
-              <Maximize2 className="!h-3.5 !w-3.5" />
+              {icon}
             </Button>
           )}
           {onClose && (
@@ -101,7 +135,14 @@ export function ChatPanel({
   availableTables,
   onClose,
 }: ChatPanelProps) {
-  const { pendingCommand, consumeCommand, initialInput, clearInitialInput } = useChatPanel();
+  const {
+    pendingCommand,
+    consumeCommand,
+    initialInput,
+    clearInitialInput,
+    displayMode,
+    toggleDisplayMode: cycleDisplayMode,
+  } = useChatPanel();
   const [chat, setChat] = useState<Chat<AppUIMessage> | null>(null);
   const [chatTitle, setChatTitle] = useState<string | undefined>(undefined);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -283,13 +324,6 @@ export function ChatPanel({
     }
   }, [chat]);
 
-  const handleMaximize = useCallback(() => {
-    if (chat) {
-      const currentInput = chatViewRef.current?.getInput() || "";
-      TabManager.openChatTab(chat.id, undefined, currentInput || undefined, false);
-    }
-  }, [chat]);
-
   // Listen for title changes and apply to current chat
   useEffect(() => {
     if (!chat) return;
@@ -312,7 +346,7 @@ export function ChatPanel({
   }
 
   return (
-    <SqlExecutionProvider value={{ executionMode: "tab" }}>
+    <SqlExecutionProvider value={{ executionMode: "inline" }}>
       <div className="flex flex-col h-full bg-background overflow-hidden">
         <ChatHeader
           onClose={onClose}
@@ -320,7 +354,8 @@ export function ChatPanel({
           onSelectChat={handleSelectChat}
           currentChatId={chat.id}
           onClearCurrentChat={handleClearCurrentChat}
-          onMaximize={handleMaximize}
+          onCycleDisplayMode={cycleDisplayMode}
+          displayMode={displayMode}
           title={chatTitle}
           isStreaming={isStreaming}
         />
@@ -332,6 +367,7 @@ export function ChatPanel({
           chat={chat}
           onClose={onClose}
           onNewChat={handleNewChat}
+          questions={DEFAULT_CHAT_QUESTIONS}
           currentQuery={currentQuery}
           currentDatabase={currentDatabase}
           availableTables={availableTables}

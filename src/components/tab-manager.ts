@@ -11,8 +11,7 @@ export type TabType =
   | "cluster"
   | "dashboard"
   | "query-log"
-  | "system-table"
-  | "chat";
+  | "system-table";
 
 export interface BaseTabInfo {
   id: string;
@@ -65,14 +64,6 @@ export interface SystemTableTabInfo extends BaseTabInfo {
   tableName: string;
 }
 
-export interface ChatTabInfo extends BaseTabInfo {
-  type: "chat";
-  chatId?: string;
-  initialPrompt?: string;
-  autoRun?: boolean;
-  title?: string;
-}
-
 export type TabInfo =
   | QueryTabInfo
   | TableTabInfo
@@ -81,8 +72,7 @@ export type TabInfo =
   | NodeTabInfo
   | ClusterTabInfo
   | QueryLogTabInfo
-  | SystemTableTabInfo
-  | ChatTabInfo;
+  | SystemTableTabInfo;
 
 /**
  * Event detail for active tab changes
@@ -163,25 +153,6 @@ export class TabManager {
       initialMode: options?.mode,
       initialEditorMode: options?.editorMode,
       initialExecute: options?.execute,
-    });
-  }
-
-  /**
-   * Emit an open chat tab event
-   */
-  static openChatTab(
-    chatId?: string,
-    tabId?: string,
-    initialPrompt?: string,
-    autoRun?: boolean
-  ): void {
-    const id = tabId || (chatId ? `chat:${chatId}` : `chat`);
-    TabManager.openTab({
-      id,
-      type: "chat",
-      chatId,
-      initialPrompt,
-      autoRun,
     });
   }
 

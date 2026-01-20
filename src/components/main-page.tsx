@@ -1,3 +1,5 @@
+import { ChatPanel } from "@/components/chat/view/chat-panel";
+import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { useConnection } from "@/components/connection/connection-context";
 import { ConnectionWizard } from "@/components/connection/connection-wizard";
 import {
@@ -16,8 +18,13 @@ import {
 } from "@/lib/connection/connection";
 import { hostNameManager } from "@/lib/host-name-manager";
 import { AlertCircle, CheckCircle2, Circle, Loader2, RotateCcw } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { useEffect, useRef, useState } from "react";
+import {
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+  type ImperativePanelHandle,
+} from "react-resizable-panels";
 import { AppLogo } from "./app-logo";
 import { ConnectionSelectorDialog } from "./connection/connection-selector-dialog";
 import { MainPageTabList } from "./main-page-tab-list";
@@ -425,11 +432,22 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
   );
 }
 
+// Panel size constants
+const DEFAULT_SCHEMA_PANEL_SIZE = 20;
+const DEFAULT_TAB_PANEL_SIZE = 80;
+const DEFAULT_CHAT_PANEL_SIZE = 40;
+
 export function MainPage() {
   const { connection, pendingConfig, commitConnection, isInitialized, isConnectionAvailable } =
     useConnection();
+  const { displayMode, close: closeChatPanel } = useChatPanel();
 
   const [loadedSchemaData, setLoadedSchemaData] = useState<SchemaLoadResult | null>(null);
+
+  // Refs for panel control
+  const schemaPanelRef = useRef<ImperativePanelHandle>(null);
+  const tabsPanelRef = useRef<ImperativePanelHandle>(null);
+  const chatPanelRef = useRef<ImperativePanelHandle>(null);
 
   // Determine if we should show the initializer overlay
   // Case 1: App is not initialized yet (booting up)
@@ -450,9 +468,45 @@ export function MainPage() {
   // 3. No active connection (fresh state)
   const showWizard = isInitialized && !pendingConfig && !connection;
 
+  // Resize panels when display mode changes
+  useEffect(() => {
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      switch (displayMode) {
+        case "hidden":
+          // Schema tree and tabs take full width
+          schemaPanelRef.current?.resize(DEFAULT_SCHEMA_PANEL_SIZE);
+          tabsPanelRef.current?.resize(DEFAULT_TAB_PANEL_SIZE);
+          break;
+        case "panel":
+          // All three panels visible
+          schemaPanelRef.current?.resize(DEFAULT_SCHEMA_PANEL_SIZE);
+          tabsPanelRef.current?.resize(DEFAULT_TAB_PANEL_SIZE - DEFAULT_CHAT_PANEL_SIZE);
+          chatPanelRef.current?.resize(DEFAULT_CHAT_PANEL_SIZE);
+          break;
+        case "tabWidth":
+          // Schema tree visible, chat takes tab region
+          schemaPanelRef.current?.resize(DEFAULT_SCHEMA_PANEL_SIZE);
+          tabsPanelRef.current?.resize(0);
+          chatPanelRef.current?.resize(DEFAULT_TAB_PANEL_SIZE);
+          break;
+        case "fullscreen":
+          // Chat takes full width
+          schemaPanelRef.current?.resize(0);
+          tabsPanelRef.current?.resize(0);
+          chatPanelRef.current?.resize(100);
+          break;
+      }
+    });
+  }, [displayMode]);
+
   if (showWizard) {
     return <ConnectionWizard />;
   }
+
+  const showSchemaTree = displayMode !== "fullscreen";
+  const showTabsVisible = displayMode === "hidden" || displayMode === "panel";
+  const showChatPanel = displayMode !== "hidden";
 
   return (
     <div className="relative h-full w-full flex min-w-0 overflow-hidden">
@@ -463,17 +517,60 @@ export function MainPage() {
       )}
 
       <PanelGroup direction="horizontal" className="h-full w-full min-w-0">
-        {/* Left Panel: Schema Tree View */}
-        <Panel defaultSize={20} minSize={0} className="bg-background">
+        {/* Left Panel: Schema Tree View - always mounted, hidden in fullscreen */}
+        <Panel
+          ref={schemaPanelRef}
+          defaultSize={showSchemaTree ? DEFAULT_SCHEMA_PANEL_SIZE : 0}
+          minSize={0}
+          className={`bg-background ${!showSchemaTree ? "hidden" : ""}`}
+        >
           <SchemaTreeView initialSchemaData={loadedSchemaData} />
         </Panel>
 
-        <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
+        {showSchemaTree && (
+          <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
+        )}
 
-        {/* Middle Panel: Tabs for Query and Table Views */}
-        <Panel defaultSize={80} minSize={30} className="bg-background">
-          <MainPageTabList selectedConnection={connection} />
+        {/* Middle Panel: Tabs - always mounted to preserve state, hidden when collapsed */}
+        <Panel
+          ref={tabsPanelRef}
+          defaultSize={
+            displayMode === "hidden"
+              ? DEFAULT_TAB_PANEL_SIZE
+              : displayMode === "panel"
+                ? DEFAULT_TAB_PANEL_SIZE - DEFAULT_CHAT_PANEL_SIZE
+                : 0
+          }
+          minSize={0}
+          className={`bg-background ${!showTabsVisible ? "overflow-hidden" : ""}`}
+        >
+          <div className={!showTabsVisible ? "hidden" : "h-full"}>
+            <MainPageTabList selectedConnection={connection} />
+          </div>
         </Panel>
+
+        {/* Resize Handle between Tabs and Chat Panel - only show when both are visible */}
+        {showChatPanel && showTabsVisible && (
+          <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
+        )}
+
+        {/* Right Panel: Chat Panel */}
+        {showChatPanel && (
+          <Panel
+            ref={chatPanelRef}
+            defaultSize={
+              displayMode === "panel"
+                ? DEFAULT_CHAT_PANEL_SIZE
+                : displayMode === "tabWidth"
+                  ? DEFAULT_TAB_PANEL_SIZE
+                  : 100
+            }
+            minSize={20}
+            className="bg-background"
+          >
+            <ChatPanel onClose={closeChatPanel} />
+          </Panel>
+        )}
       </PanelGroup>
     </div>
   );

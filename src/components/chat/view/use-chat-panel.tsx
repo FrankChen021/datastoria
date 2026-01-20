@@ -2,9 +2,12 @@
 
 import React, { createContext, useContext, useState } from "react";
 
+export type ChatPanelDisplayMode = "hidden" | "panel" | "tabWidth" | "fullscreen";
+
 interface ChatPanelContextType {
-  isVisible: boolean;
-  toggle: () => void;
+  displayMode: ChatPanelDisplayMode;
+  setDisplayMode: (mode: ChatPanelDisplayMode) => void;
+  toggleDisplayMode: () => void;
   open: () => void;
   close: () => void;
   postMessage: (text: string, options?: { forceNewChat?: boolean }) => void;
@@ -16,8 +19,11 @@ interface ChatPanelContextType {
 }
 
 const ChatPanelContext = createContext<ChatPanelContextType>({
-  isVisible: true,
-  toggle: () => {
+  displayMode: "hidden",
+  setDisplayMode: () => {
+    // Default implementation
+  },
+  toggleDisplayMode: () => {
     // Default implementation
   },
   open: () => {
@@ -43,8 +49,8 @@ const ChatPanelContext = createContext<ChatPanelContextType>({
 });
 
 export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
-  // Default to false to hide the panel
-  const [isVisible, setIsVisible] = useState<boolean>(false);
+  // Default to hidden
+  const [displayMode, setDisplayMode] = useState<ChatPanelDisplayMode>("hidden");
   const [pendingCommand, setPendingCommand] = useState<{
     text: string;
     timestamp: number;
@@ -54,21 +60,32 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     null
   );
 
-  const toggle = () => {
-    setIsVisible((prev) => !prev);
+  const cycleDisplayMode = () => {
+    setDisplayMode((prev) => {
+      switch (prev) {
+        case "panel":
+          return "tabWidth";
+        case "tabWidth":
+          return "fullscreen";
+        case "fullscreen":
+          return "panel";
+        default:
+          return "panel";
+      }
+    });
   };
 
   const open = () => {
-    setIsVisible(true);
+    setDisplayMode((prev) => (prev === "hidden" ? "panel" : prev));
   };
 
   const close = () => {
-    setIsVisible(false);
+    setDisplayMode("hidden");
   };
 
   const postMessage = (text: string, options?: { forceNewChat?: boolean }) => {
     setPendingCommand({ text, timestamp: Date.now(), forceNewChat: options?.forceNewChat });
-    setIsVisible(true);
+    setDisplayMode((prev) => (prev === "hidden" ? "panel" : prev));
   };
 
   const consumeCommand = () => {
@@ -77,7 +94,7 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
 
   const setInitialInput = (text: string, chatId?: string) => {
     setInitialInputState({ text, chatId });
-    setIsVisible(true);
+    setDisplayMode((prev) => (prev === "hidden" ? "panel" : prev));
   };
 
   const clearInitialInput = () => {
@@ -87,8 +104,9 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
   return (
     <ChatPanelContext.Provider
       value={{
-        isVisible,
-        toggle,
+        displayMode,
+        setDisplayMode,
+        toggleDisplayMode: cycleDisplayMode,
         open,
         close,
         postMessage,

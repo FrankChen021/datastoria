@@ -22,7 +22,7 @@ export class ChatUIContext {
 
   /**
    * Update the chat title
-   * Dispatches an event that ChatTab and ChatPanel will listen to
+   * Dispatches an event that ChatPanel will listen to
    */
   static updateTitle(title: string): void {
     const event = new CustomEvent<ChatTitleUpdateEventDetail>(
