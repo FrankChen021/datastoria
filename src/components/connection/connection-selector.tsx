@@ -62,10 +62,12 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
   useEffect(() => {
     if (isOpen) {
       reloadConnections();
-      // Focus the input after a short delay to ensure it's rendered
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 0);
+      // Focus the input after render using requestAnimationFrame
+      if (inputRef.current) {
+        requestAnimationFrame(() => {
+          inputRef.current?.focus();
+        });
+      }
     }
   }, [isOpen]);
 
@@ -171,7 +173,7 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
                       <div className="flex-1 min-w-0">
                         <div
                           className={cn(
-                            "text-xs font-medium truncate",
+                            "text-sm font-medium truncate",
                             isSelected && "text-primary"
                           )}
                         >
@@ -179,7 +181,7 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
                         </div>
                         <div
                           className={cn(
-                            "text-[10px] truncate leading-tight",
+                            "text-xs truncate leading-tight",
                             isSelected ? "text-primary/80" : "text-muted-foreground"
                           )}
                         >

@@ -234,6 +234,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
                 {questions.map((question, index) => (
                   <button
                     key={index}
+                    type="button"
                     className="w-full text-center px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg border border-border/50 whitespace-normal hover:border-border transition-colors"
                     onClick={() => handleQuestionClick(question)}
                   >

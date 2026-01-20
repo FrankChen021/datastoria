@@ -223,6 +223,7 @@ const QueryLogTimelineView = React.memo(
 
       const visibleNodesRef = useRef<QueryLogTreeNode[]>([]);
       const rowVirtualizerRef = useRef<any>(null);
+      const handleMouseMoveRef = useRef<((e: MouseEvent) => void) | undefined>(undefined);
 
       // Drag support
       useEffect(() => {
@@ -262,18 +263,7 @@ const QueryLogTimelineView = React.memo(
           window.removeEventListener("mousemove", onMouseMove);
           window.removeEventListener("mouseup", onMouseUp);
         };
-      }, [treeWidthPercent]);
-
-      const updateTooltipState = useCallback(() => {
-        if (
-          tooltipNodeRef.current !== tooltipNode ||
-          tooltipPositionRef.current?.top !== tooltipPosition?.top ||
-          tooltipPositionRef.current?.left !== tooltipPosition?.left
-        ) {
-          setTooltipNode(tooltipNodeRef.current);
-          setTooltipPosition(tooltipPositionRef.current);
-        }
-      }, [tooltipNode, tooltipPosition]);
+      }, []);
 
       const onMouseEnterRow = useCallback(
         (e: React.MouseEvent) => {
@@ -293,9 +283,13 @@ const QueryLogTimelineView = React.memo(
           if (tooltipRafRef.current) {
             cancelAnimationFrame(tooltipRafRef.current);
           }
-          tooltipRafRef.current = requestAnimationFrame(() => updateTooltipState());
+          tooltipRafRef.current = requestAnimationFrame(() => {
+            // Update state from refs - ensures we always use the latest values
+            setTooltipNode(tooltipNodeRef.current);
+            setTooltipPosition(tooltipPositionRef.current);
+          });
         },
-        [updateTooltipState]
+        [] // No dependencies - uses refs which are stable
       );
 
       const handleViewMouseEnter = useCallback(() => {
@@ -326,50 +320,50 @@ const QueryLogTimelineView = React.memo(
         }
       }, []);
 
-      const handleMouseMove = useCallback(
-        (e: MouseEvent) => {
-          if (
-            !isMouseInTimelineRowRef.current ||
-            !lastMousePositionRef.current ||
-            !parentRef.current
-          )
-            return;
+      // Use ref to store handler to avoid recreating event listener on every render
+      // This prevents memory leaks from constantly re-adding event listeners
+      handleMouseMoveRef.current = (e: MouseEvent) => {
+        if (!isMouseInTimelineRowRef.current || !lastMousePositionRef.current || !parentRef.current)
+          return;
 
-          const now = Date.now();
-          if (now - lastMouseMoveTimeRef.current < 16) {
-            return;
-          }
-          lastMouseMoveTimeRef.current = now;
+        const now = Date.now();
+        if (now - lastMouseMoveTimeRef.current < 16) {
+          return;
+        }
+        lastMouseMoveTimeRef.current = now;
 
-          if (tooltipNodeRef.current) {
-            const dx = e.clientX - lastMousePositionRef.current.x;
-            const dy = e.clientY - lastMousePositionRef.current.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+        if (tooltipNodeRef.current) {
+          const dx = e.clientX - lastMousePositionRef.current.x;
+          const dy = e.clientY - lastMousePositionRef.current.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (distance > 5) {
-              lastMousePositionRef.current = { x: e.clientX, y: e.clientY };
-              tooltipPositionRef.current = calculateTooltipPosition(e.clientX, e.clientY);
+          if (distance > 5) {
+            lastMousePositionRef.current = { x: e.clientX, y: e.clientY };
+            tooltipPositionRef.current = calculateTooltipPosition(e.clientX, e.clientY);
 
-              if (tooltipRafRef.current) {
-                cancelAnimationFrame(tooltipRafRef.current);
-              }
-              tooltipRafRef.current = requestAnimationFrame(() => updateTooltipState());
+            if (tooltipRafRef.current) {
+              cancelAnimationFrame(tooltipRafRef.current);
             }
+            tooltipRafRef.current = requestAnimationFrame(() => {
+              // Update state from refs - this ensures we always use the latest values
+              setTooltipNode(tooltipNodeRef.current);
+              setTooltipPosition(tooltipPositionRef.current);
+            });
           }
-        },
-        [updateTooltipState]
-      );
+        }
+      };
 
       useEffect(() => {
-        window.addEventListener("mousemove", handleMouseMove);
+        const handler = (e: MouseEvent) => handleMouseMoveRef.current?.(e);
+        window.addEventListener("mousemove", handler);
 
         return () => {
-          window.removeEventListener("mousemove", handleMouseMove);
+          window.removeEventListener("mousemove", handler);
           if (tooltipRafRef.current) {
             cancelAnimationFrame(tooltipRafRef.current);
           }
         };
-      }, [handleMouseMove]);
+      }, []); // Empty deps - handler is stored in ref
 
       const onSearch = useCallback(
         (value: string) => {

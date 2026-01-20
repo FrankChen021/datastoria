@@ -6,27 +6,30 @@ import type { ConnectionConfig } from "@/lib/connection/connection-config";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
 import { X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { ConnectionEditComponent } from "./connection-edit-component";
 
 export function ConnectionWizard() {
   const { switchConnection } = useConnection();
   const [isCreatingConnection, setIsCreatingConnection] = useState(false);
 
-  const handleCreateConnection = () => {
+  const handleCreateConnection = useCallback(() => {
     setIsCreatingConnection(true);
-  };
+  }, []);
 
-  const handleSave = (savedConnection: ConnectionConfig) => {
-    // Set the newly created connection as the selected one
-    // This will update hasAnyConnections and trigger MainPage to show the main interface
-    switchConnection(savedConnection);
-    setIsCreatingConnection(false);
-  };
+  const handleSave = useCallback(
+    (savedConnection: ConnectionConfig) => {
+      // Set the newly created connection as the selected one
+      // This will update hasAnyConnections and trigger MainPage to show the main interface
+      switchConnection(savedConnection);
+      setIsCreatingConnection(false);
+    },
+    [switchConnection]
+  );
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setIsCreatingConnection(false);
-  };
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center pt-[20vh] px-8 pb-8">

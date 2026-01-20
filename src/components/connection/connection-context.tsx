@@ -1,7 +1,7 @@
 import { Connection, type ConnectionMetadata } from "@/lib/connection/connection";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 interface ConnectionContextType {
   isConnectionAvailable: boolean;
@@ -50,7 +50,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     }
   }, []);
 
-  const switchConnection = (config: ConnectionConfig | null) => {
+  const switchConnection = useCallback((config: ConnectionConfig | null) => {
     const manager = ConnectionManager.getInstance();
 
     if (config) {
@@ -70,61 +70,71 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
       setConnection(null);
       setIsConnectionAvailable(false); // No connection means not ready
     }
-  };
+  }, []);
 
-  const commitConnection = (conn: Connection) => {
+  const commitConnection = useCallback((conn: Connection) => {
     setConnection(conn);
     setIsConnectionAvailable(true);
-  };
+  }, []);
 
-  const updateConnectionMetadata = (metadataUpdates: Partial<ConnectionMetadata>) => {
-    if (!connection) {
-      return;
-    }
-
-    // Direct mutation of the existing connection object's metadata
-    // We do NOT call setConnection with a new object.
-
-    // Merge tableNames Map if both exist
-    if (metadataUpdates.tableNames && connection.metadata.tableNames) {
-      const mergedTableNames = connection.metadata.tableNames;
-      for (const [key, value] of metadataUpdates.tableNames) {
-        mergedTableNames.set(key, value);
+  const updateConnectionMetadata = useCallback(
+    (metadataUpdates: Partial<ConnectionMetadata>) => {
+      if (!connection) {
+        return;
       }
-      // Since we mutated the map in place, we don't need to assign it back,
-      // but to be safe and consistent with the rest of the logic:
-      metadataUpdates.tableNames = mergedTableNames;
-    }
 
-    // Merge databaseNames Map if both exist
-    if (metadataUpdates.databaseNames && connection.metadata.databaseNames) {
-      const mergedDatabaseNames = connection.metadata.databaseNames;
-      for (const [key, value] of metadataUpdates.databaseNames) {
-        mergedDatabaseNames.set(key, value);
+      // Direct mutation of the existing connection object's metadata
+      // We do NOT call setConnection with a new object.
+
+      // Merge tableNames Map if both exist
+      if (metadataUpdates.tableNames && connection.metadata.tableNames) {
+        const mergedTableNames = connection.metadata.tableNames;
+        for (const [key, value] of metadataUpdates.tableNames) {
+          mergedTableNames.set(key, value);
+        }
+        // Since we mutated the map in place, we don't need to assign it back,
+        // but to be safe and consistent with the rest of the logic:
+        metadataUpdates.tableNames = mergedTableNames;
       }
-      metadataUpdates.databaseNames = mergedDatabaseNames;
-    }
 
-    // Mutate the metadata in place
-    Object.assign(connection.metadata, metadataUpdates);
-  };
+      // Merge databaseNames Map if both exist
+      if (metadataUpdates.databaseNames && connection.metadata.databaseNames) {
+        const mergedDatabaseNames = connection.metadata.databaseNames;
+        for (const [key, value] of metadataUpdates.databaseNames) {
+          mergedDatabaseNames.set(key, value);
+        }
+        metadataUpdates.databaseNames = mergedDatabaseNames;
+      }
 
-  return (
-    <ConnectionContext.Provider
-      value={{
-        isConnectionAvailable,
-        setIsConnectionAvailable,
-        connection,
-        pendingConfig,
-        isInitialized,
-        switchConnection,
-        updateConnectionMetadata,
-        commitConnection,
-      }}
-    >
-      {children}
-    </ConnectionContext.Provider>
+      // Mutate the metadata in place
+      Object.assign(connection.metadata, metadataUpdates);
+    },
+    [connection]
   );
+
+  const contextValue = useMemo(
+    () => ({
+      isConnectionAvailable,
+      setIsConnectionAvailable,
+      connection,
+      pendingConfig,
+      isInitialized,
+      switchConnection,
+      updateConnectionMetadata,
+      commitConnection,
+    }),
+    [
+      isConnectionAvailable,
+      connection,
+      pendingConfig,
+      isInitialized,
+      switchConnection,
+      updateConnectionMetadata,
+      commitConnection,
+    ]
+  );
+
+  return <ConnectionContext.Provider value={contextValue}>{children}</ConnectionContext.Provider>;
 }
 
 export const useConnection = () => useContext(ConnectionContext);

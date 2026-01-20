@@ -123,6 +123,7 @@ const QueryLogTimelineRow = React.memo(
           >
             {node.children && node.children.length > 0 ? (
               <Button
+                type="button"
                 variant="ghost"
                 size="icon"
                 className="h-[16px] w-[16px] p-0 border-0 rounded-none flex-shrink-0"

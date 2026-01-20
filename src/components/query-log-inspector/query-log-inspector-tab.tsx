@@ -56,9 +56,7 @@ const HeaderControls = memo(function HeaderControls({
   }, []);
 
   // Default time span - always use "Today" as default
-  const defaultTimeSpan = useMemo(() => {
-    return BUILT_IN_TIME_SPAN_LIST[12]; // Default to "Today"
-  }, []);
+  const defaultTimeSpan = BUILT_IN_TIME_SPAN_LIST[12]; // Default to "Today"
 
   // Handle search action - calls onSearch with both queryId and timeSpan
   const handleSearch = useCallback(() => {
@@ -350,9 +348,15 @@ ORDER BY start_time_microseconds
         >
           <div className="flex justify-between items-center ml-2 mr-2">
             <TabsList>
-              <TabsTrigger value="timeline">Timeline View</TabsTrigger>
-              <TabsTrigger value="table">Table View</TabsTrigger>
-              <TabsTrigger value="topo">Topology View</TabsTrigger>
+              <TabsTrigger value="timeline" id="tab-timeline">
+                Timeline View
+              </TabsTrigger>
+              <TabsTrigger value="table" id="tab-table">
+                Table View
+              </TabsTrigger>
+              <TabsTrigger value="topo" id="tab-topo">
+                Topology View
+              </TabsTrigger>
             </TabsList>
             {activeTab === "topo" && graphControlsRef.current && queryLogs.length > 0 && (
               <div className="flex items-center gap-1">
@@ -390,6 +394,7 @@ ORDER BY start_time_microseconds
             <div
               className={`absolute inset-0 overflow-auto px-2 ${activeTab === "timeline" ? "block" : "hidden"}`}
               role="tabpanel"
+              aria-labelledby="tab-timeline"
               aria-hidden={activeTab !== "timeline"}
             >
               <QueryLogInspectorTimelineView
@@ -402,6 +407,7 @@ ORDER BY start_time_microseconds
             <div
               className={`absolute inset-0 overflow-auto px-2 ${activeTab === "table" ? "block" : "hidden"}`}
               role="tabpanel"
+              aria-labelledby="tab-table"
               aria-hidden={activeTab !== "table"}
             >
               <QueryLogInspectorTableView queryLogs={queryLogs} meta={meta} />
@@ -409,6 +415,7 @@ ORDER BY start_time_microseconds
             <div
               className={`absolute inset-0 overflow-auto px-2 ${activeTab === "topo" ? "block" : "hidden"}`}
               role="tabpanel"
+              aria-labelledby="tab-topo"
               aria-hidden={activeTab !== "topo"}
             >
               <QueryLogInspectorTopoView ref={graphControlsRef} queryLogs={queryLogs} />

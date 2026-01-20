@@ -44,6 +44,7 @@ const DependencyViewComponent = ({ database, table }: DependencyViewProps) => {
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const hasExecutedRef = useRef(false);
+  const cancelledRef = useRef(false);
 
   const [showTableNode, setShowTableNode] = useState<DependencyGraphNode | undefined>(undefined);
 
@@ -60,6 +61,7 @@ const DependencyViewComponent = ({ database, table }: DependencyViewProps) => {
     hasExecutedRef.current = true;
 
     setIsLoading(true);
+    cancelledRef.current = false;
 
     // Load dependency data (from cache or query)
     (async () => {
@@ -93,6 +95,8 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
           );
 
           const apiResponse = await response;
+          if (cancelledRef.current) return;
+
           const responseData = apiResponse.data.json<{ data?: TableResponse[] } | undefined>();
           const tables = responseData?.data;
 
@@ -114,8 +118,12 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
           }
 
           // Cache in connection metadata
-          updateConnectionMetadata({ dependencyTables });
+          if (!cancelledRef.current) {
+            updateConnectionMetadata({ dependencyTables });
+          }
         }
+
+        if (cancelledRef.current) return;
 
         // Filter tables for the target database
         const tables: TableResponse[] = [];
@@ -139,6 +147,8 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
             });
           }
         }
+
+        if (cancelledRef.current) return;
 
         if (tables.length > 0) {
           // Convert TableResponse to the format DependencyBuilder expects
@@ -201,6 +211,8 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
             finalEdges = filteredEdges;
           }
 
+          if (cancelledRef.current) return;
+
           if (finalNodes.size > 0) {
             setNodes(finalNodes);
             setEdges(finalEdges);
@@ -209,12 +221,16 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
             setEdges([]);
           }
         } else {
+          if (cancelledRef.current) return;
           setNodes(new Map());
           setEdges([]);
         }
 
-        setIsLoading(false);
+        if (!cancelledRef.current) {
+          setIsLoading(false);
+        }
       } catch (error) {
+        if (cancelledRef.current) return;
         const apiError = error as QueryError;
         setNodes(new Map());
         setEdges([]);
@@ -223,9 +239,10 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
       }
     })();
 
-    // Reset the ref when database or connection changes
+    // Reset the ref and cancel any pending async work when database or connection changes
     return () => {
       hasExecutedRef.current = false;
+      cancelledRef.current = true;
     };
   }, [connection, database, table, updateConnectionMetadata]);
 

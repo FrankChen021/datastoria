@@ -119,7 +119,7 @@ function ConnectionManageSidebarMenuItem() {
     <HoverCardSidebarMenuItem
       icon={<Database className="h-5 w-5" />}
       content={(isOpen, onClose) => <ConnectionSelector isOpen={isOpen} onClose={onClose} />}
-      contentClassName="w-[400px] p-0"
+      contentClassName="w-[450px] p-0"
     />
   );
 }

@@ -182,7 +182,10 @@ function EdgeTable({ edges, type, emptyMessage = "No query available" }: EdgeTab
         <tbody className="[&_tr:last-child]:border-0">
           {sortedData.map((row, index) => (
             <tr
-              key={index}
+              key={
+                row.queryLog?.query_id ||
+                `${row.source || ""}-${row.target || ""}-${row.event_time || index}`
+              }
               className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
             >
               <td className="p-4 align-middle font-medium !p-2 whitespace-nowrap text-muted-foreground">

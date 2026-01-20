@@ -65,7 +65,6 @@ export function transformQueryLogsToTree(queryLogs: any[]): {
   let nodeIndex = 0;
 
   queryLogs.forEach((log) => {
-    console.log(log);
     const startTime = log.start_time_microseconds || 0;
     const duration = (log.query_duration_ms || 0) * 1000; // Convert ms to microseconds
 

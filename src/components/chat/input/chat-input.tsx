@@ -207,6 +207,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             value={input}
             onChange={handleInputChange}
             placeholder={`Press Enter to send, ${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"} + Enter for new line. Use @ to mention tables.`}
+            aria-label="Chat input. Press Enter to send, use Cmd/Ctrl + Enter for new line. Use @ to mention tables."
             className="w-full min-h-[44px] max-h-[200px] resize-none border-0 bg-transparent py-3 pl-3 pr-10 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 overflow-y-auto"
             disabled={isStreaming}
             onKeyDown={handleKeyDown}

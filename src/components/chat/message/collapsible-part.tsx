@@ -7,14 +7,12 @@ import { Badge } from "../../ui/badge";
 export function Timer({ isRunning }: { isRunning: boolean }) {
   const [formattedTime, setFormattedTime] = useState("");
 
-  const [_, setStartTime] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (isRunning) {
       // Start timing
       const now = Date.now();
-      setStartTime(now);
 
       // Update every 100ms
       // Use the captured 'now' value directly since state updates are async
@@ -28,7 +26,6 @@ export function Timer({ isRunning }: { isRunning: boolean }) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      setStartTime(null);
     }
 
     // Cleanup on unmount or when isExecuting changes

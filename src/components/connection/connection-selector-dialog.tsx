@@ -1,5 +1,5 @@
 import { Dialog } from "@/components/shared/use-dialog";
-import type { ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
 import { ConnectionSelector } from "./connection-selector";
 
 interface ConnectionSelectorDialogProps {
@@ -23,13 +23,17 @@ export function ConnectionSelectorDialog({
   trigger,
   dialogClassName = "w-[500px] max-w-[90vw] p-0",
 }: ConnectionSelectorDialogProps) {
-  const handleClick = () => {
+  const handleClose = useCallback(() => {
+    Dialog.close();
+  }, []);
+
+  const handleClick = useCallback(() => {
     Dialog.showDialog({
       className: `${dialogClassName} overflow-hidden gap-0`,
-      mainContent: <ConnectionSelector isOpen={true} onClose={() => Dialog.close()} />,
+      mainContent: <ConnectionSelector isOpen={true} onClose={handleClose} />,
       disableContentScroll: true,
     });
-  };
+  }, [dialogClassName, handleClose]);
 
   return (
     <div className="flex items-center gap-1" onClick={handleClick}>

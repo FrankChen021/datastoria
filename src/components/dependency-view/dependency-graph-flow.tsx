@@ -747,7 +747,7 @@ const DependencyGraphFlowInner = ({
       {flowEdges.length > 0 && (
         <div
           className="absolute top-1 left-1 bg-background/95 backdrop-blur-sm shadow-lg text-xs text-muted-foreground pointer-events-none"
-          style={{ zIndex: 1000 }}
+          style={{ zIndex: 10 }}
         >
           💡 Use scroll wheel or trackpad to zoom, drag to pan
         </div>
