@@ -19,7 +19,7 @@ const clusterStatusDashboard: StatDescriptor[] = [
     titleOption: {
       title: "Shards",
     },
-    width: 4,
+    gridPos: { w: 4, h: 4 },
     description: "Number of shards in the cluster",
     query: {
       sql: `
@@ -39,7 +39,7 @@ WHERE cluster = '{cluster}'
     titleOption: {
       title: "Server Count",
     },
-    width: 4,
+    gridPos: { w: 4, h: 4 },
     description: "Number of servers in the cluster",
     query: {
       sql: `
@@ -55,7 +55,7 @@ WHERE cluster = '{cluster}'
         titleOption: {
           title: "Server Count",
         },
-        width: 4,
+        gridPos: { w: 24, h: 12 },
         miscOption: { enableIndexColumn: true },
         query: {
           sql: `SELECT * FROM system.clusters WHERE cluster = '{cluster}'`,
@@ -77,7 +77,7 @@ WHERE cluster = '{cluster}'
     titleOption: {
       title: "Total Data Size",
     },
-    width: 4,
+    gridPos: { w: 4, h: 4 },
     description: "Total data size in the cluster",
     query: {
       sql: `
@@ -97,7 +97,7 @@ WHERE active
         titleOption: {
           title: "Disk Space Usage By Server",
         },
-        width: 4,
+        gridPos: { w: 24, h: 12 },
         description: "Number of servers in the cluster",
         query: {
           sql: `
@@ -135,7 +135,7 @@ ORDER BY host
     titleOption: {
       title: "Disk Quota",
     },
-    width: 4,
+    gridPos: { w: 4, h: 4 },
     description: "Total data size in the cluster",
     query: {
       sql: `
@@ -151,7 +151,7 @@ SELECT sum(total_space) FROM clusterAllReplicas('{cluster}', system.disks)
         titleOption: {
           title: "Disk Quota",
         },
-        width: 4,
+        gridPos: { w: 24, h: 12 },
         query: {
           sql: `SELECT FQDN() as server, round(free_space * 100 / total_space, 2) as free_percentage, * FROM clusterAllReplicas('{cluster}', system.disks) ORDER BY server`,
         },
@@ -186,7 +186,7 @@ SELECT sum(total_space) FROM clusterAllReplicas('{cluster}', system.disks)
     titleOption: {
       title: "Utilized Disk Space",
     },
-    width: 4,
+    gridPos: { w: 4, h: 4 },
     description: "The percentage of utilized disk space of the cluster",
     query: {
       sql: `
@@ -209,7 +209,7 @@ const clusterMetricsDashboard: TimeseriesDescriptor[] = [
       title: "Insert Queries Per Second",
       align: "center",
     },
-    width: 12,
+    gridPos: { w: 12, h: 6 },
     description: "Insert Queries Per Second",
     legendOption: {
       placement: "bottom",
@@ -244,7 +244,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}`,
       title: "Select Queries Per Second",
       align: "center",
     },
-    width: 12,
+    gridPos: { w: 12, h: 6 },
     description: "Select Queries Per Second",
     tooltipOption: {
       sortValue: "desc",
@@ -286,7 +286,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}`,
       placement: "bottom",
       values: ["min", "max", "last"],
     },
-    width: 12,
+    gridPos: { w: 12, h: 6 },
     description: "Failed Queries Per Second",
     tooltipOption: {
       sortValue: "none",
@@ -320,7 +320,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}`,
       title: "Insert Bytes Per Second",
       align: "center",
     },
-    width: 12,
+    gridPos: { w: 12, h: 6 },
     description: "Insert Bytes Per Second",
     tooltipOption: {
       sortValue: "none",
@@ -367,7 +367,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}`,
       placement: "bottom",
       values: ["min", "max", "last"],
     },
-    width: 12,
+    gridPos: { w: 12, h: 6 },
     description: "Insert Rows Per Second",
     tooltipOption: {
       sortValue: "none",
@@ -401,8 +401,9 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}`,
 export const ClusterTab = memo(() => {
   const { connection } = useConnection();
 
-  const dashboard = {
-    version: 2,
+  const dashboard: Dashboard = {
+    version: 3,
+    filter: {},
     charts: [
       {
         title: "Cluster Status",
@@ -415,7 +416,7 @@ export const ClusterTab = memo(() => {
         charts: clusterMetricsDashboard,
       } as DashboardGroup,
     ],
-  } as Dashboard;
+  };
 
   return (
     <DashboardPage

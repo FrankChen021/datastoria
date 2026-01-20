@@ -4,8 +4,10 @@ import { cn } from "@/lib/utils";
 import { connect } from "echarts";
 import { ChevronRight } from "lucide-react";
 import React, {
+  createContext,
   forwardRef,
   useCallback,
+  useContext,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -20,11 +22,68 @@ import type {
 import { DashboardVisualizationPanel } from "./dashboard-visualization-panel";
 import type { TimeSpan } from "./timespan-selector";
 
-export interface DashboardPanelsRef {
+export interface DashboardPanelContainerRef {
   refresh: (timeSpan?: TimeSpan, filterExpression?: string) => void;
 }
 
-interface DashboardPanelsProps {
+/**
+ * Interface for child components that can be refreshed by the dashboard.
+ * Children that implement this interface will be automatically refreshed
+ * when the dashboard is refreshed.
+ */
+export interface RefreshableChild {
+  refresh: (timeSpan?: TimeSpan, filterExpression?: string) => void;
+}
+
+/**
+ * Context for dashboard refresh registration.
+ * Child components can use the useDashboardRefresh hook to register
+ * themselves for automatic refresh when the dashboard refreshes.
+ */
+interface DashboardRefreshContextValue {
+  register: (child: RefreshableChild) => void;
+  unregister: (child: RefreshableChild) => void;
+}
+
+const DashboardRefreshContext = createContext<DashboardRefreshContextValue | null>(null);
+
+/**
+ * Hook for child components to register themselves for dashboard refresh.
+ * When the dashboard is refreshed, the provided refresh function will be called.
+ *
+ * @param refreshFn - Function to call when dashboard refreshes
+ *
+ * @example
+ * ```tsx
+ * const MyComponent = () => {
+ *   const fetchData = useCallback((timeSpan?: TimeSpan) => {
+ *     // fetch data...
+ *   }, []);
+ *
+ *   useDashboardRefresh(fetchData);
+ *
+ *   return <div>...</div>;
+ * };
+ * ```
+ */
+export function useDashboardRefresh(
+  refreshFn: (timeSpan?: TimeSpan, filterExpression?: string) => void
+) {
+  const ctx = useContext(DashboardRefreshContext);
+
+  useEffect(() => {
+    if (!ctx) return;
+
+    const child: RefreshableChild = { refresh: refreshFn };
+    ctx.register(child);
+
+    return () => {
+      ctx.unregister(child);
+    };
+  }, [ctx, refreshFn]);
+}
+
+interface DashboardPanelContainerProps {
   dashboard: Dashboard;
   initialTimeSpan?: TimeSpan;
   initialFilterExpression?: string;
@@ -33,6 +92,11 @@ interface DashboardPanelsProps {
     timeSpan: TimeSpan,
     selection: { name: string; series: string; value: number }
   ) => void;
+  /**
+   * Children to render below the dashboard panels.
+   * Children can use the useDashboardRefresh hook to register
+   * themselves for automatic refresh when the dashboard refreshes.
+   */
   children?: React.ReactNode;
 }
 
@@ -60,179 +124,22 @@ function getAllCharts(charts: (PanelDescriptor | DashboardGroup)[]): PanelDescri
   return allCharts;
 }
 
-// Helper function to get default height based on chart type
-function getDefaultHeight(chart: PanelDescriptor): number {
-  if (chart.type === "table" || chart.type === "transpose-table") {
-    return 6; // Tables need more height
-  }
-  if (chart.type === "stat") {
-    return 4; // Stats are compact
-  }
-  return 6; // Default for charts
-}
-
-// Helper function to get gridPos from chart, with fallback to width-based system
+// Helper function to get gridPos from chart
+// All dashboards must be version 3 with gridPos defined
 function getGridPos(chart: PanelDescriptor): GridPos {
-  // If gridPos exists, use it
   if (chart.gridPos) {
     return chart.gridPos;
   }
 
-  // Fallback: create gridPos from width (for backward compatibility)
-  // Clamp width to valid range (1-24)
-  const rawWidth = chart.width ?? 24;
-  const width = Math.max(1, Math.min(24, rawWidth));
-  const height = getDefaultHeight(chart);
+  // Fallback for panels without gridPos (should not happen in version 3)
+  // This provides a reasonable default to prevent runtime errors
+  console.warn(
+    `Panel "${chart.titleOption?.title ?? chart.type}" is missing gridPos. Using default.`
+  );
   return {
-    w: width,
-    h: height,
-    // x and y are undefined for auto-positioning
+    w: 24,
+    h: 6,
   };
-}
-
-// Helper function to upgrade dashboard versions
-// Version 1: 4-column system (width: 1-4)
-// Version 2: 24-column system (width: 1-24)
-// Version 3: gridPos system (gridPos with optional x, y, required w, h)
-function upgradeDashboard(dashboard: Dashboard): Dashboard {
-  const version = dashboard.version ?? 1;
-
-  // If already version 3 or higher, return as-is
-  if (version >= 3) {
-    return dashboard;
-  }
-
-  // Upgrade from version 2 to version 3 (convert width to gridPos)
-  if (version === 2) {
-    const upgradedCharts = dashboard.charts.map((item) => {
-      if (isDashboardGroup(item)) {
-        // Upgrade charts within groups
-        const upgradedGroupCharts = item.charts.map((chart: PanelDescriptor) => {
-          // Ensure we have a chart descriptor with width property
-          const chartWithWidth = chart as PanelDescriptor & { width?: number };
-          const defaultHeight = getDefaultHeight(chart);
-          // For version 2, width should be 1-24, clamp to valid range
-          const rawWidth = chartWithWidth.width ?? 24;
-          const chartWidth = Math.max(1, Math.min(24, rawWidth));
-
-          // Only add gridPos if it doesn't already exist
-          if (chart.gridPos) {
-            return chart;
-          }
-
-          return {
-            ...chart,
-            gridPos: {
-              w: chartWidth, // Use existing width from version 2 (clamped to 1-24)
-              h: defaultHeight,
-              // x and y are optional - will use auto-positioning
-            },
-            // Keep width for backward compatibility but gridPos takes precedence
-          };
-        });
-        return {
-          ...item,
-          charts: upgradedGroupCharts,
-        };
-      } else {
-        // Upgrade standalone charts
-        const chart = item as PanelDescriptor & { width?: number };
-        const defaultHeight = getDefaultHeight(chart);
-        // For version 2, width should be 1-24, clamp to valid range
-        const rawWidth = chart.width ?? 24;
-        const chartWidth = Math.max(1, Math.min(24, rawWidth));
-
-        // Only add gridPos if it doesn't already exist
-        if (chart.gridPos) {
-          return chart;
-        }
-
-        return {
-          ...chart,
-          gridPos: {
-            w: chartWidth, // Use existing width from version 2 (clamped to 1-24)
-            h: defaultHeight,
-            // x and y are optional - will use auto-positioning
-          },
-          // Keep width for backward compatibility but gridPos takes precedence
-        };
-      }
-    });
-
-    return {
-      ...dashboard,
-      version: 3,
-      charts: upgradedCharts,
-    };
-  }
-
-  // Upgrade from version 1 to version 2, then to version 3
-  if (version === 1) {
-    // First upgrade to version 2
-    const v2Charts = dashboard.charts.map((item) => {
-      if (isDashboardGroup(item)) {
-        const upgradedGroupCharts = item.charts.map((chart: PanelDescriptor) => {
-          const chartWidth = chart.width ?? 1; // Default to 1 if width is missing
-          return {
-            ...chart,
-            width: chartWidth * 6, // Multiply by 6 to convert from 4-column to 24-column
-          };
-        });
-        return {
-          ...item,
-          charts: upgradedGroupCharts,
-        };
-      } else {
-        const chart = item as PanelDescriptor;
-        const chartWidth = chart.width ?? 1; // Default to 1 if width is missing
-        return {
-          ...chart,
-          width: chartWidth * 6, // Multiply by 6 to convert from 4-column to 24-column
-        };
-      }
-    });
-
-    // Then upgrade to version 3
-    const upgradedCharts = v2Charts.map((item) => {
-      if (isDashboardGroup(item)) {
-        const upgradedGroupCharts = item.charts.map((chart: PanelDescriptor) => {
-          const defaultHeight = getDefaultHeight(chart);
-          const chartWidth = chart.width ?? 24;
-          return {
-            ...chart,
-            gridPos: {
-              w: chartWidth,
-              h: defaultHeight,
-            },
-          };
-        });
-        return {
-          ...item,
-          charts: upgradedGroupCharts,
-        };
-      } else {
-        const chart = item as PanelDescriptor;
-        const defaultHeight = getDefaultHeight(chart);
-        const chartWidth = chart.width ?? 24;
-        return {
-          ...chart,
-          gridPos: {
-            w: chartWidth,
-            h: defaultHeight,
-          },
-        };
-      }
-    });
-
-    return {
-      ...dashboard,
-      version: 3,
-      charts: upgradedCharts,
-    };
-  }
-
-  // For any other version, return as-is (future-proofing)
-  return dashboard;
 }
 
 // Component to render a panel with grid styling
@@ -315,7 +222,10 @@ const DashboardGridPanel: React.FC<DashboardGridPanelProps> = ({
   );
 };
 
-const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
+const DashboardPanelContainer = forwardRef<
+  DashboardPanelContainerRef,
+  DashboardPanelContainerProps
+>(
   (
     {
       dashboard,
@@ -333,11 +243,12 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
     const [panelCollapseStates, setPanelCollapseStates] = useState<Map<number, boolean>>(new Map());
     const subComponentRefs = useRef<(DashboardVisualizationComponent | null)[]>([]);
 
-    // Upgrade dashboard version if needed and memoize only the charts array
-    const panels = useMemo(() => {
-      const upgraded = upgradeDashboard(dashboard);
-      return upgraded.charts;
-    }, [dashboard]);
+    // Track registered refreshable children
+    const registeredChildrenRef = useRef<Set<RefreshableChild>>(new Set());
+
+    // Memoize the charts array from the dashboard
+    // All dashboards must be version 3 with gridPos defined
+    const panels = useMemo(() => dashboard.charts, [dashboard]);
 
     // Memoize the panel flattening logic - no x,y calculation needed, CSS Grid handles it
     const { allPanels, groups } = useMemo(() => {
@@ -512,6 +423,14 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
             chart.refresh(refreshParam);
           }
         });
+
+        // Also refresh all registered child components
+        registeredChildrenRef.current.forEach((child) => {
+          child.refresh(
+            newTimeSpan ?? initialTimeSpan,
+            newFilterExpression ?? initialFilterExpression
+          );
+        });
       },
       [initialTimeSpan, initialFilterExpression]
     );
@@ -527,134 +446,149 @@ const DashboardPanels = forwardRef<DashboardPanelsRef, DashboardPanelsProps>(
       [refreshAllCharts]
     );
 
+    // Context value for child registration
+    const contextValue = useMemo<DashboardRefreshContextValue>(
+      () => ({
+        register: (child: RefreshableChild) => {
+          registeredChildrenRef.current.add(child);
+        },
+        unregister: (child: RefreshableChild) => {
+          registeredChildrenRef.current.delete(child);
+        },
+      }),
+      []
+    );
+
     return (
-      <div className="h-full flex flex-col overflow-hidden">
-        {/* Dashboard section - scrollable */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          {panels &&
-            panels.length > 0 &&
-            (() => {
-              // All dashboards are upgraded to version 3, so we always use CSS Grid layout
-              // Grafana's approach: flatten all panels into one grid, render group headers as special items
+      <DashboardRefreshContext.Provider value={contextValue}>
+        <div className="h-full flex flex-col overflow-hidden">
+          {/* Dashboard section - scrollable */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            {panels &&
+              panels.length > 0 &&
+              (() => {
+                // All dashboards are upgraded to version 3, so we always use CSS Grid layout
+                // Grafana's approach: flatten all panels into one grid, render group headers as special items
 
-              return (
-                <div
-                  className="grid gap-x-2 gap-y-2"
-                  style={{
-                    gridTemplateColumns: "repeat(24, minmax(0, 1fr))",
-                    gridAutoRows: "minmax(32px, auto)",
-                  }}
-                >
-                  {/* Render group headers and panels in order - CSS Grid auto-places them */}
-                  {panels.map((panel, panelIndex) => {
-                    if (isDashboardGroup(panel)) {
-                      const group = panel;
-                      const groupInfo = groups.find((g) => g.group === group);
-                      if (!groupInfo) return null;
+                return (
+                  <div
+                    className="grid gap-x-2 gap-y-2"
+                    style={{
+                      gridTemplateColumns: "repeat(24, minmax(0, 1fr))",
+                      gridAutoRows: "minmax(32px, auto)",
+                    }}
+                  >
+                    {/* Render group headers and panels in order - CSS Grid auto-places them */}
+                    {panels.map((panel, panelIndex) => {
+                      if (isDashboardGroup(panel)) {
+                        const group = panel;
+                        const groupInfo = groups.find((g) => g.group === group);
+                        if (!groupInfo) return null;
 
-                      const isCollapsed = groupCollapseStates.get(groupInfo.groupIndex) ?? false;
+                        const isCollapsed = groupCollapseStates.get(groupInfo.groupIndex) ?? false;
 
-                      return (
-                        <React.Fragment key={`group-${panelIndex}`}>
-                          {/* Group header */}
-                          <div
-                            style={{
-                              gridColumn: "1 / -1",
-                              alignSelf: "start", // Align to start to minimize height
-                            }}
-                            className="w-full"
-                          >
+                        return (
+                          <React.Fragment key={`group-${panelIndex}`}>
+                            {/* Group header */}
                             <div
-                              onClick={() => toggleGroup(groupInfo.groupIndex)}
-                              className="flex rounded-sm items-center py-1 transition-colors gap-1 cursor-pointer hover:bg-muted/50"
                               style={{
-                                backgroundColor: isCollapsed ? "var(--muted)" : "transparent",
+                                gridColumn: "1 / -1",
+                                alignSelf: "start", // Align to start to minimize height
                               }}
+                              className="w-full"
                             >
-                              <ChevronRight
-                                className={`h-4 w-4 transition-transform duration-200 shrink-0 ${
-                                  !isCollapsed ? "rotate-90" : ""
-                                }`}
-                              />
-                              <h3 className="text-md font-semibold">{group.title}</h3>
+                              <div
+                                onClick={() => toggleGroup(groupInfo.groupIndex)}
+                                className="flex rounded-sm items-center py-1 transition-colors gap-1 cursor-pointer hover:bg-muted/50"
+                                style={{
+                                  backgroundColor: isCollapsed ? "var(--muted)" : "transparent",
+                                }}
+                              >
+                                <ChevronRight
+                                  className={`h-4 w-4 transition-transform duration-200 shrink-0 ${
+                                    !isCollapsed ? "rotate-90" : ""
+                                  }`}
+                                />
+                                <h3 className="text-md font-semibold">{group.title}</h3>
+                              </div>
                             </div>
-                          </div>
 
-                          {/* Group panels - always render but hide when collapsed to prevent remounting */}
-                          {group.charts.map((chart: PanelDescriptor, chartIndex) => {
-                            const panelIndex = groupInfo.startPanelIndex + chartIndex;
-                            const isVisible = isPanelVisible(panelIndex) && !isCollapsed;
-                            const isPanelCollapsed =
-                              panelCollapseStates.get(panelIndex) ?? chart.collapsed ?? false;
+                            {/* Group panels - always render but hide when collapsed to prevent remounting */}
+                            {group.charts.map((chart: PanelDescriptor, chartIndex) => {
+                              const panelIndex = groupInfo.startPanelIndex + chartIndex;
+                              const isVisible = isPanelVisible(panelIndex) && !isCollapsed;
+                              const isPanelCollapsed =
+                                panelCollapseStates.get(panelIndex) ?? chart.collapsed ?? false;
 
-                            return (
-                              <DashboardGridPanel
-                                key={`panel-${panelIndex}`}
-                                descriptor={chart}
-                                panelIndex={panelIndex}
-                                isVisible={isVisible}
-                                onSubComponentUpdated={onSubComponentUpdated}
-                                initialTimeSpan={initialTimeSpan}
-                                initialFilterExpression={initialFilterExpression}
-                                initialLoading={initialLoading}
-                                isCollapsed={isPanelCollapsed}
-                                onCollapsedChange={(collapsed) =>
-                                  onPanelCollapsedChange(panelIndex, collapsed)
-                                }
-                                onChartSelection={onChartSelection}
-                              />
-                            );
-                          })}
-                        </React.Fragment>
-                      );
-                    } else {
-                      // Standalone chart
-                      const panelDescriptor = panel as PanelDescriptor;
-                      const panelIndex = allPanels.findIndex((p) => p.panel === panelDescriptor);
-                      if (panelIndex === -1) return null;
+                              return (
+                                <DashboardGridPanel
+                                  key={`panel-${panelIndex}`}
+                                  descriptor={chart}
+                                  panelIndex={panelIndex}
+                                  isVisible={isVisible}
+                                  onSubComponentUpdated={onSubComponentUpdated}
+                                  initialTimeSpan={initialTimeSpan}
+                                  initialFilterExpression={initialFilterExpression}
+                                  initialLoading={initialLoading}
+                                  isCollapsed={isPanelCollapsed}
+                                  onCollapsedChange={(collapsed) =>
+                                    onPanelCollapsedChange(panelIndex, collapsed)
+                                  }
+                                  onChartSelection={onChartSelection}
+                                />
+                              );
+                            })}
+                          </React.Fragment>
+                        );
+                      } else {
+                        // Standalone chart
+                        const panelDescriptor = panel as PanelDescriptor;
+                        const panelIndex = allPanels.findIndex((p) => p.panel === panelDescriptor);
+                        if (panelIndex === -1) return null;
 
-                      const isVisible = isPanelVisible(panelIndex);
-                      if (!isVisible) return null;
+                        const isVisible = isPanelVisible(panelIndex);
+                        if (!isVisible) return null;
 
-                      const isPanelCollapsed =
-                        panelCollapseStates.get(panelIndex) ?? panelDescriptor.collapsed ?? false;
+                        const isPanelCollapsed =
+                          panelCollapseStates.get(panelIndex) ?? panelDescriptor.collapsed ?? false;
 
-                      return (
-                        <DashboardGridPanel
-                          key={`panel-${panelIndex}`}
-                          descriptor={panelDescriptor}
-                          panelIndex={panelIndex}
-                          isVisible={isVisible}
-                          onSubComponentUpdated={onSubComponentUpdated}
-                          initialTimeSpan={initialTimeSpan}
-                          initialFilterExpression={initialFilterExpression}
-                          initialLoading={initialLoading}
-                          isCollapsed={isPanelCollapsed}
-                          onCollapsedChange={(collapsed) =>
-                            onPanelCollapsedChange(panelIndex, collapsed)
-                          }
-                          onChartSelection={onChartSelection}
-                        />
-                      );
-                    }
-                  })}
+                        return (
+                          <DashboardGridPanel
+                            key={`panel-${panelIndex}`}
+                            descriptor={panelDescriptor}
+                            panelIndex={panelIndex}
+                            isVisible={isVisible}
+                            onSubComponentUpdated={onSubComponentUpdated}
+                            initialTimeSpan={initialTimeSpan}
+                            initialFilterExpression={initialFilterExpression}
+                            initialLoading={initialLoading}
+                            isCollapsed={isPanelCollapsed}
+                            onCollapsedChange={(collapsed) =>
+                              onPanelCollapsedChange(panelIndex, collapsed)
+                            }
+                            onChartSelection={onChartSelection}
+                          />
+                        );
+                      }
+                    })}
 
-                  {children && (
-                    <div
-                      style={{
-                        gridColumn: "1 / -1",
-                      }}
-                    >
-                      {children}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+                    {children && (
+                      <div
+                        style={{
+                          gridColumn: "1 / -1",
+                        }}
+                      >
+                        {children}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+          </div>
         </div>
-      </div>
+      </DashboardRefreshContext.Provider>
     );
   }
 );
 
-export default DashboardPanels;
+export default DashboardPanelContainer;

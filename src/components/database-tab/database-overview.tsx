@@ -6,9 +6,9 @@ import type {
   TableDescriptor,
   TransposeTableDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
-import DashboardPanels, {
-  type DashboardPanelsRef,
-} from "@/components/shared/dashboard/dashboard-panels";
+import DashboardPanelContainer, {
+  type DashboardPanelContainerRef,
+} from "@/components/shared/dashboard/dashboard-panel-container";
 import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import type { FormatName } from "@/lib/formatter";
@@ -27,7 +27,7 @@ interface TableInfo {
   total_bytes: number;
 }
 
-export const DatabaseOverview = forwardRef<DashboardPanelsRef, DatabaseOverviewProps>(
+export const DatabaseOverview = forwardRef<DashboardPanelContainerRef, DatabaseOverviewProps>(
   ({ database, selectedTimeSpan }, ref) => {
     const { connection } = useConnection();
     const isClusterMode = connection && connection.cluster && connection.cluster.length > 0;
@@ -35,7 +35,7 @@ export const DatabaseOverview = forwardRef<DashboardPanelsRef, DatabaseOverviewP
     // Create dashboard with both the database info and tables descriptors
     const dashboard = useMemo<Dashboard>(() => {
       const def: Dashboard = {
-        version: 2,
+        version: 3,
         filter: {
           showTimeSpanSelector: false,
           showRefresh: false,
@@ -198,7 +198,7 @@ FROM (
                       title: "Ongoing Merges",
                       description: "The ongoing merges",
                     },
-                    width: 4,
+                    gridPos: { w: 24, h: 12 },
                     fieldOptions: {
                       table: {
                         title: "Table",
@@ -301,7 +301,7 @@ ORDER BY elapsed DESC`,
                       title: "Ongoing Mutations",
                       description: "The number of ongoing mutations",
                     },
-                    width: 4,
+                    gridPos: { w: 24, h: 12 },
                     fieldOptions: {
                       database: {
                         title: "Database",
@@ -490,7 +490,7 @@ ORDER BY on_disk_size DESC
                   align: "center",
                 },
                 collapsed: false,
-                width: 6,
+                gridPos: { w: 6, h: 4 },
                 query: {
                   sql: `
 SELECT
@@ -575,7 +575,13 @@ ORDER BY host
       return def;
     }, [database]);
 
-    return <DashboardPanels ref={ref} dashboard={dashboard} selectedTimeSpan={selectedTimeSpan} />;
+    return (
+      <DashboardPanelContainer
+        ref={ref}
+        dashboard={dashboard}
+        selectedTimeSpan={selectedTimeSpan}
+      />
+    );
   }
 );
 

@@ -1,5 +1,6 @@
 export enum ErrorCode {
   UNKNOWN_TABLE = "60",
+  NOT_ENOUGH_PRIVILEGES = "497",
 }
 
 export interface ErrorLocation {

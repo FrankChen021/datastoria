@@ -3,9 +3,9 @@ import type {
   StatDescriptor,
   TableDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
-import DashboardPanels, {
-  type DashboardPanelsRef,
-} from "@/components/shared/dashboard/dashboard-panels";
+import DashboardPanelContainer, {
+  type DashboardPanelContainerRef,
+} from "@/components/shared/dashboard/dashboard-panel-container";
 import {
   BUILT_IN_TIME_SPAN_LIST,
   type TimeSpan,
@@ -22,7 +22,7 @@ export interface PartHistoryViewProps {
 const PartHistoryView = memo(
   forwardRef<RefreshableTabViewRef, PartHistoryViewProps>(({ database, table }, ref) => {
     const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | undefined>(undefined);
-    const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
+    const dashboardPanelsRef = useRef<DashboardPanelContainerRef>(null);
     const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan(), []);
 
     // Calculate current time span (use selected if available, otherwise default)
@@ -33,7 +33,7 @@ const PartHistoryView = memo(
       () => ({
         refresh: (timeSpan?: TimeSpan) => {
           if (timeSpan) {
-            // Update state - prop change will trigger automatic refresh in DashboardPanels
+            // Update state - prop change will trigger automatic refresh in DashboardPanelContainer
             setSelectedTimeSpan(timeSpan);
           } else {
             // No timeSpan provided - explicitly refresh with current time span
@@ -560,7 +560,7 @@ WITH FILL STEP {rounding:UInt32}
     }, [database, table]);
 
     return (
-      <DashboardPanels
+      <DashboardPanelContainer
         ref={dashboardPanelsRef}
         dashboard={dashboard}
         selectedTimeSpan={currentTimeSpan}

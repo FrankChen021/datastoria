@@ -10,7 +10,7 @@ export const nodeMetricsDashboard: TimeseriesDescriptor[] = [
       title: "Queries/second",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -40,7 +40,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "CPU Usage (cores)",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -70,7 +70,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "Queries Running",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -100,7 +100,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "Merges Running",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -130,7 +130,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "Selected Bytes/second",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -165,7 +165,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "IO Wait",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -195,7 +195,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "CPU Wait",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -225,7 +225,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "OS CPU Usage (Userspace)",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -256,7 +256,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "OS CPU Usage (Kernel)",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -287,7 +287,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "Read From Disk",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -322,7 +322,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "Read From Filesystem",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -352,7 +352,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "Memory (tracked)",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -387,7 +387,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "In-Memory Caches (bytes)",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -422,7 +422,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "Load Average (15 minutes)",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -453,7 +453,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "Selected Rows/second",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -483,7 +483,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "Inserted Rows/second",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -513,7 +513,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "Total MergeTree Parts",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -543,7 +543,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "Max Parts For Partition",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     legendOption: {
       placement: "none",
       values: ["min", "max", "last"],
@@ -574,7 +574,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       title: "Concurrent network connections",
       align: "center",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     tooltipOption: {
       sortValue: "desc",
     },

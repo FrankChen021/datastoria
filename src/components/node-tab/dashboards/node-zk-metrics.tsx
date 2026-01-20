@@ -11,7 +11,7 @@ export const nodeZkMetricsDashboard: TimeseriesDescriptor[] = [
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -38,7 +38,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -65,7 +65,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -92,7 +92,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -119,7 +119,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -146,7 +146,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -173,7 +173,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -200,7 +200,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -227,7 +227,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -254,7 +254,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -281,7 +281,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -308,7 +308,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -335,7 +335,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -362,7 +362,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -389,7 +389,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -416,7 +416,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -443,7 +443,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -470,7 +470,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -497,7 +497,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -524,7 +524,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -551,7 +551,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT
@@ -578,7 +578,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     legendOption: {
       placement: "none",
     },
-    width: 6,
+    gridPos: { w: 6, h: 6 },
     query: {
       sql: `
 SELECT

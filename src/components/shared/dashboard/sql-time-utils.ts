@@ -52,7 +52,7 @@ function toStringFormat(secondsSinceEpoch: number, timezone: string): string {
  *
  * @param sql The SQL query string with template parameters
  * @param timeSpan The selected time span
- * @param timezone The timezone to use for time-based queries
+ * @param timezone The SERVER timezone to use for time-based queries
  * @returns The SQL query with parameters replaced
  */
 export function replaceTimeSpanParams(

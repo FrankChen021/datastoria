@@ -78,6 +78,13 @@ const ErrorComponent = ({
             ClickHouse version.
           </p>
         </div>
+      ) : errorCode === ErrorCode.NOT_ENOUGH_PRIVILEGES ? (
+        <div className="text-center overflow-auto w-full max-h-full custom-scrollbar">
+          <p className="text-sm text-destructive">
+            No enough privileges. Please contact your administrator to grant you necessary
+            permissions.
+          </p>
+        </div>
       ) : (
         <>
           <AskAIButton sql={executedSql} errorMessage={error} hideAfterClick={false} />
@@ -106,7 +113,7 @@ interface DashboardVisualizationPanelProps {
 export const DashboardVisualizationPanel = forwardRef<
   DashboardVisualizationComponent,
   DashboardVisualizationPanelProps
->(function DashboardPanelNew(props, ref) {
+>(function DashboardVisualizationPanel(props, ref) {
   const { descriptor, initialLoading = true, onCollapsedChange } = props;
 
   // Type narrowing for refactored visualization types

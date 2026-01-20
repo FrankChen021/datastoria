@@ -1,4 +1,4 @@
-import type { DashboardPanelsRef } from "@/components/shared/dashboard/dashboard-panels";
+import type { DashboardPanelContainerRef } from "@/components/shared/dashboard/dashboard-panel-container";
 import TimeSpanSelector, {
   BUILT_IN_TIME_SPAN_LIST,
   type DisplayTimeSpan,
@@ -33,11 +33,14 @@ const DatabaseTabComponent = ({ database }: DatabaseTabProps) => {
   );
 
   // Refs for each tab view
-  const overviewRef = useRef<DashboardPanelsRef>(null);
+  const overviewRef = useRef<DashboardPanelContainerRef>(null);
   const dependencyRef = useRef<RefreshableTabViewRef>(null);
 
   // Helper function to get the current ref based on active tab
-  const getCurrentRef = useCallback((): DashboardPanelsRef | RefreshableTabViewRef | null => {
+  const getCurrentRef = useCallback(():
+    | DashboardPanelContainerRef
+    | RefreshableTabViewRef
+    | null => {
     switch (activeTab) {
       case "overview":
         return overviewRef.current;

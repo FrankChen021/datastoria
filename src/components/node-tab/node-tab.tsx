@@ -16,8 +16,9 @@ interface NodeTabProps {
 export const NodeTab = memo((_props: NodeTabProps) => {
   const { connection } = useConnection();
 
-  const dashboard = {
-    version: 2,
+  const dashboard: Dashboard = {
+    version: 3,
+    filter: {},
     charts: [
       {
         title: "Node Status",
@@ -30,7 +31,7 @@ export const NodeTab = memo((_props: NodeTabProps) => {
         charts: queryDashboard,
       } as DashboardGroup,
     ],
-  } as Dashboard;
+  };
 
   // Filter out charts that are not supported in lower version of ClickHouse
   dashboard.charts.push({

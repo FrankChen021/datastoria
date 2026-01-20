@@ -4,9 +4,9 @@ import type {
   TableDescriptor,
   TransposeTableDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
-import DashboardPanels, {
-  type DashboardPanelsRef,
-} from "@/components/shared/dashboard/dashboard-panels";
+import DashboardPanelContainer, {
+  type DashboardPanelContainerRef,
+} from "@/components/shared/dashboard/dashboard-panel-container";
 import {
   BUILT_IN_TIME_SPAN_LIST,
   type TimeSpan,
@@ -22,8 +22,8 @@ export interface TableMetadataViewProps {
 
 const TableMetadataViewComponent = forwardRef<RefreshableTabViewRef, TableMetadataViewProps>(
   ({ database, table }, ref) => {
-    const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
-    // Metadata doesn't really depend on time, but DashboardPanels requires a time span.
+    const dashboardPanelsRef = useRef<DashboardPanelContainerRef>(null);
+    // Metadata doesn't really depend on time, but DashboardPanelContainer requires a time span.
     // We use a default one.
     const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan>(() =>
       BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan()
@@ -44,7 +44,7 @@ const TableMetadataViewComponent = forwardRef<RefreshableTabViewRef, TableMetada
 
     const dashboard = useMemo<Dashboard>(() => {
       const d: Dashboard = {
-        version: 2,
+        version: 3,
         filter: {
           showTimeSpanSelector: false,
           showRefresh: false,
@@ -142,7 +142,7 @@ ORDER BY host
     }, [database, table]);
 
     return (
-      <DashboardPanels
+      <DashboardPanelContainer
         ref={dashboardPanelsRef}
         dashboard={dashboard}
         selectedTimeSpan={selectedTimeSpan}

@@ -21,6 +21,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { Switch } from "@/components/ui/switch";
 import { UserProfileImage } from "@/components/user-profile-image";
 import { hostNameManager } from "@/lib/host-name-manager";
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
@@ -281,20 +282,7 @@ export function AppSidebar() {
 
                 <SystemTableIntrospectionSidebarMenuItem />
 
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip={{
-                      children: "Settings",
-                      className:
-                        "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
-                    }}
-                    size="lg"
-                    className="justify-center"
-                    onClick={() => showSettingsDialog()}
-                  >
-                    <Settings className="h-5 w-5" />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <SettingsSidebarMenuItem />
               </>
             )}
           </SidebarMenu>
@@ -303,7 +291,7 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <ThemeToggleButton />
+            <GitHubButton />
           </SidebarMenuItem>
           {session?.user && (
             <SidebarMenuItem>
@@ -316,68 +304,96 @@ export function AppSidebar() {
   );
 }
 
-function ThemeToggleButton() {
-  const { setTheme } = useTheme();
-  const [isDark, setIsDark] = useState<boolean | null>(null);
+function SettingsSidebarMenuItem() {
+  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Set mounted flag to true after client-side hydration
     setMounted(true);
-
-    const root = window.document.documentElement;
-    // Set initial value after mount
-    setIsDark(root.classList.contains("dark"));
-
-    const observer = new MutationObserver(() => {
-      setIsDark(root.classList.contains("dark"));
-    });
-
-    observer.observe(root, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-
-    return () => observer.disconnect();
   }, []);
 
-  const toggleTheme = () => {
-    const root = window.document.documentElement;
-    const currentlyDark = root.classList.contains("dark");
-    setTheme(currentlyDark ? "light" : "dark");
+  // Resolve the actual theme (handle "system" by checking the document class)
+  const isDark = mounted
+    ? theme === "system"
+      ? window.document.documentElement.classList.contains("dark")
+      : theme === "dark"
+    : false;
+
+  const toggleTheme = (checked: boolean) => {
+    setTheme(checked ? "dark" : "light");
   };
 
+  return (
+    <HoverCardSidebarMenuItem
+      icon={<Settings className="h-5 w-5" />}
+      description="Settings"
+      content={(_isOpen, onClose) => (
+        <div className="space-y-2">
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-2 py-1.5 rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+            onClick={() => toggleTheme(!isDark)}
+          >
+            <div className="flex items-center gap-2 text-sm">
+              {isDark ? <MoonIcon className="h-4 w-4" /> : <SunIcon className="h-4 w-4" />}
+              <span>{isDark ? "Dark Mode" : "Light Mode"}</span>
+            </div>
+            <Switch
+              checked={isDark}
+              onCheckedChange={toggleTheme}
+              aria-label="Toggle dark mode"
+              className="h-4 w-8 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-4"
+            />
+          </button>
+          <button
+            className="w-full flex items-center gap-2 text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+            onClick={() => {
+              showSettingsDialog();
+              onClose();
+            }}
+          >
+            <Settings className="h-4 w-4" />
+            App Settings
+          </button>
+        </div>
+      )}
+      contentClassName="w-48 p-2"
+    />
+  );
+}
+
+function GitHubIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      role="img"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="currentColor"
+    >
+      <title>GitHub</title>
+      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+    </svg>
+  );
+}
+
+function GitHubButton() {
   const simpleTooltipClass =
     "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm";
-
-  // Prevent hydration mismatch by not rendering icons until mounted
-  if (!mounted) {
-    return (
-      <SidebarMenuButton
-        size="lg"
-        onClick={toggleTheme}
-        tooltip={{
-          children: "Toggle theme",
-          className: simpleTooltipClass,
-        }}
-        className="justify-center"
-      >
-        <div className="h-5 w-5" />
-      </SidebarMenuButton>
-    );
-  }
 
   return (
     <SidebarMenuButton
       size="lg"
-      onClick={toggleTheme}
       tooltip={{
-        children: isDark ? "Light mode" : "Dark mode",
+        children: "View on GitHub",
         className: simpleTooltipClass,
       }}
       className="justify-center"
+      onClick={() =>
+        window.open("https://github.com/FrankChen021/datastoria", "_blank", "noopener,noreferrer")
+      }
     >
-      {isDark ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+      <GitHubIcon className="h-5 w-5" />
     </SidebarMenuButton>
   );
 }

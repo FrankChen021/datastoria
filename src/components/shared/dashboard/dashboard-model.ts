@@ -458,13 +458,13 @@ export type DashboardFilter = {
 
 export type DashboardGroup = {
   title: string;
-  charts: unknown[];
+  charts: PanelDescriptor[];
   collapsed?: boolean;
 };
 
 export type Dashboard = {
   name?: string;
-  version?: number; // Dashboard version: 1 = 4-column system, 2 = 24-column system, 3 = gridPos system, default to 1 if missing
+  version: 3; // Dashboard version: must be 3 (gridPos system). Legacy versions 1 and 2 are no longer supported.
   filter: DashboardFilter;
-  charts: (unknown | DashboardGroup)[];
+  charts: (PanelDescriptor | DashboardGroup)[];
 };

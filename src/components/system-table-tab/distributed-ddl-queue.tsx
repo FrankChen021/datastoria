@@ -4,15 +4,11 @@ import type {
   FieldOption,
   TimeseriesDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
-import DashboardPanels, {
-  type DashboardPanelsRef,
-} from "@/components/shared/dashboard/dashboard-panels";
+import DashboardPage from "@/components/shared/dashboard/dashboard-page";
+import { useDashboardRefresh } from "@/components/shared/dashboard/dashboard-panel-container";
 import { DataTable } from "@/components/shared/dashboard/data-table";
 import { replaceTimeSpanParams } from "@/components/shared/dashboard/sql-time-utils";
-import TimeSpanSelector, {
-  BUILT_IN_TIME_SPAN_LIST,
-  type TimeSpan,
-} from "@/components/shared/dashboard/timespan-selector";
+import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
@@ -23,7 +19,7 @@ import { Formatter } from "@/lib/formatter";
 import { hostNameManager } from "@/lib/host-name-manager";
 import { cn } from "@/lib/utils";
 import { AlertCircle, CheckCircle2, Clock, PlayCircle, X, XCircle } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 interface DDLRecord {
@@ -590,20 +586,21 @@ const DistributedDDLQueueRawView = memo(({ data, isLoading }: DistributedDDLQueu
   );
 });
 
-interface DDLDistributedQueueLogViewProps {
-  timeSpan: TimeSpan;
-  refreshKey: string;
-}
+const DDLDistributedQueueLogView = memo(() => {
+  const { connection } = useConnection();
+  const [rawRows, setRawRows] = useState<DDLRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const currentTimeSpanRef = useRef<TimeSpan | undefined>(undefined);
 
-const DDLDistributedQueueLogView = memo(
-  ({ timeSpan, refreshKey }: DDLDistributedQueueLogViewProps) => {
-    const { connection } = useConnection();
-    const [rawRows, setRawRows] = useState<DDLRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const fetchData = useCallback(async () => {
+  const fetchData = useCallback(
+    async (timeSpan?: TimeSpan) => {
       if (!connection) return;
+
+      const effectiveTimeSpan = timeSpan ?? currentTimeSpanRef.current;
+      if (!effectiveTimeSpan) return;
+
+      currentTimeSpanRef.current = effectiveTimeSpan;
 
       setIsLoading(true);
       setError(null);
@@ -613,9 +610,9 @@ SELECT *
 FROM system.distributed_ddl_queue 
 WHERE query_create_time >= {from:String} AND query_create_time <= {to:String}
 ORDER BY entry, host`;
-        sql = replaceTimeSpanParams(sql, timeSpan, connection.metadata.timezone || "UTC");
+        sql = replaceTimeSpanParams(sql, effectiveTimeSpan, connection.metadata.timezone || "UTC");
         const response = await connection.query(sql, { default_format: "JSON" }).response;
-        const fetchedRawRows = response.data.json<any>().data as DDLRecord[];
+        const fetchedRawRows = response.data.json<{ data: DDLRecord[] }>().data;
 
         // Find common suffix from first 5 records
         const first5Hosts = fetchedRawRows.slice(0, 5).map((r) => r.host);
@@ -634,57 +631,58 @@ ORDER BY entry, host`;
         }));
 
         setRawRows(rows);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to fetch data";
         console.error("Error fetching DDL queue data:", err);
-        setError(err.message || "Failed to fetch data");
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
-    }, [connection, timeSpan]);
+    },
+    [connection]
+  );
 
-    useEffect(() => {
-      fetchData();
-    }, [fetchData, refreshKey]);
+  // Register for dashboard refresh - this will be called when the dashboard refreshes
+  useDashboardRefresh(fetchData);
 
-    if (error) {
-      return (
-        <div className="p-4 text-red-500 text-center flex-1 flex items-center justify-center">
-          Error: {error}
-        </div>
-      );
-    }
-
+  if (error) {
     return (
-      <Tabs defaultValue="aggregate" className="flex flex-col h-full">
-        <div className="flex-shrink-0 px-2 py-0 border-b">
-          <TabsList className="bg-transparent h-8 p-0 gap-4">
-            <TabsTrigger
-              value="aggregate"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 pb-1 h-8 text-xs font-semibold"
-            >
-              Aggregated Entries
-            </TabsTrigger>
-            <TabsTrigger
-              value="raw"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 pb-1 h-8 text-xs font-semibold"
-            >
-              Raw Entries
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        <div className="flex-1 min-h-0">
-          <TabsContent value="aggregate" className="h-full m-0 p-0 focus-visible:outline-none">
-            <DistributedDDLQueueAggregateView records={rawRows} isLoading={isLoading} />
-          </TabsContent>
-          <TabsContent value="raw" className="h-full m-0 p-0 focus-visible:outline-none">
-            <DistributedDDLQueueRawView data={rawRows} isLoading={isLoading} />
-          </TabsContent>
-        </div>
-      </Tabs>
+      <div className="p-4 text-red-500 text-center flex-1 flex items-center justify-center">
+        Error: {error}
+      </div>
     );
   }
-);
+
+  return (
+    <Tabs defaultValue="aggregate" className="flex flex-col h-full">
+      <div className="flex-shrink-0 px-2 py-0 border-b">
+        <TabsList className="bg-transparent h-8 p-0 gap-4">
+          <TabsTrigger
+            value="aggregate"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 pb-1 h-8 text-xs font-semibold"
+          >
+            Aggregated Entries
+          </TabsTrigger>
+          <TabsTrigger
+            value="raw"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 pb-1 h-8 text-xs font-semibold"
+          >
+            Raw Entries
+          </TabsTrigger>
+        </TabsList>
+      </div>
+
+      <div className="flex-1 min-h-0">
+        <TabsContent value="aggregate" className="h-full m-0 p-0 focus-visible:outline-none">
+          <DistributedDDLQueueAggregateView records={rawRows} isLoading={isLoading} />
+        </TabsContent>
+        <TabsContent value="raw" className="h-full m-0 p-0 focus-visible:outline-none">
+          <DistributedDDLQueueRawView data={rawRows} isLoading={isLoading} />
+        </TabsContent>
+      </div>
+    </Tabs>
+  );
+});
 
 const ddlQueueDashboard: Dashboard = {
   version: 3,
@@ -696,7 +694,7 @@ const ddlQueueDashboard: Dashboard = {
         title: "DDL Queue Entries",
         align: "center",
       },
-      width: 12,
+      gridPos: { w: 12, h: 6 },
       legendOption: {
         placement: "none",
       },
@@ -718,7 +716,7 @@ ORDER BY t
         title: "DDL Queue Entries By Host",
         align: "center",
       },
-      width: 12,
+      gridPos: { w: 12, h: 6 },
       legendOption: {
         placement: "bottom",
         values: ["sum"],
@@ -740,64 +738,10 @@ ORDER BY t
 };
 
 const DistributedDDLQueue = () => {
-  const filterRef = useRef<TimeSpanSelector | null>(null);
-  const panelsRef = useRef<DashboardPanelsRef>(null);
-  const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | null>(null);
-  const [refreshKey, setRefreshKey] = useState<string>(`init_${Date.now()}`);
-
-  const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3], []);
-
-  const onQueryConditionChange = useCallback(() => {
-    if (filterRef.current) {
-      const span = filterRef.current.getSelectedTimeSpan();
-      if (span) {
-        const timeSpan = span.getTimeSpan();
-        setSelectedTimeSpan(timeSpan);
-        setRefreshKey(`refresh_${Date.now()}`);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!selectedTimeSpan) {
-      if (filterRef.current) {
-        const span = filterRef.current.getSelectedTimeSpan();
-        setSelectedTimeSpan(span ? span.getTimeSpan() : defaultTimeSpan.getTimeSpan());
-      } else {
-        setSelectedTimeSpan(defaultTimeSpan.getTimeSpan());
-      }
-    }
-  }, [defaultTimeSpan, selectedTimeSpan]);
-
-  const currentTimeSpan = useMemo(() => {
-    if (selectedTimeSpan) return selectedTimeSpan;
-    if (filterRef.current) {
-      const span = filterRef.current.getSelectedTimeSpan();
-      if (span) return span.getTimeSpan();
-    }
-    return defaultTimeSpan.getTimeSpan();
-  }, [selectedTimeSpan, defaultTimeSpan]);
-
   return (
-    <div className="h-full w-full bg-background overflow-hidden px-2 flex flex-col">
-      {/* Header with Time Selector */}
-      <div className="flex-shrink-0 flex justify-end items-center gap-2 pt-2 pb-2">
-        <TimeSpanSelector
-          ref={filterRef}
-          size="sm"
-          defaultTimeSpan={defaultTimeSpan}
-          onSelectedSpanChanged={onQueryConditionChange}
-        />
-      </div>
-
-      <DashboardPanels
-        ref={panelsRef}
-        dashboard={ddlQueueDashboard}
-        selectedTimeSpan={currentTimeSpan}
-      >
-        <DDLDistributedQueueLogView timeSpan={currentTimeSpan} refreshKey={refreshKey} />
-      </DashboardPanels>
-    </div>
+    <DashboardPage panels={ddlQueueDashboard}>
+      <DDLDistributedQueueLogView />
+    </DashboardPage>
   );
 };
 

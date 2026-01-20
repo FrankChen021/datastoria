@@ -5,9 +5,9 @@ import type {
   StatDescriptor,
   TableDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
-import DashboardPanels, {
-  type DashboardPanelsRef,
-} from "@/components/shared/dashboard/dashboard-panels";
+import DashboardPanelContainer, {
+  type DashboardPanelContainerRef,
+} from "@/components/shared/dashboard/dashboard-panel-container";
 import {
   BUILT_IN_TIME_SPAN_LIST,
   type TimeSpan,
@@ -24,7 +24,7 @@ export interface TableOverviewViewProps {
 const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOverviewViewProps>(
   ({ database, table, autoLoad: _autoLoad }, ref) => {
     const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | undefined>(undefined);
-    const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
+    const dashboardPanelsRef = useRef<DashboardPanelContainerRef>(null);
     const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan(), []);
     const { connection } = useConnection();
 
@@ -36,7 +36,7 @@ const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOvervi
       () => ({
         refresh: (timeSpan?: TimeSpan) => {
           if (timeSpan) {
-            // Update state - prop change will trigger automatic refresh in DashboardPanels
+            // Update state - prop change will trigger automatic refresh in DashboardPanelContainer
             setSelectedTimeSpan(timeSpan);
           } else {
             // No timeSpan provided - explicitly refresh with current time span
@@ -58,7 +58,7 @@ const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOvervi
         name: `table-overview-${database}-${table}`,
         folder: "table-overview",
         title: "Table Overview",
-        version: 2,
+        version: 3,
         filter: {
           showTimeSpanSelector: false,
           showRefresh: false,
@@ -72,7 +72,7 @@ const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOvervi
               align: "center",
             },
             collapsed: false,
-            width: 5,
+            gridPos: { w: 5, h: 4 },
             query: {
               sql: `
 SELECT sum(total_bytes) as total_bytes
@@ -94,7 +94,7 @@ WHERE
               align: "center",
             },
             collapsed: false,
-            width: 5,
+            gridPos: { w: 5, h: 4 },
             valueOption: {
               format: "comma_number",
             },
@@ -116,7 +116,7 @@ WHERE
               align: "center",
             },
             collapsed: false,
-            width: 5,
+            gridPos: { w: 5, h: 4 },
             valueOption: {
               format: "comma_number",
             },
@@ -144,7 +144,7 @@ WHERE
               align: "center",
             },
             collapsed: false,
-            width: 5,
+            gridPos: { w: 5, h: 4 },
             query: {
               sql: `
 SELECT sum(total_bytes) / (SELECT sum(total_space - keep_free_space) from system.disks) as bytes_on_disk
@@ -166,7 +166,7 @@ WHERE
               align: "center",
             },
             collapsed: false,
-            width: 4,
+            gridPos: { w: 4, h: 4 },
             query: {
               sql: `
 SELECT modification_time
@@ -191,7 +191,7 @@ LIMIT 1
                       titleOption: {
                         title: "Cluster Size",
                       },
-                      width: 5,
+                      gridPos: { w: 5, h: 4 },
                       query: {
                         sql: `
 SELECT sum(total_bytes) as total_bytes
@@ -209,6 +209,7 @@ WHERE database = '${database}' AND name = '${table}'
                         title: "Table Size On Cluster",
                         align: "center",
                       },
+                      gridPos: { w: 24, h: 12 },
                       query: {
                         sql: `
 SELECT
@@ -428,7 +429,7 @@ ORDER BY
                   title: "Index Size",
                   align: "center",
                 },
-                width: 24,
+                gridPos: { w: 24, h: 10 },
                 fieldOptions: {
                   database: {
                     position: -1,
@@ -468,7 +469,7 @@ WHERE
                   title: "Projection Size",
                   align: "center",
                 },
-                width: 24,
+                gridPos: { w: 24, h: 10 },
                 query: {
                   sql: `
 SELECT A.database, 
@@ -549,7 +550,7 @@ ORDER BY 1, 2, 3`,
     }, [database, table, connection]);
 
     return (
-      <DashboardPanels
+      <DashboardPanelContainer
         ref={dashboardPanelsRef}
         dashboard={dashboard}
         selectedTimeSpan={currentTimeSpan}

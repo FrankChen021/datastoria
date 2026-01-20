@@ -35,6 +35,7 @@ interface DashboardsProps {
 const Dashboards = ({ database, table }: DashboardsProps) => {
   const { connection } = useConnection();
   const [dashboard, setDashboard] = useState<Dashboard>({
+    version: 3,
     filter: {},
     charts: [],
   });
@@ -169,7 +170,7 @@ const Dashboards = ({ database, table }: DashboardsProps) => {
                   titleOption: {
                     title: chartTitle,
                   },
-                  width: 1, // Default width
+                  gridPos: { w: 6, h: 6 }, // Default size for charts
                   collapsed: false,
                   yAxis: [{}], // Default y-axis
                   query: {
@@ -193,6 +194,7 @@ const Dashboards = ({ database, table }: DashboardsProps) => {
 
             const mergedDashboard: Dashboard = {
               name: "dashboard",
+              version: 3,
               filter: {},
               charts: dashboardGroups,
             };

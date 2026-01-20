@@ -6,7 +6,9 @@ import type { JSONCompactFormatResponse } from "@/lib/connection/connection";
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import DashboardFilterComponent, { type SelectedFilter } from "./dashboard-filter";
 import type { Dashboard, FilterSpec, SQLQuery } from "./dashboard-model";
-import DashboardPanels, { type DashboardPanelsRef } from "./dashboard-panels";
+import DashboardPanelContainer, {
+  type DashboardPanelContainerRef,
+} from "./dashboard-panel-container";
 import type { TimeSpan } from "./timespan-selector";
 
 export interface DashboardPageRef {
@@ -24,6 +26,11 @@ interface DashboardPageProps {
   showRefresh?: boolean;
   showAutoRefresh?: boolean;
   chartSelectionFilterName?: string;
+  /**
+   * Children to render below the dashboard panels.
+   * Children can use the useDashboardRefresh hook to register
+   * themselves for automatic refresh when the dashboard refreshes.
+   */
   children?: React.ReactNode;
 }
 
@@ -47,7 +54,7 @@ const DashboardPage = forwardRef<DashboardPageRef, DashboardPageProps>(
 
     const inputFilterRef = useRef<HTMLInputElement>(null);
     const filterRef = useRef<DashboardFilterComponent>(null);
-    const panelsRef = useRef<DashboardPanelsRef>(null);
+    const panelsRef = useRef<DashboardPanelContainerRef>(null);
 
     useImperativeHandle(
       ref,
@@ -206,14 +213,14 @@ const DashboardPage = forwardRef<DashboardPageRef, DashboardPageProps>(
         )}
 
         <div className="flex-1 min-h-0 overflow-hidden">
-          <DashboardPanels
+          <DashboardPanelContainer
             ref={panelsRef}
             dashboard={panels}
             initialLoading={false}
             onChartSelection={chartSelectionFilterName ? handleChartSelection : undefined}
           >
             {children}
-          </DashboardPanels>
+          </DashboardPanelContainer>
         </div>
       </div>
     );

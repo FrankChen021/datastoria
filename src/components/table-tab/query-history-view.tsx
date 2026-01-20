@@ -4,9 +4,9 @@ import type {
   FieldOption,
   TableDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
-import DashboardPanels, {
-  type DashboardPanelsRef,
-} from "@/components/shared/dashboard/dashboard-panels";
+import DashboardPanelContainer, {
+  type DashboardPanelContainerRef,
+} from "@/components/shared/dashboard/dashboard-panel-container";
 import {
   BUILT_IN_TIME_SPAN_LIST,
   type TimeSpan,
@@ -63,7 +63,7 @@ const formatQueryLogLink = (
 export const QueryHistoryView = memo(
   forwardRef<RefreshableTabViewRef, QueryHistoryViewProps>(({ database, table }, ref) => {
     const [selectedTimeSpan, setSelectedTimeSpan] = useState<TimeSpan | undefined>(undefined);
-    const dashboardPanelsRef = useRef<DashboardPanelsRef>(null);
+    const dashboardPanelsRef = useRef<DashboardPanelContainerRef>(null);
     const defaultTimeSpan = useMemo(() => BUILT_IN_TIME_SPAN_LIST[3].getTimeSpan(), []);
 
     // Calculate current time span (use selected if available, otherwise default)
@@ -74,7 +74,7 @@ export const QueryHistoryView = memo(
       () => ({
         refresh: (timeSpan?: TimeSpan) => {
           if (timeSpan) {
-            // Update state - prop change will trigger automatic refresh in DashboardPanels
+            // Update state - prop change will trigger automatic refresh in DashboardPanelContainer
             setSelectedTimeSpan(timeSpan);
           } else {
             // No timeSpan provided - explicitly refresh with current time span
@@ -207,7 +207,7 @@ LIMIT 10`;
           align: "left",
         },
         collapsed: false,
-        width: 24,
+        gridPos: { w: 24, h: 10 },
         query: {
           sql: sql,
           headers: {
@@ -232,7 +232,7 @@ LIMIT 10`;
         name: `query-history-${database}-${table}`,
         folder: "",
         title: "Query History",
-        version: 2,
+        version: 3,
         filter: {
           showTimeSpanSelector: false,
           showRefresh: false,
@@ -247,7 +247,7 @@ LIMIT 10`;
               align: "center",
             },
             collapsed: false,
-            width: 12,
+            gridPos: { w: 12, h: 6 },
             query: {
               sql: `
 SELECT 
@@ -277,7 +277,7 @@ ORDER BY t`,
               align: "left",
             },
             collapsed: false,
-            width: 12,
+            gridPos: { w: 12, h: 6 },
             query: {
               sql: `
 SELECT 
@@ -311,7 +311,7 @@ ORDER BY t`,
                   align: "left",
                 },
                 collapsed: false,
-                width: 6,
+                gridPos: { w: 6, h: 6 },
                 query: {
                   sql: `
 SELECT 
@@ -340,7 +340,7 @@ ORDER BY t`,
                   align: "left",
                 },
                 collapsed: false,
-                width: 6,
+                gridPos: { w: 6, h: 6 },
                 query: {
                   sql: `
 SELECT 
@@ -369,7 +369,7 @@ ORDER BY t`,
                   align: "left",
                 },
                 collapsed: false,
-                width: 6,
+                gridPos: { w: 6, h: 6 },
                 query: {
                   sql: `
 SELECT 
@@ -398,7 +398,7 @@ ORDER BY t`,
                   align: "left",
                 },
                 collapsed: false,
-                width: 6,
+                gridPos: { w: 6, h: 6 },
                 query: {
                   sql: `
 SELECT 
@@ -427,7 +427,7 @@ ORDER BY t`,
                   align: "left",
                 },
                 collapsed: false,
-                width: 12,
+                gridPos: { w: 12, h: 6 },
                 query: {
                   sql: `
 SELECT 
@@ -456,7 +456,7 @@ ORDER BY t`,
                   align: "left",
                 },
                 collapsed: false,
-                width: 12,
+                gridPos: { w: 12, h: 6 },
                 query: {
                   sql: `
 SELECT 
@@ -487,7 +487,7 @@ ORDER BY t`,
               align: "left",
             },
             collapsed: false,
-            width: 24,
+            gridPos: { w: 24, h: 6 },
             query: {
               sql: `
 SELECT 
@@ -511,7 +511,7 @@ ORDER BY t`,
               cpu: {
                 type: "table",
                 id: "query-kind",
-                width: 24,
+                gridPos: { w: 24, h: 12 },
                 titleOption: {
                   title: "Top 100 Queries by CPU Time",
                 },
@@ -566,7 +566,7 @@ LIMIT 50
     }, [tableDescriptor, database, table]);
 
     return (
-      <DashboardPanels
+      <DashboardPanelContainer
         ref={dashboardPanelsRef}
         dashboard={dashboard}
         selectedTimeSpan={currentTimeSpan}
