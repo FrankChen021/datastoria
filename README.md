@@ -33,7 +33,7 @@ A modern, AI-powered ClickHouse management console that transforms how you inter
 
 ## 🌐 Try It Online
 
-[Access DataStoria](https://datastoria.vercel.app)
+Access [dataStoria.app](https://datastoria.app) to experience all features.
 
 ---
 

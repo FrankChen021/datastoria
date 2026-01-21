@@ -49,7 +49,7 @@ function LoginFormContent({ enabledProviders }: { enabledProviders: EnabledProvi
               <AppLogo width={64} height={64} />
             </div>
           </div>
-          <CardTitle className="text-3xl">Sign in to DataStoria</CardTitle>
+          <CardTitle className="text-3xl">Sign in to datastoria.app</CardTitle>
           <CardDescription className="text-base">
             An AI-powered ClickHouse management console
           </CardDescription>
