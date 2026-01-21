@@ -2,15 +2,17 @@ import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
+  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
 import { useModelConfig } from "@/hooks/use-model-config";
 import type { ModelProps } from "@/lib/ai/llm/llm-provider-factory";
 import { cn } from "@/lib/utils";
-import { Check, ChevronsUpDown, Settings2 } from "lucide-react";
+import { Check, ChevronsUpDown, Layers, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { showSettingsDialog } from "../../settings/settings-dialog";
 import { HighlightableCommandItem } from "../../shared/cmdk/cmdk-extension";
@@ -19,24 +21,39 @@ interface ModelCommandItemProps {
   model: ModelProps;
   isSelected: boolean;
   onSelect: (model: { provider: string; modelId: string }) => void;
+  showProvider?: boolean;
 }
 
-function ModelCommandItem({ model, isSelected, onSelect }: ModelCommandItemProps) {
+function ModelCommandItem({
+  model,
+  isSelected,
+  onSelect,
+  showProvider = true,
+}: ModelCommandItemProps) {
   return (
     <CommandItem
       value={`${model.provider} ${model.modelId}`}
       onSelect={() => onSelect({ provider: model.provider, modelId: model.modelId })}
       className="m-1 text-xs cursor-pointer py-1"
     >
-      <div className="grid grid-cols-[16px_70px_1fr] items-center gap-2 w-full text-[10px]">
-        <Check className={cn("h-3 w-3 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
-        <span className="text-muted-foreground truncate">
-          <HighlightableCommandItem text={model.provider} />
-        </span>
-        <span className="truncate">
-          <HighlightableCommandItem text={model.modelId} />
-        </span>
-      </div>
+      {showProvider ? (
+        <div className="grid grid-cols-[16px_70px_1fr] items-center gap-2 w-full text-[10px]">
+          <Check className={cn("h-3 w-3 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
+          <span className="text-muted-foreground truncate">
+            <HighlightableCommandItem text={model.provider} />
+          </span>
+          <span className="truncate">
+            <HighlightableCommandItem text={model.modelId} />
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 w-full text-[10px]">
+          <Check className={cn("h-3 w-3 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
+          <span className="truncate">
+            <HighlightableCommandItem text={model.modelId} />
+          </span>
+        </div>
+      )}
     </CommandItem>
   );
 }
@@ -51,6 +68,19 @@ export function ModelSelector({ className }: ModelSelectorProps = {}) {
   const [highlightedValue, setHighlightedValue] = useState<string | undefined>(
     selectedModel ? `${selectedModel.provider} ${selectedModel.modelId}` : undefined
   );
+  const [groupByProvider, setGroupByProvider] = useState(false);
+
+  // Group models by provider for grouped view
+  const modelsByProvider = useMemo(() => {
+    const groups: Record<string, ModelProps[]> = {};
+    for (const model of availableModels) {
+      if (!groups[model.provider]) {
+        groups[model.provider] = [];
+      }
+      groups[model.provider].push(model);
+    }
+    return groups;
+  }, [availableModels]);
 
   useEffect(() => {
     // If no model is selected, or the selected model is no longer available, select 'auto' as default
@@ -140,23 +170,67 @@ export function ModelSelector({ className }: ModelSelectorProps = {}) {
             <CommandInput
               placeholder="Search models..."
               className="h-[32px] text-[10px] shrink-0"
+              wrapperClassName="px-2"
+              iconClassName="h-3 w-3"
             />
-            <CommandList id="model-list" className="flex-1 overflow-y-auto">
+            <div className="flex items-center justify-between px-2 py-1.5 border-b shrink-0">
+              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <Layers className="h-3 w-3 opacity-50" />
+                <span>Group by provider</span>
+              </div>
+              <Switch
+                checked={groupByProvider}
+                onCheckedChange={setGroupByProvider}
+                className="h-4 w-7 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3"
+              />
+            </div>
+            <CommandList
+              id="model-list"
+              className="flex-1 overflow-y-auto [&_[cmdk-list-sizer]]:max-h-none"
+            >
               <CommandEmpty className="h-[32px] py-2 text-center text-[10px]">
                 No model found.
               </CommandEmpty>
-              {availableModels.map((model) => (
-                <ModelCommandItem
-                  key={`${model.provider}-${model.modelId}`}
-                  model={model}
-                  isSelected={
-                    selectedModel?.modelId === model.modelId &&
-                    selectedModel?.provider === model.provider
-                  }
-                  onSelect={handleSelect}
-                />
-              ))}
+              {groupByProvider
+                ? // Grouped view
+                  Object.entries(modelsByProvider).map(([provider, models]) => (
+                    <CommandGroup
+                      key={provider}
+                      heading={provider}
+                      className="[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:py-0 py-0"
+                    >
+                      {models.map((model) => (
+                        <ModelCommandItem
+                          key={`${model.provider}-${model.modelId}`}
+                          model={model}
+                          isSelected={
+                            selectedModel?.modelId === model.modelId &&
+                            selectedModel?.provider === model.provider
+                          }
+                          onSelect={handleSelect}
+                          showProvider={false}
+                        />
+                      ))}
+                    </CommandGroup>
+                  ))
+                : // Flat view
+                  availableModels.map((model) => (
+                    <ModelCommandItem
+                      key={`${model.provider}-${model.modelId}`}
+                      model={model}
+                      isSelected={
+                        selectedModel?.modelId === model.modelId &&
+                        selectedModel?.provider === model.provider
+                      }
+                      onSelect={handleSelect}
+                      showProvider={true}
+                    />
+                  ))}
             </CommandList>
+            <div className="h-px bg-border shrink-0" />
+            <div className="px-2 py-1.5 text-[9px] text-muted-foreground/70 shrink-0">
+              Only models with API keys configured are shown.
+            </div>
             <div className="h-px bg-border shrink-0" />
             <div className="h-[32px] items-center flex mx-1 shrink-0">
               <Button
