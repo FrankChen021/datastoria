@@ -34,9 +34,9 @@ jobs:
           # Fetch all branches
           git fetch origin
 
-          # Checkout master and merge development into it
+          # Checkout master and fast-forward merge development into it
           git checkout master
-          git merge origin/development --no-edit -m "Release: merge development into master"
+          git merge origin/development --ff-only
 
           # Push to remote (triggers Vercel production deployment)
           git push origin master
