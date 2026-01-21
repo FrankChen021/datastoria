@@ -1,7 +1,8 @@
 "use client";
 
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -26,7 +27,7 @@ Data Storia is an AI-powered ClickHouse database management console. We provide 
 ## 4. Privacy and Data Security
 Your privacy is important to us. Please refer to our Privacy Policy for information on how we collect, use, and disclose information. 
 
-We **DO NOT** store your database credentials on our servers unless explicitly configured to do so for shared access.
+We **DO NOT** store your database credentials on our servers.
 
 ## 5. Limitation of Liability
 Data Storia is provided "as is" without any warranties. In no event shall we be liable for any damages arising out of the use or inability to use the service.
@@ -43,7 +44,7 @@ Last Updated: December 27, 2025
 ## 1. Information We Collect
 - **Account Information:** When you sign in via OAuth (Google, GitHub, Microsoft), we receive basic profile information such as your name, email address, and profile picture.
 - **Usage Data:** We may collect information about how you interact with the service to improve performance and user experience.
-- **Database Credentials:** We **DO NOT** store your database credentials on our servers unless explicitly configured to do so for shared access.
+- **Database Credentials:** We **DO NOT** store your database credentials on our servers.
 - **LLM Provider API Keys:** We **DO NOT** store your LLM provider API keys on our servers.
 - **Database Metadata/Row Data:** These information may be sent to the server for AI-powered suggestions, but we **DO NOT** store your actual row data on our servers.
 
@@ -78,8 +79,11 @@ export function AgreementDialog({ isOpen, onOpenChange, content }: AgreementDial
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0 overflow-hidden">
+        <VisuallyHidden>
+          <DialogTitle>Agreement</DialogTitle>
+        </VisuallyHidden>
         <ScrollArea className="flex-1 p-6 pt-4">
-          <div className="text-sm text-foreground space-y-2">
+          <div className="text-sm text-muted-foreground space-y-2">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
