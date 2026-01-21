@@ -7,7 +7,7 @@ import { StringUtils } from "@/lib/string-utils";
 import { toastManager } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { Loader2, Play, X } from "lucide-react";
-import { memo, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { v7 as uuid } from "uuid";
 import { QueryResponseView } from "../../query-tab/query-response/query-response-view";
 import type { QueryResponseViewModel } from "../../query-tab/query-view-model";
@@ -36,6 +36,7 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
   const [queryResponse, setQueryResponse] = useState<QueryResponseViewModel | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [showResults, setShowResults] = useState(true);
+  const queryResponseRef = useRef<HTMLDivElement>(null);
 
   const handleRun = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -76,6 +77,10 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
       };
 
       setQueryResponse(responseModel);
+      // Scroll to the query response after it's rendered
+      requestAnimationFrame(() => {
+        queryResponseRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     } catch (err: unknown) {
       const queryId = uuid();
       // Handle error
@@ -89,6 +94,10 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
         data: apiError.data || null,
       };
       setQueryResponse(responseModel);
+      // Scroll to the query response after it's rendered
+      requestAnimationFrame(() => {
+        queryResponseRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     } finally {
       setIsExecuting(false);
     }
@@ -154,7 +163,10 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
 
       {/* Inline Results */}
       {(queryResponse || isExecuting) && showResults && (
-        <div className="relative border rounded-sm overflow-hidden bg-background p-1">
+        <div
+          ref={queryResponseRef}
+          className="relative border rounded-sm overflow-hidden bg-background p-1"
+        >
           <Button
             variant="ghost"
             size="icon"
