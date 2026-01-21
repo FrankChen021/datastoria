@@ -1,3 +1,4 @@
+import { AppLogo } from "@/components/app-logo";
 import { TypingDots } from "@/components/ui/typing-dots";
 import { UserProfileImage } from "@/components/user-profile-image";
 import { SERVER_TOOL_PLAN } from "@/lib/ai/agent/planner-agent";
@@ -8,7 +9,7 @@ import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { cn } from "@/lib/utils";
 import NumberFlow from "@number-flow/react";
-import { Info, Sparkles } from "lucide-react";
+import { Info } from "lucide-react";
 import { memo } from "react";
 import type { ToolPart } from "../chat-message-types";
 import { ErrorMessageDisplay } from "./message-error";
@@ -182,16 +183,12 @@ export const ChatMessage = memo(function ChatMessage({
   const showLoading = !isUser && isLoading;
   return (
     <div
-      className={cn(
-        isUser && !isFirst ? "pt-3" : "py-1",
-        // Add border as separator, the SAME style as it's in the query-list-item-view.tsx
-        isUser && !isFirst ? "border-t" : ""
-      )}
+      className={cn(isUser && !isFirst ? "mt-3 border-t" : "", isUser ? "bg-gray-800 py-1" : "")}
     >
       <div className="pl-2 py-1">
         {/* Timestamp above profile for user messages - reserve space for alignment */}
         {isUser && timestamp && (
-          <h4 className="text-sm font-semibold mb-2 text-muted-foreground">
+          <h4 className="text-sm font-semibold mb-2">
             {DateTimeExtension.toYYYYMMddHHmmss(new Date(timestamp))}
           </h4>
         )}
@@ -203,7 +200,7 @@ export const ChatMessage = memo(function ChatMessage({
               <UserProfileImage />
             ) : (
               <div className="h-6 w-6 flex items-center justify-center">
-                <Sparkles className={`h-4 w-4 }`} />
+                <AppLogo className={`h-6 w-6 }`} />
               </div>
             )}
           </div>
@@ -227,7 +224,6 @@ export const ChatMessage = memo(function ChatMessage({
           </div>
         </div>
 
-        {/* Show the token even when it's loading */}
         {!isUser && usage && <TokenUsageDisplay id={message.id + "-usage"} usage={usage} />}
       </div>
     </div>

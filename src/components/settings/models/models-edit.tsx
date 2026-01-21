@@ -255,12 +255,15 @@ export function ModelsEdit() {
                             )}
                           </TableCell>
                           <TableCell className="py-1.5">
-                            <Switch
-                              checked={!model.disabled}
-                              onCheckedChange={(checked) =>
-                                handleDisabledChange(model.modelId, !checked)
-                              }
-                            />
+                            <div className="flex items-center h-full">
+                              <Switch
+                                checked={!model.disabled}
+                                onCheckedChange={(checked) =>
+                                  handleDisabledChange(model.modelId, !checked)
+                                }
+                                className="h-4 w-8 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-4"
+                              />
+                            </div>
                           </TableCell>
                           <TableCell className="py-1.5" />
                         </TableRow>

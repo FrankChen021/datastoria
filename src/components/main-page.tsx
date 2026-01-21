@@ -168,24 +168,24 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
   // Pre-load hostnames for shortening if cluster is configured
   const clusterHostQuery = connection.cluster
     ? connection
-      .query(
-        `SELECT host_name FROM system.clusters WHERE cluster = '${escapeSqlString(connection.cluster)}'`,
-        {
-          default_format: "JSONCompact",
-        }
-      )
-      .response.then((clusterHostResponse) => {
-        if (clusterHostResponse.httpStatus === 200) {
-          const data = clusterHostResponse.data.json<JSONCompactFormatResponse>();
-          if (data && Array.isArray(data.data)) {
-            const hostNames = data.data.map((row) => row[0] as string);
-            hostNameManager.shortenHostnames(hostNames);
+        .query(
+          `SELECT host_name FROM system.clusters WHERE cluster = '${escapeSqlString(connection.cluster)}'`,
+          {
+            default_format: "JSONCompact",
           }
-        }
-      })
-      .catch((e) => {
-        console.warn("Failed to load cluster hosts for shortening:", e);
-      })
+        )
+        .response.then((clusterHostResponse) => {
+          if (clusterHostResponse.httpStatus === 200) {
+            const data = clusterHostResponse.data.json<JSONCompactFormatResponse>();
+            if (data && Array.isArray(data.data)) {
+              const hostNames = data.data.map((row) => row[0] as string);
+              hostNameManager.shortenHostnames(hostNames);
+            }
+          }
+        })
+        .catch((e) => {
+          console.warn("Failed to load cluster hosts for shortening:", e);
+        })
     : Promise.resolve();
 
   const settingsQuery = connection
@@ -511,11 +511,13 @@ export function MainPage() {
     (!!pendingConfig &&
       (!connection || connection.name !== pendingConfig.name || !isConnectionAvailable));
   if (showInitializer) {
-    return <div className="relative h-full w-full flex min-w-0 overflow-hidden">
-      <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center pt-[20vh] px-8 pb-8">
-        <ConnectionInitializer config={pendingConfig || null} onReady={handleReady} />
+    return (
+      <div className="relative h-full w-full flex min-w-0 overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center pt-[20vh] px-8 pb-8">
+          <ConnectionInitializer config={pendingConfig || null} onReady={handleReady} />
+        </div>
       </div>
-    </div>
+    );
   }
 
   // Show wizard ONLY if:
@@ -549,11 +551,7 @@ export function MainPage() {
         )}
 
         {/* Right Panel: Contains both Tabs and Chat in a nested layout */}
-        <Panel
-          defaultSize={100 - DEFAULT_SCHEMA_PANEL_SIZE}
-          minSize={20}
-          className="bg-background"
-        >
+        <Panel defaultSize={100 - DEFAULT_SCHEMA_PANEL_SIZE} minSize={20} className="bg-background">
           {/* Nested PanelGroup for Tabs and Chat */}
           <PanelGroup direction="horizontal" className="h-full w-full">
             {/* Tabs Panel - always mounted, visibility controlled by CSS */}
