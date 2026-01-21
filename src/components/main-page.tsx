@@ -168,24 +168,24 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
   // Pre-load hostnames for shortening if cluster is configured
   const clusterHostQuery = connection.cluster
     ? connection
-        .query(
-          `SELECT host_name FROM system.clusters WHERE cluster = '${escapeSqlString(connection.cluster)}'`,
-          {
-            default_format: "JSONCompact",
+      .query(
+        `SELECT host_name FROM system.clusters WHERE cluster = '${escapeSqlString(connection.cluster)}'`,
+        {
+          default_format: "JSONCompact",
+        }
+      )
+      .response.then((clusterHostResponse) => {
+        if (clusterHostResponse.httpStatus === 200) {
+          const data = clusterHostResponse.data.json<JSONCompactFormatResponse>();
+          if (data && Array.isArray(data.data)) {
+            const hostNames = data.data.map((row) => row[0] as string);
+            hostNameManager.shortenHostnames(hostNames);
           }
-        )
-        .response.then((clusterHostResponse) => {
-          if (clusterHostResponse.httpStatus === 200) {
-            const data = clusterHostResponse.data.json<JSONCompactFormatResponse>();
-            if (data && Array.isArray(data.data)) {
-              const hostNames = data.data.map((row) => row[0] as string);
-              hostNameManager.shortenHostnames(hostNames);
-            }
-          }
-        })
-        .catch((e) => {
-          console.warn("Failed to load cluster hosts for shortening:", e);
-        })
+        }
+      })
+      .catch((e) => {
+        console.warn("Failed to load cluster hosts for shortening:", e);
+      })
     : Promise.resolve();
 
   const settingsQuery = connection
@@ -447,14 +447,13 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
 
 // Panel size constants
 const DEFAULT_SCHEMA_PANEL_SIZE = 20;
-const DEFAULT_TAB_PANEL_SIZE = 80;
-const DEFAULT_CHAT_PANEL_SIZE = 40;
+const _DEFAULT_TAB_PANEL_SIZE = 80; // Kept for reference, tabs/chat now use relative sizes in nested group
 
 export function MainPage() {
   const { connection, pendingConfig, commitConnection, isInitialized, isConnectionAvailable } =
     useConnection();
-  const { displayMode, close: closeChatPanel } = useChatPanel();
 
+  const { displayMode, close: closeChatPanel } = useChatPanel();
   const [loadedSchemaData, setLoadedSchemaData] = useState<SchemaLoadResult | null>(null);
 
   // Refs for panel control
@@ -462,48 +461,36 @@ export function MainPage() {
   const tabsPanelRef = useRef<ImperativePanelHandle>(null);
   const chatPanelRef = useRef<ImperativePanelHandle>(null);
 
-  // Determine if we should show the initializer overlay
-  // Case 1: App is not initialized yet (booting up)
-  // Case 2: App initialized, but switching connections (initializing new connection)
-  const showInitializer =
-    !isInitialized ||
-    (!!pendingConfig &&
-      (!connection || connection.name !== pendingConfig.name || !isConnectionAvailable));
-
   const handleReady = (newConnection: Connection, result: SchemaLoadResult) => {
     setLoadedSchemaData(result);
     commitConnection(newConnection);
   };
 
-  // Show wizard ONLY if:
-  // 1. App is fully initialized
-  // 2. No pending config (not currently connecting)
-  // 3. No active connection (fresh state)
-  const showWizard = isInitialized && !pendingConfig && !connection;
-
   // Resize panels when display mode changes (layout side-effect)
+  // Note: tabsPanelRef and chatPanelRef are now in a nested PanelGroup,
+  // so their sizes are relative to the inner group (content area), not the outer one
   useLayoutEffect(() => {
     const rafId = requestAnimationFrame(() => {
       switch (displayMode) {
         case "hidden":
-          // Schema tree and tabs take full width
+          // Schema tree visible, tabs take full content area, no chat
           schemaPanelRef.current?.resize(DEFAULT_SCHEMA_PANEL_SIZE);
-          tabsPanelRef.current?.resize(DEFAULT_TAB_PANEL_SIZE);
+          tabsPanelRef.current?.resize(100); // 100% of content area
           break;
         case "panel":
-          // All three panels visible
+          // Schema tree visible, tabs and chat share content area
           schemaPanelRef.current?.resize(DEFAULT_SCHEMA_PANEL_SIZE);
-          tabsPanelRef.current?.resize(DEFAULT_TAB_PANEL_SIZE - DEFAULT_CHAT_PANEL_SIZE);
-          chatPanelRef.current?.resize(DEFAULT_CHAT_PANEL_SIZE);
+          tabsPanelRef.current?.resize(60); // 60% of content area
+          chatPanelRef.current?.resize(40); // 40% of content area
           break;
         case "tabWidth":
-          // Schema tree visible, chat takes tab region
+          // Schema tree visible, chat takes full content area, tabs collapsed
           schemaPanelRef.current?.resize(DEFAULT_SCHEMA_PANEL_SIZE);
           tabsPanelRef.current?.resize(0);
-          chatPanelRef.current?.resize(DEFAULT_TAB_PANEL_SIZE);
+          chatPanelRef.current?.resize(100); // 100% of content area
           break;
         case "fullscreen":
-          // Chat takes full width
+          // Chat takes full width, schema collapsed, tabs collapsed
           schemaPanelRef.current?.resize(0);
           tabsPanelRef.current?.resize(0);
           chatPanelRef.current?.resize(100);
@@ -516,6 +503,26 @@ export function MainPage() {
     };
   }, [displayMode]);
 
+  // Determine if we should show the initializer overlay
+  // Case 1: App is not initialized yet (booting up)
+  // Case 2: App initialized, but switching connections (initializing new connection)
+  const showInitializer =
+    !isInitialized ||
+    (!!pendingConfig &&
+      (!connection || connection.name !== pendingConfig.name || !isConnectionAvailable));
+  if (showInitializer) {
+    return <div className="relative h-full w-full flex min-w-0 overflow-hidden">
+      <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center pt-[20vh] px-8 pb-8">
+        <ConnectionInitializer config={pendingConfig || null} onReady={handleReady} />
+      </div>
+    </div>
+  }
+
+  // Show wizard ONLY if:
+  // 1. App is fully initialized
+  // 2. No pending config (not currently connecting)
+  // 3. No active connection (fresh state)
+  const showWizard = isInitialized && !pendingConfig && !connection;
   if (showWizard) {
     return <ConnectionWizard />;
   }
@@ -526,12 +533,6 @@ export function MainPage() {
 
   return (
     <div className="relative h-full w-full flex min-w-0 overflow-hidden">
-      {showInitializer && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center pt-[20vh] px-8 pb-8">
-          <ConnectionInitializer config={pendingConfig || null} onReady={handleReady} />
-        </div>
-      )}
-
       <PanelGroup direction="horizontal" className="h-full w-full min-w-0">
         {/* Left Panel: Schema Tree View - always mounted, hidden in fullscreen */}
         <Panel
@@ -547,46 +548,44 @@ export function MainPage() {
           <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
         )}
 
-        {/* Middle Panel: Tabs - always mounted to preserve state, hidden when collapsed */}
+        {/* Right Panel: Contains both Tabs and Chat in a nested layout */}
         <Panel
-          ref={tabsPanelRef}
-          defaultSize={
-            displayMode === "hidden"
-              ? DEFAULT_TAB_PANEL_SIZE
-              : displayMode === "panel"
-                ? DEFAULT_TAB_PANEL_SIZE - DEFAULT_CHAT_PANEL_SIZE
-                : 0
-          }
-          minSize={0}
-          className={`bg-background ${!showTabsVisible ? "overflow-hidden" : ""}`}
+          defaultSize={100 - DEFAULT_SCHEMA_PANEL_SIZE}
+          minSize={20}
+          className="bg-background"
         >
-          <div className={!showTabsVisible ? "hidden" : "h-full"}>
-            <MainPageTabList selectedConnection={connection} />
-          </div>
+          {/* Nested PanelGroup for Tabs and Chat */}
+          <PanelGroup direction="horizontal" className="h-full w-full">
+            {/* Tabs Panel - always mounted, visibility controlled by CSS */}
+            <Panel
+              ref={tabsPanelRef}
+              defaultSize={showTabsVisible ? (showChatPanel ? 60 : 100) : 0}
+              minSize={0}
+              className={`bg-background ${!showTabsVisible ? "!w-0 !min-w-0 !max-w-0 overflow-hidden" : ""}`}
+            >
+              <div className={!showTabsVisible ? "hidden" : "h-full"}>
+                <MainPageTabList selectedConnection={connection} />
+              </div>
+            </Panel>
+
+            {/* Resize Handle between Tabs and Chat - only when both visible */}
+            {showTabsVisible && showChatPanel && (
+              <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
+            )}
+
+            {/* Chat Panel */}
+            {showChatPanel && (
+              <Panel
+                ref={chatPanelRef}
+                defaultSize={showTabsVisible ? 40 : 100}
+                minSize={20}
+                className="bg-background"
+              >
+                <ChatPanel onClose={closeChatPanel} />
+              </Panel>
+            )}
+          </PanelGroup>
         </Panel>
-
-        {/* Resize Handle between Tabs and Chat Panel - only show when both are visible */}
-        {showChatPanel && showTabsVisible && (
-          <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
-        )}
-
-        {/* Right Panel: Chat Panel */}
-        {showChatPanel && (
-          <Panel
-            ref={chatPanelRef}
-            defaultSize={
-              displayMode === "panel"
-                ? DEFAULT_CHAT_PANEL_SIZE
-                : displayMode === "tabWidth"
-                  ? DEFAULT_TAB_PANEL_SIZE
-                  : 100
-            }
-            minSize={20}
-            className="bg-background"
-          >
-            <ChatPanel onClose={closeChatPanel} />
-          </Panel>
-        )}
       </PanelGroup>
     </div>
   );

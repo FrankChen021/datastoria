@@ -71,7 +71,7 @@ function EmptyStateButton({
 // Component for the "Ready" state (Welcome screen)
 function EmptyTabPlaceholderComponent() {
   const { connection } = useConnection();
-  const { open: openChatPanel } = useChatPanel();
+  const { setDisplayMode } = useChatPanel();
   const isClusterMode = connection?.cluster && connection.cluster.length > 0;
 
   const openQueryTab = useCallback(() => {
@@ -126,7 +126,7 @@ function EmptyTabPlaceholderComponent() {
           Write SQLs
         </EmptyStateButton>
 
-        <EmptyStateButton icon={Sparkles} onClick={openChatPanel}>
+        <EmptyStateButton icon={Sparkles} onClick={() => setDisplayMode("tabWidth")}>
           Chat with AI
         </EmptyStateButton>
 
@@ -164,6 +164,9 @@ function EmptyTabPlaceholderComponent() {
 export const MainPageTabList = memo(function MainPageTabList({
   selectedConnection,
 }: MainPageTabListProps) {
+  // Chat panel state - used to switch from tabWidth to panel mode when a tab is opened
+  const { displayMode, setDisplayMode } = useChatPanel();
+
   // Tab management state
   const [activeTab, setActiveTab] = useState<string>("");
   const [tabs, setTabs] = useState<TabInfo[]>([]);
@@ -185,6 +188,11 @@ export const MainPageTabList = memo(function MainPageTabList({
 
       if (!newTab) return;
 
+      // If chat panel is in tabWidth or fullscreen mode, switch to panel mode when a tab is opened
+      if (displayMode === "tabWidth" || displayMode === "fullscreen") {
+        setDisplayMode("panel");
+      }
+
       // Check if tab already exists first
       setTabs((prevTabs) => {
         const existingTab = prevTabs.find((t) => t.id === tabId);
@@ -203,7 +211,7 @@ export const MainPageTabList = memo(function MainPageTabList({
 
     const unsubscribe = TabManager.onOpenTab(handler);
     return unsubscribe;
-  }, []);
+  }, [displayMode, setDisplayMode]);
 
   // Activate pending tab after it's added to the list
   useEffect(() => {
