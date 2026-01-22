@@ -135,3 +135,66 @@ export class QueryPattern {
     return queryParams;
   }
 }
+
+/**
+ * Replace unqualified table names in SQL with fully qualified names.
+ * Only replaces table references (after FROM, JOIN, INTO, etc.), not column references.
+ *
+ * @param sql - The SQL query string
+ * @param tables - Array of fully qualified table names (e.g., ["bithon.bithon_trace_span"])
+ * @returns SQL with fully qualified table names
+ */
+export function qualifyTableNames(sql: string, tables: string[]): string {
+  if (!tables || tables.length === 0) {
+    return sql;
+  }
+
+  // Build a map from unqualified name to fully qualified name
+  const tableMap = new Map<string, string>();
+  for (const fqn of tables) {
+    const dotIndex = fqn.indexOf(".");
+    if (dotIndex > 0) {
+      const unqualifiedName = fqn.slice(dotIndex + 1);
+      // Only add if not already mapped (first occurrence wins)
+      if (!tableMap.has(unqualifiedName)) {
+        tableMap.set(unqualifiedName, fqn);
+      }
+    }
+  }
+
+  if (tableMap.size === 0) {
+    return sql;
+  }
+
+  // Replace unqualified table names that appear after table reference keywords
+  // Keywords: FROM, JOIN, INTO, UPDATE, TABLE (case-insensitive)
+  // Pattern matches: keyword + whitespace + unqualified_table_name (not already qualified)
+  // Handles table names with or without quotes (double quotes or backticks)
+  let result = sql;
+  for (const [unqualified, qualified] of tableMap) {
+    // Escape special regex characters in the unqualified table name
+    const escapedUnqualified = unqualified.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    
+    // Match table name after keywords, ensuring it's not already qualified (no dot before it)
+    // Handles: table_name, "table_name", `table_name`
+    // Pattern: (keyword + whitespace) + (optional quote/backtick) + table_name + (optional matching quote/backtick)
+    // and is followed by whitespace, newline, comma, parenthesis, or end of string
+    const pattern = new RegExp(
+      `(\\b(?:FROM|JOIN|INTO|UPDATE|TABLE)\\s+)(?!\\w+\\.)(["\`]?)(${escapedUnqualified})\\2(?=\\s|$|,|\\(|\\))`,
+      "gi"
+    );
+    
+    // Replace with qualified name, preserving quote style if present
+    result = result.replace(pattern, (match, keyword, quote) => {
+      if (quote) {
+        // If the original had quotes, apply quotes to each part of the qualified name
+        const [database, table] = qualified.split(".");
+        return `${keyword}${quote}${database}${quote}.${quote}${table}${quote}`;
+      }
+      // No quotes, just use the qualified name as-is
+      return `${keyword}${qualified}`;
+    });
+  }
+
+  return result;
+}

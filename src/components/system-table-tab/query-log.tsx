@@ -14,6 +14,7 @@ import type {
 import DashboardPage from "@/components/shared/dashboard/dashboard-page";
 import { QueryIdLink } from "@/components/shared/query-id-link";
 import type { JSONCompactFormatResponse } from "@/lib/connection/connection";
+import { qualifyTableNames } from "@/lib/query-utils";
 import { AlertCircle, Sparkle, Wand2 } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { useChatPanel } from "../chat/view/use-chat-panel";
@@ -368,53 +369,6 @@ LIMIT 100
   }, [DISTRIBUTION_QUERY, TABLE_QUERY]);
 
   const { postMessage } = useChatPanel();
-
-  /**
-   * Replace unqualified table names in SQL with fully qualified names.
-   * Only replaces table references (after FROM, JOIN, INTO, etc.), not column references.
-   *
-   * @param sql - The SQL query string
-   * @param tables - Array of fully qualified table names (e.g., ["bithon.bithon_trace_span"])
-   * @returns SQL with fully qualified table names
-   */
-  const qualifyTableNames = useCallback((sql: string, tables: string[]): string => {
-    if (!tables || tables.length === 0) {
-      return sql;
-    }
-
-    // Build a map from unqualified name to fully qualified name
-    const tableMap = new Map<string, string>();
-    for (const fqn of tables) {
-      const dotIndex = fqn.indexOf(".");
-      if (dotIndex > 0) {
-        const unqualifiedName = fqn.slice(dotIndex + 1);
-        // Only add if not already mapped (first occurrence wins)
-        if (!tableMap.has(unqualifiedName)) {
-          tableMap.set(unqualifiedName, fqn);
-        }
-      }
-    }
-
-    if (tableMap.size === 0) {
-      return sql;
-    }
-
-    // Replace unqualified table names that appear after table reference keywords
-    // Keywords: FROM, JOIN, INTO, UPDATE, TABLE (case-insensitive)
-    // Pattern matches: keyword + whitespace + unqualified_table_name (not already qualified)
-    let result = sql;
-    for (const [unqualified, qualified] of tableMap) {
-      // Match table name after keywords, ensuring it's not already qualified (no dot before it)
-      // and is followed by whitespace, newline, comma, parenthesis, or end of string
-      const pattern = new RegExp(
-        `(\\b(?:FROM|JOIN|INTO|UPDATE|TABLE)\\s+)(?!\\w+\\.)(${unqualified})(?=\\s|$|,|\\(|\\))`,
-        "gi"
-      );
-      result = result.replace(pattern, `$1${qualified}`);
-    }
-
-    return result;
-  }, []);
 
   const handleAskForOptimization = useCallback(async (row: Record<string, unknown>) => {
     let query = row.formatted_query as string;

@@ -5,6 +5,7 @@
  * Used when user asks to find/optimize heavy queries without providing specific SQL or query_id.
  */
 import type { JSONCompactFormatResponse } from "@/lib/connection/connection";
+import { qualifyTableNames } from "@/lib/query-utils";
 import type { ToolExecutor } from "./client-tool-types";
 
 const METRIC_CONFIG = {
@@ -124,7 +125,8 @@ export const findExpensiveQueriesExecutor: ToolExecutor<
       memory_usage,
       read_rows,
       read_bytes,
-      event_time
+      event_time,
+      tables
     FROM system.query_log
     WHERE
       type = 'QueryFinish'
@@ -153,7 +155,7 @@ export const findExpensiveQueriesExecutor: ToolExecutor<
     }
 
     // JSONCompact format: rows are arrays with column order matching SELECT clause
-    // [query_id, user, sql_preview, metric_value, query_duration_ms, memory_usage, read_rows, read_bytes, event_time]
+    // [query_id, user, sql_preview, metric_value, query_duration_ms, memory_usage, read_rows, read_bytes, event_time, tables]
     return {
       success: true,
       metric,
@@ -161,19 +163,31 @@ export const findExpensiveQueriesExecutor: ToolExecutor<
       time_window: timeInfo.window,
       time_range: timeInfo.range,
       time_description: timeInfo.description,
-      queries: rows.map((row: unknown[], idx: number) => ({
-        rank: idx + 1,
-        query_id: row[0] as string,
-        user: row[1] as string,
-        sql_preview: row[2] as string,
-        metric_value: row[3] as number,
-        metric_formatted: config.formatValue(row[3] as number),
-        duration_ms: row[4] as number,
-        memory_bytes: row[5] as number,
-        read_rows: row[6] as number,
-        read_bytes: row[7] as number,
-        event_time: String(row[8]),
-      })),
+      queries: rows.map((row: unknown[], idx: number) => {
+        let sqlPreview = row[2] as string;
+        const tables = row[9] as string[] | undefined;
+        
+        // Qualify table names in SQL preview if tables array is available
+        console.log('tables', tables);
+        console.log('sqlPreview', sqlPreview);
+        if (tables && tables.length > 0) {
+          sqlPreview = qualifyTableNames(sqlPreview, tables);
+        }
+        
+        return {
+          rank: idx + 1,
+          query_id: row[0] as string,
+          user: row[1] as string,
+          sql_preview: sqlPreview,
+          metric_value: row[3] as number,
+          metric_formatted: config.formatValue(row[3] as number),
+          duration_ms: row[4] as number,
+          memory_bytes: row[5] as number,
+          read_rows: row[6] as number,
+          read_bytes: row[7] as number,
+          event_time: String(row[8]),
+        };
+      }),
     };
   } catch (error) {
     return {

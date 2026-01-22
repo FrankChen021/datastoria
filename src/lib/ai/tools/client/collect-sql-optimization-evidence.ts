@@ -1,4 +1,5 @@
 import { QueryError, type Connection } from "@/lib/connection/connection";
+import { qualifyTableNames } from "@/lib/query-utils";
 import type { EvidenceContext } from "../../common-types";
 import { escapeSqlString, type ToolExecutor, type ToolProgressCallback } from "./client-tool-types";
 
@@ -127,7 +128,8 @@ SELECT
   result_rows,
   exception,
   ProfileEvents,
-  query
+  query,
+  tables
 FROM ${isCluster ? `clusterAllReplicas("${connection.cluster}", system.query_log)` : "system.query_log"}
 WHERE 
 query_id = '${escapeSqlString(queryId)}'
@@ -172,8 +174,14 @@ SETTINGS max_execution_time = 0
         }
       }
 
-      // Extract SQL text from query_log (row[7])
-      const sqlFromLog = row[7] ? String(row[7]) : undefined;
+      // Extract SQL text from query_log (row[7]) and tables array (row[8])
+      let sqlFromLog = row[7] ? String(row[7]) : undefined;
+      const tables = row[8] as string[] | undefined;
+      
+      // Qualify table names in SQL if tables array is available
+      if (sqlFromLog && tables && tables.length > 0) {
+        sqlFromLog = qualifyTableNames(sqlFromLog, tables);
+      }
 
       context.query_log = {
         duration_ms: Number(row[0]) || undefined,
