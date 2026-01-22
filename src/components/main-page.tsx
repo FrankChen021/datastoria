@@ -103,17 +103,10 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
   const metadataQuery = connection
     .query(
       `SELECT currentUser(), 
-    timezone(),
-    FQDN(),
-    hasColumnInTable('system', 'functions', 'description'),
-    hasColumnInTable('system', 'metric_log', 'ProfileEvent_MergeSourceParts'),
-    hasColumnInTable('system', 'metric_log', 'ProfileEvent_MutationTotalParts'),
-    hasColumnInTable('system', 'query_log', 'hostname'),
-    hasColumnInTable('system', 'part_log', 'hostname')
-`,
+      timezone(),
+      FQDN()`,
       { default_format: "JSONCompact" }
-    )
-    .response.then((metadataResponse) => {
+    ).response.then((metadataResponse) => {
       if (metadataResponse.httpStatus === 200) {
         const data = metadataResponse.data.json<JSONCompactFormatResponse>();
         const internalUser = data.data[0][0];
@@ -123,11 +116,6 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
         // 0: currentUser()
         // 1: timezone()
         // 2: FQDN()
-        // 3: hasColumnInTable('system','functions','description')
-        // 4: hasColumnInTable('system','metric_log','ProfileEvent_MergeSourceParts')
-        // 5: hasColumnInTable('system','metric_log','ProfileEvent_MutationTotalParts')
-        // 6: hasColumnInTable('system','query_log','hostname')
-        // 7: hasColumnInTable('system','part_log','hostname')
 
         const isCluster = connection.cluster && connection.cluster.length > 0;
         connection.metadata = {
@@ -136,56 +124,99 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
           remoteHostName: isCluster ? hostname : undefined,
           internalUser: internalUser as string,
           timezone: timezone as string,
-
-          // Table columns
-          function_table_has_description_column: Boolean(data.data[0][3]),
-          metric_log_table_has_ProfileEvent_MergeSourceParts: Boolean(data.data[0][4]),
-          metric_log_table_has_ProfileEvent_MutationTotalParts: Boolean(data.data[0][5]),
-          query_log_table_has_hostname_column: Boolean(data.data[0][6]),
-          part_log_table_has_node_name_column: Boolean(data.data[0][7]),
         };
       }
     });
 
-  // Issue a dedicated query in case the query fails
-  const functionQuery = connection
-    .query(`select 1 from system.functions where name = 'formatQuery'`, {
-      default_format: "JSONCompact",
-    })
-    .response.then((functionResponse) => {
-      if (functionResponse.httpStatus === 200) {
-        const data = functionResponse.data.json<JSONCompactFormatResponse>();
-        if (data.data.length > 0) {
-          const has_format_query_function = data.data[0][0];
-          connection.metadata = {
-            ...connection.metadata,
-            has_format_query_function: has_format_query_function ? true : false,
-          };
-        }
+  // Separate queries for column checks - each query is independent and failures are ignored
+  const functionTableQuery = connection.query(
+    `SELECT 
+    hasColumnInTable('system', 'functions', 'description'),
+    (SELECT 1 FROM system.functions WHERE name = 'formatQuery' LIMIT 1)`,
+    { default_format: "JSONCompact" }
+  ).response.then((response) => {
+    if (response.httpStatus === 200) {
+      const data = response.data.json<JSONCompactFormatResponse>();
+      connection.metadata = {
+        ...connection.metadata,
+        function_table_has_description_column: Boolean(data.data[0]?.[0]),
+        has_format_query_function: Boolean(data.data[0]?.[1]),
+      };
+    }
+  }).catch((e) => {
+    console.warn("Failed to check system.functions table:", e);
+  });
+
+  const metricLogTableQuery = connection.query(
+    `SELECT 
+    hasColumnInTable('system', 'metric_log', 'ProfileEvent_MergeSourceParts'),
+    hasColumnInTable('system', 'metric_log', 'ProfileEvent_MutationTotalParts')`,
+    { default_format: "JSONCompact" }
+  )
+    .response.then((response) => {
+      if (response.httpStatus === 200) {
+        const data = response.data.json<JSONCompactFormatResponse>();
+        connection.metadata = {
+          ...connection.metadata,
+          metric_log_table_has_ProfileEvent_MergeSourceParts: Boolean(data.data[0]?.[0]),
+          metric_log_table_has_ProfileEvent_MutationTotalParts: Boolean(data.data[0]?.[1]),
+        };
       }
+    })
+    .catch((e) => {
+      console.warn("Failed to check metric_log table columns:", e);
+    });
+
+  const queryLogTableQuery = connection.query(
+    `SELECT hasColumnInTable('system', 'query_log', 'hostname')`,
+    { default_format: "JSONCompact" }
+  ).response.then((response) => {
+    if (response.httpStatus === 200) {
+      const data = response.data.json<JSONCompactFormatResponse>();
+      connection.metadata = {
+        ...connection.metadata,
+        query_log_table_has_hostname_column: Boolean(data.data[0]?.[0]),
+      };
+    }
+  }).catch((e) => {
+    console.warn("Failed to check query_log_table_has_hostname_column:", e);
+  });
+
+  const partLogTableQuery = connection.query(
+    `SELECT hasColumnInTable('system', 'part_log', 'hostname')`,
+    { default_format: "JSONCompact" }
+  )
+    .response.then((response) => {
+      if (response.httpStatus === 200) {
+        const data = response.data.json<JSONCompactFormatResponse>();
+        connection.metadata = {
+          ...connection.metadata,
+          part_log_table_has_node_name_column: Boolean(data.data[0]?.[0]),
+        };
+      }
+    })
+    .catch((e) => {
+      console.warn("Failed to check part_log_table_has_node_name_column:", e);
     });
 
   // Pre-load hostnames for shortening if cluster is configured
-  const clusterHostQuery = connection.cluster
-    ? connection
-        .query(
-          `SELECT host_name FROM system.clusters WHERE cluster = '${escapeSqlString(connection.cluster)}'`,
-          {
-            default_format: "JSONCompact",
-          }
-        )
-        .response.then((clusterHostResponse) => {
-          if (clusterHostResponse.httpStatus === 200) {
-            const data = clusterHostResponse.data.json<JSONCompactFormatResponse>();
-            if (data && Array.isArray(data.data)) {
-              const hostNames = data.data.map((row) => row[0] as string);
-              hostNameManager.shortenHostnames(hostNames);
-            }
-          }
-        })
-        .catch((e) => {
-          console.warn("Failed to load cluster hosts for shortening:", e);
-        })
+  const clusterTableQuery = connection.cluster
+    ? connection.query(
+      `SELECT host_name FROM system.clusters WHERE cluster = '${escapeSqlString(connection.cluster)}'`,
+      {
+        default_format: "JSONCompact",
+      }
+    ).response.then((clusterHostResponse) => {
+      if (clusterHostResponse.httpStatus === 200) {
+        const data = clusterHostResponse.data.json<JSONCompactFormatResponse>();
+        if (data && Array.isArray(data.data)) {
+          const hostNames = data.data.map((row) => row[0] as string);
+          hostNameManager.shortenHostnames(hostNames);
+        }
+      }
+    }).catch((e) => {
+      console.warn("Failed to load cluster hosts for shortening:", e);
+    })
     : Promise.resolve();
 
   const settingsQuery = connection
@@ -228,10 +259,13 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
 
   await Promise.all([
     metadataQuery,
-    functionQuery,
-    clusterHostQuery,
+    clusterTableQuery,
     settingsQuery,
     profileEventsQuery,
+    functionTableQuery,
+    metricLogTableQuery,
+    queryLogTableQuery,
+    partLogTableQuery,
   ]);
 }
 
@@ -384,7 +418,7 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
         <CardHeader className="text-center space-y-1 pb-4">
           <div className="flex justify-center items-center">
             <AppLogo width={64} height={64} />
-            <CardTitle>Data Storia</CardTitle>
+            <CardTitle>DataStoria</CardTitle>
           </div>
           <CardDescription className="text-base">
             AI-powered ClickHouse management console with visualization and insights
