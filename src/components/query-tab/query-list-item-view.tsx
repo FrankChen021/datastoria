@@ -64,6 +64,7 @@ export function QueryListItemView({
   const thisComponentRef = useRef<HTMLDivElement>(null);
   const scrollUpButtonWrapperRef = useRef<HTMLDivElement>(null);
   const scrollDownButtonWrapperRef = useRef<HTMLDivElement>(null);
+  const isHoveringRef = useRef(false);
 
   const timestamp = format(new Date(queryRequest.timestamp), "yyyy-MM-dd HH:mm:ss");
 
@@ -89,15 +90,37 @@ export function QueryListItemView({
     const clippedTop = sectionRect.top < rootRect.top - 1;
     const clippedBottom = sectionRect.bottom > rootRect.bottom + 1;
 
+    // Calculate the visible top and bottom positions within the scroll container
+    const visibleTop = Math.max(sectionRect.top, rootRect.top);
+    const visibleBottom = Math.min(sectionRect.bottom, rootRect.bottom);
+
     if (scrollUpButtonWrapperRef.current) {
-      scrollUpButtonWrapperRef.current.style.display = clippedTop ? "" : "none";
+      if (clippedTop) {
+        scrollUpButtonWrapperRef.current.style.display = "";
+        // Position at the bottom of the visible viewport region (offset from section bottom)
+        const offsetFromSectionBottom = sectionRect.bottom - visibleBottom;
+        scrollUpButtonWrapperRef.current.style.bottom = `${offsetFromSectionBottom + 8}px`;
+        scrollUpButtonWrapperRef.current.style.top = "auto";
+      } else {
+        scrollUpButtonWrapperRef.current.style.display = "none";
+      }
     }
+
     if (scrollDownButtonWrapperRef.current) {
-      scrollDownButtonWrapperRef.current.style.display = clippedBottom ? "" : "none";
+      if (clippedBottom) {
+        scrollDownButtonWrapperRef.current.style.display = "";
+        // Position at the top of the visible viewport region (offset from section top)
+        const offsetFromSectionTop = visibleTop - sectionRect.top;
+        scrollDownButtonWrapperRef.current.style.top = `${offsetFromSectionTop + 8}px`;
+        scrollDownButtonWrapperRef.current.style.bottom = "auto";
+      } else {
+        scrollDownButtonWrapperRef.current.style.display = "none";
+      }
     }
   }, [scrollRootRef]);
 
   const handleMouseEnter = useCallback(() => {
+    isHoveringRef.current = true;
     if (deleteButtonRef.current) {
       deleteButtonRef.current.style.opacity = "1";
       deleteButtonRef.current.style.pointerEvents = "auto";
@@ -106,6 +129,7 @@ export function QueryListItemView({
   }, [setScrollButtonVisibility]);
 
   const handleMouseLeave = useCallback(() => {
+    isHoveringRef.current = false;
     if (deleteButtonRef.current) {
       deleteButtonRef.current.style.opacity = "0";
       deleteButtonRef.current.style.pointerEvents = "none";
@@ -128,8 +152,13 @@ export function QueryListItemView({
 
     const delta = sectionRect.top - rootRect.top - 8;
     root.scrollBy({ top: delta, behavior: "smooth" });
+    // Use multiple requestAnimationFrame calls to ensure visibility updates after smooth scroll completes
     requestAnimationFrame(() => {
-      setScrollButtonVisibility();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setScrollButtonVisibility();
+        });
+      });
     });
   }, [scrollRootRef, setScrollButtonVisibility]);
 
@@ -143,8 +172,13 @@ export function QueryListItemView({
 
     const delta = sectionRect.bottom - rootRect.bottom + 8;
     root.scrollBy({ top: delta, behavior: "smooth" });
+    // Use multiple requestAnimationFrame calls to ensure visibility updates after smooth scroll completes
     requestAnimationFrame(() => {
-      setScrollButtonVisibility();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setScrollButtonVisibility();
+        });
+      });
     });
   }, [scrollRootRef, setScrollButtonVisibility]);
 
@@ -161,6 +195,23 @@ export function QueryListItemView({
       });
     }
   }, [queryResponse, isExecuting]);
+
+  // Add scroll event listener to update button visibility when scrolling while hovering
+  useEffect(() => {
+    const root = scrollRootRef?.current;
+    if (!root) return;
+
+    const handleScroll = () => {
+      if (isHoveringRef.current) {
+        setScrollButtonVisibility();
+      }
+    };
+
+    root.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      root.removeEventListener("scroll", handleScroll);
+    };
+  }, [scrollRootRef, setScrollButtonVisibility]);
 
   // Handle query deletion - cancel if executing, then delete
   const handleDelete = () => {
@@ -208,18 +259,18 @@ export function QueryListItemView({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Floating buttons (based on the ENTIRE query-list-item) */}
+      {/* Floating buttons positioned at the visible viewport edges */}
       <div
         ref={scrollUpButtonWrapperRef}
-        className="pointer-events-none absolute bottom-5 left-1/2 z-20 -translate-x-1/2"
-        style={{ display: "none" }}
+        className="pointer-events-none absolute left-1/2 z-20"
+        style={{ display: "none", bottom: 0, transform: "translateX(-50%)" }}
       >
         <Button
           variant="ghost"
           size="sm"
           type="button"
           title="Scroll up"
-          className="h-6 w-6 rounded-full border opacity-0 group-hover/query-item:opacity-100 transition-opacity pointer-events-auto"
+          className="h-6 w-6 rounded-full bg-accent transition-opacity pointer-events-auto"
           onClick={scrollToTop}
         >
           <ChevronUp className="h-4 w-4" />
@@ -228,15 +279,15 @@ export function QueryListItemView({
 
       <div
         ref={scrollDownButtonWrapperRef}
-        className="pointer-events-none absolute top-2 left-1/2 z-20 -translate-x-1/2"
-        style={{ display: "none" }}
+        className="pointer-events-none absolute left-1/2 z-20"
+        style={{ display: "none", top: 0, transform: "translateX(-50%)" }}
       >
         <Button
           variant="ghost"
           size="icon"
           type="button"
           title="Scroll down"
-          className="h-6 w-6 rounded-full border opacity-0 group-hover/query-item:opacity-100 transition-opacity pointer-events-auto"
+          className="h-6 w-6 rounded-full bg-accent transition-opacity pointer-events-auto"
           onClick={scrollToBottom}
         >
           <ChevronDown className="h-4 w-4" />

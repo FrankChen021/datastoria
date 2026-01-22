@@ -60,7 +60,7 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     null
   );
 
-  const cycleDisplayMode = () => {
+  const toggleDisplayMode = () => {
     setDisplayMode((prev) => {
       switch (prev) {
         case "panel":
@@ -76,7 +76,7 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
   };
 
   const open = () => {
-    setDisplayMode((prev) => (prev === "hidden" ? "panel" : prev));
+    setDisplayMode((prev) => (prev === "hidden" ? "tabWidth" : prev));
   };
 
   const close = () => {
@@ -106,7 +106,7 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
       value={{
         displayMode,
         setDisplayMode,
-        toggleDisplayMode: cycleDisplayMode,
+        toggleDisplayMode,
         open,
         close,
         postMessage,

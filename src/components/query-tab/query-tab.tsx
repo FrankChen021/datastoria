@@ -119,7 +119,7 @@ const QueryTabContent = ({
         <QueryListView tabId={tabId} />
       </Panel>
 
-      <PanelResizeHandle className="h-[1px] bg-border hover:bg-border/80 transition-colors cursor-row-resize" />
+      <PanelResizeHandle className="h-0.5 bg-border hover:bg-border/80 transition-colors cursor-row-resize" />
 
       {/* Bottom Panel: Query Input View with Control */}
       <Panel defaultSize={40} minSize={20} className="bg-background flex flex-col">

@@ -112,12 +112,12 @@ export class QuerySuggestionManager {
           // Remove leading slash if present to avoid double slashes
           let cleanUrl = href.startsWith("/") ? href.slice(1) : href;
 
-          // Remove .md suffix (e.g., "test.md" -> "test", "test.md#anchor" -> "test#anchor")
-          cleanUrl = cleanUrl.replace(/\.md(#|$)/g, "$1");
+          // Remove .md suffix (e.g., "test.md" -> "test", "test.md#anchor" -> "test#anchor", "test.md/#anchor" -> "test/#anchor", "test.md/" -> "test/")
+          cleanUrl = cleanUrl.replace(/\.md(\/|#|\/#|$)/g, "$1");
           if (type === "function") {
             absoluteUrl = `https://clickhouse.com/docs/sql-reference/functions/${cleanUrl}`;
           } else if (type === "setting") {
-            absoluteUrl = `https://clickhouse.com/docs/operations/settings/settings${cleanUrl}`;
+              absoluteUrl = `https://clickhouse.com/docs/operations/settings/${cleanUrl}`;
           } else {
             absoluteUrl = `https://clickhouse.com/docs/${cleanUrl}`;
           }

@@ -96,7 +96,10 @@ const handleCode62: ErrorHandler = (detailMessage, sql) => {
 
 const isIdentifierChar = (char: string) => /[a-zA-Z0-9_]/.test(char);
 
-const CODE_46_PATTERNS = [/(Unknown function ([a-zA-Z0-9_]+))/i];
+const CODE_46_PATTERNS = [
+  /(Unknown function ([a-zA-Z0-9_]+))/i,
+  /(Function with name [`']([^`']+)['`] does not exist)/i,
+];
 
 const CODE_47_PATTERNS = [
   /(Unknown expression identifier) [`']([^`']+)['`]/i,
