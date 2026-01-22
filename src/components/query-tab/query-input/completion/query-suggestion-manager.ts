@@ -117,7 +117,7 @@ export class QuerySuggestionManager {
           if (type === "function") {
             absoluteUrl = `https://clickhouse.com/docs/sql-reference/functions/${cleanUrl}`;
           } else if (type === "setting") {
-              absoluteUrl = `https://clickhouse.com/docs/operations/settings/${cleanUrl}`;
+            absoluteUrl = `https://clickhouse.com/docs/operations/settings/${cleanUrl}`;
           } else {
             absoluteUrl = `https://clickhouse.com/docs/${cleanUrl}`;
           }

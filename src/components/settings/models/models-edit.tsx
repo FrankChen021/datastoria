@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { MODELS } from "@/lib/ai/llm/llm-provider-factory";
 import { TextHighlighter } from "@/lib/text-highlighter";
-import { ChevronDown, ExternalLink, Search } from "lucide-react";
+import { ChevronDown, ExternalLink, Eye, EyeOff, Search } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 const PROVIDER_LINKS: Record<string, string> = {
@@ -66,14 +66,11 @@ export function ModelsEdit() {
   );
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Group models by provider for initial expansion state
-  const initialGroupedProviders = useMemo(() => {
-    const providers = new Set<string>();
-    initialState.models.forEach((m) => providers.add(m.provider));
-    return providers;
-  }, [initialState.models]);
+  // Start with all providers collapsed (empty set) to show only provider headers by default
+  const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set());
 
-  const [expandedProviders, setExpandedProviders] = useState<Set<string>>(initialGroupedProviders);
+  // Track which providers have visible API keys
+  const [visibleApiKeys, setVisibleApiKeys] = useState<Set<string>>(new Set());
 
   const handleDisabledChange = useCallback(
     (modelId: string, disabled: boolean) => {
@@ -153,6 +150,39 @@ export function ModelsEdit() {
     });
   }, []);
 
+  const toggleApiKeyVisibility = useCallback((provider: string) => {
+    setVisibleApiKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(provider)) {
+        next.delete(provider);
+      } else {
+        next.add(provider);
+      }
+      return next;
+    });
+  }, []);
+
+  // Mask API key to show only first 8 characters by default
+  const getMaskedApiKey = useCallback((apiKey: string, isVisible: boolean) => {
+    if (!apiKey || isVisible) {
+      return apiKey;
+    }
+    if (apiKey.length <= 8) {
+      return "•".repeat(apiKey.length);
+    }
+    return `${apiKey.slice(0, 8)}${"•".repeat(Math.min(apiKey.length - 8, 12))}`;
+  }, []);
+
+  // Auto-reveal API key when user focuses on the input
+  const handleApiKeyFocus = useCallback(
+    (provider: string) => {
+      if (!visibleApiKeys.has(provider)) {
+        setVisibleApiKeys((prev) => new Set(prev).add(provider));
+      }
+    },
+    [visibleApiKeys]
+  );
+
   return (
     <div className="h-full flex flex-col">
       {/* Search Input */}
@@ -218,12 +248,44 @@ export function ModelsEdit() {
                               <ExternalLink className="h-4 w-4" />
                             </a>
                           )}
-                          <Input
-                            value={providerSetting?.apiKey || ""}
-                            onChange={(e) => handleProviderApiKeyChange(provider, e.target.value)}
-                            placeholder={`Enter ${provider} API key`}
-                            className="w-full h-8 border-0 border-b border-muted-foreground/20 rounded-none pl-0 bg-transparent focus-visible:ring-0"
-                          />
+                          <div className="flex items-center gap-1 flex-1 relative">
+                            <Input
+                              type="text"
+                              value={
+                                providerSetting?.apiKey
+                                  ? visibleApiKeys.has(provider)
+                                    ? providerSetting.apiKey
+                                    : getMaskedApiKey(providerSetting.apiKey, false)
+                                  : ""
+                              }
+                              onChange={(e) => {
+                                handleProviderApiKeyChange(provider, e.target.value);
+                                // Auto-reveal when user starts typing
+                                if (e.target.value && !visibleApiKeys.has(provider)) {
+                                  setVisibleApiKeys((prev) => new Set(prev).add(provider));
+                                }
+                              }}
+                              onFocus={() => handleApiKeyFocus(provider)}
+                              placeholder={`Enter ${provider} API key`}
+                              className="w-full h-8 border-0 border-b border-muted-foreground/20 rounded-none pl-0 bg-transparent focus-visible:ring-0 pr-8"
+                            />
+                            {providerSetting?.apiKey && (
+                              <button
+                                type="button"
+                                onClick={() => toggleApiKeyVisibility(provider)}
+                                className="absolute right-0 text-muted-foreground hover:text-foreground transition-colors p-1"
+                                title={
+                                  visibleApiKeys.has(provider) ? "Hide API key" : "Show API key"
+                                }
+                              >
+                                {visibleApiKeys.has(provider) ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -234,11 +296,7 @@ export function ModelsEdit() {
                           <TableCell className="py-1.5 pl-8">
                             <div className="text-sm font-medium">
                               {searchQuery.trim()
-                                ? TextHighlighter.highlight(
-                                    model.modelId,
-                                    searchQuery,
-                                    "bg-yellow-200 dark:bg-yellow-900"
-                                  )
+                                ? TextHighlighter.highlight(model.modelId, searchQuery)
                                 : model.modelId}
                             </div>
                           </TableCell>

@@ -106,7 +106,8 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
       timezone(),
       FQDN()`,
       { default_format: "JSONCompact" }
-    ).response.then((metadataResponse) => {
+    )
+    .response.then((metadataResponse) => {
       if (metadataResponse.httpStatus === 200) {
         const data = metadataResponse.data.json<JSONCompactFormatResponse>();
         const internalUser = data.data[0][0];
@@ -129,30 +130,34 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
     });
 
   // Separate queries for column checks - each query is independent and failures are ignored
-  const functionTableQuery = connection.query(
-    `SELECT 
+  const functionTableQuery = connection
+    .query(
+      `SELECT 
     hasColumnInTable('system', 'functions', 'description'),
     (SELECT 1 FROM system.functions WHERE name = 'formatQuery' LIMIT 1)`,
-    { default_format: "JSONCompact" }
-  ).response.then((response) => {
-    if (response.httpStatus === 200) {
-      const data = response.data.json<JSONCompactFormatResponse>();
-      connection.metadata = {
-        ...connection.metadata,
-        function_table_has_description_column: Boolean(data.data[0]?.[0]),
-        has_format_query_function: Boolean(data.data[0]?.[1]),
-      };
-    }
-  }).catch((e) => {
-    console.warn("Failed to check system.functions table:", e);
-  });
+      { default_format: "JSONCompact" }
+    )
+    .response.then((response) => {
+      if (response.httpStatus === 200) {
+        const data = response.data.json<JSONCompactFormatResponse>();
+        connection.metadata = {
+          ...connection.metadata,
+          function_table_has_description_column: Boolean(data.data[0]?.[0]),
+          has_format_query_function: Boolean(data.data[0]?.[1]),
+        };
+      }
+    })
+    .catch((e) => {
+      console.warn("Failed to check system.functions table:", e);
+    });
 
-  const metricLogTableQuery = connection.query(
-    `SELECT 
+  const metricLogTableQuery = connection
+    .query(
+      `SELECT 
     hasColumnInTable('system', 'metric_log', 'ProfileEvent_MergeSourceParts'),
     hasColumnInTable('system', 'metric_log', 'ProfileEvent_MutationTotalParts')`,
-    { default_format: "JSONCompact" }
-  )
+      { default_format: "JSONCompact" }
+    )
     .response.then((response) => {
       if (response.httpStatus === 200) {
         const data = response.data.json<JSONCompactFormatResponse>();
@@ -167,25 +172,27 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
       console.warn("Failed to check metric_log table columns:", e);
     });
 
-  const queryLogTableQuery = connection.query(
-    `SELECT hasColumnInTable('system', 'query_log', 'hostname')`,
-    { default_format: "JSONCompact" }
-  ).response.then((response) => {
-    if (response.httpStatus === 200) {
-      const data = response.data.json<JSONCompactFormatResponse>();
-      connection.metadata = {
-        ...connection.metadata,
-        query_log_table_has_hostname_column: Boolean(data.data[0]?.[0]),
-      };
-    }
-  }).catch((e) => {
-    console.warn("Failed to check query_log_table_has_hostname_column:", e);
-  });
+  const queryLogTableQuery = connection
+    .query(`SELECT hasColumnInTable('system', 'query_log', 'hostname')`, {
+      default_format: "JSONCompact",
+    })
+    .response.then((response) => {
+      if (response.httpStatus === 200) {
+        const data = response.data.json<JSONCompactFormatResponse>();
+        connection.metadata = {
+          ...connection.metadata,
+          query_log_table_has_hostname_column: Boolean(data.data[0]?.[0]),
+        };
+      }
+    })
+    .catch((e) => {
+      console.warn("Failed to check query_log_table_has_hostname_column:", e);
+    });
 
-  const partLogTableQuery = connection.query(
-    `SELECT hasColumnInTable('system', 'part_log', 'hostname')`,
-    { default_format: "JSONCompact" }
-  )
+  const partLogTableQuery = connection
+    .query(`SELECT hasColumnInTable('system', 'part_log', 'hostname')`, {
+      default_format: "JSONCompact",
+    })
     .response.then((response) => {
       if (response.httpStatus === 200) {
         const data = response.data.json<JSONCompactFormatResponse>();
@@ -201,22 +208,25 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
 
   // Pre-load hostnames for shortening if cluster is configured
   const clusterTableQuery = connection.cluster
-    ? connection.query(
-      `SELECT host_name FROM system.clusters WHERE cluster = '${escapeSqlString(connection.cluster)}'`,
-      {
-        default_format: "JSONCompact",
-      }
-    ).response.then((clusterHostResponse) => {
-      if (clusterHostResponse.httpStatus === 200) {
-        const data = clusterHostResponse.data.json<JSONCompactFormatResponse>();
-        if (data && Array.isArray(data.data)) {
-          const hostNames = data.data.map((row) => row[0] as string);
-          hostNameManager.shortenHostnames(hostNames);
-        }
-      }
-    }).catch((e) => {
-      console.warn("Failed to load cluster hosts for shortening:", e);
-    })
+    ? connection
+        .query(
+          `SELECT host_name FROM system.clusters WHERE cluster = '${escapeSqlString(connection.cluster)}'`,
+          {
+            default_format: "JSONCompact",
+          }
+        )
+        .response.then((clusterHostResponse) => {
+          if (clusterHostResponse.httpStatus === 200) {
+            const data = clusterHostResponse.data.json<JSONCompactFormatResponse>();
+            if (data && Array.isArray(data.data)) {
+              const hostNames = data.data.map((row) => row[0] as string);
+              hostNameManager.shortenHostnames(hostNames);
+            }
+          }
+        })
+        .catch((e) => {
+          console.warn("Failed to load cluster hosts for shortening:", e);
+        })
     : Promise.resolve();
 
   const settingsQuery = connection

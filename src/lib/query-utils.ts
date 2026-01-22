@@ -174,7 +174,7 @@ export function qualifyTableNames(sql: string, tables: string[]): string {
   for (const [unqualified, qualified] of tableMap) {
     // Escape special regex characters in the unqualified table name
     const escapedUnqualified = unqualified.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    
+
     // Match table name after keywords, ensuring it's not already qualified (no dot before it)
     // Handles: table_name, "table_name", `table_name`
     // Pattern: (keyword + whitespace) + (optional quote/backtick) + table_name + (optional matching quote/backtick)
@@ -183,7 +183,7 @@ export function qualifyTableNames(sql: string, tables: string[]): string {
       `(\\b(?:FROM|JOIN|INTO|UPDATE|TABLE)\\s+)(?!\\w+\\.)(["\`]?)(${escapedUnqualified})\\2(?=\\s|$|,|\\(|\\))`,
       "gi"
     );
-    
+
     // Replace with qualified name, preserving quote style if present
     result = result.replace(pattern, (match, keyword, quote) => {
       if (quote) {

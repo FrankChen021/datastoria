@@ -23,7 +23,6 @@ export const MessageToolGeneral = memo(function MessageToolGeneral({
 
   return (
     <CollapsiblePart toolName={toolName} state={state}>
-
       <ToolProgressIndicator toolCallId={toolCallId} />
 
       {toolPart.input != null && (

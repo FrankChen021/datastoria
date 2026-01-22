@@ -166,14 +166,14 @@ export const findExpensiveQueriesExecutor: ToolExecutor<
       queries: rows.map((row: unknown[], idx: number) => {
         let sqlPreview = row[2] as string;
         const tables = row[9] as string[] | undefined;
-        
+
         // Qualify table names in SQL preview if tables array is available
-        console.log('tables', tables);
-        console.log('sqlPreview', sqlPreview);
+        console.log("tables", tables);
+        console.log("sqlPreview", sqlPreview);
         if (tables && tables.length > 0) {
           sqlPreview = qualifyTableNames(sqlPreview, tables);
         }
-        
+
         return {
           rank: idx + 1,
           query_id: row[0] as string,

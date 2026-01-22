@@ -177,7 +177,7 @@ SETTINGS max_execution_time = 0
       // Extract SQL text from query_log (row[7]) and tables array (row[8])
       let sqlFromLog = row[7] ? String(row[7]) : undefined;
       const tables = row[8] as string[] | undefined;
-      
+
       // Qualify table names in SQL if tables array is available
       if (sqlFromLog && tables && tables.length > 0) {
         sqlFromLog = qualifyTableNames(sqlFromLog, tables);
