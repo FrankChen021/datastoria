@@ -5,7 +5,7 @@ DataStoria's AI features require a Large Language Model (LLM) provider to functi
 ## Overview
 
 DataStoria uses LLM providers to power its AI features:
-- **Natural Language to SQL**: Converts natural language to SQL queries
+- **Natural Language Data Exploration**: Converts natural language to SQL queries
 - **Query Optimization**: Analyzes and optimizes SQL queries
 - **Intelligent Visualization**: Generates charts from descriptions
 - **Error Diagnostics**: Provides AI-powered error fixes
@@ -158,7 +158,7 @@ The Vercel AI SDK supports a wide range of providers including custom API endpoi
 
 ## Next Steps
 
-- **[Natural Language to SQL](./natural-language-sql.md)** — Start using AI to generate queries
+- **[Natural Language Data Exploration](./natural-language-sql.md)** — Start using AI to generate queries
 - **[Query Optimization](./query-optimization.md)** — Get AI-powered query improvements
 - **[Intelligent Visualization](./intelligent-visualization.md)** — Create charts with AI
 

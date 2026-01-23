@@ -160,7 +160,7 @@ DataStoria supports managing multiple ClickHouse clusters:
 
 Now that you're connected:
 
-1. **[Natural Language to SQL](../02-ai-features/natural-language-sql.md)** — Try querying with natural language
+1. **[Natural Language Data Exploration](../02-ai-features/natural-language-sql.md)** — Try querying with natural language
 2. **[SQL Editor](../03-query-experience/sql-editor.md)** — Learn about the advanced SQL editor features
 3. **[Schema Explorer](../04-cluster-management/schema-explorer.md)** — Explore your database structure
 

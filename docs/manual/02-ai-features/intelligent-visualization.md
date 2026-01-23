@@ -23,7 +23,8 @@ You create a connection to this playground to try the following examples.
 
 ![visualization-example-1](./visualization-example.jpg)
 
-The generated 
+The generated is as:
+
 ```sql
 SELECT
   toDate(time) AS day,
@@ -48,7 +49,7 @@ LIMIT 1000
 ![visualization-example-3](./visualization-example-3.jpg)
 
 
-#### Pie and Donut Charts
+#### Pie Charts
 
 **Prompt**: "Show me a pie chart of market share by product category"
 
@@ -58,91 +59,9 @@ LIMIT 1000
 
 **Result**: A donut chart with different segments for each order status
 
-#### Scatter and Bubble Charts
+### Other charts
 
-**Prompt**: "Make a scatter plot of price vs quantity sold"
-
-**Result**: A scatter plot with price on x-axis, quantity on y-axis, and points for each data record
-
-**Prompt**: "Create a bubble chart showing revenue (size) by region (x) and profit margin (y)"
-
-**Result**: A bubble chart with region on x-axis, profit margin on y-axis, and bubble size representing revenue
-
-## Chart Types Available
-
-DataStoria supports a wide variety of chart types:
-
-### Time Series Charts
-- **Line Chart**: Perfect for trends over time
-- **Area Chart**: Shows cumulative values over time
-- **Stacked Area Chart**: Compares multiple series over time
-- **Candlestick Chart**: For financial data (open, high, low, close)
-
-### Categorical Charts
-- **Bar Chart**: Horizontal bars for category comparison
-- **Column Chart**: Vertical columns for category comparison
-- **Grouped Bar/Column**: Compare multiple series across categories
-- **Stacked Bar/Column**: Show composition within categories
-
-### Distribution Charts
-- **Pie Chart**: Show proportions of a whole
-- **Donut Chart**: Similar to pie with center space
-- **Treemap**: Hierarchical data visualization
-- **Sunburst**: Multi-level hierarchical data
-
-### Relationship Charts
-- **Scatter Plot**: Relationship between two variables
-- **Bubble Chart**: Scatter plot with size dimension
-- **Heatmap**: Matrix visualization with color intensity
-
-### Statistical Charts
-- **Histogram**: Distribution of a single variable
-- **Box Plot**: Statistical distribution with quartiles
-- **Violin Plot**: Distribution shape comparison
-
-### Tables
-- **Data Table**: Formatted table with sorting and filtering
-- **Pivot Table**: Multi-dimensional data analysis
-
-## Customizing Visualizations
-
-### Chart Properties
-
-After generating a chart, you can customize:
-
-#### Colors and Styling
-- **Color Palette**: Choose from predefined palettes or custom colors
-- **Theme**: Light, dark, or custom theme
-- **Line Styles**: Solid, dashed, dotted for line charts
-- **Fill Opacity**: Adjust transparency for area charts
-
-#### Axes and Labels
-- **Axis Labels**: Customize x-axis and y-axis labels
-- **Title**: Add or modify chart title
-- **Legend**: Position and customize legend
-- **Grid Lines**: Show or hide grid lines
-
-#### Data Formatting
-- **Number Format**: Currency, percentage, decimal places
-- **Date Format**: Customize date/time display
-- **Tooltips**: Customize hover information
-
-### Advanced Customization
-
-#### Multiple Series
-- Add multiple data series to the same chart
-- Compare different metrics side by side
-- Use different chart types for different series
-
-#### Filters and Interactions
-- **Interactive Filters**: Filter data directly from the chart
-- **Zoom and Pan**: Zoom into specific time ranges
-- **Drill-down**: Click to see detailed data
-
-#### Annotations
-- Add text annotations
-- Highlight specific data points
-- Mark important events or thresholds
+More charts will be added in near future.
 
 ## Best Practices
 
@@ -156,8 +75,8 @@ After generating a chart, you can customize:
 
 ### Writing Effective Visualization Prompts
 
-1. **Be Specific**: Mention chart type, axes, and data to include
-   - ✅ Good: "Create a line chart with dates on x-axis and revenue on y-axis, grouped by product category"
+1. **Be Specific**: Mention chart type, and data to include
+   - ✅ Good: "Create a line chart with by day and revenue on y-axis, grouped by product category"
    - ❌ Vague: "Show me a chart"
 
 2. **Specify Time Ranges**: Include date ranges for time series
@@ -172,47 +91,62 @@ After generating a chart, you can customize:
    - ✅ Good: "Compare this year's revenue vs last year's on the same chart"
    - ❌ Single series: "Show revenue"
 
-### Data Preparation
+5. **Start New Sessions for Unrelated Questions**:
+   - ✅ Good: Start a new chat session when your question is unrelated to previous questions and answers. This prevents context bloat and saves tokens.
 
-- **Clean Data**: Ensure your query returns clean, well-structured data
-- **Appropriate Aggregations**: Aggregate data appropriately for the chart type
-- **Time Formatting**: Use proper date/time formats for time series
-- **Null Handling**: Consider how null values should be displayed
 
-## Examples and Use Cases
+## Show Case
 
-### Business Dashboards
+The visualization is an extension to previous SQL-based data exploration, it provides visual insight to the data and help us understand the data better.
 
-**Use Case**: Executive dashboard with key metrics
+### ClickHouse Performance Monitoring
 
-**Prompts**:
-- "Create a line chart showing monthly revenue trend"
-- "Make a pie chart of sales by product category"
-- "Show a bar chart comparing regional performance"
+ClickHouse itself contains many system tables providing thousands of metrics. Even for experts, building dashboards from these metrics is time-consuming. It's unrealistic to build dashboards for all metrics, and even if we could, finding the right dashboard panels from so many metrics would be challenging.
 
-### Performance Monitoring
+With AI, we can use multiple rounds of chats to identify the metrics we care about in a particular case and generate visualization panels quickly to address problems.
 
-**Use Case**: System performance visualization
+![visualization-example-4](./visualization-example-4.jpg)
 
-**Prompts**:
-- "Create a time series area chart of CPU usage over the last 24 hours"
-- "Make a heatmap showing query performance by hour and day of week"
-- "Show a scatter plot of query duration vs data scanned"
+In above question, we first ask the AI to see if there're any metric related to threads in the *system.asynchronous_metric_log* table.
 
-### Data Analysis
+It generates a SQL as follow to find the answer:
 
-**Use Case**: Exploratory data analysis
+```sql
+SELECT DISTINCT metric
+FROM system.asynchronous_metric_log
+WHERE event_date >= today() - 30
+  AND metric ILIKE '%thread%'
+ORDER BY metric
+LIMIT 500
+```
 
-**Prompts**:
-- "Create a histogram of order values"
-- "Make a box plot comparing revenue across different customer segments"
-- "Show a bubble chart of customer lifetime value vs acquisition cost"
+And show us the result. Based on the result, another follow up question is submitted to ask visualization about http threads and tcp threads.
+
+It finishes the job less than 10 seconds to generate SQL and final visualization spec to render at the browser side.
+
+The final SQL used for visualization from the LLM is as:
+
+```sql
+SELECT
+    toStartOfMinute(event_time) AS ts,
+    maxIf(value, metric = 'HTTPThreads') AS HTTPThreads,
+    maxIf(value, metric = 'TCPThreads') AS TCPThreads
+FROM system.asynchronous_metric_log
+WHERE event_date >= today() - 1
+  AND event_time >= now() - INTERVAL 6 HOUR
+  AND metric IN ('HTTPThreads', 'TCPThreads')
+GROUP BY ts
+ORDER BY ts
+LIMIT 10000
+```
+
+From the line chart we can see that the number of HTTP connections per minute before 6PM is much higher than it's after 6PM which implies that the system is a little busy.
 
 ## Integration with Other Features
 
-### Natural Language to SQL
+### Natural Language Data Exploration
 
-1. Generate a query using Natural Language to SQL
+1. Generate a query using Natural Language Data Exploration
 2. Execute the query
 3. Request visualization of the results
 4. The AI understands the query context for better visualizations
@@ -224,21 +158,6 @@ Visualize query performance improvements:
 2. Create side-by-side visualizations
 3. Compare performance metrics visually
 
-### Dashboards
-
-Save visualizations to dashboards:
-1. Create a visualization
-2. Add to dashboard
-3. Share with team
-4. Update automatically as data changes
-
-## Tips for Better Visualizations
-
-1. **Start Simple**: Begin with basic charts and add complexity
-2. **Use Appropriate Scales**: Ensure axes scales make sense for your data
-3. **Limit Series**: Too many series can make charts hard to read
-4. **Choose Colors Wisely**: Use color palettes that are accessible and meaningful
-5. **Add Context**: Include titles, labels, and legends for clarity
 
 ## Limitations
 
@@ -249,7 +168,7 @@ Save visualizations to dashboards:
 
 ## Next Steps
 
-- **[Natural Language to SQL](./natural-language-sql.md)** — Generate queries to visualize
+- **[Natural Language Data Exploration](./natural-language-sql.md)** — Generate queries to visualize
 - **[Query Optimization](./query-optimization.md)** — Optimize queries before visualizing
 - **[Built-in Dashboards](../04-cluster-management/built-in-dashboards.md)** — Create comprehensive dashboards
 

@@ -16,7 +16,7 @@ Welcome to the DataStoria user manual. This comprehensive guide will help you ma
   - Basic Navigation
 
 ### 2. AI-Powered Intelligence
-- [Natural Language to SQL](./02-ai-features/natural-language-sql.md)
+- [Natural Language Data Exploration](./02-ai-features/natural-language-sql.md)
   - How to Use
   - Best Practices
   - Examples and Use Cases
@@ -28,6 +28,10 @@ Welcome to the DataStoria user manual. This comprehensive guide will help you ma
   - Generating Charts from Prompts
   - Chart Types Available
   - Customizing Visualizations
+- [Ask AI for Help](./02-ai-features/ask-ai-for-help.md)
+  - Getting Instant Error Assistance
+  - Understanding Query Errors
+  - Receiving AI-Powered Fixes
 - [AI Model Configuration](./02-ai-features/ai-model-configuration.md)
   - Setting Up API Keys
   - Supported Providers
@@ -154,7 +158,7 @@ New to DataStoria? Start here:
 
 1. **Installation**: Follow the [Installation & Setup](./01-getting-started/installation.md) guide
 2. **First Connection**: Learn how to [connect to your ClickHouse instance](./01-getting-started/first-connection.md)
-3. **Try AI Features**: Explore [Natural Language to SQL](./02-ai-features/natural-language-sql.md)
+3. **Try AI Features**: Explore [Natural Language Data Exploration](./02-ai-features/natural-language-sql.md)
 4. **Run Your First Query**: Use the [SQL Editor](./03-query-experience/sql-editor.md)
 
 ## Need Help?

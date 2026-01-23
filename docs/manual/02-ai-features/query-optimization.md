@@ -23,12 +23,12 @@ You can paste or write a SQL query directly for optimization. This is ideal when
 
 **Example**: Simply paste your SQL query and ask "Optimize this query" or "How can I improve this query's performance?"
 
-In the following example, we send this question:
-
 ```text
 please check if the following SQL can be optimized:
 
-select toStartOfDay(event_time), count() from system.query_log where event_time > now() - interval 7 days group by 1
+select toStartOfDay(event_time), count() 
+from system.query_log
+where event_time > now() - interval 7 days group by 1
 ```
 
 The LLM is able to extract SQLs from the request and start the analysis and then based on colleted evidence to give result.
@@ -50,9 +50,9 @@ ORDER BY day;
 
 ### 2. Provide Query ID
 
-> NOTE:
+> NOTE
 > 
-> To use this feature, the user you configure on the ClickHouse connection should have priviledge on system.query_log table.
+> To use this feature, your database user MUST have the priviledge on *system.query_log* table.
 > If you don't have, please ask your administrator to grant.
 
 
@@ -63,9 +63,7 @@ If you have a `query_id` from ClickHouse's query log, you can provide it directl
 
 **Example**: "Optimize query with query_id: abc123-def456-ghi789"
 
-In the example illustrated in the following picture, we use above SQL again, but we first execute it and get the query id, and ask LLM.
-
-The question sent is as:
+In the example illustrated in the following picture, we use above SQL again, but we first execute it and get the query id, and ask LLM. The example below sent the question as:
 
 ```text
 check if there's any performance problem about this query and optimize it: 019be64c-64b2-7109-876b-098060a6c763
@@ -81,7 +79,7 @@ The full response is as:
 
 > NOTE:
 > 
-> To use this feature, the user you configure on the ClickHouse connection should have priviledge on system.query_log table.
+> To use this feature, your database user MUST have the priviledge on *system.query_log* table.
 > If you don't have, please ask your administrator to grant.
 
 
@@ -131,7 +129,7 @@ You can expand the 'collect_sql_optimization_evidence' step to find out more.
 
 ## Integration with Other Features
 
-### Natural Language to SQL
+### Natural Language Data Exploration
 
 Queries generated from natural language are automatically optimized(with some rules in the system prompts), but you can request additional optimization passes.
 

@@ -164,9 +164,10 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'AI Model Configuration', link: '/manual/02-ai-features/ai-model-configuration' },
-            { text: 'Natural Language to SQL', link: '/manual/02-ai-features/natural-language-sql' },
+            { text: 'Natural Language Data Exploration', link: '/manual/02-ai-features/natural-language-sql' },
             { text: 'Query Optimization', link: '/manual/02-ai-features/query-optimization' },
             { text: 'Intelligent Visualization', link: '/manual/02-ai-features/intelligent-visualization' },
+            { text: 'Ask AI for Help', link: '/manual/02-ai-features/ask-ai-for-help' },
           ]
         },
         {

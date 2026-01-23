@@ -1,0 +1,53 @@
+/* Image clickable indicators - Make it clear images are interactive */
+.vp-doc img {
+  cursor: zoom-in;
+  transition: all 0.2s ease;
+  position: relative;
+  display: inline-block;
+}
+
+/* Hover effects to indicate interactivity */
+.vp-doc img:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  outline: 2px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 2px;
+}
+
+/* Container for images with zoom indicator */
+.vp-doc .image-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+/* Zoom indicator badge */
+.vp-doc .image-wrapper::after {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  z-index: 10;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.vp-doc .image-wrapper:hover::after {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Alternative text-based indicator */
+.vp-doc .image-wrapper.zoom-hint-text::after {
+  content: 'Click to zoom';
+  font-size: 11px;
+  padding: 4px 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}

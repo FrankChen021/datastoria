@@ -20,7 +20,7 @@ DataStoria is built on three fundamental principles:
 
 ### 🤖 AI-Powered Intelligence
 
-- **Natural Language to SQL** — Describe your data needs in plain English and receive optimized ClickHouse queries instantly.
+- **Natural Language Data Exploration** — Describe your data needs in plain English and receive optimized ClickHouse queries instantly.
 - **Smart Query Optimization** — AI analyzes your queries based on evidence and provides actionable performance improvements.
 - **Intelligent Visualization** — Generate stunning visualizations like time series, pie charts, and data tables with simple prompts.
 

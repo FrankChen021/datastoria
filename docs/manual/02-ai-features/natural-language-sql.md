@@ -1,40 +1,48 @@
-# Natural Language to SQL
+# Natural Language Data Exploration
 
-DataStoria's Natural Language to SQL feature allows you to describe your data needs in plain English and receive optimized ClickHouse queries instantly. No need to remember complex SQL syntax—just ask questions naturally.
+DataStoria's Natural Language Data Exploration feature allows you to describe your data needs in plain English and receive optimized ClickHouse queries instantly. No need to remember complex SQL syntax—just ask questions naturally.
 
 ## Overview
 
-The Natural Language to SQL feature uses advanced AI models to understand your intent and generate accurate ClickHouse SQL queries. It analyzes your database schema, understands context, and produces queries that are both syntactically correct and optimized for performance.
+The Natural Language Data Exploration feature uses advanced AI models to understand your intent and generate accurate ClickHouse SQL queries. It analyzes your database schema, understands context, and produces queries that are both syntactically correct and optimized for performance.
 
 ## How to Use
 
 ### Accessing the Feature
 
-1. **Open the Chat Interface**: Click the chat icon in the sidebar or open a chat tab
+1. **Open the Chat Interface**: Click the chat icon in the sidebar to open a chat tab
 ![Chat Panel](./chat-panel.png)
 
-The panel provides several example questions for your to use.
+The panel provides several example questions for your to quick start with.
 
 2. Choose a model from the model selection list in the INPUT region
 ![Model Selection](./select-model.png)
 
-3. **Type Your Question**: Describe what you want to know about your data in natural language in the INPUT
+1. **Type Your Question**: Describe what you want to know about your data in natural language in the INPUT
 
-4. **Review the Generated Query**: The AI will generate a SQL query based on your request
+2. **Submit Your Questions**: Click the send button to submit your question or just press ENTER to submit the question. The AI will generate a response based on your question
 
-5. **Execute or Refine**: You can execute the query directly or ask for modifications
+3. **Execute or Refine**: You can execute the query directly or ask for modifications
 
 ### Examples
 
-#### Example 1 - Ask for ClickHouse version
-
-The following screenshot shows how the AI answer user question like:
+Let's send a question to ask for the ClickHouse version of current running server.
 
 > What's the version of this ClickHouse
 
+The following screenshot shows what the AI answers:
+
 ![chat-example-1](./chat-example-1.png)
 
-When the question is submitted to the backend, the backend will assembly your question with some predefined prompt and send request to the selected model for response. The AI will generate a SQL to query the version of ClickHouse, and this SQL will be sent to your browser side, your browser will then sends the query to your ClickHouse to execute the SQL and return query response to LLM for final answer.
+### How it works
+
+When the question is submitted, 
+
+1. The front end will send your question along with your selected model to the backend server
+2. The backend will assembly your question with some predefined prompt and send request to the selected model for response
+3. The AI will generate a SQL to query the version of ClickHouse
+4. This SQL will be sent to your browser side, your browser will then sends the query to your ClickHouse to execute the SQL
+5. When the SQL execution finishes, the browser will then send the query result to LLM(via the backend server) for final answer
 
 The following sequence diagram illustrates this process:
 
@@ -67,16 +75,28 @@ You can exand steps on the UI to learn the output of LLM more. For example, in t
 SELECT version() AS clickhouse_version LIMIT 1
 ```
 
-> NOTE: The generated SQL can be different for the SAME question even under the SAME model.
+> NOTE: 
+> 
+> The generated SQL can be different for the SAME question even under the SAME model.
 >
 
 ## Use Case
 
-### Performance Problem Diagnostics
+Using the natural languages to ask for data saves our time to write some complex queries. Here're some of use cases where it helps.
+
+### Use Case 1 - ClickHouse Server Performance Diagnostics
 
 We can use the natural language to help us find out data from system tables for problem diagnostics.
 
+> NOTE:
+> 
+> To do so, your dateabase user name must have been granted access to these *system.\** tables.
+> 
+> If you don't have priviledges, you can contact your administrator for help.
+
 #### Example 1 - Count select queries over a period
+
+**User Question:** how many select queries in the past 3 hours
 
 ![chat-example-2](./chat-example-2.jpg)
 
@@ -99,9 +119,11 @@ SETTINGS log_queries = 1
 
 ![chat-example-slowest-query](./chat-example-slowest-query.jpg)
 
-### Business Analytics  
+### Use Case 2 - Business Analytics  
 
-In this example, we will use ClickHouse Playground's git_clickhouse.commits table for illustration.
+In this example, we will use [ClickHouse Playground](play.clickhouse.com)'s git_clickhouse.commits table for illustration. 
+
+You can configure the playground connection in your DataStoria to try the following similar questions.
 
 **Question 1:** show me top 3 committers in 2021 Feb from @git_clickhouse.commits
 
@@ -126,6 +148,11 @@ LIMIT 3
 ```
 
 Once the response is returned to LLM, it outputs the result in table format.
+
+> NOTE:
+> 
+> LLM does not always use table format to show the result, it depends on your request and the data returned to LLM
+> 
 
 **Question 2:** How many new committers in 2021 Feb compared to 2021 Jan
 
@@ -158,7 +185,7 @@ WHERE author NOT IN (SELECT author FROM jan_authors)
 LIMIT 1
 ```
 
-It took about less 15 seconds to get the answer (from generation to execution and to final answer), which I think is much faster than our human being.
+It took less 15 seconds to get the answer (from generation to execution and to final answer), which is much faster than our human being.
 
 ## Best Practices
 
