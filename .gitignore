@@ -29,3 +29,5 @@ tsconfig.tsbuildinfo
 
 # Next.js generated files
 next-env.d.ts
+
+docs/.vitepress/cache/*
