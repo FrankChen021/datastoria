@@ -103,6 +103,10 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
       setError(null);
 
       try {
+        // Reset cached dependency data when schema is refreshed,
+        // so dependency graphs will be rebuilt against the latest schema.
+        updateConnectionMetadata({ dependencyData: undefined });
+
         const result = await loaderRef.current.load(connection);
         const tree = buildTree(result);
         setTreeData(tree);

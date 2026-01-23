@@ -2,7 +2,7 @@ import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highl
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import type { DependencyGraphNode } from "./DependencyBuilder";
+import type { DependencyGraphNode } from "./dependency-builder";
 
 export interface TablePanelProps {
   tableNode: DependencyGraphNode;

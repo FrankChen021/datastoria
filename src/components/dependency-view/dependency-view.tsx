@@ -6,44 +6,10 @@ import { StringUtils } from "@/lib/string-utils";
 import { toastManager } from "@/lib/toast";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { DependencyBuilder, type DependencyGraphNode } from "./dependency-builder";
 import { DependencyGraphFlow } from "./dependency-graph-flow";
-import { DependencyBuilder, type DependencyGraphNode } from "./DependencyBuilder";
+import type { DependencyTableInfo } from "./dependency-types";
 import { TablePanel } from "./table-panel";
-
-// Dependency table information
-interface DependencyTableInfo {
-  id: string;
-  uuid: string;
-  database: string;
-  name: string;
-  engine: string;
-  tableQuery: string;
-  dependenciesDatabase: string[];
-  dependenciesTable: string[];
-  metadataModificationTime?: string;
-}
-
-// The response data object from API
-interface TableResponse {
-  /**
-   * The id of the table, namely the database name and the table name
-   */
-  id: string;
-  uuid: string;
-  database: string;
-  name: string;
-  engine: string;
-  tableQuery: string;
-
-  dependenciesDatabase: string[];
-  dependenciesTable: string[];
-
-  serverVersion: string;
-
-  isTargetDatabase: boolean;
-
-  metadataModificationTime?: string;
-}
 
 export interface DependencyViewProps {
   database: string;
@@ -78,14 +44,17 @@ const DependencyViewComponent = ({ database, table }: DependencyViewProps) => {
     // Load dependency data (from cache or query)
     (async () => {
       try {
-        let dependencyTables: Map<string, DependencyTableInfo>;
+        let tableMap: Map<string, DependencyTableInfo>;
+        let innerTable: Map<string, DependencyTableInfo>;
 
         // Check if we have cached dependency data
-        if (connection.metadata.dependencyTables) {
+        if (connection.metadata.dependencyData) {
           // Use cached data
-          dependencyTables = connection.metadata.dependencyTables;
+          tableMap = connection.metadata.dependencyData.tables;
+          innerTable = connection.metadata.dependencyData.innerTables;
         } else {
-          // Load from database and cache
+          // Load from database and cache the result
+          // We load all tables including inner tables so that we can build dependencies on inner tables like MV
           const { response } = connection.queryOnNode(
             `
 SELECT
@@ -99,7 +68,6 @@ SELECT
     dependencies_table AS dependenciesTable,
     metadata_modification_time AS metadataModificationTime
 FROM system.tables
-WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
 `,
             {
               default_format: "JSON",
@@ -107,21 +75,24 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
             }
           );
 
-          const apiResponse = await response;
+          const responseData = (await response).data.json<
+            { data?: DependencyTableInfo[] } | undefined
+          >();
           if (cancelledRef.current) return;
 
-          const responseData = apiResponse.data.json<{ data?: TableResponse[] } | undefined>();
           const tables = responseData?.data;
 
-          // Build the cache map
-          dependencyTables = new Map<string, DependencyTableInfo>();
+          // Build tableMap and innerTable in a single pass
+          tableMap = new Map<string, DependencyTableInfo>();
+          innerTable = new Map<string, DependencyTableInfo>();
+
           if (tables && tables.length > 0) {
             for (const t of tables) {
               // Format query if formatQuery function is not available
               const formattedQuery = connection.metadata.has_format_query_function
                 ? t.tableQuery
                 : StringUtils.prettyFormatQuery(t.tableQuery);
-              dependencyTables.set(t.id, {
+              const tableInfo: DependencyTableInfo = {
                 id: t.id,
                 uuid: t.uuid,
                 database: t.database,
@@ -131,51 +102,34 @@ WHERE NOT startsWith(name, '.inner.') AND NOT startsWith(name, '.inner_id.')
                 dependenciesDatabase: t.dependenciesDatabase,
                 dependenciesTable: t.dependenciesTable,
                 metadataModificationTime: t.metadataModificationTime,
-              });
+              };
+              tableMap.set(tableInfo.id, tableInfo);
+              // Populate inner table map for MaterializedView inner table lookup
+              if (tableInfo.name.startsWith(".inner_id.")) {
+                const originalTableId = tableInfo.name.substring(".inner_id.".length);
+                innerTable.set(`.inner_id.${originalTableId}`, tableInfo);
+              } else if (tableInfo.name.startsWith(".inner.")) {
+                innerTable.set(`.inner.${tableInfo.name.substring(".inner.".length)}`, tableInfo);
+              }
             }
           }
 
           // Cache in connection metadata
           if (!cancelledRef.current) {
-            updateConnectionMetadata({ dependencyTables });
-          }
-        }
-
-        if (cancelledRef.current) return;
-
-        // Filter tables for the target database
-        const tables: TableResponse[] = [];
-        for (const [, tableInfo] of dependencyTables.entries()) {
-          const isInTargetDatabase = tableInfo.database === database;
-          const dependsOnTargetDatabase =
-            tableInfo.dependenciesDatabase?.includes(database) ?? false;
-
-          if (isInTargetDatabase || dependsOnTargetDatabase) {
-            // Query is already formatted when stored in cache
-            tables.push({
-              id: tableInfo.id,
-              uuid: tableInfo.uuid,
-              database: tableInfo.database,
-              name: tableInfo.name,
-              engine: tableInfo.engine,
-              tableQuery: tableInfo.tableQuery,
-              dependenciesDatabase: tableInfo.dependenciesDatabase,
-              dependenciesTable: tableInfo.dependenciesTable,
-              serverVersion: "",
-              isTargetDatabase: isInTargetDatabase,
-              metadataModificationTime: tableInfo.metadataModificationTime,
+            updateConnectionMetadata({
+              dependencyData: {
+                tables: tableMap,
+                innerTables: innerTable,
+              },
             });
           }
         }
 
         if (cancelledRef.current) return;
 
-        if (tables.length > 0) {
-          // Convert TableResponse to the format DependencyBuilder expects
-          // innerTable: 0 = not inner table, 1 = .inner., 2 = .inner_id.
-          const tablesWithInnerFlag = tables.map((t) => ({ ...t, innerTable: 0 }));
-          const builder = new DependencyBuilder(tablesWithInnerFlag);
-          builder.build(database);
+        if (tableMap.size > 0) {
+          const builder = new DependencyBuilder(tableMap, innerTable);
+          builder.build(database, table);
 
           let finalNodes = builder.getNodes();
           let finalEdges = builder.getEdges();

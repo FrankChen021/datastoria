@@ -1,3 +1,4 @@
+import type { DependencyTableInfo } from "@/components/dependency-view/dependency-types";
 import type { ConnectionConfig } from "./connection-config";
 
 // Re-export ConnectionConfig for convenience
@@ -108,9 +109,13 @@ export interface ConnectionMetadata {
   databaseNames?: Map<string, DatabaseInfo>;
 
   // Cached dependency data - loaded on demand and cached here
-  dependencyTables?: Map<string, DependencyTableInfo>;
+  dependencyData?: {
+    tables: Map<string, DependencyTableInfo>;
+    innerTables: Map<string, DependencyTableInfo>;
+  };
 
   // Cached ProfileEvents from system.events - used for SQL validation
+  // If it fails to get events, validation will be skipped
   profileEvents?: Set<string>;
 }
 

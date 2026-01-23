@@ -26,7 +26,7 @@ import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
 import { Maximize, Maximize2, Minimize, Search, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { DependencyGraphNode } from "./DependencyBuilder";
+import type { DependencyGraphNode } from "./dependency-builder";
 
 interface DependencyGraphFlowProps {
   nodes: Map<string, DependencyGraphNode>;
