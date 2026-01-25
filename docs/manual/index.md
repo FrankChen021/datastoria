@@ -62,11 +62,6 @@ Welcome to the DataStoria user manual. This comprehensive guide will help you ma
   - Pipeline Visualization
   - Understanding Execution Plans
   - Performance Insights
-- [Dependency Graph](./03-query-experience/dependency-graph.md)
-  - Visualizing Table Relationships
-  - Materialized Views
-  - Distributed Tables
-  - External System Connections
 
 ### 4. Cluster Management
 - [Multi-Cluster Setup](./04-cluster-management/multi-cluster-setup.md)

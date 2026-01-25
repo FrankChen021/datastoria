@@ -4,7 +4,7 @@ export default defineConfig({
   title: 'DataStoria Documentation',
   description: 'AI-powered ClickHouse management console',
   base: '/', // or '/docs/' if deploying to a subpath
-  
+
   // SEO: Global meta tags
   head: [
     ['meta', { name: 'theme-color', content: '#3b82f6' }],
@@ -106,16 +106,16 @@ export default defineConfig({
       })();
     `],
   ],
-  
+
   // SEO: Automatic sitemap generation
   sitemap: {
     hostname: 'https://docs.datastoria.app', // Your docs domain - update this!
     lastmodDateOnly: false, // Include time in lastmod
   },
-  
+
   // SEO: Last updated dates (helps search engines)
   lastUpdated: true,
-  
+
   // Markdown configuration for Mermaid
   markdown: {
     config: (md) => {
@@ -137,15 +137,15 @@ export default defineConfig({
       }
     }
   },
-  
+
   themeConfig: {
     logo: '/logo.png', // Add your logo to docs/public/
-    
+
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Manual', link: '/manual/' },
     ],
-    
+
     // Left sidebar navigation (document tree)
     // Only '/manual/' is included - docs/dev/ and docs/plan/ are excluded
     sidebar: {
@@ -160,7 +160,7 @@ export default defineConfig({
           ]
         },
         {
-          text: 'AI Features',
+          text: 'AI-Powered Intelligence',
           collapsed: false,
           items: [
             { text: 'AI Model Configuration', link: '/manual/02-ai-features/ai-model-configuration' },
@@ -175,21 +175,19 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'SQL Editor', link: '/manual/03-query-experience/sql-editor' },
-            { text: 'Error Diagnostics', link: '/manual/03-query-experience/error-diagnostics' },
             { text: 'Query Execution', link: '/manual/03-query-experience/query-execution' },
-            { text: 'Query Log Inspector', link: '/manual/03-query-experience/query-log-inspector' },
             { text: 'Query Explain', link: '/manual/03-query-experience/query-explain' },
-            { text: 'Dependency Graph', link: '/manual/03-query-experience/dependency-graph' },
+            { text: 'Query Log Inspector', link: '/manual/03-query-experience/query-log-inspector' },
+            { text: 'Error Diagnostics', link: '/manual/03-query-experience/error-diagnostics' },
           ]
         },
         {
-          text: 'Cluster Management',
+          text: 'Database Management',
           collapsed: false,
           items: [
-            { text: 'Multi-Cluster Setup', link: '/manual/04-cluster-management/multi-cluster-setup' },
-            { text: 'Multi-Node Dashboard', link: '/manual/04-cluster-management/multi-node-dashboard' },
-            { text: 'Built-in Dashboards', link: '/manual/04-cluster-management/built-in-dashboards' },
             { text: 'Schema Explorer', link: '/manual/04-cluster-management/schema-explorer' },
+            { text: 'Built-in Dashboards', link: '/manual/04-cluster-management/built-in-dashboards' },
+            { text: 'System Log Introspection', link: '/manual/04-cluster-management/system-log-introspection' },
           ]
         },
         {
@@ -197,65 +195,26 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Privacy Features', link: '/manual/05-security-privacy/privacy-features' },
-            { text: 'Authentication', link: '/manual/05-security-privacy/authentication' },
-            { text: 'API Key Management', link: '/manual/05-security-privacy/api-key-management' },
           ]
-        },
-        {
-          text: 'Advanced Features',
-          collapsed: false,
-          items: [
-            { text: 'Query Templates', link: '/manual/06-advanced-features/query-templates' },
-            { text: 'Data Export', link: '/manual/06-advanced-features/data-export' },
-            { text: 'Performance Tuning', link: '/manual/06-advanced-features/performance-tuning' },
-          ]
-        },
-        {
-          text: 'Troubleshooting',
-          collapsed: false,
-          items: [
-            { text: 'Common Issues', link: '/manual/07-troubleshooting/common-issues' },
-            { text: 'Error Messages', link: '/manual/07-troubleshooting/error-messages' },
-            { text: 'Debugging Queries', link: '/manual/07-troubleshooting/debugging-queries' },
-          ]
-        },
-        {
-          text: 'Best Practices',
-          collapsed: false,
-          items: [
-            { text: 'Query Writing', link: '/manual/08-best-practices/query-writing' },
-            { text: 'AI Feature Usage', link: '/manual/08-best-practices/ai-feature-usage' },
-            { text: 'Cluster Management', link: '/manual/08-best-practices/cluster-management' },
-          ]
-        },
-        {
-          text: 'Appendix',
-          collapsed: false,
-          items: [
-            { text: 'Keyboard Shortcuts', link: '/manual/09-appendix/keyboard-shortcuts' },
-            { text: 'Configuration Reference', link: '/manual/09-appendix/configuration-reference' },
-            { text: 'FAQ', link: '/manual/09-appendix/faq' },
-            { text: 'Glossary', link: '/manual/09-appendix/glossary' },
-          ]
-        },
+        }
       ]
     },
-    
+
     socialLinks: [
       { icon: 'github', link: 'https://github.com/FrankChen021/datastoria' }
     ],
-    
+
     search: {
       provider: 'local'
     },
-    
+
     // Right sidebar: Table of Contents (TOC) / Outline
     // Automatically generated from h2, h3, etc. in your markdown
     outline: {
       level: [2, 3], // Show h2 and h3 headings in TOC
       label: 'On this page' // Customize the TOC title
     },
-    
+
     footer: {
       message: 'Released under the Apache License 2.0',
       copyright: 'Copyright © 2024 DataStoria'

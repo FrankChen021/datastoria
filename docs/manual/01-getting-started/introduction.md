@@ -30,7 +30,6 @@ DataStoria is built on three fundamental principles:
 - **Smart Error Diagnostics** — Pinpoint syntax errors instantly with precise line and column highlighting, and get AI-powered fix suggestions with one click.
 - **Query Log Inspector** — Dive deep into query execution with timeline views, topology graphs, and performance analysis.
 - **One-Click Explain** — Instantly understand query execution plans with visual AST and pipeline views.
-- **Dependency Graph** — Visualize table relationships and trace data flows through Materialized Views, Distributed tables, and external systems.
 
 ### 📊 Cluster Monitoring & Management
 
