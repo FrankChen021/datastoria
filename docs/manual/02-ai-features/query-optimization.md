@@ -31,7 +31,7 @@ from system.query_log
 where event_time > now() - interval 7 days group by 1
 ```
 
-The LLM is able to extract SQLs from the request and start the analysis and then based on colleted evidence to give result.
+The LLM is able to extract SQLs from the request and starts the analysis and then gives suggestions based on evidences.
 
 ![sql-optimization-example-1](./sql-optimization-example-1.jpg)
 

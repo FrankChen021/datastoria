@@ -186,8 +186,19 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Schema Explorer', link: '/manual/04-cluster-management/schema-explorer' },
-            { text: 'Built-in Dashboards', link: '/manual/04-cluster-management/built-in-dashboards' },
-            { text: 'System Log Introspection', link: '/manual/04-cluster-management/system-log-introspection' },
+            { text: 'Node Dashboard', link: '/manual/04-cluster-management/node-dashboard' },
+            { text: 'Cluster Dashboard', link: '/manual/04-cluster-management/cluster-dashboard' },
+            {
+              text: 'System Log Introspection',
+              collapsed: false,
+              items: [
+                { text: 'Overview', link: '/manual/04-cluster-management/system-log-introspection' },
+                { text: 'system.ddl_distribution_queue', link: '/manual/04-cluster-management/system-ddl-distributed-queue' },
+                { text: 'system.part_log', link: '/manual/04-cluster-management/system-part-log' },
+                { text: 'system.query_log', link: '/manual/04-cluster-management/system-query-log' },
+                { text: 'system.query_views_log', link: '/manual/04-cluster-management/system-query-views-log' },
+              ]
+            },
           ]
         },
         {

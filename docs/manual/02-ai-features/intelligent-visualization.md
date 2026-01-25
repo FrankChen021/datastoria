@@ -170,7 +170,8 @@ Visualize query performance improvements:
 
 - **[Natural Language Data Exploration](./natural-language-sql.md)** — Generate queries to visualize
 - **[Query Optimization](./query-optimization.md)** — Optimize queries before visualizing
-- **[Built-in Dashboards](../04-cluster-management/built-in-dashboards.md)** — Create comprehensive dashboards
+- **[Node Dashboard](../04-cluster-management/node-dashboard.md)** — Monitor individual node performance
+- **[Cluster Dashboard](../04-cluster-management/cluster-dashboard.md)** — Monitor cluster-wide metrics
 
 ---
 

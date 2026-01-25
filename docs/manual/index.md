@@ -73,10 +73,14 @@ Welcome to the DataStoria user manual. This comprehensive guide will help you ma
   - Merge Operations Monitoring
   - Replication Status
   - Node Health Indicators
-- [Built-in Dashboards](./04-cluster-management/built-in-dashboards.md)
-  - Query Performance Dashboard
-  - ZooKeeper Status Dashboard
-  - Custom Dashboard Creation
+- [Node Dashboard](./04-cluster-management/node-dashboard.md)
+  - Individual node metrics
+  - Node health indicators
+  - Real-time performance monitoring
+- [Cluster Dashboard](./04-cluster-management/cluster-dashboard.md)
+  - Cluster-wide metrics
+  - Multi-node aggregation
+  - Cluster health overview
 - [Schema Explorer](./04-cluster-management/schema-explorer.md)
   - Navigating Databases
   - Exploring Tables
