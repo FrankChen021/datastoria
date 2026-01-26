@@ -19,7 +19,7 @@ It provides multiple filters and distribution charts as well as a detail table f
 
 ## UI
 
-![System part log interface showing data part merge operations, mutations, and partition management activities](./img/system-part-log-introspection.gif)
+<Video src="./img/system-part-log-introspection.gif" alt="System part log interface showing data part merge operations, mutations, and partition management activities" />
 
 ## Use Cases
 

@@ -19,7 +19,7 @@ It provides multiple filters and more dashboards on the metrics of views for bet
 
 ## UI
 
-![System query views log interface displaying query execution history with filtering and sorting capabilities](./img/system-query-views-log.gif)
+<Video src="./img/system-query-views-log.gif" alt="System query views log interface displaying query execution history with filtering and sorting capabilities" />
 
 
 ## Query Views Log Use Cases

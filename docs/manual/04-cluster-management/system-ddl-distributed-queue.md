@@ -22,7 +22,7 @@ It provides multiple views and filters to help you understand the distribution a
 
 ## UI
 
-![System DDL distributed queue interface showing DDL query execution status across cluster nodes with progress indicators](./img/system-ddl-distributed-queue.gif)
+<Video src="./img/system-ddl-distributed-queue.gif" alt="System DDL distributed queue interface showing DDL query execution status across cluster nodes with progress indicators" />
 
 ## Use Cases
 

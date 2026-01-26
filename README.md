@@ -2,7 +2,7 @@
 
 A modern, AI-powered ClickHouse management console that transforms how you interact with your data and manage your clusters.
 
-![AI-Powered Features in Action](./docs/public/demo.gif)
+![AI-Powered Features in Action](./docs/public/demo.mp4)
 
 ---
 

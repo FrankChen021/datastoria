@@ -64,4 +64,4 @@ features:
 
 ---
 
-![demo.gif](./public/demo.gif)
+<Video src="./public/demo.gif" alt="DataStoria demo showing AI-powered natural language queries, intelligent visualizations, and cluster management" />

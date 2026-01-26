@@ -4,6 +4,7 @@ import { useRoute } from 'vitepress'
 import imageViewer from 'vitepress-plugin-image-viewer'
 import vImageViewer from 'vitepress-plugin-image-viewer/lib/vImageViewer.vue'
 import DefaultTheme from 'vitepress/theme'
+import Video from '../components/Video.vue'
 import './custom.css'
 
 export default {
@@ -11,6 +12,8 @@ export default {
   enhanceApp({ app, router }) {
     // Register image viewer component
     app.component('vImageViewer', vImageViewer)
+    // Register video component
+    app.component('Video', Video)
     
     // Add accessibility enhancements
     if (typeof window !== 'undefined') {
