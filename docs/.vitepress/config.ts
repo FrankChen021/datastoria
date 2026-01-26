@@ -484,14 +484,8 @@ export default defineConfig({
   // Performance optimizations
   vite: {
     build: {
-      // Enable minification
-      minify: 'terser',
-      terserOptions: {
-        compress: {
-          drop_console: true, // Remove console.logs in production
-          drop_debugger: true,
-        },
-      },
+      // Enable minification with esbuild (default, faster than terser)
+      minify: 'esbuild',
       // Enable CSS code splitting
       cssCodeSplit: true,
       // Increase chunk size warning limit
@@ -500,6 +494,10 @@ export default defineConfig({
     // Enable CSS preprocessing optimizations
     css: {
       devSourcemap: false,
+    },
+    // Drop console and debugger in production
+    esbuild: {
+      drop: ['console', 'debugger'],
     },
   },
 })
