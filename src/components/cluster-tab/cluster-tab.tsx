@@ -26,7 +26,7 @@ const clusterStatusDashboard: StatDescriptor[] = [
 SELECT 
 countDistinct(shard_num) as shard_count
 FROM system.clusters
-WHERE cluster = '{cluster}'
+WHERE cluster = {cluster}
 `,
     },
   } as StatDescriptor,
@@ -46,7 +46,7 @@ WHERE cluster = '{cluster}'
 SELECT 
   count() 
 FROM system.clusters
-WHERE cluster = '{cluster}'
+WHERE cluster = {cluster}
 `,
     },
     drilldown: {
@@ -58,7 +58,7 @@ WHERE cluster = '{cluster}'
         gridPos: { w: 24, h: 12 },
         miscOption: { enableIndexColumn: true },
         datasource: {
-          sql: `SELECT * FROM system.clusters WHERE cluster = '{cluster}'`,
+          sql: `SELECT * FROM system.clusters WHERE cluster = {cluster}`,
         },
         fieldOptions: {
           host: {
@@ -83,7 +83,7 @@ WHERE cluster = '{cluster}'
       sql: `
 SELECT 
 sum(bytes_on_disk) as bytes_on_disk
-FROM clusterAllReplicas('{cluster}', system.parts)
+FROM {{clusterAllReplicas:system.parts}}
 WHERE active
 `,
     },
@@ -106,7 +106,7 @@ SELECT
   sum(bytes_on_disk) AS bytes_on_disk,
   count(1) as part_count,
   sum(rows) as rows
-FROM clusterAllReplicas('{cluster}', system.parts) 
+FROM {{clusterAllReplicas:system.parts}}
 WHERE active
 GROUP BY host
 ORDER BY host
@@ -139,7 +139,7 @@ ORDER BY host
     description: "Total data size in the cluster",
     datasource: {
       sql: `
-SELECT sum(total_space) FROM clusterAllReplicas('{cluster}', system.disks)
+SELECT sum(total_space) FROM {{clusterAllReplicas:system.disks}}
 `,
     },
     valueOption: {
@@ -153,7 +153,7 @@ SELECT sum(total_space) FROM clusterAllReplicas('{cluster}', system.disks)
         },
         gridPos: { w: 24, h: 12 },
         datasource: {
-          sql: `SELECT FQDN() as server, round(free_space * 100 / total_space, 2) as free_percentage, * FROM clusterAllReplicas('{cluster}', system.disks) ORDER BY server`,
+          sql: `SELECT FQDN() as server, round(free_space * 100 / total_space, 2) as free_percentage, * FROM {{clusterAllReplicas:system.disks}} ORDER BY server`,
         },
         fieldOptions: {
           free_percentage: {
@@ -190,7 +190,7 @@ SELECT sum(total_space) FROM clusterAllReplicas('{cluster}', system.disks)
     description: "The percentage of utilized disk space of the cluster",
     datasource: {
       sql: `
-SELECT 1 - (sum(free_space) / sum(total_space)) FROM clusterAllReplicas('{cluster}', system.disks)
+SELECT 1 - (sum(free_space) / sum(total_space)) FROM {{clusterAllReplicas:system.disks}}
 `,
     },
     valueOption: {
@@ -223,7 +223,7 @@ SELECT
   avg(metric) as metric
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertQuery) AS metric
-  FROM clusterAllReplicas({cluster}, system.metric_log)
+  FROM {{cluster:system.metric_log}}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -261,7 +261,7 @@ SELECT
   avg(metric) as metric
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_SelectQuery) AS metric
-  FROM clusterAllReplicas({cluster}, system.metric_log)
+  FROM {{cluster:system.metric_log}}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -299,7 +299,7 @@ SELECT
   avg(metric) as metric
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_FailedQuery) AS metric
-  FROM clusterAllReplicas({cluster}, system.metric_log)
+  FROM {{cluster:system.metric_log}}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -342,7 +342,7 @@ SELECT
   avg(metric) as metric
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertedBytes) AS metric
-  FROM clusterAllReplicas({cluster}, system.metric_log)
+  FROM {{cluster:system.metric_log}}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -385,7 +385,7 @@ SELECT
   avg(metric) as metric
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertedRows) AS metric
-  FROM clusterAllReplicas({cluster}, system.metric_log)
+  FROM {{cluster:system.metric_log}}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -428,7 +428,7 @@ export const ClusterTab = memo(() => {
           onPreviousFilters: true,
           datasource: {
             type: "sql",
-            sql: `select distinct host_name from system.clusters WHERE cluster = '${connection!.cluster}' order by host_name`,
+            sql: `select distinct host_name from system.clusters WHERE cluster = {cluster} order by host_name`,
           },
         } as SelectorFilterSpec,
       ]}

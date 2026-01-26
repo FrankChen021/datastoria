@@ -29,15 +29,13 @@ interface QueryLogProps {
 const QueryLog = ({ database: _database, table: _table }: QueryLogProps) => {
   const { connection } = useConnection();
 
-  // NOTE: keep the {cluster} replacement, it will be processed by the underlying connection object
   const DISTRIBUTION_QUERY = useMemo(
     () => `
 SELECT
     toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
     type,
     count(1) as count
-FROM 
-${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
+FROM {{clusterAllReplicas:system.query_log}}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
@@ -52,8 +50,7 @@ ORDER BY t, type
 
   const TABLE_QUERY = useMemo(
     () => `
-SELECT ${connection!.metadata.query_log_table_has_hostname_column ? "" : "FQDN(), "} * FROM
-${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
+SELECT ${connection!.metadata.query_log_table_has_hostname_column ? "" : "FQDN(), "} * FROM {{clusterAllReplicas:system.query_log}}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
@@ -86,7 +83,7 @@ ORDER BY event_time DESC
         onPreviousFilters: true,
         datasource: {
           type: "sql",
-          sql: `select distinct host_name from system.clusters WHERE cluster = '${connection!.cluster}' order by FQDN()`,
+          sql: `select distinct host_name from system.clusters WHERE cluster = {cluster} order by FQDN()`,
         },
 
         defaultPattern: {
@@ -125,7 +122,7 @@ ORDER BY event_time DESC
         datasource: {
           type: "sql",
           sql: `SELECT DISTINCT query_kind
-FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
+FROM {{clusterAllReplicas:system.query_log}}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})
@@ -151,7 +148,7 @@ LIMIT 100`,
           type: "sql",
           sql: `SELECT DISTINCT arrayJoin(databases) as database FROM (
 SELECT DISTINCT databases
-FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
+FROM {{clusterAllReplicas:system.query_log}}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})
@@ -178,7 +175,7 @@ ORDER BY database
           type: "sql",
           sql: `SELECT DISTINCT arrayJoin(tables) as table FROM (
 SELECT DISTINCT tables
-FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
+FROM {{clusterAllReplicas:system.query_log}}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})
@@ -198,7 +195,7 @@ ORDER BY table
           type: "sql",
           sql: `
 SELECT DISTINCT exception_code
-FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
+FROM {{clusterAllReplicas:system.query_log}}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})
@@ -219,7 +216,7 @@ LIMIT 100
           // NOTE: don't use ORDER BY 1, some old release does not support this well
           sql: `
 SELECT DISTINCT initial_user
-FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
+FROM {{clusterAllReplicas:system.query_log}}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})

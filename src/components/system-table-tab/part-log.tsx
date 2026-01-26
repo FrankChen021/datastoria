@@ -21,15 +21,13 @@ interface PartLogProps {
 const PartLog = ({ database: _database, table: _table }: PartLogProps) => {
   const { connection } = useConnection();
 
-  // NOTE: keep the {cluster} replacement, it will be processed by the underlying connection object
   const DISTRIBUTION_QUERY = useMemo(
     () => `
 SELECT
     toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
     event_type,
     count(1) as count
-FROM 
-${connection!.cluster ? `clusterAllReplicas('{cluster}', system.part_log)` : "system.part_log"}
+FROM {{clusterAllReplicas:system.part_log}}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
@@ -44,8 +42,7 @@ ORDER BY t, event_type
 
   const TABLE_QUERY = useMemo(
     () => `
-SELECT ${connection!.metadata.part_log_table_has_node_name_column ? "" : "FQDN(), "} * FROM
-${connection!.cluster ? `clusterAllReplicas('{cluster}', system.part_log)` : "system.part_log"}
+SELECT ${connection!.metadata.part_log_table_has_node_name_column ? "" : "FQDN(), "} * FROM {{clusterAllReplicas:system.part_log}}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
@@ -78,7 +75,7 @@ ORDER BY event_time DESC
         onPreviousFilters: true,
         datasource: {
           type: "sql",
-          sql: `select distinct host_name from system.clusters WHERE cluster = '${connection!.cluster}' order by FQDN()`,
+          sql: `select distinct host_name from system.clusters WHERE cluster = {cluster} order by FQDN()`,
         },
 
         defaultPattern: {
@@ -115,7 +112,7 @@ ORDER BY event_time DESC
         datasource: {
           type: "sql",
           sql: `SELECT DISTINCT database
-    FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.part_log)` : "system.part_log"}
+    FROM {{clusterAllReplicas:system.part_log}}
     WHERE ({filterExpression:String})
         AND event_date >= toDate({from:String}) 
         AND event_date >= toDate({to:String})
@@ -135,7 +132,7 @@ ORDER BY event_time DESC
           type: "sql",
           sql: `
     SELECT DISTINCT table
-    FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.part_log)` : "system.part_log"}
+    FROM {{clusterAllReplicas:system.part_log}}
     WHERE ({filterExpression:String})
         AND event_date >= toDate({from:String}) 
         AND event_date >= toDate({to:String})
@@ -152,7 +149,7 @@ ORDER BY event_time DESC
           type: "sql",
           sql: `
     SELECT DISTINCT part_type
-    FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.part_log)` : "system.part_log"}
+    FROM {{clusterAllReplicas:system.part_log}}
     WHERE ({filterExpression:String})
         AND event_date >= toDate({from:String})
         AND event_date >= toDate({to:String})
@@ -171,7 +168,7 @@ ORDER BY event_time DESC
           type: "sql",
           sql: `
     SELECT DISTINCT error
-    FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.part_log)` : "system.part_log"}
+    FROM {{clusterAllReplicas:system.part_log}}
     WHERE ({filterExpression:String})
         AND event_date >= toDate({from:String}) 
         AND event_date >= toDate({to:String})

@@ -42,18 +42,25 @@ function toStringFormat(secondsSinceEpoch: number, timezone: string): string {
 }
 
 /**
- * Replaces time span template parameters in SQL query with actual values
+ * Replaces time span template parameters in SQL query with actual values.
+ *
+ * This is a low-level utility function for time span replacement only.
+ * For complete SQL transformation with connection context, use SQLQueryBuilder instead.
+ *
  * Supported parameters:
  * - {rounding:UInt32} -> rounding value (1/100 of time span, minimum 1)
  * - {seconds:UInt32} -> seconds value (duration in seconds)
  * - {startTimestamp:UInt32} -> startTimestamp value (seconds-based Unix timestamp)
  * - {endTimestamp:UInt32} -> endTimestamp value (seconds-based Unix timestamp)
  * - {from:String} -> start time as string in format 'YYYY-MM-DD HH:mm:ss' in the given timezone
+ * - {to:String} -> end time as string in format 'YYYY-MM-DD HH:mm:ss' in the given timezone
  *
  * @param sql The SQL query string with template parameters
  * @param timeSpan The selected time span
  * @param timezone The SERVER timezone to use for time-based queries
  * @returns The SQL query with parameters replaced
+ *
+ * @see SQLQueryBuilder For complete SQL transformation including cluster templates
  */
 export function replaceTimeSpanParams(
   sql: string,

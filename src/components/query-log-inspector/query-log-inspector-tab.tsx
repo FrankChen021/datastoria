@@ -1,4 +1,5 @@
 import { useConnection } from "@/components/connection/connection-context";
+import { SQLQueryBuilder } from "@/components/shared/dashboard/sql-query-builder";
 import TimeSpanSelector, {
   BUILT_IN_TIME_SPAN_LIST,
   DisplayTimeSpan,
@@ -14,7 +15,6 @@ import { endOfDay, parseISO, startOfDay } from "date-fns";
 import { Maximize2, RotateCw, Search, ZoomIn, ZoomOut } from "lucide-react";
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QueryResponseErrorView } from "../query-tab/query-response/query-response-error-view";
-import { replaceTimeSpanParams } from "../shared/dashboard/sql-time-utils";
 import { QueryLogInspectorTableView } from "./query-log-inspector-table-view";
 import { transformQueryLogsToTree } from "./query-log-inspector-timeline-types";
 import QueryLogInspectorTimelineView from "./query-log-inspector-timeline-view";
@@ -248,32 +248,30 @@ export function QueryLogInspectorTab({
       return;
     }
 
-    const queryTable =
-      connection.cluster && connection.cluster.length > 0
-        ? `clusterAllReplicas('${connection.cluster}', system, query_log)`
-        : "system.query_log";
-
     setLoading(true);
 
     try {
-      const queryText = replaceTimeSpanParams(
+      const timezone = connection.metadata.timezone;
+      const queryText = new SQLQueryBuilder(
         `
 SELECT
   FQDN() as host, 
   toUnixTimestamp64Micro(query_start_time_microseconds) as start_time_microseconds, 
   * 
-FROM ${queryTable} 
-WHERE initial_query_id = '${activeQueryId}'
+FROM {{clusterAllReplicas:system.query_log}}
+WHERE initial_query_id = {initialQueryId}
 AND event_date >= toDate({from:String}) 
 AND event_date >= toDate({to:String})
 AND event_time >= {from:String} 
 AND event_time < {to:String}
 AND type <> 'QueryStart'
 ORDER BY start_time_microseconds
-`,
-        selectedTimeSpan.getTimeSpan(),
-        connection.metadata.timezone
-      );
+`
+      )
+        .cluster(connection.cluster)
+        .timeSpan(selectedTimeSpan.getTimeSpan(), timezone)
+        .replace("initialQueryId", `'${activeQueryId}'`)
+        .build();
 
       setQueryText(queryText);
 

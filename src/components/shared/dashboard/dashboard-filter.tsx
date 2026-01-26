@@ -14,7 +14,7 @@ import type {
   SelectorFilterSpec,
   SQLQuery,
 } from "./dashboard-model";
-import { replaceTimeSpanParams } from "./sql-time-utils";
+import { SQLQueryBuilder } from "./sql-query-builder";
 import TimeSpanSelector, {
   DisplayTimeSpan,
   getDisplayTimeSpanByLabel,
@@ -258,20 +258,11 @@ class DashboardFilterComponent extends Component<FilterProps, FilterState> {
       return [];
     }
 
-    const timezone = this.props.timezone ?? "UTC";
-    const currentTimeSpan = this.getSelectedTimeSpan();
-    const filterExpression = filterExpressionList.join(" AND ");
-    const finalFilterExpression = filterExpression.length > 0 ? filterExpression : "1=1";
-
-    const timeColumn = this.timeFilterSpec?.timeColumn ?? "event_time";
-    const timeFilter = `${timeColumn} >= {from:String} AND ${timeColumn} <= {to:String}`;
-
-    let sql = thisFilterSpec.datasource.sql.replace(
-      /{filterExpression:String}/g,
-      `(${finalFilterExpression})`
-    );
-    sql = sql.replace(/{timeFilter:String}/g, `(${timeFilter})`);
-    sql = replaceTimeSpanParams(sql, currentTimeSpan, timezone);
+    // Use SQLQueryBuilder for clean SQL transformation
+    const sql = new SQLQueryBuilder(thisFilterSpec.datasource.sql)
+      .timeSpan(this.getSelectedTimeSpan(), this.props.timezone ?? "UTC")
+      .filterExpression(filterExpressionList.join(" AND "))
+      .build();
 
     const dimensions = await onLoadSourceData({
       sql,

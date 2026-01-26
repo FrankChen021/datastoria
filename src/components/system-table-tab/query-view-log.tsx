@@ -24,8 +24,6 @@ interface QueryViewLogProps {
 export const QueryViewLog = ({ database: _database, table: _table }: QueryViewLogProps) => {
   const { connection } = useConnection();
 
-  // NOTE: keep the {cluster} replacement, it will be processed by the underlying connection object
-
   const filterSpecs = useMemo<FilterSpec[]>(() => {
     return [
       {
@@ -44,7 +42,7 @@ export const QueryViewLog = ({ database: _database, table: _table }: QueryViewLo
         datasource: {
           type: "sql",
           sql: `SELECT DISTINCT hostname 
-FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_views_log)` : "system.query_views_log"}
+FROM {{clusterAllReplicas:system.query_views_log}}
                     WHERE {filterExpression:String} order by hostname`,
         },
 
@@ -81,7 +79,7 @@ FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_views
         datasource: {
           type: "sql",
           sql: `SELECT DISTINCT view_name
-FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_views_log)` : "system.query_views_log"}
+FROM {{clusterAllReplicas:system.query_views_log}}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})
@@ -101,7 +99,7 @@ ORDER BY view_name
           type: "sql",
           sql: `
 SELECT DISTINCT exception_code
-FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_log)` : "system.query_log"}
+FROM {{clusterAllReplicas:system.query_log}}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})
@@ -133,8 +131,7 @@ LIMIT 100
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
             status,
             count(1) as count
-        FROM 
-        ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_views_log)` : "system.query_views_log"}
+        FROM {{clusterAllReplicas:system.query_views_log}}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 
@@ -166,8 +163,7 @@ LIMIT 100
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
             view_name,
             AVG(view_duration_ms) as view_duration_ms
-        FROM 
-        ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_views_log)` : "system.query_views_log"}
+        FROM {{clusterAllReplicas:system.query_views_log}}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 
@@ -199,8 +195,7 @@ LIMIT 100
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
             view_name,
             round(SUM(read_rows) / {rounding:UInt32}, 2) as read_rows
-        FROM 
-        ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_views_log)` : "system.query_views_log"}
+        FROM {{clusterAllReplicas:system.query_views_log}}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 
@@ -232,8 +227,7 @@ LIMIT 100
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
             view_name,
             SUM(read_bytes) / {rounding:UInt32} as read_bytes
-        FROM 
-        ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_views_log)` : "system.query_views_log"}
+        FROM {{clusterAllReplicas:system.query_views_log}}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 
@@ -265,8 +259,7 @@ LIMIT 100
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
             view_name,
             SUM(written_rows) / {rounding:UInt32} as written_rows
-        FROM 
-        ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_views_log)` : "system.query_views_log"}
+        FROM {{clusterAllReplicas:system.query_views_log}}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 
@@ -298,8 +291,7 @@ LIMIT 100
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
             view_name,
             SUM(written_bytes) / {rounding:UInt32} as written_bytes
-        FROM 
-        ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_views_log)` : "system.query_views_log"}
+        FROM {{clusterAllReplicas:system.query_views_log}}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 
@@ -333,8 +325,7 @@ LIMIT 100
               titleOption: { title: `Query View Log Records`, showTitle: true, align: "left" },
               datasource: {
                 sql: `
-        SELECT * FROM
-        ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_views_log)` : "system.query_views_log"}
+        SELECT * FROM {{clusterAllReplicas:system.query_views_log}}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 

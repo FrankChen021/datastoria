@@ -46,7 +46,7 @@ import {
   TransposeTableVisualization,
   type TransposeTableVisualizationRef,
 } from "./dashboard-visualization-transpose-table";
-import { replaceTimeSpanParams } from "./sql-time-utils";
+import { SQLQueryBuilder } from "./sql-query-builder";
 import type { TimeSpan } from "./timespan-selector";
 
 /**
@@ -252,16 +252,13 @@ export const DashboardVisualizationPanel = forwardRef<
       try {
         lastRefreshParamRef.current = param;
 
-        // Replace time span parameters
-        let finalSql = replaceTimeSpanParams(
-          query.sql,
-          param.timeSpan,
-          connection.metadata?.timezone || "UTC"
-        );
-
-        // Replace filter expression placeholder (default to "true" if not provided)
-        const filterExpr = param.filterExpression || "true";
-        finalSql = finalSql.replace(/{filterExpression:String}/g, filterExpr);
+        // Build SQL query with all replacements
+        const timezone = connection.metadata?.timezone || "UTC";
+        let finalSql = new SQLQueryBuilder(query.sql)
+          .timeSpan(param.timeSpan, timezone)
+          .filterExpression(param.filterExpression)
+          .cluster(connection.cluster)
+          .build();
 
         // Let visualization component prepare SQL (e.g., table adds ORDER BY and pagination)
         // With the callback ref pattern, visualizationRefInternal.current will be available
@@ -354,12 +351,12 @@ export const DashboardVisualizationPanel = forwardRef<
                   ) || "",
               };
 
-              // Prepare offset SQL
-              const offsetSql = replaceTimeSpanParams(
-                query.sql,
-                offsetTimeSpan,
-                connection.metadata?.timezone || "UTC"
-              );
+              // Prepare offset SQL with all replacements
+              const offsetSql = new SQLQueryBuilder(query.sql)
+                .timeSpan(offsetTimeSpan, timezone)
+                .filterExpression(param.filterExpression)
+                .cluster(connection.cluster)
+                .build();
 
               const { response: offsetResponse, abortController: offsetAbort } =
                 connection.queryOnNode(

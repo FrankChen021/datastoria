@@ -9,7 +9,7 @@ import type {
 import DashboardPage from "@/components/shared/dashboard/dashboard-page";
 import { useDashboardRefresh } from "@/components/shared/dashboard/dashboard-panel-container";
 import { DataTable } from "@/components/shared/dashboard/data-table";
-import { replaceTimeSpanParams } from "@/components/shared/dashboard/sql-time-utils";
+import { SQLQueryBuilder } from "@/components/shared/dashboard/sql-query-builder";
 import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
@@ -511,16 +511,21 @@ const DDLDistributedQueueLogView = memo(() => {
       setIsLoading(true);
       setError(null);
       try {
-        let sql = `
+        const timezone = connection.metadata.timezone || "UTC";
+        const sql = new SQLQueryBuilder(
+          `
 SELECT *
 FROM system.distributed_ddl_queue 
 WHERE
 {filterExpression:String}
 AND query_create_time >= {from:String} 
 AND query_create_time < {to:String}
-ORDER BY entry, host`;
-        sql = replaceTimeSpanParams(sql, effectiveTimeSpan, connection.metadata.timezone || "UTC");
-        sql = sql.replace(/{filterExpression:String}/g, filterExpression || "true");
+ORDER BY entry, host`
+        )
+          .timeSpan(effectiveTimeSpan, timezone)
+          .filterExpression(filterExpression)
+          .build();
+
         const response = await connection.query(sql, { default_format: "JSON" }).response;
         const fetchedRawRows = response.data.json<{ data: DDLRecord[] }>().data;
 
@@ -632,7 +637,7 @@ const DistributedDDLQueue = () => {
           sql: `SELECT DISTINCT 
           host 
 FROM system.ddl_distributed_queue 
-WHERE cluster = '${connection!.cluster}'
+WHERE cluster = {cluster}
 ORDER BY host`,
         },
       } as SelectorFilterSpec,
