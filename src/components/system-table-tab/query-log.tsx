@@ -35,7 +35,7 @@ SELECT
     toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
     type,
     count(1) as count
-FROM {{clusterAllReplicas:system.query_log}}
+FROM {clusterAllReplicas:system.query_log}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
@@ -50,7 +50,7 @@ ORDER BY t, type
 
   const TABLE_QUERY = useMemo(
     () => `
-SELECT ${connection!.metadata.query_log_table_has_hostname_column ? "" : "FQDN(), "} * FROM {{clusterAllReplicas:system.query_log}}
+SELECT ${connection!.metadata.query_log_table_has_hostname_column ? "" : "FQDN(), "} * FROM {clusterAllReplicas:system.query_log}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
@@ -122,7 +122,7 @@ ORDER BY event_time DESC
         datasource: {
           type: "sql",
           sql: `SELECT DISTINCT query_kind
-FROM {{clusterAllReplicas:system.query_log}}
+FROM {clusterAllReplicas:system.query_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})
@@ -148,7 +148,7 @@ LIMIT 100`,
           type: "sql",
           sql: `SELECT DISTINCT arrayJoin(databases) as database FROM (
 SELECT DISTINCT databases
-FROM {{clusterAllReplicas:system.query_log}}
+FROM {clusterAllReplicas:system.query_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})
@@ -175,7 +175,7 @@ ORDER BY database
           type: "sql",
           sql: `SELECT DISTINCT arrayJoin(tables) as table FROM (
 SELECT DISTINCT tables
-FROM {{clusterAllReplicas:system.query_log}}
+FROM {clusterAllReplicas:system.query_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})
@@ -195,7 +195,7 @@ ORDER BY table
           type: "sql",
           sql: `
 SELECT DISTINCT exception_code
-FROM {{clusterAllReplicas:system.query_log}}
+FROM {clusterAllReplicas:system.query_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})
@@ -216,7 +216,7 @@ LIMIT 100
           // NOTE: don't use ORDER BY 1, some old release does not support this well
           sql: `
 SELECT DISTINCT initial_user
-FROM {{clusterAllReplicas:system.query_log}}
+FROM {clusterAllReplicas:system.query_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})

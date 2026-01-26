@@ -3,22 +3,6 @@ import type { TimeSpan } from "./timespan-selector";
 
 /**
  * A fluent builder for constructing SQL queries with various template replacements.
- *
- * This builder consolidates all SQL transformation logic in one place, providing a clean
- * and maintainable API for query construction. Each transformation method accepts the
- * parameters it needs, making the builder flexible and reusable.
- *
- * Usage:
- * ```typescript
- * const sql = new SQLQueryBuilder(rawSql)
- *   .replaceTimeSpan(timeSpan, timezone)
- *   .replaceFilterExpression(filterExpr)
- *   .replaceTemplateVariables(clusterName)
- *   .replace("customVar", "customValue")
- *   .build();
- * ```
- *
- * @see replaceTimeSpanParams For standalone time span replacement
  */
 export class SQLQueryBuilder {
   private sql: string;
@@ -59,10 +43,10 @@ export class SQLQueryBuilder {
   /**
    * Replace SQL template variables based on cluster context.
    * Replaces:
-   * - {{clusterAllReplicas:table}} -> clusterAllReplicas('{cluster}', table) or table
-   * - {{cluster:table}} -> cluster('{cluster}', table) or table
-   * - {{table:table}} -> table
-   * - {cluster} -> actual cluster name
+   * - {clusterAllReplicas:table} -> clusterAllReplicas('{cluster}', table) or table
+   * - {cluster:table} -> cluster('{cluster}', table) or table
+   * - {table:table} -> table
+   * - {cluster} -> actual cluster name (simple variable, no colon)
    *
    * @param clusterName The cluster name (optional). If not provided or empty, cluster functions are removed.
    * @returns this builder for chaining
@@ -70,22 +54,22 @@ export class SQLQueryBuilder {
   cluster(clusterName?: string): this {
     const hasCluster = clusterName && clusterName.length > 0;
 
-    // Replace {{clusterAllReplicas:table_name}} patterns
-    this.sql = this.sql.replace(/\{\{clusterAllReplicas:([^}]+)\}\}/g, (_match, tableName) => {
+    // Replace {clusterAllReplicas:table_name} patterns
+    this.sql = this.sql.replace(/\{clusterAllReplicas:([^}]+)\}/g, (_match, tableName) => {
       return hasCluster ? `clusterAllReplicas('{cluster}', ${tableName})` : tableName;
     });
 
-    // Replace {{cluster:table_name}} patterns
-    this.sql = this.sql.replace(/\{\{cluster:([^}]+)\}\}/g, (_match, tableName) => {
+    // Replace {cluster:table_name} patterns (note: different from simple {cluster})
+    this.sql = this.sql.replace(/\{cluster:([^}]+)\}/g, (_match, tableName) => {
       return hasCluster ? `cluster('{cluster}', ${tableName})` : tableName;
     });
 
-    // Replace {{table:table_name}} patterns (no cluster wrapping)
-    this.sql = this.sql.replace(/\{\{table:([^}]+)\}\}/g, (_match, tableName) => {
+    // Replace {table:table_name} patterns (no cluster wrapping)
+    this.sql = this.sql.replace(/\{table:([^}]+)\}/g, (_match, tableName) => {
       return tableName;
     });
 
-    // Replace {cluster} with actual cluster name
+    // Replace {cluster} with actual cluster name (simple variable without colon)
     if (hasCluster) {
       this.sql = this.sql.replace(/\{cluster\}/g, clusterName);
     }

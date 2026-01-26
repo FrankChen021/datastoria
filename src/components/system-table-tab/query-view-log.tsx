@@ -42,7 +42,7 @@ export const QueryViewLog = ({ database: _database, table: _table }: QueryViewLo
         datasource: {
           type: "sql",
           sql: `SELECT DISTINCT hostname 
-FROM {{clusterAllReplicas:system.query_views_log}}
+FROM {clusterAllReplicas:system.query_views_log}
                     WHERE {filterExpression:String} order by hostname`,
         },
 
@@ -79,7 +79,7 @@ FROM {{clusterAllReplicas:system.query_views_log}}
         datasource: {
           type: "sql",
           sql: `SELECT DISTINCT view_name
-FROM {{clusterAllReplicas:system.query_views_log}}
+FROM {clusterAllReplicas:system.query_views_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})
@@ -99,7 +99,7 @@ ORDER BY view_name
           type: "sql",
           sql: `
 SELECT DISTINCT exception_code
-FROM {{clusterAllReplicas:system.query_log}}
+FROM {clusterAllReplicas:system.query_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
     AND event_date >= toDate({to:String})
@@ -131,7 +131,7 @@ LIMIT 100
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
             status,
             count(1) as count
-        FROM {{clusterAllReplicas:system.query_views_log}}
+        FROM {clusterAllReplicas:system.query_views_log}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 
@@ -163,7 +163,7 @@ LIMIT 100
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
             view_name,
             AVG(view_duration_ms) as view_duration_ms
-        FROM {{clusterAllReplicas:system.query_views_log}}
+        FROM {clusterAllReplicas:system.query_views_log}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 
@@ -195,7 +195,7 @@ LIMIT 100
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
             view_name,
             round(SUM(read_rows) / {rounding:UInt32}, 2) as read_rows
-        FROM {{clusterAllReplicas:system.query_views_log}}
+        FROM {clusterAllReplicas:system.query_views_log}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 
@@ -227,7 +227,7 @@ LIMIT 100
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
             view_name,
             SUM(read_bytes) / {rounding:UInt32} as read_bytes
-        FROM {{clusterAllReplicas:system.query_views_log}}
+        FROM {clusterAllReplicas:system.query_views_log}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 
@@ -259,7 +259,7 @@ LIMIT 100
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
             view_name,
             SUM(written_rows) / {rounding:UInt32} as written_rows
-        FROM {{clusterAllReplicas:system.query_views_log}}
+        FROM {clusterAllReplicas:system.query_views_log}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 
@@ -291,7 +291,7 @@ LIMIT 100
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
             view_name,
             SUM(written_bytes) / {rounding:UInt32} as written_bytes
-        FROM {{clusterAllReplicas:system.query_views_log}}
+        FROM {clusterAllReplicas:system.query_views_log}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 
@@ -325,7 +325,7 @@ LIMIT 100
               titleOption: { title: `Query View Log Records`, showTitle: true, align: "left" },
               datasource: {
                 sql: `
-        SELECT * FROM {{clusterAllReplicas:system.query_views_log}}
+        SELECT * FROM {clusterAllReplicas:system.query_views_log}
         WHERE 
           {filterExpression:String}
           AND event_date >= toDate({from:String}) 
