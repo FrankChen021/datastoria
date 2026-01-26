@@ -1,6 +1,7 @@
 <template>
   <video
     v-bind="$attrs"
+    :src="webm"
     :autoplay="autoplay"
     :loop="loop"
     :muted="muted"
@@ -9,8 +10,6 @@
     :class="videoClass"
     :style="videoStyle"
   >
-    <source v-if="webm" :src="webm" type="video/webm" />
-    <source v-if="mp4" :src="mp4" type="video/mp4" />
     <p>{{ alt }}</p>
   </video>
 </template>
@@ -41,9 +40,8 @@ const props = withDefaults(defineProps<Props>(), {
   rounded: true,
 })
 
-// Automatically generate WebM and MP4 paths from src
+// Automatically generate WebM path from src
 const webm = computed(() => props.src.replace(/\.(gif|mp4|webm)$/, '.webm'))
-const mp4 = computed(() => props.src.replace(/\.(gif|mp4|webm)$/, '.mp4'))
 
 const videoClass = computed(() => ({
   'video-rounded': props.rounded,
