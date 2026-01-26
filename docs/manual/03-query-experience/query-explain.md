@@ -186,6 +186,3 @@ Since it doesn't provide the total number of parts and rows for comparison, the 
 - **[Query Optimization](../02-ai-features/query-optimization.md)** — Use AI to optimize your queries
 - **[Query Log Inspector](./query-log-inspector.md)** — Analyze actual query performance
 
----
-
-*Need help? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or review [Best Practices](../08-best-practices/query-writing.md).*

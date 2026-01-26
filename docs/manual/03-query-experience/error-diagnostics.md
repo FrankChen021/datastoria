@@ -99,6 +99,3 @@ See [Ask AI for Help](../02-ai-features/ask-ai-for-help.md) for more.
 - **[SQL Editor](./sql-editor.md)** — Master the SQL editor features
 - **[Query Optimization](../02-ai-features/query-optimization.md)** — Optimize queries for better performance
 
----
-
-*Need help? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or review [Error Messages](../07-troubleshooting/error-messages.md).*

@@ -152,6 +152,3 @@ The editor automatically saves your work:
 - **[Error Diagnostics](./error-diagnostics.md)** — Understand how to diagnose and fix query errors
 - **[Natural Language SQL](../02-ai-features/natural-language-sql.md)** — Use AI to generate queries from natural language
 
----
-
-*Need help? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or review [Best Practices](../08-best-practices/query-writing.md).*

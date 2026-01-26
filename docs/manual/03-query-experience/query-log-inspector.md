@@ -246,6 +246,3 @@ The Query Log Inspector tracks important performance metrics:
 - **[Query Explain](./query-explain.md)** — Understand query execution plans
 - **[Query Optimization](../02-ai-features/query-optimization.md)** — Optimize your queries with AI
 
----
-
-*Need help? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or review [Best Practices](../08-best-practices/query-writing.md).*

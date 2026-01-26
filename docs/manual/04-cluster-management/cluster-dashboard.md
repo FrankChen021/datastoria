@@ -77,6 +77,3 @@ Many metrics support drill-down functionality to view the breakdown of original 
 - **[Schema Explorer](./schema-explorer.md)** — Explore your database structure
 - **[System Log Introspection](./system-log-introspection.md)** — Deep dive into query and part logs
 
----
-
-*Need help? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or review [Best Practices](../08-best-practices/cluster-management.md).*

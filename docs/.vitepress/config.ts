@@ -4,6 +4,7 @@ export default defineConfig({
   title: 'DataStoria Documentation',
   description: 'AI-powered ClickHouse management console',
   base: '/', // or '/docs/' if deploying to a subpath
+  ignoreDeadLinks: true, // Allow links to planned sections that don't exist yet
 
   // SEO: Global meta tags
   head: [

@@ -145,6 +145,3 @@ Each query log row includes an action menu with AI-powered features:
 - **[system.part_log Introspection](./system-part-log.md)** — Monitor part-level operations
 - **[system.query_views_log Introspection](./system-query-views-log.md)** — Monitor query view executions
 
----
-
-*Need help? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or review [Best Practices](../08-best-practices/cluster-management.md).*

@@ -144,8 +144,4 @@ Use query log data to identify queries that would benefit most from optimization
 
 - **[Intelligent Visualization](./intelligent-visualization.md)** — Generate visualizations from your optimized queries
 - **[Query Explain](../03-query-experience/query-explain.md)** — Understand query execution plans
-- **[Performance Tuning](../06-advanced-features/performance-tuning.md)** — Advanced performance optimization strategies
 
----
-
-*For more optimization strategies, see [Performance Tuning](../06-advanced-features/performance-tuning.md) and [Best Practices](../08-best-practices/query-writing.md).*

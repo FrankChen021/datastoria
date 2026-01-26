@@ -165,6 +165,3 @@ Now that you're connected:
 3. **[Schema Explorer](../04-cluster-management/schema-explorer.md)** — Explore your database structure
 
 
----
-
-*Having trouble? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or review [Error Messages](../07-troubleshooting/error-messages.md).*

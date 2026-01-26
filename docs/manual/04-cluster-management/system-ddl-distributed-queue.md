@@ -132,6 +132,3 @@ The DDL distribution queue supports filtering:
 - **[system.query_log Introspection](./system-query-log.md)** — Analyze query execution logs
 - **[system.query_views_log Introspection](./system-query-views-log.md)** — Monitor query view executions
 
----
-
-*Need help? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or review [Best Practices](../08-best-practices/cluster-management.md).*

@@ -127,6 +127,3 @@ Right-click on any node to access context menu options.
 - **[Query Execution](../03-query-experience/query-execution.md)** — Execute queries on your tables
 - **[System Log Introspection](./system-log-introspection.md)** — Analyze query and part logs
 
----
-
-*Need help? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or review [Best Practices](../08-best-practices/cluster-management.md).*

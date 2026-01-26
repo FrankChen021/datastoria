@@ -51,6 +51,3 @@ It provides multiple filters and more dashboards on the metrics of views for bet
 - **[system.part_log Introspection](./system-part-log.md)** — Monitor part-level operations
 - **[system.query_log Introspection](./system-query-log.md)** — Analyze query execution logs
 
----
-
-*Need help? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or review [Best Practices](../08-best-practices/cluster-management.md).*

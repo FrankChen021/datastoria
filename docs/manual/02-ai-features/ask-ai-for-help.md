@@ -107,6 +107,3 @@ If your query executes but is slow:
 - **[Query Optimization](./query-optimization.md)** — Optimize working queries
 - **[Error Diagnostics](../03-query-experience/error-diagnostics.md)** — Learn more about understanding errors
 
----
-
-*For tips on effective error resolution, see [Best Practices](../08-best-practices/ai-feature-usage.md).*

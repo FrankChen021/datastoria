@@ -121,7 +121,7 @@ SETTINGS log_queries = 1
 
 ### Use Case 2 - Business Analytics  
 
-In this example, we will use [ClickHouse Playground](play.clickhouse.com)'s git_clickhouse.commits table for illustration. 
+In this example, we will use [ClickHouse Playground](https://play.clickhouse.com)'s git_clickhouse.commits table for illustration. 
 
 You can configure the playground connection in your DataStoria to try the following similar questions.
 
@@ -252,6 +252,3 @@ The AI automatically uses your database schema to:
 - **[Intelligent Visualization](./intelligent-visualization.md)** — Generate charts from natural language
 - **[AI Model Configuration](./ai-model-configuration.md)** — Set up your LLM provider API keys
 
----
-
-*Need help? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or review [Best Practices](../08-best-practices/ai-feature-usage.md).*

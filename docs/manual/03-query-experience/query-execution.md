@@ -128,6 +128,3 @@ For each query, you can view:
 - **[Error Diagnostics](./error-diagnostics.md)** — Learn how to diagnose and fix errors
 - **[Query Log Inspector](./query-log-inspector.md)** — Analyze query performance and history
 
----
-
-*Need help? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or review [Best Practices](../08-best-practices/query-writing.md).*

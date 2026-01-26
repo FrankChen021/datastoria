@@ -14,7 +14,7 @@ It does NOT fetch data from your local and sends data to LLM for visualization. 
 
 ## Generating Charts from Prompts
 
-The [ClickHouse Playground](play.clickhouse.com) is used for these example illustration.
+The [ClickHouse Playground](https://play.clickhouse.com) is used for these example illustration.
 You create a connection to this playground to try the following examples.
 
 ### Time Series Charts
@@ -173,6 +173,3 @@ Visualize query performance improvements:
 - **[Node Dashboard](../04-cluster-management/node-dashboard.md)** — Monitor individual node performance
 - **[Cluster Dashboard](../04-cluster-management/cluster-dashboard.md)** — Monitor cluster-wide metrics
 
----
-
-*For more visualization tips, see [Best Practices](../08-best-practices/ai-feature-usage.md).*

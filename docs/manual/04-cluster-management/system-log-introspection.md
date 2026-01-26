@@ -98,6 +98,3 @@ All system log introspection tools share common features:
 - **[Query Log Inspector](../03-query-experience/query-log-inspector.md)** — Analyze specific query execution
 - **[Schema Explorer](./schema-explorer.md)** — Explore your database structure
 
----
-
-*Need help? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or review [Best Practices](../08-best-practices/cluster-management.md).*

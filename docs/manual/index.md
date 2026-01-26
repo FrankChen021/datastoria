@@ -63,16 +63,7 @@ Welcome to the DataStoria user manual. This comprehensive guide will help you ma
   - Understanding Execution Plans
   - Performance Insights
 
-### 4. Cluster Management
-- [Multi-Cluster Setup](./04-cluster-management/multi-cluster-setup.md)
-  - Adding Clusters
-  - Switching Between Clusters
-  - Cluster Configuration
-- [Multi-Node Dashboard](./04-cluster-management/multi-node-dashboard.md)
-  - Real-time Metrics
-  - Merge Operations Monitoring
-  - Replication Status
-  - Node Health Indicators
+### 4. Database Management
 - [Node Dashboard](./04-cluster-management/node-dashboard.md)
   - Individual node metrics
   - Node health indicators
@@ -92,62 +83,6 @@ Welcome to the DataStoria user manual. This comprehensive guide will help you ma
   - Local Execution Model
   - Data Privacy Guarantees
   - No Data Collection Policy
-- [Authentication](./05-security-privacy/authentication.md)
-  - OAuth Setup (Google, GitHub, Microsoft)
-  - Credential Management
-  - Security Best Practices
-- [API Key Management](./05-security-privacy/api-key-management.md)
-  - Bring Your Own API Key
-  - Secure Storage
-  - Key Rotation
-
-### 6. Advanced Features
-- [Query Templates](./06-advanced-features/query-templates.md)
-  - Creating Templates
-  - Using Templates
-  - Sharing Templates
-- [Data Export](./06-advanced-features/data-export.md)
-  - Export Formats
-  - Large Dataset Handling
-  - Scheduled Exports
-- [Performance Tuning](./06-advanced-features/performance-tuning.md)
-  - Query Optimization Strategies
-  - Index Recommendations
-  - Resource Monitoring
-
-### 7. Troubleshooting
-- [Common Issues](./07-troubleshooting/common-issues.md)
-  - Connection Problems
-  - Query Errors
-  - Performance Issues
-- [Error Messages](./07-troubleshooting/error-messages.md)
-  - Understanding Error Codes
-  - Resolution Steps
-  - Getting Help
-- [Debugging Queries](./07-troubleshooting/debugging-queries.md)
-  - Using Query Log Inspector
-  - Analyzing Execution Plans
-  - Performance Profiling
-
-### 8. Best Practices
-- [Query Writing](./08-best-practices/query-writing.md)
-  - Efficient Query Patterns
-  - Avoiding Common Pitfalls
-  - Performance Tips
-- [AI Feature Usage](./08-best-practices/ai-feature-usage.md)
-  - Effective Prompting
-  - Natural Language Query Tips
-  - Visualization Best Practices
-- [Cluster Management](./08-best-practices/cluster-management.md)
-  - Monitoring Strategies
-  - Resource Planning
-  - Maintenance Schedules
-
-### 9. Appendix
-- [Keyboard Shortcuts](./09-appendix/keyboard-shortcuts.md)
-- [Configuration Reference](./09-appendix/configuration-reference.md)
-- [FAQ](./09-appendix/faq.md)
-- [Glossary](./09-appendix/glossary.md)
 
 ---
 
@@ -162,18 +97,7 @@ New to DataStoria? Start here:
 
 ## Need Help?
 
-- Check the [FAQ](./09-appendix/faq.md) for common questions
-- Review [Troubleshooting](./07-troubleshooting/common-issues.md) for solutions
 - Visit [dataStoria.app](https://datastoria.app) for the online version
-
----
-
-## For Maintainers
-
-If you're maintaining this documentation and need to publish it:
-
-- **[Deployment Guide](./DEPLOYMENT.md)** - Complete guide for converting markdown to HTML and deploying to Cloudflare Pages
-- **[Nextra Setup Guide](./SETUP_NEXTRA.md)** - Quick setup instructions for Nextra (recommended for Next.js projects)
 
 ---
 

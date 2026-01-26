@@ -162,6 +162,3 @@ The Vercel AI SDK supports a wide range of providers including custom API endpoi
 - **[Query Optimization](./query-optimization.md)** — Get AI-powered query improvements
 - **[Intelligent Visualization](./intelligent-visualization.md)** — Create charts with AI
 
----
-
-*For security best practices, see [Security & Privacy](../05-security-privacy/privacy-features.md) and [API Key Management](../05-security-privacy/api-key-management.md).*

@@ -85,7 +85,7 @@ This will start:
 
 #### Step 4: Access DataStoria
 
-Open your browser and navigate to [http://localhost:3000](http://localhost:3000).
+Open your browser and navigate to `http://localhost:3000`.
 
 ### Option 2: Running with Docker
 
@@ -98,7 +98,7 @@ The easiest way to run DataStoria is using the pre-built Docker image. This is p
 docker run -d -p 3000:3000 frankchen021/datastoria:latest
 ```
 
-Then open [http://localhost:3000](http://localhost:3000) in your browser.
+Then open `http://localhost:3000` in your browser.
 
 #### Platform Support
 
@@ -191,6 +191,3 @@ Once DataStoria is installed and running:
 - [Docker Hub](https://hub.docker.com/r/frankchen021/datastoria)
 - [Online Version](https://datastoria.app)
 
----
-
-*Need help? Check the [Troubleshooting](../07-troubleshooting/common-issues.md) section or open an issue on GitHub.*
