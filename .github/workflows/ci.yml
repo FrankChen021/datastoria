@@ -122,24 +122,28 @@ jobs:
       deployments: write
 
     steps:
+      - name: Check if artifact exists
+        id: check-artifact
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+            const artifact = artifacts.data.artifacts.find(a => a.name === 'docs-dist');
+            return artifact !== undefined;
+
       - name: Download docs artifact
+        if: steps.check-artifact.outputs.result == 'true'
         uses: actions/download-artifact@v4
         with:
           name: docs-dist
           path: docs/.vitepress/dist
-        continue-on-error: true
-
-      - name: Check if docs were built
-        id: check-docs
-        run: |
-          if [ -d "docs/.vitepress/dist" ] && [ "$(ls -A docs/.vitepress/dist)" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
 
       - name: Deploy to Cloudflare Pages
-        if: steps.check-docs.outputs.exists == 'true'
+        if: steps.check-artifact.outputs.result == 'true'
         uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
