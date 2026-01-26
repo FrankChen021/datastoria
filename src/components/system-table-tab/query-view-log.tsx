@@ -78,12 +78,6 @@ FROM ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_views
         name: "view_name",
         displayText: "view_name",
         onPreviousFilters: true,
-        expressionTemplate: {
-          "=": "has({name}, {value})",
-          "!=": "NOT has({name}, {value})",
-          in: "hasAny({name}, {valuesArray})",
-          "not in": "NOT hasAny({name}, {valuesArray})",
-        },
         datasource: {
           type: "sql",
           sql: `SELECT DISTINCT view_name
@@ -204,7 +198,7 @@ LIMIT 100
         SELECT
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
             view_name,
-            SUM(read_rows) / {rounding:UInt32} as read_rows
+            round(SUM(read_rows) / {rounding:UInt32}, 2) as read_rows
         FROM 
         ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_views_log)` : "system.query_views_log"}
         WHERE 
@@ -223,7 +217,7 @@ LIMIT 100
               },
               fieldOptions: {
                 t: { name: "t" },
-                read_rows: { name: "read_rows", format: "comma_number" },
+                read_rows: { name: "read_rows", format: "short_number" },
                 view_name: { name: "view_name" },
               },
               gridPos: { w: 12, h: 6 },
@@ -289,7 +283,7 @@ LIMIT 100
               },
               fieldOptions: {
                 t: { name: "t" },
-                read_bytes: { name: "read_bytes", format: "binary_size" },
+                written_rows: { name: "written_rows", format: "short_number" },
                 view_name: { name: "view_name" },
               },
               gridPos: { w: 12, h: 6 },

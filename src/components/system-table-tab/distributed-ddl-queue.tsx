@@ -2,6 +2,8 @@ import { useConnection } from "@/components/connection/connection-context";
 import type {
   Dashboard,
   FieldOption,
+  FilterSpec,
+  SelectorFilterSpec,
   TimeseriesDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
 import DashboardPage from "@/components/shared/dashboard/dashboard-page";
@@ -15,7 +17,6 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Formatter } from "@/lib/formatter";
 import { hostNameManager } from "@/lib/host-name-manager";
 import { cn } from "@/lib/utils";
 import { AlertCircle, CheckCircle2, Clock, PlayCircle, X, XCircle } from "lucide-react";
@@ -100,6 +101,41 @@ const truncateQuery = (text: string, maxLength: number = 80) => {
   return text.slice(0, half) + "..." + text.slice(-half);
 };
 
+interface HoverSqlProps {
+  sql: string;
+  maxLength?: number;
+  triggerClassName?: string;
+}
+
+const HoverSql = memo(({ sql, maxLength = 80, triggerClassName }: HoverSqlProps) => {
+  return (
+    <HoverCard openDelay={200} closeDelay={100}>
+      <HoverCardTrigger asChild>
+        <div className={cn("truncate text-xs opacity-80", triggerClassName)}>
+          {truncateQuery(sql, maxLength)}
+        </div>
+      </HoverCardTrigger>
+      <HoverCardContent className="w-[600px] p-0 shadow-2xl border-2 bg-popover">
+        <div className="max-h-[300px] overflow-auto bg-muted/30">
+          <ThemedSyntaxHighlighter
+            language="sql"
+            customStyle={{
+              margin: 0,
+              padding: "0.75rem",
+              fontSize: "10px",
+              backgroundColor: "transparent",
+            }}
+            showLineNumbers={false}
+            wrapLongLines={false}
+          >
+            {sql}
+          </ThemedSyntaxHighlighter>
+        </div>
+      </HoverCardContent>
+    </HoverCard>
+  );
+});
+
 interface DDLDistributedQueueHostLogTableProps {
   records: DDLRecord[];
 }
@@ -119,17 +155,7 @@ const DDLDistributedQueueHostLogTable = memo(
     const fieldOptions: FieldOption[] = useMemo(
       () => [
         {
-          name: "host",
-          title: "Host",
-          format: (val) => (
-            <span className="font-mono text-[10px] truncate block" title={String(val)}>
-              {String(val)}
-            </span>
-          ),
-        },
-        {
           name: "status",
-          title: "Status",
           format: (val, _, context) => {
             const row = context as unknown as DDLRecord;
             return (
@@ -145,7 +171,7 @@ const DDLDistributedQueueHostLogTable = memo(
                     <TooltipContent className="max-w-[400px] p-3 border-red-500/20 shadow-lg">
                       <div className="flex flex-col gap-1.5">
                         <div className="flex items-center justify-between gap-4">
-                          <span className="font-bold text-[10px] uppercase tracking-wider text-red-500">
+                          <span className="font-bold uppercase tracking-wider text-red-500">
                             Exception Code {row.exception_code}
                           </span>
                         </div>
@@ -161,39 +187,22 @@ const DDLDistributedQueueHostLogTable = memo(
           },
         },
         {
-          name: "query_create_time",
-          title: "Created",
-          align: "right",
-          format: (val) => (
-            <span className="text-muted-foreground font-mono text-[10px]">{String(val)}</span>
-          ),
-        },
-        {
           name: "query_duration_ms",
-          title: "Duration",
-          align: "right",
-          format: (val) => (
-            <span className="font-mono text-[10px] text-muted-foreground">
-              {Number(val) > 0
-                ? `${Formatter.getInstance().getFormatter("millisecond")(val)}`
-                : "-"}
-            </span>
-          ),
+          format: "millisecond",
         },
       ],
       []
     );
 
     return (
-      <div className="bg-background border rounded-md overflow-hidden shadow-sm">
+      <div className="bg-background border rounded-md overflow-hidden shadow-sm h-[400px]">
         <DataTable
+          enableCompactMode
           data={records as any}
           meta={tableMeta}
           fieldOptions={fieldOptions}
           enableIndexColumn
           stickyHeader
-          headerClassName="text-[10px]"
-          className="max-h-[300px]"
         />
       </div>
     );
@@ -230,13 +239,13 @@ const DDLDistributedQueueDetailPane = memo(
                       <td className="px-3 py-2 bg-muted/20 w-32 font-medium text-muted-foreground">
                         Cluster
                       </td>
-                      <td className="px-3 py-2 font-mono">{selectedEntry.cluster}</td>
+                      <td className="px-3 py-2">{selectedEntry.cluster}</td>
                     </tr>
                     <tr>
                       <td className="px-3 py-2 bg-muted/20 w-32 font-medium text-muted-foreground">
                         Create Time
                       </td>
-                      <td className="px-3 py-2 font-mono">
+                      <td className="px-3 py-2">
                         {selectedEntry.records[0]?.query_create_time || "-"}
                       </td>
                     </tr>
@@ -244,13 +253,13 @@ const DDLDistributedQueueDetailPane = memo(
                       <td className="px-3 py-2 bg-muted/20 w-32 font-medium text-muted-foreground">
                         Entry Version
                       </td>
-                      <td className="px-3 py-2 font-mono">{selectedEntry.entry_version}</td>
+                      <td className="px-3 py-2">{selectedEntry.entry_version}</td>
                     </tr>
                     <tr>
                       <td className="px-3 py-2 bg-muted/20 w-32 font-medium text-muted-foreground">
                         Initiator Host
                       </td>
-                      <td className="px-3 py-2 font-mono break-all leading-tight">
+                      <td className="px-3 py-2 break-all leading-tight">
                         {selectedEntry.initiator_host}:{selectedEntry.initiator_port}
                       </td>
                     </tr>
@@ -285,9 +294,7 @@ const DDLDistributedQueueDetailPane = memo(
 
             {/* Host Log Table */}
             <div className="flex flex-col gap-3">
-              <div className="text-[10px] font-bold text-muted-foreground">
-                Per-Host Execution Log
-              </div>
+              <div className="text-[10px] font-bold text-muted-foreground">Per-Host DDL Log</div>
               <DDLDistributedQueueHostLogTable records={selectedEntry.records} />
             </div>
           </div>
@@ -353,53 +360,8 @@ const DistributedDDLQueueAggregateView = memo(
     const fieldOptions: FieldOption[] = useMemo(
       () => [
         {
-          name: "entry",
-          title: "Entry",
-          width: 180,
-          format: (val) => (
-            <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
-          ),
-        },
-        {
-          name: "query_create_time",
-          title: "Created",
-          width: 140,
-          format: (val) => (
-            <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
-          ),
-        },
-        {
-          name: "cluster",
-          title: "Cluster",
-          width: 150,
-          format: (val) => <span className="text-xs text-muted-foreground">{String(val)}</span>,
-        },
-        {
           name: "query",
-          title: "Query",
-          format: (val) => (
-            <HoverCard openDelay={200} closeDelay={100}>
-              <HoverCardTrigger asChild>
-                <div className="truncate text-xs text-muted-foreground opacity-80">
-                  {truncateQuery(String(val))}
-                </div>
-              </HoverCardTrigger>
-              <HoverCardContent className="w-[600px] p-0 shadow-2xl border-muted overflow-hidden">
-                <ScrollArea className="max-h-[300px]">
-                  <div className="p-3">
-                    <ThemedSyntaxHighlighter
-                      language="sql"
-                      customStyle={{ margin: 0, padding: 0, fontSize: "11px" }}
-                      showLineNumbers={false}
-                      wrapLongLines={true}
-                    >
-                      {String(val)}
-                    </ThemedSyntaxHighlighter>
-                  </div>
-                </ScrollArea>
-              </HoverCardContent>
-            </HoverCard>
-          ),
+          format: (val) => <HoverSql sql={String(val)} />,
         },
         {
           name: "statusCounts",
@@ -430,7 +392,7 @@ const DistributedDDLQueueAggregateView = memo(
       <PanelGroup direction="horizontal" className="h-full">
         {/* Left Panel: Table */}
         <Panel
-          defaultSize={selectedEntry ? 60 : 100}
+          defaultSize={selectedEntry ? 55 : 100}
           minSize={30}
           className="flex flex-col overflow-hidden"
         >
@@ -438,8 +400,8 @@ const DistributedDDLQueueAggregateView = memo(
             data={data as any}
             meta={tableMeta}
             defaultSort={{
-              column: "entry",
-              direction: "asc",
+              column: "query_create_time",
+              direction: "desc",
             }}
             fieldOptions={fieldOptions}
             enableIndexColumn
@@ -456,7 +418,7 @@ const DistributedDDLQueueAggregateView = memo(
           <>
             <PanelResizeHandle className="w-[1px] bg-border hover:bg-primary/50 transition-colors cursor-col-resize active:bg-primary" />
             <Panel
-              defaultSize={40}
+              defaultSize={45}
               minSize={25}
               className="flex flex-col overflow-hidden text-clip"
             >
@@ -493,30 +455,6 @@ const DistributedDDLQueueRawView = memo(({ data, isLoading }: DistributedDDLQueu
   const fieldOptions: FieldOption[] = useMemo(
     () => [
       {
-        name: "entry",
-        title: "Entry",
-        width: 180,
-        format: (val) => (
-          <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
-        ),
-      },
-      {
-        name: "query_create_time",
-        title: "Created",
-        width: 180,
-        format: (val) => (
-          <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
-        ),
-      },
-      {
-        name: "host",
-        title: "Host",
-        width: 150,
-        format: (val) => (
-          <span className="text-xs tabular-nums text-muted-foreground">{String(val)}</span>
-        ),
-      },
-      {
         name: "status",
         title: "Status",
         width: 100,
@@ -531,43 +469,11 @@ const DistributedDDLQueueRawView = memo(({ data, isLoading }: DistributedDDLQueu
       },
       {
         name: "query",
-        title: "Query",
-        format: (val) => (
-          <HoverCard openDelay={200} closeDelay={100}>
-            <HoverCardTrigger asChild>
-              <div className="truncate text-xs text-muted-foreground opacity-80">
-                {truncateQuery(String(val))}
-              </div>
-            </HoverCardTrigger>
-            <HoverCardContent className="w-[600px] p-0 shadow-2xl border-muted overflow-hidden">
-              <ScrollArea className="max-h-[300px]">
-                <div className="p-3">
-                  <ThemedSyntaxHighlighter
-                    language="sql"
-                    customStyle={{ margin: 0, padding: 0, fontSize: "11px" }}
-                    showLineNumbers={false}
-                    wrapLongLines={true}
-                  >
-                    {String(val)}
-                  </ThemedSyntaxHighlighter>
-                </div>
-              </ScrollArea>
-            </HoverCardContent>
-          </HoverCard>
-        ),
+        format: (val) => <HoverSql sql={String(val)} />,
       },
       {
         name: "query_duration_ms",
-        title: "Duration",
-        width: 80,
-        align: "right",
-        format: (val) => (
-          <span className="text-xs tabular-nums text-muted-foreground">
-            {val !== undefined
-              ? `${Formatter.getInstance().getFormatter("millisecond")(val)}`
-              : "-"}
-          </span>
-        ),
+        format: "millisecond",
       },
     ],
     []
@@ -594,7 +500,7 @@ const DDLDistributedQueueLogView = memo(() => {
   const currentTimeSpanRef = useRef<TimeSpan | undefined>(undefined);
 
   const fetchData = useCallback(
-    async (timeSpan?: TimeSpan) => {
+    async (timeSpan?: TimeSpan, filterExpression?: string) => {
       if (!connection) return;
 
       const effectiveTimeSpan = timeSpan ?? currentTimeSpanRef.current;
@@ -606,28 +512,22 @@ const DDLDistributedQueueLogView = memo(() => {
       setError(null);
       try {
         let sql = `
-SELECT * 
+SELECT *
 FROM system.distributed_ddl_queue 
-WHERE query_create_time >= {from:String} AND query_create_time <= {to:String}
+WHERE
+{filterExpression:String}
+AND query_create_time >= {from:String} 
+AND query_create_time < {to:String}
 ORDER BY entry, host`;
         sql = replaceTimeSpanParams(sql, effectiveTimeSpan, connection.metadata.timezone || "UTC");
+        sql = sql.replace(/{filterExpression:String}/g, filterExpression || "true");
         const response = await connection.query(sql, { default_format: "JSON" }).response;
         const fetchedRawRows = response.data.json<{ data: DDLRecord[] }>().data;
 
-        // Find common suffix from first 5 records
-        const first5Hosts = fetchedRawRows.slice(0, 5).map((r) => r.host);
-        const commonSuffix = hostNameManager.findCommonSuffix(first5Hosts);
-
         const rows = fetchedRawRows.map((row) => ({
           ...row,
-          host:
-            commonSuffix.length > 0 && row.host.endsWith(commonSuffix)
-              ? row.host.slice(0, -commonSuffix.length)
-              : row.host,
-          initiator_host:
-            commonSuffix.length > 0 && row.initiator_host.endsWith(commonSuffix)
-              ? row.initiator_host.slice(0, -commonSuffix.length)
-              : row.initiator_host,
+          host: hostNameManager.getShortHostname(row.host),
+          initiator_host: hostNameManager.getShortHostname(row.initiator_host),
         }));
 
         setRawRows(rows);
@@ -689,34 +589,13 @@ const ddlQueueDashboard: Dashboard = {
   filter: {},
   charts: [
     {
-      type: "line",
-      titleOption: {
-        title: "DDL Queue Entries",
-        align: "center",
-      },
-      gridPos: { w: 12, h: 6 },
-      legendOption: {
-        placement: "none",
-      },
-      query: {
-        sql: `
-SELECT 
-    toStartOfInterval(query_create_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
-    count() AS query_count
-FROM system.distributed_ddl_queue
-WHERE query_create_time >= now() - {seconds:UInt32}
-GROUP BY t
-ORDER BY t
-`,
-      },
-    } as TimeseriesDescriptor,
-    {
-      type: "line",
+      type: "bar",
+      stacked: true,
       titleOption: {
         title: "DDL Queue Entries By Host",
         align: "center",
       },
-      gridPos: { w: 12, h: 6 },
+      gridPos: { w: 24, h: 8 },
       legendOption: {
         placement: "bottom",
         values: ["sum"],
@@ -725,10 +604,12 @@ ORDER BY t
         sql: `
 SELECT 
     toStartOfInterval(query_create_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
-    host,
     count() AS query_count
 FROM system.distributed_ddl_queue
-WHERE query_create_time >= now() - {seconds:UInt32}
+WHERE
+{filterExpression:String}
+AND query_create_time >= {from:String} 
+AND query_create_time < {to:String}
 GROUP BY t, host
 ORDER BY t
 `,
@@ -738,8 +619,31 @@ ORDER BY t
 };
 
 const DistributedDDLQueue = () => {
+  const { connection } = useConnection();
+  const filterSpecs = useMemo<FilterSpec[]>(() => {
+    return [
+      {
+        filterType: "select",
+        name: "host",
+        displayText: "host",
+        onPreviousFilters: true,
+        datasource: {
+          type: "sql",
+          sql: `SELECT DISTINCT 
+          host 
+FROM system.ddl_distributed_queue 
+WHERE cluster = '${connection!.cluster}'
+ORDER BY host`,
+        },
+      } as SelectorFilterSpec,
+    ];
+  }, [connection]);
   return (
-    <DashboardPage panels={ddlQueueDashboard}>
+    <DashboardPage
+      filterSpecs={filterSpecs}
+      panels={ddlQueueDashboard}
+      chartSelectionFilterName="host"
+    >
       <DDLDistributedQueueLogView />
     </DashboardPage>
   );
