@@ -15,7 +15,7 @@ export const nodeMetricsDashboard: TimeseriesDescriptor[] = [
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -45,7 +45,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -75,7 +75,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -105,7 +105,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -140,7 +140,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
         format: "binary_size",
       },
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -170,7 +170,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -200,7 +200,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -230,7 +230,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -261,7 +261,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -297,7 +297,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
         format: "binary_size",
       },
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -327,7 +327,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -362,7 +362,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
         format: "binary_size",
       },
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -397,7 +397,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
         format: "binary_size",
       },
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -427,7 +427,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -458,7 +458,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -488,7 +488,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -518,7 +518,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -548,7 +548,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -578,7 +578,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
     tooltipOption: {
       sortValue: "desc",
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,

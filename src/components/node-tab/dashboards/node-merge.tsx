@@ -14,7 +14,7 @@ export const nodeMergeDashboard: StatDescriptor[] = [
       h: 3,
     },
     description: "The number of ongoing merges",
-    query: {
+    datasource: {
       sql: `SELECT count() FROM system.merges`,
     },
     drilldown: {
@@ -84,7 +84,7 @@ export const nodeMergeDashboard: StatDescriptor[] = [
             direction: "desc",
           },
         },
-        query: {
+        datasource: {
           sql: `
 SELECT 
     database || '.' || table AS table,
@@ -117,7 +117,7 @@ ORDER BY elapsed DESC
       h: 3,
     },
     description: "The number of ongoing mutations",
-    query: {
+    datasource: {
       sql: `SELECT count() FROM system.mutations WHERE is_done = 0`,
     },
     drilldown: {
@@ -163,7 +163,7 @@ ORDER BY elapsed DESC
             direction: "desc",
           },
         },
-        query: {
+        datasource: {
           sql: `SELECT database, table, create_time, mutation_id, command, parts_to_do, latest_fail_time, latest_fail_reason FROM system.mutations WHERE is_done = 0 ORDER BY create_time DESC`,
         },
       } as TableDescriptor,
@@ -180,7 +180,7 @@ ORDER BY elapsed DESC
       h: 3,
     },
     description: "The total number of merged launched in background",
-    query: {
+    datasource: {
       sql: `SELECT sum(ProfileEvent_Merge) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -202,7 +202,7 @@ WHERE event_date >= toDate({from:String})
       h: 3,
     },
     description: "The total number of parts merged launched in background",
-    query: {
+    datasource: {
       sql: `SELECT sum(ProfileEvent_MergeSourceParts) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -224,7 +224,7 @@ WHERE event_date >= toDate({from:String})
       h: 3,
     },
     description: "The total number of mutation parts launched in background",
-    query: {
+    datasource: {
       sql: `SELECT sum(ProfileEvent_MutationTotalParts) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})

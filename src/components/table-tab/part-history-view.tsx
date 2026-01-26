@@ -73,7 +73,7 @@ const PartHistoryView = memo(
               align: "center",
               format: "comma_number",
             },
-            query: {
+            datasource: {
               sql: `
 SELECT 
 toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -99,7 +99,7 @@ WITH FILL STEP {rounding:UInt32}
                 titleOption: {
                   title: "New Part Log",
                 },
-                query: {
+                datasource: {
                   sql: `
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
@@ -135,7 +135,7 @@ WITH FILL STEP {rounding:UInt32}
                 headOption: {
                   isSticky: true,
                 },
-                query: {
+                datasource: {
                   sql: `
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
@@ -183,7 +183,7 @@ WITH FILL STEP {rounding:UInt32}
               align: "center",
               format: "comma_number",
             },
-            query: {
+            datasource: {
               sql: `
 SELECT 
 toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -209,7 +209,7 @@ WITH FILL STEP {rounding:UInt32}
                 titleOption: {
                   title: "Replicate Part Log",
                 },
-                query: {
+                datasource: {
                   sql: `
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
@@ -242,7 +242,7 @@ WITH FILL STEP {rounding:UInt32}
                 titleOption: {
                   title: "Download Part Log",
                 },
-                query: {
+                datasource: {
                   sql: `
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
@@ -296,7 +296,7 @@ WITH FILL STEP {rounding:UInt32}
               align: "center",
               format: "comma_number",
             },
-            query: {
+            datasource: {
               sql: `
 SELECT 
 toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -322,7 +322,7 @@ WITH FILL STEP {rounding:UInt32}
                 titleOption: {
                   title: "Merge Part Log",
                 },
-                query: {
+                datasource: {
                   sql: `
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
@@ -356,7 +356,7 @@ WITH FILL STEP {rounding:UInt32}
                 titleOption: {
                   title: "Merge Part Log",
                 },
-                query: {
+                datasource: {
                   sql: `
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
@@ -406,7 +406,7 @@ WITH FILL STEP {rounding:UInt32}
               align: "center",
               format: "comma_number",
             },
-            query: {
+            datasource: {
               sql: `
 SELECT 
 toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -432,7 +432,7 @@ WITH FILL STEP {rounding:UInt32}
                 titleOption: {
                   title: "Mutate Part Log",
                 },
-                query: {
+                datasource: {
                   sql: `
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
@@ -466,7 +466,7 @@ WITH FILL STEP {rounding:UInt32}
                 titleOption: {
                   title: "Merge Log",
                 },
-                query: {
+                datasource: {
                   sql: `
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
@@ -517,7 +517,7 @@ WITH FILL STEP {rounding:UInt32}
               align: "center",
               format: "comma_number",
             },
-            query: {
+            datasource: {
               sql: `
 SELECT 
 toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -542,7 +542,7 @@ WITH FILL STEP {rounding:UInt32}
                 titleOption: {
                   title: "Remove Part Log",
                 },
-                query: {
+                datasource: {
                   sql: `
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
@@ -576,7 +576,7 @@ WITH FILL STEP {rounding:UInt32}
                 titleOption: {
                   title: "Remove Part Log",
                 },
-                query: {
+                datasource: {
                   sql: `
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 

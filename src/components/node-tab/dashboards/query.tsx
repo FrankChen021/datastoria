@@ -14,7 +14,7 @@ export const queryDashboard: StatDescriptor[] = [
       h: 3,
     },
     description: "The number of running queries",
-    query: {
+    datasource: {
       sql: `SELECT count() FROM system.processes`,
     },
     drilldown: {
@@ -65,7 +65,7 @@ export const queryDashboard: StatDescriptor[] = [
             format: "map",
           },
         },
-        query: {
+        datasource: {
           sql: `SELECT * FROM system.processes`,
         },
       } as TableDescriptor,
@@ -82,7 +82,7 @@ export const queryDashboard: StatDescriptor[] = [
       h: 3,
     },
     description: "The number of SELECT queries",
-    query: {
+    datasource: {
       sql: `SELECT sum(ProfileEvent_SelectQuery) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -104,7 +104,7 @@ WHERE event_date >= toDate({from:String})
       h: 3,
     },
     description: "The number of Failed SELECT queries",
-    query: {
+    datasource: {
       sql: `SELECT sum(ProfileEvent_FailedSelectQuery) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -126,7 +126,7 @@ WHERE event_date >= toDate({from:String})
       h: 3,
     },
     description: "The number of INSERT queries",
-    query: {
+    datasource: {
       sql: `SELECT sum(ProfileEvent_InsertQuery) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -148,7 +148,7 @@ WHERE event_date >= toDate({from:String})
       h: 3,
     },
     description: "The number of Failed INSERT queries",
-    query: {
+    datasource: {
       sql: `SELECT sum(ProfileEvent_FailedInsertQuery) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -169,7 +169,7 @@ WHERE event_date >= toDate({from:String})
       h: 3,
     },
     description: "The number of INSERT rows",
-    query: {
+    datasource: {
       sql: `SELECT sum(ProfileEvent_InsertedRows) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -191,7 +191,7 @@ WHERE event_date >= toDate({from:String})
       h: 3,
     },
     description: "The total number of INSERT bytes",
-    query: {
+    datasource: {
       sql: `SELECT sum(ProfileEvent_InsertedBytes) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})

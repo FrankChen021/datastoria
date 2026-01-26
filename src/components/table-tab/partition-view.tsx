@@ -213,7 +213,7 @@ const PartitionSizeViewComponent = forwardRef<RefreshableTabViewRef, PartitionVi
         collapsed: false,
         width: 100,
         miscOption: { enableIndexColumn: true },
-        query: {
+        datasource: {
           sql: `
 SELECT 
     partition,

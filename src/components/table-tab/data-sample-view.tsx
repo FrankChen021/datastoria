@@ -33,7 +33,7 @@ const DataSampleViewComponent = forwardRef<RefreshableTabViewRef, DataSampleView
         headOption: {
           isSticky: true,
         },
-        query: {
+        datasource: {
           sql: `SELECT * FROM ${escapeSqlString(database)}.${escapeSqlString(table)} LIMIT 1000`,
           params: {
             default_format: "JSON",

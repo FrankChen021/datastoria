@@ -110,7 +110,7 @@ const TableMetadataViewComponent = forwardRef<RefreshableTabViewRef, TableMetada
               w: 24,
               h: 24,
             },
-            query: {
+            datasource: {
               sql: `
 SELECT * FROM system.tables WHERE database = '${escapedDatabase}' AND name = '${escapedTable}'
 `,
@@ -133,7 +133,7 @@ SELECT * FROM system.tables WHERE database = '${escapedDatabase}' AND name = '${
               w: 24,
               h: 12,
             },
-            query: {
+            datasource: {
               sql: `SELECT * FROM system.columns WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'`,
             },
             fieldOptions: {
@@ -173,7 +173,7 @@ SELECT * FROM system.tables WHERE database = '${escapedDatabase}' AND name = '${
               format: (val) => val,
             },
           },
-          query: {
+          datasource: {
             sql: `
 SELECT
   FQDN() as host, 

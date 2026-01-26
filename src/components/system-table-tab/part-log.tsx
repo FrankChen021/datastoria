@@ -203,7 +203,7 @@ ORDER BY event_time DESC
         {
           type: "bar",
           titleOption: { title: `Part Log Distribution`, showTitle: true, align: "left" },
-          query: {
+          datasource: {
             sql: DISTRIBUTION_QUERY,
           },
           legendOption: {
@@ -221,7 +221,7 @@ ORDER BY event_time DESC
         {
           type: "table",
           titleOption: { title: `Part Log Records`, showTitle: true, align: "left" },
-          query: {
+          datasource: {
             sql: TABLE_QUERY,
           },
           sortOption: {

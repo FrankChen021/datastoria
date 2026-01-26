@@ -76,7 +76,7 @@ const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOvervi
             },
             collapsed: false,
             gridPos: { w: 5, h: 4 },
-            query: {
+            datasource: {
               sql: `
 SELECT sum(total_bytes) as total_bytes
 FROM
@@ -101,7 +101,7 @@ WHERE
             valueOption: {
               format: "comma_number",
             },
-            query: {
+            datasource: {
               sql: `
 SELECT sum(total_rows) as total_bytes
 FROM
@@ -123,7 +123,7 @@ WHERE
             valueOption: {
               format: "comma_number",
             },
-            query: {
+            datasource: {
               sql: `
 SELECT count(1) as part_count
 FROM
@@ -148,7 +148,7 @@ WHERE
             },
             collapsed: false,
             gridPos: { w: 5, h: 4 },
-            query: {
+            datasource: {
               sql: `
 SELECT sum(total_bytes) / (SELECT sum(total_space - keep_free_space) from system.disks) as bytes_on_disk
 FROM
@@ -170,7 +170,7 @@ WHERE
             },
             collapsed: false,
             gridPos: { w: 4, h: 4 },
-            query: {
+            datasource: {
               sql: `
 SELECT modification_time
 FROM system.parts
@@ -195,7 +195,7 @@ LIMIT 1
                         title: "Cluster Size",
                       },
                       gridPos: { w: 5, h: 4 },
-                      query: {
+                      datasource: {
                         sql: `
 SELECT sum(total_bytes) as total_bytes
 FROM clusterAllReplicas('{cluster}', system.tables)
@@ -213,7 +213,7 @@ WHERE database = '${escapedDatabase}' AND name = '${escapedTable}'
                         align: "center",
                       },
                       gridPos: { w: 24, h: 12 },
-                      query: {
+                      datasource: {
                         sql: `
 SELECT
   FQDN() as host, 
@@ -264,7 +264,7 @@ ORDER BY host
                   w: 24,
                   h: 4,
                 },
-                query: {
+                datasource: {
                   sql: `
 SELECT 
     count(1) as part_count,
@@ -349,7 +349,7 @@ ORDER BY
                   w: 24,
                   h: 18,
                 },
-                query: {
+                datasource: {
                   sql: `
 SELECT 
     column,
@@ -451,7 +451,7 @@ ORDER BY
                     format: "binary_size",
                   },
                 },
-                query: {
+                datasource: {
                   sql: `
 SELECT *
 FROM system.data_skipping_indices
@@ -473,7 +473,7 @@ WHERE
                   align: "center",
                 },
                 gridPos: { w: 24, h: 10 },
-                query: {
+                datasource: {
                   sql: `
 SELECT A.database, 
   A.table, 

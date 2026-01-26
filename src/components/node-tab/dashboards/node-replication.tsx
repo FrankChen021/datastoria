@@ -14,7 +14,7 @@ export const nodeReplicationDashboard: StatDescriptor[] = [
       h: 3,
     },
     description: "Replication status",
-    query: {
+    datasource: {
       sql: "SELECT count() FROM system.replication_queue",
     },
     drilldown: {
@@ -29,7 +29,7 @@ export const nodeReplicationDashboard: StatDescriptor[] = [
             direction: "desc",
           },
         },
-        query: {
+        datasource: {
           sql: "SELECT database, table, count() as count FROM system.replication_queue GROUP BY database, table ORDER BY 3 DESC",
         },
       } as TableDescriptor,
@@ -45,7 +45,7 @@ export const nodeReplicationDashboard: StatDescriptor[] = [
       w: 3,
       h: 3,
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   sum(ProfileEvent_ReplicatedPartFetches)

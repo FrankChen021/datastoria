@@ -21,7 +21,7 @@ export const nodeOverviewDashboard: PanelDescriptor[] = [
       h: 3,
     },
     description: "The version of the server",
-    query: {
+    datasource: {
       sql: "SELECT version()",
     },
     drilldown: {
@@ -30,7 +30,7 @@ export const nodeOverviewDashboard: PanelDescriptor[] = [
         titleOption: {
           title: "system.build_options",
         },
-        query: {
+        datasource: {
           sql: "SELECT * FROM system.build_options",
         },
       } as TableDescriptor,
@@ -47,7 +47,7 @@ export const nodeOverviewDashboard: PanelDescriptor[] = [
       h: 3,
     },
     description: "How long the server has been running",
-    query: {
+    datasource: {
       sql: "SELECT uptime() * 1000",
     },
     valueOption: {
@@ -65,7 +65,7 @@ export const nodeOverviewDashboard: PanelDescriptor[] = [
       h: 3,
     },
     description: "How long the server has been running",
-    query: {
+    datasource: {
       sql: "SELECT count() FROM system.warnings",
     },
     drilldown: {
@@ -75,7 +75,7 @@ export const nodeOverviewDashboard: PanelDescriptor[] = [
           title: "Warnings",
           description: "The number of warnings on the server",
         },
-        query: {
+        datasource: {
           sql: "SELECT * FROM system.warnings",
         },
       } as TableDescriptor,
@@ -92,7 +92,7 @@ export const nodeOverviewDashboard: PanelDescriptor[] = [
       h: 3,
     },
     description: "How long the server has been running",
-    query: {
+    datasource: {
       sql: "SELECT (toUnixTimestamp(now()) - toUnixTimestamp(max(last_error_time))) * 1000 FROM system.errors",
     },
     valueOption: {
@@ -105,7 +105,7 @@ export const nodeOverviewDashboard: PanelDescriptor[] = [
           title: "Warnings",
           description: "The number of warnings on the server",
         },
-        query: {
+        datasource: {
           sql: `
 WITH arrayMap(x -> demangle(addressToSymbol(x)), last_error_trace) AS all 
 SELECT *, arrayStringConcat(all, '\n') AS last_error_stack_trace
@@ -133,7 +133,7 @@ SETTINGS allow_introspection_functions = 1
       h: 3,
     },
     description: "The number of databases on the server",
-    query: {
+    datasource: {
       sql: "SELECT count() FROM system.databases",
     },
     drilldown: {
@@ -164,7 +164,7 @@ SETTINGS allow_introspection_functions = 1
             width: 100,
           },
         },
-        query: {
+        datasource: {
           sql: `
 SELECT
     database as name,
@@ -190,7 +190,7 @@ ORDER BY size DESC
       h: 3,
     },
     description: "The number of databases on the server",
-    query: {
+    datasource: {
       sql: "SELECT count() FROM system.tables",
     },
     valueOption: {},
@@ -204,7 +204,7 @@ ORDER BY size DESC
       w: 3,
       h: 3,
     },
-    query: {
+    datasource: {
       sql: `SELECT sum(total_bytes) FROM system.tables`,
     },
     valueOption: {
@@ -257,7 +257,7 @@ ORDER BY size DESC
             direction: "desc",
           },
         },
-        query: {
+        datasource: {
           sql: `
 WITH (
     SELECT sum(total_bytes) FROM system.tables
@@ -285,7 +285,7 @@ ORDER BY size DESC
       h: 3,
     },
     description: "The number of databases on the server",
-    query: {
+    datasource: {
       sql: `SELECT round((1 - sum(free_space) / sum(total_space)) * 100, 2) AS used_percent
               FROM system.disks`,
     },
@@ -314,7 +314,7 @@ ORDER BY size DESC
             width: 100,
           },
         },
-        query: {
+        datasource: {
           sql: `SELECT name, path, round((1 - free_space / total_space) * 100, 2) AS used_percent FROM system.disks`,
         },
       } as TableDescriptor,

@@ -55,7 +55,3 @@ This guide explains how to configure the API key for your preferred Large Langua
 - If both the `.env` file and the web interface are configured, the web interface setting takes precedence.
 - Ensure that your API key is valid and has sufficient permissions for the required operations.
 - Never commit your `.env` file to version control to avoid exposing sensitive information.
-
----
-
-For more details, refer to the [README.md](../../README.md).

@@ -205,7 +205,7 @@ export interface PanelDescriptor {
   // If provided, takes precedence over width
   gridPos?: GridPos;
 
-  query: SQLQuery;
+  datasource: SQLQuery;
 
   /**
    * key - for table, the key is column name. If it's '_row', then a action column is added

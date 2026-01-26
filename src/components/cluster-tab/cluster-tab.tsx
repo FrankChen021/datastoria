@@ -21,7 +21,7 @@ const clusterStatusDashboard: StatDescriptor[] = [
     },
     gridPos: { w: 4, h: 4 },
     description: "Number of shards in the cluster",
-    query: {
+    datasource: {
       sql: `
 SELECT 
 countDistinct(shard_num) as shard_count
@@ -41,7 +41,7 @@ WHERE cluster = '{cluster}'
     },
     gridPos: { w: 4, h: 4 },
     description: "Number of servers in the cluster",
-    query: {
+    datasource: {
       sql: `
 SELECT 
   count() 
@@ -57,7 +57,7 @@ WHERE cluster = '{cluster}'
         },
         gridPos: { w: 24, h: 12 },
         miscOption: { enableIndexColumn: true },
-        query: {
+        datasource: {
           sql: `SELECT * FROM system.clusters WHERE cluster = '{cluster}'`,
         },
         fieldOptions: {
@@ -79,7 +79,7 @@ WHERE cluster = '{cluster}'
     },
     gridPos: { w: 4, h: 4 },
     description: "Total data size in the cluster",
-    query: {
+    datasource: {
       sql: `
 SELECT 
 sum(bytes_on_disk) as bytes_on_disk
@@ -99,7 +99,7 @@ WHERE active
         },
         gridPos: { w: 24, h: 12 },
         description: "Number of servers in the cluster",
-        query: {
+        datasource: {
           sql: `
 SELECT
   FQDN() as host,
@@ -137,7 +137,7 @@ ORDER BY host
     },
     gridPos: { w: 4, h: 4 },
     description: "Total data size in the cluster",
-    query: {
+    datasource: {
       sql: `
 SELECT sum(total_space) FROM clusterAllReplicas('{cluster}', system.disks)
 `,
@@ -152,7 +152,7 @@ SELECT sum(total_space) FROM clusterAllReplicas('{cluster}', system.disks)
           title: "Disk Quota",
         },
         gridPos: { w: 24, h: 12 },
-        query: {
+        datasource: {
           sql: `SELECT FQDN() as server, round(free_space * 100 / total_space, 2) as free_percentage, * FROM clusterAllReplicas('{cluster}', system.disks) ORDER BY server`,
         },
         fieldOptions: {
@@ -188,7 +188,7 @@ SELECT sum(total_space) FROM clusterAllReplicas('{cluster}', system.disks)
     },
     gridPos: { w: 4, h: 4 },
     description: "The percentage of utilized disk space of the cluster",
-    query: {
+    datasource: {
       sql: `
 SELECT 1 - (sum(free_space) / sum(total_space)) FROM clusterAllReplicas('{cluster}', system.disks)
 `,
@@ -215,7 +215,7 @@ const clusterMetricsDashboard: TimeseriesDescriptor[] = [
       placement: "bottom",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -253,7 +253,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}`,
       placement: "bottom",
       values: ["min", "max", "last"],
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -291,7 +291,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}`,
     tooltipOption: {
       sortValue: "none",
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -334,7 +334,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}`,
         format: "binary_size",
       },
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -377,7 +377,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}`,
         format: "short_number",
       },
     },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,

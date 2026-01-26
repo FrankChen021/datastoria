@@ -234,7 +234,7 @@ export const DashboardVisualizationPanel = forwardRef<
         return;
       }
 
-      const query = typedDescriptor.query;
+      const query = typedDescriptor.datasource;
       if (!query) {
         return;
       }
@@ -420,7 +420,7 @@ export const DashboardVisualizationPanel = forwardRef<
   // Internal refresh function
   const refreshInternal = useCallback(
     (param: RefreshOptions) => {
-      if (!typedDescriptor.query) {
+      if (!typedDescriptor.datasource) {
         return;
       }
 
@@ -429,7 +429,7 @@ export const DashboardVisualizationPanel = forwardRef<
 
       loadData(param, 0);
     },
-    [typedDescriptor.query, loadData]
+    [typedDescriptor.datasource, loadData]
   );
 
   // Public refresh method (from useRefreshable, modified to check visualization ref)
@@ -507,8 +507,8 @@ export const DashboardVisualizationPanel = forwardRef<
 
   // Common handlers
   const handleShowQuery = useCallback(() => {
-    showQueryDialog(typedDescriptor.query, typedDescriptor.titleOption?.title, executedSql);
-  }, [typedDescriptor.query, typedDescriptor.titleOption, executedSql]);
+    showQueryDialog(typedDescriptor.datasource, typedDescriptor.titleOption?.title, executedSql);
+  }, [typedDescriptor.datasource, typedDescriptor.titleOption, executedSql]);
 
   const handleRefresh = useCallback(() => {
     const lastParams = getLastRefreshParameter();
@@ -573,7 +573,7 @@ export const DashboardVisualizationPanel = forwardRef<
     // Combine with facade-level items
     return (
       <>
-        {typedDescriptor.query?.sql && (
+        {typedDescriptor.datasource?.sql && (
           <DashboardDropdownMenuItem onClick={handleShowQuery}>
             Show query
           </DashboardDropdownMenuItem>
@@ -586,7 +586,7 @@ export const DashboardVisualizationPanel = forwardRef<
         {vizItems}
       </>
     );
-  }, [typedDescriptor.query, handleShowQuery, data.length, handleShowRawData]);
+  }, [typedDescriptor.datasource, handleShowQuery, data.length, handleShowRawData]);
 
   // Render error state
   const renderError = () => (
@@ -644,7 +644,7 @@ export const DashboardVisualizationPanel = forwardRef<
     }
 
     // Check if the query requires time span parameters
-    const query = typedDescriptor.query;
+    const query = typedDescriptor.datasource;
     const requiresTimeSpan =
       query?.sql.includes("{startTimestamp") ||
       query?.sql.includes("{endTimestamp") ||
@@ -671,7 +671,7 @@ export const DashboardVisualizationPanel = forwardRef<
     isVisualizationMounted,
     props.initialTimeSpan,
     props.initialFilterExpression,
-    typedDescriptor.query,
+    typedDescriptor.datasource,
     refresh,
   ]);
 

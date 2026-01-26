@@ -173,7 +173,7 @@ const Dashboards = ({ database, table }: DashboardsProps) => {
                   gridPos: { w: 6, h: 6 }, // Default size for charts
                   collapsed: false,
                   yAxis: [{}], // Default y-axis
-                  query: {
+                  datasource: {
                     sql: row.query,
                   },
                 });

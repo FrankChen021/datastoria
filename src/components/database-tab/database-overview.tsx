@@ -55,7 +55,7 @@ export const DatabaseOverview = forwardRef<DashboardPanelContainerRef, DatabaseO
               w: 24,
               h: 9,
             },
-            query: {
+            datasource: {
               sql: `
 select 
   *
@@ -82,7 +82,7 @@ where database = '${database}'
                   w: 4,
                   h: 4,
                 },
-                query: {
+                datasource: {
                   sql: `
 SELECT
   sum(total_bytes)
@@ -109,7 +109,7 @@ WHERE
                   w: 4,
                   h: 4,
                 },
-                query: {
+                datasource: {
                   sql: `
 SELECT
   count()
@@ -133,7 +133,7 @@ WHERE
                   w: 4,
                   h: 4,
                 },
-                query: {
+                datasource: {
                   sql: `
 SELECT
     sum(total_bytes) / (SELECT sum(total_space-keep_free_space) from system.disks) as size_percentage
@@ -160,7 +160,7 @@ WHERE
                   w: 4,
                   h: 4,
                 },
-                query: {
+                datasource: {
                   sql: `
 SELECT
   database_size / total_size as size_percentage
@@ -188,7 +188,7 @@ FROM (
                   h: 4,
                 },
                 description: "The number of ongoing merges",
-                query: {
+                datasource: {
                   sql: `SELECT count() FROM system.merges WHERE database = '${database}'`,
                 },
                 drilldown: {
@@ -258,7 +258,7 @@ FROM (
                         direction: "desc",
                       },
                     },
-                    query: {
+                    datasource: {
                       sql: `
 SELECT 
     database || '.' || table AS table,
@@ -291,7 +291,7 @@ ORDER BY elapsed DESC`,
                   h: 4,
                 },
                 description: "The number of ongoing mutations",
-                query: {
+                datasource: {
                   sql: `SELECT count() FROM system.mutations WHERE is_done = 0 AND database = '${database}'`,
                 },
                 drilldown: {
@@ -337,7 +337,7 @@ ORDER BY elapsed DESC`,
                         direction: "desc",
                       },
                     },
-                    query: {
+                    datasource: {
                       sql: `
 SELECT database, table, create_time, mutation_id, command, parts_to_do, latest_fail_time, latest_fail_reason 
 FROM system.mutations 
@@ -366,7 +366,7 @@ ORDER BY create_time DESC`,
                   isSticky: true,
                 },
                 miscOption: { enableIndexColumn: true },
-                query: {
+                datasource: {
                   sql: `
 SELECT
 T.name, 
@@ -491,7 +491,7 @@ ORDER BY on_disk_size DESC
                 },
                 collapsed: false,
                 gridPos: { w: 6, h: 4 },
-                query: {
+                datasource: {
                   sql: `
 SELECT
   sum(total_bytes)
@@ -549,7 +549,7 @@ WHERE
                     },
                   },
                 },
-                query: {
+                datasource: {
                   sql: `
 SELECT 
     FQDN() as host,

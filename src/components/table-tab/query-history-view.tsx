@@ -168,7 +168,7 @@ LIMIT 10`;
         },
         collapsed: false,
         gridPos: { w: 24, h: 10 },
-        query: {
+        datasource: {
           sql: sql,
           headers: {
             "Content-Type": "text/plain",
@@ -207,7 +207,7 @@ LIMIT 10`;
             },
             collapsed: false,
             gridPos: { w: 12, h: 6 },
-            query: {
+            datasource: {
               sql: `
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
@@ -236,7 +236,7 @@ ORDER BY t`,
             },
             collapsed: false,
             gridPos: { w: 12, h: 6 },
-            query: {
+            datasource: {
               sql: `
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
@@ -269,7 +269,7 @@ ORDER BY t`,
                 },
                 collapsed: false,
                 gridPos: { w: 6, h: 6 },
-                query: {
+                datasource: {
                   sql: `
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
@@ -297,7 +297,7 @@ ORDER BY t`,
                 },
                 collapsed: false,
                 gridPos: { w: 6, h: 6 },
-                query: {
+                datasource: {
                   sql: `
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
@@ -325,7 +325,7 @@ ORDER BY t`,
                 },
                 collapsed: false,
                 gridPos: { w: 6, h: 6 },
-                query: {
+                datasource: {
                   sql: `
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
@@ -353,7 +353,7 @@ ORDER BY t`,
                 },
                 collapsed: false,
                 gridPos: { w: 6, h: 6 },
-                query: {
+                datasource: {
                   sql: `
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
@@ -381,7 +381,7 @@ ORDER BY t`,
                 },
                 collapsed: false,
                 gridPos: { w: 12, h: 6 },
-                query: {
+                datasource: {
                   sql: `
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
@@ -409,7 +409,7 @@ ORDER BY t`,
                 },
                 collapsed: false,
                 gridPos: { w: 12, h: 6 },
-                query: {
+                datasource: {
                   sql: `
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t, 
@@ -439,7 +439,7 @@ ORDER BY t`,
             },
             collapsed: false,
             gridPos: { w: 24, h: 6 },
-            query: {
+            datasource: {
               sql: `
 SELECT 
     toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -488,7 +488,7 @@ ORDER BY t`,
                     format: formatQueryLogLink,
                   },
                 },
-                query: {
+                datasource: {
                   sql: `
 SELECT 
 ProfileEvents['OSCPUVirtualTimeMicroseconds'] as OSCPUVirtualTimeMicroseconds,

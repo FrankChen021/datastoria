@@ -252,7 +252,7 @@ LIMIT 100
         {
           type: "bar",
           titleOption: { title: `Query Count Distribution`, showTitle: true, align: "left" },
-          query: {
+          datasource: {
             sql: DISTRIBUTION_QUERY,
           },
           legendOption: {
@@ -270,7 +270,7 @@ LIMIT 100
         {
           type: "table",
           titleOption: { title: `Query Log Records`, showTitle: true, align: "left" },
-          query: {
+          datasource: {
             sql: TABLE_QUERY,
           },
           sortOption: {

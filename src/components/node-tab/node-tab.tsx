@@ -40,9 +40,9 @@ export const NodeTab = memo((_props: NodeTabProps) => {
     charts: nodeMergeDashboard.filter((chart) => {
       return (
         (connection!.metadata.metric_log_table_has_ProfileEvent_MergeSourceParts ||
-          !chart.query.sql.includes("ProfileEvent_MergeSourceParts")) &&
+          !chart.datasource.sql.includes("ProfileEvent_MergeSourceParts")) &&
         (connection!.metadata.metric_log_table_has_ProfileEvent_MutationTotalParts ||
-          !chart.query.sql.includes("ProfileEvent_MutationTotalParts"))
+          !chart.datasource.sql.includes("ProfileEvent_MutationTotalParts"))
       );
     }),
   } as DashboardGroup);

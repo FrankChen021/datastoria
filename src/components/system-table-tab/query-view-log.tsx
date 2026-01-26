@@ -127,7 +127,7 @@ LIMIT 100
             {
               type: "bar",
               titleOption: { title: `Query Count Distribution`, showTitle: true, align: "left" },
-              query: {
+              datasource: {
                 sql: `
         SELECT
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
@@ -160,7 +160,7 @@ LIMIT 100
             {
               type: "line",
               titleOption: { title: `AVG View Duration`, showTitle: true, align: "left" },
-              query: {
+              datasource: {
                 sql: `
         SELECT
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
@@ -193,7 +193,7 @@ LIMIT 100
             {
               type: "line",
               titleOption: { title: `Read Rows Per Second`, showTitle: true, align: "left" },
-              query: {
+              datasource: {
                 sql: `
         SELECT
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
@@ -226,7 +226,7 @@ LIMIT 100
             {
               type: "line",
               titleOption: { title: `Read Bytes Per Second`, showTitle: true, align: "left" },
-              query: {
+              datasource: {
                 sql: `
         SELECT
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
@@ -259,7 +259,7 @@ LIMIT 100
             {
               type: "line",
               titleOption: { title: `Written Rows Per Second`, showTitle: true, align: "left" },
-              query: {
+              datasource: {
                 sql: `
         SELECT
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
@@ -292,7 +292,7 @@ LIMIT 100
             {
               type: "line",
               titleOption: { title: `Written Bytes Per Second`, showTitle: true, align: "left" },
-              query: {
+              datasource: {
                 sql: `
         SELECT
             toStartOfInterval(event_time, interval {rounding:UInt32} second) as t,
@@ -331,7 +331,7 @@ LIMIT 100
             {
               type: "table",
               titleOption: { title: `Query View Log Records`, showTitle: true, align: "left" },
-              query: {
+              datasource: {
                 sql: `
         SELECT * FROM
         ${connection!.cluster ? `clusterAllReplicas('{cluster}', system.query_views_log)` : "system.query_views_log"}

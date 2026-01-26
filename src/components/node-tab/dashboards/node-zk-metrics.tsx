@@ -12,7 +12,7 @@ export const nodeZkMetricsDashboard: TimeseriesDescriptor[] = [
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -39,7 +39,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -66,7 +66,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -93,7 +93,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -120,7 +120,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -147,7 +147,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -174,7 +174,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -201,7 +201,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -228,7 +228,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -255,7 +255,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -282,7 +282,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -309,7 +309,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -336,7 +336,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -363,7 +363,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -390,7 +390,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -417,7 +417,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -444,7 +444,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -471,7 +471,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -498,7 +498,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -525,7 +525,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -552,7 +552,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
@@ -579,7 +579,7 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
       placement: "none",
     },
     gridPos: { w: 6, h: 6 },
-    query: {
+    datasource: {
       sql: `
 SELECT
   toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
