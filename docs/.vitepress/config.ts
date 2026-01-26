@@ -492,23 +492,10 @@ export default defineConfig({
           drop_debugger: true,
         },
       },
-      // Optimize chunk splitting
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            // Split vendor chunks for better caching
-            'vue-vendor': ['vue', 'vue-router'],
-          },
-        },
-      },
       // Enable CSS code splitting
       cssCodeSplit: true,
       // Increase chunk size warning limit
       chunkSizeWarningLimit: 1000,
-    },
-    // Optimize dependencies
-    optimizeDeps: {
-      include: ['vue', 'vue-router'],
     },
     // Enable CSS preprocessing optimizations
     css: {
