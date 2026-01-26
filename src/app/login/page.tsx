@@ -3,10 +3,12 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Login",
-  description: "Sign in to DataStoria to access your ClickHouse databases with AI-powered management tools. Secure authentication with Google, GitHub, or Microsoft.",
+  description:
+    "Sign in to DataStoria to access your ClickHouse databases with AI-powered management tools. Secure authentication with Google, GitHub, or Microsoft.",
   openGraph: {
     title: "Login to DataStoria",
-    description: "Sign in to access AI-powered ClickHouse management console with natural language queries and intelligent optimization.",
+    description:
+      "Sign in to access AI-powered ClickHouse management console with natural language queries and intelligent optimization.",
     url: "/login",
   },
   twitter: {

@@ -403,9 +403,7 @@ function DocumentationButton() {
         className: simpleTooltipClass,
       }}
       className="justify-center"
-      onClick={() =>
-        window.open("https://docs.datastoria.app", "_blank", "noopener,noreferrer")
-      }
+      onClick={() => window.open("https://docs.datastoria.app", "_blank", "noopener,noreferrer")}
     >
       <BookOpen className="h-5 w-5" />
     </SidebarMenuButton>

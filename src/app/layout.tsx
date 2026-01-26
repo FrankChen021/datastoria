@@ -2,12 +2,13 @@ import "@/index.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://datastoria.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://datastoria.app"),
   title: {
     default: "DataStoria - AI-Powered ClickHouse Management Console",
     template: "%s | DataStoria",
   },
-  description: "Modern ClickHouse management console with AI-powered natural language queries, intelligent optimization, and advanced cluster management. Transform how you interact with ClickHouse databases.",
+  description:
+    "Modern ClickHouse management console with AI-powered natural language queries, intelligent optimization, and advanced cluster management. Transform how you interact with ClickHouse databases.",
   keywords: [
     "ClickHouse",
     "database management",
@@ -31,9 +32,9 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
     },
   },
   icons: {
@@ -47,7 +48,8 @@ export const metadata: Metadata = {
     url: "/",
     siteName: "DataStoria",
     title: "DataStoria - AI-Powered ClickHouse Management Console",
-    description: "Modern ClickHouse management console with AI-powered natural language queries, intelligent optimization, and advanced cluster management.",
+    description:
+      "Modern ClickHouse management console with AI-powered natural language queries, intelligent optimization, and advanced cluster management.",
     images: [
       {
         url: "/og-image.png",
@@ -62,7 +64,8 @@ export const metadata: Metadata = {
     site: "@datastoria",
     creator: "@datastoria",
     title: "DataStoria - AI-Powered ClickHouse Management Console",
-    description: "Modern ClickHouse management console with AI-powered natural language queries and intelligent optimization.",
+    description:
+      "Modern ClickHouse management console with AI-powered natural language queries and intelligent optimization.",
     images: ["/og-image.png"],
   },
   alternates: {
@@ -79,33 +82,34 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
-    name: 'DataStoria',
-    applicationCategory: 'DatabaseApplication',
-    operatingSystem: 'Web Browser',
-    description: 'AI-powered ClickHouse management console with natural language queries, intelligent optimization, and advanced cluster management capabilities.',
-    url: 'https://datastoria.app',
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "DataStoria",
+    applicationCategory: "DatabaseApplication",
+    operatingSystem: "Web Browser",
+    description:
+      "AI-powered ClickHouse management console with natural language queries, intelligent optimization, and advanced cluster management capabilities.",
+    url: "https://datastoria.app",
     author: {
-      '@type': 'Organization',
-      name: 'DataStoria',
-      url: 'https://datastoria.app',
+      "@type": "Organization",
+      name: "DataStoria",
+      url: "https://datastoria.app",
     },
     offers: {
-      '@type': 'Offer',
-      price: '0',
-      priceCurrency: 'USD',
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
     },
     featureList: [
-      'Natural Language to SQL conversion',
-      'AI-powered query optimization',
-      'Intelligent data visualization',
-      'Multi-cluster management',
-      'Real-time performance monitoring',
-      'Advanced SQL editor with syntax highlighting',
-      'Query explain visualization',
-      'System log introspection',
-      'Privacy-first architecture',
+      "Natural Language to SQL conversion",
+      "AI-powered query optimization",
+      "Intelligent data visualization",
+      "Multi-cluster management",
+      "Real-time performance monitoring",
+      "Advanced SQL editor with syntax highlighting",
+      "Query explain visualization",
+      "System log introspection",
+      "Privacy-first architecture",
     ],
   };
 
