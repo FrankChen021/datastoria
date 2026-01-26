@@ -1,6 +1,17 @@
+---
+title: AI Model Configuration
+description: Configure LLM providers for DataStoria - OpenAI, Anthropic, Google Gemini, Groq. Setup API keys for AI-powered SQL generation, query optimization, and intelligent features.
+head:
+  - - meta
+    - name: keywords
+      content: LLM configuration, OpenAI API key, Anthropic Claude, Google Gemini, AI model setup, LLM provider, ChatGPT API, AI SQL configuration, model API keys
+---
+
 # AI Model Configuration
 
 DataStoria's AI features require a Large Language Model (LLM) provider to function. This guide explains how to configure your LLM provider API keys and manage your AI settings.
+
+> **Prerequisites**: Make sure you have [DataStoria installed](../01-getting-started/installation.md) and [connected to ClickHouse](../01-getting-started/first-connection.md).
 
 ## Overview
 
@@ -21,7 +32,7 @@ All AI features use your own API keys, ensuring your data and prompts remain pri
 3. Click on **App Settings**
 4. Select AI --> Models on the settings page
 
-![Model Configuration](./model-configuration.png)
+![Model Configuration](./img/model-configuration.png)
 
 ### Step 2: Choose a Provider
 

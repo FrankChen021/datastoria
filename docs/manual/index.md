@@ -1,3 +1,12 @@
+---
+title: User Manual
+description: Complete guide to DataStoria - AI-powered ClickHouse management console. Learn natural language queries, query optimization, cluster management, and advanced features.
+head:
+  - - meta
+    - name: keywords
+      content: DataStoria manual, ClickHouse documentation, AI SQL guide, database management tutorial, ClickHouse console guide, natural language SQL, query optimization guide
+---
+
 # User Manual
 
 Welcome to the DataStoria user manual. This comprehensive guide will help you master all features of the AI-powered ClickHouse management console.

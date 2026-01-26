@@ -1,0 +1,47 @@
+# robots.txt for DataStoria Documentation
+# https://docs.datastoria.app/robots.txt
+
+User-agent: *
+Allow: /
+
+# Disallow development and planning sections
+Disallow: /dev/
+Disallow: /plan/
+
+# Sitemap location
+Sitemap: https://docs.datastoria.app/sitemap.xml
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1
+
+# Common bot-specific rules
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+# Block bad bots
+User-agent: AhrefsBot
+Crawl-delay: 10
+
+User-agent: SemrushBot
+Crawl-delay: 10
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: dotbot
+Disallow: /

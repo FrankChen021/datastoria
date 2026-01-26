@@ -1,3 +1,12 @@
+---
+title: AI-Powered Query Optimization
+description: Optimize ClickHouse queries with AI - get evidence-based performance improvements, index suggestions, and best practices. Automatic SQL optimization for better query performance.
+head:
+  - - meta
+    - name: keywords
+      content: query optimization, SQL optimization, ClickHouse performance, AI query optimizer, SQL performance tuning, database optimization, query analyzer, index optimization
+---
+
 # Query Optimization
 
 DataStoria's Smart Query Optimization feature uses AI to analyze your queries based on evidence and provides actionable performance improvements. Get expert-level optimization suggestions without deep ClickHouse expertise.
@@ -33,7 +42,7 @@ where event_time > now() - interval 7 days group by 1
 
 The LLM is able to extract SQLs from the request and starts the analysis and then gives suggestions based on evidences.
 
-![sql-optimization-example-1](./sql-optimization-example-1.jpg)
+![AI query optimization suggestion showing partition pruning improvement by adding event_date filter to reduce data scanning](./img/sql-optimization-example-1.jpg)
 
 In this example, the LLM points out a key improvement which leverage the partition pruning by just add an extra filter to the SQL.
 
@@ -73,7 +82,7 @@ The application will automatically retrieve the query from query log and collect
 
 The full response is as:
 
-![sql-optimization-example-2](./sql-optimization-example-2.jpg)
+![Query optimization analysis using query_id showing performance diagnostics and optimization recommendations from query log](./img/sql-optimization-example-2.jpg)
 
 ### 3. Automatically Discover Expensive Queries
 
@@ -139,6 +148,8 @@ Use query log data to identify queries that would benefit most from optimization
 1. Find slow queries in the log
 2. Request optimization for those queries
 3. Monitor improvements over time
+
+> **Pro tip**: Use [Query Log Inspector](../03-query-experience/query-log-inspector.md) to identify slow queries that need optimization.
 
 ## Next Steps
 

@@ -1,3 +1,12 @@
+---
+title: First Connection to ClickHouse
+description: Connect DataStoria to your ClickHouse database - HTTP, HTTPS, proxy setup. Step-by-step guide with connection parameters, troubleshooting, and security best practices.
+head:
+  - - meta
+    - name: keywords
+      content: ClickHouse connection, connect to ClickHouse, ClickHouse HTTP, ClickHouse HTTPS, database connection setup, ClickHouse authentication, secure database connection
+---
+
 # First Connection
 
 This guide will walk you through connecting DataStoria to your ClickHouse instance for the first time.
@@ -52,13 +61,13 @@ If your ClickHouse server is behind a proxy or load balancer:
 1. Navigate to `http://localhost:3000` (or your configured port)
 2. You'll see the DataStoria welcome screen
 
-![DataStoria Welcome Screen](./welcome.png)
+![DataStoria Welcome Screen](./img/welcome.png)
 
 ### Step 2: Create Your First Connection
 
 Click the 'Create Your First Connection' button, it will brings you to the connection setup dialog
 
-![DataStoria Connection Dialog](./create-new-connection.png)
+![DataStoria Connection Dialog](./img/create-new-connection.png)
 
 ### Step 3: Enter Connection Details
 
@@ -78,7 +87,7 @@ Fill in the connection form with your ClickHouse details:
 2. Wait for the connection test to complete
 3. If successful, you'll see a confirmation message will be shown on the left of the button
 
-![Test Connection OK](./test-connection-ok.png)
+![Successful connection test dialog showing green checkmark and connection confirmation message](./img/test-connection-ok.png)
 
 ### Step 5: Save and Connect
 
@@ -91,7 +100,7 @@ Click **"Save"** to store the connection and the application will connect to you
 
 Once connected, the application automatically opens the query editor and dashboard of the node where the first response is returned, and you'll see the main DataStoria interface like below:
 
-![Main Page](./main-page.png)
+![DataStoria main interface showing sidebar navigation, schema tree, query editor, and dashboard components](./img/main-page.png)
 
 
 ### Main Components
@@ -119,7 +128,7 @@ Once connected, the application automatically opens the query editor and dashboa
 
 Click the 'Query' tab or click the query icon button from the side bar, it shows the query view, and write the SQL in the editor and run it.
 
-![First Query](./first-query.png)
+![Query editor displaying first SQL query execution with results table showing data from ClickHouse](./img/first-query.png)
 
 
 ## Multiple Connections
@@ -156,12 +165,12 @@ DataStoria supports managing multiple ClickHouse clusters:
 - Try connecting with the `default` user first
 
 
-## Next Steps
+## What's Next?
 
-Now that you're connected:
+Now that you're connected, explore these features:
 
-1. **[Natural Language Data Exploration](../02-ai-features/natural-language-sql.md)** — Try querying with natural language
-2. **[SQL Editor](../03-query-experience/sql-editor.md)** — Learn about the advanced SQL editor features
-3. **[Schema Explorer](../04-cluster-management/schema-explorer.md)** — Explore your database structure
+- **[Schema Explorer](../04-cluster-management/schema-explorer.md)** — Browse your databases and tables
+- **[SQL Editor](../03-query-experience/sql-editor.md)** — Start writing and executing queries
+- **[Natural Language Queries](../02-ai-features/natural-language-sql.md)** — Ask questions in plain English
 
 

@@ -51,3 +51,262 @@
   padding: 4px 8px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+
+/* Hero text optimization - prevent wrapping */
+.VPHero .text {
+  white-space: nowrap !important;
+  font-size: clamp(2rem, 5vw, 3.5rem) !important;
+}
+
+/* Adjust hero text on smaller screens */
+@media (max-width: 768px) {
+  .VPHero .text {
+    white-space: normal !important;
+    font-size: clamp(1.5rem, 6vw, 2.5rem) !important;
+  }
+}
+
+/* Hero tagline optimization */
+.VPHero .tagline {
+  max-width: 100% !important;
+  font-size: clamp(1rem, 2vw, 1.25rem) !important;
+}
+
+.VPHero {
+  /*Reduce the space between hero and the following cards*/
+  padding-bottom: 32px !important;
+}
+
+/* ============================================
+   ACCESSIBILITY ENHANCEMENTS
+   ============================================ */
+
+/* Skip to content link for keyboard navigation */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--vp-c-brand-1);
+  color: white;
+  padding: 8px 16px;
+  text-decoration: none;
+  border-radius: 0 0 4px 0;
+  z-index: 9999;
+  font-weight: 600;
+  transition: top 0.2s ease;
+}
+
+.skip-to-content:focus {
+  top: 0;
+  outline: 3px solid var(--vp-c-brand-2);
+  outline-offset: 2px;
+}
+
+/* Enhanced focus indicators for keyboard navigation */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--vp-c-brand-1) !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+}
+
+/* Remove default outline and use custom one */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 3px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+/* Enhanced focus for navigation items */
+.VPNavBarMenuLink:focus-visible,
+.VPSidebarItem:focus-visible,
+.VPLink:focus-visible {
+  outline: 3px solid var(--vp-c-brand-1) !important;
+  outline-offset: 2px !important;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* Ensure sufficient color contrast for links */
+.vp-doc a {
+  color: var(--vp-c-brand-1);
+  text-decoration: underline;
+  text-decoration-color: rgba(59, 130, 246, 0.4);
+  text-underline-offset: 3px;
+  transition: all 0.2s ease;
+}
+
+.vp-doc a:hover {
+  text-decoration-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-2);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .vp-doc a {
+    text-decoration-thickness: 2px;
+    font-weight: 600;
+  }
+  
+  button,
+  .VPButton {
+    border: 2px solid currentColor !important;
+  }
+}
+
+/* Reduced motion support for users with motion sensitivity */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .vp-doc img:hover {
+    transform: none !important;
+  }
+}
+
+/* Enhanced button accessibility */
+button,
+.VPButton,
+.VPSocialLink {
+  position: relative;
+}
+
+button:focus-visible::after,
+.VPButton:focus-visible::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 3px solid var(--vp-c-brand-1);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+/* Ensure interactive elements are keyboard accessible */
+[role="button"],
+[role="link"],
+.clickable {
+  cursor: pointer;
+}
+
+[role="button"]:not([tabindex]),
+[role="link"]:not([tabindex]),
+.clickable:not([tabindex]) {
+  tabindex: 0;
+}
+
+/* ARIA live region for dynamic content announcements */
+.sr-only,
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Ensure code blocks have sufficient contrast */
+.vp-code-group,
+.vp-doc [class*='language-'] {
+  border: 1px solid var(--vp-c-divider);
+}
+
+/* Dark mode specific contrast improvements */
+.dark .vp-doc {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.dark .vp-doc a {
+  color: #60a5fa;
+}
+
+.dark .vp-doc a:hover {
+  color: #93c5fd;
+}
+
+/* Ensure form elements are accessible */
+input[type="text"],
+input[type="search"],
+input[type="email"],
+textarea,
+select {
+  min-height: 44px; /* WCAG minimum touch target size */
+  padding: 8px 12px;
+}
+
+/* Touch target size for mobile */
+@media (max-width: 768px) {
+  button,
+  a,
+  [role="button"],
+  [role="link"] {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Improve table accessibility */
+.vp-doc table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.vp-doc th {
+  text-align: left;
+  font-weight: 600;
+  background: var(--vp-c-bg-soft);
+}
+
+.vp-doc th,
+.vp-doc td {
+  padding: 12px;
+  border: 1px solid var(--vp-c-divider);
+}
+
+/* Ensure headings have proper hierarchy and spacing */
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.vp-doc h4,
+.vp-doc h5,
+.vp-doc h6 {
+  scroll-margin-top: 80px; /* Account for fixed header */
+}
+
+/* Print styles for accessibility */
+@media print {
+  .skip-to-content,
+  .VPNav,
+  .VPSidebar,
+  .VPFooter {
+    display: none !important;
+  }
+  
+  .vp-doc a {
+    text-decoration: underline;
+  }
+  
+  .vp-doc a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.9em;
+    color: #666;
+  }
+}

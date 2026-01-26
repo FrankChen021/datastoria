@@ -1,3 +1,12 @@
+---
+title: Cluster Dashboard
+description: Monitor entire ClickHouse cluster with aggregate metrics, performance visualization, and real-time health indicators. High-level overview of multi-node cluster performance and status.
+head:
+  - - meta
+    - name: keywords
+      content: cluster dashboard, ClickHouse cluster, cluster monitoring, cluster metrics, multi-node monitoring, cluster health, cluster performance, aggregate metrics, cluster visualization
+---
+
 # Cluster Dashboard
 
 The Cluster Dashboard provides a high-level overview of your entire ClickHouse cluster, showing aggregate metrics across all nodes.
@@ -21,11 +30,11 @@ Your database connection must be configured as cluster.
 1. **Open Cluster Tab**: Click on the cluster name in the sidebar or navigate to the cluster view
 2. **View Dashboard**: The cluster dashboard displays automatically
 
-![dashboards-open-cluster-status](./dashboards-open-cluster-status.jpg)
+![Opening cluster dashboard from sidebar navigation showing cluster selection interface](./img/dashboards-open-cluster-status.jpg)
 
 ## Cluster Dashboard Overview
 
-![dashboards-cluster-status](./dashboard-cluster-status.jpg)
+![Cluster dashboard displaying key metrics including CPU usage, memory, disk space, and query performance across all nodes](./img/dashboard-cluster-status.jpg)
 
 ## Dashboard Features
 
@@ -69,6 +78,8 @@ Many metrics support drill-down functionality to view the breakdown of original 
 - **Availability**: Requires your ClickHouse nodes to be available
 - **Version Compatibility**: Some metrics may not be available in older ClickHouse versions
 - **Performance Impact**: Querying large time ranges may be slow and consumes resources of your ClickHouse cluster
+
+> **Deep dive**: Explore [System Log Introspection](./system-log-introspection.md) for detailed analysis of system tables.
 
 ## Next Steps
 

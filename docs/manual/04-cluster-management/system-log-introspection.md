@@ -1,3 +1,12 @@
+---
+title: System Log Introspection
+description: Analyze ClickHouse system tables - query_log, part_log, query_views_log, ddl_distribution_queue. Deep insights into query patterns, performance issues, and cluster operations.
+head:
+  - - meta
+    - name: keywords
+      content: system log introspection, ClickHouse system tables, query_log analysis, part_log monitoring, system table viewer, query patterns, performance analysis, cluster logs
+---
+
 # System Log Introspection
 
 DataStoria provides powerful system log introspection tools that allow you to analyze ClickHouse system tables in detail. These tools help you understand query patterns, identify performance issues, debug errors, and monitor data part operations across your cluster.
@@ -14,7 +23,7 @@ Currently these system tables are supported:
 
 You can access these introspection tools from the side bar icon button as shown below:
 
-![system-table-introspection-1](./system-table-introspection-1.jpg)
+![system-table-introspection-1](./img/system-table-introspection-1.jpg)
 
 ## Available System Tables
 

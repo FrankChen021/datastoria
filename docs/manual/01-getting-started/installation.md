@@ -1,3 +1,12 @@
+---
+title: Installation & Setup
+description: Install DataStoria ClickHouse console - hosted web app, Docker, or build from source. Quick setup guide for AI-powered database management with multiple deployment options.
+head:
+  - - meta
+    - name: keywords
+      content: DataStoria installation, ClickHouse console setup, install database GUI, Docker ClickHouse, ClickHouse management tool setup, build from source, hosted ClickHouse console
+---
+
 # Installation & Setup
 
 This guide will help you install and set up DataStoria on your local machine or server.
@@ -34,6 +43,8 @@ Before installing DataStoria, ensure you have:
 - **pnpm** package manager (install via `npm install -g pnpm`)
 - Access to a ClickHouse instance (local or remote)
   - If you don't have ClickHouse instance, you can use the [ClickHouse Playground](https://play.clickhouse.com)
+
+> **Tip**: After installation, you'll want to [configure AI features](../02-ai-features/ai-model-configuration.md) to unlock natural language querying and intelligent optimization.
 
 
 ## Installation Options

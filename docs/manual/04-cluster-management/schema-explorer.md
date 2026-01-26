@@ -1,3 +1,12 @@
+---
+title: Schema Explorer
+description: Navigate ClickHouse database schema with intuitive tree interface - explore databases, tables, columns, and metadata. Central hub for database structure navigation and quick search.
+head:
+  - - meta
+    - name: keywords
+      content: schema explorer, database schema, ClickHouse schema, database navigation, table explorer, column metadata, database tree, schema browser, database structure
+---
+
 # Schema Explorer
 
 The Schema Explorer provides an intuitive, tree-based interface for navigating your ClickHouse databases, tables, columns, and metadata. It serves as the central navigation hub in DataStoria, allowing you to quickly access and explore your database structure.
@@ -70,15 +79,15 @@ The Schema Explorer includes a powerful search feature, search from databases/ta
 
 - Search database/table/columns that contains 'query'
 
-![schema-explorer-search-1](./schema-explorer-search-1.jpg)
+![Schema explorer search results showing databases, tables, and columns containing the keyword 'query'](./img/schema-explorer-search-1.jpg)
 
 - Search table
 
-![schema-explorer-search-2](./schema-explorer-search-2.jpg)
+![Schema explorer table search displaying filtered table results in the tree view](./img/schema-explorer-search-2.jpg)
 
 - Search tables under a given database(DOT Mode)
 
-![schema-explorer-search-3](./schema-explorer-search-3.jpg)
+![Schema explorer DOT mode search showing tables within a specific database using dot notation](./img/schema-explorer-search-3.jpg)
 
 ### Context Menus
 
@@ -122,8 +131,8 @@ Right-click on any node to access context menu options.
 
 ## Next Steps
 
+- **[SQL Editor](../03-query-experience/sql-editor.md)** — Query the tables you've discovered
+- **[Natural Language Queries](../02-ai-features/natural-language-sql.md)** — Ask questions about your data
 - **[Cluster Dashboard](./cluster-dashboard.md)** — Monitor cluster-wide metrics
 - **[Node Dashboard](./node-dashboard.md)** — Monitor individual node performance
-- **[Query Execution](../03-query-experience/query-execution.md)** — Execute queries on your tables
-- **[System Log Introspection](./system-log-introspection.md)** — Analyze query and part logs
 

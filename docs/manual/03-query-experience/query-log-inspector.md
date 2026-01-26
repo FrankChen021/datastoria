@@ -1,3 +1,12 @@
+---
+title: Query Log Inspector
+description: Analyze ClickHouse query performance with timeline views, topology graphs, and detailed metrics. Powerful tool for query analysis, performance debugging, and execution pattern visualization.
+head:
+  - - meta
+    - name: keywords
+      content: query log inspector, query performance analysis, ClickHouse query log, query timeline, query topology, performance monitoring, query metrics, execution analysis
+---
+
 # Query Log Inspector
 
 The Query Log Inspector is one of the most powerful tools for analyzing query performance, understanding query execution patterns, and debugging issues in your ClickHouse cluster. 
@@ -33,13 +42,13 @@ After your query completes execution in the query tab, it shows the Query ID as 
 
 Simply click the Query ID link to open the inspector for that query.
 
-![query-log-inspector](./query-log-inspector.jpg)
+![Clickable query ID link displayed under query response in the query tab for accessing detailed query logs](./img/query-log-inspector.jpg)
 
 ## Timeline View
 
 When the inspector opens, it loads query logs for the given Query ID from all nodes in the cluster and displays the timeline view by default.
 
-![query-log-inspector-timeline](./query-log-inspector-timeline.jpg)
+![Query log inspector timeline view showing query execution across 20 ClickHouse cluster nodes with timing visualization](./img/query-log-inspector-timeline.jpg)
 
 The above picture shows the result of a query executed on a 20-node ClickHouse cluster.
 
@@ -67,13 +76,13 @@ The timeline view displays query execution as a horizontal timeline, showing:
     
     For example, in the view, there's a query executed on the clickhouse001 node that took only 1ms. You can move the mouse over it to quickly check what query was executed.
 
-    ![query-log-inspector-timeline-hover](./query-log-inspector-timeline-hover.jpg)
+    ![Timeline hover tooltip showing detailed query execution metrics for a specific node including duration and memory usage](./img/query-log-inspector-timeline-hover.jpg)
 
 - **Click**: Click on queries to see full details in the detail pane
     
     The detail pane is displayed on the right side of the timeline view. It shows the full query log of the selected item, including the flattened ProfileEvents which contain all metrics for that query.
 
-    ![query-log-inspector-timeline-detail](./query-log-inspector-timeline-detail.jpg)
+    ![Timeline detail panel displaying comprehensive query execution information including SQL text, timing breakdown, and resource consumption](./img/query-log-inspector-timeline-detail.jpg)
 
 ### Reading the Timeline
 
@@ -115,7 +124,7 @@ The table view provides a comprehensive list of queries with:
 - **Query Text**: The SQL query text
 - **Metrics**: Performance metrics (rows read, bytes read, etc.)
 
-![query-log-inspector-table-view](./query-log-inspector-table-view.jpg)
+![Query log inspector table view listing all query executions across cluster nodes with sortable columns for metrics analysis](./img/query-log-inspector-table-view.jpg)
 
 The **Detailed Metrics & Profile Events** table is the most insightful view for comparing metrics across nodes. You can click the table headers to sort metrics in descending or ascending order.
 
@@ -123,7 +132,7 @@ For example, by clicking the 'read_rows' column, you can see that the clickhouse
 
 In a multi-replica ClickHouse cluster, this may suggest that the data is not evenly distributed. Based on this observation, you can investigate further to confirm.
 
-![query-log-inspector-table-view-2](./query-log-inspector-table-view-2.jpg)
+![Detailed table view showing expanded query information with additional metrics and execution statistics](./img/query-log-inspector-table-view-2.jpg)
 
 ## Topology View
 
@@ -136,7 +145,7 @@ The topology view shows query execution as a graph, displaying:
 - **Execution Flow**: Direction of query execution
 - **Cluster Topology**: Distributed query execution across nodes
 
-![query-log-inspector-topo](./query-log-inspector-topo.jpg)
+![Query log inspector topology view visualizing query execution flow across cluster nodes with network connections and data transfer paths](./img/query-log-inspector-topo.jpg)
 
 ### Topology Features
 

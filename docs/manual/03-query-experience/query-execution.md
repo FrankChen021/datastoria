@@ -1,3 +1,12 @@
+---
+title: Query Execution
+description: Execute ClickHouse queries with DataStoria - run full queries or selections, view results, export data. Complete guide to query execution, result viewing, and data management.
+head:
+  - - meta
+    - name: keywords
+      content: query execution, run SQL query, execute ClickHouse query, SQL results, query output, data export, query management, ClickHouse execution
+---
+
 # Query Execution
 
 DataStoria provides a powerful query execution system that allows you to run ClickHouse queries, view results in various formats. This guide covers everything you need to know about executing queries and managing results.
@@ -10,6 +19,8 @@ The query execution system provides:
 - **Query Log Inspector**: Provides an inspector for query log
 
 ## Running Queries
+
+> **Tip**: Use the [SQL Editor](./sql-editor.md) to write queries, and check [Query Log Inspector](./query-log-inspector.md) to analyze performance.
 
 ### Basic Execution
 

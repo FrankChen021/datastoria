@@ -1,3 +1,12 @@
+---
+title: Node Dashboard
+description: Monitor individual ClickHouse node performance with detailed metrics, health indicators, and real-time visualization. Track server uptime, queries, merges, and replication status.
+head:
+  - - meta
+    - name: keywords
+      content: node dashboard, ClickHouse monitoring, node metrics, server performance, node health, database monitoring, ClickHouse node, performance dashboard, server metrics
+---
+
 # Node Dashboard
 
 The Node Dashboard provides detailed metrics for individual ClickHouse nodes, giving you deep insights into node-specific performance and health.
@@ -30,7 +39,7 @@ The dashboard shows key node health indicators:
 - Replication Status
 - Key Metrics
 
-![dashboard-node-status](./dashboard-node-status.jpg)
+![Node dashboard showing detailed metrics for a single ClickHouse node including CPU, memory, disk I/O, and active queries](./img/dashboard-node-status.jpg)
 
 ## Dashboard Features
 
@@ -70,6 +79,8 @@ For example, for the 'Total Data Size' Stat panel, when clicking this panel, it 
 - **Availability**: Requires your ClickHouse node to be available
 - **Version Compatibility**: Some metrics may not be available in older ClickHouse versions
 - **Performance Impact**: Querying large time ranges may be slow and consumes resources of your ClickHouse cluster
+
+> **Deep dive**: Explore [System Log Introspection](./system-log-introspection.md) for detailed analysis of system tables.
 
 ## Next Steps
 

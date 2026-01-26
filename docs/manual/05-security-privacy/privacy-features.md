@@ -1,3 +1,12 @@
+---
+title: Privacy Features & Policy
+description: DataStoria privacy-first architecture - local query execution, no data storage, secure credential handling. Learn how we protect your database credentials and sensitive information.
+head:
+  - - meta
+    - name: keywords
+      content: privacy policy, data privacy, secure database, local execution, no data storage, credential security, privacy-first, database security, data protection
+---
+
 # Privacy Policy
 
 Last Updated: December 27, 2025

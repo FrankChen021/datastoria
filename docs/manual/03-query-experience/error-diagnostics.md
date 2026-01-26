@@ -1,3 +1,12 @@
+---
+title: Error Diagnostics
+description: Smart SQL error diagnostics with inline error highlighting, precise location detection, and AI-powered fix suggestions. Quickly identify and resolve ClickHouse query errors.
+head:
+  - - meta
+    - name: keywords
+      content: error diagnostics, SQL error detection, query error highlighting, error location, SQL debugging, ClickHouse errors, syntax error detection, AI error fixes
+---
+
 # Error Diagnostics
 
 DataStoria provides built-in error diagnostics to help you quickly identify and resolve SQL query errors. In addition to showing the original ClickHouse error message, it can highlight the exact error location in your SQL and (optionally) let you ask AI for help.
@@ -16,7 +25,7 @@ ClickHouse error messages can be verbose and time-consuming to act on—especial
 
 Here's an example:
 
-![error-diagnostics-1](./error-diagnostics-1.jpg)
+![Error diagnostics interface showing AI-powered error explanation with suggestions for fixing a typo in column name 'event_tim'](./img/error-diagnostics-1.jpg)
 
 Instead of only showing a long error message like:
 
@@ -85,7 +94,7 @@ order by 1
 
 For errors that require more context (permissions, cluster setup, function usage, performance-related settings, etc.), you can use the integrated AI feature to **Ask AI for help**.
 
-See [Ask AI for Help](../02-ai-features/ask-ai-for-help.md) for more.
+> **Learn more**: See [Ask AI for Help](../02-ai-features/ask-ai-for-help.md) for detailed information about AI-powered error assistance and how to get instant fixes with one click.
 
 
 ## Limitations

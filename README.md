@@ -2,6 +2,8 @@
 
 A modern, AI-powered ClickHouse management console that transforms how you interact with your data and manage your clusters.
 
+![AI-Powered Features in Action](./docs/public/demo.gif)
+
 ---
 
 ## 🚀 Key Features
@@ -31,9 +33,9 @@ A modern, AI-powered ClickHouse management console that transforms how you inter
 
 ---
 
-## 🌐 Try It Online
+## 🌐 Experience the app
 
-Access [dataStoria.app](https://datastoria.app) to experience all features.
+Visiting [dataStoria.app](https://datastoria.app) to experience all features without any installation.
 
 ---
 
@@ -77,6 +79,11 @@ The Docker image supports both `linux/amd64` and `linux/arm64` platforms, so it 
 
 ## 📖 Documentation
 
+### User Manual
+
+- [User Manual](https://docs.datastoria.app)
+
+### Development
 - [Docker Deployment](./docker/README.md) — Build and run with Docker
 - [LLM Provider API Key Configuration](./doc/dev/llm-provider-api-key.md) — Configure API keys for your LLM provider
 - [Authentication Guide](./doc/dev/authentication.md) — OAuth setup for Google, GitHub, and Microsoft

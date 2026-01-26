@@ -1,3 +1,12 @@
+---
+title: system.query_views_log Introspection
+description: Monitor ClickHouse materialized views and live views execution. Track view performance, analyze read/write patterns, and debug view errors with detailed metrics.
+head:
+  - - meta
+    - name: keywords
+      content: query_views_log, system.query_views_log, materialized views, live views, view monitoring, view performance, view execution, ClickHouse views, view metrics
+---
+
 # system.query_views_log Introspection
 
 The Query Views Log Introspection tool provides insights into all query view executions on your ClickHouse cluster. It tracks how materialized views, live views, and other view types are being executed and their performance metrics.
@@ -10,7 +19,7 @@ It provides multiple filters and more dashboards on the metrics of views for bet
 
 ## UI
 
-![system-query-views-log](./system-query-views-log.gif)
+![System query views log interface displaying query execution history with filtering and sorting capabilities](./img/system-query-views-log.gif)
 
 
 ## Query Views Log Use Cases

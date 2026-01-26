@@ -1,3 +1,12 @@
+---
+title: SQL Editor
+description: Advanced SQL editor for ClickHouse with syntax highlighting, auto-completion, keyboard shortcuts, and query snippets. Powerful code editor built on Ace framework for productive SQL development.
+head:
+  - - meta
+    - name: keywords
+      content: SQL editor, ClickHouse editor, syntax highlighting, SQL auto-completion, code editor, SQL IDE, query editor, keyboard shortcuts, SQL snippets
+---
+
 # SQL Editor
 
 DataStoria's SQL Editor provides a powerful, feature-rich environment for writing and editing ClickHouse queries. Built on the Ace Editor framework, it offers syntax highlighting, intelligent auto-completion, and convenient keyboard shortcuts to enhance your productivity.
@@ -16,7 +25,7 @@ The SQL Editor is the primary interface for writing and executing queries in Dat
 
 The SQL editor is displayed on the right side of the schema tree. It features a terminal-like interface where you type SQL queries in the lower part of the query tab. Query requests and responses are displayed above the editor region, and the response area automatically scrolls as new results arrive.
 
-![sql-editor-1](./sql-editor-1.jpg)
+![SQL editor interface showing terminal-like query input area with syntax highlighting and query results displayed above](./img/sql-editor-1.jpg)
 
 ## Syntax Highlighting
 
@@ -46,28 +55,28 @@ The editor recognizes ClickHouse SQL syntax and suggests:
 
 When you type a table name or reference a database, the editor suggests:
 - Available tables in the current database
-  ![sql-editor-suggestion-1](./sql-editor-suggestion-1.jpg)
+  ![Auto-completion dropdown showing available table suggestions in the current database](./img/sql-editor-suggestion-1.jpg)
 
 - Columns for the current table
-  ![sql-editor-suggestion-2](./sql-editor-suggestion-2.jpg)
+  ![Auto-completion showing column suggestions for the selected table with data types](./img/sql-editor-suggestion-2.jpg)
 
 ### ClickHouse Settings Suggestions
 
 When you type `SETTINGS`, `SET`, or `settings` (case-insensitive), the editor automatically suggests all available ClickHouse settings with their current values and descriptions.
 
-![sql-editor-suggestion-3](./sql-editor-suggestion-3.jpg)
+![ClickHouse settings auto-completion showing available settings with their current values and descriptions](./img/sql-editor-suggestion-3.jpg)
 
 ### ClickHouse Input/Output Formats Suggestions
 
 When you type `FORMAT` or `format` (case-insensitive), the editor suggests all supported input and output formats available in your ClickHouse instance.
 
-![sql-editor-suggestion-4](./sql-editor-suggestion-4.jpg)
+![FORMAT clause auto-completion displaying all supported ClickHouse input and output formats](./img/sql-editor-suggestion-4.jpg)
 
 ### ClickHouse Table Engine
 
 When you type `=` after the `ENGINE` keyword, the editor suggests all supported table engines available in your ClickHouse instance.
 
-![sql-editor-suggestion-5](./sql-editor-suggestion-5.jpg)
+![Table engine auto-completion showing available ClickHouse table engines after ENGINE keyword](./img/sql-editor-suggestion-5.jpg)
 
 ### ON CLUSTER
 
@@ -87,11 +96,13 @@ If your connection is configured for cluster mode, the editor suggests `ON CLUST
   - Executes the current query or selected text
   - If text is selected, only the selection is executed
 
+> **See also**: [Error Diagnostics](./error-diagnostics.md) for help with syntax errors, and [Query Explain](./query-explain.md) to understand query performance.
+
 ## Query Snippets
 
 The editor includes built-in query snippets for common operations:
 
-![sql-editor-suggestion-6](./sql-editor-suggestion-6.jpg)
+![sql-editor-suggestion-6](./img/sql-editor-suggestion-6.jpg)
 
 ### Using Snippets
 

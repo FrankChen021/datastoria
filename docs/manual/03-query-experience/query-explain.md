@@ -42,13 +42,13 @@ The selected portion will be explained independently of the rest of the query.
 
 ## EXPLAIN AST
 
-![explain-ast](./explain_ast.jpg)
+![EXPLAIN AST graphical tree view showing abstract syntax tree structure of a parsed SQL query](./img/explain_ast.jpg)
 
 `EXPLAIN AST` is primarily a database developer tool that displays the abstract syntax tree (AST) format of your parsed SQL query. By default, DataStoria provides a graphical tree view of the AST, making it easier to understand the query structure.
 
 If you prefer, you can switch to **'Text Mode'** to view the traditional text-based AST output.
 
-![explain-ast-2](./explain-ast-2.jpg)
+![EXPLAIN AST text mode displaying traditional text-based abstract syntax tree output](./img/explain-ast-2.jpg)
 
 ### Use Cases
 
@@ -79,7 +79,7 @@ The `EXPLAIN PLAN (Indexes)` feature sends an `EXPLAIN PLAN indexes=1` statement
 
 This is a powerful tool for mastering query optimization and writing highly efficient SQL statements.
 
-![explain-index](./explain-index.jpg)
+![EXPLAIN PLAN indexes view showing primary key usage, partition pruning, projections, and secondary index analysis](./img/explain-index.jpg)
 
 ### Key Insights
 
@@ -99,7 +99,7 @@ The `EXPLAIN PLAN (Actions)` shows the logical execution plan with detailed info
 - **Aggregation Methods**: How aggregations are performed
 - **Sort Operations**: Sorting strategies and locations
 
-![explain-actions](./explain_actions.jpg)
+![EXPLAIN PLAN actions displaying logical execution plan with filter pushdown, join strategies, and aggregation methods](./img/explain_actions.jpg)
 
 ### Understanding the Output
 
@@ -117,7 +117,7 @@ The `EXPLAIN PIPELINE` shows the execution plan as a visual pipeline diagram. Th
 - **Data Flow**: How data moves through the execution pipeline
 - **Processing Stages**: The sequence of transformations applied to your data
 
-![explain-pipeline](./explain-pipeline.jpg)
+![EXPLAIN PIPELINE visual diagram showing execution pipeline stages, parallelism, and data flow connections](./img/explain-pipeline.jpg)
 
 ### Visual Benefits
 
@@ -136,7 +136,7 @@ The `EXPLAIN ESTIMATE` can be seen as a simplified view of `EXPLAIN PLAN indexes
 
 > **Performance Tip:** Generally, the smaller these values, the better the query performance.
 
-![explain-estimate](./explain-estimate.jpg)
+![EXPLAIN ESTIMATE summary showing data parts, estimated rows, and marks to be read for query performance assessment](./img/explain-estimate.jpg)
 
 ### When to Use
 

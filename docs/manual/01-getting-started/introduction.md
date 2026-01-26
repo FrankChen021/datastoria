@@ -1,3 +1,12 @@
+---
+title: Introduction to DataStoria
+description: Discover DataStoria - a modern, AI-powered ClickHouse management console with natural language queries, intelligent optimization, and privacy-first architecture.
+head:
+  - - meta
+    - name: keywords
+      content: DataStoria introduction, ClickHouse console, AI database management, natural language SQL, ClickHouse GUI, database admin tool, privacy-first database tool
+---
+
 # Introduction to DataStoria
 
 Welcome to **DataStoria**, a modern, AI-powered ClickHouse management console that transforms how you interact with your data and manage your clusters.

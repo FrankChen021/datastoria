@@ -1,3 +1,12 @@
+---
+title: system.part_log Introspection
+description: Monitor ClickHouse part operations - merges, mutations, downloads, removals. Track part-level performance, identify bottlenecks, and analyze data part lifecycle.
+head:
+  - - meta
+    - name: keywords
+      content: part_log, system.part_log, merge monitoring, mutation tracking, part operations, ClickHouse merges, data parts, part lifecycle, merge performance
+---
+
 # system.part_log Introspection
 
 The Part Log Introspection tool tracks all part-level operations in your ClickHouse cluster, including merges, mutations, downloads, and removals.
@@ -10,7 +19,7 @@ It provides multiple filters and distribution charts as well as a detail table f
 
 ## UI
 
-![system-part-log-introspection](./system-part-log-introspection.gif)
+![System part log interface showing data part merge operations, mutations, and partition management activities](./img/system-part-log-introspection.gif)
 
 ## Use Cases
 

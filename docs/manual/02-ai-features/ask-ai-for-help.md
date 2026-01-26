@@ -1,3 +1,12 @@
+---
+title: Ask AI for Help
+description: Get instant AI assistance for SQL errors - automatic error explanation, suggested fixes, and debugging help. One-click AI-powered error resolution for ClickHouse queries.
+head:
+  - - meta
+    - name: keywords
+      content: AI error help, SQL error fix, query debugging, AI SQL assistant, automatic error fix, SQL error explanation, database error help, ClickHouse error debugging
+---
+
 # Ask AI for Help
 
 The "Ask AI for Help" feature provides instant AI-powered assistance when you encounter query errors in the Query Editor. With a single click, you can get explanations of what went wrong and receive suggested fixes for your SQL queries.
@@ -22,7 +31,7 @@ The "Ask AI for Help" button appears automatically when:
 
 The button is prominently displayed with a pulsing animation to draw your attention, making it easy to get help when you need it most.
 
-![ask-ai-for-help-example-1](./ask-ai-for-help-example-1.jpg)
+![AI help dialog explaining ClickHouse table engine concepts with detailed descriptions and recommendations](./img/ask-ai-for-help-example-1.jpg)
 
 ### Getting Help with One Click
 
@@ -32,7 +41,7 @@ When the "Ask AI for Help" button is clicked, it automatically starts a new chat
 
 In the above example, it would take significant time for a human to pinpoint the error. However, with AI, you can get this error fixed within seconds.
 
-![ask-ai-for-help-example-2](./ask-ai-for-help-example-2.jpg)
+![AI assistance providing guidance on ClickHouse query optimization techniques and best practices](./img/ask-ai-for-help-example-2.jpg)
 
 As shown in the response, AI clearly points out where the error is and provides a fix with explanatory comments in the SQL to help you better understand the issue.
 

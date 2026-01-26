@@ -1,3 +1,12 @@
+---
+title: system.ddl_distribution_queue Introspection
+description: Monitor distributed DDL operations across ClickHouse cluster. Track CREATE, ALTER, DROP statements execution, identify failures, and monitor DDL progress across nodes.
+head:
+  - - meta
+    - name: keywords
+      content: ddl_distribution_queue, distributed DDL, DDL monitoring, cluster DDL, DDL operations, DDL tracking, CREATE ALTER DROP, DDL execution, cluster operations
+---
+
 # system.ddl_distribution_queue Introspection
 
 The DDL Distribution Queue Introspection tool provides insights into distributed DDL operations across your ClickHouse cluster. It tracks how DDL statements (CREATE, ALTER, DROP, etc.) are distributed and executed across cluster nodes, helping you monitor DDL operation status, identify failures, and track execution progress.
@@ -13,7 +22,7 @@ It provides multiple views and filters to help you understand the distribution a
 
 ## UI
 
-![system-ddl-distributed-queue](./system-ddl-distributed-queue.gif)
+![System DDL distributed queue interface showing DDL query execution status across cluster nodes with progress indicators](./img/system-ddl-distributed-queue.gif)
 
 ## Use Cases
 

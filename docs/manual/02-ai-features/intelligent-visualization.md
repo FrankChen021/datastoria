@@ -1,3 +1,12 @@
+---
+title: Intelligent Visualization
+description: Generate charts and visualizations with AI - time series, bar charts, pie charts from natural language. Transform ClickHouse data into visual insights instantly with simple prompts.
+head:
+  - - meta
+    - name: keywords
+      content: AI visualization, data visualization, chart generation, time series charts, AI charts, natural language charts, automatic visualization, SQL to chart, ClickHouse charts
+---
+
 # Intelligent Visualization
 
 DataStoria's Intelligent Visualization feature allows you to generate stunning visualizations like time series, pie charts, and data tables with simple prompts. Transform your query results into visual insights instantly.
@@ -12,6 +21,8 @@ The Intelligent Visualization feature uses AI to:
 
 It does NOT fetch data from your local and sends data to LLM for visualization. Instead, LLM generates the SQL for visualization and visualization UI spec together, it's your client that fetch data and renders data in the browser. This saves lots of token compared to the LLM side visualization output.
 
+> **Note**: Visualizations are generated from query results. Learn more about [query execution](../03-query-experience/query-execution.md).
+
 ## Generating Charts from Prompts
 
 The [ClickHouse Playground](https://play.clickhouse.com) is used for these example illustration.
@@ -21,7 +32,7 @@ You create a connection to this playground to try the following examples.
 
 **Prompt**: "Create a line chart showing number of commit by day in 2021 Feb"
 
-![visualization-example-1](./visualization-example.jpg)
+![Line chart showing number of commits by day in February 2021, generated from natural language prompt](./img/visualization-example.jpg)
 
 The generated is as:
 
@@ -39,14 +50,14 @@ LIMIT 1000
 
 **Prompt**: "Show me a line chart of added lines, removed lines of commits by day in 2021 Jan"
 
-![visualization-example-2](./visualization-example-2.jpg)
+![Multi-line chart displaying added and removed lines of code by day in January 2021](./img/visualization-example-2.jpg)
 
 
 ### Bar Charts
 
 **Prompt**: "show me the number of commits by month from 2020 to 2021 in bar chart"
 
-![visualization-example-3](./visualization-example-3.jpg)
+![Bar chart showing monthly commit counts from 2020 to 2021, generated from natural language query](./img/visualization-example-3.jpg)
 
 
 #### Pie Charts
@@ -105,7 +116,7 @@ ClickHouse itself contains many system tables providing thousands of metrics. Ev
 
 With AI, we can use multiple rounds of chats to identify the metrics we care about in a particular case and generate visualization panels quickly to address problems.
 
-![visualization-example-4](./visualization-example-4.jpg)
+![AI-generated visualization showing thread metrics from ClickHouse system.asynchronous_metric_log table with multiple conversation rounds](./img/visualization-example-4.jpg)
 
 In above question, we first ask the AI to see if there're any metric related to threads in the *system.asynchronous_metric_log* table.
 

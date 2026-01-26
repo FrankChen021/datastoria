@@ -1,3 +1,12 @@
+---
+title: system.query_log Introspection
+description: Analyze ClickHouse query_log with filters, charts, and AI insights. Monitor query performance, debug errors, and track execution patterns with visual query log analysis.
+head:
+  - - meta
+    - name: keywords
+      content: query_log, system.query_log, query log analysis, query monitoring, query performance, ClickHouse queries, query debugging, query metrics, execution tracking
+---
+
 # system.query_log Introspection
 
 The Query Log Introspection tool provides deep insights into all queries executed on your ClickHouse cluster in visualized way.
@@ -10,7 +19,7 @@ It provides multiple filters and distribution charts as well as a detail table f
 
 ## UI
 
-![system-query-log](./system-query-log.gif)
+![System query log interface displaying detailed query execution metrics including duration, memory usage, and rows processed](./img/system-query-log.gif)
 
 ## When you can use the query log instropection tool
 
