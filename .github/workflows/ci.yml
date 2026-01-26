@@ -20,6 +20,14 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Check for docs changes
+        id: docs-changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            docs:
+              - 'docs/**'
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -37,6 +45,18 @@ jobs:
 
       - name: Run build
         run: npm run build
+
+      - name: Build documentation
+        if: steps.docs-changes.outputs.docs == 'true'
+        run: npm run docs:build
+
+      - name: Upload docs artifact
+        if: steps.docs-changes.outputs.docs == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-dist
+          path: docs/.vitepress/dist
+          retention-days: 1
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -89,3 +109,39 @@ jobs:
           provenance: true
           # Generate Software Bill of Materials listing all packages
           sbom: true
+
+  deploy-docs:
+    runs-on: ubuntu-latest
+    needs: build
+    #if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+      deployments: write
+
+    steps:
+      - name: Download docs artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-dist
+          path: docs/.vitepress/dist
+        continue-on-error: true
+
+      - name: Check if docs were built
+        id: check-docs
+        run: |
+          if [ -d "docs/.vitepress/dist" ] && [ "$(ls -A docs/.vitepress/dist)" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to Cloudflare Pages
+        if: steps.check-docs.outputs.exists == 'true'
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: datastoria-docs
+          directory: docs/.vitepress/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          branch: master
