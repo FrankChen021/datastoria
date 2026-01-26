@@ -7,6 +7,10 @@ on:
   pull_request:
     # Run on all pull requests regardless of target branch
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/datastoria
 
@@ -120,6 +124,7 @@ jobs:
     permissions:
       contents: read
       deployments: write
+      actions: read
 
     steps:
       - name: Check if artifact exists
