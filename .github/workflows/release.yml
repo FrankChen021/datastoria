@@ -20,7 +20,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: development
+          ref: master
           fetch-depth: 0
 
       - name: Trigger Vercel Production Deployment
@@ -32,7 +32,7 @@ jobs:
         run: |
           echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** development" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** master" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** $(git rev-parse HEAD)" >> $GITHUB_STEP_SUMMARY
           echo "**Time:** $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
