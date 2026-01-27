@@ -126,7 +126,7 @@ LIMIT 100
           charts: [
             {
               type: "bar",
-              titleOption: { title: `Query Count Distribution`, showTitle: true, align: "left" },
+              titleOption: { title: `View Execution Distribution`, showTitle: true, align: "left" },
               datasource: {
                 sql: `
 SELECT
