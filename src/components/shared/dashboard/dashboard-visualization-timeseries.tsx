@@ -1220,6 +1220,70 @@ export const TimeseriesVisualization = React.forwardRef<
 
       chartInstanceRef.current.setOption(option, true);
 
+      // Get actual colors assigned by ECharts and update legend data
+      if (chartInstanceRef.current) {
+        // Use requestAnimationFrame to ensure ECharts has finished processing
+        requestAnimationFrame(() => {
+          if (!chartInstanceRef.current) return;
+          
+          // Get colors from ECharts processed option
+          const seriesColorMap = new Map<string, string>();
+          try {
+            const processedOption = chartInstanceRef.current.getOption();
+            const processedSeries = (processedOption?.series as echarts.SeriesOption[]) || [];
+            
+            // ECharts default color palette (used when no explicit color is set)
+            const defaultColors = [
+              '#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de',
+              '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'
+            ];
+            
+            processedSeries.forEach((s, index) => {
+              if (s.name) {
+                const seriesName = s.name as string;
+                let color: string | undefined;
+                
+                // Try to get color from itemStyle (for bar charts)
+                const itemStyle = (s as { itemStyle?: { color?: string | { color?: string } } }).itemStyle;
+                if (itemStyle?.color) {
+                  color = typeof itemStyle.color === 'string' 
+                    ? itemStyle.color 
+                    : itemStyle.color.color;
+                }
+                
+                // Try to get color from lineStyle (for line charts)
+                if (!color) {
+                  const lineStyle = (s as { lineStyle?: { color?: string } }).lineStyle;
+                  if (lineStyle?.color) {
+                    color = lineStyle.color;
+                  }
+                }
+                
+                // If no explicit color, use ECharts default palette based on series index
+                if (!color) {
+                  color = defaultColors[index % defaultColors.length];
+                }
+                
+                if (color) {
+                  seriesColorMap.set(seriesName, color);
+                }
+              }
+            });
+          } catch (error) {
+            console.warn('Failed to get series colors from ECharts:', error);
+          }
+
+          // Update legend colors with actual ECharts colors
+          if (seriesColorMap.size > 0) {
+            const updatedLegends = newLegends.map((legend) => {
+              const actualColor = seriesColorMap.get(legend.series);
+              return actualColor ? { ...legend, color: actualColor } : legend;
+            });
+            setLegendData({ dimensionNames, legends: updatedLegends });
+          }
+        });
+      }
+
       // Add brush event handler if drilldown is enabled (same as old implementation)
       if (hasDrilldown() && chartInstanceRef.current) {
         // Enable brush selection using dispatchAction
