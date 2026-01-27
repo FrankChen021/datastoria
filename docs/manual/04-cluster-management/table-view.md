@@ -23,19 +23,23 @@ The Table View organizes table information into multiple tabs:
 - **Query Dashboard Tab**: Query history and performance metrics
 - **Part History Tab**: Historical part information and changes
 
+![Table View showing comprehensive table information including overview, metadata, dependencies, data sample, partitions, and query history](./img/table-tab-overview.jpg)
+
 ## Accessing the Table View
+
+The Table View can be accessed from multiple locations in ClickHouse Console:
 
 ### From Schema Explorer
 
 1. **Navigate to Table**: Click on a table name in the Schema Explorer sidebar
 2. **Table Tab Opens**: The Table View opens automatically in a new tab
-3. **View Overview**: The Overview tab is displayed by default (if available)
+3. **View Overview**: The Overview tab is displayed by default (if available for the table engine type)
 
 ### From Database View
 
-1. **Open Database View**: Click on a database name
-2. **Click Table Name**: Click on any table name in the table list
-3. **Table Tab Opens**: The Table View opens in a new tab
+1. **Open Database View**: Click on a database name in the Schema Explorer
+2. **Click Table Name**: Click on any table name in the database table list
+3. **Table Tab Opens**: The Table View opens in a new tab with the selected table's information
 
 ## Available Tabs
 
@@ -61,7 +65,7 @@ The tabs available depend on the table engine type. Some engines have limited fu
 
 ## Overview Tab
 
-The Overview tab provides high-level statistics and performance metrics for the table.
+The Overview tab provides high-level statistics and performance metrics for the ClickHouse table, giving you a quick understanding of table size, row counts, part information, and performance characteristics.
 
 ### Key Metrics
 
@@ -78,11 +82,18 @@ The Overview tab provides high-level statistics and performance metrics for the 
 - **Query Performance**: Query execution metrics
 - **Part Operations**: Merge and mutation activity
 
-### Quick Actions
 
-- **View Data**: Quick access to data sample
-- **View Partitions**: Access partition information
-- **View Queries**: Access query history
+### Column Size Analysis
+
+The Column Size section provides detailed insights into the storage size of each column in the table, helping you identify which columns consume the most disk space and optimize storage efficiency.
+
+### Secondary Index Information
+
+This section displays the size of each secondary index (data skipping index) used by the table, enabling you to monitor index overhead and optimize query performance.
+
+### Projection Analysis
+
+The Projection section shows the size of every PROJECTION used by this table, allowing you to understand the storage impact of projections and their contribution to query optimization.
 
 ## Metadata Tab
 
@@ -124,7 +135,7 @@ For each column, view:
 
 ## Dependencies Tab
 
-The Dependencies tab shows a visual graph of table dependencies.
+The Dependencies tab shows a visual graph of table dependencies of current table.
 
 ### Features
 
@@ -132,6 +143,10 @@ The Dependencies tab shows a visual graph of table dependencies.
 - **Downstream Dependencies**: Tables that depend on this table
 - **Interactive Graph**: Navigate dependencies visually
 - **Table Details**: Click nodes to view table information
+
+For example, the following picture demonstrates the relationship among a Materialized View and its source table as well as its target table, showing how data flows through the materialized view pipeline.
+
+![Table Dependencies tab showing visual graph of upstream and downstream dependencies for a Materialized View and its source and target tables](./img/table-tab-dependency.jpg)
 
 For detailed information about the dependency view, see [Dependency View](./dependency-view.md).
 
@@ -157,7 +172,7 @@ The Data Sample tab displays sample rows from the table.
 
 ## Partitions Tab
 
-The Partitions tab provides detailed partition information.
+The Partitions tab provides detailed partition information of current table.
 
 ### Partition Overview
 
@@ -167,38 +182,16 @@ The Partitions tab provides detailed partition information.
 - **Row Count**: Rows per partition
 - **Part Count**: Number of parts per partition
 
-### Size Distribution
+![Table Partitions tab displaying detailed partition information including partition list, size distribution, row counts, and part counts](./img/table-tab-partition.jpg)
 
-- **Visual Charts**: See size distribution across partitions
-- **Sortable Table**: Sort by size, rows, or part count
-- **Percentage Breakdown**: See relative partition sizes
-
-### Partition Details
-
-Click on a partition to see:
-
-- **Part Information**: Individual parts within the partition
-- **Size Metrics**: Detailed size information
-- **Modification Times**: When parts were created/modified
-- **Compression**: Compression statistics per part
 
 ## Query Dashboard Tab
 
-The Query Dashboard tab shows query history and performance metrics.
+The Query Dashboard tab shows query history and performance metrics based on the `system.query_log`.
 
-### Query History
+It provides several dashboard metrics to help users understand the query performance on the current table, including execution times, query frequency, and performance trends.
 
-- **Recent Queries**: Queries executed against this table
-- **Query Details**: Full query text, execution time, rows read
-- **Performance Metrics**: Query performance statistics
-- **Time Range Filter**: Filter queries by time range
-
-### Performance Analysis
-
-- **Query Count**: Number of queries over time
-- **Average Execution Time**: Performance trends
-- **Rows Read**: Data access patterns
-- **Slow Queries**: Identify performance issues
+![Query Dashboard tab showing query history and performance metrics from system.query_log with execution times, query frequency, and performance analysis](./img/table-tab-query-log.jpg)
 
 ### Use Cases
 
@@ -207,64 +200,33 @@ The Query Dashboard tab shows query history and performance metrics.
 - **Usage Analysis**: Understand how the table is being used
 - **Troubleshooting**: Debug query performance issues
 
+
 ## Part History Tab
 
-The Part History tab shows historical information about table parts.
+The Part History tab shows historical information about table parts based on `system.part_log` system table.
 
-### Part Information
+![Part History tab displaying historical part information from system.part_log showing part operations, merges, and mutations over time](./img/table-tab-part-log.jpg)
 
-- **Part Names**: All parts in the table
-- **Creation Time**: When parts were created
-- **Modification Time**: Last modification time
-- **Size Information**: Size metrics per part
-- **Row Count**: Rows per part
-
-### Historical Tracking
-
-- **Part Lifecycle**: Track part creation and deletion
-- **Size Changes**: Monitor part size over time
-- **Merge History**: See merge operations
-- **Mutation History**: Track mutation operations
+On each panel, you can click either the number or drag on the minimap to view the detailed logs.
 
 ## Limitations
 
+The Table View has both engine-specific and general limitations that you should be aware of:
+
 ### Engine-Specific Limitations
 
-- **System Tables**: Limited functionality for system tables
-- **Kafka Tables**: No data sample or partitions
-- **URL Tables**: Limited metadata and no data sample
-- **External Tables**: May have limited functionality
+- **System Tables**: Limited functionality for system tables, as they have different structures and purposes compared to user tables
+- **Kafka Tables**: No data sample or partitions available, as Kafka tables read from streams and don't store data locally
+- **URL Tables**: Limited metadata and no data sample, as URL tables fetch data from external sources on-demand
+- **External Tables**: May have limited functionality depending on the external table engine type and its capabilities
 
 ### General Limitations
 
-- **System Table Access**: Requires read access to ClickHouse system tables
-- **Data Retention**: Historical data depends on system table retention
-- **Performance Impact**: Querying large tables may be slow
-- **Real-time Accuracy**: Some metrics may have slight delays
-- **Version Compatibility**: Some features may not be available in older ClickHouse versions
-
-## Best Practices
-
-### Regular Monitoring
-
-- **Monitor Size**: Track table size growth
-- **Review Queries**: Regularly review query performance
-- **Check Partitions**: Monitor partition distribution
-- **Track Dependencies**: Understand table relationships
-
-### Performance Optimization
-
-- **Identify Issues**: Use metrics to find performance problems
-- **Optimize Queries**: Use query history to optimize
-- **Manage Partitions**: Use partition information for optimization
-- **Monitor Operations**: Track merges and mutations
-
-### Data Management
-
-- **Data Quality**: Use data sample to verify quality
-- **Schema Understanding**: Review metadata regularly
-- **Dependency Tracking**: Understand table relationships
-- **Maintenance Planning**: Use metrics for maintenance planning
+- **System Table Access**: Requires read access to ClickHouse system tables (`system.tables`, `system.parts`, `system.query_log`, `system.part_log`, etc.)
+- **Data Retention**: Historical data depends on system table retention policies configured in ClickHouse
+- **Performance Impact**: Querying large tables with many parts may be slow, especially when loading comprehensive statistics and historical data
+- **Real-time Accuracy**: Some metrics may have slight delays as they are based on system table snapshots rather than real-time data
+- **Version Compatibility**: Some features may not be available in older ClickHouse versions, as they depend on specific system table columns and functionality introduced in newer versions
 
 ## Integration with Other Features
 

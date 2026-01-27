@@ -22,21 +22,38 @@ The Dependency View automatically analyzes your ClickHouse schema to build a com
 - **Downstream Dependencies**: Tables that depend on a specific table
 - **Interactive Navigation**: Click on nodes to view detailed table information
 
+## Example
+
+The following example demonstrates a database dependency graph visualization.
+
+![Dependency View graph visualization showing table relationships including distributed tables, local tables, Materialized Views with source and target connections, and edge labels indicating sharding keys](./img/dependency-view-database.jpg)
+
+The dependency graph visualizes the following relationships:
+
+- **Distributed Table Connections**: Shows the relationship between each distributed table and its corresponding local table
+- **Materialized View Dependencies**: Displays source and target tables for materialized views, showing data flow direction
+- **Table Representation**: Each table is represented by a rectangle using a UML class diagram style for easy recognition
+- **Sharding Key Information**: Edge labels between distributed tables and local tables display the sharding key, allowing you to quickly identify whether the distributed table uses random sharding or specific column-based sharding
+- **Materialized View Data Flow**: 
+  - **Incoming Edge** (labeled as *Push To*): Represents the source table where data originates
+  - **Outgoing Edge** (labeled as *Sink to*): Represents the target table where processed data is written
+- **Interactive Details**: Clicking on any table node displays the complete DDL (Data Definition Language) statement in the right panel, providing full table structure information
+
 ## Accessing the Dependency View
 
-The Dependency View is accessible in two ways:
+The Dependency View is accessible from two locations in ClickHouse Console, each providing a different perspective on table dependencies:
 
 ### From Database Tab
 
 1. **Open Database Tab**: Click on a database name in the Schema Explorer
 2. **Select Dependency Tab**: Click on the "Database Dependency" tab
-3. **View Graph**: The dependency graph for all tables in the database is displayed
+3. **View Graph**: The dependency graph for all tables in the database is displayed, showing the complete dependency network within the database
 
 ### From Table Tab
 
 1. **Open Table Tab**: Click on a table name in the Schema Explorer
 2. **Select Dependencies Tab**: Click on the "Dependencies" tab
-3. **View Focused Graph**: The dependency graph is filtered to show only dependencies related to the selected table
+3. **View Focused Graph**: The dependency graph is filtered to show only dependencies related to the selected table, providing a focused view of upstream and downstream relationships
 
 ## Features
 
@@ -44,7 +61,7 @@ The Dependency View is accessible in two ways:
 
 The dependency graph displays:
 
-- **Nodes**: Represent tables, materialized views, and other database objects
+- **Nodes**: Represent tables, materialized views, and other database table objects
 - **Edges**: Represent dependency relationships (arrows show direction)
 - **Node Categories**: Different colors or styles for different table types
 - **Zoom and Pan**: Navigate large dependency graphs easily
@@ -67,24 +84,6 @@ Click on any node in the graph to open a detailed panel showing:
 - **Dependencies**: List of tables this table depends on
 - **Metadata Information**: Last modification time and other metadata
 
-### Automatic Dependency Detection
-
-The Dependency View automatically:
-
-- **Parses CREATE TABLE Queries**: Extracts dependencies from table definitions
-- **Handles Inner Tables**: Correctly identifies dependencies for materialized view inner tables
-- **Caches Results**: Stores dependency data for faster subsequent loads
-- **Updates on Refresh**: Refreshes when schema changes are detected
-
-## How Dependencies Are Detected
-
-Dependencies are extracted from:
-
-1. **CREATE TABLE Statements**: Parsed from `system.tables.create_table_query`
-2. **FROM Clauses**: Tables referenced in SELECT statements
-3. **JOIN Clauses**: Tables joined in queries
-4. **Subqueries**: Tables used in nested queries
-5. **Materialized Views**: Source tables for materialized views
 
 ## Use Cases
 
@@ -134,12 +133,14 @@ Dependencies are extracted from:
 
 ## Limitations
 
-- **System Tables**: Some system tables may not show dependencies correctly
-- **Kafka Tables**: Kafka engine tables may have limited dependency information
-- **External Tables**: URL and other external table engines may not show dependencies
-- **Complex Queries**: Very complex CREATE TABLE queries may not parse all dependencies
-- **Performance**: Large databases with many tables may take time to build the graph
-- **Real-time Updates**: Dependency graph reflects schema at the time of loading
+When using the Dependency View, consider the following limitations:
+
+- **System Tables**: Some system tables may not show dependencies correctly, as they have special structures and relationships
+- **Kafka Tables**: Kafka engine tables may have limited dependency information, as their dependencies are based on external Kafka topics rather than database objects
+- **External Tables**: URL and other external table engines may not show dependencies, as they reference external resources rather than database objects
+- **Complex Queries**: Very complex CREATE TABLE queries with nested expressions or advanced features may not parse all dependencies correctly
+- **Performance**: Large databases with many tables may take time to build the dependency graph, especially when analyzing complex relationships
+- **Real-time Updates**: Dependency graph reflects schema at the time of loading and does not automatically update when schema changes occur; refresh the view after making schema modifications
 
 ## Best Practices
 

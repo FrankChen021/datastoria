@@ -9,7 +9,7 @@ head:
 
 # Database View
 
-The Database View provides a comprehensive overview of a ClickHouse database, including statistics, table information, ongoing operations, and dependency visualization. It serves as a central hub for understanding database structure, performance, and health.
+The Database View provides a comprehensive overview of a ClickHouse database, including statistics, table information, and dependency visualization. It serves as a central hub for understanding database structure, performance, and health, enabling efficient database monitoring and management.
 
 ## Overview
 
@@ -17,20 +17,20 @@ The Database View combines multiple perspectives into a unified interface:
 
 - **Database Overview Tab**: Statistics, metrics, and table information
 - **Database Dependency Tab**: Visual graph of table dependencies within the database
-- **Real-time Metrics**: Live statistics about database size, table counts, and operations
-- **Table Management**: Quick access to table details and operations
+
+![Database View showing comprehensive database overview with statistics, table information, and dependency visualization](./img/database-tab.jpg)
 
 ## Accessing the Database View
 
-### From Schema Explorer
+To access the Database View in ClickHouse Console:
 
 1. **Navigate to Database**: Click on a database name in the Schema Explorer sidebar
 2. **Database Tab Opens**: The Database View opens automatically in a new tab
-3. **View Overview**: The Database Overview tab is displayed by default
+3. **View Overview**: The Database Overview tab is displayed by default, showing comprehensive database statistics and metrics
 
 ## Database Overview Tab
 
-The Database Overview tab provides comprehensive statistics and information about your database.
+The Database Overview tab provides comprehensive statistics and information about your ClickHouse database, enabling you to monitor database health, track performance metrics, and understand database structure at a glance.
 
 ### Database Metadata
 
@@ -132,72 +132,32 @@ Compare database size and statistics across cluster nodes:
 
 ## Database Dependency Tab
 
-The Database Dependency tab shows a visual graph of all table dependencies within the database.
+The Database Dependency tab shows a visual graph of all table dependencies within the database. This is a powerful tool for understanding the relationships between your tables, tracking data lineage, and identifying dependencies for materialized views and other database objects.
 
 ### Features
 
-- **Complete Dependency Graph**: All tables and their relationships
+- **Complete Dependency Graph**: All tables and their relationships, including:
+    - Distributed tables and their local tables
+    - Source and targets of Materialized Views
+    - Dictionary
+    - MySQL table engine and MySQL server
+    - Kafka table and Kafka server
 - **Interactive Navigation**: Click nodes to view table details
 - **Upstream/Downstream View**: See dependency directions
-- **Table Details Panel**: View CREATE TABLE statements and metadata
+- **Table Details Panel**: View table DDL statements and metadata
 
 For detailed information about the dependency view, see [Dependency View](./dependency-view.md).
 
-## Time Range Selection
-
-The Database Overview supports time range selection for metrics:
-
-- **Predefined Ranges**: Last 15 minutes, Last hour, Today, This week, etc.
-- **Custom Range**: Select specific start and end times
-- **Auto-refresh**: Automatically refresh data at intervals
-
-## Refresh Functionality
-
-### Manual Refresh
-
-- **Refresh Button**: Click the refresh icon to update all metrics
-- **Time Range Update**: Changing time range automatically refreshes data
-- **Real-time Updates**: Get latest statistics on demand
-
-### Auto-refresh
-
-- **Automatic Updates**: Enable auto-refresh for continuous monitoring
-- **Configurable Interval**: Set refresh interval as needed
-- **Background Updates**: Updates happen without interrupting your work
-
-## Use Cases
-
-### Database Health Monitoring
-
-- **Size Monitoring**: Track database growth over time
-- **Operation Monitoring**: Monitor ongoing merges and mutations
-- **Performance Tracking**: Identify tables with high activity
-
-### Capacity Planning
-
-- **Size Analysis**: Understand database size distribution
-- **Growth Trends**: Track size changes over time
-- **Resource Planning**: Plan storage and compute resources
-
-### Table Management
-
-- **Table Discovery**: Find and explore tables in the database
-- **Size Optimization**: Identify large tables for optimization
-- **Maintenance Planning**: Plan maintenance based on table statistics
-
-### Cluster Management
-
-- **Node Comparison**: Compare database size across cluster nodes
-- **Balance Analysis**: Identify size imbalances
-- **Cluster Health**: Monitor cluster-wide database metrics
 
 ## Limitations
 
-- **System Table Access**: Requires read access to ClickHouse system tables
-- **Data Retention**: Metrics depend on ClickHouse's system tables retention
-- **Performance Impact**: Querying large databases may be slow
-- **Real-time Accuracy**: Some metrics may have slight delays
-- **Version Compatibility**: Some features may not be available in older ClickHouse versions
+When using the Database View, be aware of the following limitations:
+
+- **System Table Access**: Requires read access to ClickHouse system tables (`system.databases`, `system.tables`, `system.parts`, etc.)
+- **Data Retention**: Metrics depend on ClickHouse's system tables retention policies and may not show historical data beyond the retention period
+- **Performance Impact**: Querying large databases with many tables may be slow, especially when loading comprehensive statistics
+- **Real-time Accuracy**: Some metrics may have slight delays as they are based on system table snapshots rather than real-time data
+- **Version Compatibility**: Some features may not be available in older ClickHouse versions, as they depend on specific system table columns and functionality
 
 ## Best Practices
 
