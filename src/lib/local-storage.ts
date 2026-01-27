@@ -1,6 +1,6 @@
 import LZString from "lz-string";
 
-const COMPRESSION_MARKER = '_$_C_^_';
+const COMPRESSION_MARKER = "_$_C_^_";
 class LocalStorage {
   private readonly key: string;
   private readonly compressionEnabled: boolean;
@@ -242,4 +242,3 @@ class LocalStorage {
 const appLocalStorage = new LocalStorage("datastoria");
 
 export { appLocalStorage, LocalStorage };
-

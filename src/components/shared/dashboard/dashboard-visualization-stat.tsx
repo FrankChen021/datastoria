@@ -591,14 +591,14 @@ export const StatVisualization = forwardRef<StatVisualizationRef, StatVisualizat
             if (values.length > 0) {
               const val = values[0];
               const key = keys[0];
-              
+
               // Check if the column type is DateTime/Date
               const columnMeta = meta.find((m) => m.name === key);
               const isDateTimeType =
                 columnMeta?.type &&
                 (columnMeta.type.toLowerCase().includes("datetime") ||
                   columnMeta.type.toLowerCase().includes("date"));
-              
+
               if (typeof val === "number") {
                 return { value: val, minimap: [] };
               } else if (typeof val === "string") {

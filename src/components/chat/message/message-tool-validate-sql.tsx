@@ -1,7 +1,7 @@
 import type { AppUIMessage } from "@/lib/ai/common-types";
 import {
   type ValidateSqlToolInput,
-  type ValidateSqlToolOutput
+  type ValidateSqlToolOutput,
 } from "@/lib/ai/tools/client/client-tools";
 import { memo } from "react";
 import type { ToolPart } from "../chat-message-types";
@@ -22,11 +22,7 @@ export const MessageToolValidateSql = memo(function MessageToolValidateSql({
   const state = toolPart.state;
 
   return (
-    <CollapsiblePart
-      toolName={"Validate SQL"}
-      state={state}
-      success={output?.success}
-    >
+    <CollapsiblePart toolName={"Validate SQL"} state={state} success={output?.success}>
       {input?.sql && (
         <>
           <div className="text-[10px] text-muted-foreground">input:</div>

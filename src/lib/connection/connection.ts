@@ -222,7 +222,7 @@ export class Connection {
     if (!queryParameters["default_format"]) {
       queryParameters["default_format"] = "JSONCompact";
     }
-    
+
     // Can't add this header automatically
     // Some clusters are deployed after load balancers which may have enable CORS already
     // queryParameters["add_http_cors_header"] = "1";

@@ -128,11 +128,12 @@ export class ChatStorageLocal implements ChatStorage {
     hasPrunedMessages = false
   ): Promise<void> {
     // Extract chatId from key if it's a message save
-    const chatIdFromKey = key && key.startsWith("messages:") ? key.replace("messages:", "") : undefined;
+    const chatIdFromKey =
+      key && key.startsWith("messages:") ? key.replace("messages:", "") : undefined;
     const currentChatIdToExclude = currentChatId || chatIdFromKey;
 
     // Loop until save succeeds or no more chats to remove
-    for (; ;) {
+    for (;;) {
       try {
         // Try to save
         saveFn();
@@ -153,8 +154,11 @@ export class ChatStorageLocal implements ChatStorage {
           if (remainingChats.length === 0 && currentChatIdToExclude && !hasPrunedMessages) {
             // Only one chat left (the current one), prune old messages
             // Loop until no more messages can be removed
-            for (; ;) {
-              const removedMessageCount = await this.cleanupOldMessages(currentChatIdToExclude, 100);
+            for (;;) {
+              const removedMessageCount = await this.cleanupOldMessages(
+                currentChatIdToExclude,
+                100
+              );
               if (removedMessageCount === 0) {
                 // No more messages to remove, break and retry save
                 break;
@@ -175,8 +179,11 @@ export class ChatStorageLocal implements ChatStorage {
             // If we have the current chat and haven't pruned yet, try pruning its messages as last resort
             if (currentChatIdToExclude && !hasPrunedMessages) {
               // Loop until no more messages can be removed
-              for (; ;) {
-                const removedMessageCount = await this.cleanupOldMessages(currentChatIdToExclude, 100);
+              for (;;) {
+                const removedMessageCount = await this.cleanupOldMessages(
+                  currentChatIdToExclude,
+                  100
+                );
                 if (removedMessageCount === 0) {
                   // No more messages to remove, break and retry save
                   break;
