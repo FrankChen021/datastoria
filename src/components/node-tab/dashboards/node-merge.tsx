@@ -183,7 +183,7 @@ ORDER BY elapsed DESC
     datasource: {
       sql: `SELECT sum(ProfileEvent_Merge) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}`,
     },
@@ -205,7 +205,7 @@ WHERE event_date >= toDate({from:String})
     datasource: {
       sql: `SELECT sum(ProfileEvent_MergeSourceParts) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}`,
     },
@@ -227,7 +227,7 @@ WHERE event_date >= toDate({from:String})
     datasource: {
       sql: `SELECT sum(ProfileEvent_MutationTotalParts) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}`,
     },

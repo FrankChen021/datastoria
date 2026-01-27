@@ -81,7 +81,7 @@ count()
 FROM system.part_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND database = '${escapedDatabase}'
@@ -104,7 +104,7 @@ WITH FILL STEP {rounding:UInt32}
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
                     event_date >= toDate({from:String}) 
-                    AND event_date >= toDate({to:String})
+                    AND event_date <= toDate({to:String})
                     AND event_time >= {from:String}
                     AND event_time < {to:String}
                     AND event_type = 'NewPart'
@@ -140,7 +140,7 @@ WITH FILL STEP {rounding:UInt32}
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
                     event_date >= toDate({from:String}) 
-                    AND event_date >= toDate({to:String})
+                    AND event_date <= toDate({to:String})
                     AND event_time >= {from:String}
                     AND event_time < {to:String}
                     AND event_type = 'NewPart'
@@ -191,7 +191,7 @@ count()
 FROM system.part_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND database = '${escapedDatabase}'
@@ -214,7 +214,7 @@ WITH FILL STEP {rounding:UInt32}
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
                     event_date >= toDate({from:String}) 
-                    AND event_date >= toDate({to:String})
+                    AND event_date <= toDate({to:String})
                     AND event_time >= {from:String}
                     AND event_time < {to:String}
                     AND event_type = 'DownloadPart'
@@ -247,7 +247,7 @@ WITH FILL STEP {rounding:UInt32}
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
                     event_date >= toDate({from:String}) 
-                    AND event_date >= toDate({to:String})
+                    AND event_date <= toDate({to:String})
                     AND event_time >= {from:String}
                     AND event_time < {to:String}
                     AND event_type = 'DownloadPart'
@@ -304,7 +304,7 @@ count()
 FROM system.part_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND database = '${escapedDatabase}'
@@ -327,7 +327,7 @@ WITH FILL STEP {rounding:UInt32}
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
                     event_date >= toDate({from:String}) 
-                    AND event_date >= toDate({to:String})
+                    AND event_date <= toDate({to:String})
                     AND event_time >= {from:String}
                     AND event_time < {to:String}
                     AND event_type = 'MergeParts'
@@ -361,7 +361,7 @@ WITH FILL STEP {rounding:UInt32}
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
                     event_date >= toDate({from:String}) 
-                    AND event_date >= toDate({to:String})
+                    AND event_date <= toDate({to:String})
                     AND event_time >= {from:String}
                     AND event_time < {to:String}
                     AND event_type = 'MergeParts'
@@ -414,7 +414,7 @@ count()
 FROM system.part_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND database = '${escapedDatabase}'
@@ -437,7 +437,7 @@ WITH FILL STEP {rounding:UInt32}
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
                     event_date >= toDate({from:String}) 
-                    AND event_date >= toDate({to:String})
+                    AND event_date <= toDate({to:String})
                     AND event_time >= {from:String}
                     AND event_time < {to:String}
                     AND event_type = 'MutatePart'
@@ -471,7 +471,7 @@ WITH FILL STEP {rounding:UInt32}
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
                     event_date >= toDate({from:String}) 
-                    AND event_date >= toDate({to:String})
+                    AND event_date <= toDate({to:String})
                     AND event_time >= {from:String}
                     AND event_time < {to:String}
                     AND event_type = 'MutatePart'
@@ -525,7 +525,7 @@ count()
 FROM system.part_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND database = '${escapedDatabase}'
@@ -547,7 +547,7 @@ WITH FILL STEP {rounding:UInt32}
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
                     event_date >= toDate({from:String}) 
-                    AND event_date >= toDate({to:String})
+                    AND event_date <= toDate({to:String})
                     AND event_time >= {from:String}
                     AND event_time < {to:String}
                     AND event_type = 'RemovePart'
@@ -581,7 +581,7 @@ WITH FILL STEP {rounding:UInt32}
                 SELECT * FROM system.part_log WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
                 AND 
                     event_date >= toDate({from:String}) 
-                    AND event_date >= toDate({to:String})
+                    AND event_date <= toDate({to:String})
                     AND event_time >= {from:String}
                     AND event_time < {to:String}
                     AND event_type = 'RemovePart'

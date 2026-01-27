@@ -149,7 +149,7 @@ SELECT
     count() query_count
 FROM system.query_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
   AND type <> 'QueryStart'
@@ -217,7 +217,7 @@ SELECT
 FROM system.query_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND has(databases, '${escapeSqlString(database)}')
@@ -246,7 +246,7 @@ SELECT
 FROM system.query_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND has(databases, '${escapeSqlString(database)}')
@@ -278,7 +278,7 @@ SELECT
 FROM system.query_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND has(databases, '${escapeSqlString(database)}')
@@ -306,7 +306,7 @@ SELECT
 FROM system.query_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND has(databases, '${escapeSqlString(database)}')
@@ -334,7 +334,7 @@ SELECT
 FROM system.query_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND has(databases, '${escapeSqlString(database)}')
@@ -362,7 +362,7 @@ SELECT
 FROM system.query_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND has(databases, '${escapeSqlString(database)}')
@@ -390,7 +390,7 @@ SELECT
 FROM system.query_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND has(databases, '${escapeSqlString(database)}')
@@ -418,7 +418,7 @@ SELECT
 FROM system.query_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND has(databases, '${escapeSqlString(database)}')
@@ -449,7 +449,7 @@ SELECT
 FROM system.query_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND has(databases, '${escapeSqlString(database)}')
@@ -496,7 +496,7 @@ ProfileEvents['OSCPUVirtualTimeMicroseconds'] as OSCPUVirtualTimeMicroseconds,
 FROM system.query_log
 WHERE 
     event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND has(databases, '${escapeSqlString(database)}')

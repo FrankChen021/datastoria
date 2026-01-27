@@ -84,7 +84,7 @@ SELECT DISTINCT view_name
 FROM {clusterAllReplicas:system.query_views_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
 ORDER BY view_name
@@ -104,7 +104,7 @@ SELECT DISTINCT exception_code
 FROM {clusterAllReplicas:system.query_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
 ORDER BY exception_code
@@ -137,7 +137,7 @@ FROM {clusterAllReplicas:system.query_views_log}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t, status
@@ -169,7 +169,7 @@ FROM {clusterAllReplicas:system.query_views_log}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t, view_name
@@ -201,7 +201,7 @@ FROM {clusterAllReplicas:system.query_views_log}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t, view_name
@@ -233,7 +233,7 @@ FROM {clusterAllReplicas:system.query_views_log}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t, view_name
@@ -265,7 +265,7 @@ FROM {clusterAllReplicas:system.query_views_log}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t, view_name
@@ -297,7 +297,7 @@ FROM {clusterAllReplicas:system.query_views_log}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t, view_name
@@ -331,7 +331,7 @@ SELECT * FROM {clusterAllReplicas:system.query_views_log}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
 AND event_time < {to:String}
 ORDER BY event_time DESC

@@ -224,7 +224,7 @@ FROM (
   FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
   GROUP BY event_time, server)
@@ -262,7 +262,7 @@ FROM (
   FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
   GROUP BY event_time, server)
@@ -300,7 +300,7 @@ FROM (
   FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
   GROUP BY event_time, server)
@@ -343,7 +343,7 @@ FROM (
   FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
   GROUP BY event_time, server)
@@ -386,7 +386,7 @@ FROM (
   FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
   GROUP BY event_time, server)
