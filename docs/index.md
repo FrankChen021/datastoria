@@ -64,4 +64,4 @@ features:
 
 ---
 
-<Video src="./public/demo.gif" alt="DataStoria demo showing AI-powered natural language queries, intelligent visualizations, and cluster management" />
+<Video src="/demo.webm" alt="DataStoria demo showing AI-powered natural language queries, intelligent visualizations, and cluster management" />

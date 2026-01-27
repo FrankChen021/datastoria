@@ -19,6 +19,8 @@ The Processes Introspection tool provides real-time visibility into all currentl
 
 The Processes Introspection tool displays a single table showing all active queries from `system.processes`. Each row represents a currently running query with detailed information about its execution state.
 
+![system.processes](./img/system-processes.jpg)
+
 ## Features
 
 ### Real-Time Process Monitoring
