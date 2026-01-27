@@ -586,15 +586,34 @@ export const StatVisualization = forwardRef<StatVisualizationRef, StatVisualizat
           if (rows.length > 0) {
             // Get first value from first row (assuming scalar query result)
             const firstRow = rows[0];
+            const keys = Object.keys(firstRow);
             const values = Object.values(firstRow);
             if (values.length > 0) {
               const val = values[0];
+              const key = keys[0];
+              
+              // Check if the column type is DateTime/Date
+              const columnMeta = meta.find((m) => m.name === key);
+              const isDateTimeType =
+                columnMeta?.type &&
+                (columnMeta.type.toLowerCase().includes("datetime") ||
+                  columnMeta.type.toLowerCase().includes("date"));
+              
               if (typeof val === "number") {
                 return { value: val, minimap: [] };
               } else if (typeof val === "string") {
+                // If it's a DateTime type, preserve the string
+                if (isDateTimeType) {
+                  return { value: val, minimap: [] };
+                }
                 // Try to parse as number, but preserve string if it's not a valid number
                 const num = parseFloat(val);
-                return { value: isNaN(num) ? val : num, minimap: [] };
+                // Only convert to number if the entire string is a valid number
+                // (parseFloat("2026-01-27 20:03:09") returns 2026, but we want to preserve the string)
+                if (isNaN(num) || num.toString() !== val.trim()) {
+                  return { value: val, minimap: [] };
+                }
+                return { value: num, minimap: [] };
               } else {
                 // For other types, convert to string
                 return { value: String(val), minimap: [] };
