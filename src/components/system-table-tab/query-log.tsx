@@ -16,7 +16,7 @@ import { QueryIdLink } from "@/components/shared/query-id-link";
 import type { JSONCompactFormatResponse } from "@/lib/connection/connection";
 import { qualifyTableNames } from "@/lib/query-utils";
 import { AlertCircle, Sparkle, Wand2 } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { memo, useCallback, useMemo } from "react";
 import { useChatPanel } from "../chat/view/use-chat-panel";
 import { Button } from "../ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "../ui/hover-card";
@@ -26,7 +26,7 @@ interface QueryLogProps {
   table: string;
 }
 
-const QueryLog = ({ database: _database, table: _table }: QueryLogProps) => {
+export const QueryLog = memo(({ database: _database, table: _table }: QueryLogProps) => {
   const { connection } = useConnection();
 
   const DISTRIBUTION_QUERY = useMemo(
@@ -83,7 +83,7 @@ ORDER BY event_time DESC
         onPreviousFilters: true,
         datasource: {
           type: "sql",
-          sql: `select distinct host_name from system.clusters WHERE cluster = {cluster} order by FQDN()`,
+          sql: `select distinct host_name from system.clusters WHERE cluster = '{cluster}' order by FQDN()`,
         },
 
         defaultPattern: {
@@ -453,6 +453,4 @@ ${row.exception as string}
       chartSelectionFilterName="type"
     />
   );
-};
-
-export default QueryLog;
+});

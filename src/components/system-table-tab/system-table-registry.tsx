@@ -1,14 +1,14 @@
-import Dashboards from "./dashboards";
-import DistributedDDLQueue from "./distributed-ddl-queue";
-import PartLog from "./part-log";
-import QueryLog from "./query-log";
+import { Dashboards } from "./dashboards";
+import { DistributedDDLQueue } from "./distributed-ddl-queue";
+import { PartLog } from "./part-log";
+import { Processes } from "./processes";
+import { QueryLog } from "./query-log";
 import { QueryViewsLog } from "./query-views-log";
 
 /**
  * Type definition for a system table tab entry
  */
 export type SystemTableTabEntry = {
-  title: string;
   component: React.ComponentType<{ database: string; table: string }>;
 };
 
@@ -18,11 +18,12 @@ export type SystemTableTabEntry = {
  * Value: tab entry
  */
 export const SYSTEM_TABLE_REGISTRY = new Map<string, SystemTableTabEntry>([
-  ["dashboards", { title: "System Dashboard", component: Dashboards }],
-  ["distributed_ddl_queue", { title: "DDL Queue", component: DistributedDDLQueue }],
-  ["query_log", { title: "Query Log", component: QueryLog }],
-  ["query_views_log", { title: "Query Views Log", component: QueryViewsLog }],
-  ["part_log", { title: "Part Log", component: PartLog }],
+  ["dashboards", { component: Dashboards }],
+  ["distributed_ddl_queue", { component: DistributedDDLQueue }],
+  ["query_log", { component: QueryLog }],
+  ["query_views_log", { component: QueryViewsLog }],
+  ["part_log", { component: PartLog }],
+  ["processes", { component: Processes }],
 ]);
 
 function normalizeSystemTableName(tableName: string): string {

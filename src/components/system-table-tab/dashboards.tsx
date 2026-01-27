@@ -32,7 +32,7 @@ interface DashboardsProps {
   table: string;
 }
 
-const Dashboards = ({ database, table }: DashboardsProps) => {
+export const Dashboards = memo(({ database, table }: DashboardsProps) => {
   const { connection } = useConnection();
   const [dashboard, setDashboard] = useState<Dashboard>({
     version: 3,
@@ -382,6 +382,4 @@ const Dashboards = ({ database, table }: DashboardsProps) => {
       </DashboardPage>
     </div>
   );
-};
-
-export default memo(Dashboards);
+});

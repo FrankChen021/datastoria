@@ -11,14 +11,14 @@ import type {
 } from "@/components/shared/dashboard/dashboard-model";
 import DashboardPage from "@/components/shared/dashboard/dashboard-page";
 import { QueryIdLink } from "@/components/shared/query-id-link";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
 interface PartLogProps {
   database: string;
   table: string;
 }
 
-const PartLog = ({ database: _database, table: _table }: PartLogProps) => {
+export const PartLog = memo(({ database: _database, table: _table }: PartLogProps) => {
   const { connection } = useConnection();
 
   const DISTRIBUTION_QUERY = useMemo(
@@ -75,7 +75,7 @@ ORDER BY event_time DESC
         onPreviousFilters: true,
         datasource: {
           type: "sql",
-          sql: `select distinct host_name from system.clusters WHERE cluster = {cluster} order by FQDN()`,
+          sql: `select distinct host_name from system.clusters WHERE cluster = '{cluster}' order by FQDN()`,
         },
 
         defaultPattern: {
@@ -284,6 +284,4 @@ ORDER BY event_time DESC
       chartSelectionFilterName="event_type"
     />
   );
-};
-
-export default PartLog;
+});

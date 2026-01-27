@@ -623,7 +623,7 @@ ORDER BY t
   ],
 };
 
-const DistributedDDLQueue = () => {
+export const DistributedDDLQueue = memo(() => {
   const { connection } = useConnection();
   const filterSpecs = useMemo<FilterSpec[]>(() => {
     return [
@@ -637,7 +637,7 @@ const DistributedDDLQueue = () => {
           sql: `SELECT DISTINCT 
           host 
 FROM system.ddl_distributed_queue 
-WHERE cluster = {cluster}
+WHERE cluster = '{cluster}'
 ORDER BY host`,
         },
       } as SelectorFilterSpec,
@@ -652,6 +652,4 @@ ORDER BY host`,
       <DDLDistributedQueueLogView />
     </DashboardPage>
   );
-};
-
-export default memo(DistributedDDLQueue);
+});

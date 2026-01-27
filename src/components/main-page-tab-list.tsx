@@ -569,8 +569,8 @@ export const MainPageTabList = memo(function MainPageTabList({
         } else if (tab.type === "table") {
           return { id: tab.id, label: `${tab.database}.${tab.table}`, icon: TableIcon };
         } else if (tab.type === "system-table") {
-          const entry = SYSTEM_TABLE_REGISTRY.get(tab.tableName);
-          return { id: tab.id, label: entry?.title || tab.tableName, icon: Telescope };
+          const tabTitle = `system.${tab.tableName}`;
+          return { id: tab.id, label: tabTitle, icon: Telescope };
         }
         return null;
       })
