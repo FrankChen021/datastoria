@@ -51,7 +51,7 @@ SELECT
   sum(ProfileEvent_ReplicatedPartFetches)
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 `,

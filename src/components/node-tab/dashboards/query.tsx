@@ -85,7 +85,7 @@ export const queryDashboard: StatDescriptor[] = [
     datasource: {
       sql: `SELECT sum(ProfileEvent_SelectQuery) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}`,
     },
@@ -107,7 +107,7 @@ WHERE event_date >= toDate({from:String})
     datasource: {
       sql: `SELECT sum(ProfileEvent_FailedSelectQuery) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}`,
     },
@@ -129,7 +129,7 @@ WHERE event_date >= toDate({from:String})
     datasource: {
       sql: `SELECT sum(ProfileEvent_InsertQuery) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}`,
     },
@@ -151,7 +151,7 @@ WHERE event_date >= toDate({from:String})
     datasource: {
       sql: `SELECT sum(ProfileEvent_FailedInsertQuery) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}`,
     },
@@ -172,7 +172,7 @@ WHERE event_date >= toDate({from:String})
     datasource: {
       sql: `SELECT sum(ProfileEvent_InsertedRows) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}`,
     },
@@ -194,7 +194,7 @@ WHERE event_date >= toDate({from:String})
     datasource: {
       sql: `SELECT sum(ProfileEvent_InsertedBytes) FROM system.metric_log 
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}`,
     },

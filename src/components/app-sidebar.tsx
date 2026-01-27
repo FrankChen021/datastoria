@@ -170,7 +170,7 @@ function DashboardSidebarMenuItem() {
     TabManager.openTab({
       id: `cluster:${connection!.cluster}`,
       type: "cluster",
-      cluster: "default_cluster",
+      cluster: connection!.cluster!,
     });
   };
 

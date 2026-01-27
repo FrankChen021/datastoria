@@ -22,7 +22,7 @@ SELECT
   avg(ProfileEvent_Query) AS query_qps
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -52,7 +52,7 @@ SELECT
   avg(ProfileEvent_OSCPUVirtualTimeMicroseconds) / 1000000 AS cpu_cores
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -82,7 +82,7 @@ SELECT
   avg(CurrentMetric_Query) AS queries_running
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -112,7 +112,7 @@ SELECT
   avg(CurrentMetric_Merge) AS merges_running
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -147,7 +147,7 @@ SELECT
   avg(ProfileEvent_SelectedBytes) AS selected_bytes
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -177,7 +177,7 @@ SELECT
   avg(ProfileEvent_OSIOWaitMicroseconds) / 1000000 AS io_wait
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -207,7 +207,7 @@ SELECT
   avg(ProfileEvent_OSCPUWaitMicroseconds) / 1000000 AS cpu_wait
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -237,7 +237,7 @@ SELECT
   avg(value) AS OSUserTimeNormalized
 FROM system.asynchronous_metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
   AND metric = 'OSUserTimeNormalized'
@@ -268,7 +268,7 @@ SELECT
   avg(value) AS OSSystemTimeNormalized
 FROM system.asynchronous_metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
   AND metric = 'OSSystemTimeNormalized'
@@ -304,7 +304,7 @@ SELECT
   avg(ProfileEvent_OSReadBytes) AS OSReadBytes
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -334,7 +334,7 @@ SELECT
   avg(ProfileEvent_OSReadChars) AS OSReadChars
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -369,7 +369,7 @@ SELECT
   avg(CurrentMetric_MemoryTracking) AS memory_tracking_bytes
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -404,7 +404,7 @@ SELECT
   arraySum([COLUMNS('CurrentMetric_.*CacheBytes') EXCEPT 'CurrentMetric_FilesystemCache.*' APPLY avg]) AS cache_bytes
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -434,7 +434,7 @@ SELECT
   avg(value) AS LoadAverage15
 FROM system.asynchronous_metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
   AND metric = 'LoadAverage15'
@@ -465,7 +465,7 @@ SELECT
   avg(ProfileEvent_SelectedRows) AS selected_rows_per_second
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -495,7 +495,7 @@ SELECT
   avg(ProfileEvent_InsertedRows) AS inserted_rows_per_second
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -525,7 +525,7 @@ SELECT
   avg(ProfileEvent_MergeSourceParts) AS TotalPartsOfMergeTreeTables
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t
@@ -555,7 +555,7 @@ SELECT
   max(value) AS MaxPartCountForPartition
 FROM system.asynchronous_metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
   AND metric = 'MaxPartCountForPartition'
@@ -588,7 +588,7 @@ SELECT
   max(CurrentMetric_InterserverConnection) AS Interserver_Connections
 FROM system.metric_log
 WHERE event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t

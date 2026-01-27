@@ -31,7 +31,7 @@ FROM {clusterAllReplicas:system.part_log}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t, event_type
@@ -46,7 +46,7 @@ SELECT ${connection!.metadata.part_log_table_has_node_name_column ? "" : "FQDN()
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
 AND event_time < {to:String}
 ORDER BY event_time DESC
@@ -115,7 +115,7 @@ ORDER BY event_time DESC
     FROM {clusterAllReplicas:system.part_log}
     WHERE ({filterExpression:String})
         AND event_date >= toDate({from:String}) 
-        AND event_date >= toDate({to:String})
+        AND event_date <= toDate({to:String})
         AND event_time >= {from:String}
         AND event_time < {to:String}
         AND database <> ''
@@ -135,7 +135,7 @@ ORDER BY event_time DESC
     FROM {clusterAllReplicas:system.part_log}
     WHERE ({filterExpression:String})
         AND event_date >= toDate({from:String}) 
-        AND event_date >= toDate({to:String})
+        AND event_date <= toDate({to:String})
         AND event_time >= {from:String}
         AND event_time < {to:String}`,
         },
@@ -152,7 +152,7 @@ ORDER BY event_time DESC
     FROM {clusterAllReplicas:system.part_log}
     WHERE ({filterExpression:String})
         AND event_date >= toDate({from:String})
-        AND event_date >= toDate({to:String})
+        AND event_date <= toDate({to:String})
         AND event_time >= {from:String}
         AND event_time < {to:String}
     ORDER BY part_type
@@ -171,7 +171,7 @@ ORDER BY event_time DESC
     FROM {clusterAllReplicas:system.part_log}
     WHERE ({filterExpression:String})
         AND event_date >= toDate({from:String}) 
-        AND event_date >= toDate({to:String})
+        AND event_date <= toDate({to:String})
         AND event_time >= {from:String}
         AND event_time < {to:String}
     ORDER BY error

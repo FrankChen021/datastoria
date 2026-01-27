@@ -39,7 +39,7 @@ FROM {clusterAllReplicas:system.query_log}
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
 GROUP BY t, type
@@ -54,7 +54,7 @@ SELECT ${connection!.metadata.query_log_table_has_hostname_column ? "" : "FQDN()
 WHERE 
   {filterExpression:String}
   AND event_date >= toDate({from:String}) 
-  AND event_date >= toDate({to:String})
+  AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
 AND event_time < {to:String}
 ORDER BY event_time DESC
@@ -125,7 +125,7 @@ ORDER BY event_time DESC
 FROM {clusterAllReplicas:system.query_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND query_kind <> ''
@@ -151,7 +151,7 @@ SELECT DISTINCT databases
 FROM {clusterAllReplicas:system.query_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
 LIMIT 100)
@@ -178,7 +178,7 @@ SELECT DISTINCT tables
 FROM {clusterAllReplicas:system.query_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
 LIMIT 100)
@@ -198,7 +198,7 @@ SELECT DISTINCT exception_code
 FROM {clusterAllReplicas:system.query_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
 ORDER BY exception_code
@@ -219,7 +219,7 @@ SELECT DISTINCT initial_user
 FROM {clusterAllReplicas:system.query_log}
 WHERE ({filterExpression:String})
     AND event_date >= toDate({from:String}) 
-    AND event_date >= toDate({to:String})
+    AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
     AND initial_user <> ''
