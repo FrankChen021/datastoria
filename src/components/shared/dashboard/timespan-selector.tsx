@@ -441,8 +441,8 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
         isSelectorOpen: false,
         userTimeSpans: [
           // We only store 5 user defined time spans
-          ...(prev.userTimeSpans.length >= 5 ? prev.userTimeSpans.slice(1) : prev.userTimeSpans),
           newTimeSpan,
+          ...(prev.userTimeSpans.length >= 5 ? prev.userTimeSpans.slice(0, -1) : prev.userTimeSpans),
         ],
       };
     });
@@ -502,7 +502,7 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
               </Button>
             </PopoverTrigger>
             <PopoverContent
-              className="w-auto max-h-[180vh] overflow-y-auto bg-popover p-2 rounded-none"
+              className="w-auto max-h-[180vh] overflow-y-auto bg-popover p-2 rounded-none shadow-lg"
               align="end"
               side="bottom"
               sideOffset={0}
@@ -521,13 +521,13 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                           this.setState({
                             startDateInput: date?.from
                               ? DateTimeExtension.formatDateTime(
-                                  date.from,
-                                  "yyyy-MM-dd HH:mm:ss"
-                                ) || ""
+                                date.from,
+                                "yyyy-MM-dd HH:mm:ss"
+                              ) || ""
                               : "",
                             endDateInput: date?.to
                               ? DateTimeExtension.formatDateTime(date.to, "yyyy-MM-dd HH:mm:ss") ||
-                                ""
+                              ""
                               : "",
                             inputDateRange: date,
                             error: "",
@@ -545,7 +545,7 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                       />
                     )}
                   </div>
-                  <div className="flex flex-col w-[350px] gap-2">
+                  <div className="flex flex-col w-[280px] gap-2">
                     <Input
                       onClick={() => {
                         if (!isCalendarOpen) {
@@ -554,8 +554,8 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                       }}
                       value={startDateInput}
                       onChange={this.onStartDateInputChange}
-                      placeholder="Start time in yyyy-MM-dd HH:mm:ss format"
-                      className="rounded-none"
+                      placeholder="Start (yyyy-MM-dd HH:mm:ss)"
+                      className="rounded-none text-sm"
                     />
                     <Input
                       onClick={() => {
@@ -563,8 +563,8 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                       }}
                       value={endDateInput}
                       onChange={this.onEndDateInputChange}
-                      placeholder="End time in yyyy-MM-dd HH:mm:ss format"
-                      className="rounded-none"
+                      placeholder="End (yyyy-MM-dd HH:mm:ss)"
+                      className="rounded-none text-sm"
                     />
                     <Button
                       onClick={this.onApplyUserInputClicked}
@@ -574,8 +574,8 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                       Apply
                     </Button>
                     {error && (
-                      <Alert variant="destructive" className="rounded-none">
-                        <AlertDescription className="break-words whitespace-normal overflow-wrap-anywhere w-full max-w-full">
+                      <Alert variant="destructive" className="rounded-none py-0 px-1 border-0">
+                        <AlertDescription className="break-words whitespace-normal overflow-wrap-anywhere w-full max-w-full text-sm">
                           {error}
                         </AlertDescription>
                       </Alert>
@@ -586,7 +586,7 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                         key={timeSpan.label}
                         variant="outline"
                         className={cn(
-                          "col-span-2 w-full justify-center rounded-none",
+                          "w-full rounded-none text-xs truncate px-0 gap-0",
                           selectedTimeSpan.label === timeSpan.label ? "bg-muted text-primary" : ""
                         )}
                         onClick={() => {
@@ -596,9 +596,9 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                             error: "",
                           });
                         }}
+                        title={timeSpan.label}
                       >
-                        {selectedTimeSpan.label === timeSpan.label && <Check className="h-4 w-4" />}
-                        {timeSpan.label}
+                        <span className="truncate">{timeSpan.label}</span>
                       </Button>
                     ))}
                   </div>
