@@ -999,6 +999,20 @@ export const TimeseriesVisualization = React.forwardRef<
 
       setLegendData({ dimensionNames, legends: newLegends });
 
+      // Determine Y-axis format: prioritize fieldOptions format over inferred format
+      // (same pattern as series formatters)
+      let yAxisFormat: FormatName = "short_number";
+      if (valueColumns.length > 0) {
+        const firstMetricCol = valueColumns[0];
+        const fieldOption =
+          descriptor.fieldOptions instanceof Map
+            ? descriptor.fieldOptions.get(firstMetricCol)
+            : descriptor.fieldOptions?.[firstMetricCol];
+        yAxisFormat =
+          (fieldOption?.format as FormatName) || inferFormatFromMetricName(firstMetricCol);
+      }
+      const yAxisFormatter = FormatterInstance.getFormatter(yAxisFormat);
+
       // Build y-axis with proper formatting
       const yAxis: echarts.EChartsOption["yAxis"] = [
         {
@@ -1009,14 +1023,8 @@ export const TimeseriesVisualization = React.forwardRef<
           axisTick: { show: false },
           axisLabel: {
             formatter: (value: number) => {
-              // Use first metric's format for y-axis labels (same as old implementation)
-              if (valueColumns.length > 0) {
-                const format = inferFormatFromMetricName(valueColumns[0]);
-                const formatter = FormatterInstance.getFormatter(format);
-                const formatted = formatter(value);
-                return typeof formatted === "string" ? formatted : String(formatted);
-              }
-              return String(value);
+              const formatted = yAxisFormatter(value);
+              return typeof formatted === "string" ? formatted : String(formatted);
             },
           },
         },
@@ -1225,32 +1233,39 @@ export const TimeseriesVisualization = React.forwardRef<
         // Use requestAnimationFrame to ensure ECharts has finished processing
         requestAnimationFrame(() => {
           if (!chartInstanceRef.current) return;
-          
+
           // Get colors from ECharts processed option
           const seriesColorMap = new Map<string, string>();
           try {
             const processedOption = chartInstanceRef.current.getOption();
             const processedSeries = (processedOption?.series as echarts.SeriesOption[]) || [];
-            
+
             // ECharts default color palette (used when no explicit color is set)
             const defaultColors = [
-              '#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de',
-              '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'
+              "#5470c6",
+              "#91cc75",
+              "#fac858",
+              "#ee6666",
+              "#73c0de",
+              "#3ba272",
+              "#fc8452",
+              "#9a60b4",
+              "#ea7ccc",
             ];
-            
+
             processedSeries.forEach((s, index) => {
               if (s.name) {
                 const seriesName = s.name as string;
                 let color: string | undefined;
-                
+
                 // Try to get color from itemStyle (for bar charts)
-                const itemStyle = (s as { itemStyle?: { color?: string | { color?: string } } }).itemStyle;
+                const itemStyle = (s as { itemStyle?: { color?: string | { color?: string } } })
+                  .itemStyle;
                 if (itemStyle?.color) {
-                  color = typeof itemStyle.color === 'string' 
-                    ? itemStyle.color 
-                    : itemStyle.color.color;
+                  color =
+                    typeof itemStyle.color === "string" ? itemStyle.color : itemStyle.color.color;
                 }
-                
+
                 // Try to get color from lineStyle (for line charts)
                 if (!color) {
                   const lineStyle = (s as { lineStyle?: { color?: string } }).lineStyle;
@@ -1258,19 +1273,19 @@ export const TimeseriesVisualization = React.forwardRef<
                     color = lineStyle.color;
                   }
                 }
-                
+
                 // If no explicit color, use ECharts default palette based on series index
                 if (!color) {
                   color = defaultColors[index % defaultColors.length];
                 }
-                
+
                 if (color) {
                   seriesColorMap.set(seriesName, color);
                 }
               }
             });
           } catch (error) {
-            console.warn('Failed to get series colors from ECharts:', error);
+            console.warn("Failed to get series colors from ECharts:", error);
           }
 
           // Update legend colors with actual ECharts colors
