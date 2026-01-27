@@ -442,7 +442,9 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
         userTimeSpans: [
           // We only store 5 user defined time spans
           newTimeSpan,
-          ...(prev.userTimeSpans.length >= 5 ? prev.userTimeSpans.slice(0, -1) : prev.userTimeSpans),
+          ...(prev.userTimeSpans.length >= 5
+            ? prev.userTimeSpans.slice(0, -1)
+            : prev.userTimeSpans),
         ],
       };
     });
@@ -521,13 +523,13 @@ class TimeSpanSelector extends React.Component<TimeSpanSelectorProps, TimeSpanSe
                           this.setState({
                             startDateInput: date?.from
                               ? DateTimeExtension.formatDateTime(
-                                date.from,
-                                "yyyy-MM-dd HH:mm:ss"
-                              ) || ""
+                                  date.from,
+                                  "yyyy-MM-dd HH:mm:ss"
+                                ) || ""
                               : "",
                             endDateInput: date?.to
                               ? DateTimeExtension.formatDateTime(date.to, "yyyy-MM-dd HH:mm:ss") ||
-                              ""
+                                ""
                               : "",
                             inputDateRange: date,
                             error: "",
