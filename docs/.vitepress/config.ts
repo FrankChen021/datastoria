@@ -453,6 +453,7 @@ export default defineConfig({
                 { text: 'system.part_log', link: '/manual/04-cluster-management/system-part-log' },
                 { text: 'system.query_log', link: '/manual/04-cluster-management/system-query-log' },
                 { text: 'system.query_views_log', link: '/manual/04-cluster-management/system-query-views-log' },
+                { text: 'system.processes', link: '/manual/04-cluster-management/system-processes' },
               ]
             },
           ]
