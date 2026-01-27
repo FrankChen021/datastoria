@@ -138,6 +138,7 @@ const DatabaseTabComponent = ({ database }: DatabaseTabProps) => {
                   showRefresh={false}
                   showAutoRefresh={false}
                   size="sm"
+                  buttonClassName="h-6 w-6"
                   onSelectedSpanChanged={handleTimeSpanChanged}
                 />
               )}
@@ -145,7 +146,7 @@ const DatabaseTabComponent = ({ database }: DatabaseTabProps) => {
                 variant="outline"
                 size="icon"
                 onClick={() => handleRefresh()}
-                className="h-9 w-9"
+                className="h-8 w-8"
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
