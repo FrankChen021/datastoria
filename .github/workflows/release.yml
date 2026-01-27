@@ -22,24 +22,6 @@ jobs:
         with:
           ref: development
           fetch-depth: 0
-          token: ${{ secrets.PAT_TOKEN }}
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Merge development into master
-        run: |
-          # Fetch all branches
-          git fetch origin
-
-          # Checkout master and fast-forward merge development into it
-          git checkout master
-          git merge origin/development --ff-only
-
-          # Push to remote
-          git push origin master
 
       - name: Trigger Vercel Production Deployment
         run: |
@@ -50,8 +32,7 @@ jobs:
         run: |
           echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** master (production)" >> $GITHUB_STEP_SUMMARY
-          echo "**Merged from:** development" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** development" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** $(git rev-parse HEAD)" >> $GITHUB_STEP_SUMMARY
           echo "**Time:** $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
