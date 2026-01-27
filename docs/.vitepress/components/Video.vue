@@ -41,7 +41,18 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 // Automatically generate WebM path from src
-const webm = computed(() => props.src.replace(/\.(gif|mp4|webm)$/, '.webm'))
+// Handle paths that might include /public/ prefix and ensure correct extension
+const webm = computed(() => {
+  let path = props.src
+  // Remove /public/ prefix if present (VitePress serves public/ from root)
+  path = path.replace(/^\.\/public\//, '/').replace(/^\/public\//, '/')
+  // Ensure path starts with / if it's an absolute path
+  if (path.startsWith('./')) {
+    path = path.replace(/^\.\//, '/')
+  }
+  // Replace extension with .webm
+  return path.replace(/\.(gif|mp4|webm)$/i, '.webm')
+})
 
 const videoClass = computed(() => ({
   'video-rounded': props.rounded,

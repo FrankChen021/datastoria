@@ -54,7 +54,8 @@ export default defineConfig({
     // Additional SEO enhancements
     ['meta', { name: 'format-detection', content: 'telephone=no' }],
     ['meta', { name: 'application-name', content: 'DataStoria' }],
-    ['meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }],
+    ['meta', { name: 'mobile-web-app-capable', content: 'yes' }],
+    ['meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }], // Keep for iOS compatibility
     ['meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' }],
     ['meta', { name: 'apple-mobile-web-app-title', content: 'DataStoria' }],
 
@@ -85,7 +86,7 @@ export default defineConfig({
       },
       softwareVersion: '1.0',
       releaseNotes: 'https://docs.datastoria.app/manual/',
-      screenshot: 'https://docs.datastoria.app/demo.gif',
+      screenshot: 'https://docs.datastoria.app/demo.webm',
       featureList: [
         'Natural Language to SQL conversion',
         'AI-powered query optimization',
