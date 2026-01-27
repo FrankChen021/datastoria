@@ -253,11 +253,11 @@ export const DashboardVisualizationPanel = forwardRef<
         lastRefreshParamRef.current = param;
 
         // Build SQL query with all replacements
+        // Cluster template replacement is now handled by connection.query()
         const timezone = connection.metadata?.timezone || "UTC";
         let finalSql = new SQLQueryBuilder(query.sql)
           .timeSpan(param.timeSpan, timezone)
           .filterExpression(param.filterExpression)
-          .cluster(connection.cluster)
           .build();
 
         // Let visualization component prepare SQL (e.g., table adds ORDER BY and pagination)
@@ -355,7 +355,6 @@ export const DashboardVisualizationPanel = forwardRef<
               const offsetSql = new SQLQueryBuilder(query.sql)
                 .timeSpan(offsetTimeSpan, timezone)
                 .filterExpression(param.filterExpression)
-                .cluster(connection.cluster)
                 .build();
 
               const { response: offsetResponse, abortController: offsetAbort } =

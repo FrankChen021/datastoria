@@ -6,7 +6,7 @@ export default defineConfig({
   base: '/', // or '/docs/' if deploying to a subpath
   ignoreDeadLinks: true, // Allow links to planned sections that don't exist yet
   lang: 'en-US', // SEO: Language declaration
-  
+
   // SEO: Clean URLs without .html extension
   cleanUrls: true,
 
@@ -16,21 +16,21 @@ export default defineConfig({
     ['meta', { name: 'viewport', content: 'width=device-width, initial-scale=1.0' }],
     ['meta', { name: 'theme-color', content: '#3b82f6' }],
     ['meta', { charset: 'utf-8' }],
-    
+
     // SEO meta tags
     ['meta', { name: 'keywords', content: 'ClickHouse, database management, AI SQL, natural language query, ClickHouse console, database admin, query optimization, ClickHouse GUI, ClickHouse web interface, SQL editor' }],
     ['meta', { name: 'author', content: 'DataStoria' }],
     ['meta', { name: 'robots', content: 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' }],
-    
+
     // Favicon and app icons
     ['link', { rel: 'icon', href: '/favicon.ico', sizes: 'any' }],
     ['link', { rel: 'icon', href: '/icon.svg', type: 'image/svg+xml' }],
     ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }],
     ['link', { rel: 'manifest', href: '/site.webmanifest' }],
-    
+
     // Canonical URL (prevents duplicate content issues)
     ['link', { rel: 'canonical', href: 'https://docs.datastoria.app/' }],
-    
+
     // Open Graph tags for social sharing (Facebook, LinkedIn, etc.)
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'DataStoria Documentation' }],
@@ -42,7 +42,7 @@ export default defineConfig({
     ['meta', { property: 'og:image:height', content: '630' }],
     ['meta', { property: 'og:image:alt', content: 'DataStoria - AI-Powered ClickHouse Management Console' }],
     ['meta', { property: 'og:locale', content: 'en_US' }],
-    
+
     // Twitter Card tags
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:site', content: '@datastoria' }],
@@ -50,14 +50,14 @@ export default defineConfig({
     ['meta', { name: 'twitter:description', content: 'Modern ClickHouse management console with AI-powered natural language queries, intelligent optimization, and advanced cluster management.' }],
     ['meta', { name: 'twitter:image', content: 'https://docs.datastoria.app/og-image.png' }],
     ['meta', { name: 'twitter:image:alt', content: 'DataStoria - AI-Powered ClickHouse Management Console' }],
-    
+
     // Additional SEO enhancements
     ['meta', { name: 'format-detection', content: 'telephone=no' }],
     ['meta', { name: 'application-name', content: 'DataStoria' }],
     ['meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }],
     ['meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' }],
     ['meta', { name: 'apple-mobile-web-app-title', content: 'DataStoria' }],
-    
+
     // Structured Data (JSON-LD) for rich search results
     ['script', { type: 'application/ld+json' }, JSON.stringify({
       '@context': 'https://schema.org',
@@ -98,7 +98,7 @@ export default defineConfig({
         'Privacy-first architecture'
       ]
     })],
-    
+
     // Breadcrumb structured data
     ['script', { type: 'application/ld+json' }, JSON.stringify({
       '@context': 'https://schema.org',
@@ -118,7 +118,7 @@ export default defineConfig({
         }
       ]
     })],
-    
+
     // Organization structured data
     ['script', { type: 'application/ld+json' }, JSON.stringify({
       '@context': 'https://schema.org',
@@ -135,7 +135,7 @@ export default defineConfig({
         url: 'https://github.com/FrankChen021/datastoria/issues'
       }
     })],
-    
+
     // WebSite structured data for search box
     ['script', { type: 'application/ld+json' }, JSON.stringify({
       '@context': 'https://schema.org',
@@ -151,13 +151,13 @@ export default defineConfig({
         'query-input': 'required name=search_term_string'
       }
     })],
-    
+
     // Preconnect to CDN for faster resource loading
     ['link', { rel: 'preconnect', href: 'https://cdn.jsdelivr.net', crossorigin: '' }],
     ['link', { rel: 'dns-prefetch', href: 'https://cdn.jsdelivr.net' }],
-    
+
     // Mermaid for diagrams - Load asynchronously to avoid render blocking
-    ['script', { 
+    ['script', {
       src: 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js',
       async: '',
       defer: ''
@@ -315,25 +315,25 @@ export default defineConfig({
 
   // SEO: Last updated dates (helps search engines understand content freshness)
   lastUpdated: true,
-  
+
   // SEO: Generate meta tags for each page
   transformPageData(pageData) {
     const canonicalUrl = `https://docs.datastoria.app/${pageData.relativePath}`
       .replace(/\/index\.md$/, '/')
       .replace(/\.md$/, '')
-    
+
     pageData.frontmatter.head ??= []
     pageData.frontmatter.head.push([
       'link',
       { rel: 'canonical', href: canonicalUrl }
     ])
-    
+
     // Add Open Graph URL for each page
     pageData.frontmatter.head.push([
       'meta',
       { property: 'og:url', content: canonicalUrl }
     ])
-    
+
     // Add page-specific title and description to Open Graph
     if (pageData.title) {
       pageData.frontmatter.head.push([
@@ -345,7 +345,7 @@ export default defineConfig({
         { name: 'twitter:title', content: `${pageData.title} | DataStoria Documentation` }
       ])
     }
-    
+
     if (pageData.description) {
       pageData.frontmatter.head.push([
         'meta',
@@ -357,7 +357,7 @@ export default defineConfig({
       ])
     }
   },
-  
+
   // SEO: Generate title template for better page titles
   titleTemplate: ':title | DataStoria Documentation',
 
@@ -435,8 +435,15 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Schema Explorer', link: '/manual/04-cluster-management/schema-explorer' },
-            { text: 'Node Dashboard', link: '/manual/04-cluster-management/node-dashboard' },
-            { text: 'Cluster Dashboard', link: '/manual/04-cluster-management/cluster-dashboard' },
+            {
+              text: 'Database & Table Views',
+              collapsed: false,
+              items: [
+                { text: 'Database View', link: '/manual/04-cluster-management/database-view' },
+                { text: 'Table View', link: '/manual/04-cluster-management/table-view' },
+                { text: 'Dependency View', link: '/manual/04-cluster-management/dependency-view' },
+              ]
+            },
             {
               text: 'System Log Introspection',
               collapsed: false,
@@ -451,10 +458,18 @@ export default defineConfig({
           ]
         },
         {
+          text: 'Monitoring & Dashboards',
+          collapsed: false,
+          items: [
+            { text: 'Node Dashboard', link: '/manual/05-monitoring-dashboards/node-dashboard' },
+            { text: 'Cluster Dashboard', link: '/manual/05-monitoring-dashboards/cluster-dashboard' },
+          ]
+        },
+        {
           text: 'Security & Privacy',
           collapsed: false,
           items: [
-            { text: 'Privacy Features', link: '/manual/05-security-privacy/privacy-features' },
+            { text: 'Privacy Features', link: '/manual/06-security-privacy/privacy-features' },
           ]
         }
       ]

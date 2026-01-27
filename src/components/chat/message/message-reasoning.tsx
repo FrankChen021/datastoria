@@ -11,7 +11,7 @@ export const MessageReasoning = memo(function MessageReasoning({
   part: AppUIMessage["parts"][0] & { state?: string; text: string };
 }) {
   return (
-    <CollapsiblePart toolName="reasoning" state={part.state}>
+    <CollapsiblePart toolName="Reasoning" state={part.state}>
       <div className="mt-1 max-h-[300px] overflow-auto text-[10px] text-muted-foreground">
         <pre className="bg-muted/30 overflow-x-auto shadow-sm leading-tight whitespace-pre-wrap break-words">
           {part.text}

@@ -135,7 +135,7 @@ The DDL distribution queue supports filtering:
 
 ## Next Steps
 
-- **[Node Dashboard](./node-dashboard.md)** — Monitor individual node metrics
+- **[Node Dashboard](../05-monitoring-dashboards/node-dashboard.md)** — Monitor individual node metrics
 - **[System Log Introspection](./system-log-introspection.md)** — Overview of all system log tools
 - **[system.part_log Introspection](./system-part-log.md)** — Monitor part-level operations
 - **[system.query_log Introspection](./system-query-log.md)** — Analyze query execution logs

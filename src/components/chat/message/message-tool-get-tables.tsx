@@ -7,7 +7,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { AppUIMessage } from "@/lib/ai/common-types";
-import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
 import type { GetTablesInput, GetTablesOutput } from "@/lib/ai/tools/client/get-tables";
 import { memo } from "react";
 import type { ToolPart } from "../chat-message-types";
@@ -27,7 +26,7 @@ export const MessageToolGetTables = memo(function MessageToolGetTables({
   const output = toolPart.output;
 
   return (
-    <CollapsiblePart toolName={CLIENT_TOOL_NAMES.GET_TABLES} state={state}>
+    <CollapsiblePart toolName={"Get Tables"} state={state}>
       {input &&
         (input.name_pattern ||
           input.database ||

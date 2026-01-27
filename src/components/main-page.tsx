@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Connection,
+  QueryError,
   type ConnectionConfig,
   type DatabaseInfo,
   type JSONCompactFormatResponse,
@@ -399,7 +400,11 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
             // Fallback if error happened before any step started loading or after
             return prev.map((s) => (s.id === "cluster" ? { ...s, status: "error" } : s));
           });
-          setError(err instanceof Error ? err.message : String(err));
+          if (err instanceof QueryError) {
+            setError(err.data);
+          } else {
+            setError(err instanceof Error ? err.message : String(err));
+          }
         }
       }
     };

@@ -202,10 +202,9 @@ export class Connection {
       );
     }
 
-    if (this.cluster && this.cluster.length > 0 && sql.includes("{cluster}")) {
-      // Do replacement
-      sql = sql.replaceAll("{cluster}", this.cluster);
-    }
+    // Apply cluster template replacements
+    const [replacedSql] = this.resolveClusterTemplates(sql);
+    sql = replacedSql;
 
     const requestHeaders: Record<string, string> = headers || {};
 
@@ -215,18 +214,19 @@ export class Connection {
     }
 
     // Merge user params with request params (request params take precedence)
-    const requestParams: Record<string, unknown> = Object.assign({}, this.userParams);
+    const queryParameters: Record<string, unknown> = Object.assign({}, this.userParams);
     if (params) {
-      Object.assign(requestParams, params);
+      Object.assign(queryParameters, params);
     }
     // Add default format if not specified
-    if (!requestParams["default_format"]) {
-      requestParams["default_format"] = "JSONCompact";
+    if (!queryParameters["default_format"]) {
+      queryParameters["default_format"] = "JSONCompact";
     }
+    queryParameters["add_http_cors_header"] = "1";
 
     // Build URL with query parameters
     const url = new URL(this.path, this.host);
-    Object.entries(requestParams).forEach(([key, value]) => {
+    Object.entries(queryParameters).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         url.searchParams.append(key, String(value));
       }
@@ -325,23 +325,24 @@ export class Connection {
     const node = this.metadata.remoteHostName;
 
     if (node === undefined) {
+      // Fallback to query on any node
       return this.query(sql, params, headers);
     }
 
-    if (this.cluster && this.cluster.length > 0 && sql.includes("{cluster}")) {
-      // Do replacement
-      sql = sql.replaceAll("{cluster}", this.cluster);
-
-      // For cluster query, skip unavailable shard by default
+    // Apply cluster template replacements
+    const [processedSql, hasClusterFunctions] = this.resolveClusterTemplates(sql);
+    if (hasClusterFunctions) {
       if (!this.metadata.is_readonly_skip_unavailable_shards) {
         params = {
           ...params,
+
+          // For cluster query, skip unavailable shard by default
           skip_unavailable_shards: 1,
         };
       }
 
       // Since cluster/clusterAllReplica is used, don't use remote function to execute this sql
-      return this.query(sql, params, headers);
+      return this.query(processedSql, params, headers);
     }
 
     return this.query(
@@ -349,12 +350,57 @@ export class Connection {
 SELECT * FROM remote(
   '${node}', 
   view(
-        ${sql}
+        ${processedSql}
   ), 
   '${this.metadata.internalUser}', 
   '${this.password}')`,
       params,
       headers
     );
+  }
+
+  /**
+   * Process cluster template variables in SQL query.
+   * Templates:
+   * - {clusterAllReplicas:table} -> clusterAllReplicas('{cluster}', table) or table
+   * - {cluster:table} -> cluster('{cluster}', table) or table
+   * - {table:table} -> table
+   * - {cluster} -> actual cluster name (simple variable, no colon)
+   *
+   * @returns [processedSql, hasClusterFunctions] - The processed SQL and whether cluster functions were added
+   */
+  private resolveClusterTemplates(sql: string): [string, boolean] {
+    const hasCluster = this.cluster && this.cluster.length > 0;
+    let usedClusterFunctions = false;
+
+    // Replace {clusterAllReplicas:table_name} patterns
+    sql = sql.replace(/\{clusterAllReplicas:([^}]+)\}/g, (_match, tableName) => {
+      if (hasCluster) {
+        usedClusterFunctions = true;
+        return `clusterAllReplicas('{cluster}', ${tableName})`;
+      }
+      return tableName;
+    });
+
+    // Replace {cluster:table_name} patterns (note: different from simple {cluster})
+    sql = sql.replace(/\{cluster:([^}]+)\}/g, (_match, tableName) => {
+      if (hasCluster) {
+        usedClusterFunctions = true;
+        return `cluster('{cluster}', ${tableName})`;
+      }
+      return tableName;
+    });
+
+    // Replace {table:table_name} patterns (no cluster wrapping)
+    sql = sql.replace(/\{table:([^}]+)\}/g, (_match, tableName) => {
+      return tableName;
+    });
+
+    // Replace {cluster} with actual cluster name (simple variable without colon)
+    if (hasCluster) {
+      sql = sql.replace(/\{cluster\}/g, this.cluster);
+    }
+
+    return [sql, usedClusterFunctions];
   }
 }

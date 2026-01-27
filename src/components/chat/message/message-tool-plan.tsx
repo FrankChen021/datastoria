@@ -25,7 +25,7 @@ export const MessageToolPlan = memo(function MessageToolPlan({
   }, [output?.title]);
 
   return (
-    <CollapsiblePart toolName={"plan"} state={state}>
+    <CollapsiblePart toolName={"Plan"} state={state}>
       {toolPart.output != null && (
         <div className="mt-1 max-h-[300px] overflow-auto text-[10px] text-muted-foreground">
           <div className="mb-0.5">output:</div>

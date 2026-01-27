@@ -316,12 +316,17 @@ export const PieVisualization = React.forwardRef<PieVisualizationRef, PieVisuali
 
         let legendConfig: echarts.EChartsOption["legend"];
         if (showLegend) {
+          const baseLegendConfig = {
+            itemWidth: 18,
+            itemHeight: 8,
+          };
           if (legendPlacement === "bottom") {
             legendConfig = {
               type: "scroll",
               orient: "horizontal",
               bottom: 0,
               left: "center",
+              ...baseLegendConfig,
             };
           } else if (legendPlacement === "right") {
             legendConfig = {
@@ -329,6 +334,7 @@ export const PieVisualization = React.forwardRef<PieVisualizationRef, PieVisuali
               orient: "vertical",
               right: 10,
               top: "center",
+              ...baseLegendConfig,
             };
           } else {
             // inside
@@ -337,6 +343,7 @@ export const PieVisualization = React.forwardRef<PieVisualizationRef, PieVisuali
               orient: "horizontal",
               top: 0,
               left: "center",
+              ...baseLegendConfig,
             };
           }
         } else {

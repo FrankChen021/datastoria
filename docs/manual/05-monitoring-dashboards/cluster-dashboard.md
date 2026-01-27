@@ -79,12 +79,11 @@ Many metrics support drill-down functionality to view the breakdown of original 
 - **Version Compatibility**: Some metrics may not be available in older ClickHouse versions
 - **Performance Impact**: Querying large time ranges may be slow and consumes resources of your ClickHouse cluster
 
-> **Deep dive**: Explore [System Log Introspection](./system-log-introspection.md) for detailed analysis of system tables.
+> **Deep dive**: Explore [System Log Introspection](../04-cluster-management/system-log-introspection.md) for detailed analysis of system tables.
 
 ## Next Steps
 
 - **[Node Dashboard](./node-dashboard.md)** — View detailed metrics for individual nodes
 - **[Query Log Inspector](../03-query-experience/query-log-inspector.md)** — Analyze specific query performance
-- **[Schema Explorer](./schema-explorer.md)** — Explore your database structure
-- **[System Log Introspection](./system-log-introspection.md)** — Deep dive into query and part logs
-
+- **[Schema Explorer](../04-cluster-management/schema-explorer.md)** — Explore your database structure
+- **[System Log Introspection](../04-cluster-management/system-log-introspection.md)** — Deep dive into query and part logs

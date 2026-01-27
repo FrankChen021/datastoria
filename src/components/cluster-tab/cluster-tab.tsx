@@ -1,5 +1,4 @@
 import type {
-  Dashboard,
   DashboardGroup,
   SelectorFilterSpec,
   StatDescriptor,
@@ -8,7 +7,6 @@ import type {
 } from "@/components/shared/dashboard/dashboard-model";
 import DashboardPage from "@/components/shared/dashboard/dashboard-page";
 import { memo } from "react";
-import { useConnection } from "../connection/connection-context";
 
 const clusterStatusDashboard: StatDescriptor[] = [
   //
@@ -26,7 +24,7 @@ const clusterStatusDashboard: StatDescriptor[] = [
 SELECT 
 countDistinct(shard_num) as shard_count
 FROM system.clusters
-WHERE cluster = {cluster}
+WHERE cluster = '{cluster}'
 `,
     },
   } as StatDescriptor,
@@ -46,7 +44,7 @@ WHERE cluster = {cluster}
 SELECT 
   count() 
 FROM system.clusters
-WHERE cluster = {cluster}
+WHERE cluster = '{cluster}'
 `,
     },
     drilldown: {
@@ -58,7 +56,7 @@ WHERE cluster = {cluster}
         gridPos: { w: 24, h: 12 },
         miscOption: { enableIndexColumn: true },
         datasource: {
-          sql: `SELECT * FROM system.clusters WHERE cluster = {cluster}`,
+          sql: `SELECT * FROM system.clusters WHERE cluster = '{cluster}'`,
         },
         fieldOptions: {
           host: {
@@ -223,7 +221,7 @@ SELECT
   avg(metric) as metric
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertQuery) AS metric
-  FROM {cluster:system.metric_log}
+  FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -261,7 +259,7 @@ SELECT
   avg(metric) as metric
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_SelectQuery) AS metric
-  FROM {cluster:system.metric_log}
+  FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -299,7 +297,7 @@ SELECT
   avg(metric) as metric
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_FailedQuery) AS metric
-  FROM {cluster:system.metric_log}
+  FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -342,7 +340,7 @@ SELECT
   avg(metric) as metric
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertedBytes) AS metric
-  FROM {cluster:system.metric_log}
+  FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -385,7 +383,7 @@ SELECT
   avg(metric) as metric
 FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertedRows) AS metric
-  FROM {cluster:system.metric_log}
+  FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
   AND event_date >= toDate({to:String})
@@ -399,25 +397,6 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}`,
 ];
 
 export const ClusterTab = memo(() => {
-  const { connection } = useConnection();
-
-  const dashboard: Dashboard = {
-    version: 3,
-    filter: {},
-    charts: [
-      {
-        title: "Cluster Status",
-        collapsed: false,
-        charts: clusterStatusDashboard,
-      } as DashboardGroup,
-      {
-        title: "Cluster Metrics",
-        collapsed: false,
-        charts: clusterMetricsDashboard,
-      } as DashboardGroup,
-    ],
-  };
-
   return (
     <DashboardPage
       filterSpecs={[
@@ -428,12 +407,26 @@ export const ClusterTab = memo(() => {
           onPreviousFilters: true,
           datasource: {
             type: "sql",
-            sql: `select distinct host_name from system.clusters WHERE cluster = {cluster} order by host_name`,
+            sql: `select distinct host_name from system.clusters WHERE cluster = '{cluster}' order by host_name`,
           },
         } as SelectorFilterSpec,
       ]}
-      panels={dashboard}
-      headerActions={null}
+      panels={{
+        version: 3,
+        filter: {},
+        charts: [
+          {
+            title: "Cluster Status",
+            collapsed: false,
+            charts: clusterStatusDashboard,
+          } as DashboardGroup,
+          {
+            title: "Cluster Metrics",
+            collapsed: false,
+            charts: clusterMetricsDashboard,
+          } as DashboardGroup,
+        ],
+      }}
     />
   );
 });

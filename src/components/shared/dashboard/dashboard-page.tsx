@@ -9,7 +9,6 @@ import type { Dashboard, FilterSpec, SQLQuery } from "./dashboard-model";
 import DashboardPanelContainer, {
   type DashboardPanelContainerRef,
 } from "./dashboard-panel-container";
-import { SQLQueryBuilder } from "./sql-query-builder";
 import type { TimeSpan } from "./timespan-selector";
 
 export interface DashboardPageRef {
@@ -74,13 +73,14 @@ const DashboardPage = forwardRef<DashboardPageRef, DashboardPageProps>(
       async (query: SQLQuery) => {
         if (!connection) return [];
         try {
-          // Apply template variable replacement for cluster-specific queries
-          const processedSql = new SQLQueryBuilder(query.sql).cluster(connection.cluster).build();
+          // Cluster template replacement is now handled by connection.queryOnNode()
+          const sql = query.sql;
 
-          const { response } = connection.queryOnNode(processedSql, {
+          const { response } = connection.queryOnNode(sql, {
             default_format: "JSONCompact",
             ...query.params,
           });
+
           const apiResponse = await response;
           return apiResponse.data
             .json<JSONCompactFormatResponse>()

@@ -89,6 +89,11 @@ Fill in the connection form with your ClickHouse details:
 
 ![Successful connection test dialog showing green checkmark and connection confirmation message](./img/test-connection-ok.png)
 
+> **NOTE**
+>
+> If connection fails despite correct settings, the cause may be **CORS**. ClickHouse 23.11 and later enable CORS by default. For earlier versions, configure CORS manually in `config.xml`. See [PR #56483](https://github.com/ClickHouse/ClickHouse/pull/56483) for configuration details.
+>
+
 ### Step 5: Save and Connect
 
 Click **"Save"** to store the connection and the application will connect to your ClickHouse instance and bring you to the main UI.

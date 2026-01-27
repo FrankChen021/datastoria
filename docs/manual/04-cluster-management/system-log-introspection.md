@@ -102,8 +102,8 @@ All system log introspection tools share common features:
 
 ## Next Steps
 
-- **[Cluster Dashboard](./cluster-dashboard.md)** — Monitor cluster-wide metrics
-- **[Node Dashboard](./node-dashboard.md)** — Monitor individual node metrics
+- **[Cluster Dashboard](../05-monitoring-dashboards/cluster-dashboard.md)** — Monitor cluster-wide metrics
+- **[Node Dashboard](../05-monitoring-dashboards/node-dashboard.md)** — Monitor individual node metrics
 - **[Query Log Inspector](../03-query-experience/query-log-inspector.md)** — Analyze specific query execution
 - **[Schema Explorer](./schema-explorer.md)** — Explore your database structure
 

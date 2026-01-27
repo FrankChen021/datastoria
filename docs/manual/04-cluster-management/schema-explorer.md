@@ -133,6 +133,6 @@ Right-click on any node to access context menu options.
 
 - **[SQL Editor](../03-query-experience/sql-editor.md)** — Query the tables you've discovered
 - **[Natural Language Queries](../02-ai-features/natural-language-sql.md)** — Ask questions about your data
-- **[Cluster Dashboard](./cluster-dashboard.md)** — Monitor cluster-wide metrics
-- **[Node Dashboard](./node-dashboard.md)** — Monitor individual node performance
+- **[Cluster Dashboard](../05-monitoring-dashboards/cluster-dashboard.md)** — Monitor cluster-wide metrics
+- **[Node Dashboard](../05-monitoring-dashboards/node-dashboard.md)** — Monitor individual node performance
 

@@ -20,6 +20,7 @@ export interface ChatStorage {
   deleteMessage(id: string): Promise<void>;
   clearMessages(chatId: string): Promise<void>;
   clearAll(): Promise<void>;
+  clearAllForConnection(connectionId: string): Promise<void>;
 }
 
 export const chatStorage = new ChatStorageLocal();

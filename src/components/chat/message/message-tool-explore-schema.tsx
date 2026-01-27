@@ -7,7 +7,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { AppUIMessage } from "@/lib/ai/common-types";
-import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
 import type {
   ExploreSchemaInput,
   ExploreSchemaOutput,
@@ -31,7 +30,7 @@ export const MessageToolExploreSchema = memo(function MessageToolExploreSchema({
   const output = toolPart.output;
 
   return (
-    <CollapsiblePart toolName={CLIENT_TOOL_NAMES.EXPLORE_SCHEMA} state={state}>
+    <CollapsiblePart toolName={"Explore Schema"} state={state}>
       {input && input.tables && (
         <>
           <div className="mb-0.5 text-[10px] text-muted-foreground">input:</div>

@@ -73,22 +73,24 @@ Welcome to the DataStoria user manual. This comprehensive guide will help you ma
   - Performance Insights
 
 ### 4. Database Management
-- [Node Dashboard](./04-cluster-management/node-dashboard.md)
-  - Individual node metrics
-  - Node health indicators
-  - Real-time performance monitoring
-- [Cluster Dashboard](./04-cluster-management/cluster-dashboard.md)
-  - Cluster-wide metrics
-  - Multi-node aggregation
-  - Cluster health overview
 - [Schema Explorer](./04-cluster-management/schema-explorer.md)
   - Navigating Databases
   - Exploring Tables
   - Column Information
   - Table Metadata
 
-### 5. Security & Privacy
-- [Privacy Features](./05-security-privacy/privacy-features.md)
+### 5. Monitoring & Dashboards
+- [Node Dashboard](./05-monitoring-dashboards/node-dashboard.md)
+  - Individual node metrics
+  - Node health indicators
+  - Real-time performance monitoring
+- [Cluster Dashboard](./05-monitoring-dashboards/cluster-dashboard.md)
+  - Cluster-wide metrics
+  - Multi-node aggregation
+  - Cluster health overview
+
+### 6. Security & Privacy
+- [Privacy Features](./06-security-privacy/privacy-features.md)
   - Local Execution Model
   - Data Privacy Guarantees
   - No Data Collection Policy

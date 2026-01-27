@@ -1,5 +1,4 @@
 import { DashboardVisualizationPanel } from "@/components/shared/dashboard/dashboard-visualization-panel";
-import { SERVER_TOOL_GENEREATE_VISUALIZATION } from "@/lib/ai/agent/visualization-agent";
 import type { AppUIMessage } from "@/lib/ai/common-types";
 import { memo, useMemo } from "react";
 import type { PanelDescriptor } from "../../shared/dashboard/dashboard-model";
@@ -36,13 +35,16 @@ export const MessageToolGenerateVisualization = memo(
     return (
       <>
         <CollapsiblePart
-          toolName={SERVER_TOOL_GENEREATE_VISUALIZATION}
+          toolName={"Generate Visualization"}
           state={state}
           defaultExpanded={true}
           keepChildrenMounted={true}
         >
           {isComplete && (
-            <div className="pt-1">
+            <div
+              className="pt-1"
+              style={{ height: panelDescriptor?.height ? panelDescriptor.height + 30 : 300 }}
+            >
               <DashboardVisualizationPanel descriptor={panelDescriptor as PanelDescriptor} />
             </div>
           )}

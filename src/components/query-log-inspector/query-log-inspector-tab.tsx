@@ -268,9 +268,8 @@ AND type <> 'QueryStart'
 ORDER BY start_time_microseconds
 `
       )
-        .cluster(connection.cluster)
         .timeSpan(selectedTimeSpan.getTimeSpan(), timezone)
-        .replace("initialQueryId", `'${activeQueryId}'`)
+        .replace("initialQueryId", activeQueryId)
         .build();
 
       setQueryText(queryText);

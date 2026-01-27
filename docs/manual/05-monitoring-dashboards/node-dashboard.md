@@ -80,12 +80,11 @@ For example, for the 'Total Data Size' Stat panel, when clicking this panel, it 
 - **Version Compatibility**: Some metrics may not be available in older ClickHouse versions
 - **Performance Impact**: Querying large time ranges may be slow and consumes resources of your ClickHouse cluster
 
-> **Deep dive**: Explore [System Log Introspection](./system-log-introspection.md) for detailed analysis of system tables.
+> **Deep dive**: Explore [System Log Introspection](../04-cluster-management/system-log-introspection.md) for detailed analysis of system tables.
 
 ## Next Steps
 
 - **[Cluster Dashboard](./cluster-dashboard.md)** — View cluster-wide metrics across all nodes
 - **[Query Log Inspector](../03-query-experience/query-log-inspector.md)** — Analyze specific query performance
-- **[Schema Explorer](./schema-explorer.md)** — Explore your database structure
-- **[System Log Introspection](./system-log-introspection.md)** — Deep dive into query and part logs
-
+- **[Schema Explorer](../04-cluster-management/schema-explorer.md)** — Explore your database structure
+- **[System Log Introspection](../04-cluster-management/system-log-introspection.md)** — Deep dive into query and part logs

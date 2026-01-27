@@ -1,5 +1,4 @@
 import type { AppUIMessage } from "@/lib/ai/common-types";
-import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
 import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
 import { memo } from "react";
 import type { ToolPart } from "../chat-message-types";
@@ -35,7 +34,7 @@ export const MessageToolCollectSqlOptimizationEvidence = memo(
 
     return (
       <CollapsiblePart
-        toolName={CLIENT_TOOL_NAMES.COLLECT_SQL_OPTIMIZATION_EVIDENCE}
+        toolName={"Collect SQL Optimization Evidence"}
         state={state}
         defaultExpanded={state !== "output-available"}
       >

@@ -35,45 +35,7 @@ export class SQLQueryBuilder {
    * @returns this builder for chaining
    */
   filterExpression(expression?: string): this {
-    const filterExpr = expression || "true";
-    this.sql = this.sql.replace(/{filterExpression:String}/g, filterExpr);
-    return this;
-  }
-
-  /**
-   * Replace SQL template variables based on cluster context.
-   * Replaces:
-   * - {clusterAllReplicas:table} -> clusterAllReplicas('{cluster}', table) or table
-   * - {cluster:table} -> cluster('{cluster}', table) or table
-   * - {table:table} -> table
-   * - {cluster} -> actual cluster name (simple variable, no colon)
-   *
-   * @param clusterName The cluster name (optional). If not provided or empty, cluster functions are removed.
-   * @returns this builder for chaining
-   */
-  cluster(clusterName?: string): this {
-    const hasCluster = clusterName && clusterName.length > 0;
-
-    // Replace {clusterAllReplicas:table_name} patterns
-    this.sql = this.sql.replace(/\{clusterAllReplicas:([^}]+)\}/g, (_match, tableName) => {
-      return hasCluster ? `clusterAllReplicas('{cluster}', ${tableName})` : tableName;
-    });
-
-    // Replace {cluster:table_name} patterns (note: different from simple {cluster})
-    this.sql = this.sql.replace(/\{cluster:([^}]+)\}/g, (_match, tableName) => {
-      return hasCluster ? `cluster('{cluster}', ${tableName})` : tableName;
-    });
-
-    // Replace {table:table_name} patterns (no cluster wrapping)
-    this.sql = this.sql.replace(/\{table:([^}]+)\}/g, (_match, tableName) => {
-      return tableName;
-    });
-
-    // Replace {cluster} with actual cluster name (simple variable without colon)
-    if (hasCluster) {
-      this.sql = this.sql.replace(/\{cluster\}/g, clusterName);
-    }
-
+    this.sql = this.sql.replace(/{filterExpression:String}/g, expression || "1 = 1");
     return this;
   }
 

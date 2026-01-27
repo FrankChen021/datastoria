@@ -194,7 +194,8 @@ const ClearAllButton: React.FC<{ onClearAll: () => void }> = ({ onClearAll }) =>
           </div>
           <div className="pl-6">
             <div className="text-xs mb-3 text-muted-foreground">
-              Are you sure to clear all chat history? This action cannot be reverted.
+              Are you sure to clear all chat history for the current connection? This action cannot
+              be reverted.
             </div>
             <div className="flex justify-end gap-2">
               <Button
@@ -261,12 +262,16 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
     );
 
     const handleClearAll = React.useCallback(async () => {
-      await chatStorage.clearAll();
+      const connectionId = connection?.connectionId;
+      if (!connectionId) {
+        return;
+      }
+      await chatStorage.clearAllForConnection(connectionId);
       setHistory([]);
       // Clear the current chat instance's messages in memory
       onClearCurrentChat?.();
       onNewChat();
-    }, [onNewChat, onClearCurrentChat]);
+    }, [connection?.connectionId, onNewChat, onClearCurrentChat]);
 
     const handleEditTitle = React.useCallback(
       async (id: string, newTitle: string) => {

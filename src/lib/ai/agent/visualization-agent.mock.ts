@@ -20,7 +20,7 @@ export async function mockVisualizationAgent(
     legendOption: {
       placement: "none",
     },
-    query: {
+    datasource: {
       sql: input.sql,
     },
   };

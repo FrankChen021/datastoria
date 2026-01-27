@@ -53,8 +53,8 @@ It provides multiple filters and distribution charts as well as a detail table f
 
 ## Next Steps
 
-- **[Cluster Dashboard](./cluster-dashboard.md)** — Monitor cluster-wide metrics
-- **[Node Dashboard](./node-dashboard.md)** — Monitor individual node metrics
+- **[Cluster Dashboard](../05-monitoring-dashboards/cluster-dashboard.md)** — Monitor cluster-wide metrics
+- **[Node Dashboard](../05-monitoring-dashboards/node-dashboard.md)** — Monitor individual node metrics
 - **[System Log Introspection](./system-log-introspection.md)** — Overview of all system log tools
 - **[system.ddl_distribution_queue Introspection](./system-ddl-distributed-queue.md)** — Monitor distributed DDL operations
 - **[system.query_log Introspection](./system-query-log.md)** — Analyze query execution logs

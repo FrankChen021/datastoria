@@ -1,5 +1,4 @@
 import type { AppUIMessage } from "@/lib/ai/common-types";
-import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
 import { memo } from "react";
 import type { ToolPart } from "../chat-message-types";
 import { CollapsiblePart } from "./collapsible-part";
@@ -15,7 +14,7 @@ export const MessageToolExecuteSql = memo(function ExecuteSqlPart({
   const state = toolPart.state;
 
   return (
-    <CollapsiblePart toolName={CLIENT_TOOL_NAMES.EXECUTE_SQL} state={state}>
+    <CollapsiblePart toolName={"Execute SQL"} state={state}>
       {input?.sql && (
         <>
           <div className="text-[10px] text-muted-foreground">input:</div>
