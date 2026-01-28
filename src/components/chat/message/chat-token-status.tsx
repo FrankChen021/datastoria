@@ -29,7 +29,7 @@ export function ChatTokenStatus({ usage }: ChatTokenStatusProps) {
           <NumberFlow value={usage.totalTokens} /> {usage.totalTokens === 1 ? "token" : "tokens"}
         </Button>
       </HoverCardTrigger>
-      <HoverCardContent className="w-64 p-3" align="start">
+      <HoverCardContent className="w-64 px-3 py-2" align="start">
         <div className="space-y-2">
           <h4 className="font-semibold text-sm">Session Token Usage</h4>
           <div className="space-y-1 text-xs text-muted-foreground">
@@ -39,6 +39,7 @@ export function ChatTokenStatus({ usage }: ChatTokenStatusProps) {
                 <NumberFlow value={usage.totalTokens} />
               </span>
             </div>
+            <Separator className="my-1" />
             <div className="flex justify-between">
               <span>Input Tokens:</span>
               <span className="font-medium text-foreground">
