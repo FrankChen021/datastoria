@@ -8,12 +8,12 @@ import { ChatMessage } from "./chat-message";
 
 interface ChatMessageListProps {
   messages: AppUIMessage[];
-  loadingMessageId: string | null;
+  isRunning: boolean;
   error: Error | null;
 }
 
 export const ChatMessageList = React.memo(
-  ({ messages, loadingMessageId, error }: ChatMessageListProps) => {
+  ({ messages, isRunning, error }: ChatMessageListProps) => {
     const prevMessagesLengthRef = React.useRef(messages.length);
     const scrollContainerRef = React.useRef<HTMLDivElement>(null);
     const scrollPlaceholderRef = React.useRef<HTMLDivElement>(null);
@@ -67,9 +67,10 @@ export const ChatMessageList = React.memo(
             <ChatMessage
               key={message.id}
               message={message}
-              isLoading={message.id === loadingMessageId}
+              isLoading={isRunning && index === messages.length - 1 && message.role === "assistant"}
               isFirst={index === 0}
               isLast={index === messages.length - 1}
+              isRunning={isRunning}
             />
           ))}
         </div>

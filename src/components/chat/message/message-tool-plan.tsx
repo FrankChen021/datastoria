@@ -10,8 +10,10 @@ import { CollapsiblePart } from "./collapsible-part";
  */
 export const MessageToolPlan = memo(function MessageToolPlan({
   part,
+  isRunning = true,
 }: {
   part: AppUIMessage["parts"][0];
+  isRunning?: boolean;
 }) {
   const toolPart = part as ToolPart;
   const state = toolPart.state;
@@ -25,7 +27,7 @@ export const MessageToolPlan = memo(function MessageToolPlan({
   }, [output?.title]);
 
   return (
-    <CollapsiblePart toolName={"Plan"} state={state}>
+    <CollapsiblePart toolName={"Plan"} state={state} isRunning={isRunning}>
       {toolPart.output != null && (
         <div className="mt-1 max-h-[300px] overflow-auto text-[10px] text-muted-foreground">
           <div className="mb-0.5">output:</div>

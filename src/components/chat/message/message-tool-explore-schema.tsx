@@ -18,8 +18,10 @@ import { CollapsiblePart } from "./collapsible-part";
 
 export const MessageToolExploreSchema = memo(function MessageToolExploreSchema({
   part,
+  isRunning = true,
 }: {
   part: AppUIMessage["parts"][0];
+  isRunning?: boolean;
 }) {
   const toolPart = part as ToolPart & {
     input?: ExploreSchemaInput;
@@ -30,7 +32,7 @@ export const MessageToolExploreSchema = memo(function MessageToolExploreSchema({
   const output = toolPart.output;
 
   return (
-    <CollapsiblePart toolName={"Explore Schema"} state={state}>
+    <CollapsiblePart toolName={"Explore Schema"} state={state} isRunning={isRunning}>
       {input && input.tables && (
         <>
           <div className="mb-0.5 text-[10px] text-muted-foreground">input:</div>

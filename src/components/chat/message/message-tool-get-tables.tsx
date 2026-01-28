@@ -14,8 +14,10 @@ import { CollapsiblePart } from "./collapsible-part";
 
 export const MessageToolGetTables = memo(function MessageToolGetTables({
   part,
+  isRunning = true,
 }: {
   part: AppUIMessage["parts"][0];
+  isRunning?: boolean;
 }) {
   const toolPart = part as ToolPart & {
     input?: GetTablesInput;
@@ -26,7 +28,7 @@ export const MessageToolGetTables = memo(function MessageToolGetTables({
   const output = toolPart.output;
 
   return (
-    <CollapsiblePart toolName={"Get Tables"} state={state}>
+    <CollapsiblePart toolName={"Get Tables"} state={state} isRunning={isRunning}>
       {input &&
         (input.name_pattern ||
           input.database ||

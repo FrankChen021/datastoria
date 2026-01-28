@@ -23,10 +23,10 @@ interface ChatHeaderProps {
   currentChatId: string;
   onSelectChat?: (id: string) => void;
   onClearCurrentChat?: () => void;
-  onCycleDisplayMode?: () => void;
+  toggleDisplayMode?: () => void;
   displayMode?: ChatPanelDisplayMode;
-  title?: string;
-  isStreaming?: boolean;
+  initialTitle?: string;
+  isRunning?: boolean;
 }
 
 /**
@@ -67,12 +67,30 @@ const ChatHeader = React.memo(
     currentChatId,
     onSelectChat,
     onClearCurrentChat,
-    onCycleDisplayMode,
+    toggleDisplayMode,
     displayMode = "panel",
-    title,
-    isStreaming,
+    initialTitle,
+    isRunning,
   }: ChatHeaderProps) => {
     const { icon, tooltip } = getDisplayModeButtonInfo(displayMode);
+
+    const [title, setTitle] = useState<string | undefined>(initialTitle);
+
+    // Reset title when chat ID changes
+    useEffect(() => {
+      setTitle(initialTitle);
+    }, [currentChatId, initialTitle]);
+
+    // Listen for title changes and apply to current chat
+    useEffect(() => {
+      const handler = (event: CustomEvent<{ title: string }>) => {
+        const title = event.detail.title;
+        setTitle(title);
+      };
+
+      const unsubscribe = ChatUIContext.onTitleChange(handler);
+      return unsubscribe;
+    }, []);
 
     return (
       <div className="h-9 border-b flex items-center justify-between px-2 shrink-0 bg-background/50 backdrop-blur-sm z-10">
@@ -81,18 +99,19 @@ const ChatHeader = React.memo(
           <OpenHistoryButton
             className="h-6 w-6"
             iconClassName="!h-3.5 !w-3.5"
+            disabled={isRunning}
             currentChatId={currentChatId}
             onNewChat={onNewChat}
             onSelectChat={onSelectChat}
             onClearCurrentChat={onClearCurrentChat}
           />
-          {onCycleDisplayMode && (
+          {toggleDisplayMode && (
             <Button
               variant="ghost"
               size="icon"
               className="h-6 w-6"
-              onClick={onCycleDisplayMode}
-              disabled={isStreaming}
+              onClick={toggleDisplayMode}
+              disabled={isRunning}
               title={tooltip}
             >
               {icon}
@@ -104,7 +123,7 @@ const ChatHeader = React.memo(
               size="icon"
               className="h-6 w-6"
               onClick={onClose}
-              disabled={isStreaming}
+              disabled={isRunning}
               title="Close chat panel"
             >
               <X className="!h-3.5 !w-3.5" />
@@ -141,11 +160,11 @@ export function ChatPanel({
     initialInput,
     clearInitialInput,
     displayMode,
-    toggleDisplayMode: cycleDisplayMode,
+    toggleDisplayMode,
   } = useChatPanel();
   const [chat, setChat] = useState<Chat<AppUIMessage> | null>(null);
   const [chatTitle, setChatTitle] = useState<string | undefined>(undefined);
-  const [isStreaming, setIsStreaming] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
   const chatViewRef = useRef<ChatViewHandle | null>(null);
   const [isChatViewReady, setIsChatViewReady] = useState(false);
   const previousChatIdRef = useRef<string | null>(null);
@@ -324,19 +343,6 @@ export function ChatPanel({
     }
   }, [chat]);
 
-  // Listen for title changes and apply to current chat
-  useEffect(() => {
-    if (!chat) return;
-
-    const handler = (event: CustomEvent<{ title: string }>) => {
-      const title = event.detail.title;
-      setChatTitle(title);
-    };
-
-    const unsubscribe = ChatUIContext.onTitleChange(handler);
-    return unsubscribe;
-  }, [chat]);
-
   if (!chat) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -354,10 +360,10 @@ export function ChatPanel({
           onSelectChat={handleSelectChat}
           currentChatId={chat.id}
           onClearCurrentChat={handleClearCurrentChat}
-          onCycleDisplayMode={cycleDisplayMode}
+          toggleDisplayMode={toggleDisplayMode}
           displayMode={displayMode}
-          title={chatTitle}
-          isStreaming={isStreaming}
+          initialTitle={chatTitle}
+          isRunning={isRunning}
         />
         <ChatView
           ref={(ref) => {
@@ -376,7 +382,7 @@ export function ChatPanel({
               ? initialInput.text
               : undefined
           }
-          onStreamingChange={setIsStreaming}
+          onStreamingChange={setIsRunning}
         />
       </div>
     </SqlExecutionProvider>

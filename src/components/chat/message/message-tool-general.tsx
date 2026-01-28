@@ -7,9 +7,11 @@ import { ToolProgressIndicator } from "./tool-progress-indicator";
 export const MessageToolGeneral = memo(function MessageToolGeneral({
   toolName,
   part,
+  isRunning = true,
 }: {
   toolName: string;
   part: AppUIMessage["parts"][0];
+  isRunning?: boolean;
 }) {
   const toolPart = part as ToolPart;
   const state = toolPart.state;
@@ -22,7 +24,7 @@ export const MessageToolGeneral = memo(function MessageToolGeneral({
     "";
 
   return (
-    <CollapsiblePart toolName={toolName} state={state}>
+    <CollapsiblePart toolName={toolName} state={state} isRunning={isRunning}>
       <ToolProgressIndicator toolCallId={toolCallId} />
 
       {toolPart.input != null && (

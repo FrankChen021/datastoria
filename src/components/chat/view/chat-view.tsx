@@ -65,7 +65,7 @@ interface ChatViewProps {
     columns: Array<{ name: string; type: string }> | string[];
   }>;
   externalInput?: string;
-  onStreamingChange?: (isStreaming: boolean) => void;
+  onStreamingChange?: (isRunning: boolean) => void;
 }
 
 export interface ChatViewHandle {
@@ -151,18 +151,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     [handleSubmit]
   );
 
-  const isStreaming = status === "streaming" || status === "submitted";
-
-  // Determine which message is currently loading
-  const loadingMessageId = useMemo(() => {
-    if (!isStreaming || !messages || messages.length === 0) return null;
-    const last = messages[messages.length - 1];
-    if (last.role === "assistant") {
-      const isFinished = last.parts?.some((p: any) => p.type === "finish");
-      if (!isFinished) return last.id;
-    }
-    return null;
-  }, [messages, isStreaming]);
+  const isRunning = status === "streaming" || status === "submitted";
 
   // Calculate total token usage
   const tokenUsage = useMemo((): TokenUsage => {
@@ -199,11 +188,6 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
 
   const isEmpty = !messages || messages.length === 0;
 
-  // Pick a random greeting once per chat session
-  const greeting = useMemo(() => {
-    return GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
-  }, []);
-
   const handleQuestionClick = useCallback(
     (question: { text: string; autoRun?: boolean }) => {
       if (question.autoRun) {
@@ -228,7 +212,9 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
             <div className="mb-0">
               <AppLogo width={64} height={64} />
             </div>
-            <p className="text-base font-medium mb-4">{greeting}</p>
+            <p className="text-xl font-medium mb-4">
+              {GREETINGS[Math.floor(Math.random() * GREETINGS.length)]}
+            </p>
             {questions && questions.length > 0 && (
               <div className="w-full space-y-2">
                 {questions.map((question, index) => (
@@ -248,7 +234,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
       ) : (
         <ChatMessageList
           messages={messages as AppUIMessage[]}
-          loadingMessageId={loadingMessageId}
+          isRunning={isRunning}
           error={error || null}
         />
       )}
@@ -256,7 +242,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         ref={chatInputRef}
         onSubmit={handleSubmit}
         onStop={stop}
-        isStreaming={isStreaming}
+        isRunning={isRunning}
         hasMessages={messages.length > 0}
         tokenUsage={tokenUsage}
         onNewChat={onNewChat}

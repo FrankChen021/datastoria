@@ -6,7 +6,13 @@ import type { ToolPart } from "../chat-message-types";
 import { CollapsiblePart } from "./collapsible-part";
 
 export const MessageToolGenerateVisualization = memo(
-  function MessageToolGenerateVisualization({ part }: { part: AppUIMessage["parts"][0] }) {
+  function MessageToolGenerateVisualization({
+    part,
+    isRunning = true,
+  }: {
+    part: AppUIMessage["parts"][0];
+    isRunning?: boolean;
+  }) {
     const toolPart = part as ToolPart & { output?: PanelDescriptor };
     const state = toolPart.state;
     const isComplete = state === "output-available";
@@ -39,6 +45,7 @@ export const MessageToolGenerateVisualization = memo(
           state={state}
           defaultExpanded={true}
           keepChildrenMounted={true}
+          isRunning={isRunning}
         >
           {isComplete && (
             <div
@@ -59,6 +66,7 @@ export const MessageToolGenerateVisualization = memo(
   },
   (prevProps, nextProps) => {
     // Custom comparison: only re-render if the tool part actually changed
+    if (prevProps.isRunning !== nextProps.isRunning) return false;
     const prevPart = prevProps.part as ToolPart;
     const nextPart = nextProps.part as ToolPart;
     return prevPart.toolCallId === nextPart.toolCallId && prevPart.state === nextPart.state;

@@ -50,6 +50,7 @@ export function CollapsiblePart({
   state,
   keepChildrenMounted = false,
   success,
+  isRunning = true,
 }: {
   toolName: string;
   children?: React.ReactNode;
@@ -57,6 +58,7 @@ export function CollapsiblePart({
   state?: string;
   keepChildrenMounted?: boolean;
   success?: boolean;
+  isRunning?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -66,8 +68,12 @@ export function CollapsiblePart({
     success !== undefined ? !success : state?.includes("error") || state === "output-error";
   const isComplete = state === "output-available" || state === "done" || isError;
 
+  // If streaming stopped and tool is not complete, treat it as stopped (no timer, no spinner)
+  const isActuallyRunning = !isComplete && isRunning;
+
   // Get status text based on state
   const getStatusText = () => {
+    if (!isRunning) return null; // Don't show status text when streaming stopped
     if (state === "input-streaming") return "receiving input...";
     if (state === "input-available") return "running...";
     return null;
@@ -92,8 +98,10 @@ export function CollapsiblePart({
             ) : (
               <Check className="h-3 w-3" />
             )
-          ) : (
+          ) : isActuallyRunning ? (
             <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <CircleX className="h-3 w-3 text-destructive" />
           )}
           <Badge className="flex items-center gap-0.5 rounded-sm border-none pl-1 pr-2 h-4 py-0 font-normal text-[10px]">
             {children &&
@@ -105,12 +113,15 @@ export function CollapsiblePart({
             {toolName}
           </Badge>
           {statusText && <span className="text-muted-foreground">{statusText}</span>}
-          <Timer isRunning={!isComplete} />
+          <Timer isRunning={isActuallyRunning} />
         </div>
       </div>
       {(isExpanded || keepChildrenMounted) && (
         <div
-          className="pl-3 border-l ml-1.5 mb-1 border-muted/50 transition-all"
+          className={cn(
+            "pl-3 border-l ml-1.5 border-muted/50 transition-all",
+            children ? "mb-1" : ""
+          )}
           style={keepChildrenMounted && !isExpanded ? { display: "none" } : undefined}
         >
           {isComplete ? children : children ? children : "running"}

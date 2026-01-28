@@ -7,7 +7,13 @@ import { MessageMarkdownSql } from "./message-markdown-sql";
 import { ToolProgressIndicator } from "./tool-progress-indicator";
 
 export const MessageToolCollectSqlOptimizationEvidence = memo(
-  function MessageToolCollectSqlOptimizationEvidence({ part }: { part: AppUIMessage["parts"][0] }) {
+  function MessageToolCollectSqlOptimizationEvidence({
+    part,
+    isRunning = true,
+  }: {
+    part: AppUIMessage["parts"][0];
+    isRunning?: boolean;
+  }) {
     const toolPart = part as ToolPart;
     const state = toolPart.state;
     const input = toolPart.input as { sql?: string; query_id?: string; goal?: string } | undefined;
@@ -37,6 +43,7 @@ export const MessageToolCollectSqlOptimizationEvidence = memo(
         toolName={"Collect SQL Optimization Evidence"}
         state={state}
         defaultExpanded={state !== "output-available"}
+        isRunning={isRunning}
       >
         {/* Show input parameters */}
         {input && (

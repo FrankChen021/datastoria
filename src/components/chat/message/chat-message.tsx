@@ -93,7 +93,15 @@ const TokenUsageDisplay = memo(function TokenUsageDisplay({
  * Render a single message part
  */
 const ChatMessagePart = memo(
-  function ChatMessagePart({ part, isUser }: { part: AppUIMessage["parts"][0]; isUser: boolean }) {
+  function ChatMessagePart({
+    part,
+    isUser,
+    isRunning = true,
+  }: {
+    part: AppUIMessage["parts"][0];
+    isUser: boolean;
+    isRunning?: boolean;
+  }) {
     if (part.type === "text") {
       if (isUser) {
         return <MessageUser text={part.text} />;
@@ -115,23 +123,23 @@ const ChatMessagePart = memo(
     }
 
     if (toolName === SERVER_TOOL_GENERATE_SQL) {
-      return <MessageToolGenerateSql part={part} />;
+      return <MessageToolGenerateSql part={part} isRunning={isRunning} />;
     } else if (toolName === SERVER_TOOL_GENEREATE_VISUALIZATION) {
-      return <MessageToolGenerateVisualization part={part} />;
+      return <MessageToolGenerateVisualization part={part} isRunning={isRunning} />;
     } else if (toolName === CLIENT_TOOL_NAMES.EXECUTE_SQL) {
-      return <MessageToolExecuteSql part={part} />;
+      return <MessageToolExecuteSql part={part} isRunning={isRunning} />;
     } else if (toolName === CLIENT_TOOL_NAMES.VALIDATE_SQL) {
-      return <MessageToolValidateSql part={part} />;
+      return <MessageToolValidateSql part={part} isRunning={isRunning} />;
     } else if (toolName === CLIENT_TOOL_NAMES.EXPLORE_SCHEMA) {
-      return <MessageToolExploreSchema part={part} />;
+      return <MessageToolExploreSchema part={part} isRunning={isRunning} />;
     } else if (toolName === CLIENT_TOOL_NAMES.GET_TABLES) {
-      return <MessageToolGetTables part={part} />;
+      return <MessageToolGetTables part={part} isRunning={isRunning} />;
     } else if (toolName === CLIENT_TOOL_NAMES.COLLECT_SQL_OPTIMIZATION_EVIDENCE) {
-      return <MessageToolCollectSqlOptimizationEvidence part={part} />;
+      return <MessageToolCollectSqlOptimizationEvidence part={part} isRunning={isRunning} />;
     } else if (toolName === SERVER_TOOL_PLAN) {
-      return <MessageToolPlan part={part} />;
+      return <MessageToolPlan part={part} isRunning={isRunning} />;
     } else if (toolName) {
-      return <MessageToolGeneral toolName={toolName} part={part} />;
+      return <MessageToolGeneral toolName={toolName} part={part} isRunning={isRunning} />;
     }
 
     return null;
@@ -139,6 +147,7 @@ const ChatMessagePart = memo(
   (prevProps, nextProps) => {
     // Custom comparison: only re-render if the part actually changed
     if (prevProps.isUser !== nextProps.isUser) return false;
+    if (prevProps.isRunning !== nextProps.isRunning) return false;
     if (prevProps.part === nextProps.part) return true;
     // For tool parts, compare by toolCallId and state
     const prevPart = prevProps.part as ToolPart;
@@ -161,6 +170,7 @@ interface ChatMessageProps {
   isLoading?: boolean;
   isFirst?: boolean; // Whether this is a new user request (needs top spacing)
   isLast?: boolean; // Whether this is the last message in a sequence
+  isRunning?: boolean;
 }
 /**
  * Render a single message with session styling and visualization
@@ -169,6 +179,7 @@ export const ChatMessage = memo(function ChatMessage({
   message,
   isLoading = false,
   isFirst = false,
+  isRunning = true,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const msgRecord = message as unknown as Record<string, unknown>;
@@ -195,7 +206,7 @@ export const ChatMessage = memo(function ChatMessage({
 
         {/* Profile and message row - aligned at top */}
         <div className="flex gap-1">
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 w-[28px]">
             {isUser ? (
               <UserProfileImage />
             ) : (
@@ -208,12 +219,13 @@ export const ChatMessage = memo(function ChatMessage({
           <div className="flex-1 overflow-hidden min-w-0 text-sm pr-6">
             {parts.length === 0 && isLoading && (
               <div className="flex items-center gap-2 text-muted-foreground">
+                {/* Under the state that request is submitted, but server has not responded yet */}
                 <span>Thinking</span>
               </div>
             )}
             {parts.length === 0 && !isLoading && !error && "Nothing returned"}
             {parts.map((part, i) => (
-              <ChatMessagePart key={i} part={part} isUser={isUser} />
+              <ChatMessagePart key={i} part={part} isUser={isUser} isRunning={isRunning} />
             ))}
             {error && <ErrorMessageDisplay errorText={error.message || String(error)} />}
             {showLoading && (
