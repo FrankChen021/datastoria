@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import type { DatabaseContext } from "@/components/chat/chat-context";
-import type { Intent } from "@/lib/ai/agent/plan/agent-registry";
-import { plan } from "@/lib/ai/agent/plan/planner";
+import { PlanningAgent } from "@/lib/ai/agent/plan/planning-agent";
+import type { PlannerMetadata } from "@/lib/ai/agent/plan/planning-types";
 import type { ServerDatabaseContext, TokenUsage } from "@/lib/ai/common-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import { SseStreamer } from "@/lib/sse-streamer";
@@ -14,11 +14,6 @@ export const dynamic = "force-dynamic";
 // Increase body size limit for this route to handle large tool results
 // This is needed when get_table_columns returns 1500+ columns (e.g., system.metric_log)
 export const maxDuration = 60; // 60 seconds timeout
-
-export type PlannerMetadata = {
-  intent: Intent;
-  usage: TokenUsage;
-};
 
 export type MessageMetadata = {
   planner?: PlannerMetadata;
@@ -225,7 +220,7 @@ export async function POST(req: Request) {
             agent,
             usage: plannerUsage,
             messageId,
-          } = await plan(streamer, uiMessages, modelConfig);
+          } = await PlanningAgent.plan(streamer, uiMessages, modelConfig);
 
           // 2. Delegate to Expert Sub-Agent
           const modelMessages = await convertToModelMessages(uiMessages);

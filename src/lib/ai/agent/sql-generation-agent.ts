@@ -4,7 +4,7 @@ import type { ServerDatabaseContext } from "../common-types";
 import { isMockMode, LanguageModelProviderFactory } from "../llm/llm-provider-factory";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
 import type { TableSchemaOutput } from "../tools/client/explore-schema";
-import type { InputModel } from "./plan/agent-registry";
+import type { InputModel } from "./plan/sub-agent-registry";
 import { mockSqlGenerationAgent } from "./sql-generation-agent.mock";
 
 /**

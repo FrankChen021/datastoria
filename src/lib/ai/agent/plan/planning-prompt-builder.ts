@@ -1,4 +1,4 @@
-import { AGENT_ID_LIST, AGENT_LIST, type Intent } from "@/lib/ai/agent/plan/agent-registry";
+import { AGENT_ID_LIST, AGENT_LIST, type Intent } from "@/lib/ai/agent/plan/sub-agent-registry";
 import type { UIMessage } from "ai";
 
 /**

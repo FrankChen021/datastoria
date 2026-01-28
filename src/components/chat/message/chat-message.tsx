@@ -1,7 +1,7 @@
 import { AppLogo } from "@/components/app-logo";
 import { TypingDots } from "@/components/ui/typing-dots";
 import { UserProfileImage } from "@/components/user-profile-image";
-import { SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planner";
+import { SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planning-agent";
 import { SERVER_TOOL_GENERATE_SQL } from "@/lib/ai/agent/sql-generation-agent";
 import { SERVER_TOOL_GENEREATE_VISUALIZATION } from "@/lib/ai/agent/visualization-agent";
 import type { AppUIMessage, TokenUsage } from "@/lib/ai/common-types";

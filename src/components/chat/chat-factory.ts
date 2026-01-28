@@ -1,6 +1,6 @@
 import { ModelManager } from "@/components/settings/models/model-manager";
-import type { PlanToolOutput } from "@/lib/ai/agent/plan/plan-types";
-import { SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planner";
+import { SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planning-agent";
+import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import { SERVER_TOOL_GENERATE_SQL } from "@/lib/ai/agent/sql-generation-agent";
 import { SERVER_TOOL_OPTIMIZE_SQL } from "@/lib/ai/agent/sql-optimization-agent";
 import { SERVER_TOOL_GENEREATE_VISUALIZATION } from "@/lib/ai/agent/visualization-agent";

@@ -1,4 +1,4 @@
-import type { PlanToolOutput } from "@/lib/ai/agent/plan/plan-types";
+import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import type { AppUIMessage } from "@/lib/ai/common-types";
 import { memo, useEffect } from "react";
 import type { ToolPart } from "../chat-message-types";

@@ -1,6 +1,6 @@
 import type { ChatUIMessage } from "@/app/api/chat/route";
-import { intentFromKey, type Intent } from "@/lib/ai/agent/plan/agent-registry";
-import { SERVER_TOOL_PLAN, type PlanToolOutput } from "@/lib/ai/agent/plan/plan-types";
+import { SERVER_TOOL_PLAN, type PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
+import { intentFromKey, type Intent } from "@/lib/ai/agent/plan/sub-agent-registry";
 import type { UIMessage } from "ai";
 import { v7 as uuidv7 } from "uuid";
 

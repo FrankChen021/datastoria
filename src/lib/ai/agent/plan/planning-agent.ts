@@ -1,12 +1,12 @@
+import { InputMessages } from "@/lib/ai/agent/plan/planning-input";
+import { PlannerPromptBuilder, uiMessageToText } from "@/lib/ai/agent/plan/planning-prompt-builder";
+import { SERVER_TOOL_PLAN, type PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import {
   SUB_AGENTS,
   type InputModel,
   type Intent,
   type SubAgent,
-} from "@/lib/ai/agent/plan/agent-registry";
-import { InputMessages } from "@/lib/ai/agent/plan/input-message";
-import { SERVER_TOOL_PLAN, type PlanToolOutput } from "@/lib/ai/agent/plan/plan-types";
-import { PlannerPromptBuilder, uiMessageToText } from "@/lib/ai/agent/plan/planner-prompt-builder";
+} from "@/lib/ai/agent/plan/sub-agent-registry";
 import type { TokenUsage } from "@/lib/ai/common-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import type { SseStreamer } from "@/lib/sse-streamer";
@@ -14,11 +14,11 @@ import { generateText, Output, type UIMessage } from "ai";
 import { v7 as uuidv7 } from "uuid";
 import { z } from "zod";
 
-export { InputMessages } from "@/lib/ai/agent/plan/input-message";
+export { InputMessages } from "@/lib/ai/agent/plan/planning-input";
 export {
   SERVER_TOOL_PLAN,
   type PlanToolOutput as PlanToolResult,
-} from "@/lib/ai/agent/plan/plan-types";
+} from "@/lib/ai/agent/plan/planning-types";
 
 /**
  * Intent classification schema
@@ -37,78 +37,86 @@ export type PlanResult = PlanToolOutput & {
 };
 
 /**
- * Plan layer: extracts previous intent (before if-else), then either continues with
- * that intent or runs the plan agent (LLM) and returns the selected agent and message ID.
- * Uses only UI messages; converts to model messages internally when calling the plan agent.
- *
- * @param messages - UI messages from the request.
+ * Planning agent: classifies user intent and selects the appropriate sub-agent.
+ * Uses continuation detection, keyword/heuristic rules, and LLM classification.
  */
-export async function plan(
-  streamer: SseStreamer,
-  messages: UIMessage[],
-  modelConfig: InputModel
-): Promise<PlanResult & { messageId: string }> {
-  const input = new InputMessages(messages);
+export class PlanningAgent {
+  /**
+   * Plan layer: extracts previous intent (before if-else), then either continues with
+   * that intent or runs the plan agent (LLM) and returns the selected agent and message ID.
+   * Uses only UI messages; converts to model messages internally when calling the plan agent.
+   *
+   * @param streamer - SSE streamer for tool events
+   * @param messages - UI messages from the request
+   * @param modelConfig - Model configuration for LLM classification
+   */
+  static async plan(
+    streamer: SseStreamer,
+    messages: UIMessage[],
+    modelConfig: InputModel
+  ): Promise<PlanResult & { messageId: string }> {
+    const input = new InputMessages(messages);
 
-  streamer.streamObject({ type: "start", messageId: input.messageId });
+    streamer.streamObject({ type: "start", messageId: input.messageId });
 
-  if (input.isContinuation) {
-    const agent = SUB_AGENTS[input.previousIntent ?? "general"] ?? SUB_AGENTS.general;
-    const intent = input.previousIntent ?? "general";
+    if (input.isContinuation) {
+      const agent = SUB_AGENTS[input.previousIntent ?? "general"] ?? SUB_AGENTS.general;
+      const intent = input.previousIntent ?? "general";
+      return {
+        intent,
+        title: undefined,
+        usage: undefined,
+        reasoning: undefined,
+        agent,
+        messageId: input.messageId,
+      };
+    }
+
+    if (!input.lastUser) {
+      const defaultResult: PlanResult = {
+        intent: "general",
+        reasoning: "No user message found",
+        agent: SUB_AGENTS.general,
+        usage: undefined,
+        title: undefined,
+      };
+      return { ...defaultResult, messageId: input.messageId };
+    }
+
+    const keywordResult = classifyByKeyword(input);
+    if (keywordResult) return { ...keywordResult, messageId: input.messageId };
+
+    const heuristicResult = classifyByHeuristics(input);
+    if (heuristicResult) return { ...heuristicResult, messageId: input.messageId };
+
+    const toolCallId = `router-${uuidv7().replace(/-/g, "")}`;
+    streamer.streamObject({
+      type: "tool-input-available",
+      toolCallId,
+      toolName: SERVER_TOOL_PLAN,
+      input: {},
+      dynamic: true,
+    });
+
+    const result = await classifyByLLM(input, modelConfig);
+
+    streamer.streamObject({
+      type: "tool-output-available",
+      toolCallId,
+      output: {
+        intent: result.intent,
+        title: result.title ?? undefined,
+        usage: result.usage ?? undefined,
+        reasoning: result.reasoning ?? undefined,
+      } as PlanToolOutput,
+      dynamic: true,
+    });
+
     return {
-      intent,
-      title: undefined,
-      usage: undefined,
-      reasoning: undefined,
-      agent,
+      ...result,
       messageId: input.messageId,
     };
   }
-
-  if (!input.lastUser) {
-    const defaultResult: PlanResult = {
-      intent: "general",
-      reasoning: "No user message found",
-      agent: SUB_AGENTS.general,
-      usage: undefined,
-      title: undefined,
-    };
-    return { ...defaultResult, messageId: input.messageId };
-  }
-
-  const keywordResult = classifyByKeyword(input);
-  if (keywordResult) return { ...keywordResult, messageId: input.messageId };
-
-  const heuristicResult = classifyByHeuristics(input);
-  if (heuristicResult) return { ...heuristicResult, messageId: input.messageId };
-
-  const toolCallId = `router-${uuidv7().replace(/-/g, "")}`;
-  streamer.streamObject({
-    type: "tool-input-available",
-    toolCallId,
-    toolName: SERVER_TOOL_PLAN,
-    input: {},
-    dynamic: true,
-  });
-
-  const result = await classifyByLLM(input, modelConfig);
-
-  streamer.streamObject({
-    type: "tool-output-available",
-    toolCallId,
-    output: {
-      intent: result.intent,
-      title: result.title ?? undefined,
-      usage: result.usage ?? undefined,
-      reasoning: result.reasoning ?? undefined,
-    } as PlanToolOutput,
-    dynamic: true,
-  });
-
-  return {
-    ...result,
-    messageId: input.messageId,
-  };
 }
 
 /**
