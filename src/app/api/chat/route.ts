@@ -6,12 +6,13 @@ import {
   SUB_AGENTS,
   type InputModel,
   type Intent,
+  type IntentMetadata,
   type SubAgent,
 } from "@/lib/ai/agent/planner-agent";
 import type { ServerDatabaseContext, TokenUsage } from "@/lib/ai/common-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import { APICallError } from "@ai-sdk/provider";
-import { convertToModelMessages, RetryError, type ModelMessage } from "ai";
+import { convertToModelMessages, RetryError, type ModelMessage, type UIMessage } from "ai";
 import { v7 as uuidv7 } from "uuid";
 
 // Force dynamic rendering (no static generation)
@@ -316,8 +317,6 @@ export async function POST(req: Request) {
               encoder.encode(`data: ${JSON.stringify({ type: "start", messageId })}\n\n`)
             );
 
-            sayGreeting(controller, encoder, modelMessages, context);
-
             const result = await doPlan(controller, encoder, messageId, modelMessages, modelConfig);
             agent = result.agent;
             routerUsage = result.usage;
@@ -359,6 +358,10 @@ export async function POST(req: Request) {
 
                   // Track router usage separately for debugging purpose
                   routerUsage: routerUsage,
+
+                  // Track the agent that generated the response
+                  // Client side can prune history message, we can use this info to find out the latest used agent
+                  intent: { intent: agent.id } as IntentMetadata,
                 };
               }
             },
@@ -472,7 +475,7 @@ async function doPlan(
   );
 
   // 3. Identify Intent (this performs the FIRST LLM call)
-  const { intent, title, agent, usage } = await callPlanAgent(messages, modelConfig);
+  const { intent, title, agent, usage, reasoning } = await callPlanAgent(messages, modelConfig);
 
   // 4. Send tool call result with metadata
   controller.enqueue(
@@ -484,6 +487,7 @@ async function doPlan(
           intent,
           title: title || undefined,
           usage: usage || undefined,
+          reasoning: reasoning || undefined,
         } as PlanOutput,
         dynamic: true,
       })}\n\n`
@@ -491,41 +495,4 @@ async function doPlan(
   );
 
   return { intent, agent, usage };
-}
-function sayGreeting(
-  controller: ReadableStreamDefaultController<any>,
-  encoder: TextEncoder,
-  modelMessages: ModelMessage[],
-  context: ServerDatabaseContext
-) {
-  const hasRepliedBefore = modelMessages.some((m) => m.role === "assistant");
-  if (hasRepliedBefore) {
-    return;
-  }
-
-  const username = context.userEmail?.split("@")[0];
-
-  const greetingTemplates = [
-    `Hello `,
-    `Hi `,
-    `Hey `,
-    `Welcome `,
-    `Greetings `,
-    `Hello there, `,
-    `Hi there, `,
-    `Good to see you, `,
-    `Nice to meet you, `,
-    `Hey there, `,
-    `Welcome back, `,
-    `Hello and welcome, `,
-  ];
-
-  const greeting = greetingTemplates[Math.floor(Math.random() * greetingTemplates.length)];
-  controller.enqueue(encoder.encode(`data: { "type": "text-start", "id": "txt-0" }\n\n`));
-  controller.enqueue(
-    encoder.encode(
-      `data: { "type": "text-delta", "id": "txt-0", "delta": "${greeting} ${username}! I'm working on your request." }\n\n`
-    )
-  );
-  controller.enqueue(encoder.encode(`data: { "type": "text-end", "id": "txt-0" }\n\n`));
 }
