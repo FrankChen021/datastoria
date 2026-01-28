@@ -1,4 +1,4 @@
-import type { PlanOutput } from "@/app/api/chat/route";
+import type { PlanToolOutput } from "@/lib/ai/agent/plan/plan-types";
 import type { AppUIMessage } from "@/lib/ai/common-types";
 import { memo, useEffect } from "react";
 import type { ToolPart } from "../chat-message-types";
@@ -17,7 +17,7 @@ export const MessageToolPlan = memo(function MessageToolPlan({
 }) {
   const toolPart = part as ToolPart;
   const state = toolPart.state;
-  const output = toolPart.output as PlanOutput;
+  const output = toolPart.output as PlanToolOutput;
 
   // Update title when output.title is available
   useEffect(() => {

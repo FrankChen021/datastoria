@@ -1,6 +1,6 @@
-import type { PlanOutput } from "@/app/api/chat/route";
 import { ModelManager } from "@/components/settings/models/model-manager";
-import { SERVER_TOOL_PLAN } from "@/lib/ai/agent/planner-agent";
+import type { PlanToolOutput } from "@/lib/ai/agent/plan/plan-types";
+import { SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planner";
 import { SERVER_TOOL_GENERATE_SQL } from "@/lib/ai/agent/sql-generation-agent";
 import { SERVER_TOOL_OPTIMIZE_SQL } from "@/lib/ai/agent/sql-optimization-agent";
 import { SERVER_TOOL_GENEREATE_VISUALIZATION } from "@/lib/ai/agent/visualization-agent";
@@ -317,7 +317,7 @@ export class ChatFactory {
               message.parts[0].type === "dynamic-tool" &&
               message.parts[0].toolName === SERVER_TOOL_PLAN
             ) {
-              const output = message.parts[0].output as PlanOutput;
+              const output = message.parts[0].output as PlanToolOutput;
               if (output.title) {
                 chat.title = output.title;
               }
