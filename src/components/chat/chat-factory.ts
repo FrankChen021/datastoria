@@ -285,57 +285,57 @@ export class ChatFactory {
       onFinish: skipStorage
         ? undefined
         : async ({ message }) => {
-            // Use current local time for createdAt (only used for display, not sorting)
-            // Messages are sorted by UUIDv7 message ID, which maintains chronological order
-            const now = new Date();
+          // Use current local time for createdAt (only used for display, not sorting)
+          // Messages are sorted by UUIDv7 message ID, which maintains chronological order
+          const now = new Date();
 
-            const messageToSave: Message = {
-              id: message.id,
-              role: message.role,
-              parts: message.parts as any,
-              metadata: message.metadata as MessageMetadata,
+          const messageToSave: Message = {
+            id: message.id,
+            role: message.role,
+            parts: message.parts as any,
+            metadata: message.metadata as MessageMetadata,
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          await chatStorage.saveMessage(chatId, messageToSave);
+          let chat = await chatStorage.getChat(chatId);
+          if (!chat) {
+            const now = new Date();
+            chat = {
+              chatId: chatId,
+              databaseId: connection.connectionId,
               createdAt: now,
               updatedAt: now,
             };
+          }
 
-            await chatStorage.saveMessage(chatId, messageToSave);
-            let chat = await chatStorage.getChat(chatId);
-            if (!chat) {
-              const now = new Date();
-              chat = {
-                chatId: chatId,
-                databaseId: connection.connectionId,
-                createdAt: now,
-                updatedAt: now,
-              };
+          if (message.metadata?.title && typeof message.metadata.title.text === "string") {
+            chat.title = message.metadata.title.text;
+            ChatUIContext.updateTitle(message.metadata.title.text);
+          } else if (
+            message.role === "assistant" &&
+            message.parts.length > 1 &&
+            message.parts[0].type === "dynamic-tool" &&
+            message.parts[0].toolName === SERVER_TOOL_NAMES.PLAN
+          ) {
+            const output = message.parts[0].output as PlanToolOutput;
+            if (output.title) {
+              chat.title = output.title;
+              ChatUIContext.updateTitle(output.title);
             }
+          }
 
-            if (message.metadata?.title && typeof message.metadata.title.text === "string") {
-              chat.title = message.metadata.title.text;
-              ChatUIContext.updateTitle(message.metadata.title.text);
-            } else if (
-              message.role === "assistant" &&
-              message.parts.length > 1 &&
-              message.parts[0].type === "dynamic-tool" &&
-              message.parts[0].toolName === SERVER_TOOL_NAMES.PLAN
-            ) {
-              const output = message.parts[0].output as PlanToolOutput;
-              if (output.title) {
-                chat.title = output.title;
-                ChatUIContext.updateTitle(output.title);
-              }
-            }
-
-            // Always update the chat's updatedAt timestamp when a message is saved.
-            // This ensures:
-            // 1. The chat appears at the top of the history list (sorted by updatedAt)
-            // 2. The "last updated" time displayed in the UI is accurate
-            // 3. Chats are correctly grouped by time periods (Today, Yesterday, etc.)
-            await chatStorage.saveChat({
-              ...chat,
-              updatedAt: new Date(),
-            });
-          },
+          // Always update the chat's updatedAt timestamp when a message is saved.
+          // This ensures:
+          // 1. The chat appears at the top of the history list (sorted by updatedAt)
+          // 2. The "last updated" time displayed in the UI is accurate
+          // 3. Chats are correctly grouped by time periods (Today, Yesterday, etc.)
+          await chatStorage.saveChat({
+            ...chat,
+            updatedAt: new Date(),
+          });
+        },
     });
 
     return chat;
