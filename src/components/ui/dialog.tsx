@@ -35,14 +35,15 @@ interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof Dialo
    * Optional className for the close button. Use to adjust position (e.g. vertically center with first row).
    */
   closeButtonClassName?: string;
+  overlayClassName?: string;
 }
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, disableBackdrop = false, closeButtonClassName, ...props }, ref) => (
+>(({ className, children, disableBackdrop = false, closeButtonClassName, overlayClassName, ...props }, ref) => (
   <DialogPortal>
-    {!disableBackdrop && <DialogOverlay />}
+    {!disableBackdrop && <DialogOverlay className={overlayClassName} />}
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
