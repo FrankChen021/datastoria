@@ -1,6 +1,5 @@
+import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { CopyButton } from "@/components/ui/copy-button";
-import SyntaxHighlighter from "react-syntax-highlighter";
-import { solarizedDark } from "react-syntax-highlighter/dist/cjs/styles/hljs";
 import type { QueryRequestViewModel } from "./query-view-model";
 
 interface QueryRequestViewProps {
@@ -8,25 +7,28 @@ interface QueryRequestViewProps {
 }
 
 export function QueryRequestView({ queryRequest }: QueryRequestViewProps) {
+  const sql = queryRequest.sql ?? "";
+
   return (
     <div className="query-request">
       <div className="relative group">
         <CopyButton
-          value={queryRequest.sql}
+          value={sql}
           className="right-2 top-1 opacity-0 group-hover:opacity-100 transition-opacity"
         />
-        <SyntaxHighlighter
+        <ThemedSyntaxHighlighter
           showLineNumbers={true}
           customStyle={{
             backgroundColor: "rgba(143, 153, 168, 0.15)",
             fontSize: "14px",
             margin: 0,
+            padding: "0rem",
           }}
           language="sql"
-          style={solarizedDark}
+          expandable={true}
         >
-          {queryRequest.sql}
-        </SyntaxHighlighter>
+          {sql}
+        </ThemedSyntaxHighlighter>
       </div>
     </div>
   );

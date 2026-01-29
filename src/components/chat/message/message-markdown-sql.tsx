@@ -21,6 +21,7 @@ interface MessageMarkdownSqlProps {
   customStyle?: React.CSSProperties;
   showExecuteButton?: boolean;
   showLineNumbers?: boolean;
+  expandable?: boolean;
 }
 
 export const MessageMarkdownSql = memo(function MessageMarkdownSql({
@@ -29,6 +30,7 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
   customStyle,
   showExecuteButton = false,
   showLineNumbers,
+  expandable = false,
 }: MessageMarkdownSqlProps) {
   const { connection } = useConnection();
   const { executionMode } = useSqlExecution();
@@ -156,6 +158,7 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
             ...customStyle,
           }}
           showLineNumbers={showLineNumbers}
+          expandable={expandable}
         >
           {code}
         </ThemedSyntaxHighlighter>

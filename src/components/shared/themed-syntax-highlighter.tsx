@@ -1,5 +1,5 @@
 import { useTheme } from "@/components/shared/theme-provider";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Prism as SyntaxHighlighter, type SyntaxHighlighterProps } from "react-syntax-highlighter";
 import {
   vscDarkPlus as darkStyle,
@@ -10,12 +10,28 @@ interface ThemedSyntaxHighlighterProps extends Omit<SyntaxHighlighterProps, "sty
   language?: string;
   children: string;
   customStyle?: React.CSSProperties;
+  /**
+   * If true, the highlighter will collapse long content and show an expandable
+   * control. Default: false.
+   */
+  expandable?: boolean;
+  /**
+   * Number of lines to show when collapsed. Only used when `expandable` is true.
+   */
+  collapseLines?: number;
+  /**
+   * Line height in pixels used to compute collapsed height. Default: 20.
+   */
+  lineHeightPx?: number;
 }
 
 export function ThemedSyntaxHighlighter({
   language = "sql",
   children,
   customStyle,
+  expandable = false,
+  collapseLines = 8,
+  lineHeightPx = 20,
   ...props
 }: ThemedSyntaxHighlighterProps) {
   const { theme } = useTheme();
@@ -69,16 +85,92 @@ export function ThemedSyntaxHighlighter({
   const syntaxStyle = useMemo(() => {
     return currentDarkMode ? darkStyle : lightStyle;
   }, [currentDarkMode]);
+  // If not expandable, render as before
+  if (!expandable) {
+    return (
+      <SyntaxHighlighter
+        key={`${currentDarkMode ? "dark" : "light"}-${theme}`}
+        customStyle={{ background: "transparent", ...customStyle }}
+        language={language}
+        style={syntaxStyle}
+        {...props}
+      >
+        {children}
+      </SyntaxHighlighter>
+    );
+  }
+
+  // Expandable behavior: compute line count and collapse height
+  const sql = children ?? "";
+  const sqlLines = useMemo(() => String(sql).split(/\r\n|\r|\n/).length, [sql]);
+  const isOverflowing = useMemo(() => sqlLines > collapseLines, [sqlLines, collapseLines]);
+  const collapsedHeight = collapseLines * lineHeightPx;
+
+  const [expanded, setExpanded] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   return (
-    <SyntaxHighlighter
-      key={`${currentDarkMode ? "dark" : "light"}-${theme}`}
-      customStyle={{ background: "transparent", ...customStyle }}
-      language={language}
-      style={syntaxStyle}
-      {...props}
-    >
-      {children}
-    </SyntaxHighlighter>
+    <div style={{ position: "relative" }}>
+      <div
+        ref={wrapperRef}
+        aria-expanded={expanded}
+        style={{
+          maxHeight: !expanded && isOverflowing ? `${collapsedHeight}px` : undefined,
+          overflow: "hidden",
+          position: "relative",
+          transition: "max-height 220ms ease",
+        }}
+      >
+        <SyntaxHighlighter
+          key={`${currentDarkMode ? "dark" : "light"}-${theme}`}
+          customStyle={{ background: "transparent", ...customStyle }}
+          language={language}
+          style={syntaxStyle}
+          {...props}
+        >
+          {children}
+        </SyntaxHighlighter>
+
+        {!expanded && isOverflowing && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 48,
+              background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(17,24,39,0.7) 100%)",
+              pointerEvents: "none",
+            }}
+          />
+        )}
+      </div>
+
+      {isOverflowing && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => {
+            setExpanded((prev) => {
+              if (prev) {
+                // Current is expanded, it will be collapsed, scroll to the end to show the 'truncated'
+                requestAnimationFrame(() => {
+                  const wrapper = wrapperRef.current;
+                  if (wrapper) {
+                    wrapper.scrollIntoView({ behavior: "smooth", block: "end" });
+                  }
+                });
+              }
+              return !prev;
+            });
+          }}
+          className="absolute right-2 bottom-2 z-10 text-muted-foreground text-sm rounded px-2 py-1"
+          style={{ position: "absolute", right: 8, bottom: 8 }}
+        >
+          {expanded ? "Collapse" : "Expand"}
+        </button>
+      )}
+    </div>
   );
 }

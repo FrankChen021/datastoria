@@ -34,6 +34,7 @@ export const MessageUser = memo(function MessageUser({ text }: { text: string })
       text={processedText}
       showExecuteButton={false}
       customStyle={{ fontSize: "0.9rem", lineHeight: "1.6" }}
+      expandable={true}
     />
   );
 });

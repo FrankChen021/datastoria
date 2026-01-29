@@ -14,12 +14,17 @@ interface MessageMarkdownProps {
   text: string;
   customStyle?: React.CSSProperties;
   showExecuteButton?: boolean;
+  /**
+   * Allow expandable SQL blocks inside markdown. Default: false.
+   */
+  expandable?: boolean;
 }
 
 export const MessageMarkdown = memo(function MessageMarkdown({
   text,
   customStyle,
   showExecuteButton = true,
+  expandable = false,
 }: MessageMarkdownProps) {
   const { connection } = useConnection();
 
@@ -51,6 +56,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
               customStyle={customStyle}
               showExecuteButton={showExecuteButton}
               showLineNumbers={false}
+              expandable={expandable}
             />
           );
         }
