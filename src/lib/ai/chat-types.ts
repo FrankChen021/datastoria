@@ -84,10 +84,10 @@ export interface Chat {
  * Single source of truth for message metadata (usage, planner) shared with Message.
  */
 export type AppUIMessage = UIMessage<
-  MessageMetadata & { updatedAt?: Date; createdAt?: Date },
+  MessageMetadata,
   UIDataTypes,
   InferUITools<typeof ClientTools>
->;
+> & { updatedAt?: Date; createdAt?: Date };
 
 /**
  * Type for tool parts that have input, output, and state properties.

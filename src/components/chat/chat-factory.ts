@@ -169,6 +169,7 @@ export class ChatFactory {
                   chatId: chatId,
                   role: msg.role,
                   parts: msg.parts || [{ type: "text", text: mAny.content || "" }],
+                  metadata: msg.metadata,
                   createdAt: now,
                   updatedAt: now,
                   usage: undefined,

@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import type { DatabaseContext } from "@/components/chat/chat-context";
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
-import { PlanningAgent } from "@/lib/ai/agent/plan/planning-agent";
+import { PlanningAgent, SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planning-agent";
 import type { PlannerMetadata } from "@/lib/ai/agent/plan/planning-types";
 import type { MessageMetadata } from "@/lib/ai/chat-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
@@ -211,15 +211,27 @@ export async function POST(req: Request) {
       async start(controller) {
         const streamer = new SseStreamer(controller);
         try {
-          const uiMessages = apiRequest.messages ?? [];
+          const inputMessages = apiRequest.messages ?? [];
+
+          // 1. Plan the intent
           const {
             agent,
             usage: plannerUsage,
             messageId,
-          } = await PlanningAgent.plan(streamer, uiMessages, modelConfig);
+          } = await PlanningAgent.plan(streamer, inputMessages, modelConfig);
+
+          // Remove any plan tool parts from UI messages before converting to model messages.
+          const prunedMessages = (inputMessages || []).map((m: any) => {
+            const parts = Array.isArray(m.parts)
+              ? m.parts.filter(
+                  (p: any) => !(p.type === "dynamic-tool" && p.toolName === SERVER_TOOL_PLAN)
+                )
+              : m.parts;
+            return { ...m, parts };
+          });
 
           // 2. Delegate to Expert Sub-Agent
-          const modelMessages = await convertToModelMessages(uiMessages);
+          const modelMessages = await convertToModelMessages(prunedMessages);
           const subAgentResult = await agent.stream({
             messages: modelMessages,
             modelConfig,

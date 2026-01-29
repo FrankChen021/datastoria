@@ -181,20 +181,14 @@ export const ChatMessage = memo(function ChatMessage({
   isRunning = true,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
-  const msgRecord = message as unknown as Record<string, unknown>;
-  const timestamp = msgRecord.createdAt
-    ? new Date(msgRecord.createdAt as string | number).getTime()
-    : Date.now();
+  const timestamp = message.createdAt ? new Date(message.createdAt).getTime() : Date.now();
   const parts = message.parts || [];
-  const metadata = msgRecord.metadata as Record<string, unknown> | undefined;
-  const usage = metadata?.usage as TokenUsage | undefined;
-  const error = msgRecord.error as Error | undefined;
+  const usage = message.metadata?.usage as TokenUsage | undefined;
+  const error = (message as any).error as Error | undefined;
 
   const showLoading = !isUser && isLoading;
   return (
-    <div
-      className={cn(isUser && !isFirst ? "mt-3 border-t" : "", isUser ? "py-1" : "")}
-    >
+    <div className={cn(isUser && !isFirst ? "mt-3 border-t" : "", isUser ? "py-1" : "")}>
       {/* Timestamp above profile for user messages - reserve space for alignment */}
       {isUser && timestamp && (
         <h4 className="px-3 py-2 text-sm font-semibold">
@@ -212,12 +206,12 @@ export const ChatMessage = memo(function ChatMessage({
         />
 
         {/* Profile and message row - aligned at top */}
-        <div className="flex-shrink-0 w-[28px]">
+        <div className="flex-shrink-0 w-[28px] flex justify-center">
           {isUser ? (
             <UserProfileImage />
           ) : (
             <div className="h-6 w-6 flex items-center justify-center">
-              <AppLogo className={`h-6 w-6 }`} />
+              <AppLogo className="h-6 w-6" />
             </div>
           )}
         </div>

@@ -83,12 +83,7 @@ export class PlanningAgent {
       return { ...defaultResult, messageId: input.messageId };
     }
 
-    const keywordResult = classifyByKeyword(input);
-    if (keywordResult) return { ...keywordResult, messageId: input.messageId };
-
-    const heuristicResult = classifyByHeuristics(input);
-    if (heuristicResult) return { ...heuristicResult, messageId: input.messageId };
-
+    // For all kinds of planning, sends a toolcall to the client so it can renders this planning as a step
     const toolCallId = `router-${uuidv7().replace(/-/g, "")}`;
     streamer.streamObject({
       type: "tool-input-available",
@@ -98,7 +93,7 @@ export class PlanningAgent {
       dynamic: true,
     });
 
-    const result = await classifyByLLM(input, modelConfig);
+    const result = await this.doPlan(input, toolCallId, modelConfig);
 
     streamer.streamObject({
       type: "tool-output-available",
@@ -116,6 +111,20 @@ export class PlanningAgent {
       ...result,
       messageId: input.messageId,
     };
+  }
+
+  private static async doPlan(
+    input: InputMessages,
+    messageId: string,
+    modelConfig: InputModel
+  ): Promise<PlanResult> {
+    const keywordResult = classifyByKeyword(input);
+    if (keywordResult) return keywordResult;
+
+    const heuristicResult = classifyByHeuristics(input);
+    if (heuristicResult) return heuristicResult;
+
+    return classifyByLLM(input, modelConfig);
   }
 }
 
