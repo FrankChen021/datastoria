@@ -7,7 +7,7 @@ import {
   type Intent,
   type SubAgent,
 } from "@/lib/ai/agent/plan/sub-agent-registry";
-import type { TokenUsage } from "@/lib/ai/common-types";
+import type { TokenUsage } from "@/lib/ai/chat-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import type { SseStreamer } from "@/lib/sse-streamer";
 import { generateText, Output, type UIMessage } from "ai";

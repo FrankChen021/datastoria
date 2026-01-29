@@ -4,11 +4,14 @@
  * These tools are executed on the client via the onToolCall callback.
  * They provide schema introspection and query execution capabilities.
  */
+import type { AppUIMessage } from "@/lib/ai/chat-types";
 import { tool, type InferToolInput, type InferToolOutput, type UIMessage } from "ai";
 import * as z from "zod";
-import type { AppUIMessage } from "../../common-types";
 import type { ToolExecutor } from "./client-tool-types";
-import { collectSqlOptimizationEvidenceExecutor } from "./collect-sql-optimization-evidence";
+import {
+  collectSqlOptimizationEvidenceExecutor,
+  type EvidenceContext,
+} from "./collect-sql-optimization-evidence";
 import { executeSqlExecutor } from "./execute-sql";
 import { exploreSchemaExecutor } from "./explore-schema";
 import { findExpensiveQueriesExecutor } from "./find-expensive-queries";
@@ -177,7 +180,7 @@ export const ClientTools = {
         .optional()
         .describe("Fields requested by EvidenceRequest."),
     }),
-    outputSchema: z.custom<import("../../common-types").EvidenceContext>(),
+    outputSchema: z.custom<EvidenceContext>(),
   }),
   find_expensive_queries: tool({
     description:

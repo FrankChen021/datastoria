@@ -4,14 +4,13 @@ import { UserProfileImage } from "@/components/user-profile-image";
 import { SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planning-agent";
 import { SERVER_TOOL_GENERATE_SQL } from "@/lib/ai/agent/sql-generation-agent";
 import { SERVER_TOOL_GENEREATE_VISUALIZATION } from "@/lib/ai/agent/visualization-agent";
-import type { AppUIMessage, TokenUsage } from "@/lib/ai/common-types";
+import type { AppUIMessage, TokenUsage, ToolPart } from "@/lib/ai/chat-types";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { cn } from "@/lib/utils";
 import NumberFlow from "@number-flow/react";
 import { Info } from "lucide-react";
 import { memo } from "react";
-import type { ToolPart } from "../chat-message-types";
 import { ErrorMessageDisplay } from "./message-error";
 import { MessageMarkdown } from "./message-markdown";
 import { MessageReasoning } from "./message-reasoning";
@@ -188,7 +187,7 @@ export const ChatMessage = memo(function ChatMessage({
     : Date.now();
   const parts = message.parts || [];
   const metadata = msgRecord.metadata as Record<string, unknown> | undefined;
-  const usage = (metadata?.usage || msgRecord.usage) as TokenUsage | undefined;
+  const usage = metadata?.usage as TokenUsage | undefined;
   const error = msgRecord.error as Error | undefined;
 
   const showLoading = !isUser && isLoading;
@@ -224,7 +223,7 @@ export const ChatMessage = memo(function ChatMessage({
               </div>
             )}
             {parts.length === 0 && !isLoading && !error && "Nothing returned"}
-            {parts.map((part, i) => (
+            {parts.map((part: AppUIMessage["parts"][0], i: number) => (
               <ChatMessagePart key={i} part={part} isUser={isUser} isRunning={isRunning} />
             ))}
             {error && <ErrorMessageDisplay errorText={error.message || String(error)} />}

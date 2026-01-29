@@ -1,8 +1,7 @@
 import { DashboardVisualizationPanel } from "@/components/shared/dashboard/dashboard-visualization-panel";
-import type { AppUIMessage } from "@/lib/ai/common-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
 import { memo, useMemo } from "react";
 import type { PanelDescriptor } from "../../shared/dashboard/dashboard-model";
-import type { ToolPart } from "../chat-message-types";
 import { CollapsiblePart } from "./collapsible-part";
 
 export const MessageToolGenerateVisualization = memo(

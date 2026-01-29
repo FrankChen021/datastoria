@@ -5,7 +5,7 @@ import { ChatUIContext } from "@/components/chat/chat-ui-context";
 import { chatStorage } from "@/components/chat/storage/chat-storage";
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
-import type { AppUIMessage } from "@/lib/ai/common-types";
+import type { AppUIMessage } from "@/lib/ai/chat-types";
 import type { Chat } from "@ai-sdk/react";
 import { Loader2, Maximize2, Minimize2, Square, X } from "lucide-react";
 import * as React from "react";

@@ -4,7 +4,7 @@ import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import { SERVER_TOOL_GENERATE_SQL } from "@/lib/ai/agent/sql-generation-agent";
 import { SERVER_TOOL_OPTIMIZE_SQL } from "@/lib/ai/agent/sql-optimization-agent";
 import { SERVER_TOOL_GENEREATE_VISUALIZATION } from "@/lib/ai/agent/visualization-agent";
-import type { AppUIMessage } from "@/lib/ai/common-types";
+import type { AppUIMessage, Message, MessageMetadata } from "@/lib/ai/chat-types";
 import { MODELS } from "@/lib/ai/llm/llm-provider-factory";
 import type { StageStatus, ToolProgressCallback } from "@/lib/ai/tools/client/client-tool-types";
 import { CLIENT_TOOL_NAMES, ClientToolExecutors } from "@/lib/ai/tools/client/client-tools";
@@ -14,7 +14,6 @@ import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { v7 as uuidv7 } from "uuid";
 import { ChatContext } from "./chat-context";
-import type { Message } from "./chat-message-types";
 import { chatStorage } from "./storage/chat-storage";
 
 /**
@@ -222,7 +221,7 @@ export class ChatFactory {
         parts: msg.parts,
         createdAt: msg.createdAt,
         updatedAt: msg.updatedAt,
-        usage: msg.usage,
+        metadata: msg.metadata,
       })) as AppUIMessage[],
 
       onToolCall: async ({ toolCall }) => {
@@ -281,25 +280,20 @@ export class ChatFactory {
       onFinish: skipStorage
         ? undefined
         : async ({ message }) => {
-            const uiMessage = message as AppUIMessage;
-            const messageAny = message as any;
-            const usage = messageAny.metadata?.usage || messageAny.usage || uiMessage.usage;
-
             // Use current local time for createdAt (only used for display, not sorting)
             // Messages are sorted by UUIDv7 message ID, which maintains chronological order
             const now = new Date();
 
             const messageToSave: Message = {
               id: message.id,
-              chatId,
               role: message.role,
               parts: message.parts as any,
+              metadata: message.metadata as MessageMetadata,
               createdAt: now,
               updatedAt: now,
-              usage: usage,
             };
 
-            await chatStorage.saveMessage(messageToSave);
+            await chatStorage.saveMessage(chatId, messageToSave);
             let chat = await chatStorage.getChat(chatId);
             if (!chat) {
               const now = new Date();

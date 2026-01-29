@@ -1,10 +1,9 @@
-import type { AppUIMessage } from "@/lib/ai/common-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
 import {
   type ValidateSqlToolInput,
   type ValidateSqlToolOutput,
 } from "@/lib/ai/tools/client/client-tools";
 import { memo } from "react";
-import type { ToolPart } from "../chat-message-types";
 import { CollapsiblePart } from "./collapsible-part";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 

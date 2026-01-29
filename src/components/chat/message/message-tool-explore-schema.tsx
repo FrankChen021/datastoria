@@ -6,14 +6,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { AppUIMessage } from "@/lib/ai/common-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
 import type {
   ExploreSchemaInput,
   ExploreSchemaOutput,
   TableSchemaInput,
 } from "@/lib/ai/tools/client/explore-schema";
 import { memo } from "react";
-import type { ToolPart } from "../chat-message-types";
 import { CollapsiblePart } from "./collapsible-part";
 
 export const MessageToolExploreSchema = memo(function MessageToolExploreSchema({

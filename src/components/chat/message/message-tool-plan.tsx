@@ -1,7 +1,6 @@
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
-import type { AppUIMessage } from "@/lib/ai/common-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
 import { memo, useEffect } from "react";
-import type { ToolPart } from "../chat-message-types";
 import { ChatUIContext } from "../chat-ui-context";
 import { CollapsiblePart } from "./collapsible-part";
 

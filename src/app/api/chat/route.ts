@@ -1,8 +1,9 @@
 import { auth } from "@/auth";
 import type { DatabaseContext } from "@/components/chat/chat-context";
+import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
 import { PlanningAgent } from "@/lib/ai/agent/plan/planning-agent";
 import type { PlannerMetadata } from "@/lib/ai/agent/plan/planning-types";
-import type { ServerDatabaseContext, TokenUsage } from "@/lib/ai/common-types";
+import type { MessageMetadata } from "@/lib/ai/chat-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import { SseStreamer } from "@/lib/sse-streamer";
 import { APICallError } from "@ai-sdk/provider";
@@ -14,11 +15,6 @@ export const dynamic = "force-dynamic";
 // Increase body size limit for this route to handle large tool results
 // This is needed when get_table_columns returns 1500+ columns (e.g., system.metric_log)
 export const maxDuration = 60; // 60 seconds timeout
-
-export type MessageMetadata = {
-  planner?: PlannerMetadata;
-  usage?: TokenUsage;
-};
 
 /** UI message with chat route metadata (planner, usage, routerUsage). */
 export type ChatUIMessage = UIMessage<MessageMetadata>;

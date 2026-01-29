@@ -1,7 +1,6 @@
-import type { AppUIMessage } from "@/lib/ai/common-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
 import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
 import { memo } from "react";
-import type { ToolPart } from "../chat-message-types";
 import { CollapsiblePart } from "./collapsible-part";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 import { ToolProgressIndicator } from "./tool-progress-indicator";

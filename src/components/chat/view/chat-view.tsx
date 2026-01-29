@@ -2,8 +2,7 @@
 
 import { AppLogo } from "@/components/app-logo";
 import { useConnection } from "@/components/connection/connection-context";
-import { Button } from "@/components/ui/button";
-import type { AppUIMessage, TokenUsage } from "@/lib/ai/common-types";
+import type { AppUIMessage, TokenUsage } from "@/lib/ai/chat-types";
 import "@/lib/number-utils"; // Ensure formatTimeDiff is available
 
 import { useChat, type Chat } from "@ai-sdk/react";
@@ -166,7 +165,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     return (messages as AppUIMessage[]).reduce(
       (acc, msg) => {
         const mAny = msg as any;
-        const usage = mAny.metadata?.usage || mAny.usage;
+        const usage = mAny.metadata?.usage;
         if (usage) {
           acc.totalTokens += usage.totalTokens || 0;
           acc.inputTokens += usage.inputTokens || 0;

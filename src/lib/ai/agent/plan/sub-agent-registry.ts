@@ -1,8 +1,8 @@
+import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
 import { createGeneralAgent } from "@/lib/ai/agent/general-agent";
 import { streamSqlGeneration } from "@/lib/ai/agent/sql-generation-agent";
 import { streamSqlOptimization } from "@/lib/ai/agent/sql-optimization-agent";
 import { streamVisualization } from "@/lib/ai/agent/visualization-agent";
-import type { ServerDatabaseContext } from "@/lib/ai/common-types";
 import type { ModelMessage } from "ai";
 
 /**

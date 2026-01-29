@@ -1,8 +1,8 @@
 import { Output, streamText, tool, type ModelMessage } from "ai";
 import { z } from "zod";
-import type { ServerDatabaseContext } from "../common-types";
 import { isMockMode, LanguageModelProviderFactory } from "../llm/llm-provider-factory";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
+import type { ServerDatabaseContext } from "./common-types";
 import type { InputModel } from "./plan/sub-agent-registry";
 import { createGenerateSqlTool, SERVER_TOOL_GENERATE_SQL } from "./sql-generation-agent";
 import { mockVisualizationAgent } from "./visualization-agent.mock";

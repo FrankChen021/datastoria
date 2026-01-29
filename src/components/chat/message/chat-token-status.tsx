@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Separator } from "@/components/ui/separator";
-import type { TokenUsage } from "@/lib/ai/common-types";
+import type { TokenUsage } from "@/lib/ai/chat-types";
 import NumberFlow from "@number-flow/react";
 import { Info } from "lucide-react";
 

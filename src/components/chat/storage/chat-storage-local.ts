@@ -1,5 +1,5 @@
+import type { Chat, Message } from "@/lib/ai/chat-types";
 import { appLocalStorage } from "@/lib/local-storage";
-import type { Chat, Message } from "../chat-message-types";
 import type { ChatStorage } from "./chat-storage";
 
 /**
@@ -327,8 +327,7 @@ export class ChatStorageLocal implements ChatStorage {
     );
   }
 
-  async saveMessage(message: Message): Promise<void> {
-    const chatId = message.chatId;
+  async saveMessage(chatId: string, message: Message): Promise<void> {
     const messagesMap = this.getMessagesForChat(chatId);
 
     const messageToSave: Message = {

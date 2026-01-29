@@ -3,7 +3,7 @@
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { TokenUsage } from "@/lib/ai/common-types";
+import type { TokenUsage } from "@/lib/ai/chat-types";
 import { MessageSquarePlus, Send, Square } from "lucide-react";
 import * as React from "react";
 import { ChatTokenStatus } from "../message/chat-token-status";

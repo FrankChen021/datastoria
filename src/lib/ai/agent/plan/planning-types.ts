@@ -1,5 +1,5 @@
 import type { Intent } from "@/lib/ai/agent/plan/sub-agent-registry";
-import type { TokenUsage } from "@/lib/ai/common-types";
+import type { TokenUsage } from "@/lib/ai/chat-types";
 
 /**
  * A simulated server tool used to show progress at client as soon as possible and track identified intent

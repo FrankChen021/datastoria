@@ -6,10 +6,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { AppUIMessage } from "@/lib/ai/common-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
 import type { GetTablesInput, GetTablesOutput } from "@/lib/ai/tools/client/get-tables";
 import { memo } from "react";
-import type { ToolPart } from "../chat-message-types";
 import { CollapsiblePart } from "./collapsible-part";
 
 export const MessageToolGetTables = memo(function MessageToolGetTables({

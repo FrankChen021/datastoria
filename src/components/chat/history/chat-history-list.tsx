@@ -1,6 +1,5 @@
 "use client";
 
-import { type Chat } from "@/components/chat/chat-message-types";
 import { chatStorage } from "@/components/chat/storage/chat-storage";
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { Chat } from "@/lib/ai/chat-types";
 import "@/lib/number-utils";
 import { cn } from "@/lib/utils";
 import * as PopoverPrimitive from "@radix-ui/react-popover";

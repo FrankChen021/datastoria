@@ -1,6 +1,6 @@
 "use client";
 
-import type { AppUIMessage } from "@/lib/ai/common-types";
+import type { AppUIMessage } from "@/lib/ai/chat-types";
 import { AlertCircle } from "lucide-react";
 import * as React from "react";
 import { useDebouncedCallback } from "use-debounce";
