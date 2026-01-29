@@ -195,64 +195,54 @@ export const ChatMessage = memo(function ChatMessage({
     <div
       className={cn(isUser && !isFirst ? "mt-3 border-t" : "", isUser ? "py-1" : "")}
     >
+      {/* Timestamp above profile for user messages - reserve space for alignment */}
+      {isUser && timestamp && (
+        <h4 className="px-3 py-2 text-sm font-semibold">
+          {DateTimeExtension.toYYYYMMddHHmmss(new Date(timestamp))}
+        </h4>
+      )}
 
-      <div>
+      <div className="flex gap-[1px]">
+        {/* Left color bar to distinguish user vs assistant messages */}
+        <div
+          className={cn(
+            "self-stretch w-1",
+            isUser ? "bg-sky-400 dark:bg-sky-500" : "bg-emerald-400 dark:bg-emerald-500"
+          )}
+        />
 
-        {/* Profile and message with left color bar that encloses timestamp */}
-        <div className="flex gap-[1px]">
-          {/* Left color bar to distinguish user vs assistant messages */}
-          <div
-            className={cn(
-              "self-stretch w-1 rounded-r",
-              isUser ? "bg-sky-400 dark:bg-sky-500" : "bg-emerald-400 dark:bg-emerald-500"
-            )}
-          />
-
-          <div className="flex-1 min-w-0">
-            {/* Timestamp above profile for user messages */}
-            {isUser && timestamp ? (
-              <h4 className="p-2 text-sm font-semibold">
-                {DateTimeExtension.toYYYYMMddHHmmss(new Date(timestamp))}
-              </h4>
-            ) : (
-              <div className="p-2" />
-            )}
-
-            <div className="flex gap-1">
-              <div className="flex-shrink-0 w-[28px]">
-                {isUser ? (
-                  <UserProfileImage />
-                ) : (
-                  <div className="h-6 w-6 flex items-center justify-center">
-                    <AppLogo className={`h-6 w-6 }`} />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex-1 overflow-hidden min-w-0 text-sm pr-6">
-            {parts.length === 0 && isLoading && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                {/* Under the state that request is submitted, but server has not responded yet */}
-                <span>Thinking</span>
-              </div>
-            )}
-            {parts.length === 0 && !isLoading && !error && "Nothing returned"}
-            {parts.map((part: AppUIMessage["parts"][0], i: number) => (
-              <ChatMessagePart key={i} part={part} isUser={isUser} isRunning={isRunning} />
-            ))}
-            {error && <ErrorMessageDisplay errorText={error.message || String(error)} />}
-            {showLoading && (
-              <div className="mt-2 flex items-center gap-2 text-muted-foreground">
-                <TypingDots />
-              </div>
-            )}
-          </div>
-        </div>
-          </div>
+        {/* Profile and message row - aligned at top */}
+        <div className="flex-shrink-0 w-[28px]">
+          {isUser ? (
+            <UserProfileImage />
+          ) : (
+            <div className="h-6 w-6 flex items-center justify-center">
+              <AppLogo className={`h-6 w-6 }`} />
+            </div>
+          )}
         </div>
 
-        {!isUser && usage && <TokenUsageDisplay id={message.id + "-usage"} usage={usage} />}
+        <div className="flex-1 overflow-hidden min-w-0 text-sm pr-6">
+          {parts.length === 0 && isLoading && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              {/* Under the state that request is submitted, but server has not responded yet */}
+              <span>Thinking</span>
+            </div>
+          )}
+          {parts.length === 0 && !isLoading && !error && "Nothing returned"}
+          {parts.map((part: AppUIMessage["parts"][0], i: number) => (
+            <ChatMessagePart key={i} part={part} isUser={isUser} isRunning={isRunning} />
+          ))}
+          {error && <ErrorMessageDisplay errorText={error.message || String(error)} />}
+          {showLoading && (
+            <div className="mt-2 flex items-center gap-2 text-muted-foreground">
+              <TypingDots />
+            </div>
+          )}
+        </div>
       </div>
+
+      {!isUser && usage && <TokenUsageDisplay id={message.id + "-usage"} usage={usage} />}
     </div>
   );
 });
