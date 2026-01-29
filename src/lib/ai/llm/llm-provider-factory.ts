@@ -272,6 +272,20 @@ export const MODELS: ModelProps[] = [
     autoSelectable: true,
     description: "Cerebras's latest model with extreme intelligence and reliability.",
   },
+
+  // GitHub Copilot models
+  {
+    provider: "GitHub Copilot",
+    modelId: "gpt-4o",
+    free: false,
+    description: "GPT-4o model available via GitHub Copilot subscription.",
+  },
+  {
+    provider: "GitHub Copilot",
+    modelId: "claude-3.5-sonnet",
+    free: false,
+    description: "Claude 3.5 Sonnet available via GitHub Copilot subscription.",
+  },
 ];
 
 /**
