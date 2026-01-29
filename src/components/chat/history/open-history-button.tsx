@@ -7,6 +7,7 @@ import * as React from "react";
 import { ChatHistoryList } from "./chat-history-list";
 
 interface OpenHistoryButtonProps {
+  disabled?: boolean;
   currentChatId: string;
   onNewChat: () => void;
   onSelectChat?: (id: string) => void;
@@ -18,6 +19,7 @@ interface OpenHistoryButtonProps {
 }
 
 export const OpenHistoryButton: React.FC<OpenHistoryButtonProps> = ({
+  disabled = false,
   currentChatId,
   onNewChat,
   onSelectChat,
@@ -32,7 +34,13 @@ export const OpenHistoryButton: React.FC<OpenHistoryButtonProps> = ({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant={variant} size="icon" className={className} title="Show chat history">
+        <Button
+          variant={variant}
+          size="icon"
+          className={className}
+          title="Show chat history"
+          disabled={disabled}
+        >
           <Clock className={iconClassName} />
         </Button>
       </PopoverTrigger>

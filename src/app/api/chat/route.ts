@@ -1,18 +1,13 @@
 import { auth } from "@/auth";
 import type { DatabaseContext } from "@/components/chat/chat-context";
-import {
-  callPlanAgent,
-  SERVER_TOOL_PLAN,
-  SUB_AGENTS,
-  type InputModel,
-  type Intent,
-  type SubAgent,
-} from "@/lib/ai/agent/planner-agent";
-import type { ServerDatabaseContext, TokenUsage } from "@/lib/ai/common-types";
+import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
+import { PlanningAgent, SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planning-agent";
+import type { PlannerMetadata } from "@/lib/ai/agent/plan/planning-types";
+import type { MessageMetadata } from "@/lib/ai/chat-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
+import { SseStreamer } from "@/lib/sse-streamer";
 import { APICallError } from "@ai-sdk/provider";
-import { convertToModelMessages, RetryError, type ModelMessage } from "ai";
-import { v7 as uuidv7 } from "uuid";
+import { convertToModelMessages, RetryError, type UIMessage } from "ai";
 
 // Force dynamic rendering (no static generation)
 export const dynamic = "force-dynamic";
@@ -21,8 +16,11 @@ export const dynamic = "force-dynamic";
 // This is needed when get_table_columns returns 1500+ columns (e.g., system.metric_log)
 export const maxDuration = 60; // 60 seconds timeout
 
+/** UI message with chat route metadata (planner, usage, routerUsage). */
+export type ChatUIMessage = UIMessage<MessageMetadata>;
+
 interface ChatRequest {
-  messages?: unknown[];
+  messages?: ChatUIMessage[];
   context?: DatabaseContext;
   model?: {
     provider: string;
@@ -173,19 +171,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 2. Convert UIMessages to ModelMessages (CoreMessage[]) early
-    // This is needed for identifyIntent and determining if it's a continuation
-    const modelMessages = await convertToModelMessages(apiRequest.messages as any[]);
-    // Detect continuation: if the last message is a tool result
-    const isContinuation =
-      modelMessages.length > 0 && modelMessages[modelMessages.length - 1].role === "tool";
-
-    // IMPORTANT: If this is a continuation (tool result), we MUST reuse the previous assistant's message ID.
-    // This ensures the turnaround is attributed to the same message turn in the UI and history.
-    const rawMessages = apiRequest.messages as any[];
-    const lastAssistant = [...rawMessages].reverse().find((m) => m.role === "assistant");
-    const messageId = isContinuation && lastAssistant?.id ? lastAssistant.id : uuidv7();
-
     // Get the appropriate model (mock or real based on USE_MOCK_LLM env var)
     // Use provided model config if available, otherwise auto-select
     let modelConfig: { provider: string; modelId: string; apiKey: string } | undefined;
@@ -221,148 +206,82 @@ export async function POST(req: Request) {
       );
     }
 
-    const encoder = new TextEncoder();
-
     // Create a stream that sends early status updates then pipes the real stream
     const responseStream = new ReadableStream({
       async start(controller) {
-        let agent: SubAgent;
-        let routerUsage: TokenUsage | undefined;
-
+        const streamer = new SseStreamer(controller);
         try {
-          if (isContinuation) {
-            // 1. Skip Thinking UI for continuations but still send start event
-            const messageStart = JSON.stringify({ type: "start", messageId });
-            controller.enqueue(encoder.encode(`data: ${messageStart}\n\n`));
+          const inputMessages = apiRequest.messages ?? [];
 
-            // Find the latest identify_intent tool call from getIntent
-            // Search backwards through messages to find the most recent identify_intent tool result
-            let foundIntent: Intent | undefined;
+          // 1. Plan the intent
+          const {
+            agent,
+            usage: plannerUsage,
+            messageId,
+          } = await PlanningAgent.plan(streamer, inputMessages, modelConfig);
 
-            for (let i = modelMessages.length - 1; i >= 0; i--) {
-              const msg = modelMessages[i];
-              if (msg.role === "tool") {
-                // Handle both array and single tool message formats
-                const toolParts = Array.isArray(msg.content) ? msg.content : [msg.content];
-                for (const toolPart of toolParts) {
-                  const toolMsg = toolPart as {
-                    type?: string;
-                    toolName?: string;
-                    toolCallId?: string;
-                    output?: { type?: string; value?: unknown } | unknown;
-                    result?: unknown;
-                    content?: unknown;
-                  };
-
-                  // Check if this is an identify_intent tool call
-                  if (
-                    toolMsg.toolName === SERVER_TOOL_PLAN ||
-                    toolMsg.toolCallId?.startsWith("router-")
-                  ) {
-                    // Extract output - handle different formats
-                    let output: { intent?: string; usage?: TokenUsage } | undefined;
-
-                    if (toolMsg.output) {
-                      // AI SDK format: output can be { type: "json", value: {...} } or just the value
-                      if (
-                        typeof toolMsg.output === "object" &&
-                        "type" in toolMsg.output &&
-                        "value" in toolMsg.output
-                      ) {
-                        output = toolMsg.output.value as {
-                          intent?: string;
-                          usage?: TokenUsage;
-                        };
-                      } else {
-                        output = toolMsg.output as { intent?: string; usage?: TokenUsage };
-                      }
-                    } else if (toolMsg.result) {
-                      output = toolMsg.result as { intent?: string; usage?: TokenUsage };
-                    } else if (toolMsg.content) {
-                      // Try parsing content if it's a string
-                      if (typeof toolMsg.content === "string") {
-                        try {
-                          output = JSON.parse(toolMsg.content) as {
-                            intent?: string;
-                            usage?: TokenUsage;
-                          };
-                        } catch {
-                          // Ignore parse errors
-                        }
-                      } else {
-                        output = toolMsg.content as { intent?: string; usage?: TokenUsage };
-                      }
-                    }
-
-                    if (output?.intent) {
-                      foundIntent = output.intent as Intent;
-                      break;
-                    }
-                  }
-                }
-                if (foundIntent) break;
-              }
-            }
-
-            // Fallback to general agent if intent not found
-            if (!foundIntent) {
-              foundIntent = "general";
-            }
-
-            agent = SUB_AGENTS[foundIntent] || SUB_AGENTS.general;
-          } else {
-            // 1. Send start events
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ type: "start", messageId })}\n\n`)
-            );
-
-            sayGreeting(controller, encoder, modelMessages, context);
-
-            const result = await doPlan(controller, encoder, messageId, modelMessages, modelConfig);
-            agent = result.agent;
-            routerUsage = result.usage;
-          }
+          // Remove any plan tool parts from UI messages before converting to model messages.
+          const prunedMessages = (inputMessages || []).map((m: any) => {
+            const parts = Array.isArray(m.parts)
+              ? m.parts.filter(
+                  (p: any) => !(p.type === "dynamic-tool" && p.toolName === SERVER_TOOL_PLAN)
+                )
+              : m.parts;
+            return { ...m, parts };
+          });
 
           // 2. Delegate to Expert Sub-Agent
-          // The selected agent (returned from getIntent) now takes over the conversation turn.
+          const modelMessages = await convertToModelMessages(prunedMessages);
           const subAgentResult = await agent.stream({
             messages: modelMessages,
             modelConfig,
             context,
           });
 
-          // 4. Convert to UI message stream
+          // 3. Convert to UI message stream
           // We use sendStart: false and sendReasoning: false because we already handled that part
-          const stream = subAgentResult.toUIMessageStream({
+          // Sub-agents all return streamText() result; assert shape for toUIMessageStream
+          type SubAgentStreamResult = {
+            toUIMessageStream: (opts?: object) => { getReader(): ReadableStreamDefaultReader };
+          };
+          const agentStream = (subAgentResult as SubAgentStreamResult).toUIMessageStream({
             originalMessages: apiRequest.messages,
             generateMessageId: () => messageId,
+
+            // Since we start the streaming above, DISABLE the internal start message
             sendStart: false,
-            // Extract message metadata (usage) and send it to the client
+
+            //
+            // Attach metadata in the message
+            //
             messageMetadata: ({ part }: { part: any }) => {
-              // Only add metadata on finish events
               if (part.type === "finish") {
-                // Combine router usage (from identifyIntent) with sub-agent usage
+                // Only add metadata on finish events
                 const subAgentUsage = part.totalUsage || {};
+
                 return {
-                  // Sum router and agent usage together
+                  // Sum planner and agent usage together
                   usage: {
-                    inputTokens: (subAgentUsage.inputTokens || 0) + (routerUsage?.inputTokens || 0),
+                    inputTokens:
+                      (subAgentUsage.inputTokens || 0) + (plannerUsage?.inputTokens || 0),
                     outputTokens:
-                      (subAgentUsage.outputTokens || 0) + (routerUsage?.outputTokens || 0),
-                    totalTokens: (subAgentUsage.totalTokens || 0) + (routerUsage?.totalTokens || 0),
+                      (subAgentUsage.outputTokens || 0) + (plannerUsage?.outputTokens || 0),
+                    totalTokens:
+                      (subAgentUsage.totalTokens || 0) + (plannerUsage?.totalTokens || 0),
                     reasoningTokens:
-                      (subAgentUsage.reasoningTokens || 0) + (routerUsage?.reasoningTokens || 0),
+                      (subAgentUsage.reasoningTokens || 0) + (plannerUsage?.reasoningTokens || 0),
                     cachedInputTokens:
                       (subAgentUsage.cachedInputTokens || 0) +
-                      (routerUsage?.cachedInputTokens || 0),
+                      (plannerUsage?.cachedInputTokens || 0),
                   },
 
-                  // Track router usage separately for debugging purpose
-                  routerUsage: routerUsage,
-                };
+                  // Track the agent that generated the response
+                  // Client side can prune history message, we can use this info to find out the latest used agent
+                  planner: { intent: agent.id, usage: plannerUsage } as PlannerMetadata,
+                } as MessageMetadata;
               }
             },
-            onError: (error: any) => {
+            onError: (error: unknown) => {
               console.error("Chat error:", error);
               try {
                 return extractErrorMessage(error);
@@ -374,13 +293,13 @@ export async function POST(req: Request) {
           });
 
           // 5. Pipe the rest of the stream
-          const reader = stream.getReader();
+          const reader = agentStream.getReader();
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
             try {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(value)}\n\n`));
+              streamer.streamObject(value);
             } catch (e) {
               // If the controller is closed (e.g. client disconnected), stop piping
               if (e instanceof TypeError && e.message.includes("closed")) {
@@ -392,10 +311,8 @@ export async function POST(req: Request) {
         } catch (error) {
           console.error("Chat API stream error:", error);
           const errorMsg = extractErrorMessage(error);
-          const errorChunk = JSON.stringify({ type: "error", errorText: errorMsg });
-
           try {
-            controller.enqueue(encoder.encode(`data: ${errorChunk}\n\n`));
+            streamer.streamObject({ type: "error", errorText: errorMsg });
           } catch {
             // Ignore errors if controller is already closed
           }
@@ -433,99 +350,4 @@ export async function POST(req: Request) {
       }
     );
   }
-}
-
-/**
- * The output that will be sent to client side
- */
-export interface PlanOutput {
-  intent: Intent;
-  title: string | undefined;
-  usage: TokenUsage | undefined;
-}
-
-/**
- * Helper to handle the "Thinking" phase of the request.
- * Performs the first LLM call to identify intent and streams reasoning status to the client.
- */
-async function doPlan(
-  controller: ReadableStreamDefaultController<any>,
-  encoder: TextEncoder,
-  messageId: string,
-  messages: ModelMessage[],
-  modelConfig: InputModel
-): Promise<{ intent: Intent; agent: any; usage?: TokenUsage }> {
-  // The length MUST be <= 40
-  const toolCallId = `router-${uuidv7().replace(/-/g, "")}`;
-
-  // 2. Send simulated tool call start
-  controller.enqueue(
-    encoder.encode(
-      `data: ${JSON.stringify({
-        type: "tool-input-available",
-        toolCallId,
-        toolName: SERVER_TOOL_PLAN,
-        input: {},
-        dynamic: true,
-      })}\n\n`
-    )
-  );
-
-  // 3. Identify Intent (this performs the FIRST LLM call)
-  const { intent, title, agent, usage } = await callPlanAgent(messages, modelConfig);
-
-  // 4. Send tool call result with metadata
-  controller.enqueue(
-    encoder.encode(
-      `data: ${JSON.stringify({
-        type: "tool-output-available",
-        toolCallId,
-        output: {
-          intent,
-          title: title || undefined,
-          usage: usage || undefined,
-        } as PlanOutput,
-        dynamic: true,
-      })}\n\n`
-    )
-  );
-
-  return { intent, agent, usage };
-}
-function sayGreeting(
-  controller: ReadableStreamDefaultController<any>,
-  encoder: TextEncoder,
-  modelMessages: ModelMessage[],
-  context: ServerDatabaseContext
-) {
-  const hasRepliedBefore = modelMessages.some((m) => m.role === "assistant");
-  if (hasRepliedBefore) {
-    return;
-  }
-
-  const username = context.userEmail?.split("@")[0];
-
-  const greetingTemplates = [
-    `Hello `,
-    `Hi `,
-    `Hey `,
-    `Welcome `,
-    `Greetings `,
-    `Hello there, `,
-    `Hi there, `,
-    `Good to see you, `,
-    `Nice to meet you, `,
-    `Hey there, `,
-    `Welcome back, `,
-    `Hello and welcome, `,
-  ];
-
-  const greeting = greetingTemplates[Math.floor(Math.random() * greetingTemplates.length)];
-  controller.enqueue(encoder.encode(`data: { "type": "text-start", "id": "txt-0" }\n\n`));
-  controller.enqueue(
-    encoder.encode(
-      `data: { "type": "text-delta", "id": "txt-0", "delta": "${greeting} ${username}! I'm working on your request." }\n\n`
-    )
-  );
-  controller.enqueue(encoder.encode(`data: { "type": "text-end", "id": "txt-0" }\n\n`));
 }

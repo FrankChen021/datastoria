@@ -1,5 +1,3 @@
-import type { Message } from "./chat-message-types";
-
 export interface DatabaseContext {
   currentQuery?: string;
   database?: string;
@@ -35,30 +33,5 @@ export class ChatContext {
    */
   static build(): DatabaseContext | undefined {
     return ChatContext.builder?.();
-  }
-
-  /**
-   * Extract historical database context from a list of messages
-   * Aggregates all table schemas mentioned in the messages
-   */
-  static extractFromMessages(messages: Message[]): DatabaseContext | undefined {
-    const allTables = new Map<
-      string,
-      { name: string; columns: Array<{ name: string; type: string }> | string[] }
-    >();
-
-    for (const msg of messages) {
-      if (msg.context?.tables) {
-        for (const table of msg.context.tables) {
-          allTables.set(table.name, table);
-        }
-      }
-    }
-
-    if (allTables.size === 0) return undefined;
-
-    return {
-      tables: Array.from(allTables.values()),
-    };
   }
 }

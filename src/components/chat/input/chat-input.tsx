@@ -3,7 +3,7 @@
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { TokenUsage } from "@/lib/ai/common-types";
+import type { TokenUsage } from "@/lib/ai/chat-types";
 import { MessageSquarePlus, Send, Square } from "lucide-react";
 import * as React from "react";
 import { ChatTokenStatus } from "../message/chat-token-status";
@@ -17,7 +17,7 @@ import { ModelSelector } from "./model-selector";
 interface ChatInputProps {
   onSubmit: (text: string) => void;
   onStop?: () => void;
-  isStreaming: boolean;
+  isRunning: boolean;
   hasMessages?: boolean;
   tokenUsage?: TokenUsage;
   onNewChat?: () => void;
@@ -31,7 +31,7 @@ export interface ChatInputHandle {
 
 export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
   (
-    { onSubmit, onStop, isStreaming, hasMessages = false, tokenUsage, onNewChat, externalInput },
+    { onSubmit, onStop, isRunning, hasMessages = false, tokenUsage, onNewChat, externalInput },
     ref
   ) => {
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -209,7 +209,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             placeholder={`Press Enter to send, ${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"} + Enter for new line. Use @ to mention tables.`}
             aria-label="Chat input. Press Enter to send, use Cmd/Ctrl + Enter for new line. Use @ to mention tables."
             className="w-full min-h-[44px] max-h-[200px] resize-none border-0 bg-transparent py-3 pl-3 pr-10 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 overflow-y-auto"
-            disabled={isStreaming}
+            disabled={isRunning}
             onKeyDown={handleKeyDown}
           />
           <div className="flex items-center justify-between px-2 pb-2 mt-[-4px]">
@@ -217,7 +217,6 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
               <ModelSelector className="bg-muted" />
               {hasMessages && (
                 <>
-                  {tokenUsage && <ChatTokenStatus usage={tokenUsage} />}
                   {onNewChat && (
                     <Button
                       size="sm"
@@ -230,10 +229,11 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                       New
                     </Button>
                   )}
+                  {tokenUsage && <ChatTokenStatus usage={tokenUsage} />}
                 </>
               )}
             </div>
-            {isStreaming ? (
+            {isRunning ? (
               <Button
                 onClick={handleStopChat}
                 size="icon"

@@ -306,10 +306,9 @@ export class Connection {
         // Re-throw as QueryError-like error
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         if (errorMessage === "Failed to fetch") {
-          // This could be CORS, network error, or invalid URL
           const errorDetails =
             `Failed to connect to ${this.host}${this.path} \n` +
-            `Possible causes: CORS issue, network error, or invalid server URL. ` +
+            `Possible causes: CORS issue, network error, DNS problem, or invalid server URL. ` +
             `Please check the connection configuration and ensure the server allows requests from this origin.`;
           throw new QueryError(errorDetails);
         }

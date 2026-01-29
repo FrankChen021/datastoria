@@ -1,20 +1,21 @@
-import type { AppUIMessage } from "@/lib/ai/common-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
 import { memo } from "react";
-import type { ToolPart } from "../chat-message-types";
 import { CollapsiblePart } from "./collapsible-part";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 
 export const MessageToolExecuteSql = memo(function ExecuteSqlPart({
   part,
+  isRunning = true,
 }: {
   part: AppUIMessage["parts"][0];
+  isRunning?: boolean;
 }) {
   const toolPart = part as ToolPart & { input?: { sql?: string } };
   const input = toolPart.input;
   const state = toolPart.state;
 
   return (
-    <CollapsiblePart toolName={"Execute SQL"} state={state}>
+    <CollapsiblePart toolName={"Execute SQL"} state={state} isRunning={isRunning}>
       {input?.sql && (
         <>
           <div className="text-[10px] text-muted-foreground">input:</div>

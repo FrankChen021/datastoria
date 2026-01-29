@@ -401,7 +401,7 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
             return prev.map((s) => (s.id === "cluster" ? { ...s, status: "error" } : s));
           });
           if (err instanceof QueryError) {
-            setError(err.data);
+            setError(err.data || err.message);
           } else {
             setError(err instanceof Error ? err.message : String(err));
           }

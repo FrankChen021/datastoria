@@ -1,4 +1,4 @@
-import type { Chat, Message } from "@/components/chat/chat-message-types";
+import type { Chat, Message } from "@/lib/ai/chat-types";
 import { ChatStorageLocal } from "./chat-storage-local";
 
 // Storage interface for abstraction (localStorage now, IndexedDB later)
@@ -15,7 +15,7 @@ export interface ChatStorage {
 
   // Message operations
   getMessages(chatId: string): Promise<Message[]>;
-  saveMessage(message: Message): Promise<void>;
+  saveMessage(chatId: string, message: Message): Promise<void>;
   saveMessages(chatId: string, messages: Message[]): Promise<void>;
   deleteMessage(id: string): Promise<void>;
   clearMessages(chatId: string): Promise<void>;

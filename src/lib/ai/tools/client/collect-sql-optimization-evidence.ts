@@ -1,7 +1,63 @@
 import { QueryError, type Connection } from "@/lib/connection/connection";
 import { qualifyTableNames } from "@/lib/query-utils";
-import type { EvidenceContext } from "../../common-types";
 import { escapeSqlString, type ToolExecutor, type ToolProgressCallback } from "./client-tool-types";
+
+/**
+ * Evidence payload structure returned by collect_sql_optimization_evidence tool.
+ */
+export interface EvidenceContext {
+  goal: string;
+  sql?: string;
+  query_id?: string;
+  symptoms?: {
+    latency_ms?: number;
+    read_rows?: number;
+    read_bytes?: number;
+    result_rows?: number;
+    peak_memory_bytes?: number;
+    spilled?: boolean;
+    errors?: string | null;
+  };
+  tables?: Array<{ database: string; table: string; engine: string }>;
+  table_schema?: Record<
+    string,
+    {
+      columns: Array<[string, string]>;
+      engine?: string;
+      partition_key?: string | null;
+      primary_key?: string | null;
+      sorting_key?: string | null;
+      secondary_indexes?: string[];
+    }
+  >;
+  table_stats?: Record<
+    string,
+    {
+      rows?: number;
+      bytes?: number;
+      parts?: number;
+      partitions?: number;
+    }
+  >;
+  explain_index?: string;
+  explain_pipeline?: string;
+  query_log?: {
+    duration_ms?: number;
+    read_rows?: number;
+    read_bytes?: number;
+    memory_usage?: number;
+    result_rows?: number;
+    exception?: string | null;
+    profile_events?: Record<string, number>;
+  };
+  settings?: Record<string, string | number>;
+  constraints?: string[];
+  cluster?: {
+    mode?: string;
+    shards?: number;
+    replicas?: number;
+  };
+}
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof QueryError && error.data) {
