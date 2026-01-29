@@ -14,48 +14,60 @@ export interface UseEchartsOptions {
    * Additional initialization options for ECharts.
    */
   initOptions?: echarts.EChartsInitOpts;
+  /**
+   * Additional dependencies that should trigger re-initialization.
+   */
+  dependencies?: React.DependencyList;
 }
 
 /**
  * Common hook for ECharts initialization, resizing, and lifecycle management.
  */
 export function useEcharts(options: UseEchartsOptions = {}) {
-  const { useExplicitSize = false, initOptions } = options;
+  const { useExplicitSize = false, initOptions, dependencies = [] } = options;
   const isDark = useIsDarkTheme();
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartInstanceRef = useRef<echarts.ECharts | null>(null);
 
   useEffect(() => {
-    if (!chartContainerRef.current) {
+    const container = chartContainerRef.current;
+    if (!container) {
       return;
     }
 
-    // Check if container has valid dimensions before initializing
-    const { clientWidth, clientHeight } = chartContainerRef.current;
-    if (clientWidth === 0 || clientHeight === 0) {
-      return;
-    }
+    // Function to initialize the chart instance if dimensions are valid
+    const initChart = () => {
+      if (chartInstanceRef.current) {
+        return chartInstanceRef.current;
+      }
+      const { clientWidth, clientHeight } = container;
+      if (clientWidth === 0 || clientHeight === 0) {
+        return null;
+      }
 
-    // Dispose existing instance if theme changed
+      const chartTheme = isDark ? "dark" : undefined;
+      const instance = echarts.init(container, chartTheme, {
+        useCoarsePointer: true,
+        ...initOptions,
+      });
+      chartInstanceRef.current = instance;
+      return instance;
+    };
+
+    // Dispose existing instance if theme or fundamental options changed
     if (chartInstanceRef.current) {
       chartInstanceRef.current.dispose();
       chartInstanceRef.current = null;
     }
 
-    // Initialize with dark theme if in dark mode
-    const chartTheme = isDark ? "dark" : undefined;
-
-    const instance = echarts.init(chartContainerRef.current, chartTheme, {
-      useCoarsePointer: true,
-      ...initOptions,
-    });
-    chartInstanceRef.current = instance;
+    // Initial attempt to initialize
+    initChart();
 
     const handleResize = () => {
-      if (chartInstanceRef.current && chartContainerRef.current) {
+      if (chartInstanceRef.current && container) {
         if (useExplicitSize) {
-          const { width, height } = chartContainerRef.current.getBoundingClientRect();
+          const { width, height } = container.getBoundingClientRect();
           if (width > 0 && height > 0) {
             chartInstanceRef.current.resize({
               width: Math.round(width),
@@ -63,7 +75,7 @@ export function useEcharts(options: UseEchartsOptions = {}) {
             });
           }
         } else {
-          const { clientWidth: w, clientHeight: h } = chartContainerRef.current;
+          const { clientWidth: w, clientHeight: h } = container;
           if (w > 0 && h > 0) {
             chartInstanceRef.current.resize({ width: "auto", height: "auto" });
           }
@@ -84,29 +96,33 @@ export function useEcharts(options: UseEchartsOptions = {}) {
         width = entry.contentRect.width;
         height = entry.contentRect.height;
       } else {
-        // Fallback for older browsers
         const rect = entry.target.getBoundingClientRect();
         width = rect.width;
         height = rect.height;
       }
 
-      if (width > 0 && height > 0 && chartInstanceRef.current) {
+      if (width > 0 && height > 0) {
         requestAnimationFrame(() => {
-          if (chartInstanceRef.current) {
+          let instance = chartInstanceRef.current;
+          if (!instance) {
+            instance = initChart();
+          }
+
+          if (instance) {
             if (useExplicitSize) {
-              chartInstanceRef.current.resize({
+              instance.resize({
                 width: Math.round(width),
                 height: Math.round(height),
               });
             } else {
-              chartInstanceRef.current.resize({ width: "auto", height: "auto" });
+              instance.resize({ width: "auto", height: "auto" });
             }
           }
         });
       }
     });
 
-    resizeObserver.observe(chartContainerRef.current);
+    resizeObserver.observe(container);
 
     const initialResizeTimeout = setTimeout(() => {
       handleResize();
@@ -121,7 +137,7 @@ export function useEcharts(options: UseEchartsOptions = {}) {
         chartInstanceRef.current = null;
       }
     };
-  }, [isDark, useExplicitSize, initOptions]);
+  }, [isDark, useExplicitSize, JSON.stringify(initOptions), ...dependencies]);
 
   return {
     chartContainerRef,

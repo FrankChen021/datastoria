@@ -101,7 +101,10 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
   option,
   onBrushChange,
 }) {
-  const { chartContainerRef, chartInstanceRef } = useEcharts();
+  const hasData = data.length > 0;
+  const { chartContainerRef, chartInstanceRef } = useEcharts({
+    dependencies: [hasData],
+  });
   const brushHandlerRef = React.useRef<((params: unknown) => void) | null>(null);
   const [chartColor, setChartColor] = React.useState<string>("hsl(var(--chart-1))");
   const isDark = useIsDarkTheme();
@@ -153,7 +156,6 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
     return () => observer.disconnect();
   }, []);
 
-  const hasData = data.length > 0;
 
   // Update chart when data changes (separate from initialization)
   React.useEffect(() => {
@@ -220,13 +222,13 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
       },
       brush: onBrushChange
         ? {
-            xAxisIndex: "all",
-            brushLink: "all",
-            brushMode: "single",
-            brushStyle: {
-              color: "rgba(120,120,120,0.15)",
-            },
-          }
+          xAxisIndex: "all",
+          brushLink: "all",
+          brushMode: "single",
+          brushStyle: {
+            color: "rgba(120,120,120,0.15)",
+          },
+        }
         : undefined,
       toolbox: {
         show: false,
@@ -256,11 +258,11 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
           areaStyle:
             option.type === "area"
               ? {
-                  color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                    { offset: 0, color: chartColor },
-                    { offset: 1, color: "rgba(255,255,255,0)" },
-                  ]),
-                }
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: chartColor },
+                  { offset: 1, color: "rgba(255,255,255,0)" },
+                ]),
+              }
               : undefined,
         },
       ],
