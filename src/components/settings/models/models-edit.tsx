@@ -174,8 +174,12 @@ export function ModelsEdit() {
       const data = await res.json();
       setAuthData(data);
 
-      // Start polling
-      const pollInterval = setInterval(async () => {
+      let currentInterval = (data.interval || 5) * 1000;
+
+      const poll = async () => {
+        if (!isLoggingIn) return; // Stop if login canceled elsewhere
+
+        console.log("Polling for token...");
         const tokenRes = await fetch("/api/auth/github/device/token", {
           method: "POST",
           body: JSON.stringify({ device_code: data.device_code }),
@@ -183,17 +187,23 @@ export function ModelsEdit() {
         const tokenData = await tokenRes.json();
 
         if (tokenData.access_token) {
-          clearInterval(pollInterval);
           handleProviderApiKeyChange("GitHub Copilot", tokenData.access_token);
           setAuthData(null);
           setIsLoggingIn(false);
           fetchModels(tokenData.access_token);
-        } else if (tokenData.error && tokenData.error !== "authorization_pending") {
-          clearInterval(pollInterval);
+        } else if (tokenData.error === "authorization_pending") {
+          setTimeout(poll, currentInterval);
+        } else if (tokenData.error === "slow_down") {
+          // Increase interval by 5 seconds or use provided interval
+          currentInterval = (tokenData.interval || currentInterval / 1000 + 5) * 1000;
+          setTimeout(poll, currentInterval);
+        } else {
           setIsLoggingIn(false);
           setAuthData(null);
         }
-      }, (data.interval || 5) * 1000);
+      };
+
+      setTimeout(poll, currentInterval);
     } catch (error) {
       console.error("Login failed", error);
       setIsLoggingIn(false);
