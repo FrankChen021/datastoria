@@ -31,6 +31,7 @@ import {
 import type { VisualizationRef } from "./dashboard-visualization-layout";
 import { DashboardVisualizationPanel } from "./dashboard-visualization-panel";
 import type { TimeSpan } from "./timespan-selector";
+import { useEcharts } from "./use-echarts";
 import useIsDarkTheme from "./use-is-dark-theme";
 
 // Safety scale used in the initial font size calculation.
@@ -100,8 +101,10 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
   option,
   onBrushChange,
 }) {
-  const chartContainerRef = React.useRef<HTMLDivElement>(null);
-  const chartInstanceRef = React.useRef<echarts.ECharts | null>(null);
+  const hasData = data.length > 0;
+  const { chartContainerRef, chartInstanceRef } = useEcharts({
+    dependencies: [hasData],
+  });
   const brushHandlerRef = React.useRef<((params: unknown) => void) | null>(null);
   const [chartColor, setChartColor] = React.useState<string>("hsl(var(--chart-1))");
   const isDark = useIsDarkTheme();
@@ -152,96 +155,6 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
 
     return () => observer.disconnect();
   }, []);
-
-  const hasData = data.length > 0;
-  // Initialize echarts instance with theme support (separate from data updates)
-  React.useEffect(() => {
-    const chartDom = chartContainerRef.current;
-    if (!chartDom) {
-      return;
-    }
-
-    // Check if container has valid dimensions before initializing
-    const { clientWidth, clientHeight } = chartDom;
-    if (clientWidth === 0 || clientHeight === 0) {
-      // Container not ready yet, will be initialized by ResizeObserver when it has dimensions
-      return;
-    }
-
-    // Dispose existing instance if theme changed
-    if (chartInstanceRef.current) {
-      chartInstanceRef.current.dispose();
-      chartInstanceRef.current = null;
-    }
-
-    // Initialize chart with theme (matching timeseries chart pattern)
-    const chartTheme = isDark ? "dark" : undefined;
-    // useCoarsePointer: true reduces the number of event listeners ECharts adds,
-    // which helps avoid "non-passive event listener" warnings in the console.
-    const chart = echarts.init(chartDom, chartTheme, {
-      useCoarsePointer: true,
-    });
-    chartInstanceRef.current = chart;
-
-    const handleResize = () => {
-      if (chartInstanceRef.current && chartDom) {
-        const { clientWidth: w, clientHeight: h } = chartDom;
-        // Only resize if container has valid dimensions
-        if (w > 0 && h > 0) {
-          chartInstanceRef.current.resize();
-        }
-      }
-    };
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("resize", handleResize);
-    }
-
-    const resizeObserver =
-      typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver((entries) => {
-            const entry = entries[0];
-            if (!entry) return;
-            const { width, height } = entry.contentRect;
-            // Only resize if container has valid dimensions
-            if (width > 0 && height > 0 && chartInstanceRef.current) {
-              requestAnimationFrame(() => {
-                if (chartInstanceRef.current) {
-                  chartInstanceRef.current.resize();
-                }
-              });
-            }
-          })
-        : null;
-    if (resizeObserver && chartDom) {
-      resizeObserver.observe(chartDom);
-    }
-
-    // Initial resize after a short delay
-    const initialResizeTimeout = setTimeout(() => {
-      if (chartInstanceRef.current && chartDom) {
-        const { clientWidth: w, clientHeight: h } = chartDom;
-        // Only resize if container has valid dimensions
-        if (w > 0 && h > 0) {
-          chartInstanceRef.current.resize();
-        }
-      }
-    }, 100);
-
-    return () => {
-      clearTimeout(initialResizeTimeout);
-      if (resizeObserver && chartDom) {
-        resizeObserver.unobserve(chartDom);
-      }
-      if (typeof window !== "undefined") {
-        window.removeEventListener("resize", handleResize);
-      }
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.dispose();
-        chartInstanceRef.current = null;
-      }
-    };
-  }, [isDark, hasData]);
 
   // Update chart when data changes (separate from initialization)
   React.useEffect(() => {

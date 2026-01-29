@@ -10,6 +10,7 @@ import type { GaugeDescriptor, PanelDescriptor, TableDescriptor } from "./dashbo
 import type { VisualizationRef } from "./dashboard-visualization-layout";
 import { DashboardVisualizationPanel } from "./dashboard-visualization-panel";
 import type { TimeSpan } from "./timespan-selector";
+import { useEcharts } from "./use-echarts";
 import useIsDarkTheme from "./use-is-dark-theme";
 
 export interface GaugeVisualizationProps {
@@ -33,8 +34,13 @@ export const GaugeVisualization = React.forwardRef<GaugeVisualizationRef, GaugeV
     const isDark = useIsDarkTheme();
 
     // Refs
-    const chartContainerRef = useRef<HTMLDivElement>(null);
-    const chartInstanceRef = useRef<echarts.ECharts | null>(null);
+    const { chartContainerRef, chartInstanceRef } = useEcharts({
+      useExplicitSize: true,
+      initOptions: {
+        devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio : 1,
+        renderer: "canvas",
+      },
+    });
     const [chartColor, setChartColor] = useState<string>("hsl(var(--chart-1))");
 
     // Check if drilldown is available
@@ -141,89 +147,6 @@ export const GaugeVisualization = React.forwardRef<GaugeVisualizationRef, GaugeV
 
       return () => observer.disconnect();
     }, []);
-
-    // Initialize echarts instance with theme support
-    useEffect(() => {
-      if (!chartContainerRef.current) {
-        return;
-      }
-
-      // Check if container has valid dimensions before initializing
-      const { clientWidth, clientHeight } = chartContainerRef.current;
-      if (clientWidth === 0 || clientHeight === 0) {
-        // Container not ready yet, will be initialized by ResizeObserver when it has dimensions
-        return;
-      }
-
-      // Dispose existing instance if theme changed
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.dispose();
-        chartInstanceRef.current = null;
-      }
-
-      // Initialize with dark theme if in dark mode
-      const chartTheme = isDark ? "dark" : undefined;
-      // useCoarsePointer: true reduces the number of event listeners ECharts adds,
-      // which helps avoid "non-passive event listener" warnings in the console.
-      const chartInstance = echarts.init(chartContainerRef.current, chartTheme, {
-        devicePixelRatio: window.devicePixelRatio || 1,
-        renderer: "canvas",
-        useCoarsePointer: true,
-      });
-      chartInstanceRef.current = chartInstance;
-
-      // Handle window resize with explicit dimensions for crisp rendering
-      const handleResize = () => {
-        if (chartInstanceRef.current && chartContainerRef.current) {
-          const { width, height } = chartContainerRef.current.getBoundingClientRect();
-          // Only resize if container has valid dimensions
-          if (width > 0 && height > 0) {
-            chartInstanceRef.current.resize({
-              width: Math.round(width),
-              height: Math.round(height),
-            });
-          }
-        }
-      };
-      window.addEventListener("resize", handleResize);
-
-      // Use ResizeObserver to watch for container size changes
-      const resizeObserver = new ResizeObserver((entries) => {
-        const entry = entries[0];
-        if (!entry) return;
-        const { width, height } = entry.contentRect;
-        // Only resize if container has valid dimensions
-        if (width > 0 && height > 0 && chartInstanceRef.current) {
-          requestAnimationFrame(() => {
-            if (chartInstanceRef.current) {
-              chartInstanceRef.current.resize({
-                width: Math.round(width),
-                height: Math.round(height),
-              });
-            }
-          });
-        }
-      });
-
-      if (chartContainerRef.current) {
-        resizeObserver.observe(chartContainerRef.current);
-      }
-
-      // Initial resize after a short delay with explicit dimensions
-      const initialResizeTimeout = setTimeout(() => {
-        handleResize();
-      }, 100);
-
-      return () => {
-        clearTimeout(initialResizeTimeout);
-        resizeObserver.disconnect();
-        window.removeEventListener("resize", handleResize);
-        if (chartInstanceRef.current) {
-          chartInstanceRef.current.dispose();
-          chartInstanceRef.current = null;
-        }
-      };
-    }, [isDark]);
 
     // Update chart when data changes
     useEffect(() => {
