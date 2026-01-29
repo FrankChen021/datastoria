@@ -16,16 +16,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Dialog as SharedDialog } from "@/components/shared/use-dialog";
+import { GitHubLoginComponent } from "./github-login-component";
 import { fetchCopilotModels, MODELS } from "@/lib/ai/llm/llm-provider-factory";
 import { TextHighlighter } from "@/lib/text-highlighter";
 import { ChevronDown, ExternalLink, Eye, EyeOff, Search } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 const PROVIDER_LINKS: Record<string, string> = {
   OpenAI: "https://platform.openai.com/api-keys",
@@ -145,22 +146,6 @@ export function ModelsEdit() {
     );
   }, [filteredModels]);
 
-  // GitHub Copilot Auth State
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [authData, setAuthData] = useState<{
-    device_code: string;
-    user_code: string;
-    verification_uri: string;
-    interval: number;
-    expires_in: number;
-  } | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
-  // Ref to avoid stale closures inside async polling
-  const isLoggingInRef = useRef(isLoggingIn);
-  useEffect(() => {
-    isLoggingInRef.current = isLoggingIn;
-  }, [isLoggingIn]);
-
   const fetchModels = useCallback(async (token: string) => {
     const fetchedModels = await fetchCopilotModels(token);
     if (fetchedModels.length > 0) {
@@ -181,80 +166,24 @@ export function ModelsEdit() {
   }, [modelManager]);
 
   const handleCopilotLogin = async () => {
-    console.log("handleCopilotLogin triggered");
-    setIsLoggingIn(true);
-    // use a ref to avoid stale closure inside the polling loop
-    isLoggingInRef.current = true;
-    setAuthError(null);
-    try {
-      console.log("Fetching device code...");
-      const res = await fetch("/api/auth/github/device/code", { method: "POST" });
-      if (!res.ok) {
-        throw new Error("Failed to initiate login. Please try again.");
-      }
-      const data = await res.json();
-      console.log("Device code received:", data.user_code);
-      setAuthData(data);
-
-      let currentInterval = (data.interval || 5) * 1000;
-
-      const poll = async () => {
-        if (!isLoggingInRef.current) return; // Stop if login canceled elsewhere
-
-        console.log("Polling for token...");
-        try {
-          const tokenRes = await fetch("/api/auth/github/device/token", {
-            method: "POST",
-            body: JSON.stringify({ device_code: data.device_code }),
-          });
-
-          if (!tokenRes.ok) {
-            throw new Error("Polling failed");
-          }
-
-          const tokenData = await tokenRes.json();
-
-          if (tokenData.access_token) {
-            handleProviderApiKeyChange("GitHub Copilot", tokenData.access_token);
-            setAuthData(null);
-            setIsLoggingIn(false);
-            isLoggingInRef.current = false;
-            fetchModels(tokenData.access_token);
-          } else if (tokenData.error === "authorization_pending") {
-            setTimeout(poll, currentInterval);
-          } else if (tokenData.error === "slow_down") {
-            // Increase interval by 5 seconds or use provided interval
-            currentInterval = (tokenData.interval || currentInterval / 1000 + 5) * 1000;
-            setTimeout(poll, currentInterval);
-          } else if (tokenData.error === "expired_token") {
-            setAuthError("The device code has expired. Please try again.");
-            setIsLoggingIn(false);
-            isLoggingInRef.current = false;
-          } else if (tokenData.error === "access_denied") {
-            setAuthError("Login was canceled or access was denied.");
-            setIsLoggingIn(false);
-            isLoggingInRef.current = false;
-          } else {
-            console.error("Unknown polling error:", tokenData);
-            setAuthError(tokenData.error_description || "Authentication failed.");
-            setIsLoggingIn(false);
-            isLoggingInRef.current = false;
-          }
-        } catch (err) {
-          console.error("Polling error:", err);
-          setAuthError("Failed to verify login status. Please check your connection.");
-          setIsLoggingIn(false);
-          isLoggingInRef.current = false;
-        }
-      };
-
-      setTimeout(poll, currentInterval);
-    } catch (error) {
-      console.error("Login failed", error);
-      setAuthError(error instanceof Error ? error.message : "Failed to initiate login.");
-      setIsLoggingIn(false);
-      isLoggingInRef.current = false;
-    }
+    SharedDialog.showDialog({
+      title: "Login with GitHub Copilot",
+      description: "Authorize this application to access your GitHub Copilot models.",
+      mainContent: (
+        <GitHubLoginComponent
+          onSuccess={(token: string) => {
+            handleProviderApiKeyChange("GitHub Copilot", token);
+            fetchModels(token);
+            SharedDialog.close();
+          }}
+          onCancel={() => {
+            SharedDialog.close();
+          }}
+        />
+      ),
+      disableBackdrop: true,
+      className: "sm:max-w-md",
+    });
   };
 
   // Initial fetch for dynamic models if token exists
@@ -496,64 +425,6 @@ export function ModelsEdit() {
           </div>
         </div>
       </div>
-
-      <Dialog
-        open={isLoggingIn || !!authError}
-        onOpenChange={(open) => {
-          if (!open) {
-            setIsLoggingIn(false);
-            setAuthData(null);
-            setAuthError(null);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Login with GitHub Copilot</DialogTitle>
-            <DialogDescription>
-              Authorize this application to access your GitHub Copilot models.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col items-center justify-center space-y-4 py-4">
-            {authError ? (
-              <div className="text-destructive text-sm font-medium text-center">
-                {authError}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4 block mx-auto"
-                  onClick={() => {
-                    setAuthError(null);
-                    handleCopilotLogin();
-                  }}
-                >
-                  Try Again
-                </Button>
-              </div>
-            ) : authData ? (
-              <div className="space-y-4 w-full text-center">
-                <div className="text-sm font-medium">Please enter this code on GitHub:</div>
-                <div className="bg-muted p-4 rounded-lg font-mono text-2xl tracking-widest text-primary border">
-                  {authData.user_code}
-                </div>
-                <div className="text-xs text-muted-foreground animate-pulse">
-                  Waiting for authorization...
-                </div>
-                <Button className="w-full" asChild>
-                  <a href={authData.verification_uri} target="_blank" rel="noreferrer">
-                    Continue on GitHub
-                  </a>
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center space-y-2">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <div className="text-sm text-muted-foreground">Initializing login flow...</div>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
