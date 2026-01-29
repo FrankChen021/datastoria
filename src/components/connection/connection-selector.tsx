@@ -141,16 +141,29 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
   useEffect(() => {
     if (isOpen) {
       reloadConnections();
+
       // Focus the input after render using requestAnimationFrame
       if (inputRef.current) {
         requestAnimationFrame(() => {
           inputRef.current?.focus();
         });
       }
-      // initialize highlighted value when opening
-      setHighlightedValue(
-        pendingConfig && !isConnectionAvailable ? pendingConfig.name : connection?.name
-      );
+      // Initialize highlighted value when opening
+      const targetValue = pendingConfig && !isConnectionAvailable ? pendingConfig.name : connection?.name;
+      setHighlightedValue(targetValue);
+
+      // This is a bug of cmdk, but model-selector is not affected
+      // Tried to use Opus to fix, but it does not work, so we have to do this scroll manually.
+      // Scroll the selected item into view after cmdk has updated
+      // Use double RAF to ensure: 1) state update, 2) DOM render with aria-selected
+      if (targetValue) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const selectedItem = document.querySelector('[cmdk-item][aria-selected="true"]');
+            selectedItem?.scrollIntoView({ block: 'nearest' });
+          });
+        });
+      }
     }
   }, [isOpen, pendingConfig, isConnectionAvailable, connection?.name]);
 
