@@ -54,7 +54,51 @@ export const CREATORS: Record<string, ModelCreator> = {
     createCerebras({
       apiKey,
     })(modelId),
+  "GitHub Copilot": (modelId, apiKey) =>
+    createOpenAI({
+      apiKey,
+      baseURL: "https://api.githubcopilot.com",
+      headers: {
+        "Editor-Version": "vscode/1.91.1",
+        "Editor-Plugin-Version": "copilot-chat/0.17.1",
+        "User-Agent": "GitHubCopilotChat/0.17.1",
+      },
+    })(modelId),
 };
+
+/**
+ * Fetch available models from GitHub Copilot API
+ */
+export async function fetchCopilotModels(token: string): Promise<ModelProps[]> {
+  try {
+    const response = await fetch("https://api.githubcopilot.com/models", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Editor-Version": "vscode/1.91.1",
+        "Editor-Plugin-Version": "copilot-chat/0.17.1",
+        "User-Agent": "GitHubCopilotChat/0.17.1",
+      },
+    });
+
+    if (!response.ok) {
+      console.error("Failed to fetch Copilot models:", await response.text());
+      return [];
+    }
+
+    const data = await response.json();
+    // The response is an array of models or has a data property
+    const models = Array.isArray(data) ? data : data.data || [];
+
+    return models.map((m: any) => ({
+      provider: "GitHub Copilot",
+      modelId: m.id,
+      description: m.name || m.id,
+    }));
+  } catch (error) {
+    console.error("Error fetching Copilot models:", error);
+    return [];
+  }
+}
 
 /**
  * Flattened array of all models with their properties

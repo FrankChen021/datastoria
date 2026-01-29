@@ -4,6 +4,7 @@ import {
   type ProviderSetting,
 } from "@/components/settings/models/model-manager";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -14,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MODELS } from "@/lib/ai/llm/llm-provider-factory";
+import { fetchCopilotModels, MODELS } from "@/lib/ai/llm/llm-provider-factory";
 import { TextHighlighter } from "@/lib/text-highlighter";
 import { ChevronDown, ExternalLink, Eye, EyeOff, Search } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -45,16 +46,16 @@ export function ModelsEdit() {
       availableModels.push(
         stored
           ? {
-              ...stored,
-              provider: stored.provider || model.provider, // Use stored provider if exists, otherwise use from model
-              free: stored.free ?? model.free ?? false, // Use stored free if exists, otherwise use from model
-            }
+            ...stored,
+            provider: stored.provider || model.provider, // Use stored provider if exists, otherwise use from model
+            free: stored.free ?? model.free ?? false, // Use stored free if exists, otherwise use from model
+          }
           : {
-              modelId: model.modelId,
-              provider: model.provider,
-              disabled: false,
-              free: model.free ?? false,
-            }
+            modelId: model.modelId,
+            provider: model.provider,
+            disabled: false,
+            free: model.free ?? false,
+          }
       );
     }
     return { models: availableModels, providerSettings: storedProviderSettings };
@@ -102,12 +103,25 @@ export function ModelsEdit() {
 
   // Filter models based on search query
   const filteredModels = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return models;
-    }
+    const allModels = modelManager.getAllModels();
     const queryLower = searchQuery.toLowerCase();
-    return models.filter((model) => model.modelId.toLowerCase().includes(queryLower));
-  }, [models, searchQuery]);
+
+    // Convert allModels to ModelSetting state format
+    const currentModelSettings = allModels.map(model => {
+      const stored = models.find(m => m.modelId === model.modelId && m.provider === model.provider);
+      return stored || {
+        modelId: model.modelId,
+        provider: model.provider,
+        disabled: false,
+        free: model.free ?? false,
+      };
+    });
+
+    if (!queryLower.trim()) {
+      return currentModelSettings;
+    }
+    return currentModelSettings.filter((model) => model.modelId.toLowerCase().includes(queryLower));
+  }, [models, searchQuery, modelManager]);
 
   // Group models by provider
   const groupedModels = useMemo(() => {
@@ -123,6 +137,76 @@ export function ModelsEdit() {
       {} as Record<string, ModelSetting[]>
     );
   }, [filteredModels]);
+
+  // GitHub Copilot Auth State
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [authData, setAuthData] = useState<{
+    device_code: string;
+    user_code: string;
+    verification_uri: string;
+    interval: number;
+    expires_in: number;
+  } | null>(null);
+
+  const fetchModels = useCallback(async (token: string) => {
+    const fetchedModels = await fetchCopilotModels(token);
+    if (fetchedModels.length > 0) {
+      modelManager.setDynamicModels(fetchedModels);
+      // Update local state to include new models
+      setModels((prev) => {
+        const newModels = fetchedModels.map(m => ({
+          modelId: m.modelId,
+          provider: m.provider,
+          disabled: false,
+          free: m.free ?? false
+        }));
+        // Filter out existing ones to avoid duplicates
+        const filteredNew = newModels.filter(nm => !prev.some(p => p.modelId === nm.modelId && p.provider === nm.provider));
+        return [...prev, ...filteredNew];
+      });
+    }
+  }, [modelManager]);
+
+  const handleCopilotLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      const res = await fetch("/api/auth/github/device/code", { method: "POST" });
+      const data = await res.json();
+      setAuthData(data);
+
+      // Start polling
+      const pollInterval = setInterval(async () => {
+        const tokenRes = await fetch("/api/auth/github/device/token", {
+          method: "POST",
+          body: JSON.stringify({ device_code: data.device_code }),
+        });
+        const tokenData = await tokenRes.json();
+
+        if (tokenData.access_token) {
+          clearInterval(pollInterval);
+          handleProviderApiKeyChange("GitHub Copilot", tokenData.access_token);
+          setAuthData(null);
+          setIsLoggingIn(false);
+          fetchModels(tokenData.access_token);
+        } else if (tokenData.error && tokenData.error !== "authorization_pending") {
+          clearInterval(pollInterval);
+          setIsLoggingIn(false);
+          setAuthData(null);
+        }
+      }, (data.interval || 5) * 1000);
+    } catch (error) {
+      console.error("Login failed", error);
+      setIsLoggingIn(false);
+    }
+  };
+
+  // Initial fetch for dynamic models if token exists
+  useEffect(() => {
+    const copilotSetting = providerSettings.find(p => p.provider === "GitHub Copilot");
+    if (copilotSetting?.apiKey) {
+      fetchModels(copilotSetting.apiKey);
+    }
+  }, []);
 
   // Expand all providers when searching
   useEffect(() => {
@@ -224,9 +308,8 @@ export function ModelsEdit() {
                           className="flex items-center gap-2 w-full text-left hover:opacity-80 transition-opacity"
                         >
                           <ChevronDown
-                            className={`h-4 w-4 transition-transform duration-200 ${
-                              isExpanded ? "rotate-0" : "-rotate-90"
-                            }`}
+                            className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-0" : "-rotate-90"
+                              }`}
                           />
                           <span className="font-semibold text-sm">{provider}</span>
                           <span className="text-xs text-muted-foreground">
@@ -247,6 +330,36 @@ export function ModelsEdit() {
                             >
                               <ExternalLink className="h-4 w-4" />
                             </a>
+                          )}
+                          {provider === "GitHub Copilot" && (
+                            <div className="flex flex-col gap-2">
+                              {!providerSetting?.apiKey && !authData && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleCopilotLogin}
+                                  disabled={isLoggingIn}
+                                  className="h-7 text-xs"
+                                >
+                                  {isLoggingIn ? "Check Browser..." : "Login with Copilot"}
+                                </Button>
+                              )}
+                              {authData && (
+                                <div className="text-xs flex flex-col gap-1 p-2 bg-muted rounded border">
+                                  <span>
+                                    Enter code: <strong className="text-primary">{authData.user_code}</strong>
+                                  </span>
+                                  <a
+                                    href={authData.verification_uri}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-blue-500 underline"
+                                  >
+                                    Verify on GitHub
+                                  </a>
+                                </div>
+                              )}
+                            </div>
                           )}
                           <div className="flex items-center gap-1 flex-1 relative">
                             <Input

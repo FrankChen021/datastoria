@@ -36,11 +36,31 @@ class ModelManager {
       .subStorage("settings:ai:selected-model-id");
   }
 
+  /**
+   * Dynamically registered models (e.g., from Copilot API)
+   */
+  private dynamicModels: ModelProps[] = [];
+
   public static getInstance(): ModelManager {
     if (!ModelManager.instance) {
       ModelManager.instance = new ModelManager();
     }
     return ModelManager.instance;
+  }
+
+  /**
+   * Set dynamic models and notify listeners
+   */
+  public setDynamicModels(models: ModelProps[]): void {
+    this.dynamicModels = models;
+    this.notify();
+  }
+
+  /**
+   * Get all registered models (static + dynamic)
+   */
+  public getAllModels(): ModelProps[] {
+    return [...MODELS, ...this.dynamicModels];
   }
 
   /**
@@ -213,7 +233,7 @@ class ModelManager {
     const modelSettings = this.getModelSettings();
     const providerSettings = this.getProviderSettings();
 
-    const userModels = MODELS.filter((model) => {
+    const userModels = this.getAllModels().filter((model) => {
       // Filter out models that are disabled in settings
       const setting = modelSettings.find(
         (s) => s.modelId === model.modelId && s.provider === model.provider
