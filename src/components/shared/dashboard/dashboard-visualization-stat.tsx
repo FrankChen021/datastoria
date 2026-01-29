@@ -156,7 +156,6 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
     return () => observer.disconnect();
   }, []);
 
-
   // Update chart when data changes (separate from initialization)
   React.useEffect(() => {
     const chart = chartInstanceRef.current;
@@ -222,13 +221,13 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
       },
       brush: onBrushChange
         ? {
-          xAxisIndex: "all",
-          brushLink: "all",
-          brushMode: "single",
-          brushStyle: {
-            color: "rgba(120,120,120,0.15)",
-          },
-        }
+            xAxisIndex: "all",
+            brushLink: "all",
+            brushMode: "single",
+            brushStyle: {
+              color: "rgba(120,120,120,0.15)",
+            },
+          }
         : undefined,
       toolbox: {
         show: false,
@@ -258,11 +257,11 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
           areaStyle:
             option.type === "area"
               ? {
-                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                  { offset: 0, color: chartColor },
-                  { offset: 1, color: "rgba(255,255,255,0)" },
-                ]),
-              }
+                  color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    { offset: 0, color: chartColor },
+                    { offset: 1, color: "rgba(255,255,255,0)" },
+                  ]),
+                }
               : undefined,
         },
       ],
