@@ -4,16 +4,14 @@ import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
-  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Separator } from "@/components/ui/separator";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
 import { cn } from "@/lib/utils";
-import { Check, Pencil, Plus } from "lucide-react";
+import { Check, Eye, EyeOff, Pencil, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { showConnectionEditDialog } from "./connection-edit-component";
 
@@ -33,6 +31,90 @@ interface ConnectionSelectorProps {
 }
 
 /**
+ * Right-hand details panel for a connection.
+ */
+function ConnectionDetailPanel({
+  conn,
+  onEdit,
+}: {
+  conn: ConnectionConfig | null;
+  onEdit?: (c: ConnectionConfig) => void;
+}) {
+  const [showPassword, setShowPassword] = useState(false);
+  if (!conn) {
+    return null;
+  }
+  return (
+    <div
+      data-panel="right"
+      className="w-[260px] flex flex-col h-full p-0 bg-popover rounded-sm text-[10px] text-popover-foreground shadow-md"
+    >
+      <div className="px-2 py-3 w-full flex flex-col flex-1">
+        <div className="overflow-auto h-full">
+          <div className="flex flex-col gap-y-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Name</div>
+              <div className="text-xs font-medium whitespace-nowrap">{conn.name}</div>
+            </div>
+
+            <div>
+              <div className="text-xs text-muted-foreground">URL</div>
+              <div className="text-xs whitespace-nowrap">{conn.url}</div>
+            </div>
+
+            <div>
+              <div className="text-xs text-muted-foreground">User</div>
+              <div className="text-xs whitespace-nowrap">{conn.user}</div>
+            </div>
+
+            <div>
+              <div className="text-xs text-muted-foreground">Password</div>
+              <div className="flex items-center gap-2">
+                {conn.password && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-4 w-4 p-0"
+                    onClick={() => setShowPassword((s) => !s)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="!h-3 !w-3" />
+                    ) : (
+                      <Eye className="!h-3 !w-3" />
+                    )}
+                  </Button>
+                )}
+                <div className="text-xs whitespace-nowrap">
+                  {conn.password ? (showPassword ? conn.password : "••••••") : "No password"}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs text-muted-foreground">Cluster</div>
+              <div className="text-xs whitespace-nowrap">{conn.cluster || "N/A"}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="h-px bg-border" />
+      <div className="h-[36px] flex items-center">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="px-2 font-normal text-sm w-full h-full rounded-none"
+          onClick={() => onEdit?.(conn)}
+        >
+          <Pencil className="h-4 w-4 mr-2" />
+          Edit Connection
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Shared connection selector component.
  * This component contains the cmdk implementation that's shared between
  * the popover and dialog variants. It manages its own state and handlers.
@@ -41,12 +123,9 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
   const { connection, pendingConfig, isConnectionAvailable, switchConnection } = useConnection();
   const [connections, setConnections] = useState<ConnectionConfig[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Determine which connection to highlight:
-  // - If there's a pending config and connection is not available, highlight the pending (failed) connection
-  // - Otherwise, highlight the active connection
-  const highlightedConnectionName =
-    pendingConfig && !isConnectionAvailable ? pendingConfig.name : connection?.name;
+  const [highlightedValue, setHighlightedValue] = useState<string | undefined>(
+    pendingConfig && !isConnectionAvailable ? pendingConfig.name : connection?.name
+  );
 
   // Load connections
   const reloadConnections = () => {
@@ -68,10 +147,14 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
           inputRef.current?.focus();
         });
       }
+      // initialize highlighted value when opening
+      setHighlightedValue(
+        pendingConfig && !isConnectionAvailable ? pendingConfig.name : connection?.name
+      );
     }
-  }, [isOpen]);
+  }, [isOpen, pendingConfig, isConnectionAvailable, connection?.name]);
 
-  const handleOpenAddDialog = () => {
+  const handleAddConnection = () => {
     showConnectionEditDialog({
       connection: null,
       onSave: (savedConnection) => {
@@ -125,105 +208,90 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
     onClose();
   };
 
-  // Get connection display text for command items
-  const getConnectionItemText = (conn: ConnectionConfig) => {
-    try {
-      const hostname = new URL(conn.url).hostname;
-      return `${conn.user}@${hostname}`;
-    } catch {
-      return conn.url;
-    }
-  };
+  // Find the connection currently highlighted by cmdk's value
+  const highlightedConnection = highlightedValue
+    ? connections.find((c) => c.name === highlightedValue) || null
+    : null;
+
+  // (no-op) connection display helper removed - details are rendered in the bottom panel
 
   return (
     <>
       <Command
+        value={highlightedValue}
+        onValueChange={setHighlightedValue}
         className={cn(
-          "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-1 [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input]]:h-9 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-1.5 [&_[cmdk-item]]:!rounded-none [&_[cmdk-item]_svg]:h-4 [&_[cmdk-item]_svg]:w-4",
+          "flex flex-row items-stretch h-[300px] max-w-[860px] overflow-visible bg-transparent shadow-none border-0 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input]]:h-9 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-1.5 [&_[cmdk-item]]:!rounded-none",
           className
         )}
         filter={(value: string, search: string) => {
           if (value.toLowerCase().includes(search.toLowerCase())) return 1;
           return 0;
         }}
-        value={highlightedConnectionName}
       >
-        <CommandInput ref={inputRef} placeholder="Search connections..." className="!h-9 text-sm" />
-        <CommandList className="!rounded-none max-h-[300px]">
-          <CommandEmpty className="p-2 text-center text-sm">No connections found</CommandEmpty>
-          {connections.length > 0 && (
-            <CommandGroup className="!py-1 !px-1 !rounded-none">
-              {connections.map((conn) => {
-                const isSelected = highlightedConnectionName === conn.name;
-                return (
-                  <CommandItem
-                    key={conn.name}
-                    value={conn.name}
-                    onSelect={() => handleConnectionSelect(conn)}
-                    className={cn(
-                      "flex items-center justify-between !rounded-none cursor-pointer !py-1 !px-2 mb-0.5 transition-colors hover:bg-muted group",
-                      isSelected && "bg-muted/50"
-                    )}
-                    style={{ borderRadius: 0 }}
-                  >
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                      <div className="w-3 shrink-0 flex items-center justify-center">
-                        {isSelected && <Check className="h-3 w-3 text-primary" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className={cn(
-                            "text-sm font-medium truncate",
-                            isSelected && "text-primary"
-                          )}
-                        >
-                          <HighlightableCommandItem text={conn.name} />
-                        </div>
-                        <div
-                          className={cn(
-                            "text-xs truncate leading-tight",
-                            isSelected ? "text-primary/80" : "text-muted-foreground"
-                          )}
-                        >
-                          {getConnectionItemText(conn)}
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        "h-5 w-5 text-muted-foreground",
-                        "opacity-0 group-hover:opacity-100"
-                      )}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleEditConnection(conn);
-                      }}
-                      title="Edit Connection"
-                    >
-                      <Pencil className="!h-2.5 !w-2.5" />
-                    </Button>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
+        {/* Left Pane */}
+        <div
+          data-panel="left"
+          className={cn(
+            "min-w-[340px] max-w-[600px] flex-shrink-0 bg-popover rounded-sm overflow-hidden shadow-md flex flex-col",
+            highlightedConnection ? "border-r rounded-r-none" : ""
           )}
-        </CommandList>
-      </Command>
-
-      <Separator />
-      <div className="p-1">
-        <Button
-          variant="ghost"
-          className="w-full justify-start rounded-none h-8 text-sm"
-          onClick={handleOpenAddDialog}
         >
-          <Plus className="h-3.5 w-3.5 mr-2" />
-          Add Connection
-        </Button>
-      </div>
+          <CommandInput
+            ref={inputRef}
+            placeholder="Search connections..."
+            className="!h-9 text-sm w-full"
+          />
+          <CommandList className="!rounded-none max-h-[500px] flex-1 overflow-y-auto w-full">
+            <CommandEmpty className="p-2 text-center text-sm">No connections found</CommandEmpty>
+            {connections.map((conn) => {
+              // `isSelected` reflects the currently active connection from context,
+              // not the cmdk highlighted value. This keeps the active selection
+              // unchanged while hovering through the list (matches model-selector behavior).
+              const isSelected = connection?.name === conn.name;
+
+              return (
+                <CommandItem
+                  key={conn.name}
+                  value={conn.name}
+                  onSelect={() => handleConnectionSelect(conn)}
+                  className={cn(
+                    "flex items-center justify-between !rounded-none cursor-pointer !py-2 !px-2.5 transition-colors hover:bg-muted group",
+                    isSelected && "bg-muted"
+                  )}
+                  style={{ borderRadius: 0 }}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center text-sm truncate flex-1 min-w-0",
+                      isSelected && "text-primary"
+                    )}
+                  >
+                    {isSelected && <Check className="h-3 w-3 mr-1" />}
+                    <HighlightableCommandItem text={conn.name} />
+                  </div>
+                </CommandItem>
+              );
+            })}
+          </CommandList>
+
+          <div className="h-px bg-border shrink-0" />
+          <div className="items-center flex shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-center text-sm font-normal gap-2 rounded-none"
+              onClick={handleAddConnection}
+            >
+              <Plus className="h-3 w-3" />
+              Add Connection
+            </Button>
+          </div>
+        </div>
+
+        {/* Right Pane */}
+        <ConnectionDetailPanel conn={highlightedConnection} onEdit={handleEditConnection} />
+      </Command>
     </>
   );
 }
