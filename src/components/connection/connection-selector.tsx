@@ -149,7 +149,8 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
         });
       }
       // Initialize highlighted value when opening
-      const targetValue = pendingConfig && !isConnectionAvailable ? pendingConfig.name : connection?.name;
+      const targetValue =
+        pendingConfig && !isConnectionAvailable ? pendingConfig.name : connection?.name;
       setHighlightedValue(targetValue);
 
       // This is a bug of cmdk, but model-selector is not affected
@@ -160,7 +161,7 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const selectedItem = document.querySelector('[cmdk-item][aria-selected="true"]');
-            selectedItem?.scrollIntoView({ block: 'nearest' });
+            selectedItem?.scrollIntoView({ block: "nearest" });
           });
         });
       }
