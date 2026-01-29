@@ -248,6 +248,8 @@ export const ChatMessage = memo(function ChatMessage({
             )}
           </div>
         </div>
+          </div>
+        </div>
 
         {!isUser && usage && <TokenUsageDisplay id={message.id + "-usage"} usage={usage} />}
       </div>
