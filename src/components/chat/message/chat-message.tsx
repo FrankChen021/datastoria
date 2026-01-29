@@ -193,18 +193,30 @@ export const ChatMessage = memo(function ChatMessage({
   const showLoading = !isUser && isLoading;
   return (
     <div
-      className={cn(isUser && !isFirst ? "mt-3 border-t" : "", isUser ? "bg-gray-800 py-1" : "")}
+      className={cn(isUser && !isFirst ? "mt-3 border-t" : "", isUser ? "py-1" : "")}
     >
-      <div className="pl-2 py-1">
+
+      <div>
+
         {/* Timestamp above profile for user messages - reserve space for alignment */}
-        {isUser && timestamp && (
-          <h4 className="text-sm font-semibold mb-2">
+        {isUser && timestamp ? (
+          <h4 className="p-2 text-sm font-semibold">
             {DateTimeExtension.toYYYYMMddHHmmss(new Date(timestamp))}
           </h4>
+        ) : (
+          <div className="p-2" />
         )}
 
         {/* Profile and message row - aligned at top */}
-        <div className="flex gap-1">
+        <div className="flex gap-[1px]">
+          {/* Left color bar to distinguish user vs assistant messages */}
+          <div
+            className={cn(
+              "self-stretch w-1",
+              isUser ? "bg-sky-400 dark:bg-sky-500" : "bg-emerald-400 dark:bg-emerald-500"
+            )}
+          />
+
           <div className="flex-shrink-0 w-[28px]">
             {isUser ? (
               <UserProfileImage />
