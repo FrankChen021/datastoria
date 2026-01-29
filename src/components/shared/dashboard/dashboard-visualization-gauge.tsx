@@ -148,7 +148,6 @@ export const GaugeVisualization = React.forwardRef<GaugeVisualizationRef, GaugeV
       return () => observer.disconnect();
     }, []);
 
-
     // Update chart when data changes
     useEffect(() => {
       if (!chartInstanceRef.current) {
@@ -435,11 +434,11 @@ export const GaugeVisualization = React.forwardRef<GaugeVisualizationRef, GaugeV
           onKeyDown={
             hasDrilldown()
               ? (e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleDrilldownClick();
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleDrilldownClick();
+                  }
                 }
-              }
               : undefined
           }
           role={hasDrilldown() ? "button" : undefined}

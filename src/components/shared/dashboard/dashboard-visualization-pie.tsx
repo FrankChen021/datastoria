@@ -94,7 +94,6 @@ export const PieVisualization = React.forwardRef<PieVisualizationRef, PieVisuali
       [descriptor.drilldown, selectedTimeSpan]
     );
 
-
     // Update chart when data changes
     useEffect(() => {
       if (!chartInstanceRef.current) {

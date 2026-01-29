@@ -975,10 +975,10 @@ export const TimeseriesVisualization = React.forwardRef<
         toolbox: { show: false },
         brush: hasDrilldown()
           ? {
-            xAxisIndex: "all",
-            brushLink: "all",
-            outOfBrush: { colorAlpha: 0.1 },
-          }
+              xAxisIndex: "all",
+              brushLink: "all",
+              outOfBrush: { colorAlpha: 0.1 },
+            }
           : undefined,
         tooltip: {
           trigger: "axis",
@@ -1149,7 +1149,7 @@ export const TimeseriesVisualization = React.forwardRef<
           // Adjust top margin based on whether ECharts legend is shown
           top:
             series.length > 0 &&
-              (!descriptor.legendOption || descriptor.legendOption.placement === "inside")
+            (!descriptor.legendOption || descriptor.legendOption.placement === "inside")
               ? 32
               : 12,
           containLabel: true,
