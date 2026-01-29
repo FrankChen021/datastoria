@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Sidebar,
   SidebarContent,
@@ -116,12 +117,27 @@ function HoverCardSidebarMenuItem({
 }
 
 function ConnectionManageSidebarMenuItem() {
+  const [open, setOpen] = useState(false);
+
   return (
-    <HoverCardSidebarMenuItem
-      icon={<Database className="h-5 w-5" />}
-      content={(isOpen, onClose) => <ConnectionSelector isOpen={isOpen} onClose={onClose} />}
-      contentClassName="w-[450px] p-0"
-    />
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <SidebarMenuButton
+          size="lg"
+          className="justify-center"
+          tooltip={{
+            children: "Switch connection",
+            className: "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
+          }}
+          onClick={() => setOpen((s) => !s)}
+        >
+          <Database className="h-5 w-5" />
+        </SidebarMenuButton>
+      </PopoverTrigger>
+      <PopoverContent side="right" align="start" className="!w-auto !max-w-none p-0">
+        <ConnectionSelector isOpen={open} onClose={() => setOpen(false)} />
+      </PopoverContent>
+    </Popover>
   );
 }
 
