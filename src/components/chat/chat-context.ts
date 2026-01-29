@@ -1,4 +1,3 @@
-
 export interface DatabaseContext {
   currentQuery?: string;
   database?: string;
