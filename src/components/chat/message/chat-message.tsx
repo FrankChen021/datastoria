@@ -203,7 +203,7 @@ export const ChatMessage = memo(function ChatMessage({
           {/* Left color bar to distinguish user vs assistant messages */}
           <div
             className={cn(
-              "self-start w-1 rounded-r",
+              "self-stretch w-1 rounded-r",
               isUser ? "bg-sky-400 dark:bg-sky-500" : "bg-emerald-400 dark:bg-emerald-500"
             )}
           />
