@@ -408,7 +408,7 @@ export async function sqlGenerationAgent(
 
   try {
     // Use provided model config
-    const [model] = LanguageModelProviderFactory.createModel(
+    const model = LanguageModelProviderFactory.createModel(
       modelConfig.provider,
       modelConfig.modelId,
       modelConfig.apiKey
@@ -476,7 +476,7 @@ export async function streamSqlGeneration({
   modelConfig: InputModel;
   context?: ServerDatabaseContext;
 }) {
-  const [model] = LanguageModelProviderFactory.createModel(
+  const model = LanguageModelProviderFactory.createModel(
     modelConfig.provider,
     modelConfig.modelId,
     modelConfig.apiKey

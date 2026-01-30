@@ -58,7 +58,7 @@ function extractErrorMessageFromLLMProvider(
       parsed.error?.metadata?.raw || parsed.error?.message || parsed.message || fallbackMessage
     );
   } catch {
-    return fallbackMessage;
+    return responseBody;
   }
 }
 
@@ -78,6 +78,7 @@ function extractErrorMessage(error: unknown): string {
 
     // Check if lastError is an APICallError-like object with statusCode 429
     if (typeof lastError === "object" && "statusCode" in lastError && "responseBody" in lastError) {
+      console.log("RetryError last error", error);
       return (
         extractErrorMessageFromLLMProvider(
           lastError.responseBody as string | undefined,

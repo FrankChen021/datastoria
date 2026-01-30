@@ -46,6 +46,7 @@
     "@mui/material": "^7.3.4",
     "@number-flow/react": "file:./external/number-flow/packages/react",
     "@openrouter/ai-sdk-provider": "^1.5.4",
+    "@opeoginni/github-copilot-openai-compatible": "^1.0.0",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-context-menu": "^2.2.16",

@@ -14,6 +14,8 @@ import type { ModelProps } from "@/lib/ai/llm/llm-provider-factory";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Layers, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { showSettingsDialog } from "../../settings/settings-dialog";
 import { HighlightableCommandItem } from "../../shared/cmdk/cmdk-extension";
 
@@ -272,7 +274,9 @@ export function ModelSelectorImpl({
               data-panel="right"
               className="w-[250px] overflow-y-auto p-2 bg-popover rounded-sm rounded-l-none border border-l-0 text-[10px] text-popover-foreground shadow-md"
             >
-              {highlightedModel.description}
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {highlightedModel.description}
+              </ReactMarkdown>
             </div>
           )}
         </Command>

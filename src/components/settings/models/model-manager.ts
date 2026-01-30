@@ -60,7 +60,14 @@ class ModelManager {
    * Get all registered models (static + dynamic)
    */
   public getAllModels(): ModelProps[] {
-    return [...MODELS, ...this.dynamicModels];
+    const all = [...MODELS, ...this.dynamicModels];
+    const seen = new Set<string>();
+    return all.filter((model) => {
+      const key = `${model.provider}:${model.modelId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   /**

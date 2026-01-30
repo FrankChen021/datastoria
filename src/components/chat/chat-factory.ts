@@ -35,40 +35,6 @@ function createToolProgressCallback(
   };
 }
 
-/**
- * Extract title from message text: first 10 tokens, maximum 64 characters
- */
-function extractTitleFromMessage(message: Message): string | undefined {
-  // Get text from message parts
-  const textParts = message.parts.filter(
-    (p): p is { type: "text"; text: string } => p.type === "text"
-  );
-  if (textParts.length === 0) return undefined;
-
-  const fullText = textParts
-    .map((p) => p.text)
-    .join(" ")
-    .trim();
-  if (!fullText) return undefined;
-
-  // Split into tokens (words) and take first 10
-  const tokens = fullText.split(/\s+/).filter((t) => t.length > 0);
-  const titleTokens = tokens.slice(0, 10);
-  let title = titleTokens.join(" ");
-
-  // Limit to 64 characters
-  if (title.length > 64) {
-    title = title.slice(0, 64).trim();
-    // Don't cut in the middle of a word if possible
-    const lastSpace = title.lastIndexOf(" ");
-    if (lastSpace > 0 && lastSpace > 32) {
-      title = title.slice(0, lastSpace);
-    }
-  }
-
-  return title || undefined;
-}
-
 export class ChatFactory {
   /**
    * Get the current model configuration based on user settings
@@ -87,10 +53,6 @@ export class ChatFactory {
     }
 
     const { provider, modelId } = selectedModel;
-
-    const modelProps = MODELS.find((m) => m.modelId === modelId && m.provider === provider);
-    if (!modelProps) return undefined;
-
     const providerSettings = modelManager.getProviderSettings();
     const providerSetting = providerSettings.find((p) => p.provider === provider);
     if (!providerSetting?.apiKey) return undefined;

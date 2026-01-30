@@ -21,7 +21,7 @@ export async function createGeneralAgent({
   modelConfig: InputModel;
   context?: ServerDatabaseContext;
 }) {
-  const [model] = LanguageModelProviderFactory.createModel(
+  const model = LanguageModelProviderFactory.createModel(
     modelConfig.provider,
     modelConfig.modelId,
     modelConfig.apiKey

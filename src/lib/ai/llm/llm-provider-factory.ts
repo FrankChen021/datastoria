@@ -4,6 +4,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createGitHubCopilotOpenAICompatible } from "@opeoginni/github-copilot-openai-compatible";
 import type { LanguageModel } from "ai";
 import { mockModel } from "./models.mock";
 
@@ -18,10 +19,11 @@ type ModelCreator = (modelId: string, apiKey: string) => LanguageModel;
 export interface ModelProps {
   provider: string;
   modelId: string;
+  description?: string;
   free?: boolean;
   autoSelectable?: boolean;
   disabled?: boolean;
-  description?: string;
+  supportedEndpoints?: string[];
 }
 
 /**
@@ -54,29 +56,41 @@ export const CREATORS: Record<string, ModelCreator> = {
     createCerebras({
       apiKey,
     })(modelId),
-  "GitHub Copilot": (modelId, apiKey) =>
-    createOpenAI({
-      apiKey,
-      baseURL: "https://api.githubcopilot.com",
+  "GitHub Copilot": (modelId, apiKey) => {
+    console.log("GitHub Copilot modelId:", modelId);
+    return createGitHubCopilotOpenAICompatible({
+      apiKey: apiKey,
       headers: {
-        "Editor-Version": "vscode/1.91.1",
-        "Editor-Plugin-Version": "copilot-chat/0.17.1",
-        "User-Agent": "GitHubCopilotChat/0.17.1",
+        "Copilot-Integration-Id": "vscode-chat",
+        "User-Agent": "GitHubCopilotChat/0.26.7",
+        "Editor-Version": "vscode/1.104.1",
+        "Editor-Plugin-Version": "copilot-chat/0.26.7",
       },
-    })(modelId),
+    })(modelId);
+  },
 };
+
+interface GitHubModel {
+  id: string;
+  name: string;
+  model_picker_enabled: boolean;
+  vendor?: string;
+  preview?: boolean;
+  supported_endpoints?: string[];
+  policy?: {
+    state: string;
+    terms?: string;
+  };
+}
 
 /**
  * Fetch available models from GitHub Copilot API
  */
 export async function fetchCopilotModels(token: string): Promise<ModelProps[]> {
   try {
-    const response = await fetch("https://api.githubcopilot.com/models", {
+    const response = await fetch("/api/github/models", {
       headers: {
         Authorization: `Bearer ${token}`,
-        "Editor-Version": "vscode/1.91.1",
-        "Editor-Plugin-Version": "copilot-chat/0.17.1",
-        "User-Agent": "GitHubCopilotChat/0.17.1",
       },
     });
 
@@ -87,13 +101,25 @@ export async function fetchCopilotModels(token: string): Promise<ModelProps[]> {
 
     const data = await response.json();
     // The response is an array of models or has a data property
-    const models = Array.isArray(data) ? data : data.data || [];
+    const models: GitHubModel[] = Array.isArray(data) ? data : data.data || [];
 
-    return models.map((m: any) => ({
-      provider: "GitHub Copilot",
-      modelId: m.id,
-      description: m.name || m.id,
-    }));
+    return models
+      .filter((m) => m.model_picker_enabled)
+      .map((m) => {
+        const descriptionParts = [];
+        if (m.vendor) descriptionParts.push(`- Vendor: ${m.vendor}\n\n`);
+        if (m.name) descriptionParts.push(`- Model: ${m.name}\n\n`);
+        if (m.policy?.state) descriptionParts.push(`- Policy: ${m.policy.state}\n\n`);
+        if (m.policy?.terms) descriptionParts.push(`- Terms: ${m.policy.terms}\n\n`);
+
+        return {
+          provider: "GitHub Copilot",
+          modelId: m.id,
+          description: descriptionParts.join("") || m.name || m.id,
+          supportedEndpoints: m.supported_endpoints,
+        };
+      })
+      .sort((a, b) => a.modelId.localeCompare(b.modelId));
   } catch (error) {
     console.error("Error fetching Copilot models:", error);
     return [];
@@ -373,25 +399,13 @@ export class LanguageModelProviderFactory {
    * @param provider - Provider name (e.g., "OpenAI", "Google", "Anthropic", "OpenRouter", "Groq")
    * @param modelId - Model ID to use
    * @param apiKey - API key to use
-   * @returns A tuple containing [LanguageModel, ModelProps] where ModelProps contains metadata like the 'free' flag
-   * @throws Error if provider, modelId, or apiKey are missing, or if the model/provider is not supported
+   * @returns The created LanguageModel instance
+   * @throws Error if provider, modelId, or apiKey are missing, or if the provider is not supported
    */
-  static createModel(
-    provider: string,
-    modelId: string,
-    apiKey: string
-  ): [LanguageModel, ModelProps] {
+  static createModel(provider: string, modelId: string, apiKey: string): LanguageModel {
     if (isMockMode) {
       console.log("🤖 Using MOCK LLM models (no API costs)");
-      // Return mock model with a default ModelProps object
-      return [
-        mockModel,
-        {
-          provider: "Mock",
-          modelId: "mock-model",
-          free: false,
-        },
-      ];
+      return mockModel;
     }
 
     if (!provider || !modelId || !apiKey) {
@@ -399,17 +413,19 @@ export class LanguageModelProviderFactory {
     }
 
     // Look up model in the flattened models array
-    const modelProps = MODELS.find((m) => m.provider === provider && m.modelId === modelId);
-    if (!modelProps) {
-      throw new Error(`Model ${modelId} is not supported for provider ${provider}`);
+    if (provider !== "GitHub Copilot") {
+      const modelProps = MODELS.find((m) => m.provider === provider && m.modelId === modelId);
+      if (!modelProps) {
+        throw new Error(`Model ${modelId} is not supported for provider ${provider}`);
+      }
     }
 
-    // Get the creator function for this provider
+    // iet the creator function for this provider
     const creator = CREATORS[provider];
     if (!creator) {
       throw new Error(`Provider ${provider} is not supported`);
     }
 
-    return [creator(modelId, apiKey), modelProps];
+    return creator(modelId, apiKey);
   }
 }

@@ -240,7 +240,7 @@ When type is "pie":
 
   try {
     // Use provided model config
-    const [model] = LanguageModelProviderFactory.createModel(
+    const model = LanguageModelProviderFactory.createModel(
       modelConfig.provider,
       modelConfig.modelId,
       modelConfig.apiKey
@@ -322,7 +322,7 @@ export async function streamVisualization({
   modelConfig: InputModel;
   context?: ServerDatabaseContext;
 }) {
-  const [model] = LanguageModelProviderFactory.createModel(
+  const model = LanguageModelProviderFactory.createModel(
     modelConfig.provider,
     modelConfig.modelId,
     modelConfig.apiKey

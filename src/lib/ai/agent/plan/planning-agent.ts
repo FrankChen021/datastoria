@@ -192,7 +192,7 @@ async function classifyByLLM(input: InputMessages, modelConfig: InputModel): Pro
     };
   }
 
-  const [model] = LanguageModelProviderFactory.createModel(
+  const model = LanguageModelProviderFactory.createModel(
     modelConfig.provider,
     modelConfig.modelId,
     modelConfig.apiKey
