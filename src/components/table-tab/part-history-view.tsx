@@ -10,7 +10,7 @@ import {
   BUILT_IN_TIME_SPAN_LIST,
   type TimeSpan,
 } from "@/components/shared/dashboard/timespan-selector";
-import { escapeSqlString } from "@/lib/string-utils";
+import { SqlUtils } from "@/lib/sql-utils";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef } from "react";
 import type { RefreshableTabViewRef } from "./table-tab";
 
@@ -38,8 +38,8 @@ const PartHistoryView = memo(
 
     // Create dashboard with the stat chart
     const dashboard = useMemo<Dashboard>(() => {
-      const escapedDatabase = escapeSqlString(database);
-      const escapedTable = escapeSqlString(table);
+      const escapedDatabase = SqlUtils.escapeSqlString(database);
+      const escapedTable = SqlUtils.escapeSqlString(table);
       return {
         name: `part-history-${database}-${table}`,
         version: 3,

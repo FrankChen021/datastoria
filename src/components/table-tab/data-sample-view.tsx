@@ -3,7 +3,7 @@ import type { TableDescriptor } from "@/components/shared/dashboard/dashboard-mo
 import type { DashboardVisualizationComponent } from "@/components/shared/dashboard/dashboard-visualization-layout";
 import { DashboardVisualizationPanel } from "@/components/shared/dashboard/dashboard-visualization-panel";
 import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
-import { escapeSqlString } from "@/lib/string-utils";
+import { SqlUtils } from "@/lib/sql-utils";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef } from "react";
 import type { RefreshableTabViewRef } from "./table-tab";
 
@@ -34,7 +34,7 @@ const DataSampleViewComponent = forwardRef<RefreshableTabViewRef, DataSampleView
           isSticky: true,
         },
         datasource: {
-          sql: `SELECT * FROM ${escapeSqlString(database)}.${escapeSqlString(table)} LIMIT 1000`,
+          sql: `SELECT * FROM ${SqlUtils.escapeSqlString(database)}.${SqlUtils.escapeSqlString(table)} LIMIT 1000`,
           params: {
             default_format: "JSON",
             output_format_json_quote_64bit_integers: 0,

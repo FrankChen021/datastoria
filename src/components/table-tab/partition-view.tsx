@@ -5,7 +5,7 @@ import { DashboardVisualizationPanel } from "@/components/shared/dashboard/dashb
 import type { TimeSpan } from "@/components/shared/dashboard/timespan-selector";
 import { Button } from "@/components/ui/button";
 import { Connection, QueryError } from "@/lib/connection/connection";
-import { escapeSqlString } from "@/lib/string-utils";
+import { SqlUtils } from "@/lib/sql-utils";
 import { toastManager } from "@/lib/toast";
 import { Loader2, Trash2 } from "lucide-react";
 import {
@@ -53,7 +53,7 @@ function showDropPartitionDialog({
     isDroppingRef.current = true;
 
     try {
-      const sql = `ALTER TABLE ${escapeSqlIdentifier(database)}.${escapeSqlIdentifier(table)} DROP PARTITION '${escapeSqlString(partition)}'`;
+      const sql = `ALTER TABLE ${escapeSqlIdentifier(database)}.${escapeSqlIdentifier(table)} DROP PARTITION '${SqlUtils.escapeSqlString(partition)}'`;
 
       // Execute the SQL using async/await
       const { response, abortController } = connection.query(sql, {
@@ -225,8 +225,8 @@ SELECT
 FROM
     system.parts
 WHERE 
-    database = '${escapeSqlString(database)}' 
-    AND table = '${escapeSqlString(table)}'
+    database = '${SqlUtils.escapeSqlString(database)}' 
+    AND table = '${SqlUtils.escapeSqlString(table)}'
     AND active = 1
 GROUP BY 
     partition
