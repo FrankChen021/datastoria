@@ -28,6 +28,11 @@ interface ConnectionSelectorProps {
    * Optional className for the Command component
    */
   className?: string;
+  /**
+   * Connection name to show as the default selected one.
+   * When provided, overrides the value from connection context for initial selection.
+   */
+  defaultConnectionName?: string | null;
 }
 
 /**
@@ -119,13 +124,19 @@ function ConnectionDetailPanel({
  * This component contains the cmdk implementation that's shared between
  * the popover and dialog variants. It manages its own state and handlers.
  */
-export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSelectorProps) {
+export function ConnectionSelector({
+  isOpen,
+  onClose,
+  className,
+  defaultConnectionName: defaultConnectionNameProp,
+}: ConnectionSelectorProps) {
   const { connection, pendingConfig, isConnectionAvailable, switchConnection } = useConnection();
   const [connections, setConnections] = useState<ConnectionConfig[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [highlightedValue, setHighlightedValue] = useState<string | undefined>(
-    pendingConfig && !isConnectionAvailable ? pendingConfig.name : connection?.name
-  );
+  const resolvedDefault =
+    defaultConnectionNameProp ??
+    (pendingConfig && !isConnectionAvailable ? pendingConfig.name : connection?.name);
+  const [highlightedValue, setHighlightedValue] = useState<string | undefined>(resolvedDefault);
 
   // Load connections
   const reloadConnections = () => {
@@ -148,9 +159,10 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
           inputRef.current?.focus();
         });
       }
-      // Initialize highlighted value when opening
+      // Initialize highlighted value when opening (use prop if provided so selector reflects default config)
       const targetValue =
-        pendingConfig && !isConnectionAvailable ? pendingConfig.name : connection?.name;
+        defaultConnectionNameProp ??
+        (pendingConfig && !isConnectionAvailable ? pendingConfig.name : connection?.name);
       setHighlightedValue(targetValue);
 
       // This is a bug of cmdk, but model-selector is not affected
@@ -166,7 +178,7 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
         });
       }
     }
-  }, [isOpen, pendingConfig, isConnectionAvailable, connection?.name]);
+  }, [isOpen, pendingConfig, isConnectionAvailable, connection?.name, defaultConnectionNameProp]);
 
   const handleAddConnection = () => {
     showConnectionEditDialog({
@@ -259,10 +271,11 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
           <CommandList className="!rounded-none max-h-[500px] flex-1 overflow-y-auto w-full">
             <CommandEmpty className="p-2 text-center text-sm">No connections found</CommandEmpty>
             {connections.map((conn) => {
-              // `isSelected` reflects the currently active connection from context,
+              // `isSelected` reflects the current connection (prop or context),
               // not the cmdk highlighted value. This keeps the active selection
               // unchanged while hovering through the list (matches model-selector behavior).
-              const isSelected = connection?.name === conn.name;
+              const effectiveCurrent = defaultConnectionNameProp ?? connection?.name;
+              const isSelected = effectiveCurrent === conn.name;
 
               return (
                 <CommandItem

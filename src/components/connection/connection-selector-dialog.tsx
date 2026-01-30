@@ -11,6 +11,10 @@ interface ConnectionSelectorDialogProps {
    * Custom className for the dialog content.
    */
   dialogClassName?: string;
+  /**
+   * Connection name to show as the default selected one in the selector.
+   */
+  defaultConnectionName?: string | null;
 }
 
 /**
@@ -22,6 +26,7 @@ interface ConnectionSelectorDialogProps {
 export function ConnectionSelectorDialog({
   trigger,
   dialogClassName = "min-w-[700px] p-0",
+  defaultConnectionName,
 }: ConnectionSelectorDialogProps) {
   const handleClose = useCallback(() => {
     Dialog.close();
@@ -30,10 +35,16 @@ export function ConnectionSelectorDialog({
   const handleClick = useCallback(() => {
     Dialog.showDialog({
       className: `${dialogClassName} overflow-hidden gap-0`,
-      mainContent: <ConnectionSelector isOpen={true} onClose={handleClose} />,
+      mainContent: (
+        <ConnectionSelector
+          isOpen={true}
+          onClose={handleClose}
+          defaultConnectionName={defaultConnectionName}
+        />
+      ),
       disableContentScroll: true,
     });
-  }, [dialogClassName, handleClose]);
+  }, [dialogClassName, handleClose, defaultConnectionName]);
 
   return (
     <div className="flex items-center gap-1" onClick={handleClick}>
