@@ -1,6 +1,6 @@
 import { useConnection } from "@/components/connection/connection-context";
 import type { QueryError } from "@/lib/connection/connection";
-import { StringUtils } from "@/lib/string-utils";
+import { SqlUtils } from "@/lib/sql-utils";
 import {
   createContext,
   useCallback,
@@ -50,7 +50,7 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
       params?: Record<string, unknown>
     ) => {
       // Process SQL: remove comments and check for vertical format
-      let processedSQL = StringUtils.removeComments(sql);
+      let processedSQL = SqlUtils.removeComments(sql);
       let useVerticalFormat = false;
 
       if (processedSQL.endsWith("\\G")) {

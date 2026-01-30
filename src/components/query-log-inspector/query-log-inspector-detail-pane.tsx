@@ -4,7 +4,7 @@ import { DataTable } from "@/components/shared/dashboard/data-table";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
 import { Formatter, type ObjectFormatter } from "@/lib/formatter";
-import { StringUtils } from "@/lib/string-utils";
+import { SqlUtils } from "@/lib/sql-utils";
 import { X } from "lucide-react";
 import React, { memo, useMemo } from "react";
 import { Panel } from "react-resizable-panels";
@@ -291,7 +291,7 @@ export const QueryLogDetailPane = memo(function QueryLogDetailPane({
                 language="sql"
                 showLineNumbers={true}
               >
-                {StringUtils.prettyFormatQuery(String(selectedQueryLog.query || ""))}
+                {SqlUtils.prettyFormatQuery(String(selectedQueryLog.query || ""))}
               </ThemedSyntaxHighlighter>
             </div>
           </div>

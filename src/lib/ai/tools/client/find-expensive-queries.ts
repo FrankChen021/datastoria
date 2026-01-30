@@ -5,7 +5,7 @@
  * Used when user asks to find/optimize heavy queries without providing specific SQL or query_id.
  */
 import type { JSONCompactFormatResponse } from "@/lib/connection/connection";
-import { qualifyTableNames } from "@/lib/query-utils";
+import { SqlUtils } from "@/lib/sql-utils";
 import type { ToolExecutor } from "./client-tool-types";
 
 const METRIC_CONFIG = {
@@ -171,7 +171,7 @@ export const findExpensiveQueriesExecutor: ToolExecutor<
         console.log("tables", tables);
         console.log("sqlPreview", sqlPreview);
         if (tables && tables.length > 0) {
-          sqlPreview = qualifyTableNames(sqlPreview, tables);
+          sqlPreview = SqlUtils.qualifyTableNames(sqlPreview, tables);
         }
 
         return {
