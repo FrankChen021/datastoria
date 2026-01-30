@@ -1,5 +1,5 @@
 import { QueryError, type Connection } from "@/lib/connection/connection";
-import { qualifyTableNames } from "@/lib/query-utils";
+import { QueryUtils } from "@/lib/query-utils";
 import { escapeSqlString, type ToolExecutor, type ToolProgressCallback } from "./client-tool-types";
 
 /**
@@ -236,7 +236,7 @@ SETTINGS max_execution_time = 0
 
       // Qualify table names in SQL if tables array is available
       if (sqlFromLog && tables && tables.length > 0) {
-        sqlFromLog = qualifyTableNames(sqlFromLog, tables);
+        sqlFromLog = QueryUtils.qualifyTableNames(sqlFromLog, tables);
       }
 
       context.query_log = {

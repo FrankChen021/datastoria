@@ -1,6 +1,7 @@
 import type { Connection } from "@/lib/connection/connection";
+import { QueryUtils } from "@/lib/query-utils";
 
-export { escapeSqlString } from "@/lib/string-utils";
+export const escapeSqlString = QueryUtils.escapeSqlString;
 
 /**
  * Status of a tool execution stage

@@ -1,7 +1,7 @@
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Dialog } from "@/components/shared/use-dialog";
 import { Connection, type QueryError } from "@/lib/connection/connection";
-import { StringUtils } from "@/lib/string-utils";
+import { QueryUtils } from "@/lib/query-utils";
 import { toastManager } from "@/lib/toast";
 import { Loader2 } from "lucide-react";
 
@@ -32,7 +32,7 @@ function DropTableConfirmationDialogContent({ table }: { table: TableNodeData })
             customStyle={{ fontSize: "14px", margin: 0 }}
             showLineNumbers={false}
           >
-            {StringUtils.prettyFormatQuery(`DROP TABLE \`${table.database}\`.\`${table.table}\``)}
+            {QueryUtils.prettyFormatQuery(`DROP TABLE \`${table.database}\`.\`${table.table}\``)}
           </ThemedSyntaxHighlighter>
         </div>
       </div>

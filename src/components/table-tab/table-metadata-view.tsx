@@ -12,7 +12,7 @@ import {
   type TimeSpan,
 } from "@/components/shared/dashboard/timespan-selector";
 import type { ObjectFormatter } from "@/lib/formatter";
-import { escapeSqlString } from "@/lib/string-utils";
+import { QueryUtils } from "@/lib/query-utils";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { OpenDatabaseTabButton } from "./open-database-tab-button";
 import { OpenTableTabButton } from "./open-table-tab-button";
@@ -88,8 +88,8 @@ const TableMetadataViewComponent = forwardRef<RefreshableTabViewRef, TableMetada
     );
 
     const dashboard = useMemo<Dashboard>(() => {
-      const escapedDatabase = escapeSqlString(database);
-      const escapedTable = escapeSqlString(table);
+      const escapedDatabase = QueryUtils.escapeSqlString(database);
+      const escapedTable = QueryUtils.escapeSqlString(table);
       const d: Dashboard = {
         version: 3,
         filter: {
@@ -146,7 +146,7 @@ SELECT * FROM system.tables WHERE database = '${escapedDatabase}' AND name = '${
       } as Dashboard;
 
       if (connection?.cluster && connection.cluster.length > 0) {
-        const escapedCluster = escapeSqlString(connection.cluster);
+        const escapedCluster = QueryUtils.escapeSqlString(connection.cluster);
         d.charts.push({
           type: "table",
           titleOption: {

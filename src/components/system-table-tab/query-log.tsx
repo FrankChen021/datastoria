@@ -14,7 +14,7 @@ import type {
 import DashboardPage from "@/components/shared/dashboard/dashboard-page";
 import { QueryIdLink } from "@/components/shared/query-id-link";
 import type { JSONCompactFormatResponse } from "@/lib/connection/connection";
-import { qualifyTableNames } from "@/lib/query-utils";
+import { QueryUtils } from "@/lib/query-utils";
 import { AlertCircle, Sparkle, Wand2 } from "lucide-react";
 import { memo, useCallback, useMemo } from "react";
 import { useChatPanel } from "../chat/view/use-chat-panel";
@@ -389,7 +389,7 @@ LIMIT 100
     // Qualify table names using the tables array from query_log
     const tables = row.tables as string[] | undefined;
     if (tables && tables.length > 0) {
-      query = qualifyTableNames(query, tables);
+      query = QueryUtils.qualifyTableNames(query, tables);
     }
 
     postMessage(
@@ -424,7 +424,7 @@ ${query.trim()}
     // Qualify table names using the tables array from query_log
     const tables = row.tables as string[] | undefined;
     if (tables && tables.length > 0) {
-      query = qualifyTableNames(query, tables);
+      query = QueryUtils.qualifyTableNames(query, tables);
     }
 
     postMessage(

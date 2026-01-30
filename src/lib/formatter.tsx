@@ -6,7 +6,7 @@ import React, { useMemo, useState } from "react";
 import { DateTimeExtension } from "./datetime-utils";
 import "./number-utils"; // Import to register Number prototype extensions
 import { hostNameManager } from "./host-name-manager";
-import { StringUtils } from "./string-utils";
+import { QueryUtils } from "./query-utils";
 
 // Helper function to format a value for display in table
 function formatValueForDisplay(val: unknown, formatNumbers: boolean = false): string {
@@ -450,7 +450,7 @@ export class Formatter {
           className="cursor-pointer hover:text-primary underline decoration-dotted"
           onClick={(e) => {
             e.stopPropagation();
-            showQueryDialog({ sql: StringUtils.prettyFormatQuery(stringValue) });
+            showQueryDialog({ sql: QueryUtils.prettyFormatQuery(stringValue) });
           }}
           title="Click to view full SQL"
         >
@@ -565,7 +565,7 @@ export class Formatter {
     }
 
     const sqlString = String(sql);
-    const formattedSql = StringUtils.prettyFormatQuery(sqlString);
+    const formattedSql = QueryUtils.prettyFormatQuery(sqlString);
 
     return (
       <div className="overflow-auto">

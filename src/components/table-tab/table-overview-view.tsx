@@ -12,7 +12,7 @@ import {
   BUILT_IN_TIME_SPAN_LIST,
   type TimeSpan,
 } from "@/components/shared/dashboard/timespan-selector";
-import { escapeSqlString } from "@/lib/string-utils";
+import { QueryUtils } from "@/lib/query-utils";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { RefreshableTabViewRef } from "./table-tab";
 
@@ -55,8 +55,8 @@ const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOvervi
     // Create dashboard with all table descriptors
     const dashboard = useMemo<Dashboard>(() => {
       const isClusterMode = connection?.cluster && connection.cluster.length > 0;
-      const escapedDatabase = escapeSqlString(database);
-      const escapedTable = escapeSqlString(table);
+      const escapedDatabase = QueryUtils.escapeSqlString(database);
+      const escapedTable = QueryUtils.escapeSqlString(table);
       return {
         name: `table-overview-${database}-${table}`,
         folder: "table-overview",

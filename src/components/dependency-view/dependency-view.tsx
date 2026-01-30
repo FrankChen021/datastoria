@@ -2,7 +2,7 @@ import { useConnection } from "@/components/connection/connection-context";
 import FloatingProgressBar from "@/components/shared/floating-progress-bar";
 import type { GraphEdge } from "@/components/shared/graphviz/Graph";
 import { type QueryError } from "@/lib/connection/connection";
-import { StringUtils } from "@/lib/string-utils";
+import { QueryUtils } from "@/lib/query-utils";
 import { toastManager } from "@/lib/toast";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
@@ -91,7 +91,7 @@ FROM system.tables
               // Format query if formatQuery function is not available
               const formattedQuery = connection.metadata.has_format_query_function
                 ? t.tableQuery
-                : StringUtils.prettyFormatQuery(t.tableQuery);
+                : QueryUtils.prettyFormatQuery(t.tableQuery);
               const tableInfo: DependencyTableInfo = {
                 id: t.id,
                 uuid: t.uuid,

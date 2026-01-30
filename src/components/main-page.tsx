@@ -18,7 +18,7 @@ import {
   type TableInfo,
 } from "@/lib/connection/connection";
 import { hostNameManager } from "@/lib/host-name-manager";
-import { escapeSqlString } from "@/lib/string-utils";
+import { QueryUtils } from "@/lib/query-utils";
 import { AlertCircle, CheckCircle2, Circle, Loader2, RotateCcw } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -212,7 +212,7 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
   const clusterTableQuery = connection.cluster
     ? connection
         .query(
-          `SELECT host_name FROM system.clusters WHERE cluster = '${escapeSqlString(connection.cluster)}'`,
+          `SELECT host_name FROM system.clusters WHERE cluster = '${QueryUtils.escapeSqlString(connection.cluster)}'`,
           {
             default_format: "JSONCompact",
           }

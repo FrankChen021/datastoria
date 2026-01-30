@@ -12,7 +12,7 @@ import {
   type TimeSpan,
 } from "@/components/shared/dashboard/timespan-selector";
 import { TabManager } from "@/components/tab-manager";
-import { escapeSqlString } from "@/lib/string-utils";
+import { QueryUtils } from "@/lib/query-utils";
 import { ExternalLink } from "lucide-react";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef } from "react";
 import type { RefreshableTabViewRef } from "./table-tab";
@@ -153,8 +153,8 @@ WHERE event_date >= toDate({from:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
   AND type <> 'QueryStart'
-  AND has(databases, '${escapeSqlString(database)}')
-  AND has(tables, '${escapeSqlString(`${database}.${table}`)}')
+  AND has(databases, '${QueryUtils.escapeSqlString(database)}')
+  AND has(tables, '${QueryUtils.escapeSqlString(`${database}.${table}`)}')
 GROUP BY normalized_query_hash
 ORDER BY OSCPUVirtualTimeMicroseconds DESC
 LIMIT 10`;
@@ -220,8 +220,8 @@ WHERE
     AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
-    AND has(databases, '${escapeSqlString(database)}')
-    AND has(tables, '${escapeSqlString(`${database}.${table}`)}')
+    AND has(databases, '${QueryUtils.escapeSqlString(database)}')
+    AND has(tables, '${QueryUtils.escapeSqlString(`${database}.${table}`)}')
     AND type = 'QueryStart'
 GROUP BY t, query_kind
 ORDER BY t`,
@@ -249,8 +249,8 @@ WHERE
     AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
-    AND has(databases, '${escapeSqlString(database)}')
-    AND has(tables, '${escapeSqlString(`${database}.${table}`)}')
+    AND has(databases, '${QueryUtils.escapeSqlString(database)}')
+    AND has(tables, '${QueryUtils.escapeSqlString(`${database}.${table}`)}')
     AND type in ('ExceptionBeforeStart', 'ExceptionWhileProcessing')
 GROUP BY t, query_kind
 ORDER BY t`,
@@ -281,8 +281,8 @@ WHERE
     AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
-    AND has(databases, '${escapeSqlString(database)}')
-    AND has(tables, '${escapeSqlString(`${database}.${table}`)}')
+    AND has(databases, '${QueryUtils.escapeSqlString(database)}')
+    AND has(tables, '${QueryUtils.escapeSqlString(`${database}.${table}`)}')
     AND type in ('QueryFinish')
 GROUP BY t
 ORDER BY t`,
@@ -309,8 +309,8 @@ WHERE
     AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
-    AND has(databases, '${escapeSqlString(database)}')
-    AND has(tables, '${escapeSqlString(`${database}.${table}`)}')
+    AND has(databases, '${QueryUtils.escapeSqlString(database)}')
+    AND has(tables, '${QueryUtils.escapeSqlString(`${database}.${table}`)}')
     AND type in ('QueryFinish')
 GROUP BY t
 ORDER BY t`,
@@ -337,8 +337,8 @@ WHERE
     AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
-    AND has(databases, '${escapeSqlString(database)}')
-    AND has(tables, '${escapeSqlString(`${database}.${table}`)}')
+    AND has(databases, '${QueryUtils.escapeSqlString(database)}')
+    AND has(tables, '${QueryUtils.escapeSqlString(`${database}.${table}`)}')
     AND type in ('QueryFinish')
 GROUP BY t
 ORDER BY t`,
@@ -365,8 +365,8 @@ WHERE
     AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
-    AND has(databases, '${escapeSqlString(database)}')
-    AND has(tables, '${escapeSqlString(`${database}.${table}`)}')
+    AND has(databases, '${QueryUtils.escapeSqlString(database)}')
+    AND has(tables, '${QueryUtils.escapeSqlString(`${database}.${table}`)}')
     AND type in ('QueryFinish')
 GROUP BY t
 ORDER BY t`,
@@ -393,8 +393,8 @@ WHERE
     AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
-    AND has(databases, '${escapeSqlString(database)}')
-    AND has(tables, '${escapeSqlString(`${database}.${table}`)}')
+    AND has(databases, '${QueryUtils.escapeSqlString(database)}')
+    AND has(tables, '${QueryUtils.escapeSqlString(`${database}.${table}`)}')
     AND type in ('QueryFinish')
 GROUP BY t
 ORDER BY t`,
@@ -421,8 +421,8 @@ WHERE
     AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
-    AND has(databases, '${escapeSqlString(database)}')
-    AND has(tables, '${escapeSqlString(`${database}.${table}`)}')
+    AND has(databases, '${QueryUtils.escapeSqlString(database)}')
+    AND has(tables, '${QueryUtils.escapeSqlString(`${database}.${table}`)}')
     AND type in ('QueryFinish')
 GROUP BY t
 ORDER BY t`,
@@ -452,8 +452,8 @@ WHERE
     AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
-    AND has(databases, '${escapeSqlString(database)}')
-    AND has(tables, '${escapeSqlString(`${database}.${table}`)}')
+    AND has(databases, '${QueryUtils.escapeSqlString(database)}')
+    AND has(tables, '${QueryUtils.escapeSqlString(`${database}.${table}`)}')
     AND type in ('QueryFinish')
 GROUP BY t, query_kind
 ORDER BY t`,
@@ -499,8 +499,8 @@ WHERE
     AND event_date <= toDate({to:String})
     AND event_time >= {from:String}
     AND event_time < {to:String}
-    AND has(databases, '${escapeSqlString(database)}')
-    AND has(tables, '${escapeSqlString(`${database}.${table}`)}')
+    AND has(databases, '${QueryUtils.escapeSqlString(database)}')
+    AND has(tables, '${QueryUtils.escapeSqlString(`${database}.${table}`)}')
     AND type in ('QueryFinish')
 ORDER BY OSCPUVirtualTimeMicroseconds DESC
 LIMIT 50

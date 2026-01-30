@@ -12,7 +12,7 @@ import DashboardPage from "@/components/shared/dashboard/dashboard-page";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Dialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
-import { StringUtils } from "@/lib/string-utils";
+import { QueryUtils } from "@/lib/query-utils";
 import { Loader2, XCircle } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -104,7 +104,7 @@ const KillQueryButton = memo(({ row }: KillQueryButtonProps) => {
                   }}
                   wrapLongLines
                 >
-                  {StringUtils.prettyFormatQuery(query)}
+                  {QueryUtils.prettyFormatQuery(query)}
                 </ThemedSyntaxHighlighter>
               </div>
             </div>

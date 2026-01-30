@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { StringUtils } from "@/lib/string-utils";
+import { QueryUtils } from "@/lib/query-utils";
 import { ChevronDown, Play } from "lucide-react";
 import { useCallback } from "react";
 import { useQueryExecutor } from "../query-execution/query-executor";
@@ -34,31 +34,10 @@ export function QueryControl() {
 
   const handleExplain = useCallback(
     (type: string) => {
-      let rawSQL = StringUtils.removeComments(selectedText || text);
+      const { explainSQL, rawSQL } = QueryUtils.toExplainSQL(type, selectedText || text);
       if (rawSQL.length === 0) {
         return;
       }
-
-      // for EXPLAIN SQL, the trailing \G is not allowed, let's remove it
-      if (rawSQL.endsWith("\\G")) {
-        rawSQL = rawSQL.substring(0, rawSQL.length - 2);
-      }
-
-      // Build the EXPLAIN query - executeQuery will handle comment removal and \G
-      let explainSQL: string;
-      if (type === "pipeline") {
-        explainSQL = `EXPLAIN pipeline graph = 1\n${rawSQL}`;
-      } else if (type === "plan-indexes") {
-        explainSQL = `EXPLAIN plan indexes = 1\n${rawSQL}`;
-      } else if (type === "plan-actions") {
-        explainSQL = `EXPLAIN plan actions = 1\n${rawSQL}`;
-      } else {
-        explainSQL = `EXPLAIN ${type}\n${rawSQL}`;
-      }
-
-      // Pass both the EXPLAIN query and the original SQL
-      // executeQuery will handle format selection based on the view type
-      // For plan-indexes and plan-actions, use "plan" as the view type
       const viewType = type === "plan-indexes" || type === "plan-actions" ? "plan" : type;
       executeQuery(explainSQL, rawSQL, { view: viewType });
     },
