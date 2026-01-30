@@ -134,7 +134,7 @@ function ConnectionManageSidebarMenuItem() {
           <Database className="h-5 w-5" />
         </SidebarMenuButton>
       </PopoverTrigger>
-      <PopoverContent side="right" align="start" className="!w-auto !max-w-none p-0">
+      <PopoverContent side="right" align="start" className="!w-auto !max-w-none p-0 shadow-lg">
         <ConnectionSelector isOpen={open} onClose={() => setOpen(false)} />
       </PopoverContent>
     </Popover>

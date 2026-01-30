@@ -1,7 +1,8 @@
 import LZString from "lz-string";
 
 const COMPRESSION_MARKER = "_$_C_^_";
-class LocalStorage {
+
+class LocalStorageProvider {
   private readonly key: string;
   private readonly compressionEnabled: boolean;
 
@@ -224,8 +225,8 @@ class LocalStorage {
    * Create a sub-storage with a nested key
    * @param subKey - The sub-key for the nested storage
    */
-  public subStorage(subKey: string): LocalStorage {
-    return new LocalStorage(`${this.key}:${subKey}`, this.compressionEnabled);
+  public subStorage(subKey: string): LocalStorageProvider {
+    return new LocalStorageProvider(`${this.key}:${subKey}`, this.compressionEnabled);
   }
 
   /**
@@ -233,12 +234,9 @@ class LocalStorage {
    * @param enable - Optional compression flag (defaults to true)
    * @returns A new LocalStorage instance with the same key but different compression setting
    */
-  public withCompression(enable = true): LocalStorage {
-    return new LocalStorage(this.key, enable);
+  public withCompression(enable = true): LocalStorageProvider {
+    return new LocalStorageProvider(this.key, enable);
   }
 }
 
-// Default instance with 'datastoria' prefix for the application
-const appLocalStorage = new LocalStorage("datastoria");
-
-export { appLocalStorage, LocalStorage };
+export { LocalStorageProvider as LocalStorage };

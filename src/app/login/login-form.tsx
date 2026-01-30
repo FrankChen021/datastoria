@@ -8,6 +8,9 @@ import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
+const GITHUB_URL = "https://github.com/FrankChen021/datastoria";
+const DOCS_URL = "https://docs.datastoria.app";
+
 interface EnabledProviders {
   google: boolean;
   github: boolean;
@@ -139,24 +142,45 @@ function LoginFormContent({ enabledProviders }: { enabledProviders: EnabledProvi
             )}
           </div>
 
-          <div className="mt-6 text-center text-xs text-muted-foreground">
-            By signing in, you agree to our{" "}
-            <button
-              type="button"
-              className="underline underline-offset-4 hover:text-primary transition-colors"
-              onClick={() => showAgreement("Terms of Service", TERMS_OF_SERVICE)}
-            >
-              Terms of Service
-            </button>{" "}
-            and{" "}
-            <button
-              type="button"
-              className="underline underline-offset-4 hover:text-primary transition-colors"
-              onClick={() => showAgreement("Privacy Policy", PRIVACY_POLICY)}
-            >
-              Privacy Policy
-            </button>
-            .
+          <div className="mt-6 space-y-2 text-center text-xs text-muted-foreground">
+            <p>
+              <a
+                href={GITHUB_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4 hover:text-primary transition-colors"
+              >
+                GitHub
+              </a>
+              {" · "}
+              <a
+                href={DOCS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4 hover:text-primary transition-colors"
+              >
+                Docs
+              </a>
+            </p>
+            <p>
+              By signing in, you agree to our{" "}
+              <button
+                type="button"
+                className="underline underline-offset-4 hover:text-primary transition-colors"
+                onClick={() => showAgreement("Terms of Service", TERMS_OF_SERVICE)}
+              >
+                Terms of Service
+              </button>{" "}
+              and{" "}
+              <button
+                type="button"
+                className="underline underline-offset-4 hover:text-primary transition-colors"
+                onClick={() => showAgreement("Privacy Policy", PRIVACY_POLICY)}
+              >
+                Privacy Policy
+              </button>
+              .
+            </p>
           </div>
         </CardContent>
       </Card>

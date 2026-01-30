@@ -1,4 +1,5 @@
 import { auth, isAuthEnabled } from "@/auth";
+import type { Session } from "next-auth";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
@@ -15,7 +16,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Check if user is authenticated
-  const session = await auth();
+  const session = (await auth()) as Session;
 
   if (!session?.user) {
     // Redirect to login page with callback URL

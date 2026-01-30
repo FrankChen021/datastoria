@@ -47,7 +47,7 @@ function ConnectionDetailPanel({
   return (
     <div
       data-panel="right"
-      className="w-[260px] flex flex-col h-full p-0 bg-popover rounded-sm text-[10px] text-popover-foreground shadow-md"
+      className="w-[260px] flex-shrink-0 flex flex-col h-full p-0 bg-popover rounded-sm text-[10px] text-popover-foreground shadow-md"
     >
       <div className="px-2 py-3 w-full flex flex-col flex-1">
         <div className="overflow-auto h-full">
@@ -235,7 +235,7 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
         value={highlightedValue}
         onValueChange={setHighlightedValue}
         className={cn(
-          "flex flex-row items-stretch h-[300px] max-w-[860px] overflow-visible bg-transparent shadow-none border-0 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input]]:h-9 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-1.5 [&_[cmdk-item]]:!rounded-none",
+          "flex flex-row items-stretch h-[300px] w-full min-w-0 overflow-visible bg-transparent shadow-none border-0 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input]]:h-9 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-1.5 [&_[cmdk-item]]:!rounded-none",
           className
         )}
         filter={(value: string, search: string) => {
@@ -247,7 +247,7 @@ export function ConnectionSelector({ isOpen, onClose, className }: ConnectionSel
         <div
           data-panel="left"
           className={cn(
-            "min-w-[340px] max-w-[600px] flex-shrink-0 bg-popover rounded-sm overflow-hidden shadow-md flex flex-col",
+            "flex-1 min-w-[340px] bg-popover rounded-sm overflow-hidden shadow-md flex flex-col",
             highlightedConnection ? "border-r rounded-r-none" : ""
           )}
         >

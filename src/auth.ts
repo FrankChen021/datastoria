@@ -1,5 +1,6 @@
+import type { AuthConfig } from "@auth/core";
 import { jwtVerify, SignJWT } from "jose";
-import NextAuth, { type NextAuthConfig } from "next-auth";
+import NextAuth from "next-auth";
 import type { Provider } from "next-auth/providers";
 import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
@@ -48,6 +49,9 @@ function getAuthProviders(): Provider[] {
   return providers;
 }
 
+/** NextAuth config type: AuthConfig without internal "raw" (same as next-auth's NextAuthConfig). */
+type NextAuthConfig = Omit<AuthConfig, "raw">;
+
 const authConfig: NextAuthConfig = {
   debug: false,
   basePath: "/api/auth",
@@ -71,8 +75,8 @@ const authConfig: NextAuthConfig = {
         email: token.email,
         picture: token.picture,
       })
-        // Store email as subject for identification
-        .setSubject((token.email as string) || "")
+        // Use provider's stable sub when present; fallback to email
+        .setSubject((token.sub as string) || (token.email as string) || "")
         .setProtectedHeader({ alg: "HS256", typ: "JWT" })
         .setExpirationTime(exp)
         .setIssuedAt(iat)
@@ -119,7 +123,10 @@ const authConfig: NextAuthConfig = {
     // The input token is the return value of the 'jwt' callback.
     // The session object is the value that will be returned back to the client
     async session({ session, token }) {
-      (session as any).accessToken = token.accessToken;
+      if (session.user) {
+        session.user.id = (token.sub as string) ?? (token.email as string) ?? "";
+      }
+      (session as { accessToken?: string }).accessToken = token.accessToken as string;
       return session;
     },
   },
@@ -132,6 +139,15 @@ export function isAuthEnabled() {
   return authConfig.providers && authConfig.providers.length > 0;
 }
 
+/** Result shape when auth is enabled; used for typing the conditional export. */
+type AuthResult = {
+  handlers: { GET: (req: Request) => Promise<Response>; POST: (req: Request) => Promise<Response> };
+  auth: () => Promise<unknown>;
+  signIn: (provider?: string) => Promise<void>;
+  signOut: () => Promise<void>;
+};
+
+const nextAuthFn = NextAuth as (config: NextAuthConfig) => AuthResult;
 export const { handlers, auth, signIn, signOut } = isAuthEnabled()
-  ? NextAuth(authConfig)
-  : ({} as any);
+  ? nextAuthFn(authConfig)
+  : ({} as AuthResult);

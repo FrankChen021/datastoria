@@ -21,7 +21,7 @@ interface ConnectionSelectorDialogProps {
  */
 export function ConnectionSelectorDialog({
   trigger,
-  dialogClassName = "w-[500px] max-w-[90vw] p-0",
+  dialogClassName = "min-w-[700px] p-0",
 }: ConnectionSelectorDialogProps) {
   const handleClose = useCallback(() => {
     Dialog.close();

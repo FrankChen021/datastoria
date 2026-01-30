@@ -1,6 +1,7 @@
 import { Connection, type ConnectionMetadata } from "@/lib/connection/connection";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
+import { StorageManager } from "@/lib/storage/storage-provider-manager";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 interface ConnectionContextType {
@@ -49,6 +50,17 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
       // We don't create connection here, MainPage will handle initialization from pendingConfig
     }
   }, []);
+
+  // When storage provider changes (e.g. session loads and we switch from <default> to user bucket),
+  // re-read the initial connection so we show saved connections instead of always showing the wizard.
+  useEffect(() => {
+    const unsubscribe = StorageManager.getInstance().subscribeToStorageProviderChange(() => {
+      if (connection !== null) return; // Keep current connection when switching storage
+      const next = ConnectionManager.getInstance().getLastSelectedOrFirst();
+      setPendingConfig(next ?? null);
+    });
+    return unsubscribe;
+  }, [connection]);
 
   const switchConnection = useCallback((config: ConnectionConfig | null) => {
     const manager = ConnectionManager.getInstance();

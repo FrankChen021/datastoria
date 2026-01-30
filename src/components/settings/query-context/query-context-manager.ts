@@ -1,9 +1,13 @@
-import { appLocalStorage } from "@/lib/local-storage";
+import { StorageManager } from "@/lib/storage/storage-provider-manager";
 import type { QueryContext } from "./query-context";
 
 class QueryContextManager {
   private static instance: QueryContextManager;
-  private readonly storage = appLocalStorage.subStorage("settings:query-context");
+
+  private get storage() {
+    return StorageManager.getInstance().getStorageProvider().subStorage("settings:query-context");
+  }
+
   private defaultContext: QueryContext = {
     opentelemetry_start_trace_probability: false,
     output_format_pretty_row_numbers: true,
