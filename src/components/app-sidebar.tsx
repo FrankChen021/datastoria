@@ -118,6 +118,30 @@ function HoverCardSidebarMenuItem({
 
 function ConnectionManageSidebarMenuItem() {
   const [open, setOpen] = useState(false);
+  const [tooltipAllowed, setTooltipAllowed] = useState(true);
+  const tooltipDelayRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Suppress the sidebar button tooltip while the popover is open and briefly after it closes.
+  // Otherwise, when the user selects an item in the popover and it closes, the pointer is still
+  // over the trigger and the tooltip would show immediately, which is distracting.
+  useEffect(() => {
+    if (open) {
+      if (tooltipDelayRef.current) {
+        clearTimeout(tooltipDelayRef.current);
+        tooltipDelayRef.current = null;
+      }
+      setTooltipAllowed(false);
+    } else {
+      // Re-enable tooltip after a short delay so it doesn't flash when the popover closes.
+      tooltipDelayRef.current = setTimeout(() => {
+        setTooltipAllowed(true);
+        tooltipDelayRef.current = null;
+      }, 400);
+    }
+    return () => {
+      if (tooltipDelayRef.current) clearTimeout(tooltipDelayRef.current);
+    };
+  }, [open]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -125,10 +149,15 @@ function ConnectionManageSidebarMenuItem() {
         <SidebarMenuButton
           size="lg"
           className="justify-center"
-          tooltip={{
-            children: "Switch connection",
-            className: "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
-          }}
+          tooltip={
+            tooltipAllowed
+              ? {
+                  children: "Switch connection",
+                  className:
+                    "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
+                }
+              : undefined
+          }
           onClick={() => setOpen((s) => !s)}
         >
           <Database className="h-5 w-5" />
