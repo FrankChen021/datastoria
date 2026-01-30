@@ -1,6 +1,6 @@
 import { format as formatSQL } from "sql-formatter";
 
-export class QueryUtils {
+export class SqlUtils {
   /**
    * Format SQL query for pretty-printing using sql-formatter.
    */
@@ -13,11 +13,12 @@ export class QueryUtils {
   }
 
   /**
-   * Comment out the trailing FORMAT &lt;format_name&gt; clause so it is preserved for debugging
-   * but does not affect execution. Case-insensitive.
+   * Comment out the FORMAT &lt;format_name&gt; clause so it is preserved for debugging
+   * but does not affect execution. Case-insensitive. Matches FORMAT &lt;word&gt; at end
+   * or when followed by more SQL (e.g. SETTINGS).
    */
   public static commentOutFormatClause(sql: string): string {
-    return sql.replace(/\s+(FORMAT\s+\w+)\s*$/i, " /* $1 */");
+    return sql.replace(/\s+(FORMAT\s+\w+)(?=\s|$)/gi, " /* $1 */");
   }
 
   /**
@@ -26,11 +27,11 @@ export class QueryUtils {
    * rawSQL is empty when input yields no SQL.
    */
   public static toExplainSQL(type: string, sql: string): { explainSQL: string; rawSQL: string } {
-    let rawSQL = QueryUtils.removeComments(sql);
+    let rawSQL = SqlUtils.removeComments(sql);
     if (rawSQL.endsWith("\\G")) {
       rawSQL = rawSQL.substring(0, rawSQL.length - 2);
     }
-    rawSQL = QueryUtils.commentOutFormatClause(rawSQL);
+    rawSQL = SqlUtils.commentOutFormatClause(rawSQL);
     if (rawSQL.length === 0) {
       return { explainSQL: "", rawSQL: "" };
     }

@@ -3,7 +3,7 @@ import { useConnection } from "@/components/connection/connection-context";
 import { QueryExecutionTimer } from "@/components/query-tab/query-execution-timer";
 import { CopyButton } from "@/components/ui/copy-button";
 import type { QueryError } from "@/lib/connection/connection";
-import { QueryUtils } from "@/lib/query-utils";
+import { SqlUtils } from "@/lib/sql-utils";
 import { toastManager } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { Loader2, Play, X } from "lucide-react";
@@ -57,7 +57,7 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
     setShowResults(true);
 
     try {
-      const processedSQL = QueryUtils.removeComments(code);
+      const processedSQL = SqlUtils.removeComments(code);
       const queryId = uuid();
       // Use JSON format for table view to enable DataTable rendering
       const { response } = connection.query(processedSQL, {

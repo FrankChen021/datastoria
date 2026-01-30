@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryUtils } from "@/lib/query-utils";
+import { SqlUtils } from "@/lib/sql-utils";
 import { ChevronDown, Play } from "lucide-react";
 import { useCallback } from "react";
 import { useQueryExecutor } from "../query-execution/query-executor";
@@ -34,7 +34,7 @@ export function QueryControl() {
 
   const handleExplain = useCallback(
     (type: string) => {
-      const { explainSQL, rawSQL } = QueryUtils.toExplainSQL(type, selectedText || text);
+      const { explainSQL, rawSQL } = SqlUtils.toExplainSQL(type, selectedText || text);
       if (rawSQL.length === 0) {
         return;
       }
