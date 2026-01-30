@@ -20,6 +20,7 @@ import {
 import { hostNameManager } from "@/lib/host-name-manager";
 import { escapeSqlString } from "@/lib/string-utils";
 import { AlertCircle, CheckCircle2, Circle, Loader2, RotateCcw } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Panel,
@@ -480,6 +481,7 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
                 Retry
               </Button>
               <ConnectionSelectorDialog
+                defaultConnectionName={config?.name}
                 trigger={
                   <Button variant="outline" className="gap-2 w-40">
                     Switch Connection
@@ -501,6 +503,7 @@ const _DEFAULT_TAB_PANEL_SIZE = 80; // Kept for reference, tabs/chat now use rel
 export function MainPage() {
   const { connection, pendingConfig, commitConnection, isInitialized, isConnectionAvailable } =
     useConnection();
+  const { status: sessionStatus } = useSession();
 
   const { displayMode, close: closeChatPanel } = useChatPanel();
   const [loadedSchemaData, setLoadedSchemaData] = useState<SchemaLoadResult | null>(null);
@@ -554,9 +557,11 @@ export function MainPage() {
 
   // Determine if we should show the initializer overlay
   // Case 1: App is not initialized yet (booting up)
-  // Case 2: App initialized, but switching connections (initializing new connection)
+  // Case 2: Session still loading — avoid flashing empty wizard; show initializer until storage is ready
+  // Case 3: App initialized, but switching connections (initializing new connection)
   const showInitializer =
     !isInitialized ||
+    (sessionStatus === "loading" && !connection && !pendingConfig) ||
     (!!pendingConfig &&
       (!connection || connection.name !== pendingConfig.name || !isConnectionAvailable));
   if (showInitializer) {
@@ -571,9 +576,10 @@ export function MainPage() {
 
   // Show wizard ONLY if:
   // 1. App is fully initialized
-  // 2. No pending config (not currently connecting)
-  // 3. No active connection (fresh state)
-  const showWizard = isInitialized && !pendingConfig && !connection;
+  // 2. Session has resolved (so storage identity is set and we've had a chance to load saved connections)
+  // 3. No pending config (not currently connecting)
+  // 4. No active connection (fresh state)
+  const showWizard = isInitialized && sessionStatus !== "loading" && !pendingConfig && !connection;
   if (showWizard) {
     return <ConnectionWizard />;
   }

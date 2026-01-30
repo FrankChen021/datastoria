@@ -1,5 +1,6 @@
 import type { Chat, Message } from "@/lib/ai/chat-types";
-import { appLocalStorage } from "@/lib/local-storage";
+import type { LocalStorage } from "@/lib/storage/local-storage-provider";
+import { StorageManager } from "@/lib/storage/storage-provider-manager";
 import type { ChatStorage } from "./chat-storage";
 
 /**
@@ -9,14 +10,19 @@ import type { ChatStorage } from "./chat-storage";
  * This implementation includes automatic cleanup of old chats when quota is exceeded.
  */
 export class ChatStorageLocal implements ChatStorage {
-  //
-  // The chats and messages are stored separated
-  //
-  // All chats are stored in one object
-  private readonly chatsStorage = appLocalStorage.subStorage("chats").withCompression(true);
+  private get chatsStorage(): LocalStorage {
+    return StorageManager.getInstance()
+      .getStorageProvider()
+      .subStorage("chats")
+      .withCompression(true);
+  }
 
-  // Messages are stored per chatId
-  private readonly messagesStorage = appLocalStorage.subStorage("messages").withCompression(true);
+  private get messagesStorage(): LocalStorage {
+    return StorageManager.getInstance()
+      .getStorageProvider()
+      .subStorage("messages")
+      .withCompression(true);
+  }
 
   /**
    * Remove the 5 oldest chats to free up storage space

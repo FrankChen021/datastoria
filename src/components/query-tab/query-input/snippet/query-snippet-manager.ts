@@ -1,5 +1,5 @@
 import type { Connection } from "@/lib/connection/connection";
-import { appLocalStorage } from "@/lib/local-storage";
+import { StorageManager } from "@/lib/storage/storage-provider-manager";
 import type { Ace } from "ace-builds";
 import { builtinSnippet } from "./builtin-snippet";
 import type { Snippet } from "./snippet";
@@ -13,17 +13,29 @@ export class QuerySnippetManager {
 
   private readonly snippets: Map<string, Snippet>;
   private snippetCompletionList: Ace.SnippetCompletion[];
-  private readonly storage = appLocalStorage.subStorage("sql:snippet");
+
+  private getStorage() {
+    return StorageManager.getInstance().getStorageProvider().subStorage("sql:snippet");
+  }
+
+  private loadFromStorage(): void {
+    try {
+      const stored = this.getStorage().getAsJSON<Record<string, Snippet>>(() => ({}));
+      this.snippets.clear();
+      for (const [k, v] of Object.entries(stored)) {
+        this.snippets.set(k, v);
+      }
+    } catch {
+      this.snippets.clear();
+    }
+    this.snippetCompletionList = this.toCompletion();
+  }
 
   constructor() {
-    try {
-      const stored = this.storage.getAsJSON<Record<string, Snippet>>(() => ({}));
-      this.snippets = new Map(Object.entries(stored));
-    } catch (e) {
-      this.snippets = new Map<string, Snippet>();
-    }
-
-    this.snippetCompletionList = this.toCompletion();
+    this.snippets = new Map<string, Snippet>();
+    this.snippetCompletionList = [];
+    this.loadFromStorage();
+    StorageManager.getInstance().subscribeToStorageProviderChange(() => this.loadFromStorage());
   }
 
   public getSnippetCompletionList(): Ace.SnippetCompletion[] {
@@ -37,7 +49,7 @@ export class QuerySnippetManager {
   public addSnippet(caption: string, sql: string): void {
     this.snippets.set(caption, { caption: caption, sql: sql, builtin: false });
     const snippetsObj = Object.fromEntries(this.snippets);
-    this.storage.setJSON(snippetsObj);
+    this.getStorage().setJSON(snippetsObj);
     this.snippetCompletionList = this.toCompletion();
   }
 

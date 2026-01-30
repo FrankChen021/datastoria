@@ -8,6 +8,7 @@ import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory"
 import { SseStreamer } from "@/lib/sse-streamer";
 import { APICallError } from "@ai-sdk/provider";
 import { convertToModelMessages, RetryError, type UIMessage } from "ai";
+import type { Session } from "next-auth";
 
 // Force dynamic rendering (no static generation)
 export const dynamic = "force-dynamic";
@@ -121,7 +122,7 @@ function extractErrorMessage(error: unknown): string {
 export async function POST(req: Request) {
   try {
     // Ensure user is authenticated (middleware should handle this, but double-check for safety)
-    const session = await auth();
+    const session = (await auth()) as Session;
     if (!session?.user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized", message: "Authentication required" }),
@@ -163,8 +164,8 @@ export async function POST(req: Request) {
 
     // Validate clickHouseUser is provided in context and add userEmail
     const context: ServerDatabaseContext = apiRequest.context
-      ? { ...apiRequest.context, userEmail }
-      : { userEmail };
+      ? ({ ...apiRequest.context, userEmail } as ServerDatabaseContext)
+      : ({ userEmail } as ServerDatabaseContext);
     if (!context.clickHouseUser || typeof context.clickHouseUser !== "string") {
       return new Response("Missing or invalid clickHouseUser in context (required string)", {
         status: 400,

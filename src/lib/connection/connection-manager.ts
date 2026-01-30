@@ -1,4 +1,4 @@
-import { appLocalStorage } from "../local-storage";
+import { StorageManager } from "../storage/storage-provider-manager";
 import type { ConnectionConfig } from "./connection-config";
 
 export const ConnectionChangeType = {
@@ -25,19 +25,22 @@ export class ConnectionManager {
 
   private connectionMap: Map<string, ConnectionConfig>;
   private connectionArray: ConnectionConfig[];
-  private connectionStorage = appLocalStorage.subStorage("connections");
 
-  constructor() {
+  private getConnectionStorage() {
+    return StorageManager.getInstance().getStorageProvider().subStorage("connections");
+  }
+
+  private loadFromStorage(): void {
     let savedConnections: unknown[] = [];
     try {
-      savedConnections = this.connectionStorage.getAsJSON<unknown[]>(() => []);
+      savedConnections = this.getConnectionStorage().getAsJSON<unknown[]>(() => []);
     } catch {
       // Ignore
     }
 
     this.connectionMap = new Map();
     this.connectionArray = [];
-    savedConnections.forEach((val) => {
+    for (const val of savedConnections) {
       // Type guard for connection data
       if (
         typeof val !== "object" ||
@@ -46,7 +49,7 @@ export class ConnectionManager {
         !("url" in val) ||
         !("user" in val)
       ) {
-        return;
+        continue;
       }
 
       const connData = val as {
@@ -76,8 +79,15 @@ export class ConnectionManager {
 
       this.connectionArray.push(connection);
       this.connectionMap.set(connection.name, connection);
-    });
+    }
     this.connectionArray.sort((a, c) => a.name.localeCompare(c.name));
+  }
+
+  constructor() {
+    this.connectionMap = new Map();
+    this.connectionArray = [];
+    this.loadFromStorage();
+    StorageManager.getInstance().subscribeToStorageProviderChange(() => this.loadFromStorage());
   }
 
   getConnections(): ConnectionConfig[] {
@@ -92,7 +102,7 @@ export class ConnectionManager {
     this.connectionArray.push(connection);
 
     try {
-      this.connectionStorage.setJSON(this.connectionArray);
+      this.getConnectionStorage().setJSON(this.connectionArray);
     } catch (e) {
       this.connectionArray.pop();
       throw e;
@@ -117,7 +127,7 @@ export class ConnectionManager {
     const oldConnection = this.connectionArray[index];
     this.connectionArray[index] = newConnection;
     try {
-      this.connectionStorage.setJSON(this.connectionArray);
+      this.getConnectionStorage().setJSON(this.connectionArray);
     } catch (e) {
       this.connectionArray[index] = oldConnection;
       throw e;
@@ -147,7 +157,7 @@ export class ConnectionManager {
     }
 
     if (oldConnection !== null) {
-      this.connectionStorage.setJSON(newConnectionArray);
+      this.getConnectionStorage().setJSON(newConnectionArray);
 
       this.connectionArray = newConnectionArray;
       this.connectionMap.delete(name);
@@ -173,14 +183,14 @@ export class ConnectionManager {
 
   public saveLastSelected(name: string | undefined) {
     if (name === undefined) {
-      this.connectionStorage.removeChild("selected");
+      this.getConnectionStorage().removeChild("selected");
     } else {
-      this.connectionStorage.setChildAsString("selected", name);
+      this.getConnectionStorage().setChildAsString("selected", name);
     }
   }
 
   public getLastSelectedOrFirst() {
-    const selected = this.connectionStorage.getChildAsString("selected");
+    const selected = this.getConnectionStorage().getChildAsString("selected");
     if (selected === null) {
       return this.first();
     }

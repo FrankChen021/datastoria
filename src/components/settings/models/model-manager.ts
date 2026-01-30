@@ -1,5 +1,5 @@
 import { MODELS, type ModelProps } from "@/lib/ai/llm/llm-provider-factory";
-import { appLocalStorage } from "@/lib/local-storage";
+import { StorageManager } from "@/lib/storage/storage-provider-manager";
 
 export interface ModelSetting {
   modelId: string;
@@ -18,20 +18,23 @@ export const MODEL_CONFIG_UPDATED_EVENT = "MODEL_CONFIG_UPDATED";
 class ModelManager {
   private static instance: ModelManager;
 
-  /**
-   * Which models are enabled or disabled
-   */
-  private readonly modelSettingsStorage = appLocalStorage.subStorage("settings:ai:model-settings");
+  private get modelSettingsStorage() {
+    return StorageManager.getInstance()
+      .getStorageProvider()
+      .subStorage("settings:ai:model-settings");
+  }
 
-  /**
-   * API Key configuration of providers
-   */
-  private readonly providerSettingsStorage = appLocalStorage.subStorage(
-    "settings:ai:provider-settings"
-  );
-  private readonly selectedModelStorage = appLocalStorage.subStorage(
-    "settings:ai:selected-model-id"
-  );
+  private get providerSettingsStorage() {
+    return StorageManager.getInstance()
+      .getStorageProvider()
+      .subStorage("settings:ai:provider-settings");
+  }
+
+  private get selectedModelStorage() {
+    return StorageManager.getInstance()
+      .getStorageProvider()
+      .subStorage("settings:ai:selected-model-id");
+  }
 
   public static getInstance(): ModelManager {
     if (!ModelManager.instance) {

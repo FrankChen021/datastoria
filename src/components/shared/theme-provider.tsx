@@ -1,4 +1,4 @@
-import { appLocalStorage } from "@/lib/local-storage";
+import { StorageManager } from "@/lib/storage/storage-provider-manager";
 import { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "dark" | "light" | "system";
@@ -20,8 +20,6 @@ const initialState: ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
-const themeStorage = appLocalStorage.subStorage("settings:ui:theme");
-
 export function ThemeProvider({
   children,
   defaultTheme = "dark",
@@ -32,6 +30,9 @@ export function ThemeProvider({
     if (typeof window === "undefined") {
       return defaultTheme;
     }
+    const themeStorage = StorageManager.getInstance()
+      .getStorageProvider()
+      .subStorage("settings:ui:theme");
     return (themeStorage.getString() as Theme) || defaultTheme;
   });
 
@@ -53,7 +54,10 @@ export function ThemeProvider({
   }, [theme]);
 
   const setTheme = (theme: Theme) => {
-    themeStorage.setString(theme);
+    StorageManager.getInstance()
+      .getStorageProvider()
+      .subStorage("settings:ui:theme")
+      .setString(theme);
     setThemeState(theme);
   };
 

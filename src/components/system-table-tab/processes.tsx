@@ -211,7 +211,7 @@ export const Processes = memo(({ database: _database, table: _table }: Processes
           fieldOptions: {
             query: { format: "sql", position: 2 },
             query_kind: { position: 3 },
-            elapsed: { format: "millisecond", position: 4 },
+            elapsed: { format: "seconds", position: 4 },
             memory_usage: { format: "binary_size" },
             peak_memory_usage: { format: "binary_size" },
             read_rows: { format: "short_number" },
