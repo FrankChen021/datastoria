@@ -95,9 +95,9 @@ export type VisualizationAgentOutput = z.infer<typeof visualizationAgentComplete
 export const SERVER_TOOL_GENEREATE_VISUALIZATION = "generate_visualization" as const;
 
 /**
- * Server-side tool: Visualization Planning
- * Calls the visualization agent to determine appropriate visualization
- * @param inputModel - Model configuration to use for the agent
+ * Server-side tool: Visualization Planning (LLM-based).
+ * Calls the visualization agent to determine appropriate visualization.
+ * Use in the planning-subagent flow (/api/chat).
  */
 export function createGenerateVisualizationTool(inputModel: InputModel) {
   return tool({

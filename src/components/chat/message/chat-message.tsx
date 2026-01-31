@@ -6,6 +6,7 @@ import { SERVER_TOOL_GENERATE_SQL } from "@/lib/ai/agent/sql-generation-agent";
 import { SERVER_TOOL_GENEREATE_VISUALIZATION } from "@/lib/ai/agent/visualization-agent";
 import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
+import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { cn } from "@/lib/utils";
 import NumberFlow from "@number-flow/react";
@@ -23,6 +24,7 @@ import { MessageToolGenerateSql } from "./message-tool-generate-sql";
 import { MessageToolGenerateVisualization } from "./message-tool-generate-visualization";
 import { MessageToolGetTables } from "./message-tool-get-tables";
 import { MessageToolPlan } from "./message-tool-plan";
+import { MessageToolSkill } from "./message-tool-skill";
 import { MessageToolValidateSql } from "./message-tool-validate-sql";
 import { MessageUser } from "./message-user";
 
@@ -144,6 +146,8 @@ const ChatMessagePart = memo(
       return <MessageToolCollectSqlOptimizationEvidence part={part} isRunning={isRunning} />;
     } else if (toolName === SERVER_TOOL_PLAN) {
       return <MessageToolPlan part={part} isRunning={isRunning} />;
+    } else if (toolName === SERVER_TOOL_NAMES.SKILL) {
+      return <MessageToolSkill part={part} isRunning={isRunning} />;
     } else if (toolName) {
       return <MessageToolGeneral toolName={toolName} part={part} isRunning={isRunning} />;
     }
