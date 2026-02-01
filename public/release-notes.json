@@ -1,7 +1,86 @@
 [
   {
-    "id": "35cecae",
-    "date": "2026-02-01T04:12:38.145Z",
-    "notes": []
+    "id": "97794c5",
+    "date": "2026-02-01T04:38:44.963Z",
+    "notes": [
+      {
+        "text": "Add release detector",
+        "pr": 15,
+        "type": "feature",
+        "merged_at": "2026-02-01T04:05:12Z"
+      },
+      {
+        "text": "Extract useEcharts hook",
+        "pr": 11,
+        "type": "feature",
+        "merged_at": "2026-01-29T16:21:48Z"
+      },
+      {
+        "text": "add system.processes and doc",
+        "pr": 5,
+        "type": "feature",
+        "merged_at": "2026-01-27T13:32:12Z"
+      },
+      {
+        "text": "Remove FORMAT clause from EXPLAIN",
+        "pr": 14,
+        "type": "feature",
+        "merged_at": "2026-01-30T16:00:17Z"
+      },
+      {
+        "text": "Improve login form styles",
+        "pr": 13,
+        "type": "feature",
+        "merged_at": "2026-01-30T14:55:46Z"
+      },
+      {
+        "text": "Per user storage",
+        "pr": 12,
+        "type": "feature",
+        "merged_at": "2026-01-30T14:13:38Z"
+      },
+      {
+        "text": "Improve planner",
+        "pr": 7,
+        "type": "feature",
+        "merged_at": "2026-01-29T16:12:00Z"
+      },
+      {
+        "text": "Limit the height of SQL in request",
+        "pr": 9,
+        "type": "feature",
+        "merged_at": "2026-01-29T14:45:58Z"
+      },
+      {
+        "text": "Separate name and details in connection selector",
+        "pr": 8,
+        "type": "feature",
+        "merged_at": "2026-01-29T12:40:00Z"
+      },
+      {
+        "text": "Unify SQL replacement",
+        "pr": 4,
+        "type": "feature",
+        "merged_at": "2026-01-27T12:59:17Z"
+      },
+      {
+        "text": "Update visualization descriptor property name to be more generic",
+        "pr": 3,
+        "type": "feature",
+        "merged_at": "2026-01-26T17:45:22Z"
+      },
+      {
+        "text": "Fix a problem that selected item is not scrolled into view",
+        "pr": 10,
+        "type": "fix",
+        "merged_at": "2026-01-29T15:00:27Z"
+      },
+      {
+        "text": "Fix queries and styles",
+        "pr": 6,
+        "type": "fix",
+        "merged_at": "2026-01-27T15:00:52Z"
+      }
+    ]
   }
 ]
