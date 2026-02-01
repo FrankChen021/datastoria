@@ -203,24 +203,21 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden relative">
       {isEmpty ? (
-        <div className="flex-1 overflow-y-auto px-2">
-          <div
-            className="flex flex-col items-center justify-center min-h-full py-8 mx-auto"
-            style={{ maxWidth: "min(100%, 800px)" }}
-          >
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3">
+          <div className="flex flex-col items-center w-full max-w-full pt-6 sm:pt-8">
             <div className="mb-0">
               <AppLogo width={64} height={64} />
             </div>
-            <p className="text-xl font-medium mb-4">
+            <p className="text-xl text-center font-medium mb-4 mt-0">
               {GREETINGS[Math.floor(Math.random() * GREETINGS.length)]}
             </p>
             {questions && questions.length > 0 && (
-              <div className="w-full space-y-2">
+              <div className="w-full flex flex-col items-center space-y-2">
                 {questions.map((question, index) => (
                   <button
                     key={index}
                     type="button"
-                    className="w-full text-center px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg border border-border/50 whitespace-normal hover:border-border transition-colors"
+                    className="w-max max-w-full text-left px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg border border-border/50 whitespace-normal hover:border-border transition-colors"
                     onClick={() => handleQuestionClick(question)}
                   >
                     {question.text}

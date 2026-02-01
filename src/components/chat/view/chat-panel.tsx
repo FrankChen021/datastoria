@@ -343,6 +343,15 @@ export function ChatPanel({
     }
   }, [chat]);
 
+  const handleToggleDisplayMode = useCallback(() => {
+    toggleDisplayMode();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        chatViewRef.current?.focus();
+      });
+    });
+  }, [toggleDisplayMode]);
+
   if (!chat) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -360,7 +369,7 @@ export function ChatPanel({
           onSelectChat={handleSelectChat}
           currentChatId={chat.id}
           onClearCurrentChat={handleClearCurrentChat}
-          toggleDisplayMode={toggleDisplayMode}
+          toggleDisplayMode={handleToggleDisplayMode}
           displayMode={displayMode}
           initialTitle={chatTitle}
           isRunning={isRunning}
