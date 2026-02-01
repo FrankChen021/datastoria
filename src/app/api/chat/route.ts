@@ -48,12 +48,14 @@ function extractErrorMessageFromLLMProvider(
         metadata?: { raw?: string };
         message?: string;
       };
+
+      message?: string;
     };
 
-    return parsed.error?.metadata?.raw || parsed.error?.message || fallbackMessage;
+    return parsed.error?.metadata?.raw || parsed.error?.message || parsed.message || fallbackMessage;
   } catch {
     return fallbackMessage;
-  }
+  } 
 }
 
 /**

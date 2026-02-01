@@ -2,6 +2,8 @@ import { ChatPanel } from "@/components/chat/view/chat-panel";
 import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { useConnection } from "@/components/connection/connection-context";
 import { ConnectionWizard } from "@/components/connection/connection-wizard";
+import { useReleaseDetector } from "@/components/release-note/release-detector";
+import { openReleaseNotes } from "@/components/release-note/release-notes-view";
 import {
   SchemaTreeLoader,
   type SchemaLoadResult,
@@ -19,7 +21,7 @@ import {
 } from "@/lib/connection/connection";
 import { hostNameManager } from "@/lib/host-name-manager";
 import { SqlUtils } from "@/lib/sql-utils";
-import { AlertCircle, CheckCircle2, Circle, Loader2, RotateCcw } from "lucide-react";
+import { AlertCircle, CheckCircle2, Circle, Loader2, RotateCcw, Zap } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -211,24 +213,24 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
   // Pre-load hostnames for shortening if cluster is configured
   const clusterTableQuery = connection.cluster
     ? connection
-        .query(
-          `SELECT host_name FROM system.clusters WHERE cluster = '${SqlUtils.escapeSqlString(connection.cluster)}'`,
-          {
-            default_format: "JSONCompact",
+      .query(
+        `SELECT host_name FROM system.clusters WHERE cluster = '${SqlUtils.escapeSqlString(connection.cluster)}'`,
+        {
+          default_format: "JSONCompact",
+        }
+      )
+      .response.then((clusterHostResponse) => {
+        if (clusterHostResponse.httpStatus === 200) {
+          const data = clusterHostResponse.data.json<JSONCompactFormatResponse>();
+          if (data && Array.isArray(data.data)) {
+            const hostNames = data.data.map((row) => row[0] as string);
+            hostNameManager.shortenHostnames(hostNames);
           }
-        )
-        .response.then((clusterHostResponse) => {
-          if (clusterHostResponse.httpStatus === 200) {
-            const data = clusterHostResponse.data.json<JSONCompactFormatResponse>();
-            if (data && Array.isArray(data.data)) {
-              const hostNames = data.data.map((row) => row[0] as string);
-              hostNameManager.shortenHostnames(hostNames);
-            }
-          }
-        })
-        .catch((e) => {
-          console.warn("Failed to load cluster hosts for shortening:", e);
-        })
+        }
+      })
+      .catch((e) => {
+        console.warn("Failed to load cluster hosts for shortening:", e);
+      })
     : Promise.resolve();
 
   const settingsQuery = connection
@@ -500,6 +502,40 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
 const DEFAULT_SCHEMA_PANEL_SIZE = 20;
 const _DEFAULT_TAB_PANEL_SIZE = 80; // Kept for reference, tabs/chat now use relative sizes in nested group
 
+function NewReleaseBanner() {
+  const { hasNewRelease, dismissNotification } = useReleaseDetector();
+
+  if (!hasNewRelease) return null;
+
+  return (
+    <div className="bg-blue-600 text-white  rounded-none px-4 py-1 flex items-center justify-between shadow-md z-20 animate-in fade-in slide-in-from-top duration-300">
+      <div className="flex items-center gap-3">
+        <Zap className="h-4 w-4 animate-pulse" />
+        <span className="text-sm font-medium">
+          A new version of ClickHouse Console is available with exciting updates!
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs bg-white/10 border-white/20 hover:bg-white/20 text-white border-none ml-2"
+          onClick={openReleaseNotes}
+        >
+          See what's new
+        </Button>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          className="h-7 text-xs bg-white text-blue-600 hover:bg-white/90"
+          onClick={() => window.location.reload()}
+        >
+          Update Now
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function MainPage() {
   const { connection, pendingConfig, commitConnection, isInitialized, isConnectionAvailable } =
     useConnection();
@@ -589,57 +625,60 @@ export function MainPage() {
   const showChatPanel = displayMode !== "hidden";
 
   return (
-    <div className="relative h-full w-full flex min-w-0 overflow-hidden">
-      <PanelGroup direction="horizontal" className="h-full w-full min-w-0">
-        {/* Left Panel: Schema Tree View - always mounted, hidden in fullscreen */}
-        <Panel
-          ref={schemaPanelRef}
-          defaultSize={showSchemaTree ? DEFAULT_SCHEMA_PANEL_SIZE : 0}
-          minSize={0}
-          className={`bg-background ${!showSchemaTree ? "hidden" : ""}`}
-        >
-          <SchemaTreeView initialSchemaData={loadedSchemaData} />
-        </Panel>
+    <div className="relative h-full w-full flex flex-col min-w-0 overflow-hidden">
+      <NewReleaseBanner />
+      <div className="flex-1 relative flex min-w-0 overflow-hidden">
+        <PanelGroup direction="horizontal" className="h-full w-full min-w-0">
+          {/* Left Panel: Schema Tree View - always mounted, hidden in fullscreen */}
+          <Panel
+            ref={schemaPanelRef}
+            defaultSize={showSchemaTree ? DEFAULT_SCHEMA_PANEL_SIZE : 0}
+            minSize={0}
+            className={`bg-background ${!showSchemaTree ? "hidden" : ""}`}
+          >
+            <SchemaTreeView initialSchemaData={loadedSchemaData} />
+          </Panel>
 
-        {showSchemaTree && (
-          <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
-        )}
+          {showSchemaTree && (
+            <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
+          )}
 
-        {/* Right Panel: Contains both Tabs and Chat in a nested layout */}
-        <Panel defaultSize={100 - DEFAULT_SCHEMA_PANEL_SIZE} minSize={20} className="bg-background">
-          {/* Nested PanelGroup for Tabs and Chat */}
-          <PanelGroup direction="horizontal" className="h-full w-full">
-            {/* Tabs Panel - always mounted, visibility controlled by CSS */}
-            <Panel
-              ref={tabsPanelRef}
-              defaultSize={showTabsVisible ? (showChatPanel ? 60 : 100) : 0}
-              minSize={0}
-              className={`bg-background ${!showTabsVisible ? "!w-0 !min-w-0 !max-w-0 overflow-hidden" : ""}`}
-            >
-              <div className={!showTabsVisible ? "hidden" : "h-full"}>
-                <MainPageTabList selectedConnection={connection} />
-              </div>
-            </Panel>
-
-            {/* Resize Handle between Tabs and Chat - only when both visible */}
-            {showTabsVisible && showChatPanel && (
-              <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
-            )}
-
-            {/* Chat Panel */}
-            {showChatPanel && (
+          {/* Right Panel: Contains both Tabs and Chat in a nested layout */}
+          <Panel defaultSize={100 - DEFAULT_SCHEMA_PANEL_SIZE} minSize={20} className="bg-background">
+            {/* Nested PanelGroup for Tabs and Chat */}
+            <PanelGroup direction="horizontal" className="h-full w-full">
+              {/* Tabs Panel - always mounted, visibility controlled by CSS */}
               <Panel
-                ref={chatPanelRef}
-                defaultSize={showTabsVisible ? 40 : 100}
-                minSize={20}
-                className="bg-background"
+                ref={tabsPanelRef}
+                defaultSize={showTabsVisible ? (showChatPanel ? 60 : 100) : 0}
+                minSize={0}
+                className={`bg-background ${!showTabsVisible ? "!w-0 !min-w-0 !max-w-0 overflow-hidden" : ""}`}
               >
-                <ChatPanel onClose={closeChatPanel} />
+                <div className={!showTabsVisible ? "hidden" : "h-full"}>
+                  <MainPageTabList selectedConnection={connection} />
+                </div>
               </Panel>
-            )}
-          </PanelGroup>
-        </Panel>
-      </PanelGroup>
+
+              {/* Resize Handle between Tabs and Chat - only when both visible */}
+              {showTabsVisible && showChatPanel && (
+                <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
+              )}
+
+              {/* Chat Panel */}
+              {showChatPanel && (
+                <Panel
+                  ref={chatPanelRef}
+                  defaultSize={showTabsVisible ? 40 : 100}
+                  minSize={20}
+                  className="bg-background"
+                >
+                  <ChatPanel onClose={closeChatPanel} />
+                </Panel>
+              )}
+            </PanelGroup>
+          </Panel>
+        </PanelGroup>
+      </div>
     </div>
   );
 }
