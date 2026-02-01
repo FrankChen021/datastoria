@@ -3,6 +3,7 @@ import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { useConnection } from "@/components/connection/connection-context";
 import { ConnectionSelector } from "@/components/connection/connection-selector";
 import { SYSTEM_TABLE_REGISTRY } from "@/components/system-table-tab/system-table-registry";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +23,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { UserProfileImage } from "@/components/user-profile-image";
@@ -30,6 +35,7 @@ import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
 import {
   BookOpen,
   ChartLine,
+  ChevronRight,
   Database,
   LogOut,
   Monitor,
@@ -101,7 +107,6 @@ function HoverCardSidebarMenuItem({
         <HoverCardTrigger asChild>
           <SidebarMenuButton
             size="lg"
-            className="justify-center"
             onPointerDown={onMenuItemPointerDown}
           >
             {icon}
@@ -148,19 +153,19 @@ function ConnectionManageSidebarMenuItem() {
       <PopoverTrigger asChild>
         <SidebarMenuButton
           size="lg"
-          className="justify-center"
           tooltip={
             tooltipAllowed
               ? {
-                  children: "Switch connection",
-                  className:
-                    "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
-                }
+                children: "Switch connection",
+                className:
+                  "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
+              }
               : undefined
           }
           onClick={() => setOpen((s) => !s)}
         >
           <Database className="h-5 w-5" />
+          <span>Switch connection</span>
         </SidebarMenuButton>
       </PopoverTrigger>
       <PopoverContent side="right" align="start" className="!w-auto !max-w-none p-0 shadow-lg">
@@ -171,13 +176,52 @@ function ConnectionManageSidebarMenuItem() {
 }
 
 function SystemTableIntrospectionSidebarMenuItem() {
+  const { state, isMobile } = useSidebar();
+  const isExpanded = state === "expanded" || isMobile;
+
+  if (isExpanded) {
+    return (
+      <Collapsible defaultOpen={false} className="group/collapsible">
+        <SidebarMenuItem>
+          <CollapsibleTrigger asChild>
+            <SidebarMenuButton size="lg" tooltip="View system tables">
+              <ScrollText className="h-5 w-5" />
+              <span>System tables</span>
+              <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+            </SidebarMenuButton>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <SidebarMenuSub>
+              {Array.from(SYSTEM_TABLE_REGISTRY.entries()).map(([tableName]) => (
+                <SidebarMenuSubItem key={tableName}>
+                  <SidebarMenuSubButton
+                    asChild
+                    onClick={() =>
+                      TabManager.openTab({
+                        id: `system-table:${tableName}`,
+                        type: "system-table",
+                        tableName,
+                      })
+                    }
+                  >
+                    <button type="button">system.{tableName}</button>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              ))}
+            </SidebarMenuSub>
+          </CollapsibleContent>
+        </SidebarMenuItem>
+      </Collapsible>
+    );
+  }
+
   return (
     <HoverCardSidebarMenuItem
       icon={<ScrollText className="h-5 w-5" />}
       description="View system tables"
       content={() => (
         <div className="space-y-1">
-          {Array.from(SYSTEM_TABLE_REGISTRY.entries()).map(([tableName, _entry]) => (
+          {Array.from(SYSTEM_TABLE_REGISTRY.entries()).map(([tableName]) => (
             <button
               key={tableName}
               className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
@@ -201,7 +245,9 @@ function SystemTableIntrospectionSidebarMenuItem() {
 
 function DashboardSidebarMenuItem() {
   const { connection } = useConnection();
+  const { state } = useSidebar();
   const isClusterMode = connection?.cluster && connection.cluster.length > 0;
+  const isExpanded = state === "expanded";
 
   const openNodeTab = () => {
     TabManager.openTab({
@@ -219,7 +265,29 @@ function DashboardSidebarMenuItem() {
     });
   };
 
-  // When cluster is supported, show hover card with submenu items
+  if (isClusterMode && isExpanded) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton size="lg" tooltip="Dashboard">
+          <ChartLine className="h-5 w-5" />
+          <span>Dashboard</span>
+        </SidebarMenuButton>
+        <SidebarMenuSub>
+          <SidebarMenuSubItem>
+            <SidebarMenuSubButton asChild onClick={openNodeTab}>
+              <button type="button">Node Status</button>
+            </SidebarMenuSubButton>
+          </SidebarMenuSubItem>
+          <SidebarMenuSubItem>
+            <SidebarMenuSubButton asChild onClick={openClusterTab}>
+              <button type="button">Cluster Status</button>
+            </SidebarMenuSubButton>
+          </SidebarMenuSubItem>
+        </SidebarMenuSub>
+      </SidebarMenuItem>
+    );
+  }
+
   if (isClusterMode) {
     return (
       <HoverCardSidebarMenuItem
@@ -254,7 +322,6 @@ function DashboardSidebarMenuItem() {
     );
   }
 
-  // When cluster is not supported, show a simple icon button
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
@@ -263,10 +330,10 @@ function DashboardSidebarMenuItem() {
           className: "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
         }}
         size="lg"
-        className="justify-center"
         onClick={openNodeTab}
       >
         <ChartLine className="h-5 w-5" />
+        <span>Dashboard</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
@@ -304,25 +371,25 @@ export function AppSidebar() {
                         "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
                     }}
                     size="lg"
-                    className="justify-center"
                     onClick={() => TabManager.activateQueryTab()}
                   >
                     <Terminal className="h-5 w-5" />
+                    <span>Query</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     tooltip={{
-                      children: "AI Chat",
+                      children: "Chat with AI",
                       className:
                         "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
                     }}
                     size="lg"
-                    className="justify-center"
                     onClick={openChatPanel}
                   >
                     <Sparkles className="h-5 w-5" />
+                    <span>AI Assistant</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
@@ -357,13 +424,13 @@ export function AppSidebar() {
 
 function SettingsSidebarMenuItem() {
   const { theme, setTheme } = useTheme();
+  const { state, isMobile } = useSidebar();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Resolve the actual theme (handle "system" by checking the document class)
   const isDark = mounted
     ? theme === "system"
       ? window.document.documentElement.classList.contains("dark")
@@ -373,6 +440,60 @@ function SettingsSidebarMenuItem() {
   const toggleTheme = (checked: boolean) => {
     setTheme(checked ? "dark" : "light");
   };
+
+  const isExpanded = state === "expanded" || isMobile;
+
+  if (isExpanded) {
+    return (
+      <Collapsible defaultOpen={false} className="group/collapsible">
+        <SidebarMenuItem>
+          <CollapsibleTrigger asChild>
+            <SidebarMenuButton size="lg" tooltip="Settings">
+              <Settings className="h-5 w-5" />
+              <span>Settings</span>
+              <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+            </SidebarMenuButton>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <SidebarMenuSub>
+              <SidebarMenuSubItem>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer [&>svg]:size-4 [&>svg]:shrink-0"
+                  onClick={() => toggleTheme(!isDark)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleTheme(!isDark);
+                    }
+                  }}
+                >
+                  {isDark ? <MoonIcon className="h-4 w-4" /> : <SunIcon className="h-4 w-4" />}
+                  <span className="text-sm">{isDark ? "Dark Mode" : "Light Mode"}</span>
+                  <Switch
+                    checked={isDark}
+                    onCheckedChange={toggleTheme}
+                    aria-label="Toggle dark mode"
+                    className="ml-auto h-4 w-8 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-4"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+              </SidebarMenuSubItem>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton asChild onClick={() => showSettingsDialog()}>
+                  <button type="button" className="flex items-center gap-2">
+                    <Settings className="h-4 w-4 shrink-0" />
+                    App Settings
+                  </button>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            </SidebarMenuSub>
+          </CollapsibleContent>
+        </SidebarMenuItem>
+      </Collapsible>
+    );
+  }
 
   return (
     <HoverCardSidebarMenuItem
@@ -447,10 +568,10 @@ function DocumentationButton() {
         children: "Documentation",
         className: simpleTooltipClass,
       }}
-      className="justify-center"
       onClick={() => window.open("https://docs.datastoria.app", "_blank", "noopener,noreferrer")}
     >
       <BookOpen className="h-5 w-5" />
+      <span>Documentation</span>
     </SidebarMenuButton>
   );
 }
@@ -466,12 +587,12 @@ function GitHubButton() {
         children: "View on GitHub",
         className: simpleTooltipClass,
       }}
-      className="justify-center"
       onClick={() =>
         window.open("https://github.com/FrankChen021/datastoria", "_blank", "noopener,noreferrer")
       }
     >
       <GitHubIcon className="h-5 w-5" />
+      <span>View on GitHub</span>
     </SidebarMenuButton>
   );
 }
@@ -481,14 +602,16 @@ function UserNavButton({
 }: {
   user: { name?: string | null; email?: string | null; image?: string | null };
 }) {
+  const { isMobile } = useSidebar();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <SidebarMenuButton size="lg" className="justify-center">
+        <SidebarMenuButton>
           <UserProfileImage user={user} className="h-5 w-5" />
+          <span>Account</span>
         </SidebarMenuButton>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="min-w-56" align="end" side="right" forceMount>
+      <DropdownMenuContent className="min-w-56" align="end" side={isMobile ? "top" : "right"}>
         <DropdownMenuLabel className="p-0 font-normal">
           <div className="flex items-center gap-2 px-2 py-1.5 text-left text-sm">
             <UserProfileImage user={user} className="h-8 w-8" />

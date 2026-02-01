@@ -1,6 +1,5 @@
 "use client";
 
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { connect } from "echarts";
 import { ChevronRight } from "lucide-react";
@@ -125,6 +124,47 @@ function getAllCharts(charts: (PanelDescriptor | DashboardGroup)[]): PanelDescri
   return allCharts;
 }
 
+const DASHBOARD_MOBILE_BREAKPOINT = 768;
+const DASHBOARD_DESKTOP_BREAKPOINT = 1024;
+
+/** Single source of truth for dashboard grid column counts: mobile | tablet | desktop */
+export type DashboardGridColumns = 1 | 6 | 24;
+
+/**
+ * Returns the number of grid columns for the dashboard layout:
+ * - 1: mobile (< 768px) – single column
+ * - 8: tablet (768px–1023px) – 8 columns
+ * - 24: desktop (≥ 1024px) – 24 columns
+ */
+function useDashboardGridColumns(): DashboardGridColumns {
+  const [columns, setColumns] = useState<DashboardGridColumns>(24);
+
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      if (w < DASHBOARD_MOBILE_BREAKPOINT) setColumns(1);
+      else if (w < DASHBOARD_DESKTOP_BREAKPOINT) setColumns(6);
+      else setColumns(24);
+    };
+    const mqlMobile = window.matchMedia(
+      `(max-width: ${DASHBOARD_MOBILE_BREAKPOINT - 1}px)`
+    );
+    const mqlDesktop = window.matchMedia(
+      `(min-width: ${DASHBOARD_DESKTOP_BREAKPOINT}px)`
+    );
+    const onChange = () => update();
+    mqlMobile.addEventListener("change", onChange);
+    mqlDesktop.addEventListener("change", onChange);
+    update();
+    return () => {
+      mqlMobile.removeEventListener("change", onChange);
+      mqlDesktop.removeEventListener("change", onChange);
+    };
+  }, []);
+
+  return columns;
+}
+
 // Helper function to get gridPos from chart
 // All dashboards must be version 3 with gridPos defined
 function getGridPos(chart: PanelDescriptor): GridPos {
@@ -143,12 +183,12 @@ function getGridPos(chart: PanelDescriptor): GridPos {
   };
 }
 
-// Component to render a panel with grid styling
+// Component to render a panel with grid styling (layout is defined in 24-col base)
 interface DashboardGridPanelProps {
   descriptor: PanelDescriptor;
   panelIndex: number;
   isVisible: boolean;
-  isMobile?: boolean;
+  gridColumns: DashboardGridColumns;
   onSubComponentUpdated: (
     subComponent: DashboardVisualizationComponent | null,
     index: number
@@ -168,7 +208,7 @@ const DashboardGridPanel: React.FC<DashboardGridPanelProps> = ({
   descriptor: chart,
   panelIndex,
   isVisible,
-  isMobile = false,
+  gridColumns,
   onSubComponentUpdated,
   initialTimeSpan,
   initialFilterExpression,
@@ -190,25 +230,37 @@ const DashboardGridPanel: React.FC<DashboardGridPanelProps> = ({
 
   const gridStyle: React.CSSProperties = {
     display: isVisible ? "block" : "none",
-    gridColumn: isMobile ? "1 / -1" : `span ${gridPos.w}`,
     gridRow: `span ${effectiveRowSpan}`,
     minHeight: 0, // Allow grid item to shrink below content size
   };
 
-  // Always constrain height to prevent grid rows from expanding beyond intended size
-  // This ensures error messages or large content don't break the dashboard layout
-  gridStyle.maxHeight = `${maxHeight}px`;
-  gridStyle.overflow = "hidden";
-
-  // Use explicit positioning only if x/y are specified (and not on mobile, where we stack in one column)
-  if (!isMobile && gridPos.x !== undefined) {
-    gridStyle.gridColumnStart = gridPos.x + 1;
-    gridStyle.gridColumnEnd = gridPos.x + 1 + gridPos.w;
+  if (gridColumns === 1) {
+    gridStyle.gridColumn = "1 / -1";
+  } else {
+    // Scale from 24-column base to current grid (8 or 24).
+    // On tablet (gridColumns < 24), enforce a minimum span so small panels (e.g. w=3)
+    // don't shrink to 1 column and pack 6+ per row; aim for at most 2 panels per row.
+    const wScaled = Math.round((gridPos.w / 24) * gridColumns);
+    const minSpan =
+      gridColumns < 24 ? Math.ceil(gridColumns / 2) : 1;
+    const span = Math.max(minSpan, Math.min(wScaled, gridColumns));
+    if (gridPos.x !== undefined) {
+      const xScaled = Math.round((gridPos.x / 24) * gridColumns);
+      gridStyle.gridColumnStart = xScaled + 1;
+      gridStyle.gridColumnEnd = xScaled + 1 + span;
+    } else {
+      gridStyle.gridColumn = `span ${span}`;
+    }
   }
-  if (!isMobile && gridPos.y !== undefined) {
+
+  if (gridPos.y !== undefined && gridColumns !== 1) {
     gridStyle.gridRowStart = gridPos.y + 1;
     gridStyle.gridRowEnd = gridPos.y + 1 + effectiveRowSpan;
   }
+
+  // Always constrain height to prevent grid rows from expanding beyond intended size
+  gridStyle.maxHeight = `${maxHeight}px`;
+  gridStyle.overflow = "hidden";
 
   return (
     <div style={gridStyle} className={cn("w-full", isCollapsed ? "h-auto" : "h-full")}>
@@ -249,7 +301,8 @@ const DashboardPanelContainer = forwardRef<
     // Track registered refreshable children
     const registeredChildrenRef = useRef<Set<RefreshableChild>>(new Set());
 
-    const isMobile = useIsMobile();
+    // 1 col mobile, 8 col tablet (e.g. iPad), 24 col desktop
+    const gridColumns = useDashboardGridColumns();
 
     // Memoize the charts array from the dashboard
     // All dashboards must be version 3 with gridPos defined
@@ -479,7 +532,8 @@ const DashboardPanelContainer = forwardRef<
                   <div
                     className="grid gap-x-2 gap-y-2"
                     style={{
-                      gridTemplateColumns: isMobile ? "1fr" : "repeat(24, minmax(0, 1fr))",
+                      gridTemplateColumns:
+                        gridColumns === 1 ? "1fr" : `repeat(${gridColumns}, minmax(0, 1fr))`,
                       gridAutoRows: "minmax(32px, auto)",
                     }}
                   >
@@ -531,7 +585,7 @@ const DashboardPanelContainer = forwardRef<
                                   descriptor={chart}
                                   panelIndex={panelIndex}
                                   isVisible={isVisible}
-                                  isMobile={isMobile}
+                                  gridColumns={gridColumns}
                                   onSubComponentUpdated={onSubComponentUpdated}
                                   initialTimeSpan={initialTimeSpan}
                                   initialFilterExpression={initialFilterExpression}
@@ -564,7 +618,7 @@ const DashboardPanelContainer = forwardRef<
                             descriptor={panelDescriptor}
                             panelIndex={panelIndex}
                             isVisible={isVisible}
-                            isMobile={isMobile}
+                            gridColumns={gridColumns}
                             onSubComponentUpdated={onSubComponentUpdated}
                             initialTimeSpan={initialTimeSpan}
                             initialFilterExpression={initialFilterExpression}
