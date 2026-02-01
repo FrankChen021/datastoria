@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run release",
   "installCommand": "npm install --include=dev --force",
   "framework": "nextjs",
   "git": {
