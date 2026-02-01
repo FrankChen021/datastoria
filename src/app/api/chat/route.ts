@@ -52,10 +52,12 @@ function extractErrorMessageFromLLMProvider(
       message?: string;
     };
 
-    return parsed.error?.metadata?.raw || parsed.error?.message || parsed.message || fallbackMessage;
+    return (
+      parsed.error?.metadata?.raw || parsed.error?.message || parsed.message || fallbackMessage
+    );
   } catch {
     return fallbackMessage;
-  } 
+  }
 }
 
 /**

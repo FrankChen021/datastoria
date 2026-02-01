@@ -157,10 +157,10 @@ function ConnectionManageSidebarMenuItem() {
           tooltip={
             tooltipAllowed
               ? {
-                children: "Switch connection",
-                className:
-                  "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
-              }
+                  children: "Switch connection",
+                  className:
+                    "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
+                }
               : undefined
           }
           onClick={() => setOpen((s) => !s)}
@@ -438,7 +438,6 @@ export function GitHubIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-
 
 function HelpSidebarMenuItem() {
   return (

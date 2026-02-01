@@ -213,24 +213,24 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
   // Pre-load hostnames for shortening if cluster is configured
   const clusterTableQuery = connection.cluster
     ? connection
-      .query(
-        `SELECT host_name FROM system.clusters WHERE cluster = '${SqlUtils.escapeSqlString(connection.cluster)}'`,
-        {
-          default_format: "JSONCompact",
-        }
-      )
-      .response.then((clusterHostResponse) => {
-        if (clusterHostResponse.httpStatus === 200) {
-          const data = clusterHostResponse.data.json<JSONCompactFormatResponse>();
-          if (data && Array.isArray(data.data)) {
-            const hostNames = data.data.map((row) => row[0] as string);
-            hostNameManager.shortenHostnames(hostNames);
+        .query(
+          `SELECT host_name FROM system.clusters WHERE cluster = '${SqlUtils.escapeSqlString(connection.cluster)}'`,
+          {
+            default_format: "JSONCompact",
           }
-        }
-      })
-      .catch((e) => {
-        console.warn("Failed to load cluster hosts for shortening:", e);
-      })
+        )
+        .response.then((clusterHostResponse) => {
+          if (clusterHostResponse.httpStatus === 200) {
+            const data = clusterHostResponse.data.json<JSONCompactFormatResponse>();
+            if (data && Array.isArray(data.data)) {
+              const hostNames = data.data.map((row) => row[0] as string);
+              hostNameManager.shortenHostnames(hostNames);
+            }
+          }
+        })
+        .catch((e) => {
+          console.warn("Failed to load cluster hosts for shortening:", e);
+        })
     : Promise.resolve();
 
   const settingsQuery = connection
@@ -644,7 +644,11 @@ export function MainPage() {
           )}
 
           {/* Right Panel: Contains both Tabs and Chat in a nested layout */}
-          <Panel defaultSize={100 - DEFAULT_SCHEMA_PANEL_SIZE} minSize={20} className="bg-background">
+          <Panel
+            defaultSize={100 - DEFAULT_SCHEMA_PANEL_SIZE}
+            minSize={20}
+            className="bg-background"
+          >
             {/* Nested PanelGroup for Tabs and Chat */}
             <PanelGroup direction="horizontal" className="h-full w-full">
               {/* Tabs Panel - always mounted, visibility controlled by CSS */}

@@ -2,22 +2,14 @@
 
 import { Dialog } from "@/components/shared/use-dialog";
 import { Badge } from "@/components/ui/badge";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { cn } from "@/lib/utils";
 import { Bug, ChevronDown, ChevronRight, Rocket, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
-const TYPE_PRIORITY_ORDER: Array<"highlight" | "feature" | "fix"> = [
-  "highlight",
-  "feature",
-  "fix",
-];
+const TYPE_PRIORITY_ORDER: Array<"highlight" | "feature" | "fix"> = ["highlight", "feature", "fix"];
 
 const TYPE_LABELS: Record<"highlight" | "feature" | "fix", string> = {
   highlight: "Highlights",
@@ -58,42 +50,34 @@ function groupNotesByType(notes: ReleaseNoteItem[]) {
   return byType;
 }
 
-function ReleaseNoteRow({
-  note,
-  repoUrl,
-}: {
-  note: ReleaseNoteItem;
-  repoUrl: string;
-}) {
+function ReleaseNoteRow({ note, repoUrl }: { note: ReleaseNoteItem; repoUrl: string }) {
   return (
     <div
       className={cn(
         "group flex items-start gap-3 p-1 rounded-md transition-colors",
-        note.type === "highlight"
-          ? "bg-primary/5 border border-primary/10"
-          : "hover:bg-accent/50"
+        note.type === "highlight" ? "bg-primary/5 border border-primary/10" : "hover:bg-accent/50"
       )}
     >
       <div className="mt-1 shrink-0">
-        {note.type === "highlight" && (
-          <Zap className="h-4 w-4 text-amber-500 fill-amber-500/20" />
-        )}
-        {note.type === "feature" && (
-          <Rocket className="h-4 w-4 text-blue-500" />
-        )}
+        {note.type === "highlight" && <Zap className="h-4 w-4 text-amber-500 fill-amber-500/20" />}
+        {note.type === "feature" && <Rocket className="h-4 w-4 text-blue-500" />}
         {note.type === "fix" && <Bug className="h-4 w-4 text-green-500" />}
       </div>
       <div className="flex-1 min-w-0 space-y-0">
-        <p className="text-sm text-foreground leading-relaxed">{note.pr ? (
-          <a
-            href={`${repoUrl}/pull/${note.pr}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1"
-          >
-            {note.text}{" "}
-          </a>
-        ) : note.text}</p>
+        <p className="text-sm text-foreground leading-relaxed">
+          {note.pr ? (
+            <a
+              href={`${repoUrl}/pull/${note.pr}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1"
+            >
+              {note.text}{" "}
+            </a>
+          ) : (
+            note.text
+          )}
+        </p>
       </div>
     </div>
   );
@@ -128,15 +112,10 @@ export function ReleaseNotesView() {
   }
 
   if (releases.length === 0) {
-    return (
-      <div className="p-8 text-center text-muted-foreground">
-        No release notes available.
-      </div>
-    );
+    return <div className="p-8 text-center text-muted-foreground">No release notes available.</div>;
   }
 
-  const repoUrl =
-    releases[0]?.repo_url ?? "https://github.com/FrankChen021/datastoria";
+  const repoUrl = releases[0]?.repo_url ?? "https://github.com/FrankChen021/datastoria";
 
   return (
     <ScrollArea className="h-full pr-4">
@@ -161,16 +140,10 @@ export function ReleaseNotesView() {
                 <span className="text-sm font-semibold text-foreground">
                   {DateTimeExtension.formatDateTime(new Date(release.date), "yyyy-MM-dd")}
                 </span>
-                <Badge
-                  variant="outline"
-                  className="text-[10px] py-0 px-1 font-mono font-normal"
-                >
+                <Badge variant="outline" className="text-[10px] py-0 px-1 font-mono font-normal">
                   {release.notes.length > 0 ? `${release.notes.length} Improvements` : ""}
                 </Badge>
-                <Badge
-                  variant="outline"
-                  className="text-[10px] py-0 px-1 font-mono font-normal"
-                >
+                <Badge variant="outline" className="text-[10px] py-0 px-1 font-mono font-normal">
                   {release.id.substring(0, 7)}
                 </Badge>
                 {isLatest && (
