@@ -12,6 +12,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { FieldDescription } from "@/components/ui/field-description";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Connection, QueryError } from "@/lib/connection/connection";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
@@ -81,6 +82,7 @@ export function ConnectionEditComponent({
 }) {
   const [isTesting, setIsTesting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const isMobile = useIsMobile();
 
   const hasProvider = process.env.NEXT_PUBLIC_CONSOLE_CONNECTION_PROVIDER_ENABLED === "true";
 
@@ -760,9 +762,9 @@ export function ConnectionEditComponent({
                     Test Connection
                   </Button>
                 }
-                side="left"
-                align="end"
-                sideOffset={0}
+                side={isMobile ? "top" : "left"}
+                align={isMobile ? "center" : "end"}
+                sideOffset={isMobile ? 4 : 0}
                 className="max-w-md"
                 icon={
                   testStatus?.type === "success" ? (
@@ -793,7 +795,8 @@ export function ConnectionEditComponent({
                     </Button>
                   }
                   side="top"
-                  align="end"
+                  align={isMobile ? "center" : "end"}
+                  sideOffset={isMobile ? 4 : undefined}
                   icon={
                     <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
                   }
