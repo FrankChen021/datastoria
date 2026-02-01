@@ -623,124 +623,128 @@ export function ConnectionEditComponent({
         handleSave();
       }}
     >
-      <FieldGroup className="space-y-2">
+      <FieldGroup className="space-y-4 sm:space-y-2">
         {hasProvider && <Field>{renderConnectionSelector}</Field>}
 
-        <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
-          <FieldLabel htmlFor="url" className="text-right">
+        <Field className="grid grid-cols-1 gap-y-0.5 sm:grid-cols-[128px_1fr] sm:gap-x-2 sm:gap-y-0 sm:items-center">
+          <FieldLabel htmlFor="url" className="text-left sm:text-right">
             URL
           </FieldLabel>
-
           <Input
             id="url"
             autoFocus
             placeholder="http(s)://"
             value={url}
             onChange={handleUrlChange}
-            className={fieldErrors.url ? "border-destructive" : ""}
+            className={cn("min-h-11 w-full min-w-0", fieldErrors.url && "border-destructive")}
           />
-          <div></div>
+          <div className="hidden sm:block" />
           {fieldErrors.url ? (
-            <FieldDescription className="text-destructive text-xs">
+            <FieldDescription className="text-destructive text-xs sm:col-start-2">
               {fieldErrors.url}
             </FieldDescription>
           ) : (
-            <FieldDescription className="text-xs">
-              The HTTP(s) URL of the ClickHouse server
+            <FieldDescription className="text-xs sm:col-start-2">
+              Server HTTP(s) URL
             </FieldDescription>
           )}
         </Field>
 
-        <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
-          <FieldLabel htmlFor="user" className="text-right">
+        <Field className="grid grid-cols-1 gap-y-0.5 sm:grid-cols-[128px_1fr] sm:gap-x-2 sm:gap-y-0 sm:items-center">
+          <FieldLabel htmlFor="user" className="text-left sm:text-right">
             User
           </FieldLabel>
           <Input
             id="user"
             value={user}
             onChange={handleUserChange}
-            className={fieldErrors.user ? "border-destructive" : ""}
+            className={cn("min-h-11 w-full min-w-0", fieldErrors.user && "border-destructive")}
           />
-          <div></div>
+          <div className="hidden sm:block" />
           {fieldErrors.user ? (
-            <FieldDescription className="text-destructive text-xs">
+            <FieldDescription className="text-destructive text-xs sm:col-start-2">
               {fieldErrors.user}
             </FieldDescription>
           ) : (
-            <FieldDescription className="text-xs">
-              The user name to access the ClickHouse server
-            </FieldDescription>
+            <FieldDescription className="text-xs sm:col-start-2">Server user name</FieldDescription>
           )}
         </Field>
 
-        <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
-          <FieldLabel htmlFor="password" className="text-right">
+        <Field className="grid grid-cols-1 gap-y-0.5 sm:grid-cols-[128px_1fr] sm:gap-x-2 sm:gap-y-0 sm:items-center">
+          <FieldLabel htmlFor="password" className="text-left sm:text-right">
             Password
           </FieldLabel>
-          <div className="relative">
+          <div className="relative w-full min-w-0">
             <Input
               id="password"
               type={isShowPassword ? "text" : "password"}
               value={password}
               onChange={handlePasswordChange}
-              className="pr-10"
+              className="min-h-11 w-full pr-10"
               autoComplete="current-password"
             />
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent min-h-11"
               onClick={() => setShowPassword((prev) => !prev)}
               disabled={showDeleteConfirm}
             >
               {isShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
           </div>
-          <div></div>
-          <FieldDescription className="text-xs">
-            The password to access the ClickHouse server. Leave it blank if password is not needed.
+          <div className="hidden sm:block" />
+          <FieldDescription className="text-xs sm:col-start-2">
+            Optional. Leave blank if not needed.
           </FieldDescription>
         </Field>
 
-        <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
+        <Field className="grid grid-cols-1 gap-y-0.5 sm:grid-cols-[128px_1fr] sm:gap-x-2 sm:gap-y-0 sm:items-center">
           <FieldLabel
             htmlFor="cluster"
-            className={`text-right ${!editable ? "text-muted-foreground" : ""}`}
+            className={cn("text-left sm:text-right", !editable && "text-muted-foreground")}
           >
-            Cluster
+            Cluster (Optional)
           </FieldLabel>
-          <Input id="cluster" value={cluster} disabled={!editable} onChange={handleClusterChange} />
-          <div></div>
-          <FieldDescription className="text-xs">
-            Configure the cluster name to access full features of this console if the ClickHouse
-            server is deployed as cluster
+          <Input
+            id="cluster"
+            value={cluster}
+            disabled={!editable}
+            onChange={handleClusterChange}
+            className="min-h-11 w-full min-w-0"
+          />
+          <div className="hidden sm:block" />
+          <FieldDescription className="text-xs sm:col-start-2">
+            ClickHouse Cluster name if the server is deployed as cluster
           </FieldDescription>
         </Field>
 
-        <Field className="grid grid-cols-[128px_1fr] gap-x-2 items-center">
-          <FieldLabel htmlFor="name" className="text-right">
+        <Field className="grid grid-cols-1 gap-y-0.5 sm:grid-cols-[128px_1fr] sm:gap-x-2 sm:gap-y-0 sm:items-center">
+          <FieldLabel htmlFor="name" className="text-left sm:text-right">
             Connection Name
           </FieldLabel>
           <Input
             id="name"
             value={name}
             onChange={handleNameChange}
-            className={fieldErrors.name ? "border-destructive" : ""}
+            className={cn("min-h-11 w-full min-w-0", fieldErrors.name && "border-destructive")}
           />
-          <div></div>
+          <div className="hidden sm:block" />
           {fieldErrors.name ? (
-            <FieldDescription className="text-destructive text-xs">
+            <FieldDescription className="text-destructive text-xs sm:col-start-2">
               {fieldErrors.name}
             </FieldDescription>
           ) : (
-            <FieldDescription className="text-xs">Name of the connection</FieldDescription>
+            <FieldDescription className="text-xs sm:col-start-2">
+              Display name for this connection
+            </FieldDescription>
           )}
         </Field>
 
         <FieldGroup className="pt-1">
           <Field>
-            <div className="flex items-center justify-end gap-2 pt-6 border-t">
+            <div className="flex flex-col gap-2 pt-4 border-t sm:flex-row sm:justify-end sm:pt-6">
               <StatusPopover
                 open={testStatus !== null}
                 onOpenChange={(open) => !open && setTestStatus(null)}
@@ -748,6 +752,7 @@ export function ConnectionEditComponent({
                   <Button
                     type="button"
                     variant="outline"
+                    className="w-full min-h-11 sm:w-auto"
                     onClick={handleTestConnection}
                     disabled={isTesting || isSaving || showDeleteConfirm}
                   >
@@ -780,6 +785,7 @@ export function ConnectionEditComponent({
                     <Button
                       type="button"
                       variant="outline"
+                      className="w-full min-h-11 sm:w-auto"
                       onClick={handleDeleteClick}
                       disabled={isTesting || isSaving}
                     >
@@ -821,12 +827,17 @@ export function ConnectionEditComponent({
               <Button
                 type="button"
                 variant="outline"
+                className="w-full min-h-11 sm:w-auto"
                 onClick={handleCancel}
                 disabled={isTesting || isSaving || showDeleteConfirm}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isTesting || isSaving || showDeleteConfirm}>
+              <Button
+                type="submit"
+                className="w-full min-h-11 sm:w-auto"
+                disabled={isTesting || isSaving || showDeleteConfirm}
+              >
                 Save
               </Button>
             </div>
