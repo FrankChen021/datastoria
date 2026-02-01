@@ -212,8 +212,9 @@ async function main() {
   }
 
   history = history.filter((h) => h.id !== RELEASE_ID);
-  history.unshift(releaseData);
-  const finalHistory = history.slice(0, 20);
+  if (notes.length > 0) history.unshift(releaseData);
+  const finalHistory = history
+    .filter((h) => h.notes && h.notes.length > 0);
 
   if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
   fs.writeFileSync(outputPath, JSON.stringify(finalHistory, null, 2));
