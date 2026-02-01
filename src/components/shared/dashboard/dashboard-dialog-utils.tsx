@@ -5,6 +5,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ExternalLink } from "lucide-react";
 import type { SQLQuery } from "./dashboard-model";
 
+/** Responsive className for dashboard drilldown dialogs: near full-screen on mobile, 60vw/70vh on desktop */
+export const DRILLDOWN_DIALOG_CLASS_NAME =
+  "w-[95vw] max-w-[95vw] h-[90dvh] sm:max-w-[60vw] sm:h-[70vh]";
+
 /**
  * Shows a dialog displaying the SQL query
  */

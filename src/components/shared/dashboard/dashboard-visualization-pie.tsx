@@ -5,6 +5,7 @@ import { CardContent } from "@/components/ui/card";
 import { Formatter } from "@/lib/formatter";
 import * as echarts from "echarts";
 import React, { useCallback, useEffect, useRef } from "react";
+import { DRILLDOWN_DIALOG_CLASS_NAME } from "./dashboard-dialog-utils";
 import type { PanelDescriptor, PieDescriptor, TableDescriptor } from "./dashboard-model";
 import type { VisualizationRef } from "./dashboard-visualization-layout";
 import { DashboardVisualizationPanel } from "./dashboard-visualization-panel";
@@ -78,7 +79,7 @@ export const PieVisualization = React.forwardRef<PieVisualizationRef, PieVisuali
         Dialog.showDialog({
           title,
           description,
-          className: "max-w-[60vw] h-[70vh]",
+          className: DRILLDOWN_DIALOG_CLASS_NAME,
           disableContentScroll: false,
           mainContent: (
             <div className="w-full h-full overflow-auto">

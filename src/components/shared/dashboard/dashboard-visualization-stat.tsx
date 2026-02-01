@@ -19,6 +19,7 @@ import React, {
   useState,
 } from "react";
 import { classifyColumns, transformRowsToChartData } from "./dashboard-data-utils";
+import { DRILLDOWN_DIALOG_CLASS_NAME } from "./dashboard-dialog-utils";
 import { DashboardDropdownMenuItem } from "./dashboard-dropdown-menu-item";
 import {
   applyReducer,
@@ -709,7 +710,7 @@ export const StatVisualization = forwardRef<StatVisualizationRef, StatVisualizat
       Dialog.showDialog({
         title,
         description,
-        className: "max-w-[60vw] h-[70vh]",
+        className: DRILLDOWN_DIALOG_CLASS_NAME,
         disableContentScroll: false,
         mainContent: (
           <div className="w-full h-full overflow-auto">
@@ -760,7 +761,7 @@ export const StatVisualization = forwardRef<StatVisualizationRef, StatVisualizat
         Dialog.showDialog({
           title,
           description,
-          className: "max-w-[60vw] h-[70vh]",
+          className: DRILLDOWN_DIALOG_CLASS_NAME,
           disableContentScroll: false,
           mainContent: (
             <div className="w-full h-full overflow-auto">

@@ -6,6 +6,7 @@ import { Formatter } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
 import * as echarts from "echarts";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { DRILLDOWN_DIALOG_CLASS_NAME } from "./dashboard-dialog-utils";
 import type { GaugeDescriptor, PanelDescriptor, TableDescriptor } from "./dashboard-model";
 import type { VisualizationRef } from "./dashboard-visualization-layout";
 import { DashboardVisualizationPanel } from "./dashboard-visualization-panel";
@@ -86,7 +87,7 @@ export const GaugeVisualization = React.forwardRef<GaugeVisualizationRef, GaugeV
       Dialog.showDialog({
         title,
         description,
-        className: "max-w-[60vw] h-[70vh]",
+        className: DRILLDOWN_DIALOG_CLASS_NAME,
         disableContentScroll: false,
         mainContent: (
           <div className="w-full h-full overflow-auto">

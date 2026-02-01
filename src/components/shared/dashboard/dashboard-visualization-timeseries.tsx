@@ -20,6 +20,7 @@ import {
   isTimestampColumn as isTimestampColumnUtil,
   transformRowsToChartData,
 } from "./dashboard-data-utils";
+import { DRILLDOWN_DIALOG_CLASS_NAME } from "./dashboard-dialog-utils";
 import {
   applyReducer,
   type FieldOption,
@@ -566,7 +567,7 @@ export const TimeseriesVisualization = React.forwardRef<
       Dialog.showDialog({
         title,
         description,
-        className: "max-w-[60vw] h-[70vh]",
+        className: DRILLDOWN_DIALOG_CLASS_NAME,
         disableContentScroll: false,
         mainContent: (
           <div className="w-full h-full overflow-auto">
