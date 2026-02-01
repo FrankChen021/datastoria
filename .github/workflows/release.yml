@@ -1,3 +1,7 @@
+# Release to Production
+# Requires secrets: VERCEL_DEPLOY_HOOK_URL, GITHUB_TOKEN (or use default)
+# Release notes are PR-based: labels (feature, fix, docs, chore, highlight) map to sections (see scripts/generate-release-notes.mjs).
+# Vercel build downloads release-notes.json from release branch (see scripts/download-release-notes.mjs).
 name: Release to Production
 
 on:
@@ -9,12 +13,17 @@ on:
         required: true
         type: string
 
+env:
+  RELEASE_BRANCH: release
+
 jobs:
   release:
     runs-on: ubuntu-latest
     if: github.event.inputs.confirm == 'release'
     permissions:
       contents: write
+      pull-requests: read
+      issues: read
 
     steps:
       - name: Checkout repository
@@ -23,10 +32,73 @@ jobs:
           ref: master
           fetch-depth: 0
 
+      - name: Fetch previous release notes
+        id: previous
+        run: |
+          git fetch origin ${{ env.RELEASE_BRANCH }} 2>/dev/null || true
+          if git show origin/${{ env.RELEASE_BRANCH }}:public/release-notes.json > previous.json 2>/dev/null; then
+            echo "has_previous=true" >> $GITHUB_OUTPUT
+          else
+            echo "[]" > previous.json
+            echo "has_previous=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Prepare release id and base commit
+        id: prepare
+        run: |
+          RELEASE_ID=$(git rev-parse --short HEAD)
+          HEAD_SHA=$(git rev-parse HEAD)
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+          echo "head_sha=$HEAD_SHA" >> $GITHUB_OUTPUT
+          FROM=$(jq -r 'if type == "array" then (.[0].id // "") else (.id // "") end' previous.json)
+          if [ -n "$FROM" ] && git rev-parse --verify "$FROM" >/dev/null 2>&1; then
+            echo "from=$FROM" >> $GITHUB_OUTPUT
+            COMMITS=$(git log "$FROM..HEAD" --oneline)
+            if [ -z "$(echo "$COMMITS" | tr -d '\n')" ]; then
+              echo "skip_notes=true" >> $GITHUB_OUTPUT
+            else
+              echo "skip_notes=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "from=" >> $GITHUB_OUTPUT
+            echo "skip_notes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate release notes (PR-based)
+        if: steps.prepare.outputs.skip_notes != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          REPO: ${{ github.repository }}
+          RELEASE_ID: ${{ steps.prepare.outputs.release_id }}
+          FROM: ${{ steps.prepare.outputs.from }}
+          HEAD: ${{ steps.prepare.outputs.head_sha }}
+          OUTPUT_DIR: ${{ github.workspace }}
+        run: |
+          export PREVIOUS_RELEASE_NOTES_JSON=$(cat previous.json | jq -c '.')
+          node scripts/generate-release-notes.mjs
+
+      - name: Push release notes to release branch
+        if: steps.prepare.outputs.skip_notes != 'true'
+        run: |
+          cp public/release-notes.json /tmp/release-notes.json
+          rm -f public/release-notes.json
+          git fetch origin ${{ env.RELEASE_BRANCH }} 2>/dev/null || true
+          if git rev-parse --verify refs/remotes/origin/${{ env.RELEASE_BRANCH }} >/dev/null 2>&1; then
+            git checkout ${{ env.RELEASE_BRANCH }}
+            cp /tmp/release-notes.json public/release-notes.json
+          else
+            git checkout --orphan ${{ env.RELEASE_BRANCH }}
+            git rm -rf . 2>/dev/null || true
+            mkdir -p public
+            cp /tmp/release-notes.json public/release-notes.json
+          fi
+          git add public/release-notes.json
+          git diff --staged --quiet || git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" commit -m "Update release notes (${{ steps.prepare.outputs.release_id }})"
+          git push -u origin ${{ env.RELEASE_BRANCH }}
+
       - name: Trigger Vercel Production Deployment
         run: |
           curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
-        if: success()
 
       - name: Create release summary
         run: |
@@ -34,6 +106,11 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** master" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** $(git rev-parse HEAD)" >> $GITHUB_STEP_SUMMARY
+          echo "**Release ID:** ${{ steps.prepare.outputs.release_id }}" >> $GITHUB_STEP_SUMMARY
           echo "**Time:** $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Vercel production deployment has been triggered via deploy hook." >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.prepare.outputs.skip_notes }}" = "true" ]; then
+            echo "No new commits since last release; skipped notes update. Vercel production deployment triggered (retry)." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Release notes updated on \`release\` branch. Vercel production deployment triggered." >> $GITHUB_STEP_SUMMARY
+          fi

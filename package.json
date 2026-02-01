@@ -17,6 +17,7 @@
     "dev:cmdk": "cd external/cmdk/cmdk && rm -rf dist && npx tsup src --watch",
     "dev:next": "next dev",
     "build": "next build",
+    "release": "node scripts/download-release-notes.mjs && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
