@@ -2,6 +2,7 @@ import { AppLogo } from "@/components/app-logo";
 import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { useConnection } from "@/components/connection/connection-context";
 import { ConnectionSelector } from "@/components/connection/connection-selector";
+import { ConnectionSelectorDialog } from "@/components/connection/connection-selector-dialog";
 import { SYSTEM_TABLE_REGISTRY } from "@/components/system-table-tab/system-table-registry";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -105,10 +106,7 @@ function HoverCardSidebarMenuItem({
     <SidebarMenuItem>
       <HoverCard openDelay={200} open={isOpen} onOpenChange={onOpenChange}>
         <HoverCardTrigger asChild>
-          <SidebarMenuButton
-            size="lg"
-            onPointerDown={onMenuItemPointerDown}
-          >
+          <SidebarMenuButton size="lg" onPointerDown={onMenuItemPointerDown}>
             {icon}
           </SidebarMenuButton>
         </HoverCardTrigger>
@@ -122,13 +120,13 @@ function HoverCardSidebarMenuItem({
 }
 
 function ConnectionManageSidebarMenuItem() {
+  const { isMobile } = useSidebar();
+  const { connection } = useConnection();
   const [open, setOpen] = useState(false);
   const [tooltipAllowed, setTooltipAllowed] = useState(true);
   const tooltipDelayRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Suppress the sidebar button tooltip while the popover is open and briefly after it closes.
-  // Otherwise, when the user selects an item in the popover and it closes, the pointer is still
-  // over the trigger and the tooltip would show immediately, which is distracting.
   useEffect(() => {
     if (open) {
       if (tooltipDelayRef.current) {
@@ -137,7 +135,6 @@ function ConnectionManageSidebarMenuItem() {
       }
       setTooltipAllowed(false);
     } else {
-      // Re-enable tooltip after a short delay so it doesn't flash when the popover closes.
       tooltipDelayRef.current = setTimeout(() => {
         setTooltipAllowed(true);
         tooltipDelayRef.current = null;
@@ -148,26 +145,38 @@ function ConnectionManageSidebarMenuItem() {
     };
   }, [open]);
 
+  const triggerButton = (
+    <SidebarMenuButton
+      size="lg"
+      tooltip={
+        tooltipAllowed
+          ? {
+              children: "Switch connection",
+              className: "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
+            }
+          : undefined
+      }
+      onClick={isMobile ? undefined : () => setOpen((s) => !s)}
+    >
+      <Database className="h-5 w-5" />
+      <span>Switch connection</span>
+    </SidebarMenuButton>
+  );
+
+  if (isMobile) {
+    return (
+      <SidebarMenuItem>
+        <ConnectionSelectorDialog
+          trigger={triggerButton}
+          defaultConnectionName={connection?.name ?? null}
+        />
+      </SidebarMenuItem>
+    );
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <SidebarMenuButton
-          size="lg"
-          tooltip={
-            tooltipAllowed
-              ? {
-                children: "Switch connection",
-                className:
-                  "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
-              }
-              : undefined
-          }
-          onClick={() => setOpen((s) => !s)}
-        >
-          <Database className="h-5 w-5" />
-          <span>Switch connection</span>
-        </SidebarMenuButton>
-      </PopoverTrigger>
+      <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
       <PopoverContent side="right" align="start" className="!w-auto !max-w-none p-0 shadow-lg">
         <ConnectionSelector isOpen={open} onClose={() => setOpen(false)} />
       </PopoverContent>

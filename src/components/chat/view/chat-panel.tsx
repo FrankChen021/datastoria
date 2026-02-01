@@ -5,6 +5,7 @@ import { ChatUIContext } from "@/components/chat/chat-ui-context";
 import { chatStorage } from "@/components/chat/storage/chat-storage";
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { AppUIMessage } from "@/lib/ai/chat-types";
 import type { Chat } from "@ai-sdk/react";
 import { Loader2, Maximize2, Minimize2, Square, X } from "lucide-react";
@@ -29,9 +30,6 @@ interface ChatHeaderProps {
   isRunning?: boolean;
 }
 
-/**
- * Get the icon and tooltip for the display mode cycle button
- */
 function getDisplayModeButtonInfo(displayMode: ChatPanelDisplayMode): {
   icon: React.ReactNode;
   tooltip: string;
@@ -72,8 +70,8 @@ const ChatHeader = React.memo(
     initialTitle,
     isRunning,
   }: ChatHeaderProps) => {
+    const isMobile = useIsMobile();
     const { icon, tooltip } = getDisplayModeButtonInfo(displayMode);
-
     const [title, setTitle] = useState<string | undefined>(initialTitle);
 
     // Reset title when chat ID changes
@@ -105,7 +103,7 @@ const ChatHeader = React.memo(
             onSelectChat={onSelectChat}
             onClearCurrentChat={onClearCurrentChat}
           />
-          {toggleDisplayMode && (
+          {!isMobile && toggleDisplayMode && (
             <Button
               variant="ghost"
               size="icon"

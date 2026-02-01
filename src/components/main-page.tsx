@@ -9,6 +9,9 @@ import {
 import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Sheet, SheetOverlay, SheetPortal, SheetTrigger } from "@/components/ui/sheet";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Connection,
   QueryError,
@@ -19,7 +22,9 @@ import {
 } from "@/lib/connection/connection";
 import { hostNameManager } from "@/lib/host-name-manager";
 import { SqlUtils } from "@/lib/sql-utils";
-import { AlertCircle, CheckCircle2, Circle, Loader2, RotateCcw } from "lucide-react";
+import { cn } from "@/lib/utils";
+import * as SheetPrimitive from "@radix-ui/react-dialog";
+import { AlertCircle, CheckCircle2, Circle, Database, Loader2, RotateCcw } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -507,6 +512,8 @@ export function MainPage() {
 
   const { displayMode, close: closeChatPanel } = useChatPanel();
   const [loadedSchemaData, setLoadedSchemaData] = useState<SchemaLoadResult | null>(null);
+  const isMobile = useIsMobile();
+  const [schemaSheetOpen, setSchemaSheetOpen] = useState(false);
 
   // Refs for panel control
   const schemaPanelRef = useRef<ImperativePanelHandle>(null);
@@ -519,9 +526,9 @@ export function MainPage() {
   };
 
   // Resize panels when display mode changes (layout side-effect)
-  // Note: tabsPanelRef and chatPanelRef are now in a nested PanelGroup,
-  // so their sizes are relative to the inner group (content area), not the outer one
+  // Skip on mobile; mobile uses sheet + full-screen chat instead of resizable panels
   useLayoutEffect(() => {
+    if (isMobile) return;
     const rafId = requestAnimationFrame(() => {
       switch (displayMode) {
         case "hidden":
@@ -553,7 +560,7 @@ export function MainPage() {
     return () => {
       cancelAnimationFrame(rafId);
     };
-  }, [displayMode]);
+  }, [displayMode, isMobile]);
 
   // Determine if we should show the initializer overlay
   // Case 1: App is not initialized yet (booting up)
@@ -582,6 +589,59 @@ export function MainPage() {
   const showWizard = isInitialized && sessionStatus !== "loading" && !pendingConfig && !connection;
   if (showWizard) {
     return <ConnectionWizard />;
+  }
+
+  // Mobile: one view at a time — chat full-screen when open, else tabs + schema in a sheet
+  if (isMobile) {
+    if (displayMode !== "hidden") {
+      return (
+        <div className="relative h-full w-full flex min-w-0 overflow-hidden">
+          <ChatPanel onClose={closeChatPanel} />
+        </div>
+      );
+    }
+    return (
+      <div className="relative h-full w-full flex flex-col min-w-0 overflow-hidden">
+        <div className="shrink-0 flex items-center gap-2 border-b bg-background px-2 py-1.5">
+          <SidebarTrigger className="h-8 w-8" />
+          <Sheet open={schemaSheetOpen} onOpenChange={setSchemaSheetOpen}>
+            <SheetTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                aria-label="Open schema browser"
+              >
+                <Database className="h-4 w-4" />
+                Open Schema View
+              </Button>
+            </SheetTrigger>
+            <SheetPortal>
+              <SheetOverlay />
+              <SheetPrimitive.Content
+                className={cn(
+                  "fixed z-50 gap-4 bg-background shadow-lg transition ease-in-out",
+                  "data-[state=open]:animate-in data-[state=closed]:animate-out",
+                  "data-[state=closed]:duration-300 data-[state=open]:duration-500",
+                  "inset-y-0 left-0 h-full w-3/4 border-r",
+                  "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
+                  "w-[min(320px,85vw)] p-0 flex flex-col overflow-hidden"
+                )}
+                aria-describedby={undefined}
+              >
+                <div className="flex-1 min-h-0 overflow-auto p-2">
+                  <SchemaTreeView initialSchemaData={loadedSchemaData} />
+                </div>
+              </SheetPrimitive.Content>
+            </SheetPortal>
+          </Sheet>
+        </div>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <MainPageTabList selectedConnection={connection} />
+        </div>
+      </div>
+    );
   }
 
   const showSchemaTree = displayMode !== "fullscreen";

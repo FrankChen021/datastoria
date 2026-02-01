@@ -8,6 +8,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
 import { cn } from "@/lib/utils";
@@ -130,6 +131,7 @@ export function ConnectionSelector({
   className,
   defaultConnectionName: defaultConnectionNameProp,
 }: ConnectionSelectorProps) {
+  const isMobile = useIsMobile();
   const { connection, pendingConfig, isConnectionAvailable, switchConnection } = useConnection();
   const [connections, setConnections] = useState<ConnectionConfig[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -259,8 +261,9 @@ export function ConnectionSelector({
         <div
           data-panel="left"
           className={cn(
-            "flex-1 min-w-[340px] bg-popover rounded-sm overflow-hidden shadow-md flex flex-col",
-            highlightedConnection ? "border-r rounded-r-none" : ""
+            "flex-1 bg-popover rounded-sm overflow-hidden shadow-md flex flex-col",
+            isMobile ? "min-w-0" : "min-w-[340px]",
+            !isMobile && highlightedConnection ? "border-r rounded-r-none" : ""
           )}
         >
           <CommandInput
@@ -316,8 +319,10 @@ export function ConnectionSelector({
           </div>
         </div>
 
-        {/* Right Pane */}
-        <ConnectionDetailPanel conn={highlightedConnection} onEdit={handleEditConnection} />
+        {/* Right Pane: description view hidden on mobile for simplicity */}
+        {!isMobile && (
+          <ConnectionDetailPanel conn={highlightedConnection} onEdit={handleEditConnection} />
+        )}
       </Command>
     </>
   );

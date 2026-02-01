@@ -146,12 +146,8 @@ function useDashboardGridColumns(): DashboardGridColumns {
       else if (w < DASHBOARD_DESKTOP_BREAKPOINT) setColumns(6);
       else setColumns(24);
     };
-    const mqlMobile = window.matchMedia(
-      `(max-width: ${DASHBOARD_MOBILE_BREAKPOINT - 1}px)`
-    );
-    const mqlDesktop = window.matchMedia(
-      `(min-width: ${DASHBOARD_DESKTOP_BREAKPOINT}px)`
-    );
+    const mqlMobile = window.matchMedia(`(max-width: ${DASHBOARD_MOBILE_BREAKPOINT - 1}px)`);
+    const mqlDesktop = window.matchMedia(`(min-width: ${DASHBOARD_DESKTOP_BREAKPOINT}px)`);
     const onChange = () => update();
     mqlMobile.addEventListener("change", onChange);
     mqlDesktop.addEventListener("change", onChange);
@@ -241,8 +237,7 @@ const DashboardGridPanel: React.FC<DashboardGridPanelProps> = ({
     // On tablet (gridColumns < 24), enforce a minimum span so small panels (e.g. w=3)
     // don't shrink to 1 column and pack 6+ per row; aim for at most 2 panels per row.
     const wScaled = Math.round((gridPos.w / 24) * gridColumns);
-    const minSpan =
-      gridColumns < 24 ? Math.ceil(gridColumns / 2) : 1;
+    const minSpan = gridColumns < 24 ? Math.ceil(gridColumns / 2) : 1;
     const span = Math.max(minSpan, Math.min(wScaled, gridColumns));
     if (gridPos.x !== undefined) {
       const xScaled = Math.round((gridPos.x / 24) * gridColumns);

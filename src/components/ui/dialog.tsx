@@ -31,12 +31,16 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
   disableBackdrop?: boolean;
+  /**
+   * Optional className for the close button. Use to adjust position (e.g. vertically center with first row).
+   */
+  closeButtonClassName?: string;
 }
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, disableBackdrop = false, ...props }, ref) => (
+>(({ className, children, disableBackdrop = false, closeButtonClassName, ...props }, ref) => (
   <DialogPortal>
     {!disableBackdrop && <DialogOverlay />}
     <DialogPrimitive.Content
@@ -48,7 +52,12 @@ const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+      <DialogPrimitive.Close
+        className={cn(
+          "absolute right-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",
+          closeButtonClassName ?? "top-4"
+        )}
+      >
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>

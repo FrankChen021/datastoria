@@ -25,7 +25,7 @@ interface ConnectionSelectorDialogProps {
  */
 export function ConnectionSelectorDialog({
   trigger,
-  dialogClassName = "min-w-[700px] p-0",
+  dialogClassName = "w-[95vw] max-w-[calc(100vw-1rem)] min-w-0 md:min-w-[700px] md:w-auto md:max-w-none p-0",
   defaultConnectionName,
 }: ConnectionSelectorDialogProps) {
   const handleClose = useCallback(() => {
@@ -35,6 +35,8 @@ export function ConnectionSelectorDialog({
   const handleClick = useCallback(() => {
     Dialog.showDialog({
       className: `${dialogClassName} overflow-hidden gap-0`,
+      // Vertically center close button with search input (h-9 = 36px → center 18px; icon 16px → top 10px)
+      closeButtonClassName: "top-[10px]",
       mainContent: (
         <ConnectionSelector
           isOpen={true}

@@ -27,6 +27,10 @@ export interface DialogProps {
   description?: string;
   mainContent?: React.ReactNode;
   className?: string;
+  /**
+   * Optional className for the dialog close (X) button. Use to adjust position (e.g. vertically center with first row).
+   */
+  closeButtonClassName?: string;
   onCancel?: () => void;
   dialogButtons?: DialogButton[];
   /**
@@ -112,6 +116,7 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
       <DialogContent
         // The full-screen mode of MUI table has z-index of 1300, so we have to set a larger z-index to make sure the dialog is on top of the table.
         className={cn("flex flex-col gap-1 p-5 justify-between z-[2000]", dialogProps.className)}
+        closeButtonClassName={dialogProps.closeButtonClassName}
         disableBackdrop={dialogProps.disableBackdrop}
         onInteractOutside={handleInteractOutside}
         onEscapeKeyDown={(event) => {
