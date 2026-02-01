@@ -203,12 +203,7 @@ export async function POST(req: Request) {
         };
       }
     } catch (error) {
-      return new Response(
-        error instanceof Error
-          ? error.message
-          : "No AI API key configured. Set OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY",
-        { status: 500 }
-      );
+      return new Response(error instanceof Error ? error.message : String(error), { status: 500 });
     }
 
     // Create a stream that sends early status updates then pipes the real stream

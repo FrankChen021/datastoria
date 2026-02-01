@@ -301,7 +301,7 @@ export class LanguageModelProviderFactory {
     }
 
     throw new Error(
-      "No AI API key configured. Set OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY"
+      "The server currently does not provide any models. Please configure models in the settings to use your own."
     );
   }
 
