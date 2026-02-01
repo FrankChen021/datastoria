@@ -23,6 +23,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
+      issues: read
 
     steps:
       - name: Checkout repository
@@ -68,7 +69,7 @@ jobs:
       - name: Generate release notes (PR-based)
         if: steps.prepare.outputs.skip_notes != 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           REPO: ${{ github.repository }}
           RELEASE_ID: ${{ steps.prepare.outputs.release_id }}
           FROM: ${{ steps.prepare.outputs.from }}
