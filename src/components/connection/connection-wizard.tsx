@@ -31,9 +31,12 @@ export function ConnectionWizard() {
     setIsCreatingConnection(false);
   }, []);
 
+  {
+    /* pt/pb use max(1rem, env(safe-area-inset-*)): at least 1rem padding, or the device safe-area inset when larger (e.g. iPhone notch and home indicator), so the wizard stays centered and clear of system UI. */
+  }
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-start justify-center pt-[20vh] px-8 pb-8">
-      <div className="w-full max-w-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm overflow-y-auto overflow-x-hidden flex flex-col items-center justify-center min-h-[100dvh] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] px-4 sm:px-8">
+      <div className="w-full max-w-2xl flex flex-col my-auto">
         {!isCreatingConnection ? (
           <Card className="w-full">
             <CardHeader className="text-center space-y-1 pb-4">
@@ -45,7 +48,7 @@ export function ConnectionWizard() {
                 AI-powered ClickHouse management console with visualization and insights
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 px-4 sm:px-6">
               <div className="space-y-4">
                 <div className="grid gap-3 text-sm text-muted-foreground">
                   <div className="flex items-start gap-3">
@@ -92,11 +95,15 @@ export function ConnectionWizard() {
                 </div>
               </div>
               <div className="flex flex-col items-center justify-center gap-2 pt-2">
-                <Button size="lg" onClick={handleCreateConnection} className="px-4 w-64">
+                <Button
+                  size="lg"
+                  onClick={handleCreateConnection}
+                  className="w-full min-w-0 max-w-64 px-4"
+                >
                   Create Your First Connection
                 </Button>
                 <div className="flex flex-col items-center gap-2 w-full">
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-muted-foreground text-center">
                     don't have a ClickHouse server? Try{" "}
                     <Link href="https://play.clickhouse.com" target="_blank">
                       ClickHouse Playground
@@ -105,7 +112,7 @@ export function ConnectionWizard() {
                   <Button
                     variant="outline"
                     size="lg"
-                    className="w-64"
+                    className="w-full min-w-0 max-w-64"
                     onClick={() => {
                       const playgroundConnection: ConnectionConfig = {
                         name: "ClickHouse Playground",
@@ -131,7 +138,7 @@ export function ConnectionWizard() {
             {/* Spacer to match the height of ConnectionEditDialogContent's bottom section */}
           </Card>
         ) : (
-          <Card className="w-full relative flex-shrink-0">
+          <Card className="w-full relative flex flex-col max-h-[calc(100dvh-2rem)] min-h-0">
             <Button
               variant="ghost"
               size="icon"
@@ -140,11 +147,11 @@ export function ConnectionWizard() {
             >
               <X className="h-4 w-4" />
             </Button>
-            <CardHeader className="pb-4">
+            <CardHeader className="flex-shrink-0 px-4 pb-2 pt-6 sm:px-6 sm:pb-4">
               <CardTitle>Create a new connection</CardTitle>
               <CardDescription>Configure your ClickHouse connection settings.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 min-h-0 overflow-y-auto pt-4 px-4 sm:px-6 sm:pt-0">
               <ConnectionEditComponent
                 connection={null}
                 onSave={handleSave}
