@@ -13,7 +13,7 @@ import { v7 as uuidv7 } from "uuid";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Request body for chat-v2 (same shape as chat for compatibility). */
+/** Request body for chat/v2 (same shape as chat for compatibility). */
 interface ChatV2Request {
   messages?: UIMessage[];
   context?: ServerDatabaseContext;
@@ -90,7 +90,7 @@ function extractErrorMessage(error: unknown): string {
 }
 
 /**
- * POST /api/chat-v2
+ * POST /api/chat/v2
  *
  * Skill-based orchestrator: single agent with skill tool + validate_sql +
  * execute_sql + explore_schema + get_tables + optimization tools.

@@ -119,7 +119,7 @@ export class ChatFactory {
   }): Promise<Chat<AppUIMessage>> {
     const chatId = options.id || uuidv7();
     const skipStorage = options.skipStorage ?? false;
-    const apiEndpoint = options.apiEndpoint ?? "/api/chat-v2";
+    const apiEndpoint = options.apiEndpoint ?? "/api/chat/v2";
     const modelConfig = options.model;
     const connection = options.connection;
 
