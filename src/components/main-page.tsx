@@ -431,12 +431,12 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
   return (
     <div className="w-full max-w-2xl flex flex-col overflow-hidden">
       <Card className="w-full relative flex-shrink-0">
-        <CardHeader className="text-center space-y-1 pb-4">
+        <CardHeader className="text-center space-y-0 pb-8">
           <div className="flex justify-center items-center">
             <AppLogo width={64} height={64} />
             <CardTitle>DataStoria</CardTitle>
           </div>
-          <CardDescription className="text-base">
+          <CardDescription className="text-base text-muted-foreground">
             AI-powered ClickHouse management console with visualization and insights
           </CardDescription>
         </CardHeader>
