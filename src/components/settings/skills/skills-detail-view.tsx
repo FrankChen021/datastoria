@@ -319,7 +319,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
       ) : detail ? (
         <PanelGroup direction="horizontal" className="flex-1 overflow-hidden min-h-0">
           {/* ── Left panel — file content ── */}
-          <Panel defaultSize={60} minSize={20} className="flex flex-col overflow-hidden">
+          <Panel defaultSize={70} minSize={20} className="flex flex-col overflow-hidden">
             <div className="flex-shrink-0 px-3 py-1.5 border-b flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -372,7 +372,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
           <PanelResizeHandle className="w-0.5 bg-border hover:bg-primary/40 active:bg-primary/60 cursor-col-resize transition-colors" />
 
           {/* ── Right panel — directory tree ── */}
-          <Panel defaultSize={40} minSize={20} className="flex flex-col overflow-hidden">
+          <Panel defaultSize={30} minSize={20} className="flex flex-col overflow-hidden">
             <div className="flex-shrink-0 px-3 py-1.5 border-b">
               <span className="text-xs font-medium text-muted-foreground">Files</span>
             </div>

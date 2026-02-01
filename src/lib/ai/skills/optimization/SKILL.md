@@ -7,7 +7,7 @@ metadata:
 
 # SQL Optimization Skill
 
-Use this skill when the user asks to optimize slow queries, analyze performance, or find expensive queries by metric (cpu, memory, disk, duration). Workflow is evidence-driven: collect evidence with tools, then recommend based on evidence only.
+Workflow is evidence-driven: collect evidence with tools, then recommend based on evidence only.
 
 ## Pre-flight Check
 
