@@ -111,7 +111,7 @@ function HoverCardSidebarMenuItem({
     <SidebarMenuItem>
       <HoverCard openDelay={200} open={isOpen} onOpenChange={onOpenChange}>
         <HoverCardTrigger asChild>
-          <SidebarMenuButton size="lg" onPointerDown={onMenuItemPointerDown}>
+          <SidebarMenuButton size="default" onPointerDown={onMenuItemPointerDown}>
             {icon}
           </SidebarMenuButton>
         </HoverCardTrigger>
@@ -152,7 +152,7 @@ function ConnectionManageSidebarMenuItem() {
 
   const triggerButton = (
     <SidebarMenuButton
-      size="lg"
+      size="default"
       tooltip={
         tooltipAllowed
           ? {
@@ -198,7 +198,7 @@ function SystemTableIntrospectionSidebarMenuItem() {
       <Collapsible defaultOpen={false} className="group/collapsible">
         <SidebarMenuItem>
           <CollapsibleTrigger asChild>
-            <SidebarMenuButton size="lg" tooltip="View system tables">
+            <SidebarMenuButton size="default" tooltip="View system tables">
               <ScrollText className="h-5 w-5" />
               <span>System tables</span>
               <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -282,7 +282,7 @@ function DashboardSidebarMenuItem() {
   if (isClusterMode && isExpanded) {
     return (
       <SidebarMenuItem>
-        <SidebarMenuButton size="lg" tooltip="Dashboard">
+        <SidebarMenuButton size="default" tooltip="Dashboard">
           <ChartLine className="h-5 w-5" />
           <span>Dashboard</span>
         </SidebarMenuButton>
@@ -343,7 +343,7 @@ function DashboardSidebarMenuItem() {
           children: "Dashboard",
           className: "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
         }}
-        size="lg"
+        size="default"
         onClick={openNodeTab}
       >
         <ChartLine className="h-5 w-5" />
@@ -384,7 +384,7 @@ export function AppSidebar() {
                       className:
                         "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
                     }}
-                    size="lg"
+                    size="default"
                     onClick={() => TabManager.activateQueryTab()}
                   >
                     <Terminal className="h-5 w-5" />
@@ -399,7 +399,7 @@ export function AppSidebar() {
                       className:
                         "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
                     }}
-                    size="lg"
+                    size="default"
                     onClick={openChatPanel}
                   >
                     <Sparkles className="h-5 w-5" />
@@ -460,7 +460,7 @@ function SettingsSidebarMenuItem() {
       <Collapsible defaultOpen={false} className="group/collapsible">
         <SidebarMenuItem>
           <CollapsibleTrigger asChild>
-            <SidebarMenuButton size="lg" tooltip="Settings">
+            <SidebarMenuButton size="default" tooltip="Settings">
               <Settings className="h-5 w-5" />
               <span>Settings</span>
               <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -610,7 +610,7 @@ function DocumentationButton() {
 
   return (
     <SidebarMenuButton
-      size="lg"
+      size="default"
       tooltip={{
         children: "Documentation",
         className: simpleTooltipClass,
@@ -629,7 +629,7 @@ function GitHubButton() {
 
   return (
     <SidebarMenuButton
-      size="lg"
+      size="default"
       tooltip={{
         children: "View on GitHub",
         className: simpleTooltipClass,
