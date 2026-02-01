@@ -1,5 +1,6 @@
 "use client";
 
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { connect } from "echarts";
 import { ChevronRight } from "lucide-react";
@@ -147,6 +148,7 @@ interface DashboardGridPanelProps {
   descriptor: PanelDescriptor;
   panelIndex: number;
   isVisible: boolean;
+  isMobile?: boolean;
   onSubComponentUpdated: (
     subComponent: DashboardVisualizationComponent | null,
     index: number
@@ -166,6 +168,7 @@ const DashboardGridPanel: React.FC<DashboardGridPanelProps> = ({
   descriptor: chart,
   panelIndex,
   isVisible,
+  isMobile = false,
   onSubComponentUpdated,
   initialTimeSpan,
   initialFilterExpression,
@@ -187,7 +190,7 @@ const DashboardGridPanel: React.FC<DashboardGridPanelProps> = ({
 
   const gridStyle: React.CSSProperties = {
     display: isVisible ? "block" : "none",
-    gridColumn: `span ${gridPos.w}`,
+    gridColumn: isMobile ? "1 / -1" : `span ${gridPos.w}`,
     gridRow: `span ${effectiveRowSpan}`,
     minHeight: 0, // Allow grid item to shrink below content size
   };
@@ -197,12 +200,12 @@ const DashboardGridPanel: React.FC<DashboardGridPanelProps> = ({
   gridStyle.maxHeight = `${maxHeight}px`;
   gridStyle.overflow = "hidden";
 
-  // Use explicit positioning only if x/y are specified
-  if (gridPos.x !== undefined) {
+  // Use explicit positioning only if x/y are specified (and not on mobile, where we stack in one column)
+  if (!isMobile && gridPos.x !== undefined) {
     gridStyle.gridColumnStart = gridPos.x + 1;
     gridStyle.gridColumnEnd = gridPos.x + 1 + gridPos.w;
   }
-  if (gridPos.y !== undefined) {
+  if (!isMobile && gridPos.y !== undefined) {
     gridStyle.gridRowStart = gridPos.y + 1;
     gridStyle.gridRowEnd = gridPos.y + 1 + effectiveRowSpan;
   }
@@ -245,6 +248,8 @@ const DashboardPanelContainer = forwardRef<
 
     // Track registered refreshable children
     const registeredChildrenRef = useRef<Set<RefreshableChild>>(new Set());
+
+    const isMobile = useIsMobile();
 
     // Memoize the charts array from the dashboard
     // All dashboards must be version 3 with gridPos defined
@@ -474,7 +479,7 @@ const DashboardPanelContainer = forwardRef<
                   <div
                     className="grid gap-x-2 gap-y-2"
                     style={{
-                      gridTemplateColumns: "repeat(24, minmax(0, 1fr))",
+                      gridTemplateColumns: isMobile ? "1fr" : "repeat(24, minmax(0, 1fr))",
                       gridAutoRows: "minmax(32px, auto)",
                     }}
                   >
@@ -526,6 +531,7 @@ const DashboardPanelContainer = forwardRef<
                                   descriptor={chart}
                                   panelIndex={panelIndex}
                                   isVisible={isVisible}
+                                  isMobile={isMobile}
                                   onSubComponentUpdated={onSubComponentUpdated}
                                   initialTimeSpan={initialTimeSpan}
                                   initialFilterExpression={initialFilterExpression}
@@ -558,6 +564,7 @@ const DashboardPanelContainer = forwardRef<
                             descriptor={panelDescriptor}
                             panelIndex={panelIndex}
                             isVisible={isVisible}
+                            isMobile={isMobile}
                             onSubComponentUpdated={onSubComponentUpdated}
                             initialTimeSpan={initialTimeSpan}
                             initialFilterExpression={initialFilterExpression}
