@@ -19,6 +19,7 @@ Currently these system tables are supported:
 - **[system.query_views_log](./system-query-views-log.md)** — Monitor query view executions including materialized views and live views
 - **[system.part_log](./system-part-log.md)** — Monitor part-level operations including merges, mutations, and downloads
 - **[system.ddl_distribution_queue](./system-ddl-distributed-queue.md)** — Monitor distributed DDL operations across cluster nodes
+- **[system.zookeeper](./system-zookeeper.md)** — Browse and inspect ZooKeeper data with a tree-table interface
 - **system.dashboard** — Dashboard configuration and metadata
 
 You can access these introspection tools from the side bar icon button as shown below:
@@ -50,6 +51,12 @@ The Part Log Introspection tool tracks all part-level operations in your ClickHo
 The DDL Distribution Queue Introspection tool provides insights into distributed DDL operations across your ClickHouse cluster. It tracks how DDL statements (CREATE, ALTER, DROP, etc.) are distributed and executed across cluster nodes, helping you monitor DDL operation status, identify failures, and track execution progress.
 
 **[Learn more about system.ddl_distribution_queue →](./system-ddl-distributed-queue.md)**
+
+### system.zookeeper
+
+The ZooKeeper Introspection tool provides a tree-table interface to browse and inspect ZooKeeper data used by your ClickHouse cluster. Explore the hierarchical structure of znodes, view node values, and inspect metadata such as creation time, modification time, and child counts.
+
+**[Learn more about system.zookeeper →](./system-zookeeper.md)**
 
 ## Common Features
 

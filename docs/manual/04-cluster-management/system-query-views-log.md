@@ -59,4 +59,5 @@ It provides multiple filters and more dashboards on the metrics of views for bet
 - **[system.ddl_distribution_queue Introspection](./system-ddl-distributed-queue.md)** — Monitor distributed DDL operations
 - **[system.part_log Introspection](./system-part-log.md)** — Monitor part-level operations
 - **[system.query_log Introspection](./system-query-log.md)** — Analyze query execution logs
+- **[system.zookeeper Introspection](./system-zookeeper.md)** — Browse ZooKeeper data
 
