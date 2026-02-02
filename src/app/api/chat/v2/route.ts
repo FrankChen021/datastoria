@@ -3,8 +3,10 @@ import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "@/lib/ai/agent/orchestrator-prompt";
 import type { MessageMetadata } from "@/lib/ai/chat-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
+import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { ClientTools } from "@/lib/ai/tools/client/client-tools";
-import { SERVER_TOOL_NAMES, ServerTools } from "@/lib/ai/tools/server/server-tools";
+import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
+import { ServerTools } from "@/lib/ai/tools/server/server-tools";
 import { APICallError } from "@ai-sdk/provider";
 import { convertToModelMessages, RetryError, stepCountIs, streamText, type UIMessage } from "ai";
 import type { Session } from "next-auth";
@@ -36,7 +38,7 @@ function getMessageIdFromMessages(messages: UIMessage[]): string {
     lastAssistant && "id" in lastAssistant && typeof lastAssistant.id === "string"
       ? lastAssistant.id
       : undefined;
-  return id ?? uuidv7().replace(/-/g, "");
+  return id ?? uuidv7();
 }
 
 function extractErrorMessageFromLLMProvider(
@@ -170,6 +172,25 @@ export async function POST(req: Request) {
     const originalMessages = apiRequest.messages ?? [];
     const modelMessages = await convertToModelMessages(originalMessages);
 
+    // Request usage: only when continuing an assistant (messageId in request); else undefined for new message
+    const msgs = originalMessages;
+    let continuedAssistant: UIMessage | undefined;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i];
+      if (m.role === "assistant" && m.id === messageId) {
+        continuedAssistant = m;
+        break;
+      }
+    }
+    const requestUsage = continuedAssistant
+      ? normalizeUsage(
+          (continuedAssistant as { metadata?: { usage?: unknown } }).metadata?.usage as Record<
+            string,
+            unknown
+          >
+        )
+      : undefined;
+
     const result = streamText({
       model,
       system: ORCHESTRATOR_SYSTEM_PROMPT,
@@ -190,9 +211,16 @@ export async function POST(req: Request) {
     return result.toUIMessageStreamResponse({
       originalMessages: originalMessages as UIMessage[],
       generateMessageId: () => messageId,
-      messageMetadata: ({ part }: { part: { type: string; totalUsage?: unknown } }) => {
+      messageMetadata: ({
+        part,
+      }: {
+        part: { type: string; totalUsage?: unknown; usage?: unknown };
+      }) => {
         if (part.type !== "finish") return undefined;
-        const usage = part.totalUsage as MessageMetadata["usage"] | undefined;
+        const responseUsage = normalizeUsage(
+          (part.totalUsage ?? part.usage) as Record<string, unknown>
+        );
+        const usage = sumTokenUsage([requestUsage, responseUsage]);
         return { usage } as MessageMetadata;
       },
       onError: (error: unknown) => {
