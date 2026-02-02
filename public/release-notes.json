@@ -1,5 +1,17 @@
 [
   {
+    "id": "afc3c65",
+    "date": "2026-02-02T12:15:44.679Z",
+    "notes": [
+      {
+        "text": "Support smaller devices for convenience",
+        "pr": 19,
+        "type": "feature",
+        "merged_at": "2026-02-01T16:14:14Z"
+      }
+    ]
+  },
+  {
     "id": "97794c5",
     "date": "2026-02-01T04:38:44.963Z",
     "notes": [
