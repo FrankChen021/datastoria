@@ -1,6 +1,7 @@
 import type { ChatUIMessage } from "@/app/api/chat/route";
-import { SERVER_TOOL_PLAN, type PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
+import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import { intentFromKey, type Intent } from "@/lib/ai/agent/plan/sub-agent-registry";
+import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import type { UIMessage } from "ai";
 import { v7 as uuidv7 } from "uuid";
 
@@ -91,7 +92,7 @@ export class InputMessages {
       if (Array.isArray(msg.parts)) {
         for (let j = msg.parts.length - 1; j >= 0; j--) {
           const part = msg.parts[j];
-          if (part.type === "dynamic-tool" && part.toolName === SERVER_TOOL_PLAN) {
+          if (part.type === "dynamic-tool" && part.toolName === SERVER_TOOL_NAMES.PLAN) {
             const output = part.output as PlanToolOutput;
             if (output.intent) {
               const intent = intentFromKey(output.intent);

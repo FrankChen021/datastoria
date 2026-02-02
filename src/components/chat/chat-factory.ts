@@ -1,14 +1,11 @@
 import { ModelManager } from "@/components/settings/models/model-manager";
-import { SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planning-agent";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
-import { SERVER_TOOL_GENERATE_SQL } from "@/lib/ai/agent/sql-generation-agent";
-import { SERVER_TOOL_OPTIMIZE_SQL } from "@/lib/ai/agent/sql-optimization-agent";
-import { SERVER_TOOL_GENEREATE_VISUALIZATION } from "@/lib/ai/agent/visualization-agent";
 import type { AppUIMessage, Message, MessageMetadata } from "@/lib/ai/chat-types";
 import { MODELS } from "@/lib/ai/llm/llm-provider-factory";
 import type { StageStatus, ToolProgressCallback } from "@/lib/ai/tools/client/client-tool-types";
 import { CLIENT_TOOL_NAMES, ClientToolExecutors } from "@/lib/ai/tools/client/client-tools";
 import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
+import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { Connection } from "@/lib/connection/connection";
 import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
@@ -227,10 +224,11 @@ export class ChatFactory {
       onToolCall: async ({ toolCall }) => {
         const { toolName, toolCallId, input } = toolCall;
         if (
-          toolName === SERVER_TOOL_GENERATE_SQL ||
-          toolName === SERVER_TOOL_GENEREATE_VISUALIZATION ||
-          toolName === SERVER_TOOL_OPTIMIZE_SQL ||
-          toolName === SERVER_TOOL_PLAN
+          toolName === SERVER_TOOL_NAMES.GENERATE_SQL ||
+          toolName === SERVER_TOOL_NAMES.GENERATE_VISUALIZATION ||
+          toolName === SERVER_TOOL_NAMES.OPTIMIZE_SQL ||
+          toolName === SERVER_TOOL_NAMES.PLAN ||
+          toolName === SERVER_TOOL_NAMES.SKILL
         ) {
           return;
         }
@@ -309,7 +307,7 @@ export class ChatFactory {
               message.role === "assistant" &&
               message.parts.length > 1 &&
               message.parts[0].type === "dynamic-tool" &&
-              message.parts[0].toolName === SERVER_TOOL_PLAN
+              message.parts[0].toolName === SERVER_TOOL_NAMES.PLAN
             ) {
               const output = message.parts[0].output as PlanToolOutput;
               if (output.title) {

@@ -23,11 +23,6 @@ export const sqlSubAgentOutputSchema = z.object({
 export type SQLSubAgentOutput = z.infer<typeof sqlSubAgentOutputSchema>;
 
 /**
- * Server-side tool name for SQL generation
- */
-export const SERVER_TOOL_GENERATE_SQL = "generate_sql" as const;
-
-/**
  * Build user context section for SQL generation prompts
  */
 function buildUserContextSection(context?: ServerDatabaseContext): string {

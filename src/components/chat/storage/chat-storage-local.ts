@@ -136,7 +136,7 @@ export class ChatStorageLocal implements ChatStorage {
     const currentChatIdToExclude = currentChatId || chatIdFromKey;
 
     // Loop until save succeeds or no more chats to remove
-    for (; ;) {
+    for (;;) {
       try {
         // Try to save
         saveFn();
@@ -157,7 +157,7 @@ export class ChatStorageLocal implements ChatStorage {
           if (remainingChats.length === 0 && currentChatIdToExclude && !hasPrunedMessages) {
             // Only one chat left (the current one), prune old messages
             // Loop until no more messages can be removed
-            for (; ;) {
+            for (;;) {
               const removedMessageCount = await this.cleanupOldMessages(
                 currentChatIdToExclude,
                 100
@@ -182,7 +182,7 @@ export class ChatStorageLocal implements ChatStorage {
             // If we have the current chat and haven't pruned yet, try pruning its messages as last resort
             if (currentChatIdToExclude && !hasPrunedMessages) {
               // Loop until no more messages can be removed
-              for (; ;) {
+              for (;;) {
                 const removedMessageCount = await this.cleanupOldMessages(
                   currentChatIdToExclude,
                   100
@@ -229,8 +229,8 @@ export class ChatStorageLocal implements ChatStorage {
     if (aOrder != null && bOrder != null) {
       return aOrder - bOrder;
     }
-
-    // Use id for legacy messages without sequence
+    const timeCmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    if (timeCmp !== 0) return timeCmp;
     return a.id.localeCompare(b.id);
   }
 
@@ -336,9 +336,7 @@ export class ChatStorageLocal implements ChatStorage {
       updatedAt: new Date(message.updatedAt),
     }));
 
-    //
-    // Migrate original format to new format that has 'sequence' property
-    //
+    // Backfill sequence on legacy messages when loading (migration-on-read)
     const needsBackfill = messages.some((m) => m.sequence == null);
     if (needsBackfill && messages.length > 0) {
       const sorted = [...messages].sort((a, b) => this.compareMessages(a, b));
@@ -347,8 +345,10 @@ export class ChatStorageLocal implements ChatStorage {
         sorted[i].sequence = sequence;
         messagesMap[sorted[i].id] = sorted[i];
       }
+      await this.saveMessagesForChat(chatId, messagesMap);
     }
 
+    // Sort and return (uses sequence when present, else createdAt+id for legacy)
     return messages.sort((a, b) => this.compareMessages(a, b));
   }
 

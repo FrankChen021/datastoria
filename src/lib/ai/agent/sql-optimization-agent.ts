@@ -5,11 +5,6 @@ import type { ServerDatabaseContext } from "./common-types";
 import type { InputModel } from "./plan/sub-agent-registry";
 
 /**
- * Server-side tool name for SQL optimization
- */
-export const SERVER_TOOL_OPTIMIZE_SQL = "optimize_sql" as const;
-
-/**
  * Streaming SQL Optimization Agent
  *
  * For use in the Two-Call Dispatcher pattern.

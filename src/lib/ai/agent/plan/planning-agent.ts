@@ -1,6 +1,6 @@
 import { InputMessages } from "@/lib/ai/agent/plan/planning-input";
 import { PlannerPromptBuilder, uiMessageToText } from "@/lib/ai/agent/plan/planning-prompt-builder";
-import { SERVER_TOOL_PLAN, type PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
+import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import {
   SUB_AGENTS,
   type InputModel,
@@ -8,16 +8,14 @@ import {
   type SubAgent,
 } from "@/lib/ai/agent/plan/sub-agent-registry";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
+import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import type { SseStreamer } from "@/lib/sse-streamer";
 import { generateText, Output, type LanguageModelUsage, type UIMessage } from "ai";
 import { v7 as uuidv7 } from "uuid";
 import { z } from "zod";
 
 export { InputMessages } from "@/lib/ai/agent/plan/planning-input";
-export {
-  SERVER_TOOL_PLAN,
-  type PlanToolOutput as PlanToolResult,
-} from "@/lib/ai/agent/plan/planning-types";
+export { type PlanToolOutput as PlanToolResult } from "@/lib/ai/agent/plan/planning-types";
 
 /**
  * Intent classification schema
@@ -87,7 +85,7 @@ export class PlanningAgent {
     streamer.streamObject({
       type: "tool-input-available",
       toolCallId,
-      toolName: SERVER_TOOL_PLAN,
+      toolName: SERVER_TOOL_NAMES.PLAN,
       input: {},
       dynamic: true,
     });

@@ -1,11 +1,12 @@
 import { auth } from "@/auth";
 import type { DatabaseContext } from "@/components/chat/chat-context";
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
-import { PlanningAgent, SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planning-agent";
+import { PlanningAgent } from "@/lib/ai/agent/plan/planning-agent";
 import type { PlannerMetadata } from "@/lib/ai/agent/plan/planning-types";
 import type { MessageMetadata } from "@/lib/ai/chat-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
+import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { SseStreamer } from "@/lib/sse-streamer";
 import { APICallError } from "@ai-sdk/provider";
 import { convertToModelMessages, RetryError, type UIMessage } from "ai";
@@ -225,7 +226,7 @@ export async function POST(req: Request) {
           const prunedMessages = (inputMessages || []).map((m: any) => {
             const parts = Array.isArray(m.parts)
               ? m.parts.filter(
-                  (p: any) => !(p.type === "dynamic-tool" && p.toolName === SERVER_TOOL_PLAN)
+                  (p: any) => !(p.type === "dynamic-tool" && p.toolName === SERVER_TOOL_NAMES.PLAN)
                 )
               : m.parts;
             return { ...m, parts };

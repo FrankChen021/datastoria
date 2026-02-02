@@ -1,9 +1,10 @@
 import { streamText } from "ai";
 import { LanguageModelProviderFactory } from "../llm/llm-provider-factory";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
+import { SERVER_TOOL_NAMES } from "../tools/server/server-tool-names";
 import type { ServerDatabaseContext } from "./common-types";
 import type { InputModel } from "./plan/sub-agent-registry";
-import { createGenerateSqlTool, SERVER_TOOL_GENERATE_SQL } from "./sql-generation-agent";
+import { createGenerateSqlTool } from "./sql-generation-agent";
 
 /**
  * General Agent
@@ -91,7 +92,7 @@ Guidelines:
     tools: {
       get_tables: clientTools.get_tables,
       explore_schema: clientTools.explore_schema,
-      [SERVER_TOOL_GENERATE_SQL]: createGenerateSqlTool(modelConfig, context),
+      [SERVER_TOOL_NAMES.GENERATE_SQL]: createGenerateSqlTool(modelConfig, context),
       validate_sql: clientTools.validate_sql,
       execute_sql: clientTools.execute_sql,
     },
