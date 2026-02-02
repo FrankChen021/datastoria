@@ -59,6 +59,12 @@ export interface Message {
    * The UI reads fields like `metadata.usage` and `metadata.planner`.
    */
   metadata?: MessageMetadata;
+  /**
+   * Explicit sequence number for deterministic message ordering.
+   * Immune to client/server clock skew. Optional for backward compatibility with
+   * existing messages that were saved before this field was introduced.
+   */
+  sequence?: number;
   createdAt: Date;
   updatedAt: Date;
 }

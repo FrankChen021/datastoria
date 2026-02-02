@@ -172,7 +172,6 @@ export class ChatFactory {
                   metadata: msg.metadata,
                   createdAt: now,
                   updatedAt: now,
-                  usage: undefined,
                 } as Message;
               });
 
