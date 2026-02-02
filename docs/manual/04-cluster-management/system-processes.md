@@ -84,3 +84,4 @@ Each row includes an action column with a "Kill" button that allows you to termi
 - **[system.query_log Introspection](./system-query-log.md)** — Analyze completed queries and query history
 - **[System Log Introspection](./system-log-introspection.md)** — Overview of all system log tools
 - **[Query Log Inspector](../03-query-experience/query-log-inspector.md)** — Analyze specific query execution details
+- **[system.zookeeper Introspection](./system-zookeeper.md)** — Browse ZooKeeper data

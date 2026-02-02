@@ -4,6 +4,7 @@ import { PartLog } from "./part-log";
 import { Processes } from "./processes";
 import { QueryLog } from "./query-log";
 import { QueryViewsLog } from "./query-views-log";
+import { Zookeeper } from "./zookeeper";
 
 /**
  * Type definition for a system table tab entry
@@ -24,6 +25,7 @@ export const SYSTEM_TABLE_REGISTRY = new Map<string, SystemTableTabEntry>([
   ["query_views_log", { component: QueryViewsLog }],
   ["part_log", { component: PartLog }],
   ["processes", { component: Processes }],
+  ["zookeeper", { component: Zookeeper }],
 ]);
 
 function normalizeSystemTableName(tableName: string): string {

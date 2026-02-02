@@ -153,4 +153,5 @@ Each query log row includes an action menu with AI-powered features:
 - **[system.ddl_distribution_queue Introspection](./system-ddl-distributed-queue.md)** — Monitor distributed DDL operations
 - **[system.part_log Introspection](./system-part-log.md)** — Monitor part-level operations
 - **[system.query_views_log Introspection](./system-query-views-log.md)** — Monitor query view executions
+- **[system.zookeeper Introspection](./system-zookeeper.md)** — Browse ZooKeeper data
 

@@ -59,4 +59,5 @@ It provides multiple filters and distribution charts as well as a detail table f
 - **[system.ddl_distribution_queue Introspection](./system-ddl-distributed-queue.md)** — Monitor distributed DDL operations
 - **[system.query_log Introspection](./system-query-log.md)** — Analyze query execution logs
 - **[system.query_views_log Introspection](./system-query-views-log.md)** — Monitor query view executions
+- **[system.zookeeper Introspection](./system-zookeeper.md)** — Browse ZooKeeper data
 

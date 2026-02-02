@@ -140,4 +140,5 @@ The DDL distribution queue supports filtering:
 - **[system.part_log Introspection](./system-part-log.md)** — Monitor part-level operations
 - **[system.query_log Introspection](./system-query-log.md)** — Analyze query execution logs
 - **[system.query_views_log Introspection](./system-query-views-log.md)** — Monitor query view executions
+- **[system.zookeeper Introspection](./system-zookeeper.md)** — Browse ZooKeeper data
 

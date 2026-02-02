@@ -13,7 +13,7 @@ import type {
 } from "@/components/shared/dashboard/dashboard-model";
 import DashboardPage from "@/components/shared/dashboard/dashboard-page";
 import { QueryIdLink } from "@/components/shared/query-id-link";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { OpenTableTabButton } from "../table-tab/open-table-tab-button";
 
 interface QueryViewsLogProps {
@@ -21,7 +21,7 @@ interface QueryViewsLogProps {
   table: string;
 }
 
-export const QueryViewsLog = ({ database: _database, table: _table }: QueryViewsLogProps) => {
+export const QueryViewsLog = memo(({ database: _database, table: _table }: QueryViewsLogProps) => {
   const { connection } = useConnection();
 
   const filterSpecs = useMemo<FilterSpec[]>(() => {
@@ -409,4 +409,4 @@ ORDER BY event_time DESC
       chartSelectionFilterName="type"
     />
   );
-};
+});
