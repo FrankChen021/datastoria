@@ -2,23 +2,16 @@
 
 import { AppLogo } from "@/components/app-logo";
 import { useConnection } from "@/components/connection/connection-context";
-import type { AppUIMessage, TokenUsage } from "@/lib/ai/chat-types";
+import type { AppUIMessage } from "@/lib/ai/chat-types";
 import "@/lib/number-utils"; // Ensure formatTimeDiff is available
 
 import { useChat, type Chat } from "@ai-sdk/react";
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ChatContext } from "../chat-context";
 import { ChatInput, type ChatInputHandle } from "../input/chat-input";
 import { getTableContextByMentions } from "../input/mention-utils";
 import { ChatMessageList } from "../message/chat-message-list";
+import { useTokenUsage } from "./use-token-usage";
 
 export type Question = { text: string; autoRun?: boolean };
 
@@ -152,38 +145,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
 
   const isRunning = status === "streaming" || status === "submitted";
 
-  // Calculate total token usage
-  const tokenUsage = useMemo((): TokenUsage => {
-    if (!messages)
-      return {
-        totalTokens: 0,
-        inputTokens: 0,
-        outputTokens: 0,
-        reasoningTokens: 0,
-        cachedInputTokens: 0,
-      };
-    return (messages as AppUIMessage[]).reduce(
-      (acc, msg) => {
-        const mAny = msg as any;
-        const usage = mAny.metadata?.usage;
-        if (usage) {
-          acc.totalTokens += usage.totalTokens || 0;
-          acc.inputTokens += usage.inputTokens || 0;
-          acc.outputTokens += usage.outputTokens || 0;
-          acc.reasoningTokens += usage.reasoningTokens || 0;
-          acc.cachedInputTokens += usage.cachedInputTokens || 0;
-        }
-        return acc;
-      },
-      {
-        totalTokens: 0,
-        inputTokens: 0,
-        outputTokens: 0,
-        reasoningTokens: 0,
-        cachedInputTokens: 0,
-      }
-    );
-  }, [messages]);
+  const tokenUsage = useTokenUsage(messages as AppUIMessage[]);
 
   const isEmpty = !messages || messages.length === 0;
 

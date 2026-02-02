@@ -4,11 +4,12 @@ import { UserProfileImage } from "@/components/user-profile-image";
 import { SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planning-agent";
 import { SERVER_TOOL_GENERATE_SQL } from "@/lib/ai/agent/sql-generation-agent";
 import { SERVER_TOOL_GENEREATE_VISUALIZATION } from "@/lib/ai/agent/visualization-agent";
-import type { AppUIMessage, TokenUsage, ToolPart } from "@/lib/ai/chat-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { cn } from "@/lib/utils";
 import NumberFlow from "@number-flow/react";
+import type { LanguageModelUsage } from "ai";
 import { Info } from "lucide-react";
 import { memo } from "react";
 import { ErrorMessageDisplay } from "./message-error";
@@ -26,21 +27,27 @@ import { MessageToolValidateSql } from "./message-tool-validate-sql";
 import { MessageUser } from "./message-user";
 
 /**
- * Display token usage information per message
+ * Display token usage information per message.
+ * Uses LanguageModelUsage (non-deprecated fields).
  */
 const TokenUsageDisplay = memo(function TokenUsageDisplay({
   id,
   usage,
 }: {
   id: string;
-  usage: TokenUsage;
+  usage: LanguageModelUsage | null | undefined;
 }) {
-  const show =
-    usage.totalTokens > 0 ||
-    usage.inputTokens > 0 ||
-    usage.outputTokens > 0 ||
-    usage.reasoningTokens > 0 ||
-    usage.cachedInputTokens > 0;
+  if (usage == null) {
+    return null;
+  }
+
+  const total = usage.totalTokens ?? 0;
+  const input = usage.inputTokens ?? 0;
+  const output = usage.outputTokens ?? 0;
+  const reasoning = usage.outputTokenDetails?.reasoningTokens ?? 0;
+  const cacheRead = usage.inputTokenDetails?.cacheReadTokens ?? 0;
+
+  const show = total > 0 || input > 0 || output > 0 || reasoning > 0 || cacheRead > 0;
   if (!show) return null;
   return (
     <div
@@ -53,33 +60,33 @@ const TokenUsageDisplay = memo(function TokenUsageDisplay({
       <div className="flex items-center gap-1">
         <span className="font-medium">Tokens:</span>
         <span className="">
-          <NumberFlow value={usage.totalTokens} />
+          <NumberFlow value={total} />
         </span>
 
         <span className="font-medium">; Input Tokens:</span>
         <span className="">
-          <NumberFlow value={usage.inputTokens} />
+          <NumberFlow value={input} />
         </span>
 
         <span className="font-medium">; Output Tokens:</span>
         <span className="">
-          <NumberFlow value={usage.outputTokens} />
+          <NumberFlow value={output} />
         </span>
 
-        {usage.reasoningTokens != null && usage.reasoningTokens > 0 && (
+        {reasoning > 0 && (
           <>
             <span className="font-medium">; Reasoning Tokens:</span>
             <span className="">
-              <NumberFlow value={usage.reasoningTokens} />
+              <NumberFlow value={reasoning} />
             </span>
           </>
         )}
 
-        {usage.cachedInputTokens != null && usage.cachedInputTokens > 0 && (
+        {cacheRead > 0 && (
           <>
             <span className="font-medium">; Cached Input Tokens:</span>
             <span className="">
-              <NumberFlow value={usage.cachedInputTokens} />
+              <NumberFlow value={cacheRead} />
             </span>
           </>
         )}
@@ -183,7 +190,6 @@ export const ChatMessage = memo(function ChatMessage({
   const isUser = message.role === "user";
   const timestamp = message.createdAt ? new Date(message.createdAt).getTime() : Date.now();
   const parts = message.parts || [];
-  const usage = message.metadata?.usage as TokenUsage | undefined;
   const error = (message as any).error as Error | undefined;
 
   const showLoading = !isUser && isLoading;
@@ -200,43 +206,55 @@ export const ChatMessage = memo(function ChatMessage({
         {/* Left color bar to distinguish user vs assistant messages */}
         <div
           className={cn(
-            "self-stretch w-1",
+            "self-stretch w-1 flex-shrink-0",
             isUser ? "bg-sky-400 dark:bg-sky-500" : "bg-emerald-400 dark:bg-emerald-500"
           )}
         />
 
-        {/* Profile and message row - aligned at top */}
-        <div className="flex-shrink-0 w-[28px] flex justify-center">
-          {isUser ? (
-            <UserProfileImage />
-          ) : (
-            <div className="h-6 w-6 flex items-center justify-center">
-              <AppLogo className="h-6 w-6" />
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Profile and message row - aligned at top */}
+          <div className="flex gap-[1px]">
+            <div className="flex-shrink-0 w-[28px] flex justify-center">
+              {isUser ? (
+                <UserProfileImage />
+              ) : (
+                <div className="h-6 w-6 flex items-center justify-center">
+                  <AppLogo className="h-6 w-6" />
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="flex-1 overflow-hidden min-w-0 text-sm pr-6">
-          {parts.length === 0 && isLoading && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              {/* Under the state that request is submitted, but server has not responded yet */}
-              <span>Thinking</span>
+            <div className="flex-1 overflow-hidden min-w-0 text-sm pr-6">
+              {parts.length === 0 && isLoading && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  {/* Under the state that request is submitted, but server has not responded yet */}
+                  <span>Thinking</span>
+                </div>
+              )}
+              {parts.length === 0 && !isLoading && !error && "Nothing returned"}
+              {parts.map((part: AppUIMessage["parts"][0], i: number) => (
+                <ChatMessagePart key={i} part={part} isUser={isUser} isRunning={isRunning} />
+              ))}
+              {error && <ErrorMessageDisplay errorText={error.message || String(error)} />}
+              {showLoading && (
+                <div className="mt-2 flex items-center gap-2 text-muted-foreground">
+                  <TypingDots />
+                </div>
+              )}
             </div>
-          )}
-          {parts.length === 0 && !isLoading && !error && "Nothing returned"}
-          {parts.map((part: AppUIMessage["parts"][0], i: number) => (
-            <ChatMessagePart key={i} part={part} isUser={isUser} isRunning={isRunning} />
-          ))}
-          {error && <ErrorMessageDisplay errorText={error.message || String(error)} />}
-          {showLoading && (
-            <div className="mt-2 flex items-center gap-2 text-muted-foreground">
-              <TypingDots />
+          </div>
+
+          {/* Token usage row - enclosed by color bar, left-aligned with profile section */}
+          {!isUser && (
+            <div className="flex flex-1 min-w-0 pr-6">
+              <TokenUsageDisplay
+                id={message.id + "-usage"}
+                usage={message.metadata?.usage as LanguageModelUsage | undefined}
+              />
             </div>
           )}
         </div>
       </div>
-
-      {!isUser && usage && <TokenUsageDisplay id={message.id + "-usage"} usage={usage} />}
     </div>
   );
 });

@@ -1,5 +1,5 @@
 import type { Intent } from "@/lib/ai/agent/plan/sub-agent-registry";
-import type { TokenUsage } from "@/lib/ai/chat-types";
+import type { LanguageModelUsage } from "ai";
 
 /**
  * A simulated server tool used to show progress at client as soon as possible and track identified intent
@@ -12,7 +12,7 @@ export const SERVER_TOOL_PLAN = "plan" as const;
 export interface PlanToolOutput {
   intent: Intent;
   title: string | undefined;
-  usage: TokenUsage | undefined;
+  usage: LanguageModelUsage | undefined;
   reasoning: string | undefined;
 }
 
@@ -21,5 +21,5 @@ export interface PlanToolOutput {
  */
 export type PlannerMetadata = {
   intent: Intent;
-  usage: TokenUsage;
+  usage: LanguageModelUsage;
 };

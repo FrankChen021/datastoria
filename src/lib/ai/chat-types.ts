@@ -1,14 +1,6 @@
 import type { PlannerMetadata } from "@/lib/ai/agent/plan/planning-types";
 import type { ClientTools } from "@/lib/ai/tools/client/client-tools";
-import type { InferUITools, UIDataTypes, UIMessage } from "ai";
-
-export type TokenUsage = {
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-  reasoningTokens: number;
-  cachedInputTokens: number;
-};
+import type { InferUITools, LanguageModelUsage, UIDataTypes, UIMessage } from "ai";
 
 export type MessageRole = "user" | "assistant" | "system" | "data" | "tool";
 
@@ -46,7 +38,7 @@ export type MessagePart = TextPart | ToolCallPart | ToolResultPart;
  */
 export type MessageMetadata = {
   planner?: PlannerMetadata;
-  usage?: TokenUsage;
+  usage?: LanguageModelUsage;
   // Allow arbitrary extra metadata fields coming from the SDK or future agents
   [key: string]: unknown;
 };

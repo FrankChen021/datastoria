@@ -7,10 +7,9 @@ import {
   type Intent,
   type SubAgent,
 } from "@/lib/ai/agent/plan/sub-agent-registry";
-import type { TokenUsage } from "@/lib/ai/chat-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import type { SseStreamer } from "@/lib/sse-streamer";
-import { generateText, Output, type UIMessage } from "ai";
+import { generateText, Output, type LanguageModelUsage, type UIMessage } from "ai";
 import { v7 as uuidv7 } from "uuid";
 import { z } from "zod";
 
@@ -226,23 +225,12 @@ async function classifyByLLM(input: InputMessages, modelConfig: InputModel): Pro
       }
     }
 
-    const plannerTokenUsage: TokenUsage | undefined = usage
-      ? {
-          inputTokens: usage.inputTokens || 0,
-          outputTokens: usage.outputTokens || 0,
-          totalTokens: usage.totalTokens || 0,
-          reasoningTokens: usage.reasoningTokens || usage.outputTokenDetails?.reasoningTokens || 0,
-          cachedInputTokens:
-            usage.cachedInputTokens || usage.inputTokenDetails?.cacheReadTokens || 0,
-        }
-      : undefined;
-
     return {
       intent: llmOutput.intent as Intent,
       reasoning: llmOutput.reasoning,
       title: llmOutput.title,
       agent: SUB_AGENTS[llmOutput.intent as Intent] ?? SUB_AGENTS.general,
-      usage: plannerTokenUsage,
+      usage: usage,
     };
   } catch {
     return {

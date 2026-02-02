@@ -5,6 +5,7 @@ import { PlanningAgent, SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planning-ag
 import type { PlannerMetadata } from "@/lib/ai/agent/plan/planning-types";
 import type { MessageMetadata } from "@/lib/ai/chat-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
+import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { SseStreamer } from "@/lib/sse-streamer";
 import { APICallError } from "@ai-sdk/provider";
 import { convertToModelMessages, RetryError, type UIMessage } from "ai";
@@ -238,6 +239,20 @@ export async function POST(req: Request) {
             context,
           });
 
+          // Request usage: only when continuing an assistant (messageId in request); else 0 for new message
+          const msgs = apiRequest.messages ?? [];
+          let continuedAssistant: ChatUIMessage | undefined;
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            const m = msgs[i];
+            if (m.role === "assistant" && m.id === messageId) {
+              continuedAssistant = m;
+              break;
+            }
+          }
+          const requestUsage = continuedAssistant
+            ? normalizeUsage(continuedAssistant.metadata?.usage)
+            : undefined;
+
           // 3. Convert to UI message stream
           // We use sendStart: false and sendReasoning: false because we already handled that part
           // Sub-agents all return streamText() result; assert shape for toUIMessageStream
@@ -251,33 +266,29 @@ export async function POST(req: Request) {
             // Since we start the streaming above, DISABLE the internal start message
             sendStart: false,
 
-            //
-            // Attach metadata in the message
-            //
-            messageMetadata: ({ part }: { part: any }) => {
+            messageMetadata: ({
+              part,
+            }: {
+              part: { type?: string; totalUsage?: unknown; usage?: unknown };
+            }) => {
               if (part.type === "finish") {
-                // Only add metadata on finish events
-                const subAgentUsage = part.totalUsage || {};
-
+                const responseUsage = normalizeUsage(
+                  (part.totalUsage ?? part.usage) as Record<string, unknown>
+                );
+                const usage = sumTokenUsage([
+                  requestUsage,
+                  responseUsage,
+                  plannerUsage
+                    ? normalizeUsage(plannerUsage as Record<string, unknown>)
+                    : undefined,
+                ]);
                 return {
-                  // Sum planner and agent usage together
-                  usage: {
-                    inputTokens:
-                      (subAgentUsage.inputTokens || 0) + (plannerUsage?.inputTokens || 0),
-                    outputTokens:
-                      (subAgentUsage.outputTokens || 0) + (plannerUsage?.outputTokens || 0),
-                    totalTokens:
-                      (subAgentUsage.totalTokens || 0) + (plannerUsage?.totalTokens || 0),
-                    reasoningTokens:
-                      (subAgentUsage.reasoningTokens || 0) + (plannerUsage?.reasoningTokens || 0),
-                    cachedInputTokens:
-                      (subAgentUsage.cachedInputTokens || 0) +
-                      (plannerUsage?.cachedInputTokens || 0),
-                  },
+                  // Return the accumulative token usage for this message
+                  usage,
 
-                  // Track the agent that generated the response
-                  // Client side can prune history message, we can use this info to find out the latest used agent
+                  // Mainly for development
                   planner: { intent: agent.id, usage: plannerUsage } as PlannerMetadata,
+                  responseUsage,
                 } as MessageMetadata;
               }
             },
@@ -292,7 +303,6 @@ export async function POST(req: Request) {
             },
           });
 
-          // 5. Pipe the rest of the stream
           const reader = agentStream.getReader();
           while (true) {
             const { done, value } = await reader.read();

@@ -3,7 +3,7 @@
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { TokenUsage } from "@/lib/ai/chat-types";
+import type { LanguageModelUsage } from "ai";
 import { MessageSquarePlus, Send, Square } from "lucide-react";
 import * as React from "react";
 import { ChatTokenStatus } from "../message/chat-token-status";
@@ -19,7 +19,7 @@ interface ChatInputProps {
   onStop?: () => void;
   isRunning: boolean;
   hasMessages?: boolean;
-  tokenUsage?: TokenUsage;
+  tokenUsage?: LanguageModelUsage;
   onNewChat?: () => void;
   externalInput?: string;
 }
