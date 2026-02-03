@@ -200,8 +200,11 @@ When the Schema Context shows PRIMARY KEY or PARTITION BY for a table, you MUST 
 
 **PRIMARY KEY Usage**:
 - If PRIMARY KEY is shown (e.g., \`PRIMARY KEY: event_date, event_time\`), add filters on these columns in WHERE clause if possible
+- **CRITICAL**: You MUST include a filter on the **leading column** of the Primary Key (e.g., \`event_date\`) if you are filtering on other time-based columns (e.g., \`event_time\`). This applies whether the PK is composite or single.
+- Example: If PK starts with \`event_date\` and you filter by \`event_time\`:
+  * BAD: \`WHERE event_time >= now() - INTERVAL 1 HOUR\`
+  * GOOD: \`WHERE event_date >= today() - 1 AND event_time >= now() - INTERVAL 1 HOUR\`
 - Order results by primary key columns when possible for efficient scanning
-- Example: For \`PRIMARY KEY: event_date, event_time\`, add \`WHERE event_date >= today() - 7\` and \`ORDER BY event_date, event_time\`
 
 **PARTITION BY Usage**:
 - If PARTITION BY is shown (e.g., \`PARTITION BY: toYYYYMM(event_date)\`), include a filter on the partition column if possible

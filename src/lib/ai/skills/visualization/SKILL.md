@@ -25,6 +25,9 @@ When the user asks for charts, graphs, or visual representations, follow this wo
 **c) After validation passes:**
 - **Include the full chart spec in your response** using a markdown code block with language `chart-spec`. The content must be valid JSON matching the OUTPUT FORMAT below, and **must include** `datasource: { "sql": "<the validated SQL>" }`. Derive type, titleOption, legendOption, etc. from the CHART TYPE RULES and OUTPUT FORMAT above. Do not call any tool for this—put the complete spec in your reply.
 
+**d) Execution:**
+- **PROHIBITED**: Do **NOT** call `execute_sql`. The chart component in the client will automatically execute the query found in the `chart-spec`. Calling it here wastes tokens and causes duplicate execution.
+
 ## CHART TYPE RULES
 
 ### STEP 1: CHECK USER'S EXPLICIT CHART REQUEST (HIGHEST PRIORITY)

@@ -168,8 +168,6 @@ export const findExpensiveQueriesExecutor: ToolExecutor<
         const tables = row[9] as string[] | undefined;
 
         // Qualify table names in SQL preview if tables array is available
-        console.log("tables", tables);
-        console.log("sqlPreview", sqlPreview);
         if (tables && tables.length > 0) {
           sqlPreview = SqlUtils.qualifyTableNames(sqlPreview, tables);
         }

@@ -36,9 +36,7 @@ export const MessageMarkdownChartSpec = memo(function MessageMarkdownChartSpec({
         </div>
       ) : (
         <div className="pt-1">
-          <p className="text-[10px] text-muted-foreground">
-            {spec}
-          </p>
+          <p className="text-[10px] text-muted-foreground">{spec}</p>
         </div>
       )}
     </>

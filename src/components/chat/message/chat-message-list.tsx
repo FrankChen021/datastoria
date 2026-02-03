@@ -1,6 +1,9 @@
 "use client";
 
+import { AppLogo } from "@/components/app-logo";
+import { TypingDots } from "@/components/ui/typing-dots";
 import type { AppUIMessage } from "@/lib/ai/chat-types";
+import { cn } from "@/lib/utils";
 import { AlertCircle } from "lucide-react";
 import * as React from "react";
 import { useDebouncedCallback } from "use-debounce";
@@ -33,7 +36,7 @@ export const ChatMessageList = React.memo(
       });
     }, 20);
 
-    // Auto scroll when messages or error change
+    // Auto scroll when messages, isRunning state, or error change
     React.useEffect(() => {
       if (messages.length === 0) return;
       const container = scrollContainerRef.current;
@@ -54,7 +57,7 @@ export const ChatMessageList = React.memo(
       }
 
       scrollToBottom();
-    }, [messages, scrollToBottom]);
+    }, [messages, isRunning, scrollToBottom]);
 
     return (
       <div
@@ -73,6 +76,36 @@ export const ChatMessageList = React.memo(
               isRunning={isRunning}
             />
           ))}
+
+          {/* Show loading indicator when waiting for assistant response */}
+          {isRunning && messages.length > 0 && messages[messages.length - 1].role === "user" && (
+            <div className={cn("mt-0")}>
+              <div className="flex gap-[1px]">
+                {/* Left color bar for assistant messages */}
+                <div className="self-stretch w-1 flex-shrink-0 bg-emerald-400 dark:bg-emerald-500" />
+
+                <div className="flex-1 flex flex-col min-w-0">
+                  {/* Profile and message row */}
+                  <div className="flex gap-[1px]">
+                    <div className="flex-shrink-0 w-[28px] flex justify-center">
+                      <div className="h-6 w-6 flex items-center justify-center">
+                        <AppLogo className="h-6 w-6" />
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-hidden min-w-0 text-sm pr-6">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <span>Thinking</span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 text-muted-foreground">
+                        <TypingDots />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {error && (

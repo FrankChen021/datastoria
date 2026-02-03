@@ -20,7 +20,7 @@ Use this skill when the user asks for SQL generation, query writing, or data ret
 ## Performance Optimization (CRITICAL)
 
 When Schema Context shows PRIMARY KEY or PARTITION BY:
-- **PRIMARY KEY**: Add filters on primary key columns in WHERE when possible; order by primary key columns for efficient scanning.
+- **PRIMARY KEY**: Add filters on primary key columns in WHERE when possible. **CRITICAL**: You MUST include a filter on the **leading column** of the Primary Key (e.g., `event_date`) if you are filtering on other time-based columns (e.g., `event_time`). This applies whether the PK is composite or single. Example: `WHERE event_date >= today() - 1 AND event_time >= now() - INTERVAL 1 HOUR`. Order by primary key columns for efficient scanning.
 - **PARTITION BY**: Include a filter on the partition column when possible for partition pruning (e.g., `WHERE event_date >= today() - 30`).
 - If both are shown, your WHERE clause MUST include filters on at least the partition key column(s).
 
@@ -38,9 +38,17 @@ When the user asks about their own data or user-specific information, use the au
 ## Workflow
 
 1. If schema is missing, use `get_tables` and `explore_schema` to discover it.
+   - **OPTIMIZATION**:
+     - If user mentions specific column names (e.g., "show commits_count by day"), call `explore_schema` with the `columns` parameter.
+     - If user mentions a partial column name or you need to search for columns (e.g. "find metric related to connection"), use the `column_pattern` parameter (e.g. `column_pattern: "connection"`).
+     - Use these filters to fetch only what's needed (saves tokens for large tables).
+   - **MISSING COLUMNS**: `explore_schema` limits output to 200 columns. If you don't see the column you expect, you **MUST** retry `explore_schema` using `column_pattern` to search for it specifically.
 2. Generate the SQL following the rules above (using the conversation and schema context).
 3. Call `validate_sql` with your generated SQL. If validation fails, fix the SQL using the error message (e.g., wrong table/column names, syntax) and call `validate_sql` again. Retry up to 3 times.
-4. Only after validation passes, call `execute_sql` with the same SQL if the user wants to run the query, or use the SQL for visualization/chart requests.
+4. **DECIDE ON EXECUTION**:
+   - **Visualization**: If the user asked for a chart/graph, **DO NOT** execute the SQL. Pass it to the visualization logic.
+   - **Data Retrieval**: If the user asked a question that requires data to answer (e.g., "How many...", "List...", "What is...", "Show me..."), you **MUST** call `execute_sql` to get the answer.
+   - **SQL Only**: If the user specifically asked to "write SQL" or "generate query" without asking for the result, do not execute.
 
 - ❌ Do not output raw SQL in markdown or text; pass it only to `validate_sql` and `execute_sql`.
 - ✅ Generate SQL → validate_sql → fix and retry on error → execute_sql after validation passes.
