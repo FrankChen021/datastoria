@@ -39,6 +39,11 @@ export type MessagePart = TextPart | ToolCallPart | ToolResultPart;
 export type MessageMetadata = {
   planner?: PlannerMetadata;
   usage?: LanguageModelUsage;
+  /** LLM-generated chat title (v2 skill-based chat). */
+  title?: {
+    text: string;
+    usage: LanguageModelUsage;
+  };
   // Allow arbitrary extra metadata fields coming from the SDK or future agents
   [key: string]: unknown;
 };

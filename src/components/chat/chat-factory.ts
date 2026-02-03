@@ -11,6 +11,7 @@ import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { v7 as uuidv7 } from "uuid";
 import { ChatContext } from "./chat-context";
+import { ChatUIContext } from "./chat-ui-context";
 import { chatStorage } from "./storage/chat-storage";
 
 /**
@@ -303,7 +304,10 @@ export class ChatFactory {
               };
             }
 
-            if (
+            if (message.metadata?.title && typeof message.metadata.title.text === "string") {
+              chat.title = message.metadata.title.text;
+              ChatUIContext.updateTitle(message.metadata.title.text);
+            } else if (
               message.role === "assistant" &&
               message.parts.length > 1 &&
               message.parts[0].type === "dynamic-tool" &&
@@ -312,6 +316,7 @@ export class ChatFactory {
               const output = message.parts[0].output as PlanToolOutput;
               if (output.title) {
                 chat.title = output.title;
+                ChatUIContext.updateTitle(output.title);
               }
             }
 

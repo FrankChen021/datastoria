@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
+import { generateChatTitle } from "@/lib/ai/agent/generate-chat-title";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "@/lib/ai/agent/orchestrator-prompt";
 import type { MessageMetadata } from "@/lib/ai/chat-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
@@ -20,6 +21,8 @@ interface ChatV2Request {
   messages?: UIMessage[];
   context?: ServerDatabaseContext;
   model?: { provider: string; modelId: string; apiKey: string };
+  /** Whether to request LLM-generated chat title for new conversations. Default true. */
+  generateTitle?: boolean;
 }
 
 /**
@@ -32,7 +35,7 @@ function getMessageIdFromMessages(messages: UIMessage[]): string {
     messages[messages.length - 1].role === "assistant" &&
     Array.isArray(messages[messages.length - 1].parts) &&
     (messages[messages.length - 1].parts?.at(-1) as { state?: string } | undefined)?.state ===
-      "output-available";
+    "output-available";
   const lastAssistant = isContinuation ? (messages[messages.length - 1] as UIMessage) : undefined;
   const id =
     lastAssistant && "id" in lastAssistant && typeof lastAssistant.id === "string"
@@ -91,6 +94,9 @@ function extractErrorMessage(error: unknown): string {
   return defaultMessage;
 }
 
+/** Time to wait for title generation before building the response (ms). */
+const TITLE_WAIT_MS = 3000;
+
 /**
  * POST /api/chat/v2
  *
@@ -127,8 +133,6 @@ export async function POST(req: Request) {
     if (!Array.isArray(apiRequest.messages)) {
       return new Response("Invalid request format: messages must be an array", { status: 400 });
     }
-
-    const messageId = getMessageIdFromMessages(apiRequest.messages);
 
     const context: ServerDatabaseContext = apiRequest.context
       ? ({ ...apiRequest.context, userEmail } as ServerDatabaseContext)
@@ -173,6 +177,7 @@ export async function POST(req: Request) {
     const modelMessages = await convertToModelMessages(originalMessages);
 
     // Request usage: only when continuing an assistant (messageId in request); else undefined for new message
+    const messageId = getMessageIdFromMessages(apiRequest.messages);
     const msgs = originalMessages;
     let continuedAssistant: UIMessage | undefined;
     for (let i = msgs.length - 1; i >= 0; i--) {
@@ -184,11 +189,17 @@ export async function POST(req: Request) {
     }
     const requestUsage = continuedAssistant
       ? normalizeUsage(
-          (continuedAssistant as { metadata?: { usage?: unknown } }).metadata?.usage as Record<
-            string,
-            unknown
-          >
-        )
+        (continuedAssistant as { metadata?: { usage?: unknown } }).metadata?.usage as Record<
+          string,
+          unknown
+        >
+      )
+      : undefined;
+
+    const titlePromise = apiRequest.generateTitle !== false
+      ? generateChatTitle(originalMessages, modelConfig, {
+        timeoutMs: TITLE_WAIT_MS,
+      })
       : undefined;
 
     const result = streamText({
@@ -208,7 +219,9 @@ export async function POST(req: Request) {
       temperature,
     });
 
-    return result.toUIMessageStreamResponse({
+    const titleResult = titlePromise !== undefined ? await titlePromise : undefined;
+
+    const response = result.toUIMessageStreamResponse({
       originalMessages: originalMessages as UIMessage[],
       generateMessageId: () => messageId,
       messageMetadata: ({
@@ -220,8 +233,20 @@ export async function POST(req: Request) {
         const responseUsage = normalizeUsage(
           (part.totalUsage ?? part.usage) as Record<string, unknown>
         );
-        const usage = sumTokenUsage([requestUsage, responseUsage]);
-        return { usage } as MessageMetadata;
+
+        // Accumulate token usage on this message id
+        const usage = sumTokenUsage([
+          requestUsage,
+          responseUsage,
+          titleResult?.usage,
+        ]);
+        return {
+          usage,
+          title: (titleResult?.title?.trim() && {
+            text: titleResult.title.trim(),
+            usage: titleResult.usage,
+          }),
+        } as MessageMetadata;
       },
       onError: (error: unknown) => {
         try {
@@ -236,6 +261,8 @@ export async function POST(req: Request) {
         Connection: "keep-alive",
       },
     });
+
+    return response;
   } catch (error) {
     return new Response(
       JSON.stringify({
