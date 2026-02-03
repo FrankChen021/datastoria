@@ -19,13 +19,11 @@ export class AgentConfigurationManager {
   public static getConfiguration(): AgentConfiguration {
     if (!this.configuration) {
       const storage = this.getStorage();
-      this.configuration = storage.getAsJSON<AgentConfiguration>(
-        () => {
-          return {
-            mode: "v2",
-          };
-        },
-      );
+      this.configuration = storage.getAsJSON<AgentConfiguration>(() => {
+        return {
+          mode: "v2",
+        };
+      });
     }
     return this.configuration!;
   }

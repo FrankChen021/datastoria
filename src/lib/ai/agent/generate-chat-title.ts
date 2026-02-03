@@ -5,7 +5,7 @@
 import { uiMessageToText } from "@/lib/ai/agent/plan/planning-prompt-builder";
 import type { InputModel } from "@/lib/ai/agent/plan/sub-agent-registry";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
-import { generateText, type LanguageModelUsage, Output, type UIMessage } from "ai";
+import { generateText, Output, type LanguageModelUsage, type UIMessage } from "ai";
 import { z } from "zod";
 
 export type GenerateChatTitleResult = {
@@ -61,9 +61,7 @@ export async function generateChatTitle(
         modelConfig.apiKey
       );
 
-      const temperature = LanguageModelProviderFactory.getDefaultTemperature(
-        modelConfig.modelId
-      );
+      const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
 
       const { output, usage } = await generateText({
         model,
@@ -89,9 +87,7 @@ export async function generateChatTitle(
   if (timeoutMs != null && timeoutMs > 0) {
     return Promise.race([
       run(),
-      new Promise<undefined>((resolve) =>
-        setTimeout(() => resolve(undefined), timeoutMs)
-      ),
+      new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), timeoutMs)),
     ]);
   }
   return run();

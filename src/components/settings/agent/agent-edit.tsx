@@ -1,4 +1,8 @@
-import { AgentConfigurationManager, type AgentConfiguration, type AgentMode } from "@/components/settings/agent/agent-manager";
+import {
+  AgentConfigurationManager,
+  type AgentConfiguration,
+  type AgentMode,
+} from "@/components/settings/agent/agent-manager";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,7 +16,9 @@ import { ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function AgentEdit() {
-  const [configuration, setConfiguration] = useState<AgentConfiguration>(AgentConfigurationManager.getConfiguration());
+  const [configuration, setConfiguration] = useState<AgentConfiguration>(
+    AgentConfigurationManager.getConfiguration()
+  );
 
   useEffect(() => {
     const currentMode = AgentConfigurationManager.getConfiguration();
@@ -31,9 +37,7 @@ export function AgentEdit() {
         <div className="grid gap-6">
           <div className="grid grid-cols-[200px_300px_1fr] gap-8 items-start">
             <div className="space-y-1 pt-2">
-              <Label>
-                Agent Mode
-              </Label>
+              <Label>Agent Mode</Label>
             </div>
             <div className="flex items-center">
               <DropdownMenu>

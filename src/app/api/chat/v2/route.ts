@@ -35,7 +35,7 @@ function getMessageIdFromMessages(messages: UIMessage[]): string {
     messages[messages.length - 1].role === "assistant" &&
     Array.isArray(messages[messages.length - 1].parts) &&
     (messages[messages.length - 1].parts?.at(-1) as { state?: string } | undefined)?.state ===
-    "output-available";
+      "output-available";
   const lastAssistant = isContinuation ? (messages[messages.length - 1] as UIMessage) : undefined;
   const id =
     lastAssistant && "id" in lastAssistant && typeof lastAssistant.id === "string"
@@ -189,18 +189,19 @@ export async function POST(req: Request) {
     }
     const requestUsage = continuedAssistant
       ? normalizeUsage(
-        (continuedAssistant as { metadata?: { usage?: unknown } }).metadata?.usage as Record<
-          string,
-          unknown
-        >
-      )
+          (continuedAssistant as { metadata?: { usage?: unknown } }).metadata?.usage as Record<
+            string,
+            unknown
+          >
+        )
       : undefined;
 
-    const titlePromise = apiRequest.generateTitle !== false
-      ? generateChatTitle(originalMessages, modelConfig, {
-        timeoutMs: TITLE_WAIT_MS,
-      })
-      : undefined;
+    const titlePromise =
+      apiRequest.generateTitle !== false
+        ? generateChatTitle(originalMessages, modelConfig, {
+            timeoutMs: TITLE_WAIT_MS,
+          })
+        : undefined;
 
     const result = streamText({
       model,
@@ -235,17 +236,13 @@ export async function POST(req: Request) {
         );
 
         // Accumulate token usage on this message id
-        const usage = sumTokenUsage([
-          requestUsage,
-          responseUsage,
-          titleResult?.usage,
-        ]);
+        const usage = sumTokenUsage([requestUsage, responseUsage, titleResult?.usage]);
         return {
           usage,
-          title: (titleResult?.title?.trim() && {
+          title: titleResult?.title?.trim() && {
             text: titleResult.title.trim(),
             usage: titleResult.usage,
-          }),
+          },
         } as MessageMetadata;
       },
       onError: (error: unknown) => {

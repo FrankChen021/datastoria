@@ -354,14 +354,15 @@ export class ChatStorageLocal implements ChatStorage {
 
   async saveMessage(chatId: string, message: Message): Promise<void> {
     const messagesMap = this.getMessagesForChat(chatId);
-    
+
     // Use existing sequence if available to preserve order on updates
     let sequence = messagesMap[message.id]?.sequence;
 
     // If new message, assign next sequence
     if (sequence === undefined) {
       const messages = Object.values(messagesMap);
-      const maxSequence = messages.length > 0 ? Math.max(...messages.map((m) => m.sequence ?? 0)) : 0;
+      const maxSequence =
+        messages.length > 0 ? Math.max(...messages.map((m) => m.sequence ?? 0)) : 0;
       sequence = maxSequence + 1;
     }
 
