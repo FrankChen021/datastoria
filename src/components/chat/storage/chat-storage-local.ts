@@ -354,15 +354,20 @@ export class ChatStorageLocal implements ChatStorage {
 
   async saveMessage(chatId: string, message: Message): Promise<void> {
     const messagesMap = this.getMessagesForChat(chatId);
-    const messages = Object.values(messagesMap);
+    
+    // Use existing sequence if available to preserve order on updates
+    let sequence = messagesMap[message.id]?.sequence;
 
-    // Next sequence: max(sequence) + 1, or 1 if empty
-    const maxSequence = messages.length > 0 ? Math.max(...messages.map((m) => m.sequence ?? 0)) : 0;
-    const nextSequence = maxSequence + 1;
+    // If new message, assign next sequence
+    if (sequence === undefined) {
+      const messages = Object.values(messagesMap);
+      const maxSequence = messages.length > 0 ? Math.max(...messages.map((m) => m.sequence ?? 0)) : 0;
+      sequence = maxSequence + 1;
+    }
 
     const messageToSave: Message = {
       ...message,
-      sequence: nextSequence,
+      sequence,
       createdAt: message.createdAt || new Date(),
       updatedAt: new Date(),
     };
@@ -387,18 +392,25 @@ export class ChatStorageLocal implements ChatStorage {
     const messages = Object.values(messagesMap);
 
     // Next sequence: max(sequence) + 1, or 1 if empty
-    const maxSequence = messages.length > 0 ? Math.max(...messages.map((m) => m.sequence ?? 0)) : 0;
-    let nextSequence = maxSequence + 1;
+    let maxSequence = messages.length > 0 ? Math.max(...messages.map((m) => m.sequence ?? 0)) : 0;
 
     for (const message of messagesToSave) {
+      // Use existing sequence if available to preserve order on updates
+      let sequence = messagesMap[message.id]?.sequence;
+
+      // If new message, assign next sequence
+      if (sequence === undefined) {
+        maxSequence += 1;
+        sequence = maxSequence;
+      }
+
       const messageToSave: Message = {
         ...message,
-        sequence: nextSequence,
+        sequence,
         createdAt: message.createdAt || new Date(),
         updatedAt: new Date(),
       };
       messagesMap[message.id] = messageToSave;
-      nextSequence += 1;
     }
 
     await this.saveMessagesForChat(chatId, messagesMap);
