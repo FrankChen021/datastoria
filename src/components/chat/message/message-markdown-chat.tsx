@@ -1,6 +1,6 @@
+import type { PanelDescriptor } from "@/components/shared/dashboard/dashboard-model";
 import { DashboardVisualizationPanel } from "@/components/shared/dashboard/dashboard-visualization-panel";
 import { memo, useMemo } from "react";
-import type { PanelDescriptor } from "../../../../../../src/components/shared/dashboard/dashboard-model";
 
 export const MessageMarkdownChartSpec = memo(function MessageMarkdownChartSpec({
   spec,
@@ -19,19 +19,26 @@ export const MessageMarkdownChartSpec = memo(function MessageMarkdownChartSpec({
         },
         height: descriptor.height ?? 300,
       };
-    } catch (error) {
+    } catch {
+      // The spec may be is still streaming
       return null;
     }
   }, [spec]);
 
   return (
     <>
-      {panelDescriptor && (
+      {panelDescriptor ? (
         <div
           className="pt-1"
           style={{ height: panelDescriptor?.height ? panelDescriptor.height + 30 : 300 }}
         >
           <DashboardVisualizationPanel descriptor={panelDescriptor as PanelDescriptor} />
+        </div>
+      ) : (
+        <div className="pt-1">
+          <p className="text-[10px] text-muted-foreground">
+            {spec}
+          </p>
         </div>
       )}
     </>
