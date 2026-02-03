@@ -127,11 +127,18 @@ const ChatMessagePart = memo(
       toolName = part.type.replace("tool-", "");
     }
 
+    // SERVER TOOLS
     if (toolName === SERVER_TOOL_NAMES.GENERATE_SQL) {
       return <MessageToolGenerateSql part={part} isRunning={isRunning} />;
     } else if (toolName === SERVER_TOOL_NAMES.GENERATE_VISUALIZATION) {
       return <MessageToolGenerateVisualization part={part} isRunning={isRunning} />;
-    } else if (toolName === CLIENT_TOOL_NAMES.EXECUTE_SQL) {
+    } else if (toolName === SERVER_TOOL_NAMES.PLAN) {
+      return <MessageToolPlan part={part} isRunning={isRunning} />;
+    } else if (toolName === SERVER_TOOL_NAMES.SKILL) {
+      return <MessageToolSkill part={part} isRunning={isRunning} />;
+    }
+    // CLIENT TOOLS
+    else if (toolName === CLIENT_TOOL_NAMES.EXECUTE_SQL) {
       return <MessageToolExecuteSql part={part} isRunning={isRunning} />;
     } else if (toolName === CLIENT_TOOL_NAMES.VALIDATE_SQL) {
       return <MessageToolValidateSql part={part} isRunning={isRunning} />;
@@ -141,11 +148,13 @@ const ChatMessagePart = memo(
       return <MessageToolGetTables part={part} isRunning={isRunning} />;
     } else if (toolName === CLIENT_TOOL_NAMES.COLLECT_SQL_OPTIMIZATION_EVIDENCE) {
       return <MessageToolCollectSqlOptimizationEvidence part={part} isRunning={isRunning} />;
-    } else if (toolName === SERVER_TOOL_NAMES.PLAN) {
-      return <MessageToolPlan part={part} isRunning={isRunning} />;
-    } else if (toolName === SERVER_TOOL_NAMES.SKILL) {
-      return <MessageToolSkill part={part} isRunning={isRunning} />;
-    } else if (toolName) {
+    } else if (toolName === CLIENT_TOOL_NAMES.FIND_EXPENSIVE_QUERIES) {
+      return (
+        <MessageToolGeneral toolName={"Find Expensive Queries"} part={part} isRunning={isRunning} />
+      );
+    }
+    // GENERAL TOOLS
+    else if (toolName) {
       return <MessageToolGeneral toolName={toolName} part={part} isRunning={isRunning} />;
     }
 
