@@ -15,6 +15,7 @@ Use this skill when the user asks for SQL generation, query writing, or data ret
 - Use bounded time windows for time-series queries (e.g., last 24 hours, last 7 days).
 - **CRITICAL**: Do NOT include a trailing semicolon (;) at the end of SQL queries.
 - **Enum Column Filtering**: When filtering by enum columns, use the exact enum literal from the schema (case-sensitive). Do not guess enum values.
+- **Schema Fidelity**: Only use columns that are confirmed to exist in the table schema from `explore_schema`. Do not assume standard columns exist if they are not in the tool output.
 
 ## Performance Optimization (CRITICAL)
 
@@ -27,9 +28,12 @@ When Schema Context shows PRIMARY KEY or PARTITION BY:
 
 When the user asks about their own data or user-specific information, use the authenticated ClickHouse user from context (e.g., `WHERE user = '<clickHouseUser>'`). Do not use current_user() or placeholders.
 
-## ProfileEvents
+## ProfileEvents & Metrics
 
-When generating SQL that accesses ProfileEvents, use syntax: `ProfileEvents['EventName']`. Event names are case-sensitive. Common events: Query, SelectQuery, InsertQuery, OSCPUVirtualTimeMicroseconds.
+- Check the schema for `ProfileEvents` (Map).
+- If `ProfileEvents` Map exists: use syntax `ProfileEvents['EventName']`.
+- If the schema has flattened columns (e.g., `ProfileEvent_Query`): use the column name directly (e.g., `ProfileEvent_DistributedConnectionFailTry`).
+- **CRITICAL**: Do NOT assume `ProfileEvents` map exists. Verify it in the schema first.
 
 ## Workflow
 

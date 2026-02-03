@@ -23,6 +23,11 @@ export const sqlSubAgentOutputSchema = z.object({
 export type SQLSubAgentOutput = z.infer<typeof sqlSubAgentOutputSchema>;
 
 /**
+ * Server-side tool name for SQL generation
+ */
+export const SERVER_TOOL_GENERATE_SQL = "generate_sql" as const;
+
+/**
  * Build user context section for SQL generation prompts
  */
 function buildUserContextSection(context?: ServerDatabaseContext): string {
@@ -188,6 +193,7 @@ Generate a corrected SQL query that will pass validation.`
   * Check the schema context to find the exact enum values for that column (the column type will show the enum definition, e.g., Enum8('MutatePart' = 1, 'MergePart' = 2))
   * Use the exact enum literal value as shown in the column type definition - enum values are CASE-SENSITIVE
   * Do NOT guess enum values or use variations - only use values that appear in the enum type definition
+- **Schema Fidelity**: Only use columns that are confirmed to exist in the Schema Context. Do not assume standard columns or Maps exist if they are not in the provided schema.
 
 ## Performance Optimization (CRITICAL - ALWAYS APPLY)
 When the Schema Context shows PRIMARY KEY or PARTITION BY for a table, you MUST optimize your SQL:

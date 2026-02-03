@@ -9,27 +9,21 @@ When the user asks for charts, graphs, or visual representations, follow this wo
 
 ## WORKFLOW (MANDATORY ORDER)
 
-**a) If schema info needed:**
-- **FIRST**: Check if the table schema is already in the "Available Tables" context from previous messages.
-- **OPTIMIZATION**: If user mentions specific column names (e.g., "show commits_count by day"), call `explore_schema` with the `columns` parameter set to those column names to fetch only what's needed (saves tokens for large tables).
-- **ONLY IF NOT FOUND**: call `explore_schema` or `get_tables` to discover the schema.
+**a) Generate or obtain SQL:**
+- **CHECK CONTEXT FIRST**: If valid SQL exists in the context (explicitly provided by the user or from a previous message), **USE IT DIRECTLY** and skip to step (b).
+- **IF NO SQL FOUND**: You must generate it.
+  - **Dependency**: Valid SQL generation REQUIRES the `sql-generation` skill.
+  - **Action**: Check if `sql-generation` skill is loaded.
+    - If **NOT loaded**: Call the `skill` tool with `['sql-generation']` IMMEDIATELY. Do not proceed to generate SQL until the skill is loaded.
+    - If **ALREADY loaded**: Generate the SQL strictly following the rules in the `sql-generation` skill (including Schema Discovery, Schema Fidelity, ProfileEvents handling, and Performance Optimization).
 
-**b) Generate or obtain SQL:**
-- **CRITICAL**: You MUST use the `generate_sql` tool to generate SQL. NEVER write SQL in your text response.
-- If SQL exists in context (from previous messages or user input): use it directly.
-- Otherwise: **MANDATORY** - call `generate_sql` with schema context to generate a valid ClickHouse query.
-- **NEVER generate SQL yourself in markdown code blocks or text - ALWAYS use the generate_sql tool**
-
-**c) VALIDATION (MANDATORY):**
+**b) VALIDATION (MANDATORY):**
 - **ALWAYS call `validate_sql` with the SQL before including the chart spec in your response.**
-- **RETRY LOGIC**: If validation fails, retry up to 3 times by calling `generate_sql` again with `previousValidationError` set to the exact error message, then validate again.
-- Only proceed to step (d) if validation returns success: true.
+- **RETRY LOGIC**: If validation fails, retry up to 3 times by fixing the SQL (referring to `sql-generation` skill rules) and validating again.
+- Only proceed to step (c) if validation returns success: true.
 
-**d) After validation passes:**
+**c) After validation passes:**
 - **Include the full chart spec in your response** using a markdown code block with language `chart-spec`. The content must be valid JSON matching the OUTPUT FORMAT below, and **must include** `datasource: { "sql": "<the validated SQL>" }`. Derive type, titleOption, legendOption, etc. from the CHART TYPE RULES and OUTPUT FORMAT above. Do not call any tool for this—put the complete spec in your reply.
-
-**e) Optionally:**
-- Call `execute_sql` if data needs to be fetched for preview or verification.
 
 ## CHART TYPE RULES
 
@@ -55,12 +49,12 @@ If user question contains ANY of these keywords, use the corresponding chart typ
 - **Line/Bar**: Use "bottom" for GROUP BY with non-time dimensions, "none" for single metric.
 - **Pie**: legendOption.placement "right"|"bottom"|"inside" (no "none"); omit legendOption.values; use labelOption (show, format) and valueFormat as needed.
 
-## OUTPUT FORMAT (include in your response as a \`chart-spec\` code block)
+## OUTPUT FORMAT (include in your response as a `chart-spec` code block)
 
 Put the full chart spec in a markdown code block with language **chart-spec**. The JSON **must** include `datasource.sql` (the validated SQL). The client parses this block to render the chart.
 
 ### Line/Bar Chart example:
-\`\`\`chart-spec
+```chart-spec
 {
   "type": "line",
   "titleOption": { "title": "Descriptive chart title", "align": "center" },
@@ -68,10 +62,10 @@ Put the full chart spec in a markdown code block with language **chart-spec**. T
   "legendOption": { "placement": "bottom", "values": ["min", "max", "sum"] },
   "datasource": { "sql": "SELECT ..." }
 }
-\`\`\`
+```
 
 ### Pie Chart example:
-\`\`\`chart-spec
+```chart-spec
 {
   "type": "pie",
   "titleOption": { "title": "Distribution by Category", "align": "center" },
@@ -81,10 +75,10 @@ Put the full chart spec in a markdown code block with language **chart-spec**. T
   "valueFormat": "short_number",
   "datasource": { "sql": "SELECT ..." }
 }
-\`\`\`
+```
 
 - ❌ NEVER include a chart spec before validate_sql has succeeded.
 - ❌ NEVER skip SQL generation if no SQL exists in context.
-- ❌ NEVER write SQL in your text response—ALWAYS use the generate_sql tool.
-- ✅ ALWAYS follow: Schema Discovery → SQL Generation (via tool) → Validation → Include chart spec in response.
-- ✅ If validation fails, retry up to 3 times with previousValidationError in generate_sql.
+- ❌ NEVER write SQL in your text response—ALWAYS use the instructions in `sql-generation` skill.
+- ✅ ALWAYS follow: Check for SQL → If missing, Load `sql-generation` Skill → Validation → Include chart spec in response.
+- ✅ If validation fails, retry up to 3 times.
