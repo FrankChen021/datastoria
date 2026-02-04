@@ -6,10 +6,12 @@ import {
 } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { TextHighlighter } from "@/lib/text-highlighter";
 import {
+  AlertCircle,
   ArrowRight,
   Code,
   FileText,
@@ -17,6 +19,7 @@ import {
   Play,
   Trash2,
 } from "lucide-react";
+import { useState } from "react";
 import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
 import { Dialog } from "../../shared/use-dialog";
 import { TabManager } from "../../tab-manager";
@@ -31,6 +34,7 @@ interface SnippetItemProps {
 export function SnippetItem({ uiSnippet }: SnippetItemProps) {
   const { snippet, matchedIndex, matchedLength } = uiSnippet;
   const isBuiltin = snippet.builtin;
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const captionNode = matchedIndex >= 0 
     ? TextHighlighter.highlight2(snippet.caption, matchedIndex, matchedIndex + matchedLength, "text-yellow-500")
     : snippet.caption;
@@ -171,27 +175,17 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
     });
   };
 
-  const handleDelete = (snippet: Snippet) => {
-    Dialog.showDialog({
-      title: "Delete Snippet",
-      description: `Are you sure you want to delete snippet "${snippet.caption}"? This action cannot be reverted.`,
-      dialogButtons: [
-        {
-          text: "Cancel",
-          default: false,
-          onClick: async () => true,
-        },
-        {
-          text: "Delete",
-          default: true,
-          variant: "destructive",
-          onClick: async () => {
-            QuerySnippetManager.getInstance().deleteSnippet(snippet.caption);
-            return true;
-          },
-        },
-      ],
-    });
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    QuerySnippetManager.getInstance().deleteSnippet(snippet.caption);
+    setShowDeleteConfirm(false);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
   };
 
   return (
@@ -263,18 +257,57 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
                     >
                       <Pencil className="!h-3 !w-3" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 hover:text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(snippet);
-                      }}
-                      title="Delete"
-                    >
-                      <Trash2 className="!h-3 !w-3" />
-                    </Button>
+                    <Popover open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick();
+                          }}
+                          title="Delete"
+                        >
+                          <Trash2 className="!h-3 !w-3" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="p-0 overflow-hidden w-auto" side="left" align="start">
+                        <div className="flex items-start gap-2 px-3 py-3">
+                          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-sm mb-1">Confirm deletion</div>
+                            <div className="text-xs mb-3">
+                              Are you sure to delete this snippet? This action cannot be reverted.
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteCancel();
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteConfirm();
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </>
                 )}
               </div>
