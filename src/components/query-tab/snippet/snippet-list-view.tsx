@@ -3,8 +3,8 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { QuerySnippetManager } from "../query-input/snippet/query-snippet-manager";
-import type { Snippet } from "../query-input/snippet/snippet";
+import { QuerySnippetManager } from "./query-snippet-manager";
+import type { Snippet } from "./snippet";
 import { SnippetItems } from "./snippet-items";
 import type { UISnippet } from "./ui-snippet";
 
@@ -55,11 +55,10 @@ export function SnippetListView() {
     setBuiltinSnippets(builtin);
   }, [snippets, search]);
 
-
   return (
     <div className="flex flex-col h-full w-full">
       <div className="relative border-b-2 flex items-center h-9">
-        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Search snippets..."
           value={search}
@@ -87,9 +86,7 @@ export function SnippetListView() {
         <SnippetItems snippets={builtinSnippets} title="Built-in" />
 
         {userSnippets.length === 0 && builtinSnippets.length === 0 && (
-          <div className="text-center text-sm text-muted-foreground py-4">
-            No snippets found
-          </div>
+          <div className="text-center text-sm text-muted-foreground py-4">No snippets found</div>
         )}
       </div>
     </div>

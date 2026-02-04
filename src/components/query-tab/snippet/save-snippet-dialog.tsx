@@ -53,11 +53,11 @@ export function SaveSnippetDialog({
 
     try {
       const manager = QuerySnippetManager.getInstance();
-      
+
       // If updating an existing snippet (based on name match), we are just overwriting it.
       // If we wanted to support "renaming" where we delete the old one, we'd need the old name passed in.
       // For now, this is a simple save/overwrite by name.
-      
+
       manager.addSnippet(name, sql);
       onOpenChange(false);
       onSaved?.();
@@ -73,7 +73,8 @@ export function SaveSnippetDialog({
         <DialogHeader>
           <DialogTitle>Save Snippet</DialogTitle>
           <DialogDescription>
-            Save your query as a reusable snippet. You can access it from the snippet library or auto-complete it in the editor.
+            Save your query as a reusable snippet. You can access it from the snippet library or
+            auto-complete it in the editor.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

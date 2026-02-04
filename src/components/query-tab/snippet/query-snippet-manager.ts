@@ -16,7 +16,10 @@ export class QuerySnippetManager {
   private listeners: Array<() => void> = [];
 
   private getStorage() {
-    return StorageManager.getInstance().getStorageProvider().subStorage("sql:snippet");
+    return StorageManager.getInstance()
+      .getStorageProvider()
+      .subStorage("sql:snippet")
+      .withCompression(true);
   }
 
   private loadFromStorage(): void {
@@ -102,7 +105,7 @@ export class QuerySnippetManager {
   }
 
   // Process connection
-  onCollectionSelected(conn: Connection | null): void {
+  onConnectionChanged(conn: Connection | null): void {
     const useCluster = conn !== null && conn.cluster !== undefined && conn.cluster.length > 0;
 
     builtinSnippet.forEach((snippet) => {

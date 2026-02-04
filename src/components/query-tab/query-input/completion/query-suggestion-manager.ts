@@ -2,7 +2,7 @@ import { Connection, type JSONCompactFormatResponse } from "@/lib/connection/con
 import { StringUtils } from "@/lib/string-utils";
 import type { Ace } from "ace-builds";
 import { marked } from "marked";
-import { QuerySnippetManager } from "../snippet/query-snippet-manager";
+import { QuerySnippetManager } from "../../snippet/query-snippet-manager";
 
 // Register the custom extension for :::type blocks (like :::note, :::warning)
 marked.use({

@@ -1,4 +1,4 @@
-import type { Snippet } from "../query-input/snippet/snippet";
+import type { Snippet } from "./snippet";
 
 export interface UISnippet {
   snippet: Snippet;

@@ -1,7 +1,7 @@
 import { useSqlExecution } from "@/components/chat/sql-execution-context";
 import { useConnection } from "@/components/connection/connection-context";
 import { QueryExecutionTimer } from "@/components/query-tab/query-execution-timer";
-import { SaveSnippetDialog } from "@/components/query-tab/query-input/snippet/save-snippet-dialog";
+import { SaveSnippetDialog } from "@/components/query-tab/snippet/save-snippet-dialog";
 import { CopyButton } from "@/components/ui/copy-button";
 import type { QueryError } from "@/lib/connection/connection";
 import { SqlUtils } from "@/lib/sql-utils";

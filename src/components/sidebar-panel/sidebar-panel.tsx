@@ -2,7 +2,7 @@ import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Book, Database } from "lucide-react";
 import type { SchemaLoadResult } from "../schema-tree/schema-tree-loader";
-import { SnippetListView } from "../query-tab/snippet-list/snippet-list-view";
+import { SnippetListView } from "../query-tab/snippet/snippet-list-view";
 
 interface SidebarPanelProps {
   initialSchemaData: SchemaLoadResult | null;

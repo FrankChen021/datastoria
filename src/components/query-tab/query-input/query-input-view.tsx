@@ -15,7 +15,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { QueryInputLocalStorage } from "../query-input/query-input-local-storage";
 import { QuerySuggestionManager } from "./completion/query-suggestion-manager";
 import "./query-input-view.css";
-import { QuerySnippetManager } from "./snippet/query-snippet-manager";
+import { QuerySnippetManager } from "../snippet/query-snippet-manager";
 import { updateQueryInputState } from "./use-query-input";
 
 // Dynamically import AceEditor to prevent SSR issues
@@ -232,7 +232,7 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           // Connection has static config which is what completion likely needs (url, user, etc).
           // Let's passed it as is.
           QuerySuggestionManager.getInstance().onConnectionSelected(connection as any);
-          QuerySnippetManager.getInstance().onCollectionSelected(connection as any);
+          QuerySnippetManager.getInstance().onConnectionChanged(connection as any);
         }
       } else {
         lastConnectionRef.current = null;

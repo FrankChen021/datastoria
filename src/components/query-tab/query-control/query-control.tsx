@@ -12,8 +12,8 @@ import { SqlUtils } from "@/lib/sql-utils";
 import { Bookmark, ChevronDown, Play } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useQueryExecutor } from "../query-execution/query-executor";
-import { SaveSnippetDialog } from "../query-input/snippet/save-snippet-dialog";
 import { useQueryInput } from "../query-input/use-query-input";
+import { SaveSnippetDialog } from "../snippet/save-snippet-dialog";
 
 export function QueryControl() {
   const { isSqlExecuting, executeQuery } = useQueryExecutor();

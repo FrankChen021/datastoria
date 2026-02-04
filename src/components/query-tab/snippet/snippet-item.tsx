@@ -1,9 +1,5 @@
 import { Button } from "@/components/ui/button";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,21 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { TextHighlighter } from "@/lib/text-highlighter";
 import { cn } from "@/lib/utils";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
-import {
-  AlertCircle,
-  ArrowRight,
-  Code,
-  FileText,
-  Pencil,
-  Play,
-  Trash2,
-} from "lucide-react";
+import { AlertCircle, ArrowRight, Code, FileText, Pencil, Play, Trash2 } from "lucide-react";
 import { useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
 import { Dialog } from "../../shared/use-dialog";
 import { TabManager } from "../../tab-manager";
-import { QuerySnippetManager } from "../query-input/snippet/query-snippet-manager";
-import type { Snippet } from "../query-input/snippet/snippet";
+import { QuerySnippetManager } from "./query-snippet-manager";
+import type { Snippet } from "./snippet";
 import type { UISnippet } from "./ui-snippet";
 
 function StatusPopover({
@@ -66,22 +54,181 @@ interface SnippetItemProps {
   uiSnippet: UISnippet;
 }
 
+function SnippetHoverCardContent({
+  snippet,
+  isBuiltin,
+  showDeleteConfirm,
+  onDeleteClick,
+  onDeleteConfirm,
+  onDeleteCancel,
+  onDeleteChange,
+  onRun,
+  onInsert,
+  onEdit,
+  onClone,
+}: {
+  snippet: Snippet;
+  isBuiltin: boolean;
+  showDeleteConfirm: boolean;
+  onDeleteClick: () => void;
+  onDeleteConfirm: () => void;
+  onDeleteCancel: () => void;
+  onDeleteChange: (open: boolean) => void;
+  onRun: (snippet: Snippet) => void;
+  onInsert: (snippet: Snippet) => void;
+  onEdit: (snippet: Snippet) => void;
+  onClone: (snippet: Snippet) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-2 p-2 bg-muted/30">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRun(snippet);
+            }}
+            title="Run in new tab"
+          >
+            <Play className="!h-3 !w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={(e) => {
+              e.stopPropagation();
+              onInsert(snippet);
+            }}
+            title="Insert at cursor"
+          >
+            <ArrowRight className="!h-3 !w-3" />
+          </Button>
+          {isBuiltin ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClone(snippet);
+              }}
+              title="Clone / Edit Copy"
+            >
+              <Pencil className="!h-3 !w-3" />
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(snippet);
+                }}
+                title="Edit"
+              >
+                <Pencil className="!h-3 !w-3" />
+              </Button>
+              <StatusPopover
+                open={showDeleteConfirm}
+                onOpenChange={onDeleteChange}
+                trigger={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteClick();
+                    }}
+                    title="Delete"
+                  >
+                    <Trash2 className="!h-3 !w-3" />
+                  </Button>
+                }
+                side="right"
+                align="start"
+                icon={
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
+                }
+                title="Confirm deletion"
+              >
+                <div className="text-xs mb-3">
+                  Are you sure to delete this snippet? This action cannot be reverted.
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteCancel();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteConfirm();
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </StatusPopover>
+            </>
+          )}
+        </div>
+        <span className="font-medium text-sm truncate">{snippet.caption}</span>
+      </div>
+      <Separator />
+      <div className="max-h-[300px] overflow-auto">
+        <ThemedSyntaxHighlighter
+          language="sql"
+          customStyle={{
+            margin: 0,
+            padding: "12px",
+            fontSize: "0.75rem",
+            borderRadius: 0,
+          }}
+        >
+          {snippet.sql}
+        </ThemedSyntaxHighlighter>
+      </div>
+    </>
+  );
+}
+
 export function SnippetItem({ uiSnippet }: SnippetItemProps) {
   const { snippet, matchedIndex, matchedLength } = uiSnippet;
   const isBuiltin = snippet.builtin;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const captionNode = matchedIndex >= 0
-    ? TextHighlighter.highlight2(snippet.caption, matchedIndex, matchedIndex + matchedLength, "text-yellow-500")
-    : snippet.caption;
+  const captionNode =
+    matchedIndex >= 0
+      ? TextHighlighter.highlight2(
+          snippet.caption,
+          matchedIndex,
+          matchedIndex + matchedLength,
+          "text-yellow-500"
+        )
+      : snippet.caption;
 
   const handleRun = (snippet: Snippet) => {
     TabManager.activateQueryTab({ query: snippet.sql, execute: true, mode: "replace" });
   };
 
   const handleInsert = (snippet: Snippet) => {
-    window.dispatchEvent(
-      new CustomEvent("snippet-insert", { detail: snippet.sql })
-    );
+    window.dispatchEvent(new CustomEvent("snippet-insert", { detail: snippet.sql }));
   };
 
   const handleEdit = (snippet: Snippet) => {
@@ -238,130 +385,19 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
             </div>
           </HoverCardTrigger>
           <HoverCardContent side="right" className="w-[400px] p-0 overflow-hidden flex flex-col">
-            <div className="flex flex-col gap-2 p-2 bg-muted/30">
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRun(snippet);
-                  }}
-                  title="Run in new tab"
-                >
-                  <Play className="!h-3 !w-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleInsert(snippet);
-                  }}
-                  title="Insert at cursor"
-                >
-                  <ArrowRight className="!h-3 !w-3" />
-                </Button>
-                {isBuiltin ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleClone(snippet);
-                    }}
-                    title="Clone / Edit Copy"
-                  >
-                    <Pencil className="!h-3 !w-3" />
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(snippet);
-                      }}
-                      title="Edit"
-                    >
-                      <Pencil className="!h-3 !w-3" />
-                    </Button>
-                    <StatusPopover
-                      open={showDeleteConfirm}
-                      onOpenChange={setShowDeleteConfirm}
-                      trigger={
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 hover:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick();
-                          }}
-                          title="Delete"
-                        >
-                          <Trash2 className="!h-3 !w-3" />
-                        </Button>
-                      }
-                      side="right"
-                      align="start"
-                      icon={
-                        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
-                      }
-                      title="Confirm deletion"
-                    >
-                      <div className="text-xs mb-3">
-                        Are you sure to delete this snippet? This action cannot be reverted.
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteCancel();
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteConfirm();
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </StatusPopover>
-                  </>
-                )}
-              </div>
-              <span className="font-medium text-sm truncate">{snippet.caption}</span>
-            </div>
-            <Separator />
-            <div className="max-h-[300px] overflow-auto">
-              <ThemedSyntaxHighlighter
-                language="sql"
-                customStyle={{
-                  margin: 0,
-                  padding: "12px",
-                  fontSize: "0.75rem",
-                  borderRadius: 0,
-                }}
-              >
-                {snippet.sql}
-              </ThemedSyntaxHighlighter>
-            </div>
+            <SnippetHoverCardContent
+              snippet={snippet}
+              isBuiltin={isBuiltin}
+              showDeleteConfirm={showDeleteConfirm}
+              onDeleteClick={handleDeleteClick}
+              onDeleteConfirm={handleDeleteConfirm}
+              onDeleteCancel={handleDeleteCancel}
+              onDeleteChange={setShowDeleteConfirm}
+              onRun={handleRun}
+              onInsert={handleInsert}
+              onEdit={handleEdit}
+              onClone={handleClone}
+            />
           </HoverCardContent>
         </HoverCard>
       </div>
