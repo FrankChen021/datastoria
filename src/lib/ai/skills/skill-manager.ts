@@ -3,7 +3,7 @@
 // To add a new skill: create <name>/SKILL.md, add import and SKILL_RAW_MAP entry.
 import matter from "gray-matter";
 import optimizationSkill from "./optimization/SKILL.md";
-import sqlGenerationSkill from "./sql-generation/SKILL.md";
+import sqlExpertSkill from "./sql-expert/SKILL.md";
 import visualizationSkill from "./visualization/SKILL.md";
 
 export interface SkillMetadata {
@@ -13,7 +13,7 @@ export interface SkillMetadata {
 
 const SKILL_RAW_MAP: Record<string, string> = {
   optimization: optimizationSkill,
-  "sql-generation": sqlGenerationSkill,
+  "sql-expert": sqlExpertSkill,
   visualization: visualizationSkill,
 };
 

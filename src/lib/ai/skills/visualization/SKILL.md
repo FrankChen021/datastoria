@@ -12,14 +12,14 @@ When the user asks for charts, graphs, or visual representations, follow this wo
 **a) Generate or obtain SQL:**
 - **CHECK CONTEXT FIRST**: If valid SQL exists in the context (explicitly provided by the user or from a previous message), **USE IT DIRECTLY** and skip to step (b).
 - **IF NO SQL FOUND**: You must generate it.
-  - **Dependency**: Valid SQL generation REQUIRES the `sql-generation` skill.
-  - **Action**: Check if `sql-generation` skill is loaded.
-    - If **NOT loaded**: Call the `skill` tool with `['sql-generation']` IMMEDIATELY. Do not proceed to generate SQL until the skill is loaded.
-    - If **ALREADY loaded**: Generate the SQL strictly following the rules in the `sql-generation` skill (including Schema Discovery, Schema Fidelity, ProfileEvents handling, and Performance Optimization).
+  - **Dependency**: Valid SQL generation REQUIRES the `sql-expert` skill.
+  - **Action**: Check if `sql-expert` skill is loaded.
+    - If **NOT loaded**: Call the `skill` tool with `['sql-expert']` IMMEDIATELY. Do not proceed to generate SQL until the skill is loaded.
+    - If **ALREADY loaded**: Generate the SQL strictly following the rules in the `sql-expert` skill (including Schema Discovery, Schema Fidelity, ProfileEvents handling, and Performance Optimization).
 
 **b) VALIDATION (MANDATORY):**
 - **ALWAYS call `validate_sql` with the SQL before including the chart spec in your response.**
-- **RETRY LOGIC**: If validation fails, retry up to 3 times by fixing the SQL (referring to `sql-generation` skill rules) and validating again.
+- **RETRY LOGIC**: If validation fails, retry up to 3 times by fixing the SQL (referring to `sql-expert` skill rules) and validating again.
 - Only proceed to step (c) if validation returns success: true.
 
 **c) After validation passes:**
@@ -82,6 +82,6 @@ Put the full chart spec in a markdown code block with language **chart-spec**. T
 
 - ❌ NEVER include a chart spec before validate_sql has succeeded.
 - ❌ NEVER skip SQL generation if no SQL exists in context.
-- ❌ NEVER write SQL in your text response—ALWAYS use the instructions in `sql-generation` skill.
-- ✅ ALWAYS follow: Check for SQL → If missing, Load `sql-generation` Skill → Validation → Include chart spec in response.
+- ❌ NEVER write SQL in your text response—ALWAYS use the instructions in `sql-expert` skill.
+- ✅ ALWAYS follow: Check for SQL → If missing, Load `sql-expert` Skill → Validation → Include chart spec in response.
 - ✅ If validation fails, retry up to 3 times.
