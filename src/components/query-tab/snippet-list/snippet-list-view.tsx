@@ -105,7 +105,7 @@ export function SnippetListView() {
                 <span className="font-medium truncate">{snippet.caption}</span>
               </div>
             </HoverCardTrigger>
-            <HoverCardContent side="right" className="w-[400px] p-0 overflow-hidden">
+            <HoverCardContent side="right" align="start" className="w-[400px] p-0 overflow-hidden">
               <div className="max-h-[300px] overflow-auto">
                 <ThemedSyntaxHighlighter
                   language="sql"
@@ -124,11 +124,11 @@ export function SnippetListView() {
         </div>
 
         {/* Actions - visible on hover */}
-        <div className="flex items-center gap-0.5 pl-1 opacity-0 group-hover:opacity-100 transition-opacity bg-accent">
+        <div className="flex items-center gap-0.5 pl-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm">
           <Button
             variant="ghost"
             size="icon"
-            className="h-4 w-4"
+            className="h-4 w-4 hover:bg-muted"
             onClick={(e) => {
               e.stopPropagation();
               handleRun(snippet);
@@ -140,7 +140,7 @@ export function SnippetListView() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-5 w-5"
+            className="h-5 w-5 hover:bg-muted"
             onClick={(e) => {
               e.stopPropagation();
               handleInsert(snippet);
@@ -153,7 +153,7 @@ export function SnippetListView() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-4 w-4"
+              className="h-4 w-4 hover:bg-muted"
               onClick={(e) => {
                 e.stopPropagation();
                 handleClone(snippet);
@@ -167,7 +167,7 @@ export function SnippetListView() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-4 w-4"
+                className="h-4 w-4 hover:bg-muted"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleEdit(snippet);
@@ -179,7 +179,7 @@ export function SnippetListView() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-4 w-4 hover:text-destructive"
+                className="h-4 w-4 hover:bg-destructive/10 hover:text-destructive"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDelete(snippet);
