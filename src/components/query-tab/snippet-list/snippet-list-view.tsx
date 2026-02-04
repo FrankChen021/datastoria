@@ -18,17 +18,24 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { TextHighlighter } from "@/lib/text-highlighter";
 import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
 import { TabManager } from "../../tab-manager";
 import { QuerySnippetManager } from "../query-input/snippet/query-snippet-manager";
 import { SaveSnippetDialog } from "../query-input/snippet/save-snippet-dialog";
 import type { Snippet } from "../query-input/snippet/snippet";
 
+interface UISnippet {
+  snippet: Snippet;
+  matchedIndex: number;
+  matchedLength: number;
+}
+
 export function SnippetListView() {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [search, setSearch] = useState("");
-  const [userSnippets, setUserSnippets] = useState<Snippet[]>([]);
-  const [builtinSnippets, setBuiltinSnippets] = useState<Snippet[]>([]);
+  const [userSnippets, setUserSnippets] = useState<UISnippet[]>([]);
+  const [builtinSnippets, setBuiltinSnippets] = useState<UISnippet[]>([]);
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState<"edit" | "clone">("edit");
@@ -46,20 +53,27 @@ export function SnippetListView() {
 
   useEffect(() => {
     const lowerSearch = search.toLowerCase().trim();
-    const user: Snippet[] = [];
-    const builtin: Snippet[] = [];
+    const user: UISnippet[] = [];
+    const builtin: UISnippet[] = [];
 
     for (const snippet of snippets) {
-      if (lowerSearch && 
-          !snippet.caption.toLowerCase().includes(lowerSearch) && 
-          !snippet.sql.toLowerCase().includes(lowerSearch)) {
+      const lowerCaption = snippet.caption.toLowerCase();
+      const matchedIndex = lowerSearch ? lowerCaption.indexOf(lowerSearch) : -1;
+
+      if (lowerSearch && matchedIndex === -1) {
         continue;
       }
 
+      const uiSnippet: UISnippet = {
+        snippet,
+        matchedIndex,
+        matchedLength: lowerSearch.length,
+      };
+
       if (snippet.builtin) {
-        builtin.push(snippet);
+        builtin.push(uiSnippet);
       } else {
-        user.push(snippet);
+        user.push(uiSnippet);
       }
     }
 
@@ -95,8 +109,12 @@ export function SnippetListView() {
     }
   };
 
-  const SnippetItem = ({ snippet }: { snippet: Snippet }) => {
+  const SnippetItem = ({ uiSnippet }: { uiSnippet: UISnippet }) => {
+    const { snippet, matchedIndex, matchedLength } = uiSnippet;
     const isBuiltin = snippet.builtin;
+    const captionNode = matchedIndex >= 0 
+      ? TextHighlighter.highlight2(snippet.caption, matchedIndex, matchedIndex + matchedLength, "text-yellow-500")
+      : snippet.caption;
     return (
       <div className="group flex items-center justify-between py-1.5 pl-5 pr-1 hover:bg-accent hover:text-accent-foreground rounded-none text-sm transition-colors cursor-pointer">
         <div className="flex items-center gap-2 overflow-hidden flex-1">
@@ -108,7 +126,7 @@ export function SnippetListView() {
           <HoverCard openDelay={300}>
             <HoverCardTrigger asChild>
               <div className="flex flex-col overflow-hidden min-w-0">
-                <span className="font-medium truncate">{snippet.caption}</span>
+                <span className="font-medium truncate">{captionNode}</span>
               </div>
             </HoverCardTrigger>
             <HoverCardContent side="right" className="w-[400px] p-0 overflow-hidden flex flex-col">
@@ -272,7 +290,7 @@ export function SnippetListView() {
     );
   };
 
-  const SnippetItems = ({ snippets, title }: { snippets: Snippet[]; title: string }) => {
+  const SnippetItems = ({ snippets, title }: { snippets: UISnippet[]; title: string }) => {
     if (snippets.length === 0) return null;
 
     return (
@@ -282,7 +300,7 @@ export function SnippetListView() {
         </div>
         <div className="space-y-0.5">
           {snippets.map((s) => (
-            <SnippetItem key={s.caption} snippet={s} />
+            <SnippetItem key={s.snippet.caption} uiSnippet={s} />
           ))}
         </div>
       </div>
