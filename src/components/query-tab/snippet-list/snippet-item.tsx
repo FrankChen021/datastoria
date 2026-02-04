@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { TextHighlighter } from "@/lib/text-highlighter";
+import * as PopoverPrimitive from "@radix-ui/react-popover";
 import {
   AlertCircle,
   ArrowRight,
@@ -19,13 +21,46 @@ import {
   Play,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
 import { Dialog } from "../../shared/use-dialog";
 import { TabManager } from "../../tab-manager";
 import { QuerySnippetManager } from "../query-input/snippet/query-snippet-manager";
 import type { Snippet } from "../query-input/snippet/snippet";
 import type { UISnippet } from "./ui-snippet";
+
+function StatusPopover({
+  children,
+  className,
+  icon,
+  title,
+  trigger,
+  open,
+  onOpenChange,
+  ...props
+}: ComponentPropsWithoutRef<typeof PopoverContent> & {
+  icon: ReactNode;
+  title: string;
+  trigger: ReactNode;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent className={cn("p-0 overflow-hidden z-[10000]", className)} {...props}>
+        <PopoverPrimitive.Arrow className={cn("fill-[var(--border)]")} width={12} height={8} />
+        <div className="flex items-start gap-2 px-3 py-3">
+          {icon}
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-sm mb-1">{title}</div>
+            {children}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 interface SnippetItemProps {
   uiSnippet: UISnippet;
@@ -257,8 +292,10 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
                     >
                       <Pencil className="!h-3 !w-3" />
                     </Button>
-                    <Popover open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-                      <PopoverTrigger asChild>
+                    <StatusPopover
+                      open={showDeleteConfirm}
+                      onOpenChange={setShowDeleteConfirm}
+                      trigger={
                         <Button
                           variant="ghost"
                           size="icon"
@@ -271,43 +308,42 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
                         >
                           <Trash2 className="!h-3 !w-3" />
                         </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="p-0 overflow-hidden w-auto" side="left" align="start">
-                        <div className="flex items-start gap-2 px-3 py-3">
-                          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-sm mb-1">Confirm deletion</div>
-                            <div className="text-xs mb-3">
-                              Are you sure to delete this snippet? This action cannot be reverted.
-                            </div>
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteCancel();
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteConfirm();
-                                }}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                      }
+                      side="left"
+                      align="start"
+                      icon={
+                        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
+                      }
+                      title="Confirm deletion"
+                    >
+                      <div className="text-xs mb-3">
+                        Are you sure to delete this snippet? This action cannot be reverted.
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCancel();
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteConfirm();
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </StatusPopover>
                   </>
                 )}
               </div>
