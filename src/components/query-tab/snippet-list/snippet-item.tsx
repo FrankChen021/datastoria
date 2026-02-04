@@ -4,7 +4,10 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { TextHighlighter } from "@/lib/text-highlighter";
 import {
   ArrowRight,
@@ -14,19 +17,19 @@ import {
   Play,
   Trash2,
 } from "lucide-react";
+import { useState } from "react";
+import { Dialog } from "../../shared/use-dialog";
 import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
 import { TabManager } from "../../tab-manager";
+import { QuerySnippetManager } from "../query-input/snippet/query-snippet-manager";
 import type { Snippet } from "../query-input/snippet/snippet";
 import type { UISnippet } from "./ui-snippet";
 
 interface SnippetItemProps {
   uiSnippet: UISnippet;
-  onEdit: (snippet: Snippet) => void;
-  onClone: (snippet: Snippet) => void;
-  onDelete: (snippet: Snippet) => void;
 }
 
-export function SnippetItem({ uiSnippet, onEdit, onClone, onDelete }: SnippetItemProps) {
+export function SnippetItem({ uiSnippet }: SnippetItemProps) {
   const { snippet, matchedIndex, matchedLength } = uiSnippet;
   const isBuiltin = snippet.builtin;
   const captionNode = matchedIndex >= 0 
@@ -41,6 +44,155 @@ export function SnippetItem({ uiSnippet, onEdit, onClone, onDelete }: SnippetIte
     window.dispatchEvent(
       new CustomEvent("snippet-insert", { detail: snippet.sql })
     );
+  };
+
+  const handleEdit = (snippet: Snippet) => {
+    let name = snippet.caption;
+    let sql = snippet.sql;
+
+    Dialog.showDialog({
+      title: "Edit Snippet",
+      description: "Update your snippet details.",
+      mainContent: (
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="edit-name">Name</Label>
+            <Input
+              id="edit-name"
+              placeholder="e.g., daily_active_users"
+              defaultValue={name}
+              onChange={(e) => (name = e.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-sql">SQL</Label>
+            <Textarea
+              id="edit-sql"
+              placeholder="SELECT * FROM ..."
+              className="font-mono text-xs min-h-[150px]"
+              defaultValue={sql}
+              onChange={(e) => (sql = e.target.value)}
+            />
+          </div>
+        </div>
+      ),
+      dialogButtons: [
+        {
+          text: "Cancel",
+          default: false,
+          onClick: async () => true,
+        },
+        {
+          text: "Save",
+          default: true,
+          onClick: async () => {
+            if (!name.trim() || !sql.trim()) {
+              Dialog.alert({
+                title: "Validation Error",
+                description: "Name and SQL are required.",
+              });
+              return false;
+            }
+            try {
+              QuerySnippetManager.getInstance().addSnippet(name, sql);
+              return true;
+            } catch (e) {
+              Dialog.alert({
+                title: "Error",
+                description: "Failed to save snippet.",
+              });
+              return false;
+            }
+          },
+        },
+      ],
+    });
+  };
+
+  const handleClone = (snippet: Snippet) => {
+    let name = `${snippet.caption}_copy`;
+    let sql = snippet.sql;
+
+    Dialog.showDialog({
+      title: "Clone Snippet",
+      description: "Save a copy of this snippet.",
+      mainContent: (
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="clone-name">Name</Label>
+            <Input
+              id="clone-name"
+              placeholder="e.g., daily_active_users"
+              defaultValue={name}
+              onChange={(e) => (name = e.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="clone-sql">SQL</Label>
+            <Textarea
+              id="clone-sql"
+              placeholder="SELECT * FROM ..."
+              className="font-mono text-xs min-h-[150px]"
+              defaultValue={sql}
+              onChange={(e) => (sql = e.target.value)}
+            />
+          </div>
+        </div>
+      ),
+      dialogButtons: [
+        {
+          text: "Cancel",
+          default: false,
+          onClick: async () => true,
+        },
+        {
+          text: "Save",
+          default: true,
+          onClick: async () => {
+            if (!name.trim() || !sql.trim()) {
+              Dialog.alert({
+                title: "Validation Error",
+                description: "Name and SQL are required.",
+              });
+              return false;
+            }
+            try {
+              QuerySnippetManager.getInstance().addSnippet(name, sql);
+              return true;
+            } catch (e) {
+              Dialog.alert({
+                title: "Error",
+                description: "Failed to save snippet.",
+              });
+              return false;
+            }
+          },
+        },
+      ],
+    });
+  };
+
+  const handleDelete = (snippet: Snippet) => {
+    Dialog.confirm({
+      title: "Delete Snippet",
+      description: `Are you sure you want to delete snippet "${snippet.caption}"?`,
+      dialogButtons: [
+        {
+          text: "Cancel",
+          default: false,
+          onClick: async () => true,
+        },
+        {
+          text: "Delete",
+          default: true,
+          variant: "destructive",
+          onClick: async () => {
+            QuerySnippetManager.getInstance().deleteSnippet(snippet.caption);
+            return true;
+          },
+        },
+      ],
+    });
   };
 
   return (
@@ -92,7 +244,7 @@ export function SnippetItem({ uiSnippet, onEdit, onClone, onDelete }: SnippetIte
                     className="h-6 w-6"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onClone(snippet);
+                      handleClone(snippet);
                     }}
                     title="Clone / Edit Copy"
                   >
@@ -106,7 +258,7 @@ export function SnippetItem({ uiSnippet, onEdit, onClone, onDelete }: SnippetIte
                       className="h-6 w-6"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onEdit(snippet);
+                        handleEdit(snippet);
                       }}
                       title="Edit"
                     >
@@ -118,7 +270,7 @@ export function SnippetItem({ uiSnippet, onEdit, onClone, onDelete }: SnippetIte
                       className="h-6 w-6 hover:text-destructive"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDelete(snippet);
+                        handleDelete(snippet);
                       }}
                       title="Delete"
                     >
@@ -144,75 +296,6 @@ export function SnippetItem({ uiSnippet, onEdit, onClone, onDelete }: SnippetIte
             </div>
           </HoverCardContent>
         </HoverCard>
-      </div>
-
-      {/* Actions - visible on hover */}
-      <div className="flex items-center gap-0.5 pl-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-4 w-4 hover:bg-muted"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleRun(snippet);
-          }}
-          title="Run in new tab"
-        >
-          <Play className="!h-3 !w-3" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-5 w-5 hover:bg-muted"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleInsert(snippet);
-          }}
-          title="Insert at cursor"
-        >
-          <ArrowRight className="!h-3 !w-3" />
-        </Button>
-        {isBuiltin ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-4 w-4 hover:bg-muted"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClone(snippet);
-            }}
-            title="Clone / Edit Copy"
-          >
-            <Pencil className="!h-3 !w-3" />
-          </Button>
-        ) : (
-          <>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-4 w-4 hover:bg-muted"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(snippet);
-              }}
-              title="Edit"
-            >
-              <Pencil className="!h-3 !w-3" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-4 w-4 hover:bg-destructive/10 hover:text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(snippet);
-              }}
-              title="Delete"
-            >
-              <Trash2 className="!h-3 !w-3" />
-            </Button>
-          </>
-        )}
       </div>
     </div>
   );
