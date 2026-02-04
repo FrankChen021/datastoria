@@ -1,12 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { TextHighlighter } from "@/lib/text-highlighter";
-import { cn } from "@/lib/utils";
-import * as PopoverPrimitive from "@radix-ui/react-popover";
 import {
   AlertCircle,
   ArrowRight,
@@ -19,46 +16,13 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { useState } from "react";
 import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
 import { Dialog } from "../../shared/use-dialog";
 import { TabManager } from "../../tab-manager";
 import { QuerySnippetManager } from "./query-snippet-manager";
 import type { Snippet } from "./snippet";
 import type { UISnippet } from "./ui-snippet";
-
-function StatusPopover({
-  children,
-  className,
-  icon,
-  title,
-  trigger,
-  open,
-  onOpenChange,
-  ...props
-}: ComponentPropsWithoutRef<typeof PopoverContent> & {
-  icon: ReactNode;
-  title: string;
-  trigger: ReactNode;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent className={cn("p-0 overflow-hidden z-[10000]", className)} {...props}>
-        <PopoverPrimitive.Arrow className={cn("fill-[var(--border)]")} width={12} height={8} />
-        <div className="flex items-start gap-2 px-3 py-3">
-          {icon}
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm mb-1">{title}</div>
-            {children}
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 interface SnippetItemProps {
   uiSnippet: UISnippet;
@@ -67,27 +31,18 @@ interface SnippetItemProps {
 function SnippetHoverCardContent({
   snippet,
   isBuiltin,
-  showDeleteConfirm,
-  onDeleteClick,
-  onDeleteConfirm,
-  onDeleteCancel,
-  onDeleteChange,
   onRun,
   onInsert,
 }: {
   snippet: Snippet;
   isBuiltin: boolean;
-  showDeleteConfirm: boolean;
-  onDeleteClick: () => void;
-  onDeleteConfirm: () => void;
-  onDeleteCancel: () => void;
-  onDeleteChange: (open: boolean) => void;
   onRun: (snippet: Snippet) => void;
   onInsert: (snippet: Snippet) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editCaption, setEditCaption] = useState(snippet.caption);
   const [editSql, setEditSql] = useState(snippet.sql);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleEditClick = () => {
     setEditCaption(snippet.caption);
@@ -123,6 +78,20 @@ function SnippetHoverCardContent({
   const handleCancelEdit = () => {
     setIsEditing(false);
   };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    QuerySnippetManager.getInstance().deleteSnippet(snippet.caption);
+    setShowDeleteConfirm(false);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
+  };
+
   if (isEditing) {
     return (
       <>
@@ -233,63 +202,64 @@ function SnippetHoverCardContent({
               >
                 <Pencil className="!h-3 !w-3" />
               </Button>
-              <StatusPopover
-                open={showDeleteConfirm}
-                onOpenChange={onDeleteChange}
-                trigger={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteClick();
-                    }}
-                    title="Delete"
-                  >
-                    <Trash2 className="!h-3 !w-3" />
-                  </Button>
-                }
-                side="right"
-                align="start"
-                icon={
-                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
-                }
-                title="Confirm deletion"
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 hover:text-destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteClick();
+                }}
+                title="Delete"
               >
-                <div className="text-xs mb-3">
-                  Are you sure to delete this snippet? This action cannot be reverted.
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteCancel();
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteConfirm();
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </StatusPopover>
+                <Trash2 className="!h-3 !w-3" />
+              </Button>
             </>
           )}
         </div>
       </div>
       <Separator />
+      {showDeleteConfirm && (
+        <div
+          className="bg-destructive/10 border-l-4 border-destructive px-3 py-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-sm mb-1 text-destructive">Confirm deletion</div>
+              <div className="text-xs mb-3 text-muted-foreground">
+                Are you sure you want to delete this snippet? This action cannot be undone.
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteCancel();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteConfirm();
+                  }}
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showDeleteConfirm && <Separator />}
       <div className="max-h-[300px] min-h-[200px] overflow-auto">
         <ThemedSyntaxHighlighter
           language="sql"
@@ -311,7 +281,6 @@ function SnippetHoverCardContent({
 export function SnippetItem({ uiSnippet }: SnippetItemProps) {
   const { snippet, matchedIndex, matchedLength } = uiSnippet;
   const isBuiltin = snippet.builtin;
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hoverCardOpen, setHoverCardOpen] = useState(false);
   const captionNode =
     matchedIndex >= 0
@@ -341,30 +310,8 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
     setHoverCardOpen(false);
   };
 
-  const handleDeleteClick = () => {
-    setShowDeleteConfirm(true);
-  };
-
-  const handleDeleteConfirm = () => {
-    QuerySnippetManager.getInstance().deleteSnippet(snippet.caption);
-    setShowDeleteConfirm(false);
-  };
-
-  const handleDeleteCancel = () => {
-    setShowDeleteConfirm(false);
-  };
-
   return (
-    <HoverCard
-      open={hoverCardOpen}
-      onOpenChange={(open) => {
-        setHoverCardOpen(open);
-        if (!open) {
-          setShowDeleteConfirm(false);
-        }
-      }}
-      openDelay={300}
-    >
+    <HoverCard open={hoverCardOpen} onOpenChange={setHoverCardOpen} openDelay={300}>
       <HoverCardTrigger asChild>
         <div className="group flex items-center justify-between py-1.5 pl-5 pr-1 hover:bg-accent hover:text-accent-foreground rounded-none text-sm transition-colors cursor-pointer">
           <div className="flex items-center gap-2 overflow-hidden flex-1">
@@ -389,11 +336,6 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
         <SnippetHoverCardContent
           snippet={snippet}
           isBuiltin={isBuiltin}
-          showDeleteConfirm={showDeleteConfirm}
-          onDeleteClick={handleDeleteClick}
-          onDeleteConfirm={handleDeleteConfirm}
-          onDeleteCancel={handleDeleteCancel}
-          onDeleteChange={setShowDeleteConfirm}
           onRun={handleRun}
           onInsert={handleInsert}
         />

@@ -62,7 +62,7 @@ ORDER BY host`,
 
   {
     builtin: true,
-    caption: "show_mutations",
+    caption: "show_running_mutations",
     sql: `SELECT create_time, database, table, mutation_id, command, length(block_numbers.number), is_done, latest_fail_time, latest_fail_reason FROM system.mutations
 WHERE is_done = 0
 -- AND database = '' -- Change to your own
@@ -80,7 +80,9 @@ ORDER BY progress DESC, total_size_bytes_compressed DESC`,
   {
     builtin: true,
     caption: "show_zookeeper_connection",
-    sql: `SELECT FQDN(), * FROM clusterAllReplicas('{cluster}', system.zookeeper_connection) ORDER BY FQDN()`,
+    sql: `SELECT FQDN(), * 
+FROM clusterAllReplicas('{cluster}', system.zookeeper_connection) 
+ORDER BY FQDN()`,
   },
 
   {
@@ -89,14 +91,18 @@ ORDER BY progress DESC, total_size_bytes_compressed DESC`,
     sql: `SELECT event_time, event_type, query_id, database, table, part_name, duration_ms, rows, formatReadableSize(size_in_bytes) AS bytes, exception FROM system.part_log WHERE
 event_date = today()
 -- AND table = '' -- change to your own table name
-ORDER BY duration_ms`,
+ORDER BY duration_ms
+LIMIT 100`,
   },
 
   {
     builtin: true,
     caption: "show_data_part",
-    sql: `SELECT * FROM system.parts WHERE active 
+    sql: `SELECT * 
+FROM system.parts 
+WHERE active 
 -- AND database = '' -- change to your own database name
--- AND table = '' -- change to your own table name`,
+-- AND table = '' -- change to your own table name
+LIMIT 100`,
   },
 ];

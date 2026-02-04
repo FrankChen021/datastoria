@@ -52,6 +52,11 @@ Welcome to the DataStoria user manual. This comprehensive guide will help you ma
   - Auto-completion
   - Query Formatting
   - Keyboard Shortcuts
+- [SQL Snippets](./03-query-experience/sql-snippets.md)
+  - Built-in Query Templates
+  - Creating Custom Snippets
+  - Snippet Management
+  - Autocomplete Integration
 - [Error Diagnostics](./03-query-experience/error-diagnostics.md)
   - Understanding Error Messages
   - AI-Powered Fix Suggestions
