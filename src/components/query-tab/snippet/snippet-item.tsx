@@ -378,7 +378,11 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
         ) : (
           <Code className="h-4 w-4 shrink-0 text-blue-500" />
         )}
-        <HoverCard openDelay={300}>
+        <HoverCard openDelay={300} onOpenChange={(open) => {
+          if (!open) {
+            setShowDeleteConfirm(false);
+          }
+        }}>
           <HoverCardTrigger asChild>
             <div className="flex flex-col overflow-hidden min-w-0">
               <span className="font-medium truncate">{captionNode}</span>
