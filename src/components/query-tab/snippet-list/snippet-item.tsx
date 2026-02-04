@@ -17,9 +17,8 @@ import {
   Play,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
-import { Dialog } from "../../shared/use-dialog";
 import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
+import { Dialog } from "../../shared/use-dialog";
 import { TabManager } from "../../tab-manager";
 import { QuerySnippetManager } from "../query-input/snippet/query-snippet-manager";
 import type { Snippet } from "../query-input/snippet/snippet";
@@ -173,9 +172,9 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
   };
 
   const handleDelete = (snippet: Snippet) => {
-    Dialog.confirm({
+    Dialog.showDialog({
       title: "Delete Snippet",
-      description: `Are you sure you want to delete snippet "${snippet.caption}"?`,
+      description: `Are you sure you want to delete snippet "${snippet.caption}"? This action cannot be reverted.`,
       dialogButtons: [
         {
           text: "Cancel",
