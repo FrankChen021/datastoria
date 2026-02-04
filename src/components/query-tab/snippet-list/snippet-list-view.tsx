@@ -105,7 +105,78 @@ export function SnippetListView() {
                 <span className="font-medium truncate">{snippet.caption}</span>
               </div>
             </HoverCardTrigger>
-            <HoverCardContent side="right" align="start" className="w-[400px] p-0 overflow-hidden">
+            <HoverCardContent side="right" className="w-[400px] p-0 overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between p-2 bg-muted/30">
+                <span className="font-medium text-sm truncate">{snippet.caption}</span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRun(snippet);
+                    }}
+                    title="Run in new tab"
+                  >
+                    <Play className="!h-3 !w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleInsert(snippet);
+                    }}
+                    title="Insert at cursor"
+                  >
+                    <ArrowRight className="!h-3 !w-3" />
+                  </Button>
+                  {isBuiltin ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleClone(snippet);
+                      }}
+                      title="Clone / Edit Copy"
+                    >
+                      <Pencil className="!h-3 !w-3" />
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(snippet);
+                        }}
+                        title="Edit"
+                      >
+                        <Pencil className="!h-3 !w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(snippet);
+                        }}
+                        title="Delete"
+                      >
+                        <Trash2 className="!h-3 !w-3" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+              <Separator />
               <div className="max-h-[300px] overflow-auto">
                 <ThemedSyntaxHighlighter
                   language="sql"
@@ -195,6 +266,23 @@ export function SnippetListView() {
     );
   };
 
+  const SnippetItems = ({ snippets, title }: { snippets: Snippet[]; title: string }) => {
+    if (snippets.length === 0) return null;
+
+    return (
+      <div>
+        <div className="text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider">
+          {title}
+        </div>
+        <div className="space-y-0.5">
+          {snippets.map((s) => (
+            <SnippetItem key={s.caption} snippet={s} />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full w-full">
       <div className="relative border-b-2 flex items-center h-9">
@@ -221,35 +309,13 @@ export function SnippetListView() {
       </div>
 
       <div className="p-2 space-y-4 h-full overflow-y-auto">
-        {userSnippets.length > 0 && (
-          <div>
-            <div className="text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider">
-              User Defined
-            </div>
-            <div className="space-y-0.5">
-              {userSnippets.map((s) => (
-                <SnippetItem key={s.caption} snippet={s} />
-              ))}
-            </div>
-          </div>
-        )}
+        <SnippetItems snippets={userSnippets} title="User Defined" />
 
         {userSnippets.length > 0 && builtinSnippets.length > 0 && (
           <Separator className="my-2" />
         )}
 
-        {builtinSnippets.length > 0 && (
-          <div>
-            <div className="text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider">
-              Built-in
-            </div>
-            <div className="space-y-0.5">
-              {builtinSnippets.map((s) => (
-                <SnippetItem key={s.caption} snippet={s} />
-              ))}
-            </div>
-          </div>
-        )}
+        <SnippetItems snippets={builtinSnippets} title="Built-in" />
 
         {userSnippets.length === 0 && builtinSnippets.length === 0 && (
           <div className="text-center text-sm text-muted-foreground py-8">
