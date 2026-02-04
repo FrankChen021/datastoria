@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import { TextHighlighter } from "@/lib/text-highlighter";
+import { cn } from "@/lib/utils";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import {
   AlertCircle,
@@ -70,7 +70,7 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
   const { snippet, matchedIndex, matchedLength } = uiSnippet;
   const isBuiltin = snippet.builtin;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const captionNode = matchedIndex >= 0 
+  const captionNode = matchedIndex >= 0
     ? TextHighlighter.highlight2(snippet.caption, matchedIndex, matchedIndex + matchedLength, "text-yellow-500")
     : snippet.caption;
 
@@ -238,8 +238,7 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
             </div>
           </HoverCardTrigger>
           <HoverCardContent side="right" className="w-[400px] p-0 overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-2 bg-muted/30">
-              <span className="font-medium text-sm truncate">{snippet.caption}</span>
+            <div className="flex flex-col gap-2 p-2 bg-muted/30">
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
@@ -309,7 +308,7 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
                           <Trash2 className="!h-3 !w-3" />
                         </Button>
                       }
-                      side="left"
+                      side="right"
                       align="start"
                       icon={
                         <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
@@ -347,6 +346,7 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
                   </>
                 )}
               </div>
+              <span className="font-medium text-sm truncate">{snippet.caption}</span>
             </div>
             <Separator />
             <div className="max-h-[300px] overflow-auto">
