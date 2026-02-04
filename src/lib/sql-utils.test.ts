@@ -47,9 +47,9 @@ describe("SqlUtils.toExplainSQL", () => {
   it("strips single-line (lines starting with --) and multiline comments from SQL", () => {
     const sql = "SELECT 1\n-- comment line\nFROM system.one /* inline */";
     const { explainSQL, rawSQL } = SqlUtils.toExplainSQL("ast", sql);
-    // Removing a full line leaves a blank line; trim only affects leading/trailing
-    expect(rawSQL).toBe("SELECT 1\n\nFROM system.one");
-    expect(explainSQL).toBe("EXPLAIN ast\nSELECT 1\n\nFROM system.one");
+    // Multiple newlines are collapsed to a single newline
+    expect(rawSQL).toBe("SELECT 1\nFROM system.one");
+    expect(explainSQL).toBe("EXPLAIN ast\nSELECT 1\nFROM system.one");
   });
 
   it("strips trailing \\G", () => {
