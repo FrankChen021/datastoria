@@ -2,9 +2,10 @@ import { Output, streamText, tool, type ModelMessage } from "ai";
 import { z } from "zod";
 import { isMockMode, LanguageModelProviderFactory } from "../llm/llm-provider-factory";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
+import { SERVER_TOOL_NAMES } from "../tools/server/server-tool-names";
 import type { ServerDatabaseContext } from "./common-types";
 import type { InputModel } from "./plan/sub-agent-registry";
-import { createGenerateSqlTool, SERVER_TOOL_GENERATE_SQL } from "./sql-generation-agent";
+import { createGenerateSqlTool } from "./sql-generation-agent";
 import { mockVisualizationAgent } from "./visualization-agent.mock";
 
 /**
@@ -90,14 +91,9 @@ export const visualizationAgentCompleteOutputSchema = visualizationAgentOutputSc
 export type VisualizationAgentOutput = z.infer<typeof visualizationAgentCompleteOutputSchema>;
 
 /**
- * Server-side tool name for visualization generation
- */
-export const SERVER_TOOL_GENEREATE_VISUALIZATION = "generate_visualization" as const;
-
-/**
- * Server-side tool: Visualization Planning
- * Calls the visualization agent to determine appropriate visualization
- * @param inputModel - Model configuration to use for the agent
+ * Server-side tool: Visualization Planning (LLM-based).
+ * Calls the visualization agent to determine appropriate visualization.
+ * Use in the planning-subagent flow (/api/chat).
  */
 export function createGenerateVisualizationTool(inputModel: InputModel) {
   return tool({
@@ -401,10 +397,10 @@ You are an expert at creating data visualizations for ClickHouse data.
     tools: {
       get_tables: clientTools.get_tables,
       explore_schema: clientTools.explore_schema,
-      [SERVER_TOOL_GENERATE_SQL]: createGenerateSqlTool(modelConfig, context),
+      [SERVER_TOOL_NAMES.GENERATE_SQL]: createGenerateSqlTool(modelConfig, context),
       validate_sql: clientTools.validate_sql,
       execute_sql: clientTools.execute_sql,
-      generate_visualization: createGenerateVisualizationTool(modelConfig),
+      [SERVER_TOOL_NAMES.GENERATE_VISUALIZATION]: createGenerateVisualizationTool(modelConfig),
     },
     temperature,
   });

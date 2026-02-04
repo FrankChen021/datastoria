@@ -1,11 +1,9 @@
 import { AppLogo } from "@/components/app-logo";
 import { TypingDots } from "@/components/ui/typing-dots";
 import { UserProfileImage } from "@/components/user-profile-image";
-import { SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planning-agent";
-import { SERVER_TOOL_GENERATE_SQL } from "@/lib/ai/agent/sql-generation-agent";
-import { SERVER_TOOL_GENEREATE_VISUALIZATION } from "@/lib/ai/agent/visualization-agent";
 import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
+import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { cn } from "@/lib/utils";
 import NumberFlow from "@number-flow/react";
@@ -23,6 +21,7 @@ import { MessageToolGenerateSql } from "./message-tool-generate-sql";
 import { MessageToolGenerateVisualization } from "./message-tool-generate-visualization";
 import { MessageToolGetTables } from "./message-tool-get-tables";
 import { MessageToolPlan } from "./message-tool-plan";
+import { MessageToolSkill } from "./message-tool-skill";
 import { MessageToolValidateSql } from "./message-tool-validate-sql";
 import { MessageUser } from "./message-user";
 
@@ -128,11 +127,18 @@ const ChatMessagePart = memo(
       toolName = part.type.replace("tool-", "");
     }
 
-    if (toolName === SERVER_TOOL_GENERATE_SQL) {
+    // SERVER TOOLS
+    if (toolName === SERVER_TOOL_NAMES.GENERATE_SQL) {
       return <MessageToolGenerateSql part={part} isRunning={isRunning} />;
-    } else if (toolName === SERVER_TOOL_GENEREATE_VISUALIZATION) {
+    } else if (toolName === SERVER_TOOL_NAMES.GENERATE_VISUALIZATION) {
       return <MessageToolGenerateVisualization part={part} isRunning={isRunning} />;
-    } else if (toolName === CLIENT_TOOL_NAMES.EXECUTE_SQL) {
+    } else if (toolName === SERVER_TOOL_NAMES.PLAN) {
+      return <MessageToolPlan part={part} isRunning={isRunning} />;
+    } else if (toolName === SERVER_TOOL_NAMES.SKILL) {
+      return <MessageToolSkill part={part} isRunning={isRunning} />;
+    }
+    // CLIENT TOOLS
+    else if (toolName === CLIENT_TOOL_NAMES.EXECUTE_SQL) {
       return <MessageToolExecuteSql part={part} isRunning={isRunning} />;
     } else if (toolName === CLIENT_TOOL_NAMES.VALIDATE_SQL) {
       return <MessageToolValidateSql part={part} isRunning={isRunning} />;
@@ -142,9 +148,13 @@ const ChatMessagePart = memo(
       return <MessageToolGetTables part={part} isRunning={isRunning} />;
     } else if (toolName === CLIENT_TOOL_NAMES.COLLECT_SQL_OPTIMIZATION_EVIDENCE) {
       return <MessageToolCollectSqlOptimizationEvidence part={part} isRunning={isRunning} />;
-    } else if (toolName === SERVER_TOOL_PLAN) {
-      return <MessageToolPlan part={part} isRunning={isRunning} />;
-    } else if (toolName) {
+    } else if (toolName === CLIENT_TOOL_NAMES.FIND_EXPENSIVE_QUERIES) {
+      return (
+        <MessageToolGeneral toolName={"Find Expensive Queries"} part={part} isRunning={isRunning} />
+      );
+    }
+    // GENERAL TOOLS
+    else if (toolName) {
       return <MessageToolGeneral toolName={toolName} part={part} isRunning={isRunning} />;
     }
 

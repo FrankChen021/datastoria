@@ -1,19 +1,18 @@
+import { AgentConfigurationManager } from "@/components/settings/agent/agent-manager";
 import { ModelManager } from "@/components/settings/models/model-manager";
-import { SERVER_TOOL_PLAN } from "@/lib/ai/agent/plan/planning-agent";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
-import { SERVER_TOOL_GENERATE_SQL } from "@/lib/ai/agent/sql-generation-agent";
-import { SERVER_TOOL_OPTIMIZE_SQL } from "@/lib/ai/agent/sql-optimization-agent";
-import { SERVER_TOOL_GENEREATE_VISUALIZATION } from "@/lib/ai/agent/visualization-agent";
 import type { AppUIMessage, Message, MessageMetadata } from "@/lib/ai/chat-types";
 import { MODELS } from "@/lib/ai/llm/llm-provider-factory";
 import type { StageStatus, ToolProgressCallback } from "@/lib/ai/tools/client/client-tool-types";
 import { CLIENT_TOOL_NAMES, ClientToolExecutors } from "@/lib/ai/tools/client/client-tools";
 import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
+import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { Connection } from "@/lib/connection/connection";
 import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { v7 as uuidv7 } from "uuid";
 import { ChatContext } from "./chat-context";
+import { ChatUIContext } from "./chat-ui-context";
 import { chatStorage } from "./storage/chat-storage";
 
 /**
@@ -119,7 +118,6 @@ export class ChatFactory {
   }): Promise<Chat<AppUIMessage>> {
     const chatId = options.id || uuidv7();
     const skipStorage = options.skipStorage ?? false;
-    const apiEndpoint = options.apiEndpoint ?? "/api/chat";
     const modelConfig = options.model;
     const connection = options.connection;
 
@@ -138,7 +136,12 @@ export class ChatFactory {
       sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
 
       transport: new DefaultChatTransport({
-        api: apiEndpoint,
+        fetch: async (input, init) => {
+          const mode = AgentConfigurationManager.getConfiguration().mode;
+          const endpoint = mode === "v2" ? "/api/chat/v2" : "/api/chat";
+          return fetch(endpoint, init);
+        },
+
         prepareSendMessagesRequest: async ({
           messages,
           trigger,
@@ -172,7 +175,6 @@ export class ChatFactory {
                   metadata: msg.metadata,
                   createdAt: now,
                   updatedAt: now,
-                  usage: undefined,
                 } as Message;
               });
 
@@ -228,10 +230,11 @@ export class ChatFactory {
       onToolCall: async ({ toolCall }) => {
         const { toolName, toolCallId, input } = toolCall;
         if (
-          toolName === SERVER_TOOL_GENERATE_SQL ||
-          toolName === SERVER_TOOL_GENEREATE_VISUALIZATION ||
-          toolName === SERVER_TOOL_OPTIMIZE_SQL ||
-          toolName === SERVER_TOOL_PLAN
+          toolName === SERVER_TOOL_NAMES.GENERATE_SQL ||
+          toolName === SERVER_TOOL_NAMES.GENERATE_VISUALIZATION ||
+          toolName === SERVER_TOOL_NAMES.OPTIMIZE_SQL ||
+          toolName === SERVER_TOOL_NAMES.PLAN ||
+          toolName === SERVER_TOOL_NAMES.SKILL
         ) {
           return;
         }
@@ -306,15 +309,19 @@ export class ChatFactory {
               };
             }
 
-            if (
+            if (message.metadata?.title && typeof message.metadata.title.text === "string") {
+              chat.title = message.metadata.title.text;
+              ChatUIContext.updateTitle(message.metadata.title.text);
+            } else if (
               message.role === "assistant" &&
               message.parts.length > 1 &&
               message.parts[0].type === "dynamic-tool" &&
-              message.parts[0].toolName === SERVER_TOOL_PLAN
+              message.parts[0].toolName === SERVER_TOOL_NAMES.PLAN
             ) {
               const output = message.parts[0].output as PlanToolOutput;
               if (output.title) {
                 chat.title = output.title;
+                ChatUIContext.updateTitle(output.title);
               }
             }
 

@@ -16,10 +16,7 @@ import {
 import { ChevronRight, X } from "lucide-react";
 import React, { useCallback, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { ModelsEdit } from "./models/models-edit";
-import { QueryContextEdit } from "./query-context/query-context-edit";
-
-type SettingsSection = "query-context" | "models";
+import { SETTINGS_REGISTRY, type SettingsSection } from "./settings-registry";
 
 export interface ShowSettingsDialogOptions {
   initialSection?: SettingsSection;
@@ -54,6 +51,9 @@ function SettingsDialogWrapper({
       document.removeEventListener("keydown", handleEscape);
     };
   }, [handleClose]);
+
+  const activePage = SETTINGS_REGISTRY[activeSection];
+  const ActiveComponent = activePage.component;
 
   return (
     <div className="fixed inset-0 z-[9999] bg-background flex flex-col">
@@ -110,6 +110,15 @@ function SettingsDialogWrapper({
                               <span>Models</span>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton
+                              className="cursor-pointer"
+                              onClick={() => setActiveSection("agent")}
+                              isActive={activeSection === "agent"}
+                            >
+                              <span>Agent</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
                         </SidebarMenuSub>
                       </CollapsibleContent>
                     </Collapsible>
@@ -124,16 +133,8 @@ function SettingsDialogWrapper({
             {/* Header */}
             <div className="flex-shrink-0 border-b px-4 py-2 flex items-center justify-between">
               <div className="flex flex-col">
-                <div className="text-sm">
-                  {activeSection === "query-context"
-                    ? "Configure query execution settings and parameters"
-                    : "Configure AI models"}
-                </div>
-                {activeSection === "models" && (
-                  <div className="text-[11px] text-muted-foreground">
-                    API keys are only stored at your client side
-                  </div>
-                )}
+                <div className="text-sm font-medium">{activePage.title}</div>
+                <div className="text-xs text-muted-foreground">{activePage.description}</div>
               </div>
               <Button variant="ghost" size="icon" onClick={handleClose} className="h-8 w-8">
                 <X className="h-4 w-4" />
@@ -142,8 +143,7 @@ function SettingsDialogWrapper({
 
             {/* Content Area - Fills remaining space */}
             <div className="flex-1 overflow-y-auto px-0 py-0">
-              {activeSection === "query-context" && <QueryContextEdit />}
-              {activeSection === "models" && <ModelsEdit />}
+              <ActiveComponent />
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { QueryError } from "@/lib/connection/connection";
+import { SqlUtils } from "@/lib/sql-utils";
 import type { ToolExecutor } from "./client-tool-types";
 
 type ValidateSqlInput = {
@@ -72,6 +73,15 @@ function validateProfileEvents(
   return { success: true };
 }
 
+/**
+ * Returns the first SQL keyword (after comments) to determin the SQL type(SELECT/DROP/etc...)
+ */
+function getFirstKeyword(sql: string): string {
+  const stripped = SqlUtils.removeComments(sql);
+  const match = stripped.match(/^\s*(\w+)/i);
+  return match ? match[1].toUpperCase() : "";
+}
+
 export const validateSqlExecutor: ToolExecutor<ValidateSqlInput, ValidateSqlOutput> = async (
   input,
   connection
@@ -79,9 +89,15 @@ export const validateSqlExecutor: ToolExecutor<ValidateSqlInput, ValidateSqlOutp
   try {
     const { sql } = input;
 
-    // First, validate SQL syntax
-    const { response } = connection.query("EXPLAIN SYNTAX " + sql);
-    await response;
+    const firstKeyword = getFirstKeyword(sql);
+    const usePipeline = firstKeyword === "SELECT";
+    if (usePipeline) {
+      // EXPLAIN PIPELINE can check semantic errors
+      await connection.query("EXPLAIN PIPELINE " + sql).response;
+    } else {
+      // DDL and other statements: validate syntax with EXPLAIN AST (works for all query types)
+      await connection.query("EXPLAIN AST " + sql).response;
+    }
 
     // Validate ProfileEvents using cached events from connection metadata
     const profileEventsResult = validateProfileEvents(sql, connection.metadata.profileEvents);

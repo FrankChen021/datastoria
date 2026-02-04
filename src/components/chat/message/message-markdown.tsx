@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { memo, useEffect, useMemo, useRef } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { MessageMarkdownChartSpec } from "./message-markdown-chat";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 
 /**
@@ -42,23 +43,21 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   const components = useMemo<Components>(
     () => ({
       code: ({ className: codeClassName, children, ...props }: React.ComponentProps<"code">) => {
-        const match = /language-(\w+)/.exec(codeClassName || "");
-        const language = match ? match[1] : undefined;
-        const code = String(children).replace(/\n$/, "");
-
-        const isSql = language === "sql" || language === "clickhouse";
-
-        if (isSql) {
+        if (codeClassName === "language-sql" || codeClassName === "language-clickhouse") {
           return (
             <MessageMarkdownSql
-              code={code}
-              language={language}
+              code={String(children).replace(/\n$/, "")}
+              language="sql"
               customStyle={customStyle}
               showExecuteButton={showExecuteButton}
               showLineNumbers={false}
               expandable={expandable}
             />
           );
+        }
+
+        if (codeClassName === "language-chart-spec") {
+          return <MessageMarkdownChartSpec spec={String(children)} />;
         }
 
         // Check if inline code is a table name or database name

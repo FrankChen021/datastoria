@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { AppUIMessage } from "@/lib/ai/chat-types";
 import type { Chat } from "@ai-sdk/react";
-import { Loader2, Maximize2, Minimize2, Square, X } from "lucide-react";
+import { Loader2, Maximize2, Minimize2, Plus, Square, X } from "lucide-react";
 import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
@@ -94,6 +94,16 @@ const ChatHeader = React.memo(
       <div className="h-9 border-b flex items-center justify-between px-2 shrink-0 bg-background/50 backdrop-blur-sm z-10">
         <h2 className="text-sm font-semibold">{title || "AI Assistant"}</h2>
         <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={onNewChat}
+            disabled={isRunning}
+            title="New Session"
+          >
+            <Plus className="!h-3.5 !w-3.5" />
+          </Button>
           <OpenHistoryButton
             className="h-6 w-6"
             iconClassName="!h-3.5 !w-3.5"

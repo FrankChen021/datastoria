@@ -39,6 +39,11 @@ export type MessagePart = TextPart | ToolCallPart | ToolResultPart;
 export type MessageMetadata = {
   planner?: PlannerMetadata;
   usage?: LanguageModelUsage;
+  /** LLM-generated chat title (v2 skill-based chat). */
+  title?: {
+    text: string;
+    usage: LanguageModelUsage;
+  };
   // Allow arbitrary extra metadata fields coming from the SDK or future agents
   [key: string]: unknown;
 };
@@ -59,6 +64,12 @@ export interface Message {
    * The UI reads fields like `metadata.usage` and `metadata.planner`.
    */
   metadata?: MessageMetadata;
+  /**
+   * Explicit sequence number for deterministic message ordering.
+   * Immune to client/server clock skew. Optional for backward compatibility with
+   * existing messages that were saved before this field was introduced.
+   */
+  sequence?: number;
   createdAt: Date;
   updatedAt: Date;
 }

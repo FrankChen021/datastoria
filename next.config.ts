@@ -1,3 +1,4 @@
+import path from 'node:path'
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -14,6 +15,24 @@ const nextConfig: NextConfig = {
     // Optimize barrel file imports for better performance
     // This transforms barrel imports to direct imports at build time
     optimizePackageImports: ['lucide-react'],
+  },
+  webpack: (config) => {
+    // Bundle SKILL.md files as raw strings (build-time import, no runtime fs)
+    const skillsDir = path.join(process.cwd(), 'src', 'lib', 'ai', 'skills')
+    config.module.rules.push({
+      test: /\/SKILL\.md$/,
+      include: skillsDir,
+      type: 'asset/source',
+    })
+    return config
+  },
+  turbopack: {
+    rules: {
+      '**/skills/**/SKILL.md': {
+        loaders: ['raw-loader'],
+        as: '*.js',
+      },
+    },
   },
 }
 

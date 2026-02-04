@@ -65,12 +65,16 @@ export const SUB_AGENTS: Record<string, SubAgent> = {
   },
 };
 
-/** Pre-computed agent descriptions for planner prompt building. */
+/**
+ * Pre-computed agent descriptions for planner prompt building.
+ */
 export const AGENT_LIST = Object.values(SUB_AGENTS)
   .map((agent) => `- '${agent.id}': ${agent.description}`)
   .join("\n");
 
-/** Pre-computed intent options for planner prompt building. */
+/**
+ * Pre-computed intent options for planner prompt building.
+ */
 export const AGENT_ID_LIST = Object.values(SUB_AGENTS)
   .map((agent) => agent.id)
   .join('" | "');

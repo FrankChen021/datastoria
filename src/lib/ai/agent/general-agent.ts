@@ -1,9 +1,10 @@
 import { streamText } from "ai";
 import { LanguageModelProviderFactory } from "../llm/llm-provider-factory";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
+import { SERVER_TOOL_NAMES } from "../tools/server/server-tool-names";
 import type { ServerDatabaseContext } from "./common-types";
 import type { InputModel } from "./plan/sub-agent-registry";
-import { createGenerateSqlTool, SERVER_TOOL_GENERATE_SQL } from "./sql-generation-agent";
+import { createGenerateSqlTool } from "./sql-generation-agent";
 
 /**
  * General Agent
@@ -36,7 +37,8 @@ Capabilities:
 2. Explain ClickHouse concepts (MergeTree, Materialized Views, etc.) in the abstract.
 3. Discover table schemas using 'get_tables' with filters and 'explore_schema'.
 4. Perform Data Retrieval and analyze table state/metadata.
-5. Handle greetings and general conversation.
+5. Find expensive or top-consuming queries using 'find_expensive_queries'.
+6. Handle greetings and general conversation.
 
 **Schema Discovery Workflow (REQUIRED)**:
 When looking for tables, ALWAYS use 'get_tables' with appropriate filters to narrow results:
@@ -71,6 +73,12 @@ c) **Validation**: ALWAYS call 'validate_sql' with the generated SQL before exec
 d) **Execution**: Call 'execute_sql' with the validated SQL to fetch the results.
 e) **Final Answer**: Present the results to the user in a clear markdown format.
 
+**Performance Analysis Workflow**:
+If the user asks for "top queries", "slowest queries", or "most expensive queries" (by CPU, memory, etc.):
+a) Use 'find_expensive_queries' with the specified metric (cpu, memory, disk, duration) and time window.
+b) Default to 'time_window=60' (1 hour) if not specified, but respect user input (e.g. "past 3 hours" -> time_window=180).
+c) Present the results clearly in a table or list.
+
 Guidelines:
 - Extract keywords from user queries to build name_pattern filters
 - For metadata queries (partition, engine, etc.), use the appropriate filter parameters
@@ -91,9 +99,10 @@ Guidelines:
     tools: {
       get_tables: clientTools.get_tables,
       explore_schema: clientTools.explore_schema,
-      [SERVER_TOOL_GENERATE_SQL]: createGenerateSqlTool(modelConfig, context),
+      [SERVER_TOOL_NAMES.GENERATE_SQL]: createGenerateSqlTool(modelConfig, context),
       validate_sql: clientTools.validate_sql,
       execute_sql: clientTools.execute_sql,
+      find_expensive_queries: clientTools.find_expensive_queries,
     },
   });
 }

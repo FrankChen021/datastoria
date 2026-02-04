@@ -84,11 +84,8 @@ export class ChatStorageLocal implements ChatStorage {
         return 0;
       }
 
-      // Sort by ID (UUIDv7 is chronologically sortable, oldest first)
-      const sortedMessages = messages.sort((a, b) => a.id.localeCompare(b.id));
-
-      // Remove up to 'count' oldest messages
-      const messagesToDelete = sortedMessages.slice(0, Math.min(count, sortedMessages.length));
+      // getMessages returns sorted (order-based or legacy createdAt+id)
+      const messagesToDelete = messages.slice(0, Math.min(count, messages.length));
 
       if (messagesToDelete.length === 0) {
         return 0;
@@ -223,6 +220,21 @@ export class ChatStorageLocal implements ChatStorage {
   }
 
   /**
+   * Compare two messages for sorting. Uses order when both have it (immune to clock skew).
+   * Falls back to createdAt then id for legacy messages without order.
+   */
+  private compareMessages(a: Message, b: Message): number {
+    const aOrder = a.sequence ?? undefined;
+    const bOrder = b.sequence ?? undefined;
+    if (aOrder != null && bOrder != null) {
+      return aOrder - bOrder;
+    }
+    const timeCmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    if (timeCmp !== 0) return timeCmp;
+    return a.id.localeCompare(b.id);
+  }
+
+  /**
    * Save messages for a specific chat as a Map (object) keyed by message ID
    * @param hasPrunedMessages - Internal flag to prevent infinite recursion when pruning messages
    */
@@ -318,47 +330,84 @@ export class ChatStorageLocal implements ChatStorage {
   // Message operations
   async getMessages(chatId: string): Promise<Message[]> {
     const messagesMap = this.getMessagesForChat(chatId);
+    const messages = Object.values(messagesMap).map((message) => ({
+      ...message,
+      createdAt: new Date(message.createdAt),
+      updatedAt: new Date(message.updatedAt),
+    }));
 
-    // Convert object to array, parse dates, and sort by message id.
-    // Message ids are UUIDv7, which are lexicographically sortable in chronological order.
-    return (
-      Object.values(messagesMap)
-        .map((message) => ({
-          ...message,
-          createdAt: new Date(message.createdAt),
-          updatedAt: new Date(message.updatedAt),
-        }))
-        // Sort by UUIDv7 id to ensure stable chronological ordering
-        .sort((a, b) => a.id.localeCompare(b.id))
-    );
+    // Backfill sequence on legacy messages when loading (migration-on-read)
+    const needsBackfill = messages.some((m) => m.sequence == null);
+    if (needsBackfill && messages.length > 0) {
+      const sorted = [...messages].sort((a, b) => this.compareMessages(a, b));
+      for (let i = 0; i < sorted.length; i++) {
+        const sequence = i + 1;
+        sorted[i].sequence = sequence;
+        messagesMap[sorted[i].id] = sorted[i];
+      }
+      await this.saveMessagesForChat(chatId, messagesMap);
+    }
+
+    // Sort and return (uses sequence when present, else createdAt+id for legacy)
+    return messages.sort((a, b) => this.compareMessages(a, b));
   }
 
   async saveMessage(chatId: string, message: Message): Promise<void> {
     const messagesMap = this.getMessagesForChat(chatId);
 
+    // Use existing sequence if available to preserve order on updates
+    let sequence = messagesMap[message.id]?.sequence;
+
+    // If new message, assign next sequence
+    if (sequence === undefined) {
+      const messages = Object.values(messagesMap);
+      const maxSequence =
+        messages.length > 0 ? Math.max(...messages.map((m) => m.sequence ?? 0)) : 0;
+      sequence = maxSequence + 1;
+    }
+
     const messageToSave: Message = {
       ...message,
+      sequence,
       createdAt: message.createdAt || new Date(),
       updatedAt: new Date(),
     };
 
-    // O(1) update or add using object property access
     messagesMap[message.id] = messageToSave;
-
     await this.saveMessagesForChat(chatId, messagesMap);
+
+    const chat = await this.getChat(chatId);
+    if (chat) {
+      await this.saveChat({ ...chat, updatedAt: new Date() });
+    }
   }
 
   /**
    * Save multiple messages in batch
-   * Uses O(1) object property access for efficient updates
+   * Assigns sequential sequence to each message.
    */
   async saveMessages(chatId: string, messagesToSave: Message[]): Promise<void> {
-    const messagesMap = this.getMessagesForChat(chatId);
+    if (messagesToSave.length === 0) return;
 
-    // O(1) updates for each message using object property access
+    const messagesMap = this.getMessagesForChat(chatId);
+    const messages = Object.values(messagesMap);
+
+    // Next sequence: max(sequence) + 1, or 1 if empty
+    let maxSequence = messages.length > 0 ? Math.max(...messages.map((m) => m.sequence ?? 0)) : 0;
+
     for (const message of messagesToSave) {
+      // Use existing sequence if available to preserve order on updates
+      let sequence = messagesMap[message.id]?.sequence;
+
+      // If new message, assign next sequence
+      if (sequence === undefined) {
+        maxSequence += 1;
+        sequence = maxSequence;
+      }
+
       const messageToSave: Message = {
         ...message,
+        sequence,
         createdAt: message.createdAt || new Date(),
         updatedAt: new Date(),
       };
@@ -366,6 +415,11 @@ export class ChatStorageLocal implements ChatStorage {
     }
 
     await this.saveMessagesForChat(chatId, messagesMap);
+
+    const chat = await this.getChat(chatId);
+    if (chat) {
+      await this.saveChat({ ...chat, updatedAt: new Date() });
+    }
   }
 
   async deleteMessage(id: string): Promise<void> {

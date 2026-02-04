@@ -184,7 +184,7 @@ export const ClientTools = {
   }),
   find_expensive_queries: tool({
     description:
-      "Find expensive queries from system.query_log by resource metric. Use when user asks to find/optimize heavy queries without providing specific SQL or query_id. Supported metrics: cpu (CPU time), memory (peak RAM usage), disk (bytes read), duration (execution time). NOT supported: filtering by user, database, table name, or query pattern. Time filtering: use 'time_window' for relative time (last N minutes) or 'time_range' for absolute dates.",
+      "Find expensive queries from system.query_log by resource metric. Queries are grouped by pattern (normalized_query_hash) and metrics are aggregated across all executions. Use when user asks to find/optimize heavy queries without providing specific SQL or query_id. Supported metrics: cpu (CPU time), memory (peak RAM usage), disk (bytes read), duration (execution time). Returns execution_count showing how many times each query pattern ran. NOT supported: filtering by user, database, table name, or query pattern. Time filtering: use 'time_window' for relative time (last N minutes) or 'time_range' for absolute dates.",
     inputSchema: z.object({
       metric: z
         .enum(["cpu", "memory", "disk", "duration"])
@@ -235,20 +235,20 @@ export const ClientTools = {
           to: z.string(),
         })
         .optional(),
-      time_description: z.string(),
       queries: z.array(
         z.object({
           rank: z.number(),
+          normalized_query_hash: z.string(),
           query_id: z.string(),
           user: z.string(),
           sql_preview: z.string(),
           metric_value: z.number(),
-          metric_formatted: z.string(),
           duration_ms: z.number(),
           memory_bytes: z.number(),
           read_rows: z.number(),
           read_bytes: z.number(),
-          event_time: z.string(),
+          last_execution_time: z.string(),
+          execution_count: z.number(),
         })
       ),
     }),
