@@ -18,8 +18,8 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { TabManager } from "../../tab-manager";
 import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
+import { TabManager } from "../../tab-manager";
 import { QuerySnippetManager } from "../query-input/snippet/query-snippet-manager";
 import { SaveSnippetDialog } from "../query-input/snippet/save-snippet-dialog";
 import type { Snippet } from "../query-input/snippet/snippet";
@@ -124,7 +124,7 @@ export function SnippetListView() {
         </div>
 
         {/* Actions - visible on hover */}
-        <div className="flex items-center gap-0.5 pl-1">
+        <div className="flex items-center gap-0.5 pl-1 opacity-0 group-hover:opacity-100 transition-opacity bg-accent">
           <Button
             variant="ghost"
             size="icon"
@@ -147,7 +147,7 @@ export function SnippetListView() {
             }}
             title="Insert at cursor"
           >
-            <ArrowRight className="h-3 w-3" />
+            <ArrowRight className="!h-3 !w-3" />
           </Button>
           {isBuiltin ? (
             <Button
@@ -160,7 +160,7 @@ export function SnippetListView() {
               }}
               title="Clone / Edit Copy"
             >
-              <Pencil className="h-3 w-3" />
+              <Pencil className="!h-3 !w-3" />
             </Button>
           ) : (
             <>
@@ -174,7 +174,7 @@ export function SnippetListView() {
                 }}
                 title="Edit"
               >
-                <Pencil className="h-3 w-3" />
+                <Pencil className="!h-3 !w-3" />
               </Button>
               <Button
                 variant="ghost"
@@ -186,7 +186,7 @@ export function SnippetListView() {
                 }}
                 title="Delete"
               >
-                <Trash2 className="h-3 w-3" />
+                <Trash2 className="!h-3 !w-3" />
               </Button>
             </>
           )}
