@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TextHighlighter } from "@/lib/text-highlighter";
 import { cn } from "@/lib/utils";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
-import { AlertCircle, ArrowRight, Code, FileText, Pencil, Play, Trash2 } from "lucide-react";
+import { AlertCircle, ArrowRight, Check, Code, Copy, FileText, Pencil, Play, Trash2, X } from "lucide-react";
 import { useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
 import { Dialog } from "../../shared/use-dialog";
@@ -114,17 +114,15 @@ function SnippetHoverCardContent({
   if (isEditing) {
     return (
       <>
-        <div className="flex flex-col gap-2 p-3 bg-muted/30">
-          <div className="flex flex-col gap-2">
-            <Input
-              id="edit-caption"
-              value={editCaption}
-              onChange={(e) => setEditCaption(e.target.value)}
-              className="h-8"
-              autoFocus
-            />
-          </div>
-          <div className="flex justify-end gap-1">
+        <div className="flex items-center justify-between gap-2 p-2 bg-muted/30">
+          <Input
+            id="edit-caption"
+            value={editCaption}
+            onChange={(e) => setEditCaption(e.target.value)}
+            className="h-8 text-sm"
+            autoFocus
+          />
+          <div key="edit-caption-actions" className="flex justify-end gap-1">
             <Button
               type="button"
               variant="ghost"
@@ -154,7 +152,7 @@ function SnippetHoverCardContent({
           </div>
         </div>
         <Separator />
-        <div className="flex flex-col p-3 gap-2">
+        <div className="flex flex-col p-[12px] gap-2">
           <Textarea
             id="edit-sql"
             value={editSql}
@@ -169,7 +167,6 @@ function SnippetHoverCardContent({
   return (
     <>
       <div className="flex items-center justify-between gap-2 p-2 bg-muted/30">
-
         <span className="font-medium text-sm truncate">{snippet.caption}</span>
         <div className="flex items-center gap-1">
           <Button
@@ -196,7 +193,7 @@ function SnippetHoverCardContent({
           >
             <ArrowRight className="!h-3 !w-3" />
           </Button>
-          {isBuiltin ? (
+          {isBuiltin && (
             <Button
               variant="ghost"
               size="icon"
@@ -207,80 +204,77 @@ function SnippetHoverCardContent({
               }}
               title="Clone / Edit Copy"
             >
-              <Pencil className="!h-3 !w-3" />
+              <Copy className="!h-3 !w-3" />
             </Button>
-          ) : (
-            <>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEditClick();
-                }}
-                title="Edit"
-              >
-                <Pencil className="!h-3 !w-3" />
-              </Button>
-              <StatusPopover
-                open={showDeleteConfirm}
-                onOpenChange={onDeleteChange}
-                trigger={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteClick();
-                    }}
-                    title="Delete"
-                  >
-                    <Trash2 className="!h-3 !w-3" />
-                  </Button>
-                }
-                side="right"
-                align="start"
-                icon={
-                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
-                }
-                title="Confirm deletion"
-              >
-                <div className="text-xs mb-3">
-                  Are you sure to delete this snippet? This action cannot be reverted.
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteCancel();
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteConfirm();
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </StatusPopover>
-            </>
           )}
+          {!isBuiltin && (<><Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditClick();
+            }}
+            title="Edit"
+          >
+            <Pencil className="!h-3 !w-3" />
+          </Button>
+            <StatusPopover
+              open={showDeleteConfirm}
+              onOpenChange={onDeleteChange}
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 hover:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteClick();
+                  }}
+                  title="Delete"
+                >
+                  <Trash2 className="!h-3 !w-3" />
+                </Button>
+              }
+              side="right"
+              align="start"
+              icon={
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
+              }
+              title="Confirm deletion"
+            >
+              <div className="text-xs mb-3">
+                Are you sure to delete this snippet? This action cannot be reverted.
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteCancel();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteConfirm();
+                  }}
+                >
+                  Delete
+                </Button>
+              </div>
+            </StatusPopover></>)}
         </div>
       </div>
       <Separator />
-      <div className="max-h-[300px] overflow-auto">
+      <div className="max-h-[300px] min-h-[200px] overflow-auto">
         <ThemedSyntaxHighlighter
           language="sql"
           customStyle={{
@@ -288,6 +282,7 @@ function SnippetHoverCardContent({
             padding: "12px",
             fontSize: "0.75rem",
             borderRadius: 0,
+            minHeight: "200px",
           }}
         >
           {snippet.sql}
