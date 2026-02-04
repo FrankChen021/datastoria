@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   ArrowRight,
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { TabManager } from "../../tab-manager";
+import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
 import { QuerySnippetManager } from "../query-input/snippet/query-snippet-manager";
 import { SaveSnippetDialog } from "../query-input/snippet/save-snippet-dialog";
 import type { Snippet } from "../query-input/snippet/snippet";
@@ -99,33 +99,43 @@ export function SnippetListView() {
           ) : (
             <Code className="h-4 w-4 shrink-0 text-blue-500" />
           )}
-          <TooltipProvider>
-            <Tooltip delayDuration={300}>
-              <TooltipTrigger asChild>
-                <div className="flex flex-col overflow-hidden min-w-0">
-                  <span className="font-medium truncate">{snippet.caption}</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="max-w-[300px] whitespace-pre-wrap font-mono text-xs">
-                {snippet.sql}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <HoverCard openDelay={300}>
+            <HoverCardTrigger asChild>
+              <div className="flex flex-col overflow-hidden min-w-0">
+                <span className="font-medium truncate">{snippet.caption}</span>
+              </div>
+            </HoverCardTrigger>
+            <HoverCardContent side="right" className="w-[400px] p-0 overflow-hidden">
+              <div className="max-h-[300px] overflow-auto">
+                <ThemedSyntaxHighlighter
+                  language="sql"
+                  customStyle={{
+                    margin: 0,
+                    padding: "12px",
+                    fontSize: "0.75rem",
+                    borderRadius: 0,
+                  }}
+                >
+                  {snippet.sql}
+                </ThemedSyntaxHighlighter>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
         </div>
 
         {/* Actions - visible on hover */}
-        <div className="flex items-center gap-0.5 bg-accent pl-1">
+        <div className="flex items-center gap-0.5 pl-1">
           <Button
             variant="ghost"
             size="icon"
-            className="h-5 w-5"
+            className="h-4 w-4"
             onClick={(e) => {
               e.stopPropagation();
               handleRun(snippet);
             }}
             title="Run in new tab"
           >
-            <Play className="h-3 w-3" />
+            <Play className="!h-3 !w-3" />
           </Button>
           <Button
             variant="ghost"
@@ -143,7 +153,7 @@ export function SnippetListView() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-5 w-5"
+              className="h-4 w-4"
               onClick={(e) => {
                 e.stopPropagation();
                 handleClone(snippet);
@@ -157,7 +167,7 @@ export function SnippetListView() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-5 w-5"
+                className="h-4 w-4"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleEdit(snippet);
@@ -169,7 +179,7 @@ export function SnippetListView() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-5 w-5 hover:text-destructive"
+                className="h-4 w-4 hover:text-destructive"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDelete(snippet);
