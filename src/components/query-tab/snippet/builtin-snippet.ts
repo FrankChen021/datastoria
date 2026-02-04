@@ -13,13 +13,42 @@ SETTINGS allow_introspection_functions = 1\\G`,
 
   {
     builtin: true,
-    caption: "show_query_log",
+    caption: "search_query_log",
     sql: `SELECT * FROM system.query_log WHERE event_date = today()
 -- AND has(databases, '\${db}') -- Change to your database name
 -- AND has(tables, '\${table}') -- Change to your table name
 -- AND query_kind = 'Select' -- Select/Insert/...
 -- AND type = 'QueryFinish'  --
-ORDER BY event_time`,
+ORDER BY event_time
+LIMIT 100`,
+  },
+
+  {
+    builtin: true,
+    caption: "find_slow_queries",
+    sql: `SELECT
+  normalized_query_hash,
+  any(query_id) AS query_id,
+  sum(query_duration_ms) AS query_duration_ms,
+  sum(memory_usage) AS memory_usage,
+  sum(read_rows) AS read_rows,
+  sum(read_bytes) AS read_bytes,
+  max(event_time) AS last_execution_time,
+  any(tables) AS tables,
+  count() AS execution_count,
+  any(user) AS user,
+  any(query) AS query
+FROM system.query_log
+WHERE
+  type = 'QueryFinish'
+  AND event_date = today()
+  AND event_time > now() - INTERVAL 1 hour -- Change to your own time range
+  AND query_kind = 'Select'
+  AND not has(databases, 'system')
+GROUP BY normalized_query_hash
+ORDER BY query_duration_ms DESC
+LIMIT 10
+`,
   },
 
   {

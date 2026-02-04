@@ -38,6 +38,7 @@ import {
 import { AppLogo } from "./app-logo";
 import { ConnectionSelectorDialog } from "./connection/connection-selector-dialog";
 import { MainPageTabList } from "./main-page-tab-list";
+import { SchemaTreeView } from "./schema-tree/schema-tree-view";
 
 /**
  * Extract table names and database names from schema load result
@@ -650,7 +651,7 @@ export function MainPage() {
                 aria-label="Open schema browser"
               >
                 <Database className="h-4 w-4" />
-                Open Schema View
+                Schema
               </Button>
             </SheetTrigger>
             <SheetPortal>

@@ -240,6 +240,25 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [connection?.name]); // Use connection name instead of whole object to avoid duplicate calls
 
+    // Subscribe to snippet changes and refresh completers
+    useEffect(() => {
+      const unsubscribe = QuerySnippetManager.getInstance().subscribe(() => {
+        if (editorRef.current && language === "dsql") {
+          const extendedEditor = editorRef.current as ExtendedEditor;
+          // Detach the existing completer to clear its cache
+          if (extendedEditor.completer) {
+            extendedEditor.completer.detach();
+          }
+          // Reassign completers to force ACE to use fresh data
+          extendedEditor.completers = QuerySuggestionManager.getInstance().getCompleters(
+            extendedEditor.completers
+          );
+        }
+      });
+
+      return unsubscribe;
+    }, [language]);
+
     // Handle editor resize
     useEffect(() => {
       if (!containerRef.current) return;

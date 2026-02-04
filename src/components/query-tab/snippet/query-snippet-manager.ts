@@ -55,7 +55,7 @@ export class QuerySnippetManager {
   }
 
   public getSnippets(): Snippet[] {
-    return Array.from(this.snippets.values());
+    return Array.from(this.snippets.values()).sort((a, b) => a.caption.localeCompare(b.caption));
   }
 
   public getSnippetCompletionList(): Ace.SnippetCompletion[] {
