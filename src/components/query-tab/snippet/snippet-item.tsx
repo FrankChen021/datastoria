@@ -89,6 +89,12 @@ function SnippetHoverCardContent({
     setIsEditing(true);
   };
 
+  const handleCloneClick = () => {
+    setEditCaption(`${snippet.caption}_copy`);
+    setEditSql(snippet.sql);
+    setIsEditing(true);
+  };
+
   const handleSaveEdit = () => {
     if (!editCaption.trim() || !editSql.trim()) {
       Dialog.alert({
@@ -200,7 +206,7 @@ function SnippetHoverCardContent({
               className="h-6 w-6"
               onClick={(e) => {
                 e.stopPropagation();
-                onClone(snippet);
+                handleCloneClick();
               }}
               title="Clone / Edit Copy"
             >
