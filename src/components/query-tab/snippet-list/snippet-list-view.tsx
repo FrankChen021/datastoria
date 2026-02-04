@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
@@ -105,9 +104,6 @@ export function SnippetListView() {
               <TooltipTrigger asChild>
                 <div className="flex flex-col overflow-hidden min-w-0">
                   <span className="font-medium truncate">{snippet.caption}</span>
-                  <span className="text-xs text-muted-foreground truncate font-mono opacity-80">
-                    {snippet.sql.replace(/\n/g, " ").substring(0, 50)}
-                  </span>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="right" className="max-w-[300px] whitespace-pre-wrap font-mono text-xs">
@@ -118,11 +114,11 @@ export function SnippetListView() {
         </div>
 
         {/* Actions - visible on hover */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-accent pl-2">
+        <div className="flex items-center gap-0.5 bg-accent pl-1">
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-5 w-5"
             onClick={(e) => {
               e.stopPropagation();
               handleRun(snippet);
@@ -134,7 +130,7 @@ export function SnippetListView() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-5 w-5"
             onClick={(e) => {
               e.stopPropagation();
               handleInsert(snippet);
@@ -147,7 +143,7 @@ export function SnippetListView() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6"
+              className="h-5 w-5"
               onClick={(e) => {
                 e.stopPropagation();
                 handleClone(snippet);
@@ -161,7 +157,7 @@ export function SnippetListView() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6"
+                className="h-5 w-5"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleEdit(snippet);
@@ -173,7 +169,7 @@ export function SnippetListView() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 hover:text-destructive"
+                className="h-5 w-5 hover:text-destructive"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDelete(snippet);
@@ -191,13 +187,16 @@ export function SnippetListView() {
 
   return (
     <div className="flex flex-col h-full w-full">
-      <div className="relative border-b p-2">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="relative border-b-2 flex items-center h-9">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
         <Input
           placeholder="Search snippets..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-8 h-8"
+          className={cn(
+            "pl-8 pr-20 rounded-none border-none flex-1 h-9",
+            search.length > 0 ? "pr-16" : "pr-8"
+          )}
         />
         {search && (
           <Button
@@ -211,45 +210,44 @@ export function SnippetListView() {
         )}
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="p-2 space-y-4">
-          {userSnippets.length > 0 && (
-            <div>
-              <div className="text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider">
-                User Defined
-              </div>
-              <div className="space-y-0.5">
-                {userSnippets.map((s) => (
-                  <SnippetItem key={s.caption} snippet={s} />
-                ))}
-              </div>
+      <div className="p-2 space-y-4 h-full overflow-y-auto">
+        {userSnippets.length > 0 && (
+          <div>
+            <div className="text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider">
+              User Defined
             </div>
-          )}
-
-          {userSnippets.length > 0 && builtinSnippets.length > 0 && (
-            <Separator className="my-2" />
-          )}
-
-          {builtinSnippets.length > 0 && (
-            <div>
-              <div className="text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider">
-                Built-in
-              </div>
-              <div className="space-y-0.5">
-                {builtinSnippets.map((s) => (
-                  <SnippetItem key={s.caption} snippet={s} />
-                ))}
-              </div>
+            <div className="space-y-0.5">
+              {userSnippets.map((s) => (
+                <SnippetItem key={s.caption} snippet={s} />
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {userSnippets.length === 0 && builtinSnippets.length === 0 && (
-            <div className="text-center text-sm text-muted-foreground py-8">
-              No snippets found
+        {userSnippets.length > 0 && builtinSnippets.length > 0 && (
+          <Separator className="my-2" />
+        )}
+
+        {builtinSnippets.length > 0 && (
+          <div>
+            <div className="text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider">
+              Built-in
             </div>
-          )}
-        </div>
-      </ScrollArea>
+            <div className="space-y-0.5">
+              {builtinSnippets.map((s) => (
+                <SnippetItem key={s.caption} snippet={s} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {userSnippets.length === 0 && builtinSnippets.length === 0 && (
+          <div className="text-center text-sm text-muted-foreground py-8">
+            No snippets found
+          </div>
+        )}
+      </div>
+
 
       <SaveSnippetDialog
         open={isEditDialogOpen}
