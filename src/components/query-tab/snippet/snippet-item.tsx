@@ -79,9 +79,95 @@ function SnippetHoverCardContent({
   onEdit: (snippet: Snippet) => void;
   onClone: (snippet: Snippet) => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editCaption, setEditCaption] = useState(snippet.caption);
+  const [editSql, setEditSql] = useState(snippet.sql);
+
+  const handleEditClick = () => {
+    setEditCaption(snippet.caption);
+    setEditSql(snippet.sql);
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editCaption.trim() || !editSql.trim()) {
+      Dialog.alert({
+        title: "Validation Error",
+        description: "Name and SQL are required.",
+      });
+      return;
+    }
+    try {
+      QuerySnippetManager.getInstance().addSnippet(editCaption, editSql);
+      setIsEditing(false);
+    } catch (e) {
+      Dialog.alert({
+        title: "Error",
+        description: "Failed to save snippet.",
+      });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+  if (isEditing) {
+    return (
+      <>
+        <div className="flex flex-col gap-2 p-3 bg-muted/30">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="edit-caption">Name</Label>
+            <Input
+              id="edit-caption"
+              value={editCaption}
+              onChange={(e) => setEditCaption(e.target.value)}
+              className="h-8"
+              autoFocus
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCancelEdit();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSaveEdit();
+              }}
+            >
+              Save
+            </Button>
+          </div>
+        </div>
+        <Separator />
+        <div className="flex flex-col p-3 gap-2">
+          <Label htmlFor="edit-sql">SQL</Label>
+          <Textarea
+            id="edit-sql"
+            value={editSql}
+            onChange={(e) => setEditSql(e.target.value)}
+            className="font-mono text-xs min-h-[200px]"
+          />
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
-      <div className="flex flex-col gap-2 p-2 bg-muted/30">
+      <div className="flex items-center justify-between gap-2 p-2 bg-muted/30">
+        
+        <span className="font-medium text-sm truncate">{snippet.caption}</span>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -128,7 +214,7 @@ function SnippetHoverCardContent({
                 className="h-6 w-6"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onEdit(snippet);
+                  handleEditClick();
                 }}
                 title="Edit"
               >
@@ -189,7 +275,6 @@ function SnippetHoverCardContent({
             </>
           )}
         </div>
-        <span className="font-medium text-sm truncate">{snippet.caption}</span>
       </div>
       <Separator />
       <div className="max-h-[300px] overflow-auto">
