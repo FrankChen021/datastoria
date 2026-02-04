@@ -13,6 +13,7 @@ export class QuerySnippetManager {
 
   private readonly snippets: Map<string, Snippet>;
   private snippetCompletionList: Ace.SnippetCompletion[];
+  private listeners: Array<() => void> = [];
 
   private getStorage() {
     return StorageManager.getInstance().getStorageProvider().subStorage("sql:snippet");
@@ -29,6 +30,7 @@ export class QuerySnippetManager {
       this.snippets.clear();
     }
     this.snippetCompletionList = this.toCompletion();
+    this.notifyListeners();
   }
 
   constructor() {
@@ -36,6 +38,21 @@ export class QuerySnippetManager {
     this.snippetCompletionList = [];
     this.loadFromStorage();
     StorageManager.getInstance().subscribeToStorageProviderChange(() => this.loadFromStorage());
+  }
+
+  public subscribe(listener: () => void): () => void {
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener);
+    };
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach((listener) => listener());
+  }
+
+  public getSnippets(): Snippet[] {
+    return Array.from(this.snippets.values());
   }
 
   public getSnippetCompletionList(): Ace.SnippetCompletion[] {
@@ -51,6 +68,7 @@ export class QuerySnippetManager {
     const snippetsObj = Object.fromEntries(this.snippets);
     this.getStorage().setJSON(snippetsObj);
     this.snippetCompletionList = this.toCompletion();
+    this.notifyListeners();
   }
 
   /**
@@ -59,6 +77,14 @@ export class QuerySnippetManager {
   public replaceSnippet(old: string, newCaption: string, sql: string): void {
     this.snippets.delete(old);
     this.addSnippet(newCaption, sql);
+  }
+
+  public deleteSnippet(caption: string): void {
+    this.snippets.delete(caption);
+    const snippetsObj = Object.fromEntries(this.snippets);
+    this.getStorage().setJSON(snippetsObj);
+    this.snippetCompletionList = this.toCompletion();
+    this.notifyListeners();
   }
 
   private toCompletion(): Ace.SnippetCompletion[] {
@@ -88,5 +114,6 @@ export class QuerySnippetManager {
     });
 
     this.snippetCompletionList = this.toCompletion();
+    this.notifyListeners();
   }
 }

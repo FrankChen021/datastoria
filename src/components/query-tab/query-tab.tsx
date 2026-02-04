@@ -112,6 +112,25 @@ const QueryTabContent = ({
     }
   }, [active]);
 
+  // Listen for snippet insert events
+  useEffect(() => {
+    // Only listen if this is the active tab
+    if (!active) return;
+
+    const handleSnippetInsert = (event: Event) => {
+      const customEvent = event as CustomEvent<string>;
+      const sql = customEvent.detail;
+      if (sql && queryInputRef.current) {
+        queryInputRef.current.setQuery(sql, "insert");
+      }
+    };
+
+    window.addEventListener("snippet-insert", handleSnippetInsert);
+    return () => {
+      window.removeEventListener("snippet-insert", handleSnippetInsert);
+    };
+  }, [active]);
+
   return (
     <PanelGroup direction="vertical" className="h-full">
       {/* Top Panel: Query Response View */}

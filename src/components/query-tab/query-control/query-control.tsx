@@ -9,15 +9,17 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SqlUtils } from "@/lib/sql-utils";
-import { ChevronDown, Play } from "lucide-react";
-import { useCallback } from "react";
+import { Bookmark, ChevronDown, Play } from "lucide-react";
+import { useCallback, useState } from "react";
 import { useQueryExecutor } from "../query-execution/query-executor";
+import { SaveSnippetDialog } from "../query-input/snippet/save-snippet-dialog";
 import { useQueryInput } from "../query-input/use-query-input";
 
 export function QueryControl() {
   const { isSqlExecuting, executeQuery } = useQueryExecutor();
   const { connection } = useConnection();
   const { selectedText, text } = useQueryInput();
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
 
   const handleRun = useCallback(() => {
     const sql = selectedText || text;
@@ -93,6 +95,25 @@ export function QueryControl() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Separator orientation="vertical" className="h-4" />
+
+        <Button
+          disabled={isDisabled}
+          size="sm"
+          variant="ghost"
+          className="h-6 gap-1 px-2 text-xs rounded-sm"
+          onClick={() => setIsSaveDialogOpen(true)}
+        >
+          <Bookmark className="h-3 w-3" />
+          Save
+        </Button>
+
+        <SaveSnippetDialog
+          open={isSaveDialogOpen}
+          onOpenChange={setIsSaveDialogOpen}
+          initialSql={selectedText || text}
+        />
       </div>
     </TooltipProvider>
   );

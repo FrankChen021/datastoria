@@ -8,7 +8,7 @@ import {
   SchemaTreeLoader,
   type SchemaLoadResult,
 } from "@/components/schema-tree/schema-tree-loader";
-import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
+import { SidebarPanel } from "@/components/sidebar-panel/sidebar-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sheet, SheetOverlay, SheetPortal, SheetTrigger } from "@/components/ui/sheet";
@@ -696,7 +696,7 @@ export function MainPage() {
             minSize={0}
             className={`bg-background ${!showSchemaTree ? "hidden" : ""}`}
           >
-            <SchemaTreeView initialSchemaData={loadedSchemaData} />
+            <SidebarPanel initialSchemaData={loadedSchemaData} />
           </Panel>
 
           {showSchemaTree && (
