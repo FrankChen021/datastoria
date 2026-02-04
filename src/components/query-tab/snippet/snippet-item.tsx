@@ -116,7 +116,6 @@ function SnippetHoverCardContent({
       <>
         <div className="flex flex-col gap-2 p-3 bg-muted/30">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-caption">Name</Label>
             <Input
               id="edit-caption"
               value={editCaption}
@@ -125,33 +124,37 @@ function SnippetHoverCardContent({
               autoFocus
             />
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-1">
             <Button
               type="button"
-              variant="outline"
-              size="sm"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
               onClick={(e) => {
                 e.stopPropagation();
                 handleCancelEdit();
               }}
+              title="Cancel"
             >
-              Cancel
+              <X className="!h-3 !w-3" />
             </Button>
             <Button
               type="button"
-              size="sm"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
               onClick={(e) => {
                 e.stopPropagation();
                 handleSaveEdit();
               }}
+              title="Save"
             >
-              Save
+              <Check className="!h-3 !w-3" />
             </Button>
           </div>
         </div>
         <Separator />
         <div className="flex flex-col p-3 gap-2">
-          <Label htmlFor="edit-sql">SQL</Label>
           <Textarea
             id="edit-sql"
             value={editSql}
@@ -166,7 +169,7 @@ function SnippetHoverCardContent({
   return (
     <>
       <div className="flex items-center justify-between gap-2 p-2 bg-muted/30">
-        
+
         <span className="font-medium text-sm truncate">{snippet.caption}</span>
         <div className="flex items-center gap-1">
           <Button
@@ -301,15 +304,15 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
   const captionNode =
     matchedIndex >= 0
       ? TextHighlighter.highlight2(
-          snippet.caption,
-          matchedIndex,
-          matchedIndex + matchedLength,
-          "text-yellow-500"
-        )
+        snippet.caption,
+        matchedIndex,
+        matchedIndex + matchedLength,
+        "text-yellow-500"
+      )
       : snippet.caption;
 
   const handleRun = (snippet: Snippet) => {
-    TabManager.activateQueryTab({ query: snippet.sql, execute: true, mode: "replace" });
+    TabManager.activateQueryTab({ query: snippet.sql, execute: true, mode: "insert" });
   };
 
   const handleInsert = (snippet: Snippet) => {
