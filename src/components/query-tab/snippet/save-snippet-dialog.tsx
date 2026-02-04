@@ -69,7 +69,7 @@ export function SaveSnippetDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[800px]">
         <DialogHeader>
           <DialogTitle>Save Snippet</DialogTitle>
           <DialogDescription>
@@ -79,7 +79,7 @@ export function SaveSnippetDialog({
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="name">Name(will be used as the suggestion for auto-completion)</Label>
             <Input
               id="name"
               placeholder="e.g., daily_active_users"
