@@ -17,7 +17,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
 import { TabManager } from "../../tab-manager";
 import { QuerySnippetManager } from "../query-input/snippet/query-snippet-manager";
@@ -27,6 +27,8 @@ import type { Snippet } from "../query-input/snippet/snippet";
 export function SnippetListView() {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [search, setSearch] = useState("");
+  const [userSnippets, setUserSnippets] = useState<Snippet[]>([]);
+  const [builtinSnippets, setBuiltinSnippets] = useState<Snippet[]>([]);
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState<"edit" | "clone">("edit");
@@ -42,24 +44,28 @@ export function SnippetListView() {
     return unsubscribe;
   }, []);
 
-  const filteredSnippets = useMemo(() => {
-    if (!search.trim()) return snippets;
-    const lowerSearch = search.toLowerCase();
-    return snippets.filter(
-      (s) =>
-        s.caption.toLowerCase().includes(lowerSearch) ||
-        s.sql.toLowerCase().includes(lowerSearch)
-    );
-  }, [snippets, search]);
+  useEffect(() => {
+    const lowerSearch = search.toLowerCase().trim();
+    const user: Snippet[] = [];
+    const builtin: Snippet[] = [];
 
-  const userSnippets = useMemo(
-    () => filteredSnippets.filter((s) => !s.builtin),
-    [filteredSnippets]
-  );
-  const builtinSnippets = useMemo(
-    () => filteredSnippets.filter((s) => s.builtin),
-    [filteredSnippets]
-  );
+    for (const snippet of snippets) {
+      if (lowerSearch && 
+          !snippet.caption.toLowerCase().includes(lowerSearch) && 
+          !snippet.sql.toLowerCase().includes(lowerSearch)) {
+        continue;
+      }
+
+      if (snippet.builtin) {
+        builtin.push(snippet);
+      } else {
+        user.push(snippet);
+      }
+    }
+
+    setUserSnippets(user);
+    setBuiltinSnippets(builtin);
+  }, [snippets, search]);
 
   const handleRun = (snippet: Snippet) => {
     TabManager.activateQueryTab({ query: snippet.sql, execute: true, mode: "replace" });
@@ -92,7 +98,7 @@ export function SnippetListView() {
   const SnippetItem = ({ snippet }: { snippet: Snippet }) => {
     const isBuiltin = snippet.builtin;
     return (
-      <div className="group flex items-center justify-between py-1.5 px-2 hover:bg-accent hover:text-accent-foreground rounded-sm text-sm transition-colors cursor-pointer">
+      <div className="group flex items-center justify-between py-1.5 pl-5 pr-1 hover:bg-accent hover:text-accent-foreground rounded-none text-sm transition-colors cursor-pointer">
         <div className="flex items-center gap-2 overflow-hidden flex-1">
           {isBuiltin ? (
             <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -271,7 +277,7 @@ export function SnippetListView() {
 
     return (
       <div>
-        <div className="text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider">
+        <div className="text-xs font-semibold text-muted-foreground px-2 py-1 tracking-wider">
           {title}
         </div>
         <div className="space-y-0.5">
@@ -308,12 +314,8 @@ export function SnippetListView() {
         )}
       </div>
 
-      <div className="p-2 space-y-4 h-full overflow-y-auto">
+      <div className="h-full overflow-y-auto">
         <SnippetItems snippets={userSnippets} title="User Defined" />
-
-        {userSnippets.length > 0 && builtinSnippets.length > 0 && (
-          <Separator className="my-2" />
-        )}
 
         <SnippetItems snippets={builtinSnippets} title="Built-in" />
 
