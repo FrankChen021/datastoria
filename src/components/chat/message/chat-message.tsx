@@ -24,6 +24,11 @@ import { MessageToolPlan } from "./message-tool-plan";
 import { MessageToolSkill } from "./message-tool-skill";
 import { MessageToolValidateSql } from "./message-tool-validate-sql";
 import { MessageUser } from "./message-user";
+import {
+  extractUserActionBlock,
+  MessageUserActions,
+  type UserAction,
+} from "./message-user-actions";
 
 /**
  * Display token usage information per message.
@@ -102,17 +107,26 @@ const ChatMessagePart = memo(
     part,
     isUser,
     isRunning = true,
+    onAction,
   }: {
     part: AppUIMessage["parts"][0];
     isUser: boolean;
     isRunning?: boolean;
+    onAction?: (action: UserAction) => void;
   }) {
     if (part.type === "text") {
       if (isUser) {
         return <MessageUser text={part.text} />;
       }
+      const { cleanedText, actionType } = extractUserActionBlock(part.text);
       return (
-        <MessageMarkdown text={part.text} customStyle={{ fontSize: "0.9rem", lineHeight: "1.6" }} />
+        <>
+          <MessageMarkdown
+            text={cleanedText}
+            customStyle={{ fontSize: "0.9rem", lineHeight: "1.6" }}
+          />
+          <MessageUserActions actionType={actionType} onAction={onAction} />
+        </>
       );
     }
     if (part.type === "reasoning") {
@@ -187,6 +201,7 @@ interface ChatMessageProps {
   isFirst?: boolean; // Whether this is a new user request (needs top spacing)
   isLast?: boolean; // Whether this is the last message in a sequence
   isRunning?: boolean;
+  onAction?: (action: UserAction) => void;
 }
 /**
  * Render a single message with session styling and visualization
@@ -196,11 +211,12 @@ export const ChatMessage = memo(function ChatMessage({
   isLoading = false,
   isFirst = false,
   isRunning = true,
+  onAction,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const timestamp = message.createdAt ? new Date(message.createdAt).getTime() : Date.now();
   const parts = message.parts || [];
-  const error = (message as any).error as Error | undefined;
+  const error = (message as { error?: Error }).error;
 
   const showLoading = !isUser && isLoading;
   return (
@@ -243,7 +259,13 @@ export const ChatMessage = memo(function ChatMessage({
               )}
               {parts.length === 0 && !isLoading && !error && "Nothing returned"}
               {parts.map((part: AppUIMessage["parts"][0], i: number) => (
-                <ChatMessagePart key={i} part={part} isUser={isUser} isRunning={isRunning} />
+                <ChatMessagePart
+                  key={i}
+                  part={part}
+                  isUser={isUser}
+                  isRunning={isRunning}
+                  onAction={onAction}
+                />
               ))}
               {error && <ErrorMessageDisplay errorText={error.message || String(error)} />}
               {showLoading && (

@@ -11,6 +11,7 @@ import { ChatContext } from "../chat-context";
 import { ChatInput, type ChatInputHandle } from "../input/chat-input";
 import { getTableContextByMentions } from "../input/mention-utils";
 import { ChatMessageList } from "../message/chat-message-list";
+import type { UserAction } from "../message/message-user-actions";
 import { useTokenUsage } from "./use-token-usage";
 
 export type Question = { text: string; autoRun?: boolean };
@@ -162,6 +163,17 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     [handleSubmit]
   );
 
+  const handleUserAction = useCallback(
+    (action: UserAction) => {
+      if (action.autoRun) {
+        handleSubmit(action.text);
+        return;
+      }
+      setPromptInput(action.text);
+    },
+    [handleSubmit]
+  );
+
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden relative">
       {isEmpty ? (
@@ -194,6 +206,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
           messages={messages as AppUIMessage[]}
           isRunning={isRunning}
           error={error || null}
+          onAction={handleUserAction}
         />
       )}
       <ChatInput

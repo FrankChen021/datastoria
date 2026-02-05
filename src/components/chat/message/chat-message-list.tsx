@@ -8,15 +8,17 @@ import { AlertCircle } from "lucide-react";
 import * as React from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { ChatMessage } from "./chat-message";
+import type { UserAction } from "./message-user-actions";
 
 interface ChatMessageListProps {
   messages: AppUIMessage[];
   isRunning: boolean;
   error: Error | null;
+  onAction?: (action: UserAction) => void;
 }
 
 export const ChatMessageList = React.memo(
-  ({ messages, isRunning, error }: ChatMessageListProps) => {
+  ({ messages, isRunning, error, onAction }: ChatMessageListProps) => {
     const prevMessagesLengthRef = React.useRef(messages.length);
     const scrollContainerRef = React.useRef<HTMLDivElement>(null);
     const scrollPlaceholderRef = React.useRef<HTMLDivElement>(null);
@@ -74,6 +76,7 @@ export const ChatMessageList = React.memo(
               isFirst={index === 0}
               isLast={index === messages.length - 1}
               isRunning={isRunning}
+              onAction={onAction}
             />
           ))}
 
