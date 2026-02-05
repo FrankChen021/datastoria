@@ -7,6 +7,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
 import { MessageMarkdownSql } from "./message-markdown-sql";
+import { MessageMarkdownUserActions, type UserAction } from "./message-user-actions";
 
 /**
  * Render text message with markdown support
@@ -15,6 +16,7 @@ interface MessageMarkdownProps {
   text: string;
   customStyle?: React.CSSProperties;
   showExecuteButton?: boolean;
+  onAction?: (action: UserAction) => void;
   /**
    * Allow expandable SQL blocks inside markdown. Default: false.
    */
@@ -25,6 +27,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   text,
   customStyle,
   showExecuteButton = true,
+  onAction,
   expandable = false,
 }: MessageMarkdownProps) {
   const { connection } = useConnection();
@@ -58,6 +61,9 @@ export const MessageMarkdown = memo(function MessageMarkdown({
 
         if (codeClassName === "language-chart-spec") {
           return <MessageMarkdownChartSpec spec={String(children)} />;
+        }
+        if (codeClassName === "language-user_actions") {
+          return <MessageMarkdownUserActions spec={String(children)} onAction={onAction} />;
         }
 
         // Check if inline code is a table name or database name
@@ -211,7 +217,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         </h6>
       ),
     }),
-    [customStyle, showExecuteButton]
+    [customStyle, expandable, onAction, showExecuteButton]
   );
 
   return (

@@ -24,11 +24,7 @@ import { MessageToolPlan } from "./message-tool-plan";
 import { MessageToolSkill } from "./message-tool-skill";
 import { MessageToolValidateSql } from "./message-tool-validate-sql";
 import { MessageUser } from "./message-user";
-import {
-  extractUserActionBlock,
-  MessageUserActions,
-  type UserAction,
-} from "./message-user-actions";
+import type { UserAction } from "./message-user-actions";
 
 /**
  * Display token usage information per message.
@@ -118,15 +114,12 @@ const ChatMessagePart = memo(
       if (isUser) {
         return <MessageUser text={part.text} />;
       }
-      const { cleanedText, actionType } = extractUserActionBlock(part.text);
       return (
-        <>
-          <MessageMarkdown
-            text={cleanedText}
-            customStyle={{ fontSize: "0.9rem", lineHeight: "1.6" }}
-          />
-          <MessageUserActions actionType={actionType} onAction={onAction} />
-        </>
+        <MessageMarkdown
+          text={part.text}
+          customStyle={{ fontSize: "0.9rem", lineHeight: "1.6" }}
+          onAction={onAction}
+        />
       );
     }
     if (part.type === "reasoning") {

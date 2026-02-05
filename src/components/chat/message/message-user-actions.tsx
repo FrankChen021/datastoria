@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 
 export type UserAction = {
   id: string;
@@ -53,38 +53,22 @@ const ACTIONS_BY_TYPE: Record<UserActionType, UserAction[]> = {
   ],
 };
 
-const USER_ACTION_BLOCK = /```user_actions\s*([\s\S]*?)```/;
-
-export function extractUserActionBlock(text: string): {
-  cleanedText: string;
-  actionType?: UserActionType;
-} {
-  const match = text.match(USER_ACTION_BLOCK);
-  if (!match) {
-    return { cleanedText: text };
-  }
-
-  const payloadText = match[1].trim();
-  try {
-    const payload = JSON.parse(payloadText) as { type?: string };
-    if (payload?.type !== "find_expensive_queries_input") {
-      return { cleanedText: text };
-    }
-
-    const cleanedText = text.replace(match[0], "").trim();
-    return { cleanedText, actionType: payload.type };
-  } catch {
-    return { cleanedText: text };
-  }
-}
-
-export const MessageUserActions = memo(function MessageUserActions({
-  actionType,
+export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActions({
+  spec,
   onAction,
 }: {
-  actionType?: UserActionType;
+  spec: string;
   onAction?: (action: UserAction) => void;
 }) {
+  const actionType = useMemo(() => {
+    try {
+      const payload = JSON.parse(spec) as { type?: UserActionType };
+      return payload?.type;
+    } catch {
+      return undefined;
+    }
+  }, [spec]);
+
   if (!actionType || !onAction) {
     return null;
   }
