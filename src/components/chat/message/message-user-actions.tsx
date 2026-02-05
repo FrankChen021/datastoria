@@ -13,7 +13,7 @@ export type UserAction = {
 
 type UserActionType = "optimization_skill_input";
 
-const renderActionButton = (label: string, onClick: () => void) => (
+const renderActionButton = (label: string | React.ReactNode, onClick: () => void) => (
   <Button
     type="button"
     size="sm"
@@ -45,7 +45,13 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
       {
         id: "find_duration_24h",
         action: (onClick) =>
-          renderActionButton("Find and optimize SLOWEST queries (last 24h)", onClick),
+          renderActionButton(
+            <span>
+              Find and optimize <span className="font-bold text-primary">SLOWEST</span> queries
+              (last 24h)
+            </span>,
+            onClick
+          ),
         text: "Find expensive queries by duration in the last 24 hours",
         autoRun: true,
       },
