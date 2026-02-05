@@ -58,7 +58,13 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
       {
         id: "find_cpu_24h",
         action: (onClick) =>
-          renderActionButton("Find and optimize queries that use the most CPU (last 24h)", onClick),
+          renderActionButton(
+            <span>
+              Find and optimize queries that use the{" "}
+              <span className="font-bold text-primary">most CPU</span> (last 24h)
+            </span>,
+            onClick
+          ),
         text: "Find slowest queries by cpu in the last 24 hours",
         autoRun: true,
       },
@@ -66,7 +72,10 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
         id: "find_memory_24h",
         action: (onClick) =>
           renderActionButton(
-            "Find and optimize queries that use the most memory (last 24h)",
+            <span>
+              Find and optimize queries that use the{" "}
+              <span className="font-bold text-primary">most memory</span> (last 24h)
+            </span>,
             onClick
           ),
         text: "Find expensive queries by memory in the last 24 hours",
@@ -75,7 +84,13 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
       {
         id: "find_disk_24h",
         action: (onClick) =>
-          renderActionButton("Find and optimize expensive queries by disk (last 24h)", onClick),
+          renderActionButton(
+            <span>
+              Find and optimize queries that read the{" "}
+              <span className="font-bold text-primary">most disk</span> (last 24h)
+            </span>,
+            onClick
+          ),
         text: "Find expensive queries by disk in the last 24 hours",
         autoRun: true,
       },
