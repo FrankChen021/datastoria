@@ -31,26 +31,26 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
         breakAfter: true,
       },
       {
-        id: "find_cpu_60m",
-        label: "Find expensive queries by CPU (last 1h)",
-        text: "Find expensive queries by cpu in the last 60 minutes",
-        autoRun: true,
-      },
-      {
-        id: "find_memory_60m",
-        label: "Find expensive queries by memory (last 1h)",
-        text: "Find expensive queries by memory in the last 60 minutes",
-        autoRun: true,
-      },
-      {
         id: "find_duration_60m",
-        label: "Find expensive queries by duration (last 1h)",
+        label: "Find and optimize SLOWEST queries (last 1h)",
         text: "Find expensive queries by duration in the last 60 minutes",
         autoRun: true,
       },
       {
+        id: "find_cpu_60m",
+        label: "Find and optimize queries that use the most CPU (last 1h)",
+        text: "Find slowest queries by cpu in the last 60 minutes",
+        autoRun: true,
+      },
+      {
+        id: "find_memory_60m",
+        label: "Find and optimize queries that use the most memory (last 1h)",
+        text: "Find expensive queries by memory in the last 60 minutes",
+        autoRun: true,
+      },
+      {
         id: "find_disk_60m",
-        label: "Find expensive queries by disk (last 1h)",
+        label: "Find and optimize expensive queries by disk (last 1h)",
         text: "Find expensive queries by disk in the last 60 minutes",
         autoRun: true,
       },
@@ -83,23 +83,45 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
     return null;
   }
 
+  const actionGroups = useMemo(() => {
+    if (!config) return [];
+    const groups: UserAction[][] = [];
+    let currentGroup: UserAction[] = [];
+
+    config.actions.forEach((action) => {
+      currentGroup.push(action);
+      if (action.breakAfter) {
+        groups.push(currentGroup);
+        currentGroup = [];
+      }
+    });
+
+    if (currentGroup.length > 0) {
+      groups.push(currentGroup);
+    }
+
+    return groups;
+  }, [config]);
+
   return (
     <div className="mt-3 bg-muted/30 font-sans border-t pt-2">
       <div className="text-sm font-medium text-foreground/80 mb-3">{config.hint}</div>
-      <div className="flex flex-wrap gap-x-2 gap-y-1">
-        {config.actions.map((action) => (
-          <Fragment key={action.id}>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              className="rounded-md shadow-sm hover:shadow-md transition-shadow border border-border/50"
-              onClick={() => onAction(action)}
-            >
-              {action.label}
-            </Button>
-            {action.breakAfter && <div className="w-full h-0" />}
-          </Fragment>
+      <div className="flex flex-col gap-2">
+        {actionGroups.map((group, groupIndex) => (
+          <div key={groupIndex} className="flex flex-wrap gap-2">
+            {group.map((action) => (
+              <Button
+                key={action.id}
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="rounded-md shadow-sm hover:shadow-md transition-shadow border border-border/50"
+                onClick={() => onAction(action)}
+              >
+                {action.label}
+              </Button>
+            ))}
+          </div>
         ))}
       </div>
     </div>
