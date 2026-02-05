@@ -2,7 +2,6 @@
 
 import { Dialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Fragment, memo, useMemo } from "react";
 
@@ -28,82 +27,63 @@ const renderActionButton = (label: string | React.ReactNode, onClick: () => void
   </Button>
 );
 
-const handleSqlInput = (onAction: (action: UserAction) => void) => {
-  let value = "";
-  Dialog.showDialog({
-    title: "Provide SQL",
-    description: "Paste your SQL query below to analyze and optimize it.",
-    mainContent: (
-      <div className="py-2">
-        <Textarea
-          placeholder="SELECT * FROM ..."
-          className="min-h-[150px] font-mono text-sm"
-          onChange={(e) => (value = e.target.value)}
-        />
-      </div>
-    ),
-    dialogButtons: [
-      {
-        text: "Cancel",
-        onClick: async () => true,
-        default: false,
-      },
-      {
-        text: "Analyze",
-        variant: "default",
-        default: true,
-        onClick: async () => {
-          if (!value.trim()) return false;
-          onAction({
-            id: "provide_sql_input",
-            text: `Please optimize this SQL:\n${value}`,
-            autoRun: true,
-            action: () => null,
-          });
-          return true;
+const InputAction = ({
+  label,
+  title,
+  description,
+  placeholder,
+  onAction,
+  actionId,
+  template,
+}: {
+  label: string;
+  title: string;
+  description: string;
+  placeholder: string;
+  onAction: (action: UserAction) => void;
+  actionId: string;
+  template: (value: string) => string;
+}) => {
+  const handleClick = () => {
+    let value = "";
+    Dialog.showDialog({
+      title,
+      description,
+      mainContent: (
+        <div className="py-2">
+          <Textarea
+            placeholder={placeholder}
+            className="min-h-[150px] font-mono text-sm"
+            onChange={(e) => (value = e.target.value)}
+          />
+        </div>
+      ),
+      dialogButtons: [
+        {
+          text: "Cancel",
+          onClick: async () => true,
+          default: false,
         },
-      },
-    ],
-  });
-};
+        {
+          text: "Analyze",
+          variant: "default",
+          default: true,
+          onClick: async () => {
+            if (!value.trim()) return false;
+            onAction({
+              id: actionId,
+              text: template(value.trim()),
+              autoRun: true,
+              action: () => null,
+            });
+            return true;
+          },
+        },
+      ],
+    });
+  };
 
-const handleQueryIdInput = (onAction: (action: UserAction) => void) => {
-  let value = "";
-  Dialog.showDialog({
-    title: "Provide Query ID",
-    description: "Enter the ClickHouse query_id you want to analyze.",
-    mainContent: (
-      <div className="py-2">
-        <Input
-          placeholder="e.g. 12345678-1234-1234-1234-123456789012"
-          className="font-mono text-sm"
-          onChange={(e) => (value = e.target.value)}
-        />
-      </div>
-    ),
-    dialogButtons: [
-      {
-        text: "Cancel",
-        onClick: async () => true,
-        default: false,
-      },
-      {
-        text: "Analyze",
-        variant: "default",
-        default: true,
-        onClick: async () => {
-          if (!value.trim()) return false;
-          onAction({
-            id: "provide_query_id_input",
-            text: `My query_id is: ${value.trim()}`,
-            autoRun: true,
-            action: () => null,
-          });
-          return true;
-        },
-      },
-    ],
-  });
+  return renderActionButton(label, handleClick);
 };
 
 const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserAction[] }> = {
@@ -112,14 +92,33 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
     actions: [
       {
         id: "provide_sql",
-        action: (onAction) => renderActionButton("I have a SQL", () => handleSqlInput(onAction)),
+        action: (onAction) => (
+          <InputAction
+            label="I have a SQL"
+            title="Provide SQL"
+            description="Paste your SQL query below to analyze and optimize it."
+            placeholder="SELECT * FROM ..."
+            onAction={onAction}
+            actionId="provide_sql_input"
+            template={(value) => `Please optimize this SQL:\n${value}`}
+          />
+        ),
         text: "Please optimize this SQL:\n<sql>",
         autoRun: false,
       },
       {
         id: "provide_query_id",
-        action: (onAction) =>
-          renderActionButton("I have a query_id", () => handleQueryIdInput(onAction)),
+        action: (onAction) => (
+          <InputAction
+            label="I have a query_id"
+            title="Provide Query ID"
+            description="Enter the ClickHouse query_id you want to analyze."
+            placeholder="e.g. 12345678-1234-1234-1234-123456789012"
+            onAction={onAction}
+            actionId="provide_query_id_input"
+            template={(value) => `My query_id is: ${value}`}
+          />
+        ),
         text: "My query_id is: <paste here>",
         autoRun: false,
         breakAfter: true,
