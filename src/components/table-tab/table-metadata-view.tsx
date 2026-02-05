@@ -14,6 +14,7 @@ import {
 import type { ObjectFormatter } from "@/lib/formatter";
 import { SqlUtils } from "@/lib/sql-utils";
 import { forwardRef, memo, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { ThemedSyntaxHighlighter } from "../shared/themed-syntax-highlighter";
 import { OpenDatabaseTabButton } from "./open-database-tab-button";
 import { OpenTableTabButton } from "./open-table-tab-button";
 import type { RefreshableTabViewRef } from "./table-tab";
@@ -28,16 +29,32 @@ const formatEngineFull: ObjectFormatter = (value: unknown) => {
     return String(value ?? "");
   }
 
+  const formattedValue = value
+    .replace(" PARTITION BY ", "\nPARTITION BY ")
+    .replace(" ORDER BY ", "\nORDER BY ")
+    .replace(" TTL ", "\nTTL ")
+    .replace(" SETTINGS ", "\nSETTINGS ");
+  const settingsIndex = formattedValue.indexOf("\nSETTINGS ");
+  const valueWithSettings =
+    settingsIndex === -1
+      ? formattedValue
+      : formattedValue.slice(0, settingsIndex + "\nSETTINGS ".length) +
+        formattedValue.slice(settingsIndex + "\nSETTINGS ".length).replaceAll(", ", ",\n\t\t ");
+
   // Check if it's a Distributed engine
   // Pattern: Distributed(cluster, database, table, ...)
-  const distributedMatch = value.match(/^Distributed\(([^,]+),\s*([^,]+),\s*([^,)]+)/);
+  const distributedMatch = valueWithSettings.match(/^Distributed\(([^,]+),\s*([^,]+),\s*([^,)]+)/);
   if (!distributedMatch) {
     // Not a Distributed engine or doesn't match the pattern, return as-is
-    return value;
+    return (
+      <ThemedSyntaxHighlighter language="sql" customStyle={{ margin: 0, padding: 0 }}>
+        {valueWithSettings}
+      </ThemedSyntaxHighlighter>
+    );
   }
 
   const [fullMatch, cluster, database, table] = distributedMatch;
-  const remainingPart = value.slice(fullMatch.length);
+  const remainingPart = valueWithSettings.slice(fullMatch.length);
 
   // Trim whitespace and remove surrounding quotes (single or double) from extracted values
   const trimmedDatabase = database.trim().replace(/^['"]|['"]$/g, "");
