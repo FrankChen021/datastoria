@@ -1,21 +1,35 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { memo, useMemo } from "react";
+import { Fragment, memo, useMemo } from "react";
 
 export type UserAction = {
   id: string;
   label: string;
   text: string;
   autoRun: boolean;
+  breakAfter?: boolean;
 };
 
 type UserActionType = "optimization_skill_input";
 
 const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserAction[] }> = {
   optimization_skill_input: {
-    hint: "You can use the following quick actions to provide more context for optimization.",
+    hint: "You can use the following quick actions to provide more context to get optimization suggestions, or provide context in the chat.",
     actions: [
+      {
+        id: "provide_query_id",
+        label: "I have a query_id",
+        text: "My query_id is: <paste here>",
+        autoRun: false,
+      },
+      {
+        id: "provide_sql",
+        label: "I have SQL",
+        text: "Please optimize this SQL:\n<sql>",
+        autoRun: false,
+        breakAfter: true,
+      },
       {
         id: "find_cpu_60m",
         label: "Find expensive queries by CPU (last 1h)",
@@ -39,18 +53,6 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
         label: "Find expensive queries by disk (last 1h)",
         text: "Find expensive queries by disk in the last 60 minutes",
         autoRun: true,
-      },
-      {
-        id: "provide_query_id",
-        label: "I have a query_id",
-        text: "My query_id is: <paste here>",
-        autoRun: false,
-      },
-      {
-        id: "provide_sql",
-        label: "I have SQL",
-        text: "Please optimize this SQL:\n<sql>",
-        autoRun: false,
       },
     ],
   },
@@ -82,20 +84,22 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
   }
 
   return (
-    <div className="mt-3 bg-muted/30 font-sans">
+    <div className="mt-3 bg-muted/30 font-sans border-t pt-2">
       <div className="text-sm font-medium text-foreground/80 mb-3">{config.hint}</div>
       <div className="flex flex-wrap gap-2">
         {config.actions.map((action) => (
-          <Button
-            key={action.id}
-            type="button"
-            size="sm"
-            variant="secondary"
-            className="rounded-md shadow-sm hover:shadow-md transition-shadow border border-border/50"
-            onClick={() => onAction(action)}
-          >
-            {action.label}
-          </Button>
+          <Fragment key={action.id}>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="rounded-md shadow-sm hover:shadow-md transition-shadow border border-border/50"
+              onClick={() => onAction(action)}
+            >
+              {action.label}
+            </Button>
+            {action.breakAfter && <div className="w-full h-0" />}
+          </Fragment>
         ))}
       </div>
     </div>
