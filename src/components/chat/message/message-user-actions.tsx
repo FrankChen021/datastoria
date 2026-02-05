@@ -90,8 +90,8 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
             key={action.id}
             type="button"
             size="sm"
-            variant="default"
-            className="rounded-md shadow-sm hover:shadow-md transition-shadow"
+            variant="secondary"
+            className="rounded-md shadow-sm hover:shadow-md transition-shadow border border-border/50"
             onClick={() => onAction(action)}
           >
             {action.label}
