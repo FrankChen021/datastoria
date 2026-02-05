@@ -7,7 +7,7 @@ import { Fragment, memo, useMemo } from "react";
 
 export type UserAction = {
   id: string;
-  action: (onAction: (action: UserAction) => void) => React.ReactNode;
+  action: (onInput: (value: string) => void) => React.ReactNode;
   text: string;
   autoRun: boolean;
   breakAfter?: boolean;
@@ -83,20 +83,13 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
     actions: [
       {
         id: "provide_sql",
-        action: (onAction) => (
+        action: (onInput) => (
           <InputAction
             label="I have a SQL"
             title="Provide SQL"
             description="Paste your SQL query below to analyze and optimize it."
             placeholder="SELECT * FROM ..."
-            onInput={(value) =>
-              onAction({
-                id: "provide_sql_input",
-                text: `Please optimize this SQL:\n${value}`,
-                autoRun: true,
-                action: () => null,
-              })
-            }
+            onInput={(value) => onInput(`Please optimize this SQL:\n${value}`)}
           />
         ),
         text: "Please optimize this SQL:\n<sql>",
@@ -104,20 +97,13 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
       },
       {
         id: "provide_query_id",
-        action: (onAction) => (
+        action: (onInput) => (
           <InputAction
             label="I have a query_id"
             title="Provide Query ID"
             description="Enter the ClickHouse query_id you want to analyze."
             placeholder="e.g. 12345678-1234-1234-1234-123456789012"
-            onInput={(value) =>
-              onAction({
-                id: "provide_query_id_input",
-                text: `My query_id is: ${value}`,
-                autoRun: true,
-                action: () => null,
-              })
-            }
+            onInput={(value) => onInput(`My query_id is: ${value}`)}
           />
         ),
         text: "My query_id is: <paste here>",
@@ -126,78 +112,54 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
       },
       {
         id: "find_duration_24h",
-        action: (onAction) =>
+        action: (onInput) =>
           renderActionButton(
             <span>
-              Find and optimize <span className="font-bold text-primary">SLOWEST</span> queries
-              (last 24h)
+              Find and optimize <span className="font-bold text-primary">SLOWEST</span> queries in
+              past 1 day
             </span>,
-            () =>
-              onAction({
-                id: "find_duration_24h",
-                text: "Find expensive queries by duration in the last 24 hours",
-                autoRun: true,
-                action: () => null,
-              })
+            () => onInput("Find expensive queries by duration in the last 1 day")
           ),
-        text: "Find expensive queries by duration in the last 24 hours",
+        text: "Find expensive queries by duration in the last 1 day",
         autoRun: true,
       },
       {
         id: "find_cpu_24h",
-        action: (onAction) =>
+        action: (onInput) =>
           renderActionButton(
             <span>
               Find and optimize queries that use the{" "}
-              <span className="font-bold text-primary">most CPU</span> (last 24h)
+              <span className="font-bold text-primary">most CPU</span> in past 1 day
             </span>,
-            () =>
-              onAction({
-                id: "find_cpu_24h",
-                text: "Find slowest queries by cpu in the last 24 hours",
-                autoRun: true,
-                action: () => null,
-              })
+            () => onInput("Find queries that use the most CPU in the last 1 day")
           ),
-        text: "Find slowest queries by cpu in the last 24 hours",
+        text: "Find slowest queries by cpu in the last 1 day",
         autoRun: true,
       },
       {
         id: "find_memory_24h",
-        action: (onAction) =>
+        action: (onInput) =>
           renderActionButton(
             <span>
               Find and optimize queries that use the{" "}
-              <span className="font-bold text-primary">most memory</span> (last 24h)
+              <span className="font-bold text-primary">most memory</span> in past 1 day
             </span>,
-            () =>
-              onAction({
-                id: "find_memory_24h",
-                text: "Find expensive queries by memory in the last 24 hours",
-                autoRun: true,
-                action: () => null,
-              })
+            () => onInput("Find expensive queries by memory in the last 1 day")
           ),
-        text: "Find expensive queries by memory in the last 24 hours",
+        text: "Find expensive queries by memory in the last 1 day",
         autoRun: true,
       },
       {
         id: "find_disk_24h",
-        action: (onAction) =>
+        action: (onInput) =>
           renderActionButton(
             <span>
               Find and optimize queries that read the{" "}
-              <span className="font-bold text-primary">most disk</span> (last 24h)
+              <span className="font-bold text-primary">most disk</span> in past 1 day
             </span>,
-            () =>
-              onAction({
-                id: "find_disk_24h",
-                text: "Find expensive queries by disk in the last 24 hours",
-                autoRun: true,
-                action: () => null,
-              })
+            () => onInput("Find expensive queries by disk in the last 1 day")
           ),
-        text: "Find expensive queries by disk in the last 24 hours",
+        text: "Find expensive queries by disk in the last 1 day",
         autoRun: true,
       },
     ],
