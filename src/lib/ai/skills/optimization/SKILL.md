@@ -12,7 +12,7 @@ Use this skill when the user asks to optimize slow queries, analyze performance,
 1. **HAS SQL**: Conversation contains a SQL query → Go to WORKFLOW step 2 (Collect Evidence).
 2. **HAS QUERY_ID**: Conversation contains query_id → Go to WORKFLOW step 2.
 3. **DISCOVERY REQUEST**: User asks to find/optimize expensive queries by metric → Go to WORKFLOW step 1 (Discovery).
-4. **NEITHER**: Ask user to provide SQL, query_id, or specify metric (cpu/memory/disk/duration).
+4. **NEITHER**: Ask user to provide SQL, query_id, or specify metric (cpu/memory/disk/duration). If they want discovery, suggest running `find_expensive_queries` with their preferred metric/time parameters.
 
 ## Discovery
 
@@ -36,10 +36,18 @@ Use this skill when the user asks to optimize slow queries, analyze performance,
 
 ## Table Schema Evidence
 
-Use table_schema fields: columns, engine, partition_key, primary_key, sorting_key, secondary_indexes. Use secondary_indexes to suggest new indexes (bloom_filter, minmax, set) for frequently filtered columns.
+- Use table_schema fields: columns, engine, partition_key, primary_key, sorting_key, secondary_indexes.
+- Suggest secondary indexes only when evidence shows frequent WHERE filters on selective columns and the index type fits the predicate.
+  - Use `minmax` for range predicates on sorted columns.
+  - Use `set` for low-cardinality equality filters.
+  - Use `bloom_filter` for high-cardinality equality filters (e.g., trace_id, user_id).
+  - Use `tokenbf_v1` for frequent token-based text search.
 
 ## Rules
 
 - Do NOT recommend based on assumptions. If evidence is missing, collect it with tools.
 - If tools return NO meaningful evidence, output only a brief 3-5 sentence message explaining what's missing.
 - Always validate proposed SQL with `validate_sql` before recommending.
+- `find_expensive_queries` may return truncated SQL. Never send truncated SQL to `collect_sql_optimization_evidence`.
+- If the SQL appears incomplete (truncated/ellipsized/ends mid-clause), use `query_id` instead of sql.
+- When both `query_id` and SQL are available, prefer `query_id` to reduce tokens and avoid truncation issues.
