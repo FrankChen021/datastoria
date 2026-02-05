@@ -12,7 +12,7 @@ Use this skill when the user asks to optimize slow queries, analyze performance,
 1. **HAS SQL**: Conversation contains a SQL query → Go to WORKFLOW step 2 (Collect Evidence).
 2. **HAS QUERY_ID**: Conversation contains query_id → Go to WORKFLOW step 2.
 3. **DISCOVERY REQUEST**: User asks to find/optimize expensive queries by metric → Go to WORKFLOW step 1 (Discovery).
-4. **NEITHER**: Ask user to provide SQL, query_id, or specify metric (cpu/memory/disk/duration). If they want discovery, suggest running `find_expensive_queries` with their preferred metric/time parameters. Also include this UI trigger block in the response:
+4. **NEITHER**: Keep the response short (1-2 sentences). Ask for SQL or query_id, or say they can run `find_expensive_queries` by metric/time window. Also include this UI trigger block in the response:
 
 ```user_actions
 { "type": "find_expensive_queries_input" }
