@@ -1,11 +1,14 @@
 "use client";
 
+import { Dialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Fragment, memo, useMemo } from "react";
 
 export type UserAction = {
   id: string;
-  action: (onClick: () => void) => React.ReactNode;
+  action: (onAction: (action: UserAction) => void) => React.ReactNode;
   text: string;
   autoRun: boolean;
   breakAfter?: boolean;
@@ -25,71 +28,174 @@ const renderActionButton = (label: string | React.ReactNode, onClick: () => void
   </Button>
 );
 
+const handleSqlInput = (onAction: (action: UserAction) => void) => {
+  let value = "";
+  Dialog.showDialog({
+    title: "Provide SQL",
+    description: "Paste your SQL query below to analyze and optimize it.",
+    mainContent: (
+      <div className="py-2">
+        <Textarea
+          placeholder="SELECT * FROM ..."
+          className="min-h-[150px] font-mono text-sm"
+          onChange={(e) => (value = e.target.value)}
+        />
+      </div>
+    ),
+    dialogButtons: [
+      {
+        text: "Cancel",
+        onClick: async () => true,
+        default: false,
+      },
+      {
+        text: "Analyze",
+        variant: "default",
+        default: true,
+        onClick: async () => {
+          if (!value.trim()) return false;
+          onAction({
+            id: "provide_sql_input",
+            text: `Please optimize this SQL:\n${value}`,
+            autoRun: true,
+            action: () => null,
+          });
+          return true;
+        },
+      },
+    ],
+  });
+};
+
+const handleQueryIdInput = (onAction: (action: UserAction) => void) => {
+  let value = "";
+  Dialog.showDialog({
+    title: "Provide Query ID",
+    description: "Enter the ClickHouse query_id you want to analyze.",
+    mainContent: (
+      <div className="py-2">
+        <Input
+          placeholder="e.g. 12345678-1234-1234-1234-123456789012"
+          className="font-mono text-sm"
+          onChange={(e) => (value = e.target.value)}
+        />
+      </div>
+    ),
+    dialogButtons: [
+      {
+        text: "Cancel",
+        onClick: async () => true,
+        default: false,
+      },
+      {
+        text: "Analyze",
+        variant: "default",
+        default: true,
+        onClick: async () => {
+          if (!value.trim()) return false;
+          onAction({
+            id: "provide_query_id_input",
+            text: `My query_id is: ${value.trim()}`,
+            autoRun: true,
+            action: () => null,
+          });
+          return true;
+        },
+      },
+    ],
+  });
+};
+
 const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserAction[] }> = {
   optimization_skill_input: {
     hint: "You can use the following quick actions to provide more context to get optimization suggestions, or provide context in the chat.",
     actions: [
       {
         id: "provide_sql",
-        action: (onClick) => renderActionButton("I have a SQL", onClick),
+        action: (onAction) => renderActionButton("I have a SQL", () => handleSqlInput(onAction)),
         text: "Please optimize this SQL:\n<sql>",
         autoRun: false,
       },
       {
         id: "provide_query_id",
-        action: (onClick) => renderActionButton("I have a query_id", onClick),
+        action: (onAction) =>
+          renderActionButton("I have a query_id", () => handleQueryIdInput(onAction)),
         text: "My query_id is: <paste here>",
         autoRun: false,
         breakAfter: true,
       },
       {
         id: "find_duration_24h",
-        action: (onClick) =>
+        action: (onAction) =>
           renderActionButton(
             <span>
               Find and optimize <span className="font-bold text-primary">SLOWEST</span> queries
               (last 24h)
             </span>,
-            onClick
+            () =>
+              onAction({
+                id: "find_duration_24h",
+                text: "Find expensive queries by duration in the last 24 hours",
+                autoRun: true,
+                action: () => null,
+              })
           ),
         text: "Find expensive queries by duration in the last 24 hours",
         autoRun: true,
       },
       {
         id: "find_cpu_24h",
-        action: (onClick) =>
+        action: (onAction) =>
           renderActionButton(
             <span>
               Find and optimize queries that use the{" "}
               <span className="font-bold text-primary">most CPU</span> (last 24h)
             </span>,
-            onClick
+            () =>
+              onAction({
+                id: "find_cpu_24h",
+                text: "Find slowest queries by cpu in the last 24 hours",
+                autoRun: true,
+                action: () => null,
+              })
           ),
         text: "Find slowest queries by cpu in the last 24 hours",
         autoRun: true,
       },
       {
         id: "find_memory_24h",
-        action: (onClick) =>
+        action: (onAction) =>
           renderActionButton(
             <span>
               Find and optimize queries that use the{" "}
               <span className="font-bold text-primary">most memory</span> (last 24h)
             </span>,
-            onClick
+            () =>
+              onAction({
+                id: "find_memory_24h",
+                text: "Find expensive queries by memory in the last 24 hours",
+                autoRun: true,
+                action: () => null,
+              })
           ),
         text: "Find expensive queries by memory in the last 24 hours",
         autoRun: true,
       },
       {
         id: "find_disk_24h",
-        action: (onClick) =>
+        action: (onAction) =>
           renderActionButton(
             <span>
               Find and optimize queries that read the{" "}
               <span className="font-bold text-primary">most disk</span> (last 24h)
             </span>,
-            onClick
+            () =>
+              onAction({
+                id: "find_disk_24h",
+                text: "Find expensive queries by disk in the last 24 hours",
+                autoRun: true,
+                action: () => null,
+              })
           ),
         text: "Find expensive queries by disk in the last 24 hours",
         autoRun: true,
