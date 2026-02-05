@@ -16,7 +16,6 @@ interface MessageMarkdownProps {
   text: string;
   customStyle?: React.CSSProperties;
   showExecuteButton?: boolean;
-  onAction?: (action: UserAction) => void;
   /**
    * Allow expandable SQL blocks inside markdown. Default: false.
    */
@@ -27,7 +26,6 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   text,
   customStyle,
   showExecuteButton = true,
-  onAction,
   expandable = false,
 }: MessageMarkdownProps) {
   const { connection } = useConnection();
@@ -63,7 +61,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
           return <MessageMarkdownChartSpec spec={String(children)} />;
         }
         if (codeClassName === "language-user_actions") {
-          return <MessageMarkdownUserActions spec={String(children)} onAction={onAction} />;
+          return <MessageMarkdownUserActions spec={String(children)} />;
         }
 
         // Check if inline code is a table name or database name
@@ -217,7 +215,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         </h6>
       ),
     }),
-    [customStyle, expandable, onAction, showExecuteButton]
+    [customStyle, expandable, showExecuteButton]
   );
 
   return (

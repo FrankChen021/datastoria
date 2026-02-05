@@ -4,6 +4,7 @@ import { Dialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Fragment, memo, useMemo } from "react";
+import { useChatAction } from "../chat-action-context";
 
 export type UserAction = {
   id: string;
@@ -13,7 +14,7 @@ export type UserAction = {
   breakAfter?: boolean;
 };
 
-type UserActionType = "optimization_skill_input";
+type UserActionConfig = Omit<UserAction, "text">;
 
 const renderActionButton = (label: string | React.ReactNode, onClick: () => void) => (
   <Button
@@ -77,7 +78,7 @@ const InputAction = ({
   return renderActionButton(label, handleClick);
 };
 
-const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserAction[] }> = {
+const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActionConfig[] }> = {
   optimization_skill_input: {
     hint: "You can use the following quick actions to provide more context to get optimization suggestions, or provide context in the chat.",
     actions: [
@@ -92,7 +93,6 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             onInput={(value) => onInput(`Please optimize this SQL:\n${value}`)}
           />
         ),
-        text: "Please optimize this SQL:\n<sql>",
         autoRun: false,
       },
       {
@@ -106,7 +106,6 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             onInput={(value) => onInput(`My query_id is: ${value}`)}
           />
         ),
-        text: "My query_id is: <paste here>",
         autoRun: false,
         breakAfter: true,
       },
@@ -120,7 +119,6 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             </span>,
             () => onInput("Find expensive queries by duration in the last 1 day")
           ),
-        text: "Find expensive queries by duration in the last 1 day",
         autoRun: true,
       },
       {
@@ -133,7 +131,6 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             </span>,
             () => onInput("Find queries that use the most CPU in the last 1 day")
           ),
-        text: "Find slowest queries by cpu in the last 1 day",
         autoRun: true,
       },
       {
@@ -146,7 +143,6 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             </span>,
             () => onInput("Find expensive queries by memory in the last 1 day")
           ),
-        text: "Find expensive queries by memory in the last 1 day",
         autoRun: true,
       },
       {
@@ -159,7 +155,6 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             </span>,
             () => onInput("Find expensive queries by disk in the last 1 day")
           ),
-        text: "Find expensive queries by disk in the last 1 day",
         autoRun: true,
       },
     ],
@@ -168,11 +163,10 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
 
 export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActions({
   spec,
-  onAction,
 }: {
   spec: string;
-  onAction?: (action: UserAction) => void;
 }) {
+  const { onAction } = useChatAction();
   const actionType = useMemo(() => {
     try {
       const payload = JSON.parse(spec) as { type?: UserActionType };
@@ -182,7 +176,7 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
     }
   }, [spec]);
 
-  if (!actionType || !onAction) {
+  if (!actionType) {
     return null;
   }
 
@@ -218,7 +212,9 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
         {actionGroups.map((group, groupIndex) => (
           <div key={groupIndex} className="flex flex-wrap gap-2">
             {group.map((action) => (
-              <Fragment key={action.id}>{action.action(() => onAction(action))}</Fragment>
+              <Fragment key={action.id}>
+                {action.action((text) => onAction({ ...action, text }))}
+              </Fragment>
             ))}
           </div>
         ))}

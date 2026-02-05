@@ -103,23 +103,17 @@ const ChatMessagePart = memo(
     part,
     isUser,
     isRunning = true,
-    onAction,
   }: {
     part: AppUIMessage["parts"][0];
     isUser: boolean;
     isRunning?: boolean;
-    onAction?: (action: UserAction) => void;
   }) {
     if (part.type === "text") {
       if (isUser) {
         return <MessageUser text={part.text} />;
       }
       return (
-        <MessageMarkdown
-          text={part.text}
-          customStyle={{ fontSize: "0.9rem", lineHeight: "1.6" }}
-          onAction={onAction}
-        />
+        <MessageMarkdown text={part.text} customStyle={{ fontSize: "0.9rem", lineHeight: "1.6" }} />
       );
     }
     if (part.type === "reasoning") {
@@ -194,7 +188,6 @@ interface ChatMessageProps {
   isFirst?: boolean; // Whether this is a new user request (needs top spacing)
   isLast?: boolean; // Whether this is the last message in a sequence
   isRunning?: boolean;
-  onAction?: (action: UserAction) => void;
 }
 /**
  * Render a single message with session styling and visualization
@@ -204,7 +197,6 @@ export const ChatMessage = memo(function ChatMessage({
   isLoading = false,
   isFirst = false,
   isRunning = true,
-  onAction,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const timestamp = message.createdAt ? new Date(message.createdAt).getTime() : Date.now();
@@ -252,13 +244,7 @@ export const ChatMessage = memo(function ChatMessage({
               )}
               {parts.length === 0 && !isLoading && !error && "Nothing returned"}
               {parts.map((part: AppUIMessage["parts"][0], i: number) => (
-                <ChatMessagePart
-                  key={i}
-                  part={part}
-                  isUser={isUser}
-                  isRunning={isRunning}
-                  onAction={onAction}
-                />
+                <ChatMessagePart key={i} part={part} isUser={isUser} isRunning={isRunning} />
               ))}
               {error && <ErrorMessageDisplay errorText={error.message || String(error)} />}
               {showLoading && (

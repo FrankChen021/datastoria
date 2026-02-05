@@ -14,11 +14,10 @@ interface ChatMessageListProps {
   messages: AppUIMessage[];
   isRunning: boolean;
   error: Error | null;
-  onAction?: (action: UserAction) => void;
 }
 
 export const ChatMessageList = React.memo(
-  ({ messages, isRunning, error, onAction }: ChatMessageListProps) => {
+  ({ messages, isRunning, error }: ChatMessageListProps) => {
     const prevMessagesLengthRef = React.useRef(messages.length);
     const scrollContainerRef = React.useRef<HTMLDivElement>(null);
     const scrollPlaceholderRef = React.useRef<HTMLDivElement>(null);
@@ -76,7 +75,6 @@ export const ChatMessageList = React.memo(
               isFirst={index === 0}
               isLast={index === messages.length - 1}
               isRunning={isRunning}
-              onAction={onAction}
             />
           ))}
 
