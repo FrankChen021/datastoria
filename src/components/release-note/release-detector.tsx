@@ -25,6 +25,10 @@ export function ReleaseDetectorProvider({ children }: { children: React.ReactNod
     const checkRelease = async (isInitial = false) => {
       try {
         const res = await fetch("/release-notes.json", { cache: "no-store" });
+        if (res.status !== 200) {
+          console.warn("Failed to check for new release: unexpected status", res.status);
+          return;
+        }
         const data = await res.json();
         const id = Array.isArray(data) ? data[0]?.id : data?.id;
 
