@@ -3,18 +3,23 @@
 import { Dialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Fragment, memo, useMemo } from "react";
+import { Fragment, memo, useMemo, useState } from "react";
 import { useChatAction } from "../chat-action-context";
 
-export type UserAction = {
-  id: string;
-  action: (onInput: (action: { text: string; autoRun?: boolean }) => void) => React.ReactNode;
+/** Payload passed to onAction when a user triggers a quick action. */
+export type UserActionInput = {
   text: string;
-  autoRun: boolean;
+  autoRun?: boolean;
+};
+
+/** Definition of a single quick-action button (text is produced at trigger time). */
+type UserActionConfig = {
+  id: string;
+  component: (onInput: (input: UserActionInput) => void) => React.ReactNode;
   breakAfter?: boolean;
 };
 
-type UserActionConfig = Omit<UserAction, "text">;
+type UserActionType = "optimization_skill_input";
 
 const renderActionButton = (label: string | React.ReactNode, onClick: () => void) => (
   <Button
@@ -39,7 +44,7 @@ const InputAction = ({
   title: string;
   description: string;
   placeholder: string;
-  onInput: (action: { text: string; autoRun?: boolean }) => void;
+  onInput: (text: string) => void;
 }) => {
   const handleClick = () => {
     let value = "";
@@ -67,7 +72,7 @@ const InputAction = ({
           default: true,
           onClick: async () => {
             if (!value.trim()) return false;
-            onInput({ text: value.trim() });
+            onInput(value.trim());
             return true;
           },
         },
@@ -80,48 +85,46 @@ const InputAction = ({
 
 const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActionConfig[] }> = {
   optimization_skill_input: {
-    hint: "You can use the following quick actions to provide more context to get optimization suggestions, or provide context in the chat.",
+    hint: "Use the following quick actions to provide more context to get optimization suggestions, or provide context in the chat.",
     actions: [
       {
         id: "provide_sql",
-        action: (onInput) => (
+        component: (onInput) => (
           <InputAction
             label="I have a SQL"
             title="Provide SQL"
             description="Paste your SQL query below to analyze and optimize it."
             placeholder="SELECT * FROM ..."
-            onInput={(value) =>
+            onInput={(text) =>
               onInput({
-                text: `Please optimize this SQL:\n${value}`,
+                text: `Please optimize this SQL:\n${text}`,
                 autoRun: true,
               })
             }
           />
         ),
-        autoRun: false,
       },
       {
         id: "provide_query_id",
-        action: (onInput) => (
+        component: (onInput) => (
           <InputAction
             label="I have a query_id"
             title="Provide Query ID"
             description="Enter the ClickHouse query_id you want to analyze."
             placeholder="e.g. 12345678-1234-1234-1234-123456789012"
-            onInput={(value) =>
+            onInput={(text) =>
               onInput({
-                text: `My query_id is: ${value}`,
+                text: `My query_id is: ${text}`,
                 autoRun: true,
               })
             }
           />
         ),
-        autoRun: false,
         breakAfter: true,
       },
       {
         id: "find_duration_24h",
-        action: (onInput) =>
+        component: (onInput) =>
           renderActionButton(
             <span>
               Find and optimize <span className="font-bold text-primary">SLOWEST</span> queries in
@@ -133,11 +136,10 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
                 autoRun: true,
               })
           ),
-        autoRun: true,
       },
       {
         id: "find_cpu_24h",
-        action: (onInput) =>
+        component: (onInput) =>
           renderActionButton(
             <span>
               Find and optimize queries that use the{" "}
@@ -149,11 +151,10 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
                 autoRun: true,
               })
           ),
-        autoRun: true,
       },
       {
         id: "find_memory_24h",
-        action: (onInput) =>
+        component: (onInput) =>
           renderActionButton(
             <span>
               Find and optimize queries that use the{" "}
@@ -165,11 +166,10 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
                 autoRun: true,
               })
           ),
-        autoRun: true,
       },
       {
         id: "find_disk_24h",
-        action: (onInput) =>
+        component: (onInput) =>
           renderActionButton(
             <span>
               Find and optimize queries that read the{" "}
@@ -181,7 +181,6 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
                 autoRun: true,
               })
           ),
-        autoRun: true,
       },
     ],
   },
@@ -193,30 +192,27 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
   spec: string;
 }) {
   const { onAction } = useChatAction();
+  const [hidden, setHidden] = useState(false);
   const actionType = useMemo(() => {
     try {
-      const payload = JSON.parse(spec) as { type?: UserActionType };
-      return payload?.type;
+      const parsed = JSON.parse(spec) as { type?: UserActionType };
+      return parsed?.type;
     } catch {
       return undefined;
     }
   }, [spec]);
 
-  if (!actionType) {
-    return null;
-  }
-
-  const config = ACTIONS_BY_TYPE[actionType];
-  if (!config || config.actions.length === 0) {
-    return null;
-  }
+  const actionOfType = useMemo(
+    () => (actionType ? ACTIONS_BY_TYPE[actionType] : undefined),
+    [actionType]
+  );
 
   const actionGroups = useMemo(() => {
-    if (!config) return [];
+    if (!actionOfType?.actions.length) return [];
     const groups: UserActionConfig[][] = [];
     let currentGroup: UserActionConfig[] = [];
 
-    config.actions.forEach((action) => {
+    actionOfType.actions.forEach((action) => {
       currentGroup.push(action);
       if (action.breakAfter) {
         groups.push(currentGroup);
@@ -229,17 +225,26 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
     }
 
     return groups;
-  }, [config]);
+  }, [actionOfType]);
+
+  const handleAction = (input: UserActionInput) => {
+    setHidden(true);
+    onAction(input);
+  };
+
+  if (!actionType || hidden || !actionOfType || actionOfType.actions.length === 0) {
+    return null;
+  }
 
   return (
     <div className="mt-3 bg-muted/30 font-sans border-t pt-2">
-      <div className="text-sm font-medium text-foreground/80 mb-3">{config.hint}</div>
+      <div className="text-sm font-medium text-foreground/80 mb-2">{actionOfType.hint}</div>
       <div className="flex flex-col gap-2">
         {actionGroups.map((group, groupIndex) => (
           <div key={groupIndex} className="flex flex-wrap gap-2">
             {group.map((action) => (
               <Fragment key={action.id}>
-                {action.action((actionData) => onAction(actionData))}
+                {action.component((actionData) => handleAction(actionData))}
               </Fragment>
             ))}
           </div>

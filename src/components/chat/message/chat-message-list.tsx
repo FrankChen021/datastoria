@@ -8,7 +8,6 @@ import { AlertCircle } from "lucide-react";
 import * as React from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { ChatMessage } from "./chat-message";
-import type { UserAction } from "./message-user-actions";
 
 interface ChatMessageListProps {
   messages: AppUIMessage[];

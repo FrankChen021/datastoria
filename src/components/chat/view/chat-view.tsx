@@ -12,7 +12,7 @@ import { ChatContext } from "../chat-context";
 import { ChatInput, type ChatInputHandle } from "../input/chat-input";
 import { getTableContextByMentions } from "../input/mention-utils";
 import { ChatMessageList } from "../message/chat-message-list";
-import type { UserAction } from "../message/message-user-actions";
+import type { UserActionInput } from "../message/message-user-actions";
 import { useTokenUsage } from "./use-token-usage";
 
 export type Question = { text: string; autoRun?: boolean };
@@ -165,12 +165,12 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   );
 
   const handleUserAction = useCallback(
-    (action: UserAction) => {
-      if (action.autoRun) {
-        handleSubmit(action.text);
+    (input: UserActionInput) => {
+      if (input.autoRun) {
+        handleSubmit(input.text);
         return;
       }
-      setPromptInput(action.text);
+      setPromptInput(input.text);
     },
     [handleSubmit]
   );

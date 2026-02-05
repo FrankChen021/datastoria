@@ -1,10 +1,10 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { UserAction } from "./message/message-user-actions";
+import type { UserActionInput } from "./message/message-user-actions";
 
 interface ChatActionContextType {
-  onAction: (action: UserAction) => void;
+  onAction: (input: UserActionInput) => void;
 }
 
 const ChatActionContext = createContext<ChatActionContextType | undefined>(undefined);
@@ -22,7 +22,7 @@ export function ChatActionProvider({
   onAction,
 }: {
   children: React.ReactNode;
-  onAction: (action: UserAction) => void;
+  onAction: (input: UserActionInput) => void;
 }) {
   return <ChatActionContext.Provider value={{ onAction }}>{children}</ChatActionContext.Provider>;
 }

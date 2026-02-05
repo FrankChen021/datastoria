@@ -24,7 +24,6 @@ import { MessageToolPlan } from "./message-tool-plan";
 import { MessageToolSkill } from "./message-tool-skill";
 import { MessageToolValidateSql } from "./message-tool-validate-sql";
 import { MessageUser } from "./message-user";
-import type { UserAction } from "./message-user-actions";
 
 /**
  * Display token usage information per message.

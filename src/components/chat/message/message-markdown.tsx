@@ -7,7 +7,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
 import { MessageMarkdownSql } from "./message-markdown-sql";
-import { MessageMarkdownUserActions, type UserAction } from "./message-user-actions";
+import { MessageMarkdownUserActions } from "./message-user-actions";
 
 /**
  * Render text message with markdown support
