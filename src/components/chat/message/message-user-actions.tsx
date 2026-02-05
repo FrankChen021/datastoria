@@ -18,15 +18,15 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
     hint: "You can use the following quick actions to provide more context to get optimization suggestions, or provide context in the chat.",
     actions: [
       {
-        id: "provide_query_id",
-        label: "I have a query_id",
-        text: "My query_id is: <paste here>",
+        id: "provide_sql",
+        label: "I have a SQL",
+        text: "Please optimize this SQL:\n<sql>",
         autoRun: false,
       },
       {
-        id: "provide_sql",
-        label: "I have SQL",
-        text: "Please optimize this SQL:\n<sql>",
+        id: "provide_query_id",
+        label: "I have a query_id",
+        text: "My query_id is: <paste here>",
         autoRun: false,
         breakAfter: true,
       },
@@ -86,7 +86,7 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
   return (
     <div className="mt-3 bg-muted/30 font-sans border-t pt-2">
       <div className="text-sm font-medium text-foreground/80 mb-3">{config.hint}</div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-x-2 gap-y-1">
         {config.actions.map((action) => (
           <Fragment key={action.id}>
             <Button
