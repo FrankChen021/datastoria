@@ -8,7 +8,7 @@ import {
   SchemaTreeLoader,
   type SchemaLoadResult,
 } from "@/components/schema-tree/schema-tree-loader";
-import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
+import { SidebarPanel } from "@/components/sidebar-panel/sidebar-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sheet, SheetOverlay, SheetPortal, SheetTrigger } from "@/components/ui/sheet";
@@ -38,6 +38,7 @@ import {
 import { AppLogo } from "./app-logo";
 import { ConnectionSelectorDialog } from "./connection/connection-selector-dialog";
 import { MainPageTabList } from "./main-page-tab-list";
+import { SchemaTreeView } from "./schema-tree/schema-tree-view";
 
 /**
  * Extract table names and database names from schema load result
@@ -650,7 +651,7 @@ export function MainPage() {
                 aria-label="Open schema browser"
               >
                 <Database className="h-4 w-4" />
-                Open Schema View
+                Schema
               </Button>
             </SheetTrigger>
             <SheetPortal>
@@ -696,7 +697,7 @@ export function MainPage() {
             minSize={0}
             className={`bg-background ${!showSchemaTree ? "hidden" : ""}`}
           >
-            <SchemaTreeView initialSchemaData={loadedSchemaData} />
+            <SidebarPanel initialSchemaData={loadedSchemaData} />
           </Panel>
 
           {showSchemaTree && (

@@ -58,6 +58,8 @@ export class SqlUtils {
         .replace(/^--.*$/gm, "")
         // Remove multiline comments
         .replace(/\/\*[\s\S]*?\*\//g, "")
+        // Replace multiple newlines (2+) with single newline
+        .replace(/\n{2,}/g, "\n")
         .trim()
     );
   }

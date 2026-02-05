@@ -100,17 +100,18 @@ If your connection is configured for cluster mode, the editor suggests `ON CLUST
 
 ## Query Snippets
 
-The editor includes built-in query snippets for common operations:
+The editor includes built-in query snippets for common operations and supports custom snippets:
 
 ![sql-editor-suggestion-6](./img/sql-editor-suggestion-6.jpg)
 
 ### Using Snippets
 
-1. Type `show_` to trigger snippet suggestions
+1. Type a snippet name to trigger snippet suggestions in autocomplete
 2. Select a snippet from the suggestions
-3. Press `Tab` to expand the snippet
-4. Fill in the placeholders
-5. Navigate between placeholders with `Tab`
+3. Press `Tab` or `Enter` to insert the snippet
+4. Customize the inserted SQL as needed
+
+> **Learn More**: See the [SQL Snippets](./sql-snippets.md) guide for detailed information on creating, managing, and using snippets effectively.
 
 ## Local Storage
 
@@ -159,6 +160,7 @@ The editor automatically saves your work:
 
 ## Next Steps
 
+- **[SQL Snippets](./sql-snippets.md)** — Create and manage reusable SQL query templates
 - **[Query Execution](./query-execution.md)** — Learn how to execute queries and view results
 - **[Error Diagnostics](./error-diagnostics.md)** — Understand how to diagnose and fix query errors
 - **[Natural Language SQL](../02-ai-features/natural-language-sql.md)** — Use AI to generate queries from natural language

@@ -1,12 +1,13 @@
 import { useSqlExecution } from "@/components/chat/sql-execution-context";
 import { useConnection } from "@/components/connection/connection-context";
 import { QueryExecutionTimer } from "@/components/query-tab/query-execution-timer";
+import { SaveSnippetDialog } from "@/components/query-tab/snippet/save-snippet-dialog";
 import { CopyButton } from "@/components/ui/copy-button";
 import type { QueryError } from "@/lib/connection/connection";
 import { SqlUtils } from "@/lib/sql-utils";
 import { toastManager } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { Loader2, Play, X } from "lucide-react";
+import { Bookmark, Loader2, Play, X } from "lucide-react";
 import { memo, useRef, useState } from "react";
 import { v7 as uuid } from "uuid";
 import { QueryResponseView } from "../../query-tab/query-response/query-response-view";
@@ -38,6 +39,7 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
   const [queryResponse, setQueryResponse] = useState<QueryResponseViewModel | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [showResults, setShowResults] = useState(true);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const queryResponseRef = useRef<HTMLDivElement>(null);
 
   const handleRun = async (e: React.MouseEvent) => {
@@ -144,7 +146,25 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
               isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
             )}
           />
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-5 w-5 opacity-60 hover:opacity-100 transition-all",
+              isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+            onClick={() => setIsSaveDialogOpen(true)}
+            title="Save as snippet"
+          >
+            <Bookmark className="!h-3 !w-3" />
+          </Button>
         </div>
+
+        <SaveSnippetDialog
+          open={isSaveDialogOpen}
+          onOpenChange={setIsSaveDialogOpen}
+          initialSql={code}
+        />
 
         <ThemedSyntaxHighlighter
           language={language}

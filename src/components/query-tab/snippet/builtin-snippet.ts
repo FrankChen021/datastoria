@@ -13,13 +13,42 @@ SETTINGS allow_introspection_functions = 1\\G`,
 
   {
     builtin: true,
-    caption: "show_query_log",
+    caption: "search_query_log",
     sql: `SELECT * FROM system.query_log WHERE event_date = today()
 -- AND has(databases, '\${db}') -- Change to your database name
 -- AND has(tables, '\${table}') -- Change to your table name
 -- AND query_kind = 'Select' -- Select/Insert/...
 -- AND type = 'QueryFinish'  --
-ORDER BY event_time`,
+ORDER BY event_time
+LIMIT 100`,
+  },
+
+  {
+    builtin: true,
+    caption: "find_slow_queries",
+    sql: `SELECT
+  normalized_query_hash,
+  any(query_id) AS query_id,
+  sum(query_duration_ms) AS query_duration_ms,
+  sum(memory_usage) AS memory_usage,
+  sum(read_rows) AS read_rows,
+  sum(read_bytes) AS read_bytes,
+  max(event_time) AS last_execution_time,
+  any(tables) AS tables,
+  count() AS execution_count,
+  any(user) AS user,
+  any(query) AS query
+FROM system.query_log
+WHERE
+  type = 'QueryFinish'
+  AND event_date = today()
+  AND event_time > now() - INTERVAL 1 hour -- Change to your own time range
+  AND query_kind = 'Select'
+  AND not has(databases, 'system')
+GROUP BY normalized_query_hash
+ORDER BY query_duration_ms DESC
+LIMIT 10
+`,
   },
 
   {
@@ -33,7 +62,7 @@ ORDER BY host`,
 
   {
     builtin: true,
-    caption: "show_mutations",
+    caption: "show_running_mutations",
     sql: `SELECT create_time, database, table, mutation_id, command, length(block_numbers.number), is_done, latest_fail_time, latest_fail_reason FROM system.mutations
 WHERE is_done = 0
 -- AND database = '' -- Change to your own
@@ -51,7 +80,9 @@ ORDER BY progress DESC, total_size_bytes_compressed DESC`,
   {
     builtin: true,
     caption: "show_zookeeper_connection",
-    sql: `SELECT FQDN(), * FROM clusterAllReplicas('{cluster}', system.zookeeper_connection) ORDER BY FQDN()`,
+    sql: `SELECT FQDN(), * 
+FROM clusterAllReplicas('{cluster}', system.zookeeper_connection) 
+ORDER BY FQDN()`,
   },
 
   {
@@ -60,14 +91,18 @@ ORDER BY progress DESC, total_size_bytes_compressed DESC`,
     sql: `SELECT event_time, event_type, query_id, database, table, part_name, duration_ms, rows, formatReadableSize(size_in_bytes) AS bytes, exception FROM system.part_log WHERE
 event_date = today()
 -- AND table = '' -- change to your own table name
-ORDER BY duration_ms`,
+ORDER BY duration_ms
+LIMIT 100`,
   },
 
   {
     builtin: true,
     caption: "show_data_part",
-    sql: `SELECT * FROM system.parts WHERE active 
+    sql: `SELECT * 
+FROM system.parts 
+WHERE active 
 -- AND database = '' -- change to your own database name
--- AND table = '' -- change to your own table name`,
+-- AND table = '' -- change to your own table name
+LIMIT 100`,
   },
 ];

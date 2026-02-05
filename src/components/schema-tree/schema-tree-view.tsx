@@ -330,7 +330,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
   return (
     <div className="h-full w-full flex flex-col">
       <div className="relative border-b-2 flex items-center h-9">
-        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           ref={searchInputRef}
           placeholder="Search databases/tables/columns"

@@ -15,7 +15,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { QueryInputLocalStorage } from "../query-input/query-input-local-storage";
 import { QuerySuggestionManager } from "./completion/query-suggestion-manager";
 import "./query-input-view.css";
-import { QuerySnippetManager } from "./snippet/query-snippet-manager";
+import { QuerySnippetManager } from "../snippet/query-snippet-manager";
 import { updateQueryInputState } from "./use-query-input";
 
 // Dynamically import AceEditor to prevent SSR issues
@@ -232,13 +232,32 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           // Connection has static config which is what completion likely needs (url, user, etc).
           // Let's passed it as is.
           QuerySuggestionManager.getInstance().onConnectionSelected(connection as any);
-          QuerySnippetManager.getInstance().onCollectionSelected(connection as any);
+          QuerySnippetManager.getInstance().onConnectionChanged(connection as any);
         }
       } else {
         lastConnectionRef.current = null;
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [connection?.name]); // Use connection name instead of whole object to avoid duplicate calls
+
+    // Subscribe to snippet changes and refresh completers
+    useEffect(() => {
+      const unsubscribe = QuerySnippetManager.getInstance().subscribe(() => {
+        if (editorRef.current && language === "dsql") {
+          const extendedEditor = editorRef.current as ExtendedEditor;
+          // Detach the existing completer to clear its cache
+          if (extendedEditor.completer) {
+            extendedEditor.completer.detach();
+          }
+          // Reassign completers to force ACE to use fresh data
+          extendedEditor.completers = QuerySuggestionManager.getInstance().getCompleters(
+            extendedEditor.completers
+          );
+        }
+      });
+
+      return unsubscribe;
+    }, [language]);
 
     // Handle editor resize
     useEffect(() => {
