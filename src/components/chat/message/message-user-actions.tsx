@@ -5,7 +5,7 @@ import { Fragment, memo, useMemo } from "react";
 
 export type UserAction = {
   id: string;
-  label: string;
+  action: (onClick: () => void) => React.ReactNode;
   text: string;
   autoRun: boolean;
   breakAfter?: boolean;
@@ -13,44 +13,63 @@ export type UserAction = {
 
 type UserActionType = "optimization_skill_input";
 
+const renderActionButton = (label: string, onClick: () => void) => (
+  <Button
+    type="button"
+    size="sm"
+    variant="secondary"
+    className="rounded-md shadow-sm hover:shadow-md transition-shadow border border-border/50 text-xs h-8"
+    onClick={onClick}
+  >
+    {label}
+  </Button>
+);
+
 const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserAction[] }> = {
   optimization_skill_input: {
     hint: "You can use the following quick actions to provide more context to get optimization suggestions, or provide context in the chat.",
     actions: [
       {
         id: "provide_sql",
-        label: "I have a SQL",
+        action: (onClick) => renderActionButton("I have a SQL", onClick),
         text: "Please optimize this SQL:\n<sql>",
         autoRun: false,
       },
       {
         id: "provide_query_id",
-        label: "I have a query_id",
+        action: (onClick) => renderActionButton("I have a query_id", onClick),
         text: "My query_id is: <paste here>",
         autoRun: false,
         breakAfter: true,
       },
       {
         id: "find_duration_24h",
-        label: "Find and optimize SLOWEST queries (last 24h)",
+        action: (onClick) =>
+          renderActionButton("Find and optimize SLOWEST queries (last 24h)", onClick),
         text: "Find expensive queries by duration in the last 24 hours",
         autoRun: true,
       },
       {
         id: "find_cpu_24h",
-        label: "Find and optimize queries that use the most CPU (last 24h)",
+        action: (onClick) =>
+          renderActionButton("Find and optimize queries that use the most CPU (last 24h)", onClick),
         text: "Find slowest queries by cpu in the last 24 hours",
         autoRun: true,
       },
       {
         id: "find_memory_24h",
-        label: "Find and optimize queries that use the most memory (last 24h)",
+        action: (onClick) =>
+          renderActionButton(
+            "Find and optimize queries that use the most memory (last 24h)",
+            onClick
+          ),
         text: "Find expensive queries by memory in the last 24 hours",
         autoRun: true,
       },
       {
         id: "find_disk_24h",
-        label: "Find and optimize expensive queries by disk (last 24h)",
+        action: (onClick) =>
+          renderActionButton("Find and optimize expensive queries by disk (last 24h)", onClick),
         text: "Find expensive queries by disk in the last 24 hours",
         autoRun: true,
       },
@@ -110,16 +129,7 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
         {actionGroups.map((group, groupIndex) => (
           <div key={groupIndex} className="flex flex-wrap gap-2">
             {group.map((action) => (
-              <Button
-                key={action.id}
-                type="button"
-                size="sm"
-                variant="secondary"
-                className="rounded-md shadow-sm hover:shadow-md transition-shadow border border-border/50"
-                onClick={() => onAction(action)}
-              >
-                {action.label}
-              </Button>
+              <Fragment key={action.id}>{action.action(() => onAction(action))}</Fragment>
             ))}
           </div>
         ))}
