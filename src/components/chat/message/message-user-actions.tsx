@@ -187,8 +187,8 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
 
   const actionGroups = useMemo(() => {
     if (!config) return [];
-    const groups: UserAction[][] = [];
-    let currentGroup: UserAction[] = [];
+    const groups: UserActionConfig[][] = [];
+    let currentGroup: UserActionConfig[] = [];
 
     config.actions.forEach((action) => {
       currentGroup.push(action);
