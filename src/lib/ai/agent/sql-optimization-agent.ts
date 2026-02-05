@@ -36,7 +36,11 @@ Determine which input scenario applies:
 1. **HAS SQL**: Conversation contains SQL query (SELECT/INSERT/UPDATE/DELETE) → Go to WORKFLOW step 2
 2. **HAS QUERY_ID**: Conversation contains query_id → Go to WORKFLOW step 2
 3. **DISCOVERY REQUEST**: User asks to find/optimize expensive queries by metric → Go to WORKFLOW step 1
-4. **NEITHER**: No SQL, no query_id, no discovery request → Ask user to provide SQL, query_id, or specify metric (cpu/memory/disk/duration)
+4. **NEITHER**: No SQL, no query_id, no discovery request → Ask user to provide SQL, query_id, or specify metric (cpu/memory/disk/duration). Append this block at the end of the reply (must be present and unchanged):
+
+\`\`\`user_actions
+{ "type": "optimization_skill_input" }
+\`\`\`
 
 **DISCOVERY DETECTION** (Scenario 3):
 Trigger discovery when user says things like:
