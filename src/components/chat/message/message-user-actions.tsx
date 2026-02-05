@@ -8,7 +8,7 @@ import { useChatAction } from "../chat-action-context";
 
 export type UserAction = {
   id: string;
-  action: (onInput: (value: string) => void) => React.ReactNode;
+  action: (onInput: (action: { text: string; autoRun?: boolean }) => void) => React.ReactNode;
   text: string;
   autoRun: boolean;
   breakAfter?: boolean;
@@ -39,7 +39,7 @@ const InputAction = ({
   title: string;
   description: string;
   placeholder: string;
-  onInput: (value: string) => void;
+  onInput: (action: { text: string; autoRun?: boolean }) => void;
 }) => {
   const handleClick = () => {
     let value = "";
@@ -67,7 +67,7 @@ const InputAction = ({
           default: true,
           onClick: async () => {
             if (!value.trim()) return false;
-            onInput(value.trim());
+            onInput({ text: value.trim() });
             return true;
           },
         },
@@ -90,7 +90,12 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             title="Provide SQL"
             description="Paste your SQL query below to analyze and optimize it."
             placeholder="SELECT * FROM ..."
-            onInput={(value) => onInput(`Please optimize this SQL:\n${value}`)}
+            onInput={(value) =>
+              onInput({
+                text: `Please optimize this SQL:\n${value}`,
+                autoRun: true,
+              })
+            }
           />
         ),
         autoRun: false,
@@ -103,7 +108,12 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             title="Provide Query ID"
             description="Enter the ClickHouse query_id you want to analyze."
             placeholder="e.g. 12345678-1234-1234-1234-123456789012"
-            onInput={(value) => onInput(`My query_id is: ${value}`)}
+            onInput={(value) =>
+              onInput({
+                text: `My query_id is: ${value}`,
+                autoRun: true,
+              })
+            }
           />
         ),
         autoRun: false,
@@ -117,7 +127,11 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
               Find and optimize <span className="font-bold text-primary">SLOWEST</span> queries in
               past 1 day
             </span>,
-            () => onInput("Find expensive queries by duration in the last 1 day")
+            () =>
+              onInput({
+                text: "Find expensive queries by duration in the last 1 day",
+                autoRun: true,
+              })
           ),
         autoRun: true,
       },
@@ -129,7 +143,11 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
               Find and optimize queries that use the{" "}
               <span className="font-bold text-primary">most CPU</span> in past 1 day
             </span>,
-            () => onInput("Find queries that use the most CPU in the last 1 day")
+            () =>
+              onInput({
+                text: "Find queries that use the most CPU in the last 1 day",
+                autoRun: true,
+              })
           ),
         autoRun: true,
       },
@@ -141,7 +159,11 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
               Find and optimize queries that use the{" "}
               <span className="font-bold text-primary">most memory</span> in past 1 day
             </span>,
-            () => onInput("Find expensive queries by memory in the last 1 day")
+            () =>
+              onInput({
+                text: "Find expensive queries by memory in the last 1 day",
+                autoRun: true,
+              })
           ),
         autoRun: true,
       },
@@ -153,7 +175,11 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
               Find and optimize queries that read the{" "}
               <span className="font-bold text-primary">most disk</span> in past 1 day
             </span>,
-            () => onInput("Find expensive queries by disk in the last 1 day")
+            () =>
+              onInput({
+                text: "Find expensive queries by disk in the last 1 day",
+                autoRun: true,
+              })
           ),
         autoRun: true,
       },
@@ -213,7 +239,7 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
           <div key={groupIndex} className="flex flex-wrap gap-2">
             {group.map((action) => (
               <Fragment key={action.id}>
-                {action.action((text) => onAction({ ...action, text }))}
+                {action.action((actionData) => onAction(actionData))}
               </Fragment>
             ))}
           </div>
