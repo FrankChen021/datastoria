@@ -82,7 +82,7 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
   }
 
   return (
-    <div className="mt-3 p-3 rounded-lg border border-border/80 bg-muted/30">
+    <div className="mt-3 bg-muted/30 font-sans">
       <div className="text-xs text-muted-foreground mb-2">{config.hint}</div>
       <div className="flex flex-wrap gap-2">
         {config.actions.map((action) => (
