@@ -344,15 +344,26 @@ export const MainPageTabList = memo(function MainPageTabList({
           } else {
             // No other tabs available, set to empty string
             setActiveTab("");
+            // If chat panel is visible (panel mode), switch to tabWidth mode when last tab is closed
+            if (displayMode === "panel") {
+              setDisplayMode("tabWidth");
+            }
           }
           return prevTabs.filter((t) => t.id !== tabId);
         });
       } else {
         // Non-active tab closed - no need to emit event, SchemaTreeView only cares about active tab
-        setTabs((prevTabs) => prevTabs.filter((t) => t.id !== tabId));
+        setTabs((prevTabs) => {
+          const newTabs = prevTabs.filter((t) => t.id !== tabId);
+          // If this was the last tab and chat panel is visible, switch to tabWidth mode
+          if (newTabs.length === 0 && displayMode === "panel") {
+            setDisplayMode("tabWidth");
+          }
+          return newTabs;
+        });
       }
     },
-    [activeTab, getNextOrPreviousTabId]
+    [activeTab, getNextOrPreviousTabId, displayMode, setDisplayMode]
   );
 
   // Handle close tab events
@@ -415,7 +426,12 @@ export const MainPageTabList = memo(function MainPageTabList({
     setActiveTab("");
     // Emit event for tab closure (tabInfo: null) - SchemaTreeView will ignore this
     TabManager.sendActiveTabChange("", null);
-  }, []);
+
+    // If chat panel is visible (panel mode), switch to tabWidth mode when all tabs are closed
+    if (displayMode === "panel") {
+      setDisplayMode("tabWidth");
+    }
+  }, [displayMode, setDisplayMode]);
 
   // Check scroll position and update button visibility
   // Only updates state when values actually change to prevent unnecessary re-renders
@@ -779,8 +795,8 @@ export const MainPageTabList = memo(function MainPageTabList({
         </div>
       )}
       <div className="flex-1 overflow-hidden relative">
-        {/* Show Smart Empty State when no tabs exist */}
-        {tabs.length === 0 && <EmptyTabPlaceholderComponent />}
+        {/* Show Smart Empty State when no tabs exist AND chat panel is hidden */}
+        {tabs.length === 0 && displayMode === "hidden" && <EmptyTabPlaceholderComponent />}
 
         {/* All Tabs - Always mounted */}
         {tabContent}
