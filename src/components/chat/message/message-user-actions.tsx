@@ -32,17 +32,13 @@ const InputAction = ({
   title,
   description,
   placeholder,
-  onAction,
-  actionId,
-  template,
+  onInput,
 }: {
   label: string;
   title: string;
   description: string;
   placeholder: string;
-  onAction: (action: UserAction) => void;
-  actionId: string;
-  template: (value: string) => string;
+  onInput: (value: string) => void;
 }) => {
   const handleClick = () => {
     let value = "";
@@ -70,12 +66,7 @@ const InputAction = ({
           default: true,
           onClick: async () => {
             if (!value.trim()) return false;
-            onAction({
-              id: actionId,
-              text: template(value.trim()),
-              autoRun: true,
-              action: () => null,
-            });
+            onInput(value.trim());
             return true;
           },
         },
@@ -98,9 +89,14 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             title="Provide SQL"
             description="Paste your SQL query below to analyze and optimize it."
             placeholder="SELECT * FROM ..."
-            onAction={onAction}
-            actionId="provide_sql_input"
-            template={(value) => `Please optimize this SQL:\n${value}`}
+            onInput={(value) =>
+              onAction({
+                id: "provide_sql_input",
+                text: `Please optimize this SQL:\n${value}`,
+                autoRun: true,
+                action: () => null,
+              })
+            }
           />
         ),
         text: "Please optimize this SQL:\n<sql>",
@@ -114,9 +110,14 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             title="Provide Query ID"
             description="Enter the ClickHouse query_id you want to analyze."
             placeholder="e.g. 12345678-1234-1234-1234-123456789012"
-            onAction={onAction}
-            actionId="provide_query_id_input"
-            template={(value) => `My query_id is: ${value}`}
+            onInput={(value) =>
+              onAction({
+                id: "provide_query_id_input",
+                text: `My query_id is: ${value}`,
+                autoRun: true,
+                action: () => null,
+              })
+            }
           />
         ),
         text: "My query_id is: <paste here>",
