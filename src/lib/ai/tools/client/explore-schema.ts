@@ -17,8 +17,10 @@ export type TableSchemaOutput = {
   database: string;
   table: string;
   columns: Array<{ name: string; type: string }>;
-  primaryKey?: string;
-  partitionBy?: string;
+  primaryKey: string;
+  partitionBy: string;
+  engine: string;
+  sortingKey: string;
 };
 export type ExploreSchemaOutput = Array<TableSchemaOutput>;
 
@@ -55,7 +57,7 @@ WHERE
 ${columnFilters.join(" OR ")}
 ORDER BY database, table`;
 
-  // Build query for table metadata (primary_key, partition_by)
+  // Build query for table metadata (engine, sorting_key, primary_key, partition_key)
   const tableFilters: string[] = [];
   for (const { table: tableName, database } of tables) {
     tableFilters.push(
@@ -67,6 +69,8 @@ ORDER BY database, table`;
 SELECT 
     database, 
     name as table,
+    engine,
+    sorting_key,
     primary_key,
     partition_key
 FROM system.tables
@@ -95,18 +99,30 @@ ${tableFilters.join(" OR ")}`;
     }
 
     // Build table metadata map
-    const metaMap = new Map<string, { primary_key?: string; partition_by?: string }>();
+    const metaMap = new Map<
+      string,
+      {
+        engine?: string;
+        sorting_key?: string;
+        primary_key?: string;
+        partition_key?: string;
+        create_table_query?: string;
+      }
+    >();
     for (const row of metaData.data) {
       const rowArray = row as unknown[];
       const database = String(rowArray[0] || "");
       const table = String(rowArray[1] || "");
-      const primaryKey = String(rowArray[2] || "");
-      const partitionKey = String(rowArray[3] || "");
-
+      const engine = String(rowArray[2] || "");
+      const sortingKey = String(rowArray[3] || "");
+      const primaryKey = String(rowArray[4] || "");
+      const partitionKey = String(rowArray[5] || "");
       const key = `${database}.${table}`;
       metaMap.set(key, {
-        primary_key: primaryKey || undefined,
-        partition_by: partitionKey || undefined,
+        engine,
+        sorting_key: sortingKey,
+        primary_key: primaryKey,
+        partition_key: partitionKey,
       });
     }
 
@@ -128,8 +144,10 @@ ${tableFilters.join(" OR ")}`;
           database,
           table,
           columns: [],
-          primaryKey: meta?.primary_key,
-          partitionBy: meta?.partition_by,
+          primaryKey: meta?.primary_key ?? "",
+          partitionBy: meta?.partition_key ?? "",
+          engine: meta?.engine ?? "",
+          sortingKey: meta?.sorting_key ?? "",
         });
       }
 

@@ -1,11 +1,3 @@
-# Dependencies
-node_modules
-external
-
-# Build outputs
-dist
-.next
-out
-
-# UI components (generated/auto-formatted)
-src/components/ui
+# Submodules — do not format vendored / external code
+external/
+src/lib/ai/skills/clickhouse/

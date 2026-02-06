@@ -105,3 +105,23 @@ export type ToolPart = AppUIMessage["parts"][0] & {
   toolName?: string;
   toolCallId?: string;
 };
+
+/**
+ * Request payload for the server-side "skill" tool.
+ *
+ * - names: one or more skill manuals to load (SKILL.md), e.g. ["optimization"] or
+ *   ["clickhouse-best-practices", "visualization"].
+ * - resources: OPTIONAL additional files to load for specific skills (e.g. AGENTS.md,
+ *   rules/*.md inside a ClickHouse skill).
+ */
+export type SkillResourceRequest = {
+  /** Skill name (frontmatter `name` or folder name). */
+  skill: string;
+  /** Relative paths within that skill, e.g. ["AGENTS.md", "rules/schema-pk-plan-before-creation.md"]. */
+  paths: string[];
+};
+
+export type SkillToolInput = {
+  names?: string[];
+  resources?: SkillResourceRequest[];
+};

@@ -11,11 +11,17 @@ export interface SkillMetadata {
 
 type SkillCache = {
   list: SkillMetadata[];
-  /** 
-   * Key: skill name (frontmatter `name` or folder name). 
-   * Value: formatted markdown (e.g. "# Manual Loaded: <name>\n\n<body>"). 
+  /**
+   * Key: skill name (frontmatter `name` or folder name).
+   * Value: formatted markdown (e.g. "# Manual Loaded: <name>\n\n<body>").
    */
-  content: Map<string, string>;
+  system: Map<string, string>;
+  /**
+   * Key: skill name (same keys as `content`).
+   * Value: directory path (relative to skills root) where that skill's SKILL.md lives.
+   * Used for resolving additional resources like AGENTS.md and rules/*.md per skill.
+   */
+  extensions: Map<string, string>;
 };
 
 export class SkillManager {
@@ -120,6 +126,7 @@ export class SkillManager {
 
     const list: SkillMetadata[] = [];
     const content = new Map<string, string>();
+    const roots = new Map<string, string>();
 
     for (const skillFile of skillFiles) {
       const raw = SkillManager.readSkillFile(skillFile);
@@ -139,17 +146,20 @@ export class SkillManager {
 
       list.push(meta);
       content.set(metaName, formatted);
-      if (dirName !== metaName) content.set(dirName, formatted); 
+      const skillDir = path.relative(rootDir, path.dirname(skillFile)) || ".";
+      roots.set(metaName, skillDir);
+      if (dirName !== metaName) {
+        content.set(dirName, formatted);
+        roots.set(dirName, skillDir);
+      }
 
-      console.info(
-        `[SkillManager] Loaded skill [${meta.name}] at location ${skillFile}}`
-      );
+      console.info(`[SkillManager] Loaded skill [${meta.name}] at location ${skillFile}`);
     }
 
-    // This makes sure the list at the model side has a stable and predicatable order
+    // This makes sure the list at the model side has a stable and predictable order
     list.sort((a, b) => a.name.localeCompare(b.name));
 
-    return { list, content };
+    return { list, system: content, extensions: roots };
   }
 
   private static getCache(): SkillCache {
@@ -173,17 +183,79 @@ export class SkillManager {
     }
 
     const c = SkillManager.getCache();
-    const formatted = c.content.get(trimmed);
+    const formatted = c.system.get(trimmed);
     if (formatted) {
       return formatted;
     }
     const normalized = trimmed.toLowerCase();
-    for (const [key, value] of c.content) {
+    for (const [key, value] of c.system) {
       if (key.toLowerCase() === normalized) {
         return value;
       }
     }
     return null;
+  }
+
+  /**
+   * Resolve and load an additional resource for a given skill, such as:
+   * - AGENTS.md
+   * - rules/schema-pk-plan-before-creation.md
+   *
+   * Returns raw markdown (no extra formatting) from DISK or null if not found/unsafe.
+   */
+  public static getSkillResource(skillName: string, resourcePath: string): string | null {
+    skillName = skillName.trim();
+    resourcePath = resourcePath.trim();
+    if (
+      !SkillManager.isSafeRelativePath(skillName) ||
+      !SkillManager.isSafeRelativePath(resourcePath)
+    ) {
+      return null;
+    }
+
+    const resolveDir = (name: string): string | null => {
+      const cache = SkillManager.getCache();
+
+      const direct = cache.extensions.get(name);
+      if (direct) return direct;
+      const normalized = name.toLowerCase();
+      for (const [key, dir] of cache.extensions) {
+        if (key.toLowerCase() === normalized) {
+          return dir;
+        }
+      }
+      return null;
+    };
+
+    const skillDir = resolveDir(skillName);
+    if (!skillDir) return null;
+
+    const baseDir = path.join(SkillManager.getSkillsRootDir(), skillDir);
+    const fullPath = path.join(baseDir, resourcePath);
+    // Final safety check: ensure resolved path is still under baseDir
+    const rel = path.relative(baseDir, fullPath).replaceAll("\\", "/");
+    if (rel.startsWith("../") || rel === "..") {
+      return null;
+    }
+
+    try {
+      const stat = fs.statSync(fullPath);
+      if (!stat.isFile()) return null;
+      // Reuse SKILL size limit for now; most rule files/AGENTS.md are much smaller.
+      if (stat.size > SkillManager.MAX_SKILL_BYTES) {
+        console.warn(
+          `[SkillManager] Skipping resource (exceeds ${SkillManager.MAX_SKILL_BYTES} bytes): ${fullPath} (${stat.size} bytes)`
+        );
+        return null;
+      }
+      console.info(
+        `[SkillManager] Loaded resource [${skillName}] / [${resourcePath}] from ${fullPath}`
+      );
+      const raw = fs.readFileSync(fullPath, "utf-8");
+      return raw.trim();
+    } catch {
+      return null;
+    }
   }
 
   /** Clear in-memory cache (useful for tests or dev tooling). */

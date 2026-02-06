@@ -82,15 +82,15 @@ export const MessageToolExploreSchema = memo(function MessageToolExploreSchema({
                   {(table.primaryKey || table.partitionBy) && (
                     <div className="bg-muted/30 px-2 py-1.5 border-b text-[10px] space-y-0.5">
                       {table.primaryKey && (
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="font-semibold text-muted-foreground">Primary Key:</span>
-                          <code className="text-xs bg-muted px-1 rounded">{table.primaryKey}</code>
+                          <code className="font-sans  px-1 rounded">{table.primaryKey}</code>
                         </div>
                       )}
                       {table.partitionBy && (
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="font-semibold text-muted-foreground">Partition By:</span>
-                          <code className="text-xs bg-muted px-1 rounded">{table.partitionBy}</code>
+                          <code className="font-sans  px-1 rounded">{table.partitionBy}</code>
                         </div>
                       )}
                     </div>

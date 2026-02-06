@@ -30,7 +30,7 @@ export type ValidateSqlToolOutput = {
 export const ClientTools = {
   explore_schema: tool({
     description:
-      "Use this tool to explore table schemas in detail, including columns, primary key, and partition key. You can query multiple tables at once. IMPORTANT: If the user provides a fully qualified table name (e.g., 'system.metric_log'), you MUST split it into database='system' and table='metric_log'. The 'table' field should ONLY contain the table name without the database prefix. OPTIMIZATION: If user mentions specific column names for a table, provide them in the 'columns' array for that table to fetch only those columns (saves tokens for large tables).",
+      "Use this tool to explore table schemas in detail, including columns, engine, sorting/primary/partition keys. You can query multiple tables at once. IMPORTANT: If the user provides a fully qualified table name (e.g., 'system.metric_log'), you MUST split it into database='system' and table='metric_log'. The 'table' field should ONLY contain the table name without the database prefix. OPTIMIZATION: If user mentions specific column names for a table, provide them in the 'columns' array for that table to fetch only those columns (saves tokens for large tables).",
     inputSchema: z.object({
       tables: z
         .array(
@@ -67,8 +67,10 @@ export const ClientTools = {
             comment: z.string().optional(),
           })
         ),
-        primaryKey: z.string().optional(),
-        partitionBy: z.string().optional(),
+        engine: z.string(),
+        sortingKey: z.string(),
+        primaryKey: z.string(),
+        partitionBy: z.string(),
       })
     ),
   }),
