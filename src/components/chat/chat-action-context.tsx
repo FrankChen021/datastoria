@@ -5,6 +5,7 @@ import type { UserActionInput } from "./message/message-user-actions";
 
 interface ChatActionContextType {
   onAction: (input: UserActionInput) => void;
+  chatId?: string;
 }
 
 const ChatActionContext = createContext<ChatActionContextType | undefined>(undefined);
@@ -20,9 +21,13 @@ export function useChatAction() {
 export function ChatActionProvider({
   children,
   onAction,
+  chatId,
 }: {
   children: React.ReactNode;
   onAction: (input: UserActionInput) => void;
+  chatId?: string;
 }) {
-  return <ChatActionContext.Provider value={{ onAction }}>{children}</ChatActionContext.Provider>;
+  return (
+    <ChatActionContext.Provider value={{ onAction, chatId }}>{children}</ChatActionContext.Provider>
+  );
 }

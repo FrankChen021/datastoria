@@ -3,8 +3,9 @@
 import { Dialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Fragment, memo, useMemo, useState } from "react";
+import { Fragment, memo, useEffect, useMemo, useState } from "react";
 import { useChatAction } from "../chat-action-context";
+import { chatActionStorage } from "../storage/chat-action-storage";
 
 /** Payload passed to onAction when a user triggers a quick action. */
 export type UserActionInput = {
@@ -85,7 +86,7 @@ const InputAction = ({
 
 const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActionConfig[] }> = {
   optimization_skill_input: {
-    hint: "Use the following quick actions to provide more context to get optimization suggestions, or provide context in the chat.",
+    hint: "Or you can use the following quick actions to provide more context.",
     actions: [
       {
         id: "provide_sql",
@@ -132,7 +133,7 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             </span>,
             () =>
               onInput({
-                text: "Find expensive queries by duration in the last 1 day",
+                text: "Find the top 1 expensive queries by duration in the last 1 day and optimize it",
                 autoRun: true,
               })
           ),
@@ -147,7 +148,7 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             </span>,
             () =>
               onInput({
-                text: "Find queries that use the most CPU in the last 1 day",
+                text: "Find the top 1 queries that use the most CPU in the last 1 day and optimize it",
                 autoRun: true,
               })
           ),
@@ -162,7 +163,7 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             </span>,
             () =>
               onInput({
-                text: "Find expensive queries by memory in the last 1 day",
+                text: "Find the top 1expensive queries by memory in the last 1 day and optimize it",
                 autoRun: true,
               })
           ),
@@ -177,7 +178,7 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
             </span>,
             () =>
               onInput({
-                text: "Find expensive queries by disk in the last 1 day",
+                text: "Find the top 1 expensive queries by disk in the last 1 day and optimize it",
                 autoRun: true,
               })
           ),
@@ -188,11 +189,18 @@ const ACTIONS_BY_TYPE: Record<UserActionType, { hint: string; actions: UserActio
 
 export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActions({
   spec,
+  messageId,
 }: {
   spec: string;
+  messageId?: string;
 }) {
-  const { onAction } = useChatAction();
-  const [hidden, setHidden] = useState(false);
+  const { onAction, chatId } = useChatAction();
+  const [hidden, setHidden] = useState(() => chatActionStorage.isActionHidden(chatId, messageId));
+
+  useEffect(() => {
+    setHidden(chatActionStorage.isActionHidden(chatId, messageId));
+  }, [chatId, messageId]);
+
   const actionType = useMemo(() => {
     try {
       const parsed = JSON.parse(spec) as { type?: UserActionType };
@@ -229,6 +237,9 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
 
   const handleAction = (input: UserActionInput) => {
     setHidden(true);
+    if (chatId && messageId) {
+      chatActionStorage.markActionHidden(chatId, messageId);
+    }
     onAction(input);
   };
 
@@ -237,7 +248,7 @@ export const MessageMarkdownUserActions = memo(function MessageMarkdownUserActio
   }
 
   return (
-    <div className="mt-3 bg-muted/30 font-sans border-t pt-2">
+    <div className="mt-3 bg-muted/30 font-sans">
       <div className="text-sm font-medium text-foreground/80 mb-2">{actionOfType.hint}</div>
       <div className="flex flex-col gap-2">
         {actionGroups.map((group, groupIndex) => (

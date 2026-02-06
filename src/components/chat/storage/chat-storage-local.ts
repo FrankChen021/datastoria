@@ -1,6 +1,7 @@
 import type { Chat, Message } from "@/lib/ai/chat-types";
 import type { LocalStorage } from "@/lib/storage/local-storage-provider";
 import { StorageManager } from "@/lib/storage/storage-provider-manager";
+import { chatActionStorage } from "./chat-action-storage";
 import type { ChatStorage } from "./chat-storage";
 
 /**
@@ -56,6 +57,7 @@ export class ChatStorageLocal implements ChatStorage {
 
       // Delete all target chats from the object in batch
       for (const chat of chatsToDelete) {
+        chatActionStorage.clearHiddenActionsForChat(chat.chatId);
         delete allChats[chat.chatId];
         // Clear messages for each chat
         this.messagesStorage.removeChild(chat.chatId);
@@ -290,6 +292,8 @@ export class ChatStorageLocal implements ChatStorage {
   }
 
   async deleteChat(id: string): Promise<void> {
+    chatActionStorage.clearHiddenActionsForChat(id);
+
     // Delete chat
     const chats = this.chatsStorage.getAsJSON<Record<string, Chat>>(() => ({}));
     delete chats[id];
@@ -445,6 +449,7 @@ export class ChatStorageLocal implements ChatStorage {
 
   async clearMessages(chatId: string): Promise<void> {
     this.messagesStorage.removeChild(chatId);
+    chatActionStorage.clearHiddenActionsForChat(chatId);
   }
 
   async clearAll(): Promise<void> {
@@ -453,6 +458,8 @@ export class ChatStorageLocal implements ChatStorage {
 
     // Remove all per-chat message keys
     this.messagesStorage.clear();
+
+    chatActionStorage.clearAllHiddenActions();
   }
 
   async clearAllForConnection(connectionId: string): Promise<void> {
@@ -468,6 +475,7 @@ export class ChatStorageLocal implements ChatStorage {
 
     // Remove chats for this connection in batch
     for (const chat of chatsForConnection) {
+      chatActionStorage.clearHiddenActionsForChat(chat.chatId);
       delete allChats[chat.chatId];
       // Remove messages for this chat
       this.messagesStorage.removeChild(chat.chatId);

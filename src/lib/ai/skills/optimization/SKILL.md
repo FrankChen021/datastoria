@@ -10,9 +10,9 @@ Use this skill when the user asks to optimize slow queries, analyze performance,
 ## Pre-flight Check
 
 1. **HAS SQL**: Conversation contains a SQL query → Go to WORKFLOW step 2 (Collect Evidence).
-2. **HAS QUERY_ID**: Conversation contains query_id → Go to WORKFLOW step 2.
+2. **HAS QUERY_ID**: Conversation contains query_id → Go to WORKFLOW step 2 (Call `collect_sql_optimization_evidence` immediately).
 3. **DISCOVERY REQUEST**: User asks to find/optimize expensive queries by metric → Go to WORKFLOW step 1 (Discovery).
-4. **NEITHER**: Include the following UI trigger block in the response (must be present and unchanged; place it at the end of the reply):
+4. **NEITHER**: Output ONLY a concise 1-sentence request for the SQL query or query_id (e.g. "Please provide the SQL query or query_id you'd like to optimize."). Do NOT ask for any other details (like version, table sizes, etc.). Then include the following UI trigger block in the response (must be present and unchanged; place it at the end of the reply):
 
 ```user_actions
 { "type": "optimization_skill_input" }
@@ -33,7 +33,7 @@ Use this skill when the user asks to optimize slow queries, analyze performance,
 ## Workflow
 
 1. **Discovery (if needed)**: Call `find_expensive_queries` with metric, limit, and time_window/time_range. Then proceed with top result(s).
-2. **Collect Evidence**: Call `collect_sql_optimization_evidence` with sql or query_id (and same time params if coming from discovery). Gathers query_log, EXPLAIN, table schemas, settings.
+2. **Collect Evidence**: Call `collect_sql_optimization_evidence` with sql or query_id (and same time params if coming from discovery). DO NOT write SQL to query system tables manually.
 3. **Analyze**: Review evidence for optimization opportunities.
 4. **Recommendations**: Rank by Impact/Risk/Effort. Prefer low-risk query rewrites first.
 5. **Validate**: Use `validate_sql` for any proposed SQL changes. Add inline comments (-- comment) to highlight key changes.

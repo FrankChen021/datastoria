@@ -14,6 +14,7 @@ import { MessageMarkdownUserActions } from "./message-user-actions";
  */
 interface MessageMarkdownProps {
   text: string;
+  messageId?: string;
   customStyle?: React.CSSProperties;
   showExecuteButton?: boolean;
   /**
@@ -24,6 +25,7 @@ interface MessageMarkdownProps {
 
 export const MessageMarkdown = memo(function MessageMarkdown({
   text,
+  messageId,
   customStyle,
   showExecuteButton = true,
   expandable = false,
@@ -61,7 +63,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
           return <MessageMarkdownChartSpec spec={String(children)} />;
         }
         if (codeClassName === "language-user_actions") {
-          return <MessageMarkdownUserActions spec={String(children)} />;
+          return <MessageMarkdownUserActions spec={String(children)} messageId={messageId} />;
         }
 
         // Check if inline code is a table name or database name
@@ -215,7 +217,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         </h6>
       ),
     }),
-    [customStyle, expandable, showExecuteButton]
+    [customStyle, expandable, showExecuteButton, messageId]
   );
 
   return (

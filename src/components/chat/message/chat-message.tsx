@@ -102,17 +102,23 @@ const ChatMessagePart = memo(
     part,
     isUser,
     isRunning = true,
+    messageId,
   }: {
     part: AppUIMessage["parts"][0];
     isUser: boolean;
     isRunning?: boolean;
+    messageId?: string;
   }) {
     if (part.type === "text") {
       if (isUser) {
         return <MessageUser text={part.text} />;
       }
       return (
-        <MessageMarkdown text={part.text} customStyle={{ fontSize: "0.9rem", lineHeight: "1.6" }} />
+        <MessageMarkdown
+          text={part.text}
+          customStyle={{ fontSize: "0.9rem", lineHeight: "1.6" }}
+          messageId={messageId}
+        />
       );
     }
     if (part.type === "reasoning") {
@@ -162,6 +168,7 @@ const ChatMessagePart = memo(
   },
   (prevProps, nextProps) => {
     // Custom comparison: only re-render if the part actually changed
+    if (prevProps.messageId !== nextProps.messageId) return false;
     if (prevProps.isUser !== nextProps.isUser) return false;
     if (prevProps.isRunning !== nextProps.isRunning) return false;
     if (prevProps.part === nextProps.part) return true;
@@ -243,7 +250,13 @@ export const ChatMessage = memo(function ChatMessage({
               )}
               {parts.length === 0 && !isLoading && !error && "Nothing returned"}
               {parts.map((part: AppUIMessage["parts"][0], i: number) => (
-                <ChatMessagePart key={i} part={part} isUser={isUser} isRunning={isRunning} />
+                <ChatMessagePart
+                  key={i}
+                  part={part}
+                  isUser={isUser}
+                  isRunning={isRunning}
+                  messageId={message.id}
+                />
               ))}
               {error && <ErrorMessageDisplay errorText={error.message || String(error)} />}
               {showLoading && (
