@@ -1,3 +1,7 @@
+# Submodules — do not format vendored / external code
+external/
+src/lib/ai/skills/clickhouse/
+
 # Dependencies
 node_modules
 external

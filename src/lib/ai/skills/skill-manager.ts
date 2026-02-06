@@ -1,70 +1,265 @@
-// Skill Manager: loads skills at build time via static imports.
-// Skills are bundled as raw strings—no runtime filesystem access.
-// To add a new skill: create <name>/SKILL.md, add import and SKILL_RAW_MAP entry.
+// Skill Manager: loads skills dynamically from disk (Node runtime).
+// This enables multi-file skill packs and avoids manual static imports.
+import fs from "node:fs";
+import path from "node:path";
 import matter from "gray-matter";
-import optimizationSkill from "./optimization/SKILL.md";
-import sqlExpertSkill from "./sql-expert/SKILL.md";
-import visualizationSkill from "./visualization/SKILL.md";
 
 export interface SkillMetadata {
   name: string;
   description: string;
 }
 
-const SKILL_RAW_MAP: Record<string, string> = {
-  optimization: optimizationSkill,
-  "sql-expert": sqlExpertSkill,
-  visualization: visualizationSkill,
+type SkillCache = {
+  list: SkillMetadata[];
+  /**
+   * Key: skill name (frontmatter `name` or folder name).
+   * Value: formatted markdown (e.g. "# Manual Loaded: <name>\n\n<body>").
+   */
+  system: Map<string, string>;
+  /**
+   * Key: skill name (same keys as `content`).
+   * Value: directory path (relative to skills root) where that skill's SKILL.md lives.
+   * Used for resolving additional resources like AGENTS.md and rules/*.md per skill.
+   */
+  extensions: Map<string, string>;
 };
 
-function formatSkillOutput(skillName: string, raw: string): string {
-  const parsed = matter(raw);
-  const content = parsed.content.trim();
-  return `# Manual Loaded: ${skillName}\n\n${content}`;
-}
+export class SkillManager {
+  private static readonly SKILL_FILENAME = "SKILL.md";
+  /** Max size (bytes) for a single SKILL.md file. Rejects larger files to avoid OOM and abuse. 512KB fits typical manuals. */
+  private static readonly MAX_SKILL_BYTES = 512 * 1024;
 
-const cache: {
-  list: SkillMetadata[];
-  content: Map<string, string>;
-} = (() => {
-  const list: SkillMetadata[] = [];
-  const content = new Map<string, string>();
-  for (const [dirName, raw] of Object.entries(SKILL_RAW_MAP)) {
+  private static cache: SkillCache | null = null;
+
+  private static formatSkillOutput(skillName: string, raw: string): string {
     const parsed = matter(raw);
-    const data = parsed.data as Record<string, unknown>;
-    const metaName = typeof data.name === "string" ? data.name : dirName;
-    const meta: SkillMetadata = {
-      name: metaName,
-      description: typeof data.description === "string" ? data.description : "",
+    const content = parsed.content.trim();
+    return `# Manual Loaded: ${skillName}\n\n${content}`;
+  }
+
+  private static getSkillsRootDir(): string {
+    const env = process.env.SKILLS_ROOT_DIR;
+    if (env && path.isAbsolute(env)) {
+      return env;
+    }
+
+    const prodCandidates = [
+      // Production: populated by scripts/copy-skills.mjs
+      path.join(process.cwd(), ".next", "server", "skills"),
+      path.join(process.cwd(), ".next", "standalone", ".next", "server", "skills"),
+    ];
+
+    const devCandidates = [
+      path.join(process.cwd(), "src", "lib", "ai", "skills"),
+      ...prodCandidates,
+    ];
+
+    const candidates = process.env.NODE_ENV === "production" ? prodCandidates : devCandidates;
+
+    for (const dir of candidates) {
+      try {
+        if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) return dir;
+      } catch {
+        // ignore
+      }
+    }
+
+    return path.join(process.cwd(), "src", "lib", "ai", "skills");
+  }
+
+  private static isSafeRelativePath(p: string): boolean {
+    if (p.length === 0) return false;
+    if (path.isAbsolute(p)) return false;
+    const normalized = path.posix.normalize(p.replaceAll("\\", "/"));
+    return !normalized.startsWith("../") && normalized !== "..";
+  }
+
+  private static walkDirsForSkillFiles(rootDir: string): string[] {
+    const out: string[] = [];
+    const stack: string[] = [rootDir];
+
+    while (stack.length > 0) {
+      const dir = stack.pop();
+      if (!dir) break;
+
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+
+      for (const entry of entries) {
+        if (entry.name.startsWith(".")) continue;
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          stack.push(full);
+          continue;
+        }
+        if (!entry.isFile()) continue;
+        if (entry.name === SkillManager.SKILL_FILENAME) out.push(full);
+      }
+    }
+
+    return out;
+  }
+
+  private static readSkillFile(skillPath: string): string | null {
+    try {
+      const stat = fs.statSync(skillPath);
+      if (!stat.isFile()) return null;
+      if (stat.size > SkillManager.MAX_SKILL_BYTES) {
+        console.warn(
+          `[SkillManager] Skipping skill file (exceeds ${SkillManager.MAX_SKILL_BYTES} bytes): ${skillPath} (${stat.size} bytes)`
+        );
+        return null;
+      }
+      return fs.readFileSync(skillPath, "utf-8");
+    } catch {
+      return null;
+    }
+  }
+
+  private static buildCache(): SkillCache {
+    const rootDir = SkillManager.getSkillsRootDir();
+    const skillFiles = SkillManager.walkDirsForSkillFiles(rootDir);
+
+    const list: SkillMetadata[] = [];
+    const content = new Map<string, string>();
+    const roots = new Map<string, string>();
+
+    for (const skillFile of skillFiles) {
+      const raw = SkillManager.readSkillFile(skillFile);
+      if (!raw) continue;
+
+      const parsed = matter(raw);
+      const data = parsed.data as Record<string, unknown>;
+
+      const dirName = path.basename(path.dirname(skillFile));
+      const metaName = typeof data.name === "string" ? data.name : dirName;
+      const meta: SkillMetadata = {
+        name: metaName,
+        description: typeof data.description === "string" ? data.description : "",
+      };
+
+      const formatted = SkillManager.formatSkillOutput(metaName, raw);
+
+      list.push(meta);
+      content.set(metaName, formatted);
+      const skillDir = path.relative(rootDir, path.dirname(skillFile)) || ".";
+      roots.set(metaName, skillDir);
+      if (dirName !== metaName) {
+        content.set(dirName, formatted);
+        roots.set(dirName, skillDir);
+      }
+
+      console.info(`[SkillManager] Loaded skill [${meta.name}] at location ${skillFile}`);
+    }
+
+    // This makes sure the list at the model side has a stable and predictable order
+    list.sort((a, b) => a.name.localeCompare(b.name));
+
+    return { list, system: content, extensions: roots };
+  }
+
+  private static getCache(): SkillCache {
+    SkillManager.cache ??= SkillManager.buildCache();
+    return SkillManager.cache;
+  }
+
+  /** Return metadata for all bundled skills. */
+  public static listSkills(): SkillMetadata[] {
+    return SkillManager.getCache().list;
+  }
+
+  /**
+   * Return full markdown content for a skill by name (folder name or frontmatter name).
+   */
+  public static getSkill(name: string): string | null {
+    const trimmed = name.trim();
+    if (!SkillManager.isSafeRelativePath(trimmed)) {
+      // Treat unsafe names as not found (prevents weird keys from being used as probes).
+      return null;
+    }
+
+    const c = SkillManager.getCache();
+    const formatted = c.system.get(trimmed);
+    if (formatted) {
+      return formatted;
+    }
+    const normalized = trimmed.toLowerCase();
+    for (const [key, value] of c.system) {
+      if (key.toLowerCase() === normalized) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Resolve and load an additional resource for a given skill, such as:
+   * - AGENTS.md
+   * - rules/schema-pk-plan-before-creation.md
+   *
+   * Returns raw markdown (no extra formatting) from DISK or null if not found/unsafe.
+   */
+  public static getSkillResource(skillName: string, resourcePath: string): string | null {
+    skillName = skillName.trim();
+    resourcePath = resourcePath.trim();
+    if (
+      !SkillManager.isSafeRelativePath(skillName) ||
+      !SkillManager.isSafeRelativePath(resourcePath)
+    ) {
+      return null;
+    }
+
+    const resolveDir = (name: string): string | null => {
+      const cache = SkillManager.getCache();
+
+      const direct = cache.extensions.get(name);
+      if (direct) return direct;
+      const normalized = name.toLowerCase();
+      for (const [key, dir] of cache.extensions) {
+        if (key.toLowerCase() === normalized) {
+          return dir;
+        }
+      }
+      return null;
     };
-    list.push(meta);
-    const formatted = formatSkillOutput(metaName, raw);
-    content.set(metaName, formatted);
-    if (dirName !== metaName) {
-      content.set(dirName, formatted);
+
+    const skillDir = resolveDir(skillName);
+    if (!skillDir) return null;
+
+    const baseDir = path.join(SkillManager.getSkillsRootDir(), skillDir);
+    const fullPath = path.join(baseDir, resourcePath);
+    // Final safety check: ensure resolved path is still under baseDir
+    const rel = path.relative(baseDir, fullPath).replaceAll("\\", "/");
+    if (rel.startsWith("../") || rel === "..") {
+      return null;
+    }
+
+    try {
+      const stat = fs.statSync(fullPath);
+      if (!stat.isFile()) return null;
+      // Reuse SKILL size limit for now; most rule files/AGENTS.md are much smaller.
+      if (stat.size > SkillManager.MAX_SKILL_BYTES) {
+        console.warn(
+          `[SkillManager] Skipping resource (exceeds ${SkillManager.MAX_SKILL_BYTES} bytes): ${fullPath} (${stat.size} bytes)`
+        );
+        return null;
+      }
+      console.info(
+        `[SkillManager] Loaded resource [${skillName}] / [${resourcePath}] from ${fullPath}`
+      );
+      const raw = fs.readFileSync(fullPath, "utf-8");
+      return raw.trim();
+    } catch {
+      return null;
     }
   }
-  return { list, content };
-})();
 
-/** Return metadata for all bundled skills. */
-export function listSkills(): SkillMetadata[] {
-  return cache.list;
-}
-
-/**
- * Return full markdown content for a skill by name (folder name or frontmatter name).
- */
-export function getSkill(name: string): string | null {
-  const formatted = cache.content.get(name);
-  if (formatted) {
-    return formatted;
+  /** Clear in-memory cache (useful for tests or dev tooling). */
+  public static clearCache(): void {
+    SkillManager.cache = null;
   }
-  const normalized = name.toLowerCase().trim();
-  for (const [key, value] of cache.content) {
-    if (key.toLowerCase() === normalized) {
-      return value;
-    }
-  }
-  return null;
 }

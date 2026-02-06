@@ -234,7 +234,8 @@ export class ChatFactory {
           toolName === SERVER_TOOL_NAMES.GENERATE_VISUALIZATION ||
           toolName === SERVER_TOOL_NAMES.OPTIMIZE_SQL ||
           toolName === SERVER_TOOL_NAMES.PLAN ||
-          toolName === SERVER_TOOL_NAMES.SKILL
+          toolName === SERVER_TOOL_NAMES.SKILL ||
+          toolName === SERVER_TOOL_NAMES.SKILL_RESOURCE
         ) {
           return;
         }

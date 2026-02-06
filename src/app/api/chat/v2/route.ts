@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { auth, isAuthEnabled } from "@/auth";
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
 import { generateChatTitle } from "@/lib/ai/agent/generate-chat-title";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "@/lib/ai/agent/orchestrator-prompt";
@@ -15,6 +15,8 @@ import { v7 as uuidv7 } from "uuid";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+// Force this route to run on the Node.js runtime (not Edge) so Node APIs like fs/path work for dynamic skill loading.
+export const runtime = "nodejs";
 
 /** Request body for chat/v2 (same shape as chat for compatibility). */
 interface ChatV2Request {
@@ -106,15 +108,15 @@ const TITLE_WAIT_MS = 3000;
  */
 export async function POST(req: Request) {
   try {
-    const session = (await auth()) as Session;
-    if (!session?.user) {
+    const session = isAuthEnabled() ? ((await auth()) as Session) : null;
+    if (isAuthEnabled() && !session?.user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized", message: "Authentication required" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const userEmail = session.user.email ?? undefined;
+    const userEmail = session?.user?.email ?? undefined;
 
     let apiRequest: ChatV2Request;
     try {
@@ -209,6 +211,7 @@ export async function POST(req: Request) {
       messages: modelMessages,
       tools: {
         [SERVER_TOOL_NAMES.SKILL]: ServerTools.skill,
+        [SERVER_TOOL_NAMES.SKILL_RESOURCE]: ServerTools.skill_resource,
         get_tables: ClientTools.get_tables,
         explore_schema: ClientTools.explore_schema,
         validate_sql: ClientTools.validate_sql,

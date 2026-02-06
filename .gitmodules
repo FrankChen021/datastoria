@@ -6,3 +6,6 @@
 	path = external/cmdk
 	url = https://github.com/FrankChen021/cmdk.git
 	branch = fix
+[submodule "src/lib/ai/skills/clickhouse"]
+	path = src/lib/ai/skills/clickhouse
+	url = https://github.com/FrankChen021/agent-skills.git

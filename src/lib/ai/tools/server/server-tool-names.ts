@@ -8,4 +8,5 @@ export const SERVER_TOOL_NAMES = {
   OPTIMIZE_SQL: "optimize_sql",
   PLAN: "plan",
   SKILL: "skill",
+  SKILL_RESOURCE: "skill_resource",
 } as const;

@@ -99,11 +99,31 @@ function buildSqlGenerationPrompt({
   userContextSection: string;
   currentQuerySection: string;
 } {
+  const normalizeTable = (table: {
+    database: string;
+    table: string;
+    columns: Array<{ name: string; type: string }>;
+    primaryKey?: string;
+    partitionBy?: string;
+    engine?: string;
+    sortingKey?: string;
+  }): TableSchemaOutput => ({
+    database: table.database,
+    table: table.table,
+    columns: table.columns,
+    primaryKey: table.primaryKey ?? "",
+    partitionBy: table.partitionBy ?? "",
+    engine: table.engine ?? "",
+    sortingKey: table.sortingKey ?? "",
+  });
+
   // Build schema context from schemaHints (for backward compatibility) or context
   const schemaContext = [];
   const database = context?.database;
   // Use schemaHints if available (has type info), otherwise fall back to context tables
-  const tables = schemaHints || (context?.tables as Array<TableSchemaOutput> | undefined);
+  const tables = schemaHints
+    ? schemaHints.map(normalizeTable)
+    : (context?.tables as Array<TableSchemaOutput> | undefined)?.map(normalizeTable);
 
   if (database) {
     schemaContext.push(`Current database: ${database}`);
@@ -251,6 +271,8 @@ export function createGenerateSqlTool(inputModel: InputModel, context?: ServerDa
             ),
             primaryKey: z.string().optional().describe("Primary key expression"),
             partitionBy: z.string().optional().describe("Partition key expression"),
+            engine: z.string().optional().describe("Table engine name"),
+            sortingKey: z.string().optional().describe("ORDER BY / sorting key expression"),
           })
         )
         .optional()
@@ -292,18 +314,26 @@ export function createGenerateSqlTool(inputModel: InputModel, context?: ServerDa
         ? ({ ...context, ...providedContext } as ServerDatabaseContext)
         : context;
       // Use mock generation agent in mock mode to avoid recursive LLM calls
+      const normalizedSchemaHints = schemaHints?.map((table) => ({
+        ...table,
+        primaryKey: table.primaryKey ?? "",
+        partitionBy: table.partitionBy ?? "",
+        engine: table.engine ?? "",
+        sortingKey: table.sortingKey ?? "",
+      }));
+
       const result = isMockMode
         ? await mockSqlGenerationAgent({
             userQuestion,
             previousValidationError,
-            schemaHints,
+            schemaHints: normalizedSchemaHints,
             context: mergedContext,
             inputModel: inputModel,
           })
         : await sqlGenerationAgent({
             userQuestion,
             previousValidationError,
-            schemaHints,
+            schemaHints: normalizedSchemaHints,
             context: mergedContext,
             inputModel: inputModel,
           });
