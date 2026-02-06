@@ -538,8 +538,8 @@ async function fetchTableStats(
 SELECT 
   database,
   table,
-  sum(rows) as rows,
-  sum(bytes_on_disk) as bytes,
+  sum(rows) as total_rows,
+  sum(bytes_on_disk) as total_bytes,
   count() as parts,
   uniqExact(partition) as partitions
 FROM system.parts
