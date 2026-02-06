@@ -873,6 +873,7 @@ export function showConnectionEditDialog(options: ShowConnectionEditDialogOption
     title: isAddMode ? "Create a new connection" : "Modify existing connection",
     description: "Configure your ClickHouse connection settings.",
     className: "max-w-2xl",
+    disableBackdrop: true,
     mainContent: (
       <ConnectionEditComponent
         connection={connection}
