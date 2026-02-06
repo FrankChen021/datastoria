@@ -11,7 +11,7 @@
     "build:number-flow-core": "cd external/number-flow && npm install --include=dev --ignore-scripts && cd packages/number-flow && npm install --include=dev --ignore-scripts && npm run build",
     "build:number-flow-react": "cd external/number-flow && npm install --include=dev --ignore-scripts && cd packages/react && npm install --include=dev --ignore-scripts && npm run build",
     "build:cmdk": "cd external/cmdk/cmdk && npm install --include=dev --ignore-scripts && npm run build",
-    "dev": "concurrently -n \"core,react,cmdk,app\" -c \"blue,green,cyan,yellow\" \"npm run dev:number-flow-core\" \"npm run dev:number-flow-react\" \"npm run dev:cmdk\" \"next dev\"",
+    "dev": "concurrently -n \"core,react,cmdk,app\" -c \"blue,green,cyan,yellow\" \"npm run dev:number-flow-core\" \"npm run dev:number-flow-react\" \"npm run dev:cmdk\" \"NODE_OPTIONS='--max-old-space-size=8192' next dev\"",
     "dev:number-flow-core": "cd external/number-flow/packages/number-flow && npm run dev",
     "dev:number-flow-react": "cd external/number-flow/packages/react && npm run dev",
     "dev:cmdk": "cd external/cmdk/cmdk && rm -rf dist && npx tsup src --watch",
