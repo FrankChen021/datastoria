@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { auth, isAuthEnabled } from "@/auth";
 import type { DatabaseContext } from "@/components/chat/chat-context";
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
 import { PlanningAgent } from "@/lib/ai/agent/plan/planning-agent";
@@ -128,8 +128,8 @@ function extractErrorMessage(error: unknown): string {
 export async function POST(req: Request) {
   try {
     // Ensure user is authenticated (middleware should handle this, but double-check for safety)
-    const session = (await auth()) as Session;
-    if (!session?.user) {
+    const session = isAuthEnabled() ? ((await auth()) as Session) : null;
+    if (isAuthEnabled() && !session?.user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized", message: "Authentication required" }),
         {
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
     }
 
     // Extract user email from session
-    const userEmail = session.user.email || undefined;
+    const userEmail = session?.user?.email || undefined;
 
     // Parse request body with size validation
     let apiRequest: ChatRequest;

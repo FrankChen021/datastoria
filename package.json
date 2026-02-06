@@ -7,6 +7,7 @@
   "scripts": {
     "postinstall": "npm run build:deps",
     "prebuild": "npm run build:deps",
+    "postbuild": "node scripts/copy-skills.mjs",
     "build:deps": "npm run build:number-flow-core && npm run build:number-flow-react && npm run build:cmdk",
     "build:number-flow-core": "cd external/number-flow && npm install --include=dev --ignore-scripts && cd packages/number-flow && npm install --include=dev --ignore-scripts && npm run build",
     "build:number-flow-react": "cd external/number-flow && npm install --include=dev --ignore-scripts && cd packages/react && npm install --include=dev --ignore-scripts && npm run build",

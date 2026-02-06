@@ -2,11 +2,11 @@
  * Skill tool execution: loads one or more skill manuals by name.
  * Tool definition lives in server-tools.ts (ServerTools.skill).
  */
-import { getSkill, listSkills } from "@/lib/ai/skills/skill-manager";
+import { SkillManager } from "@/lib/ai/skills/skill-manager";
 
 export class SkillTool {
   public static getToolDescription(): string {
-    const skills = listSkills();
+    const skills = SkillManager.listSkills();
     const xmlLines = skills
       .map(
         (s) => `  <skill><name>${s.name}</name><description>${s.description}</description></skill>`
@@ -20,12 +20,12 @@ ${xmlLines}
   }
 
   public static async execute({ names }: { names: string[] }): Promise<string> {
-    const available = listSkills().map((s) => s.name);
+    const available = SkillManager.listSkills().map((s) => s.name);
     const loaded: string[] = [];
     const notFound: string[] = [];
 
     for (const name of names) {
-      const content = getSkill(name.trim());
+      const content = SkillManager.getSkill(name.trim());
       if (content) loaded.push(content);
       else notFound.push(name);
     }

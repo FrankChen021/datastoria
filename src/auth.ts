@@ -148,6 +148,34 @@ type AuthResult = {
 };
 
 const nextAuthFn = NextAuth as (config: NextAuthConfig) => AuthResult;
+
+/**
+ * Fallback implementation when auth is disabled.
+ *
+ * We still need concrete function bodies for GET/POST/auth/signIn/signOut so that:
+ * - Route handlers and middleware can safely import and call them even if no providers are configured.
+ * - We avoid runtime errors like \"is not a function\" when destructuring from an empty object.
+ * These stubs return explicit 404 responses for auth routes and `null` for `auth()`, so caller
+ * code can gate behavior using `isAuthEnabled()`.
+ */
+const disabledAuth: AuthResult = {
+  handlers: {
+    GET: async () =>
+      new Response(JSON.stringify({ message: "Authentication is not enabled" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      }),
+    POST: async () =>
+      new Response(JSON.stringify({ message: "Authentication is not enabled" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      }),
+  },
+  auth: async () => null,
+  signIn: async () => {},
+  signOut: async () => {},
+};
+
 export const { handlers, auth, signIn, signOut } = isAuthEnabled()
   ? nextAuthFn(authConfig)
-  : ({} as AuthResult);
+  : disabledAuth;
