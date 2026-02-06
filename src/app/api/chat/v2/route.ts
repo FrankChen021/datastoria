@@ -211,6 +211,7 @@ export async function POST(req: Request) {
       messages: modelMessages,
       tools: {
         [SERVER_TOOL_NAMES.SKILL]: ServerTools.skill,
+        [SERVER_TOOL_NAMES.SKILL_RESOURCE]: ServerTools.skill_resource,
         get_tables: ClientTools.get_tables,
         explore_schema: ClientTools.explore_schema,
         validate_sql: ClientTools.validate_sql,

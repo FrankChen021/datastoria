@@ -136,6 +136,8 @@ const ChatMessagePart = memo(
       return <MessageToolPlan part={part} isRunning={isRunning} />;
     } else if (toolName === SERVER_TOOL_NAMES.SKILL) {
       return <MessageToolSkill part={part} isRunning={isRunning} />;
+    } else if (toolName === SERVER_TOOL_NAMES.SKILL_RESOURCE) {
+      return <MessageToolSkill part={part} isRunning={isRunning} label="Load Skill Resources" />;
     }
     // CLIENT TOOLS
     else if (toolName === CLIENT_TOOL_NAMES.EXECUTE_SQL) {

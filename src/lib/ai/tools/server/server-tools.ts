@@ -4,7 +4,7 @@
  */
 import { tool } from "ai";
 import { z } from "zod";
-import { SkillTool } from "./skill-tool";
+import { SkillResourceTool, SkillTool } from "./skill-tool";
 
 export const ServerTools = {
   skill: tool({
@@ -12,10 +12,17 @@ export const ServerTools = {
     inputSchema: z.object({
       names: z
         .array(z.string())
+        .min(1)
         .describe(
           "Skill name(s) to load (e.g. ['optimization'] or ['optimization', 'visualization'])."
-        )
-        .optional(),
+        ),
+    }),
+    execute: SkillTool.execute,
+  }),
+
+  skill_resource: tool({
+    description: SkillResourceTool.getToolDescription(),
+    inputSchema: z.object({
       resources: z
         .array(
           z.object({
@@ -32,11 +39,9 @@ export const ServerTools = {
               ),
           })
         )
-        .optional()
-        .describe(
-          "Optional additional resources to load for specific skills (e.g. AGENTS.md or individual rule files)."
-        ),
+        .min(1)
+        .describe("Resource requests: each has a skill name and relative paths to load."),
     }),
-    execute: SkillTool.execute,
+    execute: SkillResourceTool.execute,
   }),
 };
