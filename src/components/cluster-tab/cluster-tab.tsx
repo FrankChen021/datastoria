@@ -419,7 +419,7 @@ FROM (
 GROUP BY t, server
 ORDER BY t WITH FILL STEP {rounding:UInt32}`,
     },
-  } as TimeseriesDescriptor
+  } as TimeseriesDescriptor,
 ];
 
 const insertMetricsDashboard: TimeseriesDescriptor[] = [
@@ -2002,8 +2002,6 @@ ORDER BY t WITH FILL STEP {rounding:UInt32}
 `,
     },
   } as TimeseriesDescriptor,
-
-
 
   // ProfileEvent_ZooKeeperUserExceptions
   {
