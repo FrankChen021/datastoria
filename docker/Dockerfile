@@ -34,6 +34,7 @@ COPY tailwind.config.js ./
 COPY postcss.config.js ./
 COPY components.json ./
 
+COPY scripts ./scripts
 COPY src ./src
 COPY public ./public
 
@@ -51,6 +52,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV AUTH_TRUST_HOST=true
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
