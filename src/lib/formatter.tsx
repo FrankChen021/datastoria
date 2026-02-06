@@ -141,6 +141,7 @@ export type FormatName =
   | "microsecond"
   | "seconds"
   | "binary_size"
+  | "binary_size_per_second"
   | "short_number"
   | "comma_number" // input: 1234567, output: 1,234,567
   | "byte_rate"
@@ -172,7 +173,7 @@ export type FormatName =
 // Third parameter (context) is optional. For the formatter in a table, the context is the row object of a cell
 
 export interface ObjectFormatter {
-  (v: any, params?: any[], context?: Record<string, unknown>): string | React.ReactNode;
+  (v: unknown, params?: unknown[], context?: Record<string, unknown>): string | React.ReactNode;
 }
 
 export class Formatter {
@@ -197,6 +198,13 @@ export class Formatter {
       return isNaN(numValue)
         ? "null"
         : (numValue as number & { formatBinarySize(): string }).formatBinarySize();
+    };
+    this._formatters["binary_size_per_second"] = (v) => {
+      if (v === undefined || v === null) return "null/s";
+      const numValue = typeof v === "number" ? v : Number(v);
+      return isNaN(numValue)
+        ? "null/s"
+        : (numValue as number & { formatBinarySize(): string }).formatBinarySize() + "/s";
     };
 
     // For compatiblity only, use short_number instead
@@ -248,10 +256,10 @@ export class Formatter {
       const percentage = Math.max(0, Math.min(100, numValue));
 
       // Get width from args (first element in params array, or default to 100)
-      const width = (params && params[0]) || 100;
+      const width = typeof params?.[0] === "number" ? params[0] : 100;
 
       // Get height from args (second element in params array, or default to 16)
-      const height = (params && params[1]) || 16;
+      const height = typeof params?.[1] === "number" ? params[1] : 16;
 
       return (
         <div className="flex items-center gap-2">
@@ -268,7 +276,8 @@ export class Formatter {
     this._formatters["nanosecond"] = (v) => this.nanoFormat(v, 2);
     this._formatters["millisecond"] = (v) => this.milliFormat(v, 2);
     this._formatters["microsecond"] = (v) => this.microFormat(v, 2);
-    this._formatters["seconds"] = (v) => this.timeFormat(v, 2, ["s"]);
+    this._formatters["seconds"] = (v) =>
+      this.timeFormat(typeof v === "number" ? v : Number(v), 2, ["s"]);
     this._formatters["byte_rate"] = (v) => {
       if (v === undefined || v === null) return "null/s";
       const numValue = typeof v === "number" ? v : Number(v);
@@ -285,36 +294,56 @@ export class Formatter {
     };
 
     // Deprecated
-    this._formatters["dateTime"] = (v) => DateTimeExtension.toYYYYMMddHHmmss(new Date(v));
+    this._formatters["dateTime"] = (v) => DateTimeExtension.toYYYYMMddHHmmss(this.toDateValue(v));
     this._formatters["shortDateTime"] = (v) =>
-      DateTimeExtension.formatDateTime(new Date(v), "MM-dd HH:mm:ss");
+      DateTimeExtension.formatDateTime(this.toDateValue(v), "MM-dd HH:mm:ss");
 
-    this._formatters["yyyyMMddHHmmss"] = (v) => DateTimeExtension.toYYYYMMddHHmmss(new Date(v));
+    this._formatters["yyyyMMddHHmmss"] = (v) =>
+      DateTimeExtension.toYYYYMMddHHmmss(this.toDateValue(v));
     this._formatters["yyyyMMddHHmmssSSS"] = (v) =>
-      DateTimeExtension.formatDateTime(new Date(v), "yyyy-MM-dd HH:mm:ss.SSS");
+      DateTimeExtension.formatDateTime(this.toDateValue(v), "yyyy-MM-dd HH:mm:ss.SSS");
     this._formatters["MMddHHmmss"] = (v) =>
-      DateTimeExtension.formatDateTime(new Date(v), "MM-dd HH:mm:ss");
+      DateTimeExtension.formatDateTime(this.toDateValue(v), "MM-dd HH:mm:ss");
     this._formatters["MMddHHmmssSSS"] = (v) =>
-      DateTimeExtension.formatDateTime(new Date(v), "MM-dd HH:mm:ss.SSS");
+      DateTimeExtension.formatDateTime(this.toDateValue(v), "MM-dd HH:mm:ss.SSS");
 
     // For compatibility only, use DateTime formatter above instead
     this._formatters["time"] = (v) => {
-      return DateTimeExtension.formatDateTime(new Date(v), "MM-dd hh:mm:ss.SSS" /*props.template*/);
+      return DateTimeExtension.formatDateTime(
+        this.toDateValue(v),
+        "MM-dd hh:mm:ss.SSS" /*props.template*/
+      );
     };
 
-    this._formatters["timeDuration"] = (v) =>
-      (v as number & { formatTimeDuration(): string }).formatTimeDuration();
+    this._formatters["timeDuration"] = (v) => {
+      const numValue = typeof v === "number" ? v : Number(v);
+      if (!Number.isFinite(numValue)) return "";
+      return (numValue as number & { formatTimeDuration(): string }).formatTimeDuration();
+    };
     this._formatters["timeDiff"] = (v) => this.timeDifference(v);
-    this._formatters["relativeTime"] = (v) =>
-      (v as number & { formatTimeDiff(): string }).formatTimeDiff();
-    this._formatters["days"] = (v) => (v as number & { formatDays(): string }).formatDays();
+    this._formatters["relativeTime"] = (v) => {
+      const numValue = typeof v === "number" ? v : Number(v);
+      if (!Number.isFinite(numValue)) return "";
+      return (numValue as number & { formatTimeDiff(): string }).formatTimeDiff();
+    };
+    this._formatters["days"] = (v) => {
+      const numValue = typeof v === "number" ? v : Number(v);
+      if (!Number.isFinite(numValue)) return "";
+      return (numValue as number & { formatDays(): string }).formatDays();
+    };
     this._formatters["template"] = (_v, params) => {
       // Template formatter - params[0] should be the template object
-      const template = params && params[0];
-      if (!template || typeof template.replaceVariables !== "function") {
+      const template = params?.[0];
+      if (
+        !template ||
+        typeof (template as { replaceVariables?: (values: unknown[]) => string })
+          .replaceVariables !== "function"
+      ) {
         return "";
       }
-      return template.replaceVariables(params.slice(1));
+      return (template as { replaceVariables: (values: unknown[]) => string }).replaceVariables(
+        params?.slice(1) ?? []
+      );
     };
 
     // Map formatter - for Map types, renders in table format with Key and Value columns
@@ -329,7 +358,7 @@ export class Formatter {
       }
 
       // Get truncation length from params (default: 30)
-      const truncateLength = (params && params[0]) || 30;
+      const truncateLength = typeof params?.[0] === "number" ? params[0] : 30;
 
       // For complex types (Array, Tuple, JSON) - not Map
       const stringValue = typeof v === "object" ? JSON.stringify(v) : String(v);
@@ -376,7 +405,7 @@ export class Formatter {
       }
 
       // Get truncation length from params (default: 64)
-      const truncateLength = (params && params[0]) || 64;
+      const truncateLength = typeof params?.[0] === "number" ? params[0] : 64;
 
       const stringValue = typeof v === "object" ? JSON.stringify(v) : String(v);
 
@@ -437,7 +466,7 @@ export class Formatter {
       }
 
       // Get truncation length from params (default: 50)
-      const truncateLength = (params && params[0]) || 50;
+      const truncateLength = typeof params?.[0] === "number" ? params[0] : 50;
 
       const stringValue = String(v);
       const truncatedValue =
@@ -467,6 +496,12 @@ export class Formatter {
 
     // deprecated
     this._formatters["nanoFormatter"] = (v) => this.nanoFormat(v, 2);
+  }
+
+  private toDateValue(value: unknown): Date {
+    if (value instanceof Date) return value;
+    const numValue = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(numValue) ? new Date(numValue) : new Date(String(value));
   }
 
   private formatMapValue = (v: unknown): React.ReactNode => {
@@ -523,24 +558,31 @@ export class Formatter {
     return this._formatters[formatType];
   }
 
-  timeDifference(time: number): string {
-    if (time <= 0) {
+  timeDifference(time: unknown): string {
+    const numValue = typeof time === "number" ? time : Number(time);
+    if (!Number.isFinite(numValue) || numValue <= 0) {
       return "";
     }
     const now = new Date().getTime();
-    return ((now - time) as number & { formatTimeDiff(): string }).formatTimeDiff();
+    return ((now - numValue) as number & { formatTimeDiff(): string }).formatTimeDiff();
   }
 
-  nanoFormat(nanoTime: number, fractionDigits: number): string {
-    return this.timeFormat(nanoTime, fractionDigits, ["ns", "μs", "ms", "s"]);
+  nanoFormat(nanoTime: unknown, fractionDigits: number): string {
+    const numValue = typeof nanoTime === "number" ? nanoTime : Number(nanoTime);
+    if (!Number.isFinite(numValue) || numValue <= 0) return "0";
+    return this.timeFormat(numValue, fractionDigits, ["ns", "μs", "ms", "s"]);
   }
 
-  microFormat(milliTime: number, fractionDigits: number) {
-    return this.timeFormat(milliTime, fractionDigits, ["μs", "ms", "s"]);
+  microFormat(milliTime: unknown, fractionDigits: number) {
+    const numValue = typeof milliTime === "number" ? milliTime : Number(milliTime);
+    if (!Number.isFinite(numValue) || numValue <= 0) return "0";
+    return this.timeFormat(numValue, fractionDigits, ["μs", "ms", "s"]);
   }
 
-  milliFormat(milliTime: number, fractionDigits: number) {
-    return this.timeFormat(milliTime, fractionDigits, ["ms", "s"]);
+  milliFormat(milliTime: unknown, fractionDigits: number) {
+    const numValue = typeof milliTime === "number" ? milliTime : Number(milliTime);
+    if (!Number.isFinite(numValue) || numValue <= 0) return "0";
+    return this.timeFormat(numValue, fractionDigits, ["ms", "s"]);
   }
 
   timeFormat(time: number, fractionDigits: number, units: string[]) {
@@ -559,7 +601,7 @@ export class Formatter {
     );
   }
 
-  inlineSqlFormat(sql: string): React.ReactNode {
+  inlineSqlFormat(sql: unknown): React.ReactNode {
     if (sql === null || sql === undefined || (typeof sql === "string" && sql.trim() === "")) {
       return <span className="text-muted-foreground">-</span>;
     }
