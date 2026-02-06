@@ -197,60 +197,13 @@ SELECT 1 - (sum(free_space) / sum(total_space)) FROM {clusterAllReplicas:system.
   } as StatDescriptor,
 ];
 
-const clusterMetricsDashboard: TimeseriesDescriptor[] = [
-  //
-  // Insert Queries Per Second
-  //
+const selectMetricsDashboard: TimeseriesDescriptor[] = [
   {
     type: "line",
-    titleOption: {
-      title: "Insert Queries Per Second",
-      align: "center",
-    },
-    gridPos: { w: 12, h: 6 },
-    description: "Insert Queries Per Second",
-    legendOption: {
-      placement: "bottom",
-      values: ["min", "max", "last"],
-    },
-    datasource: {
-      sql: `
-SELECT
-  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
-  server,
-  avg(metric) as metric
-FROM (
-  SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertQuery) AS metric
-  FROM {clusterAllReplicas:system.metric_log}
-  WHERE {filterExpression:String}
-  AND event_date >= toDate({from:String}) 
-  AND event_date <= toDate({to:String})
-  AND event_time >= {from:String} 
-  AND event_time < {to:String}
-  GROUP BY event_time, server)
- GROUP BY t, server
-ORDER BY t WITH FILL STEP {rounding:UInt32}`,
-    },
-  } as TimeseriesDescriptor,
-
-  //
-  // SELECT Queries Per Second
-  //
-  {
-    type: "line",
-    titleOption: {
-      title: "Select Queries Per Second",
-      align: "center",
-    },
-    gridPos: { w: 12, h: 6 },
-    description: "Select Queries Per Second",
-    tooltipOption: {
-      sortValue: "desc",
-    },
-    legendOption: {
-      placement: "bottom",
-      values: ["min", "max", "last"],
-    },
+    titleOption: { title: "Select Queries Per Second", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    tooltipOption: { sortValue: "desc" },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
     datasource: {
       sql: `
 SELECT
@@ -261,34 +214,21 @@ FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_SelectQuery) AS metric
   FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
-  AND event_date >= toDate({from:String}) 
+  AND event_date >= toDate({from:String})
   AND event_date <= toDate({to:String})
-  AND event_time >= {from:String} 
+  AND event_time >= {from:String}
   AND event_time < {to:String}
   GROUP BY event_time, server)
- GROUP BY t, server
+GROUP BY t, server
 ORDER BY t WITH FILL STEP {rounding:UInt32}`,
     },
   } as TimeseriesDescriptor,
-
-  //
-  // Failed Queries Per Second
-  //
   {
     type: "line",
-    titleOption: {
-      title: "Failed Queries Per Second",
-      align: "center",
-    },
-    legendOption: {
-      placement: "bottom",
-      values: ["min", "max", "last"],
-    },
-    gridPos: { w: 12, h: 6 },
-    description: "Failed Queries Per Second",
-    tooltipOption: {
-      sortValue: "none",
-    },
+    titleOption: { title: "Failed Queries Per Second", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    tooltipOption: { sortValue: "none" },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
     datasource: {
       sql: `
 SELECT
@@ -299,39 +239,21 @@ FROM (
   SELECT event_time, FQDN() as server, sum(ProfileEvent_FailedQuery) AS metric
   FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
-  AND event_date >= toDate({from:String}) 
+  AND event_date >= toDate({from:String})
   AND event_date <= toDate({to:String})
-  AND event_time >= {from:String} 
+  AND event_time >= {from:String}
   AND event_time < {to:String}
   GROUP BY event_time, server)
- GROUP BY t, server
+GROUP BY t, server
 ORDER BY t WITH FILL STEP {rounding:UInt32}`,
     },
   } as TimeseriesDescriptor,
-
-  //
-  // Insert Bytes Per Second
-  //
   {
     type: "line",
-    titleOption: {
-      title: "Insert Bytes Per Second",
-      align: "center",
-    },
-    gridPos: { w: 12, h: 6 },
-    description: "Insert Bytes Per Second",
-    tooltipOption: {
-      sortValue: "none",
-    },
-    legendOption: {
-      placement: "bottom",
-      values: ["min", "max", "last"],
-    },
-    fieldOptions: {
-      metric: {
-        format: "binary_size",
-      },
-    },
+    titleOption: { title: "SelectedRows", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
     datasource: {
       sql: `
 SELECT
@@ -339,42 +261,46 @@ SELECT
   server,
   avg(metric) as metric
 FROM (
-  SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertedBytes) AS metric
+  SELECT event_time, FQDN() as server, sum(ProfileEvent_SelectedRows) AS metric
   FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
-  AND event_date >= toDate({from:String}) 
+  AND event_date >= toDate({from:String})
   AND event_date <= toDate({to:String})
-  AND event_time >= {from:String} 
+  AND event_time >= {from:String}
   AND event_time < {to:String}
   GROUP BY event_time, server)
- GROUP BY t, server
+GROUP BY t, server
 ORDER BY t WITH FILL STEP {rounding:UInt32}`,
     },
   } as TimeseriesDescriptor,
-
-  //
-  // Insert Rows Per Second
-  //
   {
     type: "line",
-    titleOption: {
-      title: "Insert Rows Per Second",
-      align: "center",
+    titleOption: { title: "SelectedBytes", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "binary_size_per_second" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_SelectedBytes) / {rounding:UInt32} as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
     },
-    legendOption: {
-      placement: "bottom",
-      values: ["min", "max", "last"],
-    },
-    gridPos: { w: 12, h: 6 },
-    description: "Insert Rows Per Second",
-    tooltipOption: {
-      sortValue: "none",
-    },
-    fieldOptions: {
-      metric: {
-        format: "short_number",
-      },
-    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "SelectedParts", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
     datasource: {
       sql: `
 SELECT
@@ -382,16 +308,1758 @@ SELECT
   server,
   avg(metric) as metric
 FROM (
-  SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertedRows) AS metric
+  SELECT event_time, FQDN() as server, sum(ProfileEvent_SelectedParts) AS metric
   FROM {clusterAllReplicas:system.metric_log}
   WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "SelectedPartsTotal", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  server,
+  avg(metric) as metric
+FROM (
+  SELECT event_time, FQDN() as server, sum(ProfileEvent_SelectedPartsTotal) AS metric
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "SelectedRanges", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  server,
+  avg(metric) as metric
+FROM (
+  SELECT event_time, FQDN() as server, sum(ProfileEvent_SelectedRanges) AS metric
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "SelectedMarks", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  server,
+  avg(metric) as metric
+FROM (
+  SELECT event_time, FQDN() as server, sum(ProfileEvent_SelectedMarks) AS metric
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "SelectedMarksTotal", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  server,
+  avg(metric) as metric
+FROM (
+  SELECT event_time, FQDN() as server, sum(ProfileEvent_SelectedMarksTotal) AS metric
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor
+];
+
+const insertMetricsDashboard: TimeseriesDescriptor[] = [
+  {
+    type: "line",
+    titleOption: { title: "Insert Queries Per Second", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  server,
+  avg(metric) as metric
+FROM (
+  SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertQuery) AS metric
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "Insert Rows Per Second", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_InsertedRows) / {rounding:UInt32} as metric 
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "Insert Bytes Per Second", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "binary_size_per_second" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_InsertedBytes) / {rounding:UInt32} as metric 
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+
+  {
+    type: "line",
+    titleOption: {
+      title: "InsertQueryTimeMicroseconds",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "microsecond" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  server,
+  avg(metric) as metric
+FROM (
+  SELECT event_time, FQDN() as server, sum(ProfileEvent_InsertQueryTimeMicroseconds) AS metric
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "AsyncInsertQuery", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_AsyncInsertQuery)
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "AsyncInsertBytes", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "binary_size_per_second" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_AsyncInsertBytes) / {rounding:UInt32} as metric 
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "AsyncInsertRows Per Second", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_AsyncInsertRows) / {rounding:UInt32} as metric 
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+];
+
+const lockMetricsDashboard: TimeseriesDescriptor[] = [
+  {
+    type: "line",
+    titleOption: { title: "ContextLockWait", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(CurrentMetric_ContextLockWait) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "ContextLockWaitMicroseconds",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "microsecond" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ContextLockWaitMicroseconds) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+
+  {
+    type: "line",
+    titleOption: {
+      title: "ProcessSelectListLock",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ProcessSelectListLock) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "RWLockAcquiredReadLocks",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_RWLockAcquiredReadLocks) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "RWLockAcquiredWriteLocks",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_RWLockAcquiredWriteLocks) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "RWLockReadersWaitMilliseconds",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "millisecond" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_RWLockReadersWaitMilliseconds) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "RWLockWritersWaitMilliseconds",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "millisecond" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_RWLockWritersWaitMilliseconds) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+];
+
+const cacheMetricsDashboard: TimeseriesDescriptor[] = [
+  {
+    type: "line",
+    titleOption: {
+      title: "UncompressedCacheHits",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server, 
+  sum(ProfileEvent_UncompressedCacheHits) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "UncompressedCacheMisses",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_UncompressedCacheMisses) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "UncompressedCacheWeightLost",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "binary_size" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_UncompressedCacheWeightLost) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "MarkCacheHits", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_MarkCacheHits) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "MarkCacheMisses", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_MarkCacheMisses) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "QueryCacheHits", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_QueryCacheHits) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "QueryCacheMisses", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_QueryCacheMisses) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+];
+
+const osMetricsDashboard: TimeseriesDescriptor[] = [
+  {
+    type: "line",
+    titleOption: {
+      title: "OSCPUVirtualTimeMicroseconds",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "microsecond" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_OSCPUVirtualTimeMicroseconds) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "OSCPUWaitMicroseconds",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "microsecond" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_OSCPUWaitMicroseconds) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "OSIOWaitMicroseconds",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "microsecond" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_OSIOWaitMicroseconds) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "OSReadChars", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_OSReadChars) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "OSReadBytes", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "binary_size" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_OSReadBytes) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "OSWriteChars", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_OSWriteChars) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "OSWriteBytes", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "binary_size" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_OSWriteBytes) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "CurrentMetric_MemoryTracking", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "binary_size" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  server,
+  max(metric) as metric
+FROM (
+  SELECT event_time, FQDN() as server, sum(CurrentMetric_MemoryTracking) AS metric
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "CurrentMetric_GlobalThread", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  server,
+  max(metric) as metric
+FROM (
+  SELECT event_time, FQDN() as server, sum(CurrentMetric_GlobalThread) AS metric
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: { title: "CurrentMetric_GlobalThreadActive", align: "center" },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  server,
+  max(metric) as metric
+FROM (
+  SELECT event_time, FQDN() as server, sum(CurrentMetric_GlobalThreadActive) AS metric
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+];
+
+const mergeMutationMetricsDashboard: TimeseriesDescriptor[] = [
+  {
+    type: "line",
+    titleOption: {
+      title: "BackgroundFetchesPoolTask",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  server,
+  avg(metric) as metric
+FROM (
+  SELECT event_time, FQDN() as server, sum(CurrentMetric_BackgroundFetchesPoolTask) AS metric
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "BackgroundFetchesPoolSize",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  server,
+  avg(metric) as metric
+FROM (
+  SELECT event_time, FQDN() as server, sum(CurrentMetric_BackgroundFetchesPoolSize) AS metric
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+
+  {
+    type: "line",
+    titleOption: {
+      title: "BackgroundMessageBrokerSchedulePoolTask",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  server,
+  max(metric) as metric
+FROM (
+  SELECT event_time, FQDN() as server, sum(CurrentMetric_BackgroundMessageBrokerSchedulePoolTask) AS metric
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "BackgroundMergesAndMutationsPoolSize",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  server,
+  avg(metric) as metric
+FROM (
+  SELECT event_time, FQDN() as server, sum(CurrentMetric_BackgroundMergesAndMutationsPoolSize) AS metric
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+  GROUP BY event_time, server)
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "ReplicatedPartFailedFetches",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ReplicatedPartFailedFetches) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "ReplicatedPartFetches",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ReplicatedPartFetches) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "ReplicatedPartFetchesOfMerged",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ReplicatedPartFetchesOfMerged) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "ReplicatedPartMerges",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ReplicatedPartMerges) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+  {
+    type: "line",
+    titleOption: {
+      title: "ReplicatedPartMutations",
+      align: "center",
+    },
+    gridPos: { w: 6, h: 6 },
+    legendOption: { placement: "bottom", values: ["min", "max", "last"] },
+    fieldOptions: { metric: { format: "short_number" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ReplicatedPartMutations) as metric
+FROM {clusterAllReplicas:system.metric_log}
+  WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String})
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String}
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+    },
+  } as TimeseriesDescriptor,
+];
+
+const clusterZkMetricsDashboard: TimeseriesDescriptor[] = [
+  // ProfileEvent_ZooKeeperBytesSent
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Bytes Sent",
+      align: "center",
+    },
+    legendOption: {
+      placement: "bottom",
+      values: ["min", "max", "last"],
+    },
+    fieldOptions: { metric: { format: "binary_size_per_second" } },
+    gridPos: { w: 12, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperBytesSent) / {rounding:UInt32} as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
   AND event_date >= toDate({from:String}) 
   AND event_date <= toDate({to:String})
   AND event_time >= {from:String} 
   AND event_time < {to:String}
-  GROUP BY event_time, server)
- GROUP BY t, server
-ORDER BY t WITH FILL STEP {rounding:UInt32}`,
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperBytesReceived
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Bytes Received",
+      align: "center",
+    },
+    legendOption: {
+      placement: "bottom",
+      values: ["min", "max", "last"],
+    },
+    gridPos: { w: 12, h: 6 },
+    fieldOptions: { metric: { format: "binary_size_per_second" } },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperBytesReceived) / {rounding:UInt32} as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperTransactions
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Transactions",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 12, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperTransactions) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperWaitMicroseconds
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Wait Microseconds",
+      align: "center",
+    },
+    legendOption: {
+      placement: "bottom",
+      values: ["min", "max", "last"],
+    },
+    fieldOptions: { metric: { format: "microsecond" } },
+    gridPos: { w: 12, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperWaitMicroseconds) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperCheck
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Check",
+      align: "center",
+    },
+    legendOption: {
+      placement: "bottom",
+      values: ["min", "max", "last"],
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperCheck) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperClose
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Close",
+      align: "center",
+    },
+    legendOption: {
+      placement: "bottom",
+      values: ["min", "max", "last"],
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperClose) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperCreate
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Create",
+      align: "center",
+    },
+    legendOption: {
+      placement: "bottom",
+      values: ["min", "max", "last"],
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperCreate) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperExists
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Exists",
+      align: "center",
+    },
+    legendOption: {
+      placement: "bottom",
+      values: ["min", "max", "last"],
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperExists) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperGet
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Get",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperGet) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperHardwareExceptions
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Hardware Exceptions",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperHardwareExceptions) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperInit
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Init",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperInit) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperList
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper List",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperList) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperMulti
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Multi",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperMulti) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperMultiRead
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Multi Read",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperMultiRead) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperMultiWrite
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Multi Write",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperMultiWrite) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperOtherExceptions
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Other Exceptions",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperOtherExceptions) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperReconfig
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Reconfig",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperReconfig) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperRemove
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Remove",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperRemove) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperSet
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Set",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperSet) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperSync
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Sync",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperSync) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+
+
+  // ProfileEvent_ZooKeeperUserExceptions
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper User Exceptions",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperUserExceptions) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
+    },
+  } as TimeseriesDescriptor,
+
+  // ProfileEvent_ZooKeeperWatchResponse
+  {
+    type: "line",
+    titleOption: {
+      title: "ZooKeeper Watch Response",
+      align: "center",
+    },
+    legendOption: {
+      placement: "none",
+    },
+    gridPos: { w: 6, h: 6 },
+    datasource: {
+      sql: `
+SELECT
+  toStartOfInterval(event_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+  FQDN() as server,
+  sum(ProfileEvent_ZooKeeperWatchResponse) as metric
+FROM {clusterAllReplicas:system.metric_log}
+WHERE {filterExpression:String}
+  AND event_date >= toDate({from:String}) 
+  AND event_date <= toDate({to:String})
+  AND event_time >= {from:String} 
+  AND event_time < {to:String}
+GROUP BY t, server
+ORDER BY t WITH FILL STEP {rounding:UInt32}
+`,
     },
   } as TimeseriesDescriptor,
 ];
@@ -421,9 +2089,39 @@ export const ClusterTab = memo(() => {
             charts: clusterStatusDashboard,
           } as DashboardGroup,
           {
-            title: "Cluster Metrics",
+            title: "Selects",
             collapsed: false,
-            charts: clusterMetricsDashboard,
+            charts: selectMetricsDashboard,
+          } as DashboardGroup,
+          {
+            title: "Inserts",
+            collapsed: false,
+            charts: insertMetricsDashboard,
+          } as DashboardGroup,
+          {
+            title: "Locks",
+            collapsed: false,
+            charts: lockMetricsDashboard,
+          } as DashboardGroup,
+          {
+            title: "Cache",
+            collapsed: false,
+            charts: cacheMetricsDashboard,
+          } as DashboardGroup,
+          {
+            title: "OS",
+            collapsed: false,
+            charts: osMetricsDashboard,
+          } as DashboardGroup,
+          {
+            title: "Merge & Mutation",
+            collapsed: false,
+            charts: mergeMutationMetricsDashboard,
+          } as DashboardGroup,
+          {
+            title: "ZooKeeper",
+            collapsed: false,
+            charts: clusterZkMetricsDashboard,
           } as DashboardGroup,
         ],
       }}
