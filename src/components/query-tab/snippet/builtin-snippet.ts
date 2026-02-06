@@ -29,10 +29,10 @@ LIMIT 100`,
     sql: `SELECT
   normalized_query_hash,
   any(query_id) AS query_id,
-  sum(query_duration_ms) AS query_duration_ms,
-  sum(memory_usage) AS memory_usage,
-  sum(read_rows) AS read_rows,
-  sum(read_bytes) AS read_bytes,
+  sum(query_duration_ms) AS total_duration_ms,
+  sum(memory_usage) AS total_memory_usage,
+  sum(read_rows) AS total_read_rows,
+  sum(read_bytes) AS total_read_bytes,
   max(event_time) AS last_execution_time,
   any(tables) AS tables,
   count() AS execution_count,
@@ -46,7 +46,7 @@ WHERE
   AND query_kind = 'Select'
   AND not has(databases, 'system')
 GROUP BY normalized_query_hash
-ORDER BY query_duration_ms DESC
+ORDER BY total_duration_ms DESC
 LIMIT 10
 `,
   },
