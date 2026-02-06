@@ -22,10 +22,14 @@ const GREETINGS = [
   "Hi there! What would you like to explore?",
   "Good to see you! Ready to dive into your data?",
   "Nice to meet you! What can I help you analyze?",
-  "Hello and welcome! Let's explore your ClickHouse data!",
+  "Hello and welcome! Let's explore your ClickHouse cluster and data!",
 ];
 
 export const DEFAULT_CHAT_QUESTIONS: Question[] = [
+  {
+    text: "Help me optimize a query",
+    autoRun: true,
+  },
   {
     text: "Show me the number of error queries by hour from @system.query_log over the past 3 hours in line chart",
     autoRun: true,
@@ -42,7 +46,7 @@ export const DEFAULT_CHAT_QUESTIONS: Question[] = [
     text: "Visualize the trend of ProfileEvent_DistributedConnectionFailTry from the @system.metric_log by hour in the last 12 hours",
     autoRun: true,
   },
-  { text: "Please help me optimize a slow SQL", autoRun: true },
+  { text: "Find the top 1 slowest query in the last 1 day and optimize it", autoRun: true },
   { text: "Help me write a JOIN query", autoRun: false },
   { text: "What are the best practices for partitioning?", autoRun: false },
 ];
@@ -101,7 +105,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
       chatInputRef.current?.focus();
     }, 100);
     return () => clearTimeout(timer);
-  }, []);
+  }, [chat.id]);
 
   // Notify parent when streaming state changes
   useEffect(() => {
@@ -176,11 +180,11 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   );
 
   return (
-    <ChatActionProvider onAction={handleUserAction}>
+    <ChatActionProvider onAction={handleUserAction} chatId={chat.id}>
       <div className="flex flex-col h-full bg-background overflow-hidden relative">
         {isEmpty ? (
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3">
-            <div className="flex flex-col items-center w-full max-w-full pt-6 sm:pt-8">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 flex flex-col">
+            <div className="flex flex-col items-center w-full max-w-full my-auto pb-8 pt-6">
               <div className="mb-0">
                 <AppLogo width={64} height={64} />
               </div>
