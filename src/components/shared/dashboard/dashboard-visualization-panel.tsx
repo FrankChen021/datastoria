@@ -64,10 +64,12 @@ const ErrorComponent = ({
   error,
   errorCode,
   executedSql,
+  shouldShowAskAI,
 }: {
   error: string;
   errorCode: string;
   executedSql: string;
+  shouldShowAskAI: boolean;
 }) => {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center p-1 text-sm text-destructive gap-1">
@@ -87,7 +89,9 @@ const ErrorComponent = ({
         </div>
       ) : (
         <>
-          <AskAIButton sql={executedSql} errorMessage={error} hideAfterClick={false} />
+          {shouldShowAskAI ? (
+            <AskAIButton sql={executedSql} errorMessage={error} hideAfterClick={false} />
+          ) : null}
           <div className="text-center overflow-auto w-full max-h-full custom-scrollbar">
             {error}
           </div>
@@ -95,6 +99,13 @@ const ErrorComponent = ({
       )}
     </div>
   );
+};
+
+const normalizeVisualizationError = (message: string) => {
+  if (message.includes("Missing columns:")) {
+    return "no metrics";
+  }
+  return message;
 };
 
 interface DashboardVisualizationPanelProps {
@@ -379,7 +390,8 @@ export const DashboardVisualizationPanel = forwardRef<
 
                   if (res.httpStatus >= 400) {
                     const errData = res.data.json<QueryError>();
-                    setSecondaryError(errData.message || "Failed to load comparison data");
+                    const message = errData.message || "Failed to load comparison data";
+                    setSecondaryError(normalizeVisualizationError(message));
                   } else {
                     const resData = res.data.json<{
                       data?: Record<string, unknown>[];
@@ -390,7 +402,8 @@ export const DashboardVisualizationPanel = forwardRef<
                 })
                 .catch((err) => {
                   if (offsetAbort.signal.aborted) return;
-                  setSecondaryError(err instanceof Error ? err.message : "Unknown error");
+                  const message = err instanceof Error ? err.message : "Unknown error";
+                  setSecondaryError(normalizeVisualizationError(message));
                   setIsSecondaryLoading(false);
                 });
             }
@@ -401,10 +414,11 @@ export const DashboardVisualizationPanel = forwardRef<
           return;
         }
         if (err instanceof QueryError) {
-          setError(err.data);
+          setError(normalizeVisualizationError(String(err.data)));
           setErrorCode(err.errorCode || "");
         } else {
-          setError(err instanceof Error ? err.message : "Unknown error");
+          const message = err instanceof Error ? err.message : "Unknown error";
+          setError(normalizeVisualizationError(message));
           //setErrorCode("");
         }
         setIsLoading(false);
@@ -768,7 +782,12 @@ export const DashboardVisualizationPanel = forwardRef<
         ) : (
           <div className="h-full w-full transition-opacity duration-150">
             {error ? (
-              ErrorComponent({ error, errorCode, executedSql })
+              ErrorComponent({
+                error,
+                errorCode,
+                executedSql,
+                shouldShowAskAI: error !== "no metrics",
+              })
             ) : typedDescriptor.type === "table" ? (
               <TableVisualization
                 ref={visualizationRef as React.Ref<TableVisualizationRef>}
