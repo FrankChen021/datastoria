@@ -229,22 +229,22 @@ export function ChatPanel({
       } else if (currentPendingCommand?.text) {
         // If there's a pending command (but not forcing new chat), still need to load a chat
         // Load the latest chat or create new one
-        const latestChat = await chatStorage.getLatestChatIdForConnection(connectionId);
-        if (latestChat) {
-          idToLoad = latestChat.chatId;
-        } else {
-          idToLoad = uuidv7();
-        }
+        //const latestChat = await chatStorage.getLatestChatIdForConnection(connectionId);
+        //if (latestChat) {
+        //  idToLoad = latestChat.chatId;
+        //} else {
+        idToLoad = uuidv7();
+        //}
       } else {
         // Load the latest chat
-        const latestChat = await chatStorage.getLatestChatIdForConnection(connectionId);
-        if (latestChat) {
-          idToLoad = latestChat.chatId;
-        } else {
-          // Create a new one
-          idToLoad = uuidv7();
-          setChatTitle("New Chat");
-        }
+        //const latestChat = await chatStorage.getLatestChatIdForConnection(connectionId);
+        //if (latestChat) {
+        //  idToLoad = latestChat.chatId;
+        //} else {
+        // Create a new one
+        idToLoad = uuidv7();
+        setChatTitle("New Chat");
+        //}
       }
 
       if (idToLoad) {
