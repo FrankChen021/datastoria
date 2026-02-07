@@ -30,7 +30,7 @@ dist-ssr
 *.md
 doc/
 !README.md
-!src/lib/ai/skills/**/SKILL.md
+!src/lib/ai/skills/**/*.md
 
 # Test files
 test/

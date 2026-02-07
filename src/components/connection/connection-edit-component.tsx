@@ -34,7 +34,7 @@ import {
 type TestStatus = { type: "success" | "error"; message: string } | null;
 
 // Exported component for inline use (e.g., in ConnectionWizard)
-function StatusPopover({
+export function StatusPopover({
   children,
   className,
   icon,

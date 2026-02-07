@@ -55,7 +55,7 @@ export async function generateChatTitle(
   const run = async (): Promise<GenerateChatTitleResult | undefined> => {
     try {
       console.log("Generating chat title...");
-      const [model] = LanguageModelProviderFactory.createModel(
+      const model = LanguageModelProviderFactory.createModel(
         modelConfig.provider,
         modelConfig.modelId,
         modelConfig.apiKey

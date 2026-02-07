@@ -1,3 +1,4 @@
+import { StatusPopover } from "@/components/connection/connection-edit-component";
 import {
   ModelManager,
   type ModelSetting,
@@ -18,9 +19,10 @@ import {
 } from "@/components/ui/table";
 import { useModelConfig } from "@/hooks/use-model-config";
 import { type ModelProps } from "@/lib/ai/llm/llm-provider-factory";
+import { PROVIDER_GITHUB_COPILOT } from "@/lib/ai/llm/provider-ids";
 import { TextHighlighter } from "@/lib/text-highlighter";
-import { ChevronDown, ExternalLink, Eye, EyeOff, Search } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertCircle, ChevronDown, ExternalLink, Eye, EyeOff, Search } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 import { GitHubLoginComponent } from "./github-login-component";
 
 const PROVIDER_LINKS: Record<string, string> = {
@@ -43,10 +45,11 @@ export function ModelsEdit() {
 
   // Track which providers have visible API keys
   const [visibleApiKeys, setVisibleApiKeys] = useState<Set<string>>(new Set());
+  const [clearConfirmProvider, setClearConfirmProvider] = useState<string | null>(null);
 
-  const handleDisabledChange = useCallback(
-    (modelId: string, disabled: boolean) => {
-      modelManager.updateModelSetting(modelId, { disabled });
+  const handleModelDisabled = useCallback(
+    (provider: string, modelId: string, disabled: boolean) => {
+      modelManager.updateModelSetting(provider, modelId, { disabled });
     },
     [modelManager]
   );
@@ -58,11 +61,10 @@ export function ModelsEdit() {
     [modelManager]
   );
 
-  // Filter models based on search query
-  const filteredModels = useMemo(() => {
-    const queryLower = searchQuery.toLowerCase();
+  const [providers, setProviders] = useState<Array<[string, ModelSetting[]]>>([]);
 
-    // Convert allModels to ModelSetting state format
+  useEffect(() => {
+    const queryLower = searchQuery.toLowerCase().trim();
     const currentModelSettings = allModels.map((model: ModelProps) => {
       const stored = modelSettings.find(
         (m: ModelSetting) => m.modelId === model.modelId && m.provider === model.provider
@@ -77,15 +79,11 @@ export function ModelsEdit() {
       );
     });
 
-    if (!queryLower.trim()) {
-      return currentModelSettings;
-    }
-    return currentModelSettings.filter((model) => model.modelId.toLowerCase().includes(queryLower));
-  }, [allModels, modelSettings, searchQuery]);
+    const filtered = queryLower
+      ? currentModelSettings.filter((model) => model.modelId.toLowerCase().includes(queryLower))
+      : currentModelSettings;
 
-  // Group models by provider
-  const groupedModels = useMemo(() => {
-    return filteredModels.reduce(
+    const grouped = filtered.reduce(
       (acc: Record<string, ModelSetting[]>, model: ModelSetting) => {
         const provider = model.provider;
         if (!acc[provider]) {
@@ -96,17 +94,36 @@ export function ModelsEdit() {
       },
       {} as Record<string, ModelSetting[]>
     );
-  }, [filteredModels]);
+
+    const entries = Object.entries(grouped);
+    const hasCopilot = entries.some(([provider]) => provider === PROVIDER_GITHUB_COPILOT);
+    if (!hasCopilot) {
+      const copilotLabel = PROVIDER_GITHUB_COPILOT.toLowerCase();
+      if (!queryLower.trim() || copilotLabel.includes(queryLower)) {
+        entries.push([PROVIDER_GITHUB_COPILOT, [] as ModelSetting[]]);
+      }
+    }
+
+    entries.sort(([a], [b]) => a.localeCompare(b));
+    setProviders(entries);
+  }, [allModels, modelSettings, searchQuery]);
 
   const handleCopilotLogin = async () => {
     SharedDialog.showDialog({
       title: "Login with GitHub Copilot",
       description: "Authorize this application to access your GitHub Copilot models.",
+      className: "w-full max-w-[600px] sm:max-w-[600px]",
       mainContent: (
         <GitHubLoginComponent
-          onSuccess={(token: string) => {
-            handleProviderApiKeyChange("GitHub Copilot", token);
-            fetchDynamicModels(token);
+          onSuccess={(tokens) => {
+            modelManager.updateProviderSetting(PROVIDER_GITHUB_COPILOT, {
+              apiKey: tokens.accessToken,
+              refreshToken: tokens.refreshToken,
+              accessTokenExpiresAt: tokens.accessTokenExpiresAt,
+              refreshTokenExpiresAt: tokens.refreshTokenExpiresAt,
+              authError: undefined,
+            });
+            fetchDynamicModels(tokens.accessToken);
             SharedDialog.close();
           }}
           onCancel={() => {
@@ -115,14 +132,13 @@ export function ModelsEdit() {
         />
       ),
       disableBackdrop: true,
-      className: "sm:max-w-md",
     });
   };
 
   // Expand all providers when searching
   useEffect(() => {
     if (searchQuery.trim()) {
-      const allProviders = Object.keys(groupedModels);
+      const allProviders = providers.map(([provider]) => provider);
       if (allProviders.length > 0) {
         setExpandedProviders((prev) => {
           const next = new Set(prev);
@@ -131,7 +147,7 @@ export function ModelsEdit() {
         });
       }
     }
-  }, [groupedModels, searchQuery]);
+  }, [providers, searchQuery]);
 
   const toggleProvider = useCallback((provider: string) => {
     setExpandedProviders((prev) => {
@@ -156,6 +172,14 @@ export function ModelsEdit() {
       return next;
     });
   }, []);
+
+  const handleClearProviderKey = useCallback(
+    (provider: string) => {
+      modelManager.deleteProviderSetting(provider);
+      setClearConfirmProvider(null);
+    },
+    [modelManager]
+  );
 
   // Mask API key to show only first 8 characters by default
   const getMaskedApiKey = useCallback((apiKey: string, isVisible: boolean) => {
@@ -205,63 +229,117 @@ export function ModelsEdit() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Object.entries(groupedModels).map(
-                  ([provider, providerModels]: [string, ModelSetting[]]) => {
-                    const isExpanded = expandedProviders.has(provider);
-                    const providerSetting = providerSettings.find(
-                      (p: ProviderSetting) => p.provider === provider
-                    );
+                {providers.map(([provider, providerModels]: [string, ModelSetting[]]) => {
+                  const isExpanded = expandedProviders.has(provider);
+                  const providerSetting = providerSettings.find(
+                    (p: ProviderSetting) => p.provider === provider
+                  );
 
-                    return (
-                      <React.Fragment key={provider}>
-                        {/* Provider Group Header */}
-                        <TableRow className="h-10 bg-muted/50 hover:bg-muted/70">
-                          <TableCell colSpan={3} className="px-1 py-2">
-                            <button
-                              type="button"
-                              onClick={() => toggleProvider(provider)}
-                              className="flex items-center gap-2 w-full text-left hover:opacity-80 transition-opacity"
-                            >
-                              <ChevronDown
-                                className={`h-4 w-4 transition-transform duration-200 ${
-                                  isExpanded ? "rotate-0" : "-rotate-90"
-                                }`}
-                              />
-                              <span className="font-semibold text-sm">{provider}</span>
-                              <span className="text-xs text-muted-foreground">
-                                ({providerModels.length}{" "}
-                                {providerModels.length === 1 ? "model" : "models"})
-                              </span>
-                            </button>
-                          </TableCell>
-                          <TableCell className="py-1.5 pr-4">
-                            <div className="flex items-center gap-2">
-                              {PROVIDER_LINKS[provider] && (
-                                <a
-                                  href={PROVIDER_LINKS[provider]}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-muted-foreground hover:text-foreground transition-colors"
-                                  title={`Get ${provider} API key`}
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              )}
-                              {provider === "GitHub Copilot" && (
-                                <div className="flex flex-col gap-2">
-                                  {!providerSetting?.apiKey && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={handleCopilotLogin}
-                                      className="h-7 text-xs"
-                                    >
-                                      Login with Copilot
-                                    </Button>
-                                  )}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1 flex-1 relative">
+                  return (
+                    <React.Fragment key={provider}>
+                      {/* Provider Group Header */}
+                      <TableRow className="h-10 bg-muted/50 hover:bg-muted/70">
+                        <TableCell colSpan={3} className="px-1 py-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleProvider(provider)}
+                            className="flex items-center gap-2 w-full text-left hover:opacity-80 transition-opacity"
+                          >
+                            <ChevronDown
+                              className={`h-4 w-4 transition-transform duration-200 ${
+                                isExpanded ? "rotate-0" : "-rotate-90"
+                              }`}
+                            />
+                            <span className="font-semibold text-sm">{provider}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {provider === PROVIDER_GITHUB_COPILOT && !providerSetting?.apiKey
+                                ? "(Login to view available models)"
+                                : `(${providerModels.length} ${
+                                    providerModels.length === 1 ? "model" : "models"
+                                  })`}
+                            </span>
+                          </button>
+                        </TableCell>
+                        <TableCell className="py-1.5 pr-4">
+                          <div className="flex items-center gap-2">
+                            {PROVIDER_LINKS[provider] && (
+                              <a
+                                href={PROVIDER_LINKS[provider]}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                                title={`Get ${provider} API key`}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            )}
+                            {provider === PROVIDER_GITHUB_COPILOT && (
+                              <div className="flex flex-col gap-2">
+                                {!providerSetting?.apiKey ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleCopilotLogin}
+                                    className="h-7 text-xs"
+                                  >
+                                    Login with Copilot
+                                  </Button>
+                                ) : (
+                                  <StatusPopover
+                                    open={clearConfirmProvider === provider}
+                                    onOpenChange={(open) =>
+                                      setClearConfirmProvider(open ? provider : null)
+                                    }
+                                    trigger={
+                                      <Button variant="outline" size="sm" className="h-7 text-xs">
+                                        Logout
+                                      </Button>
+                                    }
+                                    side="top"
+                                    align="center"
+                                    sideOffset={4}
+                                    icon={
+                                      <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
+                                    }
+                                    title="Confirm logout"
+                                  >
+                                    <div className="text-xs mb-3">
+                                      This will clear your local Copilot tokens. You'll need to log
+                                      in again to use Copilot models.
+                                    </div>
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 rounded-sm text-sm"
+                                        onClick={() => setClearConfirmProvider(null)}
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="sm"
+                                        className="h-8 rounded-sm text-sm"
+                                        onClick={() => handleClearProviderKey(provider)}
+                                      >
+                                        Logout
+                                      </Button>
+                                    </div>
+                                  </StatusPopover>
+                                )}
+                                {providerSetting?.authError && (
+                                  <div className="text-xs text-destructive">
+                                    {providerSetting.authError === "refresh_failed"
+                                      ? "Session refresh failed. Please login again."
+                                      : "Session expired. Please login again."}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {provider !== PROVIDER_GITHUB_COPILOT && (
+                              <div className="flex items-center gap-1 flex-1 ">
                                 <Input
                                   type="text"
                                   value={
@@ -283,67 +361,115 @@ export function ModelsEdit() {
                                   className="w-full h-8 border-0 border-b border-muted-foreground/20 rounded-none pl-0 bg-transparent focus-visible:ring-0 pr-8"
                                 />
                                 {providerSetting?.apiKey && (
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleApiKeyVisibility(provider)}
-                                    className="absolute right-0 text-muted-foreground hover:text-foreground transition-colors p-1"
-                                    title={
-                                      visibleApiKeys.has(provider) ? "Hide API key" : "Show API key"
-                                    }
-                                  >
-                                    {visibleApiKeys.has(provider) ? (
-                                      <EyeOff className="h-4 w-4" />
-                                    ) : (
-                                      <Eye className="h-4 w-4" />
-                                    )}
-                                  </button>
+                                  <div className="right-0 flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleApiKeyVisibility(provider)}
+                                      className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                                      title={
+                                        visibleApiKeys.has(provider)
+                                          ? "Hide API key"
+                                          : "Show API key"
+                                      }
+                                    >
+                                      {visibleApiKeys.has(provider) ? (
+                                        <EyeOff className="h-4 w-4" />
+                                      ) : (
+                                        <Eye className="h-4 w-4" />
+                                      )}
+                                    </button>
+                                    <StatusPopover
+                                      open={clearConfirmProvider === provider}
+                                      onOpenChange={(open) =>
+                                        setClearConfirmProvider(open ? provider : null)
+                                      }
+                                      trigger={
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-6 px-2 text-xs"
+                                        >
+                                          Clear
+                                        </Button>
+                                      }
+                                      side="left"
+                                      align="end"
+                                      sideOffset={4}
+                                      icon={
+                                        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
+                                      }
+                                      title="Clear API key"
+                                    >
+                                      <div className="text-xs mb-3">
+                                        Remove the saved API key for {provider}?
+                                      </div>
+                                      <div className="flex justify-end gap-2">
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-8 rounded-sm text-sm"
+                                          onClick={() => setClearConfirmProvider(null)}
+                                        >
+                                          Cancel
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          variant="destructive"
+                                          size="sm"
+                                          className="h-8 rounded-sm text-sm"
+                                          onClick={() => handleClearProviderKey(provider)}
+                                        >
+                                          Clear
+                                        </Button>
+                                      </div>
+                                    </StatusPopover>
+                                  </div>
                                 )}
                               </div>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                        {/* Provider Models */}
-                        {isExpanded &&
-                          providerModels.map((model) => (
-                            <TableRow key={`${model.provider}-${model.modelId}`} className="h-10">
-                              <TableCell className="py-1.5 pl-8">
-                                <div className="text-sm font-medium">
-                                  {searchQuery.trim()
-                                    ? TextHighlighter.highlight(model.modelId, searchQuery)
-                                    : model.modelId}
-                                </div>
-                              </TableCell>
-                              <TableCell className="py-1.5">
-                                {model.free ? (
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-none hover:bg-green-100 dark:hover:bg-green-900/30"
-                                  >
-                                    Yes
-                                  </Badge>
-                                ) : (
-                                  <div className="text-sm text-muted-foreground">No</div>
-                                )}
-                              </TableCell>
-                              <TableCell className="py-1.5">
-                                <div className="flex items-center h-full">
-                                  <Switch
-                                    checked={!model.disabled}
-                                    onCheckedChange={(checked) =>
-                                      handleDisabledChange(model.modelId, !checked)
-                                    }
-                                    className="h-4 w-8 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-4"
-                                  />
-                                </div>
-                              </TableCell>
-                              <TableCell className="py-1.5" />
-                            </TableRow>
-                          ))}
-                      </React.Fragment>
-                    );
-                  }
-                )}
-                {Object.keys(groupedModels).length === 0 && (
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {/* Provider Models */}
+                      {isExpanded &&
+                        providerModels.map((model) => (
+                          <TableRow key={`${model.provider}-${model.modelId}`} className="h-10">
+                            <TableCell className="py-1.5 pl-8">
+                              <div className="text-sm font-medium">
+                                {searchQuery.trim()
+                                  ? TextHighlighter.highlight(model.modelId, searchQuery)
+                                  : model.modelId}
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              {model.free ? (
+                                <Badge className="bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-medium text-emerald-600">
+                                  Free
+                                </Badge>
+                              ) : (
+                                <div className="text-sm text-muted-foreground">No</div>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              <div className="flex items-center h-full">
+                                <Switch
+                                  checked={!model.disabled}
+                                  onCheckedChange={(checked) =>
+                                    handleModelDisabled(model.provider, model.modelId, !checked)
+                                  }
+                                  className="h-4 w-8 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-4"
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-1.5" />
+                          </TableRow>
+                        ))}
+                    </React.Fragment>
+                  );
+                })}
+                {providers.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
                       {searchQuery.trim() ? "No models found" : "No models available"}

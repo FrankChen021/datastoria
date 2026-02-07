@@ -7,6 +7,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createGitHubCopilotOpenAICompatible } from "@opeoginni/github-copilot-openai-compatible";
 import type { LanguageModel } from "ai";
 import { mockModel } from "./models.mock";
+import { PROVIDER_GITHUB_COPILOT } from "./provider-ids";
 
 /**
  * Check if mock mode is enabled
@@ -56,8 +57,8 @@ export const CREATORS: Record<string, ModelCreator> = {
     createCerebras({
       apiKey,
     })(modelId),
-  "GitHub Copilot": (modelId, apiKey) => {
-    console.log("GitHub Copilot modelId:", modelId);
+  [PROVIDER_GITHUB_COPILOT]: (modelId, apiKey) => {
+    console.log(`${PROVIDER_GITHUB_COPILOT} modelId:`, modelId);
     return createGitHubCopilotOpenAICompatible({
       apiKey: apiKey,
       headers: {
@@ -69,62 +70,6 @@ export const CREATORS: Record<string, ModelCreator> = {
     })(modelId);
   },
 };
-
-interface GitHubModel {
-  id: string;
-  name: string;
-  model_picker_enabled: boolean;
-  vendor?: string;
-  preview?: boolean;
-  supported_endpoints?: string[];
-  policy?: {
-    state: string;
-    terms?: string;
-  };
-}
-
-/**
- * Fetch available models from GitHub Copilot API
- */
-export async function fetchCopilotModels(token: string): Promise<ModelProps[]> {
-  try {
-    const response = await fetch("/api/github/models", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      console.error("Failed to fetch Copilot models:", await response.text());
-      return [];
-    }
-
-    const data = await response.json();
-    // The response is an array of models or has a data property
-    const models: GitHubModel[] = Array.isArray(data) ? data : data.data || [];
-
-    return models
-      .filter((m) => m.model_picker_enabled)
-      .map((m) => {
-        const descriptionParts = [];
-        if (m.vendor) descriptionParts.push(`- Vendor: ${m.vendor}\n\n`);
-        if (m.name) descriptionParts.push(`- Model: ${m.name}\n\n`);
-        if (m.policy?.state) descriptionParts.push(`- Policy: ${m.policy.state}\n\n`);
-        if (m.policy?.terms) descriptionParts.push(`- Terms: ${m.policy.terms}\n\n`);
-
-        return {
-          provider: "GitHub Copilot",
-          modelId: m.id,
-          description: descriptionParts.join("") || m.name || m.id,
-          supportedEndpoints: m.supported_endpoints,
-        };
-      })
-      .sort((a, b) => a.modelId.localeCompare(b.modelId));
-  } catch (error) {
-    console.error("Error fetching Copilot models:", error);
-    return [];
-  }
-}
 
 /**
  * Flattened array of all models with their properties
@@ -298,20 +243,6 @@ export const MODELS: ModelProps[] = [
     autoSelectable: true,
     description: "Cerebras's latest model with extreme intelligence and reliability.",
   },
-
-  // GitHub Copilot models
-  {
-    provider: "GitHub Copilot",
-    modelId: "gpt-4o",
-    free: false,
-    description: "GPT-4o model available via GitHub Copilot subscription.",
-  },
-  {
-    provider: "GitHub Copilot",
-    modelId: "claude-3.5-sonnet",
-    free: false,
-    description: "Claude 3.5 Sonnet available via GitHub Copilot subscription.",
-  },
 ];
 
 /**
@@ -413,7 +344,7 @@ export class LanguageModelProviderFactory {
     }
 
     // Look up model in the flattened models array
-    if (provider !== "GitHub Copilot") {
+    if (provider !== PROVIDER_GITHUB_COPILOT) {
       const modelProps = MODELS.find((m) => m.provider === provider && m.modelId === modelId);
       if (!modelProps) {
         throw new Error(`Model ${modelId} is not supported for provider ${provider}`);

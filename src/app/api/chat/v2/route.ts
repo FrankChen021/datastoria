@@ -168,7 +168,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const [model] = LanguageModelProviderFactory.createModel(
+    const model = LanguageModelProviderFactory.createModel(
       modelConfig.provider,
       modelConfig.modelId,
       modelConfig.apiKey

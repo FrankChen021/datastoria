@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -11,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Switch } from "@/components/ui/switch";
 import { useModelConfig } from "@/hooks/use-model-config";
 import type { ModelProps } from "@/lib/ai/llm/llm-provider-factory";
+import { PROVIDER_GITHUB_COPILOT } from "@/lib/ai/llm/provider-ids";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Layers, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -26,6 +28,14 @@ interface ModelCommandItemProps {
   showProvider?: boolean;
 }
 
+function FreeBadge() {
+  return (
+    <Badge className="ml-auto rounded-sm bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-none hover:bg-green-100 dark:hover:bg-green-900/30 text-[9px]">
+      Free
+    </Badge>
+  );
+}
+
 function ModelCommandItem({
   model,
   isSelected,
@@ -39,7 +49,7 @@ function ModelCommandItem({
       className="m-1 text-xs cursor-pointer py-1"
     >
       {showProvider ? (
-        <div className="grid grid-cols-[16px_70px_1fr] items-center gap-2 w-full text-[10px]">
+        <div className="grid grid-cols-[16px_70px_1fr_auto] items-center gap-1 w-full text-[10px]">
           <Check className={cn("h-3 w-3 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
           <span className="text-muted-foreground truncate">
             <HighlightableCommandItem text={model.provider} />
@@ -47,6 +57,9 @@ function ModelCommandItem({
           <span className="truncate">
             <HighlightableCommandItem text={model.modelId} />
           </span>
+          {model.free ? (
+            <FreeBadge />
+          ) : null}
         </div>
       ) : (
         <div className="flex items-center gap-2 w-full text-[10px]">
@@ -54,6 +67,9 @@ function ModelCommandItem({
           <span className="truncate">
             <HighlightableCommandItem text={model.modelId} />
           </span>
+          {model.free ? (
+            <FreeBadge />
+          ) : null}
         </div>
       )}
     </CommandItem>
@@ -70,7 +86,14 @@ export function ModelSelectorImpl({
   autoSelectAvailable = false,
 }: ModelSelectorImplProps = {}) {
   const [open, setOpen] = useState(false);
-  const { availableModels, selectedModel, setSelectedModel } = useModelConfig();
+  const {
+    availableModels,
+    selectedModel,
+    setSelectedModel,
+    isLoading,
+    providerSettings,
+    copilotModelsLoaded,
+  } = useModelConfig();
   const [highlightedValue, setHighlightedValue] = useState<string | undefined>(
     selectedModel ? `${selectedModel.provider} ${selectedModel.modelId}` : undefined
   );
@@ -84,17 +107,31 @@ export function ModelSelectorImpl({
     return availableModels.filter((m) => !(m.provider === "System" && m.modelId === "Auto"));
   }, [availableModels, autoSelectAvailable]);
 
+  const sortedModels = useMemo(() => {
+    const items = [...filteredModels];
+    items.sort((a, b) => {
+      const providerCompare = a.provider.localeCompare(b.provider);
+      if (providerCompare !== 0) return providerCompare;
+      return a.modelId.localeCompare(b.modelId);
+    });
+    return items;
+  }, [filteredModels]);
+
   // Group models by provider for grouped view
   const modelsByProvider = useMemo(() => {
     const groups: Record<string, ModelProps[]> = {};
-    for (const model of filteredModels) {
+    for (const model of sortedModels) {
       if (!groups[model.provider]) {
         groups[model.provider] = [];
       }
       groups[model.provider].push(model);
     }
     return groups;
-  }, [filteredModels]);
+  }, [sortedModels]);
+
+  const providerEntries = useMemo(() => {
+    return Object.entries(modelsByProvider).sort(([a], [b]) => a.localeCompare(b));
+  }, [modelsByProvider]);
 
   useEffect(() => {
     // If no model is selected, or the selected model is no longer available, select default
@@ -103,6 +140,19 @@ export function ModelSelectorImpl({
       filteredModels.some(
         (m) => m.provider === selectedModel.provider && m.modelId === selectedModel.modelId
       );
+
+    const copilotSetting = providerSettings.find((p) => p.provider === PROVIDER_GITHUB_COPILOT);
+    const isSelectedCopilot = selectedModel?.provider === PROVIDER_GITHUB_COPILOT;
+    // Avoid resetting Copilot selection while models load dynamically.
+    // This keeps the user's choice stable until Copilot models are available.
+    if (
+      isSelectedCopilot &&
+      copilotSetting?.apiKey &&
+      !isSelectedModelAvailable &&
+      !copilotModelsLoaded
+    ) {
+      return;
+    }
 
     if (!selectedModel || !isSelectedModelAvailable) {
       // If auto-select is available, default to "System (Auto)"
@@ -114,7 +164,15 @@ export function ModelSelectorImpl({
         setSelectedModel({ provider: firstModel.provider, modelId: firstModel.modelId });
       }
     }
-  }, [filteredModels, selectedModel, setSelectedModel, autoSelectAvailable]);
+  }, [
+    filteredModels,
+    selectedModel,
+    setSelectedModel,
+    autoSelectAvailable,
+    isLoading,
+    copilotModelsLoaded,
+    providerSettings,
+  ]);
 
   useEffect(() => {
     if (open && selectedModel) {
@@ -136,6 +194,7 @@ export function ModelSelectorImpl({
     (m) =>
       selectedModel && m.provider === selectedModel.provider && m.modelId === selectedModel.modelId
   );
+  const displayModel = currentModel ?? selectedModel;
 
   const highlightedModel = useMemo(() => {
     // When searching, highlightedValue matches the composite value (provider + modelId)
@@ -160,8 +219,8 @@ export function ModelSelectorImpl({
           )}
         >
           <span className="truncate max-w-[350px]">
-            {currentModel
-              ? `${currentModel.provider} | ${currentModel.modelId}`
+            {displayModel
+              ? `${displayModel.provider} | ${displayModel.modelId}`
               : "Select model..."}
           </span>
           <ChevronsUpDown className="ml-0.5 h-3 w-3 shrink-0 opacity-50" />
@@ -194,7 +253,7 @@ export function ModelSelectorImpl({
               wrapperClassName="px-2"
               iconClassName="h-3 w-3"
             />
-            <div className="flex items-center justify-between px-2 py-1.5 border-b shrink-0">
+            <div className="flex items-center justify-between px-2 py-1.5 shrink-0">
               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                 <Layers className="h-3 w-3 opacity-50" />
                 <span>Group by provider</span>
@@ -214,7 +273,7 @@ export function ModelSelectorImpl({
               </CommandEmpty>
               {groupByProvider
                 ? // Grouped view
-                  Object.entries(modelsByProvider).map(([provider, models]) => (
+                  providerEntries.map(([provider, models]) => (
                     <CommandGroup
                       key={provider}
                       heading={provider}
@@ -235,7 +294,7 @@ export function ModelSelectorImpl({
                     </CommandGroup>
                   ))
                 : // Flat view
-                  filteredModels.map((model) => (
+                  sortedModels.map((model) => (
                     <ModelCommandItem
                       key={`${model.provider}-${model.modelId}`}
                       model={model}
@@ -249,10 +308,6 @@ export function ModelSelectorImpl({
                   ))}
             </CommandList>
             <div className="h-px bg-border shrink-0" />
-            <div className="px-2 py-1.5 text-[9px] text-muted-foreground/70 shrink-0">
-              Only models with API keys configured are shown.
-            </div>
-            <div className="h-px bg-border shrink-0" />
             <div className="h-[32px] items-center flex mx-1 shrink-0">
               <Button
                 variant="ghost"
@@ -264,7 +319,7 @@ export function ModelSelectorImpl({
                 }}
               >
                 <Settings2 className="h-3 w-3" />
-                Configure AI Models...
+                Configure more AI Models...
               </Button>
             </div>
           </div>

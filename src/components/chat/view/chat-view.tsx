@@ -48,7 +48,7 @@ export const DEFAULT_CHAT_QUESTIONS: Question[] = [
   },
   { text: "Find the top 1 slowest query in the last 1 day and optimize it", autoRun: true },
   { text: "Help me write a JOIN query", autoRun: false },
-  { text: "What are the best practices for partitioning?", autoRun: false },
+  { text: "What are the best practices for partitioning?", autoRun: true },
 ];
 
 interface ChatViewProps {
@@ -94,8 +94,10 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   useEffect(() => {
     if (externalInput !== undefined) {
       setPromptInput(externalInput);
+      return;
     }
-  }, [externalInput]);
+    setPromptInput(undefined);
+  }, [externalInput, chat.id]);
   const { messages, error, sendMessage, status, stop } = useChat({ chat });
 
   // Focus input when ChatView is mounted

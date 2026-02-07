@@ -1,4 +1,5 @@
 import { MODELS, type ModelProps } from "@/lib/ai/llm/llm-provider-factory";
+import { PROVIDER_GITHUB_COPILOT } from "@/lib/ai/llm/provider-ids";
 import { StorageManager } from "@/lib/storage/storage-provider-manager";
 
 export interface ModelSetting {
@@ -11,6 +12,10 @@ export interface ModelSetting {
 export interface ProviderSetting {
   provider: string;
   apiKey: string;
+  refreshToken?: string;
+  accessTokenExpiresAt?: number;
+  refreshTokenExpiresAt?: number;
+  authError?: string;
 }
 
 export const MODEL_CONFIG_UPDATED_EVENT = "MODEL_CONFIG_UPDATED";
@@ -62,12 +67,25 @@ class ModelManager {
   public getAllModels(): ModelProps[] {
     const all = [...MODELS, ...this.dynamicModels];
     const seen = new Set<string>();
-    return all.filter((model) => {
+    const filtered = all.filter((model) => {
       const key = `${model.provider}:${model.modelId}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
+    const indexed = filtered.map((model, index) => ({ model, index }));
+    indexed.sort((a, b) => {
+      const aIsCopilot = a.model.provider === PROVIDER_GITHUB_COPILOT;
+      const bIsCopilot = b.model.provider === PROVIDER_GITHUB_COPILOT;
+      if (aIsCopilot && bIsCopilot) {
+        return a.model.modelId.localeCompare(b.model.modelId);
+      }
+      if (aIsCopilot !== bIsCopilot) {
+        return aIsCopilot ? -1 : 1;
+      }
+      return a.index - b.index;
+    });
+    return indexed.map((entry) => entry.model);
   }
 
   /**
@@ -98,7 +116,7 @@ class ModelManager {
       ) {
         return parsed as { provider: string; modelId: string };
       }
-    } catch (e) {
+    } catch {
       // Ignore parsing error, treat as legacy string format
     }
 
@@ -168,15 +186,17 @@ class ModelManager {
 
   /**
    * Update a specific model setting
+   * @param provider - The provider name for the model
    * @param modelId - The model ID to update
    * @param updates - Partial updates to apply
    */
   public updateModelSetting(
+    provider: string,
     modelId: string,
-    updates: Partial<Omit<ModelSetting, "modelId">>
+    updates: Partial<Omit<ModelSetting, "modelId" | "provider">>
   ): void {
     const settings = this.getModelSettings();
-    const index = settings.findIndex((s) => s.modelId === modelId);
+    const index = settings.findIndex((s) => s.modelId === modelId && s.provider === provider);
 
     if (index >= 0) {
       settings[index] = { ...settings[index], ...updates };
@@ -184,7 +204,7 @@ class ModelManager {
       // If model doesn't exist, create a new one
       settings.push({
         modelId,
-        provider: "",
+        provider,
         disabled: false,
         free: false,
         ...updates,
@@ -221,13 +241,13 @@ class ModelManager {
   }
 
   /**
-   * Delete a model setting
-   * @param modelId - The model ID to delete
+   * Delete a provider setting
+   * @param provider - The provider name to delete
    */
-  public deleteModelSetting(modelId: string): void {
-    const settings = this.getModelSettings();
-    const filtered = settings.filter((s) => s.modelId !== modelId);
-    this.setModelSettings(filtered);
+  public deleteProviderSetting(provider: string): void {
+    const settings = this.getProviderSettings();
+    const filtered = settings.filter((s) => s.provider !== provider);
+    this.setProviderSettings(filtered);
   }
 
   /**
