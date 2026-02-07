@@ -246,15 +246,17 @@ export function ModelsEdit() {
                             className="flex items-center gap-2 w-full text-left hover:opacity-80 transition-opacity"
                           >
                             <ChevronDown
-                              className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-0" : "-rotate-90"
-                                }`}
+                              className={`h-4 w-4 transition-transform duration-200 ${
+                                isExpanded ? "rotate-0" : "-rotate-90"
+                              }`}
                             />
                             <span className="font-semibold text-sm">{provider}</span>
                             <span className="text-xs text-muted-foreground">
                               {provider === PROVIDER_GITHUB_COPILOT && !providerSetting?.apiKey
                                 ? "(Login to view available models)"
-                                : `(${providerModels.length} ${providerModels.length === 1 ? "model" : "models"
-                                })`}
+                                : `(${providerModels.length} ${
+                                    providerModels.length === 1 ? "model" : "models"
+                                  })`}
                             </span>
                           </button>
                         </TableCell>
@@ -448,8 +450,7 @@ export function ModelsEdit() {
                                   className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-none hover:bg-green-100 dark:hover:bg-green-900/30"
                                   title="This is a hint, whehter it's a free model, you should always follow the provider's documentation to know more about the pricing."
                                 >
-                                  Free
-                                  *
+                                  Free *
                                 </Badge>
                               ) : (
                                 <div className="text-sm text-muted-foreground">No</div>
