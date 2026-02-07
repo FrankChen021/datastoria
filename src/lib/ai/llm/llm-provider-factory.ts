@@ -351,7 +351,7 @@ export class LanguageModelProviderFactory {
       }
     }
 
-    // iet the creator function for this provider
+    // Get the creator function for this provider
     const creator = CREATORS[provider];
     if (!creator) {
       throw new Error(`Provider ${provider} is not supported`);
