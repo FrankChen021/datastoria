@@ -418,6 +418,8 @@ export default defineConfig({
             { text: 'Query Optimization', link: '/manual/02-ai-features/query-optimization' },
             { text: 'Intelligent Visualization', link: '/manual/02-ai-features/intelligent-visualization' },
             { text: 'Ask AI for Help', link: '/manual/02-ai-features/ask-ai-for-help' },
+            { text: 'Agent Skills', link: '/manual/02-ai-features/skills' },
+            { text: 'GitHub Copilot Integration', link: '/manual/02-ai-features/github-copilot' },
           ]
         },
         {
