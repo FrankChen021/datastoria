@@ -57,9 +57,7 @@ function ModelCommandItem({
           <span className="truncate">
             <HighlightableCommandItem text={model.modelId} />
           </span>
-          {model.free ? (
-            <FreeBadge />
-          ) : null}
+          {model.free ? <FreeBadge /> : null}
         </div>
       ) : (
         <div className="flex items-center gap-2 w-full text-[10px]">
@@ -67,9 +65,7 @@ function ModelCommandItem({
           <span className="truncate">
             <HighlightableCommandItem text={model.modelId} />
           </span>
-          {model.free ? (
-            <FreeBadge />
-          ) : null}
+          {model.free ? <FreeBadge /> : null}
         </div>
       )}
     </CommandItem>

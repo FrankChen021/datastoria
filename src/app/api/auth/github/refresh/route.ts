@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
 import { auth, isAuthEnabled } from "@/auth";
 import type { Session } from "next-auth";
+import { NextRequest, NextResponse } from "next/server";
 
 const CLIENT_ID = process.env.GITHUB_COPILOT_CLIENT_ID;
 
@@ -14,10 +14,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!CLIENT_ID) {
-    return NextResponse.json(
-      { error: "GitHub Client ID is not configured" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "GitHub Client ID is not configured" }, { status: 500 });
   }
 
   const body = await req.json().catch(() => null);
