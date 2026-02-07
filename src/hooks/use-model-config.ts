@@ -20,6 +20,9 @@ interface GitHubModel {
   };
 }
 
+/**
+ * https://docs.github.com/en/copilot/reference/ai-models/supported-models?trk=public_post_comment-text#model-multipliers
+ */
 const COPILOT_MODEL_MULTIPLIERS = new Map<string, number>([
   ["claude-haiku-4.5", 0.33],
   ["claude-opus-4.1", 10],
