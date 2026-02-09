@@ -31,3 +31,4 @@ tsconfig.tsbuildinfo
 next-env.d.ts
 
 docs/.vitepress/cache/*
+docs/public/manual/*

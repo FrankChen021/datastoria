@@ -19,7 +19,7 @@ It provides multiple filters and distribution charts as well as a detail table f
 
 ## UI
 
-<Video src="./img/system-query-log.gif" alt="System query log interface displaying detailed query execution metrics including duration, memory usage, and rows processed" />
+<Video src="./img/system-query-log.webm" alt="System query log interface displaying detailed query execution metrics including duration, memory usage, and rows processed" />
 
 ## When you can use the query log instropection tool
 
