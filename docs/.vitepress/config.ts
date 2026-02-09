@@ -28,15 +28,11 @@ export default defineConfig({
     ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }],
     ['link', { rel: 'manifest', href: '/site.webmanifest' }],
 
-    // Canonical URL (prevents duplicate content issues)
-    ['link', { rel: 'canonical', href: 'https://docs.datastoria.app/' }],
-
     // Open Graph tags for social sharing (Facebook, LinkedIn, etc.)
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'DataStoria Documentation' }],
     ['meta', { property: 'og:title', content: 'DataStoria - AI-Powered ClickHouse Management Console' }],
     ['meta', { property: 'og:description', content: 'Modern ClickHouse management console with AI-powered natural language queries, intelligent optimization, and advanced cluster management capabilities.' }],
-    ['meta', { property: 'og:url', content: 'https://docs.datastoria.app/' }],
     ['meta', { property: 'og:image', content: 'https://docs.datastoria.app/og-image.png' }],
     ['meta', { property: 'og:image:width', content: '1200' }],
     ['meta', { property: 'og:image:height', content: '630' }],
@@ -137,20 +133,12 @@ export default defineConfig({
       }
     })],
 
-    // WebSite structured data for search box
+    // WebSite structured data
     ['script', { type: 'application/ld+json' }, JSON.stringify({
       '@context': 'https://schema.org',
       '@type': 'WebSite',
       name: 'DataStoria Documentation',
-      url: 'https://docs.datastoria.app',
-      potentialAction: {
-        '@type': 'SearchAction',
-        target: {
-          '@type': 'EntryPoint',
-          urlTemplate: 'https://docs.datastoria.app/?q={search_term_string}'
-        },
-        'query-input': 'required name=search_term_string'
-      }
+      url: 'https://docs.datastoria.app'
     })],
 
     // Preconnect to CDN for faster resource loading
@@ -324,12 +312,21 @@ export default defineConfig({
       .replace(/\.md$/, '')
 
     pageData.frontmatter.head ??= []
+    // Ensure only one canonical URL exists per page.
+    pageData.frontmatter.head = pageData.frontmatter.head.filter((item) => {
+      const [tag, attrs] = item as [string, Record<string, string> | undefined]
+      return !(tag === 'link' && attrs?.rel === 'canonical')
+    })
     pageData.frontmatter.head.push([
       'link',
       { rel: 'canonical', href: canonicalUrl }
     ])
 
     // Add Open Graph URL for each page
+    pageData.frontmatter.head = pageData.frontmatter.head.filter((item) => {
+      const [tag, attrs] = item as [string, Record<string, string> | undefined]
+      return !(tag === 'meta' && attrs?.property === 'og:url')
+    })
     pageData.frontmatter.head.push([
       'meta',
       { property: 'og:url', content: canonicalUrl }

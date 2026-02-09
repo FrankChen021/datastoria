@@ -509,7 +509,7 @@ const DEFAULT_SCHEMA_PANEL_SIZE = 20;
 const _DEFAULT_TAB_PANEL_SIZE = 80; // Kept for reference, tabs/chat now use relative sizes in nested group
 
 function NewReleaseBanner() {
-  const { hasNewRelease, dismissNotification } = useReleaseDetector();
+  const { hasNewRelease } = useReleaseDetector();
 
   if (!hasNewRelease) return null;
 
@@ -518,7 +518,7 @@ function NewReleaseBanner() {
       <div className="flex items-center gap-3">
         <Zap className="h-4 w-4 animate-pulse" />
         <span className="text-sm font-medium">
-          A new version of ClickHouse Console is available with exciting updates!
+          A new version is available with exciting updates!
         </span>
         <Button
           variant="outline"
