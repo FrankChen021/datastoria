@@ -1,5 +1,77 @@
 [
   {
+    "id": "f31a217",
+    "date": "2026-02-09T12:18:11.324Z",
+    "notes": [
+      {
+        "text": "Update token usage to include tool calls",
+        "pr": 21,
+        "type": "feature",
+        "merged_at": "2026-02-02T14:30:03Z"
+      },
+      {
+        "text": "Add system.zookeeper introspection",
+        "pr": 22,
+        "type": "feature",
+        "merged_at": "2026-02-02T14:32:28Z"
+      },
+      {
+        "text": "Use skill-based agent architecture",
+        "pr": 20,
+        "type": "feature",
+        "merged_at": "2026-02-04T13:13:34Z"
+      },
+      {
+        "text": "Add snippet management",
+        "pr": 23,
+        "type": "feature",
+        "merged_at": "2026-02-05T02:11:50Z"
+      },
+      {
+        "text": "Format engine metadata with SQL highlighting",
+        "pr": 27,
+        "type": "feature",
+        "merged_at": "2026-02-05T11:52:11Z"
+      },
+      {
+        "text": "Handle non-200 release notes responses",
+        "pr": 26,
+        "type": "feature",
+        "merged_at": "2026-02-05T11:52:21Z"
+      },
+      {
+        "text": "Switch tab list display when last tab closes",
+        "pr": 25,
+        "type": "feature",
+        "merged_at": "2026-02-05T11:52:37Z"
+      },
+      {
+        "text": "Add Select/Insert/OS/Lock/Cache/Mutation/Merge/ZooKeeper panels under cluster view",
+        "pr": 28,
+        "type": "feature",
+        "merged_at": "2026-02-06T14:15:36Z"
+      },
+      {
+        "text": "Improve optimization skill to support user actions",
+        "pr": 29,
+        "type": "feature",
+        "merged_at": "2026-02-06T16:50:07Z"
+      },
+      {
+        "text": "Integreate best practice skills",
+        "pr": 30,
+        "type": "feature",
+        "merged_at": "2026-02-06T16:53:56Z"
+      },
+      {
+        "text": "Integrate GitHub copilot to use copilot subscription",
+        "pr": 31,
+        "type": "feature",
+        "merged_at": "2026-02-07T14:29:40Z"
+      }
+    ]
+  },
+  {
     "id": "afc3c65",
     "date": "2026-02-02T12:15:44.679Z",
     "notes": [
