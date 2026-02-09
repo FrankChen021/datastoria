@@ -16,6 +16,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useData } from 'vitepress'
 
 interface Props {
   src: string
@@ -40,17 +41,20 @@ const props = withDefaults(defineProps<Props>(), {
   rounded: true,
 })
 
-// Automatically generate WebM path from src
-// Handle paths that might include /public/ prefix and ensure correct extension
+const { page } = useData()
+
+// Resolve path: relative paths (./...) are resolved against current page dir so built docs serve from public/
 const webm = computed(() => {
   let path = props.src
   // Remove /public/ prefix if present (VitePress serves public/ from root)
   path = path.replace(/^\.\/public\//, '/').replace(/^\/public\//, '/')
-  // Ensure path starts with / if it's an absolute path
   if (path.startsWith('./')) {
-    path = path.replace(/^\.\//, '/')
+    // Resolve relative to current page so ./img/foo.webm -> /manual/04-cluster-management/img/foo.webm
+    const dir = page.value.relativePath.replace(/\/[^/]+$/, '/')
+    path = `/${dir}${path.slice(2)}`
+  } else if (path.startsWith('/') === false) {
+    path = `/${path}`
   }
-  // Replace extension with .webm
   return path.replace(/\.(gif|mp4|webm)$/i, '.webm')
 })
 
