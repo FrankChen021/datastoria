@@ -93,7 +93,8 @@ export const nodeOverviewDashboard: PanelDescriptor[] = [
     },
     description: "How long the server has been running",
     datasource: {
-      sql: "SELECT (toUnixTimestamp(now()) - toUnixTimestamp(max(last_error_time))) * 1000 FROM system.errors",
+      sql: `SELECT (toUnixTimestamp(now()) - toUnixTimestamp(max(last_error_time))) * 1000 
+FROM system.errors`,
     },
     valueOption: {
       format: "relativeTime",
@@ -106,12 +107,22 @@ export const nodeOverviewDashboard: PanelDescriptor[] = [
           description: "The number of warnings on the server",
         },
         datasource: {
-          sql: `
-WITH arrayMap(x -> demangle(addressToSymbol(x)), last_error_trace) AS all 
-SELECT *, arrayStringConcat(all, '\n') AS last_error_stack_trace
-FROM system.errors ORDER BY last_error_time DESC
-SETTINGS allow_introspection_functions = 1
+          sql: `SELECT
+*,
+arrayStringConcat(
+    arrayMap(
+        (index, line) -> concat(index, ': ', line),
+        arrayEnumerate(last_error_trace),
+        arrayMap(x -> demangle(addressToSymbol(x)), last_error_trace)
+    ),
+    '\n'
+) AS last_error_stack_trace
+FROM system.errors
+ORDER BY last_error_time DESC
 `,
+          params: {
+            allow_introspection_functions: 1,
+          },
         },
         sortOption: {
           initialSort: {
