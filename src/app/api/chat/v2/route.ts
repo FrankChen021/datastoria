@@ -4,9 +4,9 @@ import { generateChatTitle } from "@/lib/ai/agent/generate-chat-title";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "@/lib/ai/agent/orchestrator-prompt";
 import type { MessageMetadata } from "@/lib/ai/chat-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
-import { MessageCompressor } from "@/lib/ai/message-compressor";
+import { MessagePruner } from "@/lib/ai/message-pruner";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
-import { CLIENT_TOOL_NAMES, ClientTools } from "@/lib/ai/tools/client/client-tools";
+import { ClientTools } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { ServerTools } from "@/lib/ai/tools/server/server-tools";
 import { APICallError } from "@ai-sdk/provider";
@@ -38,7 +38,7 @@ function getMessageIdFromMessages(messages: UIMessage[]): string {
     messages[messages.length - 1].role === "assistant" &&
     Array.isArray(messages[messages.length - 1].parts) &&
     (messages[messages.length - 1].parts?.at(-1) as { state?: string } | undefined)?.state ===
-      "output-available";
+    "output-available";
   const lastAssistant = isContinuation ? (messages[messages.length - 1] as UIMessage) : undefined;
   const id =
     lastAssistant && "id" in lastAssistant && typeof lastAssistant.id === "string"
@@ -177,11 +177,6 @@ export async function POST(req: Request) {
     const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
 
     const originalMessages = apiRequest.messages ?? [];
-    const prunedMessages = MessageCompressor.pruneHistoricalToolParts(
-      originalMessages,
-      CLIENT_TOOL_NAMES.VALIDATE_SQL
-    );
-    const modelMessages = await convertToModelMessages(prunedMessages);
 
     // Request usage: only when continuing an assistant (messageId in request); else undefined for new message
     const messageId = getMessageIdFromMessages(apiRequest.messages);
@@ -196,19 +191,21 @@ export async function POST(req: Request) {
     }
     const requestUsage = continuedAssistant
       ? normalizeUsage(
-          (continuedAssistant as { metadata?: { usage?: unknown } }).metadata?.usage as Record<
-            string,
-            unknown
-          >
-        )
+        (continuedAssistant as { metadata?: { usage?: unknown } }).metadata?.usage as Record<
+          string,
+          unknown
+        >
+      )
       : undefined;
 
     const titlePromise =
       apiRequest.generateTitle !== false
         ? generateChatTitle(originalMessages, modelConfig, {
-            timeoutMs: TITLE_WAIT_MS,
-          })
+          timeoutMs: TITLE_WAIT_MS,
+        })
         : undefined;
+
+    const modelMessages = await convertToModelMessages(MessagePruner.prune(originalMessages));
 
     const result = streamText({
       model,
