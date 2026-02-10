@@ -2,6 +2,11 @@ import type { PlannerMetadata } from "@/lib/ai/agent/plan/planning-types";
 import type { ClientTools } from "@/lib/ai/tools/client/client-tools";
 import type { InferUITools, LanguageModelUsage, UIDataTypes, UIMessage } from "ai";
 
+export interface AgentContext {
+  /** Whether to prune successful validate_sql tool calls from history. Default: true. */
+  pruneValidateSql?: boolean;
+}
+
 export type MessageRole = "user" | "assistant" | "system" | "data" | "tool";
 
 export type MessagePartType = "text" | "tool-call" | "tool-result";

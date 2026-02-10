@@ -171,6 +171,9 @@ export class ChatFactory {
               messages,
               trigger,
               messageId,
+              agentContext: {
+                pruneValidateSql: AgentConfigurationManager.getConfiguration().pruneValidateSql,
+              },
               ...(ChatContext.build() && { context: ChatContext.build() }),
               ...(currentModel && { model: currentModel }),
             },

@@ -228,7 +228,8 @@ export async function POST(req: Request) {
               ? message.parts.filter((part) => {
                   const candidate = part as { type?: unknown; toolName?: unknown };
                   return !(
-                    candidate.type === "dynamic-tool" && candidate.toolName === SERVER_TOOL_NAMES.PLAN
+                    candidate.type === "dynamic-tool" &&
+                    candidate.toolName === SERVER_TOOL_NAMES.PLAN
                   );
                 })
               : message.parts;
