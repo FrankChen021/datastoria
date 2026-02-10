@@ -1,9 +1,18 @@
 import { QueryError, type JSONCompactFormatResponse } from "@/lib/connection/connection";
-import type { ToolExecutor } from "./client-tool-types";
+import type { ToolExecutor } from "../client-tool-types";
 
-export type HistoricalMetricType = "memory" | "disk" | "query_latency";
+export type HistoricalMetricType =
+  | "replication"
+  | "disk"
+  | "memory"
+  | "merges"
+  | "mutations"
+  | "parts"
+  | "errors"
+  | "connections"
+  | "query_latency";
 
-export type AnalyzeClusterMetricsInput = {
+export type GetSystemMetricsInput = {
   metric_type: HistoricalMetricType;
   /**
    * Lookback window in minutes (e.g. 60 = last 60 minutes).
@@ -28,7 +37,7 @@ export type TimeSeriesPoint = {
   value: number;
 };
 
-export type AnalyzeClusterMetricsOutput = {
+export type GetSystemMetricsOutput = {
   success: boolean;
   metric_type: HistoricalMetricType;
   time_window?: number;
@@ -48,6 +57,60 @@ export type AnalyzeClusterMetricsOutput = {
   error?: string;
 };
 
+type MetricDefinition = {
+  // Expression evaluated per (event_time, host_name), then averaged by time bucket.
+  innerMetricExpression: string;
+  message: string;
+};
+
+const METRIC_DEFINITIONS: Record<HistoricalMetricType, MetricDefinition> = {
+  replication: {
+    innerMetricExpression: "sum(ProfileEvent_ReplicatedPartFailedFetches)",
+    message:
+      "Replication trend derived from system.metric_log (ProfileEvent_ReplicatedPartFailedFetches). Higher values indicate more failed fetch activity.",
+  },
+  disk: {
+    innerMetricExpression: "sum(ProfileEvent_OSReadBytes) + sum(ProfileEvent_OSWriteBytes)",
+    message:
+      "Disk I/O trend derived from system.metric_log (ProfileEvent_OSReadBytes + ProfileEvent_OSWriteBytes).",
+  },
+  memory: {
+    innerMetricExpression: "max(CurrentMetric_MemoryTracking)",
+    message:
+      "Memory usage trend derived from system.metric_log (CurrentMetric_MemoryTracking). Use summary.trend to see overall direction.",
+  },
+  merges: {
+    innerMetricExpression: "max(CurrentMetric_Merge)",
+    message: "Merge pressure trend derived from system.metric_log (CurrentMetric_Merge).",
+  },
+  mutations: {
+    innerMetricExpression: "sum(ProfileEvent_ReplicatedPartMutations)",
+    message:
+      "Mutation activity trend derived from system.metric_log (ProfileEvent_ReplicatedPartMutations).",
+  },
+  parts: {
+    innerMetricExpression: "sum(ProfileEvent_SelectedParts)",
+    message:
+      "Part activity trend derived from system.metric_log (ProfileEvent_SelectedParts). This is an activity signal, not direct active part-count inventory.",
+  },
+  errors: {
+    innerMetricExpression: "sum(ProfileEvent_FailedQuery)",
+    message: "Error trend derived from system.metric_log (ProfileEvent_FailedQuery).",
+  },
+  connections: {
+    innerMetricExpression:
+      "max(CurrentMetric_TCPConnection) + max(CurrentMetric_MySQLConnection) + max(CurrentMetric_HTTPConnection) + max(CurrentMetric_InterserverConnection)",
+    message:
+      "Connection pressure trend derived from system.metric_log (TCP/MySQL/HTTP/Interserver current connections).",
+  },
+  query_latency: {
+    innerMetricExpression:
+      "if(sum(ProfileEvent_Query) = 0, 0, (sum(ProfileEvent_QueryTimeMicroseconds) / sum(ProfileEvent_Query)) / 1000)",
+    message:
+      "Query latency trend derived from system.metric_log (avg query time from ProfileEvent_QueryTimeMicroseconds / ProfileEvent_Query, in milliseconds).",
+  },
+};
+
 function buildTimeFilterClause(
   time_window?: number,
   time_range?: { from: string; to: string }
@@ -58,28 +121,28 @@ function buildTimeFilterClause(
 } {
   if (time_range?.from && time_range?.to) {
     return {
-      whereClause: `event_time >= toDateTime('${time_range.from}') AND event_time <= toDateTime('${time_range.to}')`,
+      whereClause: `event_date >= toDate('${time_range.from}') AND event_date <= toDate('${time_range.to}') AND event_time >= toDateTime('${time_range.from}') AND event_time <= toDateTime('${time_range.to}')`,
       range: time_range,
     };
   }
 
   const minutes = time_window ?? 60;
   return {
-    whereClause: `event_time >= now() - INTERVAL ${minutes} MINUTE`,
+    whereClause: `event_date >= toDate(now() - INTERVAL ${minutes} MINUTE) AND event_time >= now() - INTERVAL ${minutes} MINUTE`,
     window: minutes,
   };
 }
 
 async function queryJsonCompact(
   sql: string,
-  connection: Parameters<ToolExecutor<AnalyzeClusterMetricsInput, AnalyzeClusterMetricsOutput>>[1]
+  connection: Parameters<ToolExecutor<GetSystemMetricsInput, GetSystemMetricsOutput>>[1]
 ): Promise<JSONCompactFormatResponse> {
   const { response } = connection.query(sql, { default_format: "JSONCompact" });
   const apiResponse = await response;
   return apiResponse.data.json<JSONCompactFormatResponse>();
 }
 
-function computeSummary(points: TimeSeriesPoint[]): AnalyzeClusterMetricsOutput["summary"] {
+function computeSummary(points: TimeSeriesPoint[]): GetSystemMetricsOutput["summary"] {
   if (points.length === 0) {
     return {
       min: null,
@@ -124,46 +187,31 @@ function computeSummary(points: TimeSeriesPoint[]): AnalyzeClusterMetricsOutput[
   };
 }
 
-export const analyzeClusterMetricsExecutor: ToolExecutor<
-  AnalyzeClusterMetricsInput,
-  AnalyzeClusterMetricsOutput
-> = async (input, connection) => {
+export const getSystemMetrics: ToolExecutor<GetSystemMetricsInput, GetSystemMetricsOutput> = async (
+  input,
+  connection
+) => {
   const { metric_type } = input;
   const granularityMinutes =
     input.granularity_minutes && input.granularity_minutes > 0 ? input.granularity_minutes : 5;
 
   const timeInfo = buildTimeFilterClause(input.time_window, input.time_range);
-
-  // Currently we implement memory trends using system.metric_log.
-  // Other metric types will return a friendly message indicating limited support.
-  if (metric_type !== "memory") {
-    return {
-      success: false,
-      metric_type,
-      time_window: timeInfo.window,
-      time_range: timeInfo.range,
-      granularity_minutes: granularityMinutes,
-      series: [],
-      summary: {
-        min: null,
-        max: null,
-        avg: null,
-        trend: "unknown",
-      },
-      message:
-        "Historical analysis is currently implemented only for metric_type='memory'. Other metrics will be added in future versions.",
-    };
-  }
+  const metricDefinition = METRIC_DEFINITIONS[metric_type];
 
   try {
     const sql = `
 SELECT
   toStartOfInterval(event_time, INTERVAL ${granularityMinutes} MINUTE) AS bucket_start,
-  avgIf(value, metric = 'MemoryTracking') AS avg_memory_bytes
-FROM {clusterAllReplicas:system.metric_log}
-WHERE
-  metric = 'MemoryTracking'
-  AND ${timeInfo.whereClause}
+  avg(metric_value) AS metric_value
+FROM (
+  SELECT
+    event_time,
+    FQDN() AS host_name,
+    ${metricDefinition.innerMetricExpression} AS metric_value
+  FROM {clusterAllReplicas:system.metric_log}
+  WHERE ${timeInfo.whereClause}
+  GROUP BY event_time, host_name
+)
 GROUP BY bucket_start
 ORDER BY bucket_start
 SETTINGS max_execution_time = 0
@@ -190,8 +238,7 @@ SETTINGS max_execution_time = 0
       granularity_minutes: granularityMinutes,
       series,
       summary,
-      message:
-        "Memory usage trend derived from system.metric_log (MemoryTracking). Use summary.trend to see overall direction.",
+      message: metricDefinition.message,
     };
   } catch (error) {
     const message =

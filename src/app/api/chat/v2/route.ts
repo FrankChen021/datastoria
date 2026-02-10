@@ -222,9 +222,9 @@ export async function POST(req: Request) {
         validate_sql: ClientTools.validate_sql,
         execute_sql: ClientTools.execute_sql,
         collect_sql_optimization_evidence: ClientTools.collect_sql_optimization_evidence,
+        // DEPRECATED: kept for backward compatibility.
         find_expensive_queries: ClientTools.find_expensive_queries,
-        check_cluster_health: ClientTools.check_cluster_health,
-        analyze_cluster_metrics: ClientTools.analyze_cluster_metrics,
+        collect_cluster_status: ClientTools.collect_cluster_status,
       },
       stopWhen: stepCountIs(10),
       temperature,
