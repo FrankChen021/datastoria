@@ -32,27 +32,6 @@ interface ChatRequest {
   };
 }
 
-const VALIDATE_SQL_TOOL_NAME = "validate_sql";
-
-function hasValidateSqlToolPart(part: unknown): boolean {
-  if (!part || typeof part !== "object") return false;
-  const candidate = part as { toolName?: unknown; type?: unknown };
-  return (
-    candidate.toolName === VALIDATE_SQL_TOOL_NAME ||
-    candidate.type === `tool-${VALIDATE_SQL_TOOL_NAME}`
-  );
-}
-
-function lastAssistantMessageHasValidateSqlTool(messages: ChatUIMessage[]): boolean {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i] as { role?: string; parts?: unknown[] };
-    if (message.role !== "assistant") continue;
-    if (!Array.isArray(message.parts)) return false;
-    return message.parts.some(hasValidateSqlToolPart);
-  }
-  return false;
-}
-
 /**
  * Extracts error message from response body.
  * Tries to extract the raw message from metadata, falls back to error message.
@@ -243,21 +222,13 @@ export async function POST(req: Request) {
             messageId,
           } = await PlanningAgent.plan(streamer, inputMessages, modelConfig);
 
-          const shouldPruneValidateSqlHistory = !lastAssistantMessageHasValidateSqlTool(
-            inputMessages
-          );
-
-          // Remove any plan tool parts and, when safe, historical validate_sql parts
-          // from UI messages before converting to model messages.
+          // Remove any plan tool parts from UI messages before converting to model messages.
           const prunedMessages = inputMessages.map((message) => {
             const parts = Array.isArray(message.parts)
               ? message.parts.filter((part) => {
                   const candidate = part as { type?: unknown; toolName?: unknown };
-                  const isPlanToolPart =
-                    candidate.type === "dynamic-tool" && candidate.toolName === SERVER_TOOL_NAMES.PLAN;
-                  return (
-                    !isPlanToolPart &&
-                    !(shouldPruneValidateSqlHistory && hasValidateSqlToolPart(part))
+                  return !(
+                    candidate.type === "dynamic-tool" && candidate.toolName === SERVER_TOOL_NAMES.PLAN
                   );
                 })
               : message.parts;
