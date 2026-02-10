@@ -29,7 +29,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
+    "docs:build": "node scripts/copy-docs-manual-img.mjs && vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
   "dependencies": {

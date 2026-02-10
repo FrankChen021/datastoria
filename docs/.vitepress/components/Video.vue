@@ -41,21 +41,21 @@ const props = withDefaults(defineProps<Props>(), {
   rounded: true,
 })
 
-const { page } = useData()
+const { page, site } = useData()
 
-// Resolve path: relative paths (./...) are resolved against current page dir so built docs serve from public/
+// Resolve path: relative paths (./...) against current page dir; prepend base for subpath deployment
 const webm = computed(() => {
   let path = props.src
-  // Remove /public/ prefix if present (VitePress serves public/ from root)
   path = path.replace(/^\.\/public\//, '/').replace(/^\/public\//, '/')
   if (path.startsWith('./')) {
-    // Resolve relative to current page so ./img/foo.webm -> /manual/04-cluster-management/img/foo.webm
     const dir = page.value.relativePath.replace(/\/[^/]+$/, '/')
     path = `/${dir}${path.slice(2)}`
   } else if (path.startsWith('/') === false) {
     path = `/${path}`
   }
-  return path.replace(/\.(gif|mp4|webm)$/i, '.webm')
+  path = path.replace(/\.(gif|mp4|webm)$/i, '.webm')
+  const base = site.value.base.replace(/\/$/, '')
+  return base ? `${base}${path}` : path
 })
 
 const videoClass = computed(() => ({
