@@ -27,6 +27,39 @@ interface ChatV2Request {
   generateTitle?: boolean;
 }
 
+const VALIDATE_SQL_TOOL_NAME = "validate_sql";
+
+function hasValidateSqlToolPart(part: unknown): boolean {
+  if (!part || typeof part !== "object") return false;
+  const candidate = part as { toolName?: unknown; type?: unknown };
+  return (
+    candidate.toolName === VALIDATE_SQL_TOOL_NAME ||
+    candidate.type === `tool-${VALIDATE_SQL_TOOL_NAME}`
+  );
+}
+
+function lastAssistantMessageHasValidateSqlTool(messages: UIMessage[]): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (message.role !== "assistant") continue;
+    return message.parts.some(hasValidateSqlToolPart);
+  }
+  return false;
+}
+
+function pruneHistoricalValidateSqlToolParts(messages: UIMessage[]): UIMessage[] {
+  if (lastAssistantMessageHasValidateSqlTool(messages)) {
+    return messages;
+  }
+
+  return messages.map((message) => {
+    return {
+      ...message,
+      parts: message.parts.filter((part) => !hasValidateSqlToolPart(part)),
+    };
+  });
+}
+
 /**
  * Derives the message ID for the assistant response from messages (same logic as original chat API / PlanningInput).
  * Continuation (last message is assistant with tool-result): use that assistant's id. Otherwise generate a new id.
@@ -176,7 +209,8 @@ export async function POST(req: Request) {
     const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
 
     const originalMessages = apiRequest.messages ?? [];
-    const modelMessages = await convertToModelMessages(originalMessages);
+    const prunedMessages = pruneHistoricalValidateSqlToolParts(originalMessages);
+    const modelMessages = await convertToModelMessages(prunedMessages);
 
     // Request usage: only when continuing an assistant (messageId in request); else undefined for new message
     const messageId = getMessageIdFromMessages(apiRequest.messages);
