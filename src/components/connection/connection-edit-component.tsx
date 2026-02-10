@@ -53,7 +53,7 @@ export function StatusPopover({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent className={cn("p-0 overflow-hidden z-[10000]", className)} {...props}>
+      <PopoverContent className={cn("p-0 overflow-hidden z-[10002]", className)} {...props}>
         <PopoverPrimitive.Arrow className={cn("fill-[var(--border)]")} width={12} height={8} />
         <div className="flex items-start gap-2 px-3 py-3">
           {icon}
