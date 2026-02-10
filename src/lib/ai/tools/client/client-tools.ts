@@ -12,20 +12,15 @@ import {
   collectSqlOptimizationEvidenceExecutor,
   type EvidenceContext,
 } from "./collect-sql-optimization-evidence";
-import {
-  analyzeClusterMetricsExecutor,
-  type AnalyzeClusterMetricsInput,
-  type AnalyzeClusterMetricsOutput,
-} from "./analyze-cluster-metrics";
-import {
-  checkClusterHealthExecutor,
-  type CheckClusterHealthInput,
-  type CheckClusterHealthOutput,
-} from "./check-cluster-health";
 import { executeSqlExecutor } from "./execute-sql";
 import { exploreSchemaExecutor } from "./explore-schema";
 import { findExpensiveQueriesExecutor } from "./find-expensive-queries";
 import { getTablesExecutor } from "./get-tables";
+import {
+  getClusterStatusExecutor,
+  type GetClusterStatusInput,
+  type GetClusterStatusOutput,
+} from "./status/collect-cluster-status";
 import { validateSqlExecutor } from "./validate-sql";
 
 export type ValidateSqlToolInput = {
@@ -175,7 +170,7 @@ export const ClientTools = {
         .max(1440)
         .optional()
         .describe(
-          "Relative lookback window in minutes from now (5-1440). Use this OR time_range, not both. When called after find_expensive_queries, pass the same value."
+          "Relative lookback window in minutes from now (5-1440). Use this OR time_range, not both. Keep this aligned with discovery time filters when chaining tools."
         ),
       time_range: z
         .object({
@@ -194,9 +189,11 @@ export const ClientTools = {
     }),
     outputSchema: z.custom<EvidenceContext>(),
   }),
+  // DEPRECATED: Keep for backward compatibility (v1 and historical prompts).
+  // Prefer execute_sql with direct system.query_log SQL for new query-log workflows.
   find_expensive_queries: tool({
     description:
-      "Find expensive queries from system.query_log by resource metric. Queries are grouped by pattern (normalized_query_hash) and metrics are aggregated across all executions. Use when user asks to find/optimize heavy queries without providing specific SQL or query_id. Supported metrics: cpu (CPU time), memory (peak RAM usage), disk (bytes read), duration (execution time). Returns execution_count showing how many times each query pattern ran. NOT supported: filtering by user, database, table name, or query pattern. Time filtering: use 'time_window' for relative time (last N minutes) or 'time_range' for absolute dates.",
+      "DEPRECATED (kept for backward compatibility): Find expensive queries from system.query_log by resource metric. Queries are grouped by pattern (normalized_query_hash) and metrics are aggregated across all executions. Supported metrics: cpu (CPU time), memory (peak RAM usage), disk (bytes read), duration (execution time). For failed queries or custom filters (user/database/pattern), use execute_sql with direct system.query_log SQL.",
     inputSchema: z.object({
       metric: z
         .enum(["cpu", "memory", "disk", "duration"])
@@ -265,14 +262,74 @@ export const ClientTools = {
       ),
     }),
   }),
-  check_cluster_health: tool({
+  collect_cluster_status: tool({
     description:
-      "Analyze current ClickHouse cluster health using system tables. Returns aggregated metrics and only outlier nodes to keep responses compact. Supports categories: replication, disk, memory, merges, mutations, parts, errors, connections.",
-    inputSchema: z
-      .object({
-        checks: z
-          .array(
-            z.enum([
+      "Collect ClickHouse cluster status and trend signals from system tables and system.metric_log. This is a collection tool (not diagnosis): it returns raw health summaries/outliers for the cluster-health skill to interpret.",
+    inputSchema: z.object({
+      status_analysis_mode: z
+        .enum(["snapshot", "trend", "both"])
+        .optional()
+        .describe(
+          "Select analysis mode: 'snapshot' for current state (default), 'trend' for historical series, 'both' for both outputs."
+        ),
+      checks: z
+        .array(
+          z.enum([
+            "replication",
+            "disk",
+            "memory",
+            "merges",
+            "mutations",
+            "parts",
+            "errors",
+            "connections",
+          ])
+        )
+        .optional()
+        .describe(
+          "Optional list of health check categories to run. Defaults to all categories when omitted."
+        ),
+      verbosity: z
+        .enum(["summary", "detailed"])
+        .optional()
+        .describe("Verbosity level for explanations. Currently informational only."),
+      thresholds: z
+        .object({
+          disk_warning: z
+            .number()
+            .optional()
+            .describe("Disk usage warning threshold as percentage (default: 80)."),
+          disk_critical: z
+            .number()
+            .optional()
+            .describe("Disk usage critical threshold as percentage (default: 90)."),
+          replication_lag_warning_seconds: z
+            .number()
+            .optional()
+            .describe("Replication lag warning threshold in seconds (default: 60)."),
+          replication_lag_critical_seconds: z
+            .number()
+            .optional()
+            .describe("Replication lag critical threshold in seconds (default: 300)."),
+          parts_warning: z
+            .number()
+            .optional()
+            .describe("Per-table part count warning threshold (default: 500)."),
+          parts_critical: z
+            .number()
+            .optional()
+            .describe("Per-table part count critical threshold (default: 1000)."),
+        })
+        .optional()
+        .describe("Optional override thresholds used to classify WARNING vs CRITICAL."),
+      max_outliers: z
+        .number()
+        .optional()
+        .describe("Maximum number of outlier nodes/tables to return per category. Default: 10."),
+      trend: z
+        .object({
+          metric_type: z
+            .enum([
               "replication",
               "disk",
               "memory",
@@ -281,137 +338,102 @@ export const ClientTools = {
               "parts",
               "errors",
               "connections",
+              "query_latency",
             ])
-          )
-          .optional()
-          .describe(
-            "Optional list of health check categories to run. Defaults to all categories when omitted."
+            .optional()
+            .describe(
+              "Historical metric type for trend analysis. Maps to representative system.metric_log signals for the corresponding health category. Defaults to 'errors' when omitted."
+            ),
+          time_window: z
+            .number()
+            .min(5)
+            .max(7 * 24 * 60)
+            .optional()
+            .describe(
+              "Relative lookback window in minutes from now (5 - 10080). Use this OR time_range, not both."
+            ),
+          time_range: z
+            .object({
+              from: z
+                .string()
+                .describe(
+                  "Start datetime (ISO 8601 format, e.g., '2025-01-01T00:00:00' or '2025-01-01')."
+                ),
+              to: z
+                .string()
+                .describe(
+                  "End datetime (ISO 8601 format, e.g., '2025-01-02T00:00:00' or '2025-01-02')."
+                ),
+            })
+            .optional()
+            .describe(
+              "Absolute time range for historical analysis. If provided, takes precedence over time_window."
+            ),
+          granularity_minutes: z
+            .number()
+            .min(1)
+            .max(24 * 60)
+            .optional()
+            .describe(
+              "Aggregation granularity in minutes for time buckets. Default: 5. Example: 60 = one point per hour."
+            ),
+        })
+        .optional()
+        .describe("Historical trend options used when status_analysis_mode is 'trend' or 'both'."),
+    }) as z.ZodType<GetClusterStatusInput>,
+    outputSchema: z.object({
+      success: z.boolean(),
+      status_analysis_mode: z.enum(["snapshot", "trend", "both"]),
+      scope: z.enum(["single_node", "cluster"]),
+      cluster: z.string().optional(),
+      node_count: z.number(),
+      summary: z.object({
+        total_nodes: z.number(),
+        healthy_nodes: z.number(),
+        nodes_with_issues: z.number(),
+      }),
+      categories: z.record(z.any()),
+      trend: z
+        .object({
+          success: z.boolean(),
+          metric_type: z.enum([
+            "replication",
+            "disk",
+            "memory",
+            "merges",
+            "mutations",
+            "parts",
+            "errors",
+            "connections",
+            "query_latency",
+          ]),
+          time_window: z.number().optional(),
+          time_range: z
+            .object({
+              from: z.string(),
+              to: z.string(),
+            })
+            .optional(),
+          granularity_minutes: z.number(),
+          series: z.array(
+            z.object({
+              timestamp: z.string(),
+              value: z.number(),
+            })
           ),
-        verbosity: z
-          .enum(["summary", "detailed"])
-          .optional()
-          .describe("Verbosity level for explanations. Currently informational only."),
-        thresholds: z
-          .object({
-            disk_warning: z
-              .number()
-              .optional()
-              .describe("Disk usage warning threshold as percentage (default: 80)."),
-            disk_critical: z
-              .number()
-              .optional()
-              .describe("Disk usage critical threshold as percentage (default: 90)."),
-            replication_lag_warning_seconds: z
-              .number()
-              .optional()
-              .describe("Replication lag warning threshold in seconds (default: 60)."),
-            replication_lag_critical_seconds: z
-              .number()
-              .optional()
-              .describe("Replication lag critical threshold in seconds (default: 300)."),
-            parts_warning: z
-              .number()
-              .optional()
-              .describe("Per-table part count warning threshold (default: 500)."),
-            parts_critical: z
-              .number()
-              .optional()
-              .describe("Per-table part count critical threshold (default: 1000)."),
-          })
-          .optional()
-          .describe("Optional override thresholds used to classify WARNING vs CRITICAL."),
-        max_outliers: z
-          .number()
-          .optional()
-          .describe("Maximum number of outlier nodes/tables to return per category. Default: 10."),
-      }) as z.ZodType<CheckClusterHealthInput>,
-    outputSchema: z
-      .object({
-        success: z.boolean(),
-        mode: z.enum(["single_node", "cluster"]),
-        cluster: z.string().optional(),
-        node_count: z.number(),
-        summary: z.object({
-          total_nodes: z.number(),
-          healthy_nodes: z.number(),
-          nodes_with_issues: z.number(),
-        }),
-        categories: z.record(z.any()),
-        generated_at: z.string(),
-        error: z.string().optional(),
-      }) as z.ZodType<CheckClusterHealthOutput>,
-  }),
-  analyze_cluster_metrics: tool({
-    description:
-      "Analyze historical cluster metrics (currently memory usage) using system.metric_log. Returns aggregated time-series suitable for trend and anomaly analysis.",
-    inputSchema: z
-      .object({
-        metric_type: z
-          .enum(["memory", "disk", "query_latency"])
-          .describe(
-            "Type of metric to analyze. Currently only 'memory' is implemented; other metrics return an explanatory message."
-          ),
-        time_window: z
-          .number()
-          .min(5)
-          .max(7 * 24 * 60)
-          .optional()
-          .describe(
-            "Relative lookback window in minutes from now (5 - 10080). Use this OR time_range, not both."
-          ),
-        time_range: z
-          .object({
-            from: z
-              .string()
-              .describe(
-                "Start datetime (ISO 8601 format, e.g., '2025-01-01T00:00:00' or '2025-01-01')."
-              ),
-            to: z
-              .string()
-              .describe(
-                "End datetime (ISO 8601 format, e.g., '2025-01-02T00:00:00' or '2025-01-02')."
-              ),
-          })
-          .optional()
-          .describe(
-            "Absolute time range for historical analysis. If provided, takes precedence over time_window."
-          ),
-        granularity_minutes: z
-          .number()
-          .min(1)
-          .max(24 * 60)
-          .optional()
-          .describe(
-            "Aggregation granularity in minutes for time buckets. Default: 5. Example: 60 = one point per hour."
-          ),
-      }) as z.ZodType<AnalyzeClusterMetricsInput>,
-    outputSchema: z
-      .object({
-        success: z.boolean(),
-        metric_type: z.enum(["memory", "disk", "query_latency"]),
-        time_window: z.number().optional(),
-        time_range: z
-          .object({
-            from: z.string(),
-            to: z.string(),
-          })
-          .optional(),
-        granularity_minutes: z.number(),
-        series: z.array(
-          z.object({
-            timestamp: z.string(),
-            value: z.number(),
-          })
-        ),
-        summary: z.object({
-          min: z.number().nullable(),
-          max: z.number().nullable(),
-          avg: z.number().nullable(),
-          trend: z.enum(["up", "down", "flat", "unknown"]),
-        }),
-        message: z.string().optional(),
-        error: z.string().optional(),
-      }) as z.ZodType<AnalyzeClusterMetricsOutput>,
+          summary: z.object({
+            min: z.number().nullable(),
+            max: z.number().nullable(),
+            avg: z.number().nullable(),
+            trend: z.enum(["up", "down", "flat", "unknown"]),
+          }),
+          message: z.string().optional(),
+          error: z.string().optional(),
+        })
+        .optional(),
+      generated_at: z.string(),
+      error: z.string().optional(),
+    }) as z.ZodType<GetClusterStatusOutput>,
   }),
 };
 
@@ -425,9 +447,9 @@ export const CLIENT_TOOL_NAMES = {
   EXECUTE_SQL: "execute_sql",
   VALIDATE_SQL: "validate_sql",
   COLLECT_SQL_OPTIMIZATION_EVIDENCE: "collect_sql_optimization_evidence",
+  // DEPRECATED: Keep for backward compatibility (v1 and historical tool-call messages).
   FIND_EXPENSIVE_QUERIES: "find_expensive_queries",
-  CHECK_CLUSTER_HEALTH: "check_cluster_health",
-  ANALYZE_CLUSTER_METRICS: "analyze_cluster_metrics",
+  COLLECT_CLUSTER_STATUS: "collect_cluster_status",
 } as const;
 
 export function convertToAppUIMessage(message: UIMessage): AppUIMessage {
@@ -449,6 +471,5 @@ export const ClientToolExecutors: {
   validate_sql: validateSqlExecutor,
   collect_sql_optimization_evidence: collectSqlOptimizationEvidenceExecutor,
   find_expensive_queries: findExpensiveQueriesExecutor,
-  check_cluster_health: checkClusterHealthExecutor,
-  analyze_cluster_metrics: analyzeClusterMetricsExecutor,
+  collect_cluster_status: getClusterStatusExecutor,
 };

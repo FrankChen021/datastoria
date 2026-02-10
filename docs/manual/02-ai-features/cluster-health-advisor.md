@@ -32,7 +32,7 @@ To get an instant snapshot of your cluster health, open the AI chat panel and as
 - **"Is my ClickHouse cluster healthy?"**
 - **"@health full diagnostic"**
 
-Behind the scenes, the Cluster Health Advisor uses the `check_cluster_health` tool to query system tables and return a compact, aggregated view of your environment. Only **outlier nodes and tables** are included in detail so the response stays readable even for large clusters.
+Behind the scenes, the Cluster Health Advisor uses the `collect_cluster_status` tool to query system tables and return a compact, aggregated view of your environment. Only **outlier nodes and tables** are included in detail so the response stays readable even for large clusters.
 
 ### Health Categories Covered
 
@@ -68,7 +68,7 @@ Use historical analysis when you need to answer questions like:
 - **"Is this spike in resource usage new or a recurring pattern?"**
 - **"How does current pressure compare to typical off-peak hours?"**
 
-In these cases, the Cluster Health Advisor calls the `analyze_cluster_metrics` tool to read from log tables such as `system.metric_log` and build **time-series trends**.
+In these cases, the Cluster Health Advisor calls the `collect_cluster_status` tool with trend mode to read from log tables such as `system.metric_log` and build **time-series trends**.
 
 ### Current Capabilities
 
@@ -169,4 +169,3 @@ If you run into situations where the advisor cannot access certain system tables
 - **[Ask AI for Help](./ask-ai-for-help.md)** — Let AI explain and fix SQL errors directly from the Query Editor
 - **[Natural Language SQL](./natural-language-sql.md)** — Generate ClickHouse queries from plain-language questions
 - **[Query Optimization](./query-optimization.md)** — Analyze slow queries and get evidence-based performance recommendations
-
