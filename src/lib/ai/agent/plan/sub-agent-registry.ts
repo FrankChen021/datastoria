@@ -1,4 +1,5 @@
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
+import { streamClusterHealth } from "@/lib/ai/agent/cluster-health-agent";
 import { createGeneralAgent } from "@/lib/ai/agent/general-agent";
 import { streamSqlGeneration } from "@/lib/ai/agent/sql-generation-agent";
 import { streamSqlOptimization } from "@/lib/ai/agent/sql-optimization-agent";
@@ -48,6 +49,15 @@ export const SUB_AGENTS: Record<string, SubAgent> = {
     keyword: "@optimizer ",
     stream: streamSqlOptimization,
   },
+  health: {
+    id: "health",
+    description:
+      "Use this for cluster and node health diagnostics, replication lag, disk usage, memory pressure, part explosion, mutations, and recent errors.",
+    keyword: "@health",
+    stream: streamClusterHealth as SubAgent["stream"],
+    heuristics:
+      /\b(cluster health|replication lag|replica lag|disk usage|out of space|low disk|too many parts|parts explosion|mutation backlog|stuck mutation|merge backlog|node down|replica down|replica readonly|errors per second|error rate|memory usage|out of memory|OOM|connection spike|too many connections)\b/i,
+  },
   visualizer: {
     id: "visualizer",
     description:
@@ -79,7 +89,7 @@ export const AGENT_ID_LIST = Object.values(SUB_AGENTS)
   .map((agent) => agent.id)
   .join('" | "');
 
-export type Intent = "generator" | "optimizer" | "visualizer" | "general";
+export type Intent = "generator" | "optimizer" | "visualizer" | "general" | "health";
 
 /**
  * Resolves a string key (e.g. from metadata or tool output) to a valid Intent, or undefined.
