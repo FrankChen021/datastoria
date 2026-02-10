@@ -223,13 +223,17 @@ export async function POST(req: Request) {
           } = await PlanningAgent.plan(streamer, inputMessages, modelConfig);
 
           // Remove any plan tool parts from UI messages before converting to model messages.
-          const prunedMessages = (inputMessages || []).map((m: any) => {
-            const parts = Array.isArray(m.parts)
-              ? m.parts.filter(
-                  (p: any) => !(p.type === "dynamic-tool" && p.toolName === SERVER_TOOL_NAMES.PLAN)
-                )
-              : m.parts;
-            return { ...m, parts };
+          const prunedMessages = inputMessages.map((message) => {
+            const parts = Array.isArray(message.parts)
+              ? message.parts.filter((part) => {
+                  const candidate = part as { type?: unknown; toolName?: unknown };
+                  return !(
+                    candidate.type === "dynamic-tool" &&
+                    candidate.toolName === SERVER_TOOL_NAMES.PLAN
+                  );
+                })
+              : message.parts;
+            return { ...message, parts };
           });
 
           // 2. Delegate to Expert Sub-Agent

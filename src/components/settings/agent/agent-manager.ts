@@ -7,6 +7,8 @@ const STORAGE_KEY = "settings:ai:agent";
 
 export type AgentConfiguration = {
   mode: AgentMode;
+  /** Whether to prune successful validate_sql tool calls from history. Default true. */
+  pruneValidateSql?: boolean;
 };
 
 export class AgentConfigurationManager {
@@ -22,6 +24,7 @@ export class AgentConfigurationManager {
       this.configuration = storage.getAsJSON<AgentConfiguration>(() => {
         return {
           mode: "v2",
+          pruneValidateSql: true,
         };
       });
     }

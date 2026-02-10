@@ -2,8 +2,9 @@ import { auth, isAuthEnabled } from "@/auth";
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
 import { generateChatTitle } from "@/lib/ai/agent/generate-chat-title";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "@/lib/ai/agent/orchestrator-prompt";
-import type { MessageMetadata } from "@/lib/ai/chat-types";
+import type { AgentContext, MessageMetadata } from "@/lib/ai/chat-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
+import { MessagePruner } from "@/lib/ai/message-pruner";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { ClientTools } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
@@ -25,6 +26,7 @@ interface ChatV2Request {
   model?: { provider: string; modelId: string; apiKey: string };
   /** Whether to request LLM-generated chat title for new conversations. Default true. */
   generateTitle?: boolean;
+  agentContext?: AgentContext;
 }
 
 /**
@@ -176,7 +178,6 @@ export async function POST(req: Request) {
     const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
 
     const originalMessages = apiRequest.messages ?? [];
-    const modelMessages = await convertToModelMessages(originalMessages);
 
     // Request usage: only when continuing an assistant (messageId in request); else undefined for new message
     const messageId = getMessageIdFromMessages(apiRequest.messages);
@@ -204,6 +205,10 @@ export async function POST(req: Request) {
             timeoutMs: TITLE_WAIT_MS,
           })
         : undefined;
+
+    const modelMessages = await convertToModelMessages(
+      MessagePruner.prune(originalMessages, apiRequest.agentContext)
+    );
 
     const result = streamText({
       model,

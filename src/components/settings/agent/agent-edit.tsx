@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -31,10 +33,16 @@ export function AgentEdit() {
     AgentConfigurationManager.setConfiguration(newConfig);
   };
 
+  const handlePruningChange = (checked: boolean) => {
+    const newConfig = { ...configuration, pruneValidateSql: checked };
+    setConfiguration(newConfig);
+    AgentConfigurationManager.setConfiguration(newConfig);
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex-1 p-6">
-        <div className="grid gap-6">
+        <div className="grid gap-2">
           <div className="grid grid-cols-[200px_300px_1fr] gap-8 items-start">
             <div className="space-y-1 pt-2">
               <Label>Agent Mode</Label>
@@ -53,13 +61,31 @@ export function AgentEdit() {
                     onValueChange={handleModeChange}
                   >
                     <DropdownMenuRadioItem value="v2">V2 (Skill-based)</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="legacy">V1 (Legacy)</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="legacy">
+                      V1 (Should not be used)
+                    </DropdownMenuRadioItem>
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
             <div className="text-sm text-muted-foreground pt-2">
               Select which agent architecture to use for chat interactions.
+            </div>
+          </div>
+
+          <Separator />
+          <div className="grid grid-cols-[200px_300px_1fr] gap-8 items-start">
+            <div className="space-y-1 pt-2">
+              <Label>Context Pruning</Label>
+            </div>
+            <div className="flex items-center h-10">
+              <Switch
+                checked={configuration.pruneValidateSql ?? true}
+                onCheckedChange={handlePruningChange}
+              />
+            </div>
+            <div className="text-sm text-muted-foreground pt-2">
+              Enable surgical pruning of SQL validations from history to save tokens.
             </div>
           </div>
         </div>
