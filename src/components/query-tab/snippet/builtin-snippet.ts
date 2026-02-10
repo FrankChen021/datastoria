@@ -4,8 +4,18 @@ export const builtinSnippet: Snippet[] = [
   {
     builtin: true,
     caption: "show_stack_trace",
-    sql: `WITH arrayMap(x -> demangle(addressToSymbol(x)), trace) AS all 
-SELECT thread_name, thread_id, query_id, arrayStringConcat(all, '\\n') AS stack 
+    sql: `SELECT 
+  thread_name, 
+  thread_id, 
+  query_id, 
+  arrayStringConcat(
+      arrayMap(
+          (index, line) -> concat(index, ': ', line),
+          arrayEnumerate(trace),
+          arrayMap(x -> demangle(addressToSymbol(x)), trace)
+      ),
+      '\\n'
+  ) AS stack
 FROM system.stack_trace
 -- WHERE stack LIKE '%xxx%' -- Change to your own
 SETTINGS allow_introspection_functions = 1\\G`,
