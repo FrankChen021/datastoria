@@ -12,6 +12,16 @@ import {
   collectSqlOptimizationEvidenceExecutor,
   type EvidenceContext,
 } from "./collect-sql-optimization-evidence";
+import {
+  analyzeClusterMetricsExecutor,
+  type AnalyzeClusterMetricsInput,
+  type AnalyzeClusterMetricsOutput,
+} from "./analyze-cluster-metrics";
+import {
+  checkClusterHealthExecutor,
+  type CheckClusterHealthInput,
+  type CheckClusterHealthOutput,
+} from "./check-cluster-health";
 import { executeSqlExecutor } from "./execute-sql";
 import { exploreSchemaExecutor } from "./explore-schema";
 import { findExpensiveQueriesExecutor } from "./find-expensive-queries";
@@ -314,8 +324,7 @@ export const ClientTools = {
           .number()
           .optional()
           .describe("Maximum number of outlier nodes/tables to return per category. Default: 10."),
-      })
-      .satisfies(z.ZodType<CheckClusterHealthInput>),
+      }) as z.ZodType<CheckClusterHealthInput>,
     outputSchema: z
       .object({
         success: z.boolean(),
@@ -330,8 +339,7 @@ export const ClientTools = {
         categories: z.record(z.any()),
         generated_at: z.string(),
         error: z.string().optional(),
-      })
-      .satisfies(z.ZodType<CheckClusterHealthOutput>),
+      }) as z.ZodType<CheckClusterHealthOutput>,
   }),
   analyze_cluster_metrics: tool({
     description:
@@ -376,8 +384,7 @@ export const ClientTools = {
           .describe(
             "Aggregation granularity in minutes for time buckets. Default: 5. Example: 60 = one point per hour."
           ),
-      })
-      .satisfies(z.ZodType<AnalyzeClusterMetricsInput>),
+      }) as z.ZodType<AnalyzeClusterMetricsInput>,
     outputSchema: z
       .object({
         success: z.boolean(),
@@ -404,8 +411,7 @@ export const ClientTools = {
         }),
         message: z.string().optional(),
         error: z.string().optional(),
-      })
-      .satisfies(z.ZodType<AnalyzeClusterMetricsOutput>),
+      }) as z.ZodType<AnalyzeClusterMetricsOutput>,
   }),
 };
 
