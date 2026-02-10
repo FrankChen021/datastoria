@@ -259,7 +259,7 @@ SELECT
   toUnixTimestamp64Micro(query_start_time_microseconds) as start_time_microseconds, 
   * 
 FROM {clusterAllReplicas:system.query_log}
-WHERE initial_query_id = {initialQueryId}
+WHERE initial_query_id = '{initialQueryId}'
 AND event_date >= toDate({from:String}) 
 AND event_date >= toDate({to:String})
 AND event_time >= {from:String} 
