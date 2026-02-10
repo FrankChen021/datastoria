@@ -102,7 +102,7 @@ const ErrorComponent = ({
 };
 
 const normalizeVisualizationError = (message: string) => {
-  if (message.includes("Missing columns:")) {
+  if (message.includes("Missing columns:") || message.includes("UNKNOWN_IDENTIFIER")) {
     return "no metrics";
   }
   return message;
