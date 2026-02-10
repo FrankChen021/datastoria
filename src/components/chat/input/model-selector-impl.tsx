@@ -249,17 +249,19 @@ export function ModelSelectorImpl({
               wrapperClassName="px-2"
               iconClassName="h-3 w-3"
             />
-            {(providerEntries.length > 0 || sortedModels.length > 0) && <div className="flex items-center justify-between px-2 py-1.5 shrink-0">
-              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <Layers className="h-3 w-3 opacity-50" />
-                <span>Group by provider</span>
+            {(providerEntries.length > 0 || sortedModels.length > 0) && (
+              <div className="flex items-center justify-between px-2 py-1.5 shrink-0">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <Layers className="h-3 w-3 opacity-50" />
+                  <span>Group by provider</span>
+                </div>
+                <Switch
+                  checked={groupByProvider}
+                  onCheckedChange={setGroupByProvider}
+                  className="h-4 w-7 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3"
+                />
               </div>
-              <Switch
-                checked={groupByProvider}
-                onCheckedChange={setGroupByProvider}
-                className="h-4 w-7 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3"
-              />
-            </div>}
+            )}
             <CommandList
               id="model-list"
               className="flex-1 overflow-y-auto [&_[cmdk-list-sizer]]:max-h-none"
@@ -269,39 +271,39 @@ export function ModelSelectorImpl({
               </CommandEmpty>
               {groupByProvider
                 ? // Grouped view
-                providerEntries.map(([provider, models]) => (
-                  <CommandGroup
-                    key={provider}
-                    heading={provider}
-                    className="[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:py-0 py-0"
-                  >
-                    {models.map((model) => (
-                      <ModelCommandItem
-                        key={`${model.provider}-${model.modelId}`}
-                        model={model}
-                        isSelected={
-                          selectedModel?.modelId === model.modelId &&
-                          selectedModel?.provider === model.provider
-                        }
-                        onSelect={handleSelect}
-                        showProvider={false}
-                      />
-                    ))}
-                  </CommandGroup>
-                ))
+                  providerEntries.map(([provider, models]) => (
+                    <CommandGroup
+                      key={provider}
+                      heading={provider}
+                      className="[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:py-0 py-0"
+                    >
+                      {models.map((model) => (
+                        <ModelCommandItem
+                          key={`${model.provider}-${model.modelId}`}
+                          model={model}
+                          isSelected={
+                            selectedModel?.modelId === model.modelId &&
+                            selectedModel?.provider === model.provider
+                          }
+                          onSelect={handleSelect}
+                          showProvider={false}
+                        />
+                      ))}
+                    </CommandGroup>
+                  ))
                 : // Flat view
-                sortedModels.map((model) => (
-                  <ModelCommandItem
-                    key={`${model.provider}-${model.modelId}`}
-                    model={model}
-                    isSelected={
-                      selectedModel?.modelId === model.modelId &&
-                      selectedModel?.provider === model.provider
-                    }
-                    onSelect={handleSelect}
-                    showProvider={true}
-                  />
-                ))}
+                  sortedModels.map((model) => (
+                    <ModelCommandItem
+                      key={`${model.provider}-${model.modelId}`}
+                      model={model}
+                      isSelected={
+                        selectedModel?.modelId === model.modelId &&
+                        selectedModel?.provider === model.provider
+                      }
+                      onSelect={handleSelect}
+                      showProvider={true}
+                    />
+                  ))}
             </CommandList>
             <div className="h-px bg-border shrink-0" />
             <div className="h-[32px] items-center flex mx-1 shrink-0">
