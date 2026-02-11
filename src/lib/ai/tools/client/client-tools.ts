@@ -264,13 +264,13 @@ export const ClientTools = {
   }),
   collect_cluster_status: tool({
     description:
-      "Collect ClickHouse cluster status and trend signals from system tables and system.metric_log. This is a collection tool (not diagnosis): it returns raw health summaries/outliers for the cluster-health skill to interpret.",
+      "Collect ClickHouse cluster status from system tables. Supports current snapshot and time-windowed status. This is a collection tool (not diagnosis): it returns raw health summaries/outliers for the cluster-diagnostics skill to interpret.",
     inputSchema: z.object({
       status_analysis_mode: z
-        .enum(["snapshot", "trend", "both"])
+        .enum(["snapshot", "windowed"])
         .optional()
         .describe(
-          "Select analysis mode: 'snapshot' for current state (default), 'trend' for historical series, 'both' for both outputs."
+          "Select analysis mode: 'snapshot' for current state (default), 'windowed' for current status plus time-window metrics."
         ),
       checks: z
         .array(
@@ -326,7 +326,7 @@ export const ClientTools = {
         .number()
         .optional()
         .describe("Maximum number of outlier nodes/tables to return per category. Default: 10."),
-      trend: z
+      window: z
         .object({
           metric_type: z
             .enum([
@@ -342,7 +342,7 @@ export const ClientTools = {
             ])
             .optional()
             .describe(
-              "Historical metric type for trend analysis. Maps to representative system.metric_log signals for the corresponding health category. Defaults to 'errors' when omitted."
+              "Metric used for the time-window signal. Maps to representative system.metric_log signals for the corresponding health category. Defaults to 'errors' when omitted."
             ),
           time_window: z
             .number()
@@ -367,7 +367,7 @@ export const ClientTools = {
             })
             .optional()
             .describe(
-              "Absolute time range for historical analysis. If provided, takes precedence over time_window."
+              "Absolute time range for windowed analysis. If provided, takes precedence over time_window."
             ),
           granularity_minutes: z
             .number()
@@ -379,11 +379,11 @@ export const ClientTools = {
             ),
         })
         .optional()
-        .describe("Historical trend options used when status_analysis_mode is 'trend' or 'both'."),
+        .describe("Time-window options used when status_analysis_mode is 'windowed'."),
     }) as z.ZodType<GetClusterStatusInput>,
     outputSchema: z.object({
       success: z.boolean(),
-      status_analysis_mode: z.enum(["snapshot", "trend", "both"]),
+      status_analysis_mode: z.enum(["snapshot", "windowed"]),
       scope: z.enum(["single_node", "cluster"]),
       cluster: z.string().optional(),
       node_count: z.number(),
@@ -393,7 +393,7 @@ export const ClientTools = {
         nodes_with_issues: z.number(),
       }),
       categories: z.record(z.any()),
-      trend: z
+      window: z
         .object({
           success: z.boolean(),
           metric_type: z.enum([

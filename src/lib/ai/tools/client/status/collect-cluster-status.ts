@@ -7,7 +7,7 @@ import {
 } from "./get-system-metrics";
 
 type StatusSeverity = "OK" | "WARNING" | "CRITICAL";
-type StatusAnalysisMode = "snapshot" | "trend" | "both";
+type StatusAnalysisMode = "snapshot" | "windowed";
 type StatusCheckCategory =
   | "replication"
   | "disk"
@@ -31,7 +31,7 @@ export type GetClusterStatusInput = {
     parts_critical?: number;
   };
   max_outliers?: number;
-  trend?: {
+  window?: {
     metric_type?: HistoricalMetricType;
     time_window?: number;
     time_range?: {
@@ -67,7 +67,7 @@ export type GetClusterStatusOutput = {
     nodes_with_issues: number;
   };
   categories: Partial<Record<StatusCheckCategory, HealthCategorySummary>>;
-  trend?: GetSystemMetricsOutput;
+  window?: GetSystemMetricsOutput;
   generated_at: string;
   error?: string;
 };
@@ -92,46 +92,6 @@ async function queryJsonCompact(
   const { response } = connection.query(sql, { default_format: "JSONCompact" });
   const apiResponse = await response;
   return apiResponse.data.json<JSONCompactFormatResponse>();
-}
-
-function buildTrendTimeFilterClause(trend?: GetClusterStatusInput["trend"]): {
-  whereClause: string;
-} {
-  if (trend?.time_range?.from && trend?.time_range?.to) {
-    return {
-      whereClause: `event_date >= toDate('${trend.time_range.from}') AND event_date <= toDate('${trend.time_range.to}') AND event_time >= toDateTime('${trend.time_range.from}') AND event_time <= toDateTime('${trend.time_range.to}')`,
-    };
-  }
-
-  const minutes = trend?.time_window ?? 60;
-  return {
-    whereClause: `event_date >= now() - INTERVAL ${minutes} MINUTE AND event_time >= now() - INTERVAL ${minutes} MINUTE`,
-  };
-}
-
-async function discoverTrendNodeCount(
-  connection: Parameters<ToolExecutor<GetClusterStatusInput, GetClusterStatusOutput>>[1],
-  trend?: GetClusterStatusInput["trend"]
-): Promise<number> {
-  try {
-    const { whereClause } = buildTrendTimeFilterClause(trend);
-    const data = await queryJsonCompact(
-      `
-SELECT
-  uniqExact(host_name) AS node_count
-FROM (
-  SELECT FQDN() AS host_name
-  FROM {clusterAllReplicas:system.metric_log}
-  WHERE ${whereClause}
-  GROUP BY host_name
-)`,
-      connection
-    );
-    const firstRow = data.data?.[0] as (string | number | null)[] | undefined;
-    return Number(firstRow?.[0]) || 0;
-  } catch {
-    return 0;
-  }
 }
 
 type CategoryHandlerContext = {
@@ -753,48 +713,10 @@ export const getClusterStatusExecutor: ToolExecutor<
     if (normalizedNode.length > 0) issueNodes.add(normalizedNode);
   };
 
-  if (analysisMode === "trend") {
-    progressCallback?.("collect trend metrics", 10, "started");
-    const trend = await getSystemMetrics(
-      {
-        metric_type: input.trend?.metric_type ?? "errors",
-        time_window: input.trend?.time_window,
-        time_range: input.trend?.time_range,
-        granularity_minutes: input.trend?.granularity_minutes,
-      },
-      connection
-    );
-    progressCallback?.(
-      "collect trend metrics",
-      95,
-      trend.success ? "success" : "failed",
-      trend.success ? undefined : trend.error
-    );
-
-    const trendNodeCount = await discoverTrendNodeCount(connection, input.trend);
-
-    return {
-      success: trend.success,
-      status_analysis_mode: analysisMode,
-      scope,
-      cluster: connection.cluster,
-      node_count: trendNodeCount,
-      summary: {
-        total_nodes: trendNodeCount,
-        healthy_nodes: trendNodeCount,
-        nodes_with_issues: 0,
-      },
-      categories: {},
-      trend,
-      generated_at: new Date().toISOString(),
-      error: trend.error,
-    };
-  }
-
   try {
-    const totalSteps = checks.length + (analysisMode === "both" ? 1 : 0);
+    const totalSteps = checks.length + (analysisMode === "windowed" ? 1 : 0);
     const baseProgress = 5;
-    const snapshotProgressSpan = analysisMode === "both" ? 75 : 90;
+    const snapshotProgressSpan = analysisMode === "windowed" ? 75 : 90;
 
     for (let i = 0; i < checks.length; i += 1) {
       const check = checks[i]!;
@@ -811,7 +733,7 @@ export const getClusterStatusExecutor: ToolExecutor<
         });
         const doneProgress =
           baseProgress +
-          Math.round(((i + 1) / Math.max(totalSteps, 1)) * (analysisMode === "both" ? 90 : 95));
+          Math.round(((i + 1) / Math.max(totalSteps, 1)) * (analysisMode === "windowed" ? 90 : 95));
         progressCallback?.(`check ${check}`, doneProgress, "success");
       } catch (error) {
         const message =
@@ -835,29 +757,29 @@ export const getClusterStatusExecutor: ToolExecutor<
     const nodesWithIssues = issueNodes.size;
     const healthyNodes = Math.max(totalNodes - nodesWithIssues, 0);
 
-    const trendResult =
-      analysisMode === "both"
+    const windowResult =
+      analysisMode === "windowed"
         ? await getSystemMetrics(
             {
-              metric_type: input.trend?.metric_type ?? "errors",
-              time_window: input.trend?.time_window,
-              time_range: input.trend?.time_range,
-              granularity_minutes: input.trend?.granularity_minutes,
+              metric_type: input.window?.metric_type ?? "errors",
+              time_window: input.window?.time_window,
+              time_range: input.window?.time_range,
+              granularity_minutes: input.window?.granularity_minutes,
             },
             connection
           )
         : undefined;
-    if (analysisMode === "both") {
+    if (analysisMode === "windowed") {
       progressCallback?.(
-        "collect trend metrics",
+        "collect windowed metrics",
         95,
-        trendResult?.success ? "success" : "failed",
-        trendResult?.success ? undefined : trendResult?.error
+        windowResult?.success ? "success" : "failed",
+        windowResult?.success ? undefined : windowResult?.error
       );
     }
 
     return {
-      success: trendResult ? trendResult.success : true,
+      success: windowResult ? windowResult.success : true,
       status_analysis_mode: analysisMode,
       scope,
       cluster: connection.cluster,
@@ -868,7 +790,7 @@ export const getClusterStatusExecutor: ToolExecutor<
         nodes_with_issues: nodesWithIssues,
       },
       categories,
-      trend: trendResult,
+      window: windowResult,
       generated_at: new Date().toISOString(),
     };
   } catch (error) {
