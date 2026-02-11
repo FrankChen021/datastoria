@@ -18,6 +18,8 @@ export interface DialogButton {
   default: boolean;
   onClick: () => Promise<boolean>;
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  size?: "default" | "sm" | "lg" | "icon";
+  className?: string;
   content?: React.ReactNode | (() => React.ReactNode);
   disabled?: boolean; // Control button disabled state
 }
@@ -172,8 +174,9 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
                 <Button
                   key={index}
                   variant={variant}
+                  size={button.size}
                   disabled={button.disabled}
-                  className="px-3"
+                  className={cn("px-3", button.className)}
                   onClick={async () => {
                     const shouldClose = await button.onClick();
                     if (shouldClose) {
