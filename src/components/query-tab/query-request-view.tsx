@@ -14,7 +14,7 @@ export function QueryRequestView({ queryRequest }: QueryRequestViewProps) {
       <div className="relative group">
         <CopyButton
           value={sql}
-          className="right-2 top-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="left-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity"
         />
         <ThemedSyntaxHighlighter
           showLineNumbers={true}
@@ -22,7 +22,7 @@ export function QueryRequestView({ queryRequest }: QueryRequestViewProps) {
             backgroundColor: "rgba(143, 153, 168, 0.15)",
             fontSize: "14px",
             margin: 0,
-            padding: "0rem",
+            padding: "6px",
           }}
           language="sql"
           expandable={true}
