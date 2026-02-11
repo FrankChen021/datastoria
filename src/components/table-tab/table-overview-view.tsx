@@ -198,12 +198,46 @@ LIMIT 1
                       datasource: {
                         sql: `
 SELECT sum(total_bytes) as total_bytes
+FROM cluster('{cluster}', system.tables)
+WHERE database = '${escapedDatabase}' AND name = '${escapedTable}'
+`,
+                      },
+                      valueOption: {
+                        format: "binary_size",
+                      },
+                    } as StatDescriptor,
+                    {
+                      type: "stat",
+                      titleOption: {
+                        title: "Cluster Size(All Replicas)",
+                      },
+                      gridPos: { w: 5, h: 4 },
+                      datasource: {
+                        sql: `
+SELECT sum(total_bytes) as total_bytes
 FROM clusterAllReplicas('{cluster}', system.tables)
 WHERE database = '${escapedDatabase}' AND name = '${escapedTable}'
 `,
                       },
                       valueOption: {
                         format: "binary_size",
+                      },
+                    } as StatDescriptor,
+                    {
+                      type: "stat",
+                      titleOption: {
+                        title: "Total Rows",
+                      },
+                      gridPos: { w: 5, h: 4 },
+                      datasource: {
+                        sql: `
+SELECT sum(total_rows) as total_bytes
+FROM cluster('{cluster}', system.tables)
+WHERE database = '${escapedDatabase}' AND name = '${escapedTable}'
+`,
+                      },
+                      valueOption: {
+                        format: "comma_number",
                       },
                     } as StatDescriptor,
                     {
@@ -226,6 +260,9 @@ AND active
 GROUP BY host
 ORDER BY host
 `,
+                      },
+                      miscOption: {
+                        enableIndexColumn: true,
                       },
                       fieldOptions: {
                         bytes_on_disk: {
