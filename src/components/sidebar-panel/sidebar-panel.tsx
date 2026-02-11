@@ -17,7 +17,7 @@ export function SidebarPanel({ initialSchemaData }: SidebarPanelProps) {
           className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-full px-2"
         >
           <Database className="h-4 w-4 mr-2" />
-          Database
+          Schema
         </TabsTrigger>
         <TabsTrigger
           value="snippets"
