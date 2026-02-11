@@ -319,6 +319,84 @@ export class Connection {
     return { response, abortController };
   }
 
+  /**
+   * Execute a query and return the raw fetch Response for streaming.
+   * The caller is responsible for reading the response body (e.g. via response.body.getReader()).
+   * Does not consume the response body.
+   */
+  public queryRawResponse(
+    sql: string,
+    params?: Record<string, unknown>,
+    headers?: Record<string, string>
+  ): { response: Promise<Response>; abortController: AbortController } {
+    if (!this.host || !this.path) {
+      throw new QueryError(
+        `Connection not properly initialized. Host: ${this.host}, Path: ${this.path}`
+      );
+    }
+
+    const [replacedSql] = this.resolveClusterTemplates(sql);
+    sql = replacedSql;
+
+    const requestHeaders: Record<string, string> = headers || {};
+    if (!requestHeaders["Content-Type"]) {
+      requestHeaders["Content-Type"] = "text/plain";
+    }
+
+    const queryParameters: Record<string, unknown> = Object.assign({}, this.userParams);
+    if (params) {
+      Object.assign(queryParameters, params);
+    }
+    if (!queryParameters["default_format"]) {
+      queryParameters["default_format"] = "JSONCompact";
+    }
+
+    const url = new URL(this.path, this.host);
+    Object.entries(queryParameters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, String(value));
+      }
+    });
+
+    const basicAuth = btoa(`${this.user}:${this.password || ""}`);
+    requestHeaders["Authorization"] = `Basic ${basicAuth}`;
+
+    const abortController = new AbortController();
+
+    const response = (async (): Promise<Response> => {
+      const fetchUrl = url.toString();
+      if (!fetchUrl || !(fetchUrl.startsWith("http://") || fetchUrl.startsWith("https://"))) {
+        throw new QueryError(
+          `Invalid URL: ${fetchUrl}. Connection may not be properly initialized.`
+        );
+      }
+
+      const res = await fetch(fetchUrl, {
+        method: "POST",
+        headers: requestHeaders,
+        body: sql,
+        signal: abortController.signal,
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        const clickHouseErrorCode = res.headers.get("x-clickhouse-exception-code");
+        throw new QueryError(
+          clickHouseErrorCode
+            ? `Failed to execute query, got ClickHouse Exception Code: ${clickHouseErrorCode}`
+            : `Failed to execute query, got HTTP status ${res.status} ${res.statusText} from server`,
+          res.status,
+          Object.fromEntries(res.headers.entries()),
+          errorText
+        );
+      }
+
+      return res;
+    })();
+
+    return { response, abortController };
+  }
+
   public queryOnNode(
     sql: string,
     params?: Record<string, unknown>,

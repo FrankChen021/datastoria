@@ -277,7 +277,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
         table: tableData,
         connection: connection,
         onSuccess: () => {
-          // Refresh the schema tree
+          TabManager.closeTab(`table:${tableData.database}.${tableData.table}`);
           loadDatabases();
         },
       });
