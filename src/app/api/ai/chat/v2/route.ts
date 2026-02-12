@@ -453,6 +453,7 @@ export async function POST(req: Request) {
         collect_sql_optimization_evidence: ClientTools.collect_sql_optimization_evidence,
         search_query_log: ClientTools.search_query_log,
         collect_cluster_status: ClientTools.collect_cluster_status,
+        collect_rca_evidence: ClientTools.collect_rca_evidence,
       },
       stopWhen: stepCountIs(10),
       temperature,
