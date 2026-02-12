@@ -28,12 +28,6 @@ interface DropPartitionDialogProps {
   onSuccess?: () => void;
 }
 
-function escapeSqlIdentifier(identifier: string): string {
-  // ClickHouse supports backtick-quoted identifiers.
-  // Escape backticks by doubling them.
-  return `\`${identifier.replaceAll("`", "``")}\``;
-}
-
 function showDropPartitionDialog({
   database,
   table,
@@ -53,7 +47,7 @@ function showDropPartitionDialog({
     isDroppingRef.current = true;
 
     try {
-      const sql = `ALTER TABLE ${escapeSqlIdentifier(database)}.${escapeSqlIdentifier(table)} DROP PARTITION '${SqlUtils.escapeSqlString(partition)}'`;
+      const sql = `ALTER TABLE ${SqlUtils.escapeSqlIdentifier(database)}.${SqlUtils.escapeSqlIdentifier(table)} DROP PARTITION '${SqlUtils.escapeSqlString(partition)}'`;
 
       // Execute the SQL using async/await
       const { response, abortController } = connection.query(sql, {

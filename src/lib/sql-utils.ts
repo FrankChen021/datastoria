@@ -76,6 +76,13 @@ export class SqlUtils {
   }
 
   /**
+   * Escape a SQL identifier with backticks for ClickHouse and escape embedded backticks.
+   */
+  public static escapeSqlIdentifier(identifier: string): string {
+    return `\`${String(identifier).replaceAll("`", "``")}\``;
+  }
+
+  /**
    * Replace unqualified table names in SQL with fully qualified names.
    * Only replaces table references (after FROM, JOIN, INTO, etc.), not column references.
    *
