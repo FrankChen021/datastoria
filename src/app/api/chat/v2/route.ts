@@ -225,6 +225,7 @@ export async function POST(req: Request) {
         // DEPRECATED: kept for backward compatibility.
         find_expensive_queries: ClientTools.find_expensive_queries,
         collect_cluster_status: ClientTools.collect_cluster_status,
+        collect_rca_evidence: ClientTools.collect_rca_evidence,
       },
       stopWhen: stepCountIs(10),
       temperature,
