@@ -25,8 +25,7 @@ export interface BaseTabInfo {
 export interface QueryTabInfo extends BaseTabInfo {
   type: "query";
   initialQuery?: string;
-  initialMode?: "replace" | "insert";
-  initialEditorMode?: "sql" | "chat";
+  initialMode?: "replace" | "insert" | "none";
   initialExecute?: boolean;
 }
 
@@ -151,8 +150,7 @@ export class TabManager {
    */
   static activateQueryTab(options?: {
     query?: string;
-    mode?: "replace" | "insert";
-    editorMode?: "sql" | "chat";
+    mode?: "replace" | "insert" | "none";
     execute?: boolean;
   }): void {
     // Query tab always has ID "query"
@@ -161,7 +159,6 @@ export class TabManager {
       type: "query",
       initialQuery: options?.query,
       initialMode: options?.mode,
-      initialEditorMode: options?.editorMode,
       initialExecute: options?.execute,
     });
   }

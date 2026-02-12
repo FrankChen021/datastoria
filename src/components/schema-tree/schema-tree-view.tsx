@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tree, type TreeDataItem, type TreeRef } from "@/components/ui/tree";
 import type { DatabaseInfo, TableInfo } from "@/lib/connection/connection";
+import { SqlUtils } from "@/lib/sql-utils";
 import { cn } from "@/lib/utils";
 import { AlertCircle, Database, RotateCw, Search, Table as TableIcon, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -286,6 +287,27 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
     setContextMenuPosition(null);
   }, [contextMenuNode, connection, loadDatabases]);
 
+  const handleSelectCount = useCallback(() => {
+    const node = contextMenuNode;
+    if (!node) {
+      return;
+    }
+    if ((node.data as SchemaNodeData).type !== "table") {
+      return;
+    }
+
+    const tableData = node.data as TableNodeData;
+    const qualifiedTableName = `${SqlUtils.escapeSqlIdentifier(tableData.database)}.${SqlUtils.escapeSqlIdentifier(tableData.table)}`;
+    TabManager.activateQueryTab({
+      query: `select count(*) from ${qualifiedTableName}`,
+      mode: "none",
+      execute: true,
+    });
+
+    setContextMenuNode(null);
+    setContextMenuPosition(null);
+  }, [contextMenuNode]);
+
   const onTreeNodeSelected = useCallback((item: TreeDataItem | undefined) => {
     if (!item?.data) return;
 
@@ -413,6 +435,18 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
 
           if ((contextMenuNode.data as SchemaNodeData)?.type === "table") {
             const tableData = contextMenuNode.data as TableNodeData;
+            if (tableData.fullTableEngine !== "Kafka") {
+              menuItems.push(
+                <div
+                  key="select-count"
+                  className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground"
+                  onClick={handleSelectCount}
+                >
+                  Select count(*) from
+                </div>
+              );
+            }
+
             // Only show drop table if engine is not 'Sys' (System tables)
             if (tableData.tableEngine !== "Sys") {
               menuItems.push(

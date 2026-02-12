@@ -19,7 +19,7 @@ const QueryInputView = dynamic(
 export interface QueryTabProps {
   tabId?: string;
   initialQuery?: string;
-  initialMode?: "replace" | "insert";
+  initialMode?: "replace" | "insert" | "none";
   initialExecute?: boolean;
   active?: boolean;
 }
@@ -61,11 +61,13 @@ const QueryTabContent = ({
 
         // Handle query insertion if provided
         if (queryTabInfo.initialQuery) {
-          // Store query to be applied
-          setPendingQueryInfo({
-            query: queryTabInfo.initialQuery,
-            mode: queryTabInfo.initialMode || "replace",
-          });
+          if (queryTabInfo.initialMode !== "none") {
+            // Store query to be applied
+            setPendingQueryInfo({
+              query: queryTabInfo.initialQuery,
+              mode: queryTabInfo.initialMode || "replace",
+            });
+          }
 
           // Trigger execution if requested
           if (queryTabInfo.initialExecute) {
@@ -145,8 +147,8 @@ const QueryTabContent = ({
         <div className="flex-1 overflow-hidden">
           <QueryInputView
             ref={queryInputRef}
-            initialQuery={initialQuery}
-            initialMode={initialMode}
+            initialQuery={initialMode !== "none" ? initialQuery : undefined}
+            initialMode={initialMode === "none" ? "replace" : initialMode}
             storageKey="sql:input"
             language="dsql"
             onRun={handleInputRun}
