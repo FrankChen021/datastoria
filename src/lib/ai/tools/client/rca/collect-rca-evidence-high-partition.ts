@@ -3,19 +3,16 @@ import {
   buildPartsTablePredicate,
   buildQueryLogPredicate,
   discoverTargetTableByParts,
-  evaluateRules,
   runProbe,
-  runQueries,
-  scoreCandidate,
   type PossibleAction,
   type QuerySpec,
   type RuleSpec,
+  type ScenarioSpec,
   type SymptomContext,
-  type SymptomResult,
   type Target,
 } from "./collect-rca-evidence-common";
 
-type HighPartitionCountContext = SymptomContext & {
+export type HighPartitionCountContext = SymptomContext & {
   resolvedTarget: Target | undefined;
   partsTablePredicate: string;
   queryLogTablePredicate: string;
@@ -221,32 +218,26 @@ const HIGH_PARTITION_COUNT_ACTIONS: PossibleAction[] = [
   },
 ];
 
-export async function collectHighPartitionCountEvidence(context: SymptomContext): Promise<SymptomResult> {
-  const { connection, scope, target } = context;
-  const resolvedTarget = await runProbe(
-    context,
-    "rca high_partition_count: target_table",
-    35,
-    async () => discoverTargetTableByParts(connection, scope, target)
-  );
-
-  const ctx: HighPartitionCountContext = {
-    ...context,
-    resolvedTarget,
-    partsTablePredicate: buildPartsTablePredicate(resolvedTarget),
-    queryLogTablePredicate: buildQueryLogPredicate("table", resolvedTarget),
-  };
-
-  const results = await runQueries(ctx, HIGH_PARTITION_COUNT_QUERIES);
-  const candidateRules = evaluateRules(HIGH_PARTITION_COUNT_RULES, results);
-  const candidates = candidateRules
-    .map(scoreCandidate)
-    .sort((a, b) => b.signal_strength - a.signal_strength);
-
-  return {
-    observations: Object.values(results),
-    candidates,
-    possible_actions: HIGH_PARTITION_COUNT_ACTIONS,
-    target: resolvedTarget,
-  };
-}
+export const HIGH_PARTITION_COUNT_SCENARIO: ScenarioSpec<HighPartitionCountContext> = {
+  queries: HIGH_PARTITION_COUNT_QUERIES,
+  rules: HIGH_PARTITION_COUNT_RULES,
+  possible_actions: HIGH_PARTITION_COUNT_ACTIONS,
+  prepareContext: async (baseContext) => {
+    const resolvedTarget = await runProbe(
+      baseContext,
+      "rca high_partition_count: target_table",
+      35,
+      async () =>
+        discoverTargetTableByParts(baseContext.connection, baseContext.scope, baseContext.target)
+    );
+    return {
+      ...baseContext,
+      resolvedTarget,
+      partsTablePredicate: buildPartsTablePredicate(resolvedTarget),
+      queryLogTablePredicate: buildQueryLogPredicate("table", resolvedTarget),
+    };
+  },
+  finalizeResult: ({ context }) => ({
+    target: context.resolvedTarget,
+  }),
+};

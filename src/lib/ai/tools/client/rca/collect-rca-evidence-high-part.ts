@@ -4,22 +4,19 @@ import {
   buildPartsTablePredicate,
   buildQueryLogPredicate,
   discoverTargetTableByParts,
-  evaluateRules,
   runProbe,
-  runQueries,
-  scoreCandidate,
   type CanonicalSymptom,
   type CauseCandidate,
   type PossibleAction,
   type QueryResults,
   type QuerySpec,
   type RuleSpec,
+  type ScenarioSpec,
   type SymptomContext,
-  type SymptomResult,
   type Target,
 } from "./collect-rca-evidence-common";
 
-type HighPartCountContext = SymptomContext & {
+export type HighPartCountContext = SymptomContext & {
   resolvedTarget: Target | undefined;
   partsTablePredicate: string;
   queryLogTablePredicate: string;
@@ -131,6 +128,7 @@ const HIGH_PART_COUNT_RULES: RuleSpec[] = [
     indicators: [
       {
         description: "inserts per minute > 10",
+        required: true,
         match: (r) => {
           const v = asNumber(r["insert_pattern"]?.metrics["inserts_per_minute"]);
           return { matched: v > 10, actual: v.toFixed(2) };
@@ -270,7 +268,7 @@ function computeHighPartCountRelatedSymptoms(
   const parts = results["parts_summary"];
   const distinctPartitions = asNumber(parts?.metrics["distinct_partitions"]);
   const partitionPressureCandidate = candidates.find(
-    (c) => c.cause === "partition_granularity_pressure"
+    (candidate) => candidate.cause === "partition_granularity_pressure"
   );
   if (distinctPartitions >= 100 || (partitionPressureCandidate?.signal_strength ?? 0) >= 0.3) {
     return ["high_partition_count"];
@@ -278,34 +276,28 @@ function computeHighPartCountRelatedSymptoms(
   return [];
 }
 
-export async function collectHighPartCountEvidence(context: SymptomContext): Promise<SymptomResult> {
-  const { connection, scope, target } = context;
-  const resolvedTarget = await runProbe(
-    context,
-    "rca high_part_count: target_table",
-    35,
-    async () => discoverTargetTableByParts(connection, scope, target)
-  );
-
-  const ctx: HighPartCountContext = {
-    ...context,
-    resolvedTarget,
-    partsTablePredicate: buildPartsTablePredicate(resolvedTarget),
-    queryLogTablePredicate: buildQueryLogPredicate("table", resolvedTarget),
-    nodePredicate: buildNodePredicate(scope, resolvedTarget, "FQDN()"),
-  };
-
-  const results = await runQueries(ctx, HIGH_PART_COUNT_QUERIES);
-  const candidateRules = evaluateRules(HIGH_PART_COUNT_RULES, results);
-  const candidates = candidateRules
-    .map(scoreCandidate)
-    .sort((a, b) => b.signal_strength - a.signal_strength);
-
-  return {
-    observations: Object.values(results),
-    candidates,
-    possible_actions: HIGH_PART_COUNT_ACTIONS,
-    target: resolvedTarget,
+export const HIGH_PART_COUNT_SCENARIO: ScenarioSpec<HighPartCountContext> = {
+  queries: HIGH_PART_COUNT_QUERIES,
+  rules: HIGH_PART_COUNT_RULES,
+  possible_actions: HIGH_PART_COUNT_ACTIONS,
+  prepareContext: async (baseContext) => {
+    const resolvedTarget = await runProbe(
+      baseContext,
+      "rca high_part_count: target_table",
+      35,
+      async () =>
+        discoverTargetTableByParts(baseContext.connection, baseContext.scope, baseContext.target)
+    );
+    return {
+      ...baseContext,
+      resolvedTarget,
+      partsTablePredicate: buildPartsTablePredicate(resolvedTarget),
+      queryLogTablePredicate: buildQueryLogPredicate("table", resolvedTarget),
+      nodePredicate: buildNodePredicate(baseContext.scope, resolvedTarget, "FQDN()"),
+    };
+  },
+  finalizeResult: ({ context, results, candidates }) => ({
+    target: context.resolvedTarget,
     related_symptoms: computeHighPartCountRelatedSymptoms(results, candidates),
-  };
-}
+  }),
+};

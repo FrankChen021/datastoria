@@ -78,6 +78,12 @@ export type EvidenceGap = {
   reason: string;
 };
 
+export type ExcludedCandidate = {
+  cause: string;
+  missing_required: string[];
+  evidence_against: string[];
+};
+
 export type RcaEvidenceOutput = {
   schema_version: 1;
   success: boolean;
@@ -87,6 +93,7 @@ export type RcaEvidenceOutput = {
   related_symptoms?: CanonicalSymptom[];
   observations: Observation[];
   candidates: CauseCandidate[];
+  excluded_candidates?: ExcludedCandidate[];
   possible_actions: PossibleAction[];
   gaps: EvidenceGap[];
   generated_at: string;
@@ -178,6 +185,7 @@ export type SymptomContext = {
   connection: Parameters<ToolExecutor<RcaEvidenceInput, RcaEvidenceOutput>>[1];
   scope: Scope;
   target?: Target;
+  symptomText?: string;
   timeFilter: TimeFilter;
   timeWindowMinutes: number;
   gaps: EvidenceGap[];
@@ -187,12 +195,29 @@ export type SymptomContext = {
 export type SymptomResult = {
   observations: Observation[];
   candidates: CauseCandidate[];
+  excluded_candidates?: ExcludedCandidate[];
   possible_actions: PossibleAction[];
   target?: Target;
   related_symptoms?: CanonicalSymptom[];
 };
 
 export type SymptomHandler = (context: SymptomContext) => Promise<SymptomResult>;
+type ScenarioResult = {
+  target?: Target;
+  related_symptoms?: CanonicalSymptom[];
+};
+
+export type ScenarioSpec<Ctx extends SymptomContext = SymptomContext> = {
+  queries: QuerySpec<Ctx>[];
+  rules: RuleSpec[];
+  possible_actions: PossibleAction[];
+  prepareContext?: (context: SymptomContext) => Promise<Ctx>;
+  finalizeResult?: (input: {
+    context: Ctx;
+    results: QueryResults;
+    candidates: CauseCandidate[];
+  }) => ScenarioResult;
+};
 
 export async function queryJsonCompact(
   connection: Parameters<ToolExecutor<RcaEvidenceInput, RcaEvidenceOutput>>[1],
@@ -378,6 +403,51 @@ export function evaluateRules(ruleSpecs: RuleSpec[], results: QueryResults): Can
   }));
 }
 
+export async function runScenarioEvidence<Ctx extends SymptomContext = SymptomContext>(
+  context: SymptomContext,
+  scenario: ScenarioSpec<Ctx>
+): Promise<SymptomResult> {
+  const scenarioContext = scenario.prepareContext
+    ? await scenario.prepareContext(context)
+    : (context as Ctx);
+  const results = await runQueries(scenarioContext, scenario.queries);
+  const candidateRules = evaluateRules(scenario.rules, results);
+  const includedRules = candidateRules.filter((rule) =>
+    rule.indicators.filter((ind) => ind.required).every((ind) => ind.matched)
+  );
+  const excludedCandidates: ExcludedCandidate[] = candidateRules
+    .filter((rule) => rule.indicators.some((ind) => ind.required && !ind.matched))
+    .map((rule) => {
+      const scored = scoreCandidate(rule);
+      return {
+        cause: rule.cause,
+        missing_required: rule.indicators
+          .filter((ind) => ind.required && !ind.matched)
+          .map((ind) => ind.description ?? "required indicator"),
+        evidence_against: scored.evidence_against,
+      };
+    });
+  const candidates = includedRules
+    .map(scoreCandidate)
+    .sort((a, b) => b.signal_strength - a.signal_strength);
+  const customResult = scenario.finalizeResult
+    ? scenario.finalizeResult({
+        context: scenarioContext,
+        results,
+        candidates,
+      })
+    : {};
+
+  return {
+    observations: Object.values(results),
+    candidates,
+    excluded_candidates: excludedCandidates,
+    possible_actions: scenario.possible_actions,
+    target: customResult.target,
+    related_symptoms: customResult.related_symptoms,
+  };
+}
+
 export async function discoverTargetTableByParts(
   connection: Parameters<ToolExecutor<RcaEvidenceInput, RcaEvidenceOutput>>[1],
   scope: Scope,
@@ -530,13 +600,13 @@ export function isStatusContextReusable(
       ? 5
       : input.time_range?.from && input.time_range?.to
         ? Math.max(
-          1,
-          Math.floor(
-            (new Date(input.time_range.to).getTime() -
-              new Date(input.time_range.from).getTime()) /
-            60000
+            1,
+            Math.floor(
+              (new Date(input.time_range.to).getTime() -
+                new Date(input.time_range.from).getTime()) /
+                60000
+            )
           )
-        )
         : (input.time_window ?? context.window?.time_window ?? 60);
 
   if (ageMinutes > stalenessLimit) {
@@ -548,116 +618,4 @@ export function isStatusContextReusable(
   }
 
   return true;
-}
-
-function mapSymptomTextToDimensions(symptomText: string): string[] {
-  const lower = symptomText.toLowerCase();
-  const dimensions = new Set<string>();
-
-  if (/(slow|latency|timeout|duration|lag)/.test(lower)) dimensions.add("latency");
-  if (/(error|fail|exception)/.test(lower)) dimensions.add("errors");
-  if (/(insert|ingest|batch|part)/.test(lower)) dimensions.add("ingestion");
-  if (/(replica|replication|readonly)/.test(lower)) dimensions.add("replication");
-  if (/(disk|storage|space|partition)/.test(lower)) dimensions.add("storage");
-  if (/(cpu|memory|resource|pressure)/.test(lower)) dimensions.add("resources");
-  if (/(query|workload|throughput|qps)/.test(lower)) dimensions.add("workload");
-
-  if (dimensions.size === 0) dimensions.add("workload");
-  return Array.from(dimensions);
-}
-
-export async function handleUnknown(
-  context: SymptomContext,
-  symptomText: string
-): Promise<SymptomResult> {
-  const dimensions = mapSymptomTextToDimensions(symptomText);
-  const observations: Observation[] = [];
-
-  if (dimensions.includes("workload") || dimensions.includes("latency")) {
-    const processes = await queryJsonCompact(
-      context.connection,
-      `
-SELECT
-  count() AS active_queries,
-  max(now() - query_start_time) AS max_running_seconds
-FROM {clusterAllReplicas:system.processes}`
-    );
-    const row = processes.data?.[0] as (number | null)[] | undefined;
-    observations.push({
-      source: "system.processes",
-      description: "Active query pressure snapshot",
-      metrics: {
-        active_queries: asNumber(row?.[0]),
-        max_running_seconds: asNumber(row?.[1]),
-      },
-    });
-  }
-
-  if (dimensions.includes("errors")) {
-    const errors = await queryJsonCompact(
-      context.connection,
-      `
-SELECT
-  sum(value) AS error_count
-FROM {clusterAllReplicas:system.errors}`
-    );
-    const row = errors.data?.[0] as (number | null)[] | undefined;
-    observations.push({
-      source: "system.errors",
-      description: "Error counter snapshot",
-      metrics: {
-        error_count: asNumber(row?.[0]),
-      },
-    });
-  }
-
-  if (dimensions.includes("storage") || dimensions.includes("ingestion")) {
-    const parts = await queryJsonCompact(
-      context.connection,
-      `
-SELECT
-  count() AS active_parts,
-  uniqExact(concat(database, '.', table)) AS tables_with_parts
-FROM {clusterAllReplicas:system.parts}
-WHERE active`
-    );
-    const row = parts.data?.[0] as (number | null)[] | undefined;
-    observations.push({
-      source: "system.parts",
-      description: "Global part inventory snapshot",
-      metrics: {
-        active_parts: asNumber(row?.[0]),
-        tables_with_parts: asNumber(row?.[1]),
-      },
-    });
-  }
-
-  const candidates: CauseCandidate[] = [
-    {
-      cause: "insufficient_specific_signal",
-      signal_strength: 0.25,
-      indicators_matched: 1,
-      indicators_checked: 4,
-      evidence_for: ["generic probes detected broad pressure signals"],
-      evidence_against: ["symptom did not map cleanly to a canonical RCA module"],
-      next_checks: [
-        "refine symptom using one of: high_query_latency, high_part_count, high_partition_count",
-        "run collect_cluster_status with focused checks before RCA",
-      ],
-    },
-  ];
-
-  const possibleActions: PossibleAction[] = [
-    {
-      title: "Run focused RCA with a canonical symptom key",
-      risk: "low",
-      tied_to: "insufficient_specific_signal",
-    },
-  ];
-
-  return {
-    observations,
-    candidates,
-    possible_actions: possibleActions,
-  };
 }
