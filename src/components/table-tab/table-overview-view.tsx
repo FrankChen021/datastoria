@@ -391,8 +391,8 @@ ORDER BY
 SELECT 
     column,
     type,
-    sum(column_data_uncompressed_bytes) AS uncompressed_size,
     sum(column_data_compressed_bytes) AS compressed_size,
+    sum(column_data_uncompressed_bytes) AS uncompressed_size,
     round(sum(column_data_uncompressed_bytes) / sum(column_data_compressed_bytes), 0) AS compress_ratio,
     sum(rows) AS rows_count,
     round(sum(column_data_uncompressed_bytes) / sum(rows), 0) AS avg_uncompressed_size,
