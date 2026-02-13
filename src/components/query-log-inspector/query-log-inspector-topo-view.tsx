@@ -1,4 +1,5 @@
 import type { GraphEdge, GraphNode } from "@/components/shared/graphviz/Graph";
+import { TopologyGraphFlow } from "@/components/shared/topology/topology-graph-flow";
 import { hostNameManager } from "@/lib/host-name-manager";
 import {
   BaseEdge,
@@ -7,11 +8,6 @@ import {
   Handle,
   MarkerType,
   Position,
-  ReactFlow,
-  ReactFlowProvider,
-  useEdgesState,
-  useNodesState,
-  useReactFlow,
   type Edge,
   type EdgeProps,
   type EdgeTypes,
@@ -20,7 +16,6 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { MD5 } from "crypto-js";
-import dagre from "dagre";
 import {
   forwardRef,
   useCallback,
@@ -29,6 +24,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { QueryLogDetailPane } from "./query-log-inspector-detail-pane";
@@ -96,7 +92,7 @@ interface QueryLogGraphFlowProps {
   onEdgeClick?: (edgeId: string) => void;
   onNodeClick?: (nodeId: string) => void;
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
   onControlsReady?: (controls: {
     zoomIn: () => void;
     zoomOut: () => void;
@@ -203,7 +199,7 @@ function QueryLogEdge({ id, sourceX, sourceY, targetX, targetY, data, markerEnd 
   );
 }
 
-const QueryLogGraphFlowInner = ({
+const QueryLogGraphFlow = ({
   nodes,
   edges,
   onEdgeClick,
@@ -213,84 +209,11 @@ const QueryLogGraphFlowInner = ({
   onControlsReady,
   graphId = "query-log-graph",
 }: QueryLogGraphFlowProps) => {
-  const { fitView, zoomIn, zoomOut } = useReactFlow();
-
-  // Convert edges to React Flow format
-  const initialEdges: Edge[] = useMemo(() => {
-    if (!edges || edges.length === 0) {
-      return [];
-    }
-
-    // Create a set of valid node IDs for validation
-    const nodeIds = new Set(Array.from(nodes.keys()));
-
-    // Filter and map edges, ensuring source and target nodes exist
-    const mappedEdges = edges
-      .filter((edge) => {
-        const sourceExists = nodeIds.has(edge.source);
-        const targetExists = nodeIds.has(edge.target);
-        if (!sourceExists || !targetExists) {
-          return false;
-        }
-        return true;
-      })
-      .map((edge) => {
-        const edgeObj: Edge = {
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-          type: "queryLogEdge" as const,
-          data: { label: edge.label, color: edge.color },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-          },
-          style: {
-            strokeWidth: 2,
-            stroke: edge.color || undefined,
-          },
-        };
-        return edgeObj;
-      });
-    return mappedEdges;
-  }, [edges, nodes]);
-
-  // Layout function
-  const getLayoutedNodes = useCallback((nodes: Node[], edges: Edge[]) => {
-    const dagreGraph = new dagre.graphlib.Graph();
-    dagreGraph.setDefaultEdgeLabel(() => ({}));
-    dagreGraph.setGraph({ rankdir: "LR", nodesep: 50, ranksep: 200 });
-
-    const nodeWidth = 150;
-    const nodeHeight = 60;
-
-    nodes.forEach((node) => {
-      dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
-    });
-
-    edges.forEach((edge) => {
-      dagreGraph.setEdge(edge.source, edge.target);
-    });
-
-    dagre.layout(dagreGraph);
-
-    return nodes.map((node) => {
-      const nodeWithPosition = dagreGraph.node(node.id);
-      node.targetPosition = Position.Left;
-      node.sourcePosition = Position.Right;
-      node.position = {
-        x: nodeWithPosition.x - nodeWidth / 2,
-        y: nodeWithPosition.y - nodeHeight / 2,
-      };
-      return node;
-    });
-  }, []);
-
-  // Convert nodes to React Flow format
+  const nodeIds = useMemo(() => new Set(Array.from(nodes.keys())), [nodes]);
   const initialNodes: Node[] = useMemo(() => {
     if (!nodes || nodes.size === 0) {
       return [];
     }
-
     return Array.from(nodes.values()).map((node) => ({
       id: node.id,
       type: "hostNode",
@@ -299,79 +222,29 @@ const QueryLogGraphFlowInner = ({
       draggable: true,
     }));
   }, [nodes]);
-
-  // Use React Flow's built-in state hooks
-  const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(initialNodes);
-  const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(initialEdges);
-
-  // Track the graph structure to prevent re-layout on drag
-  const layoutedGraphRef = useRef<string>("");
-  // Track if we've fitted the view (persists across renders)
-  const hasFittedViewRef = useRef<boolean>(false);
-
-  // Update nodes and edges when props change
-  useEffect(() => {
-    if (initialNodes.length === 0) {
-      setFlowNodes([]);
-      setFlowEdges([]);
-      layoutedGraphRef.current = "";
-      return;
+  const initialEdges: Edge[] = useMemo(() => {
+    if (!edges || edges.length === 0) {
+      return [];
     }
 
-    // Create a signature of the graph structure (node IDs and edge connections)
-    const graphSignature =
-      initialNodes
-        .map((n) => n.id)
-        .sort()
-        .join(",") +
-      "|" +
-      initialEdges
-        .map((e) => `${e.source}->${e.target}`)
-        .sort()
-        .join(",");
+    return edges
+      .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+      .map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        type: "queryLogEdge" as const,
+        data: { label: edge.label, color: edge.color },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+        },
+        style: {
+          strokeWidth: 2,
+          stroke: edge.color || undefined,
+        },
+      }));
+  }, [edges, nodeIds]);
 
-    // Only apply layout if the graph structure actually changed
-    if (graphSignature !== layoutedGraphRef.current) {
-      // Layout nodes even if there are no edges
-      const layoutedNodes =
-        initialEdges.length > 0
-          ? getLayoutedNodes(initialNodes, initialEdges)
-          : initialNodes.map((node, index) => ({
-              ...node,
-              position: { x: index * 200, y: 100 }, // Simple horizontal layout if no edges
-              targetPosition: Position.Left,
-              sourcePosition: Position.Right,
-            }));
-      setFlowNodes(layoutedNodes);
-      setFlowEdges(initialEdges);
-      layoutedGraphRef.current = graphSignature;
-      // Reset fit view flag when graph structure changes
-      hasFittedViewRef.current = false;
-    }
-  }, [initialNodes, initialEdges, getLayoutedNodes, setFlowNodes, setFlowEdges]);
-
-  // Fit view when graph is initially loaded or when graph structure changes
-  useEffect(() => {
-    if (flowNodes.length > 0 && !hasFittedViewRef.current) {
-      // Use requestAnimationFrame to ensure the layout is complete before fitting
-      // Double RAF ensures the DOM is fully updated and ReactFlow has calculated positions
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Add a small delay to ensure ReactFlow internal state is ready
-          setTimeout(() => {
-            try {
-              fitView({ padding: 0.2, duration: 300, maxZoom: 1.5, minZoom: 0.1 });
-              hasFittedViewRef.current = true;
-            } catch (error) {
-              console.warn("Failed to fit view:", error);
-            }
-          }, 200);
-        });
-      });
-    }
-  }, [flowNodes, fitView]);
-
-  // Node and edge types configuration
   const nodeTypes: NodeTypes = useMemo(
     () => ({
       hostNode: HostNode,
@@ -386,7 +259,6 @@ const QueryLogGraphFlowInner = ({
     []
   );
 
-  // Handle edge click
   const onEdgeClickHandler = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
       if (onEdgeClick) {
@@ -396,7 +268,6 @@ const QueryLogGraphFlowInner = ({
     [onEdgeClick]
   );
 
-  // Handle node click
   const onNodeClickHandler = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       if (onNodeClick) {
@@ -406,70 +277,24 @@ const QueryLogGraphFlowInner = ({
     [onNodeClick]
   );
 
-  // Expose control methods to parent
-  useEffect(() => {
-    if (onControlsReady) {
-      onControlsReady({
-        zoomIn: () => zoomIn(),
-        zoomOut: () => zoomOut(),
-        fitView: () => fitView({ padding: 0.2 }),
-      });
-    }
-  }, [onControlsReady, zoomIn, zoomOut, fitView]);
-
   return (
-    <div
+    <TopologyGraphFlow
+      initialNodes={initialNodes}
+      initialEdges={initialEdges}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      onEdgeClick={onEdgeClickHandler}
+      onNodeClick={onNodeClickHandler}
       className={className}
-      style={{
-        width: "100%",
-        height: "100%",
-        minWidth: "100px",
-        minHeight: "100px",
-        ...style,
-      }}
-    >
-      <style>{`
-        .react-flow__attribution {
-          display: none !important;
-        }
-        /* Hide handle connection points */
-        .react-flow__handle {
-          opacity: 0 !important;
-          pointer-events: none !important;
-        }
-      `}</style>
-      <ReactFlow
-        id={graphId}
-        nodes={flowNodes}
-        edges={flowEdges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onEdgeClick={onEdgeClickHandler}
-        onNodeClick={onNodeClickHandler}
-        defaultEdgeOptions={{
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-          },
-        }}
-        fitView
-        nodesDraggable={true}
-        nodesConnectable={false}
-        elementsSelectable={true}
-        panOnScroll={true}
-        zoomOnScroll={false}
-        panOnDrag={true}
-      />
-    </div>
-  );
-};
-
-const QueryLogGraphFlow = (props: QueryLogGraphFlowProps) => {
-  return (
-    <ReactFlowProvider>
-      <QueryLogGraphFlowInner {...props} />
-    </ReactFlowProvider>
+      style={style}
+      onControlsReady={onControlsReady}
+      graphId={graphId}
+      nodeWidth={150}
+      nodeHeight={60}
+      nodesep={50}
+      ranksep={200}
+      hideHandles={true}
+    />
   );
 };
 

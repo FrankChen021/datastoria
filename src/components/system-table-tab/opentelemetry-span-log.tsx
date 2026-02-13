@@ -10,7 +10,7 @@ import type {
   TimeseriesDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
 import DashboardPage from "@/components/shared/dashboard/dashboard-page";
-import { SpanIdLink } from "@/components/shared/span-id-link";
+import { TraceIdLink } from "@/components/shared/trace-id-link";
 import { memo, useMemo } from "react";
 
 interface OpenTelemetrySpanLogProps {
@@ -62,25 +62,24 @@ ORDER BY start_time_us DESC
           filterType: "date_time",
           alias: "_interval",
           displayText: "time",
-          timeColumn: "fromUnixTimestamp64Micro(start_time_us)",
+          timeColumn: "fromUnixTimestamp64Micro(finish_time_us)",
           defaultTimeSpan: "Last 15 Mins",
         } as DateTimeFilterSpec,
         {
           filterType: "select",
-          name: "service_name",
-          displayText: "service_name",
+          name: "FQDN()",
+          displayText: "FQDN()",
           onPreviousFilters: true,
           datasource: {
             type: "sql",
-            sql: `SELECT DISTINCT service_name
+            sql: `SELECT DISTINCT FQDN()
 FROM {clusterAllReplicas:system.opentelemetry_span_log}
 WHERE ({filterExpression:String})
-  AND event_date >= toDate({from:String}) 
-  AND event_date <= toDate({to:String})
-  AND fromUnixTimestamp64Micro(start_time_us) >= {from:String}
-  AND fromUnixTimestamp64Micro(start_time_us) < {to:String}
-  AND service_name != ''
-ORDER BY service_name
+  AND finish_date >= toDate({from:String}) 
+  AND finish_date <= toDate({to:String})
+  AND fromUnixTimestamp64Micro(finish_time_us) >= {from:String}
+  AND fromUnixTimestamp64Micro(finish_time_us) < {to:String}
+ORDER BY 1
 LIMIT 200`,
           },
         } as SelectorFilterSpec,
@@ -156,7 +155,7 @@ LIMIT 100`,
                   const eventDate =
                     typeof row?.event_date === "string" ? row.event_date : undefined;
                   return (
-                    <SpanIdLink displayTraceId={traceId} traceId={traceId} eventDate={eventDate} />
+                    <TraceIdLink displayTraceId={traceId} traceId={traceId} eventDate={eventDate} />
                   );
                 },
               },

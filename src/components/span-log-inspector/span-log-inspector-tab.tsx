@@ -149,6 +149,14 @@ interface SpanLogInspectorTabProps {
   initialEventDate?: string;
 }
 
+interface StreamProgressState {
+  readRows: number;
+  readBytes: number;
+  totalRowsToRead: number;
+  elapsedNs: number;
+  receivedRows: number;
+}
+
 function parseAttributes(value: unknown): Record<string, unknown> | null {
   if (value === null || value === undefined) {
     return null;
@@ -216,6 +224,13 @@ export function SpanLogInspectorTab({
   const graphControlsRef = useRef<GraphControlsRef | null>(null);
   const [activeTab, setActiveTab] = useState<string>("timeline");
   const [activeTraceId, setActiveTraceId] = useState<string | undefined>(initialTraceId);
+  const [streamProgress, setStreamProgress] = useState<StreamProgressState>({
+    readRows: 0,
+    readBytes: 0,
+    totalRowsToRead: 0,
+    elapsedNs: 0,
+    receivedRows: 0,
+  });
 
   const initialTimeSpanValue = useMemo(() => {
     if (initialEventDate) {
@@ -225,6 +240,20 @@ export function SpanLogInspectorTab({
   }, [initialEventDate]);
 
   const [selectedTimeSpan, setSelectedTimeSpan] = useState<DisplayTimeSpan>(initialTimeSpanValue);
+  const numberFormatter = useMemo(() => {
+    const formatter = Formatter.getInstance().getFormatter("comma_number");
+    if (typeof formatter === "function") {
+      return (value: number) => String(formatter(value));
+    }
+    return (value: number) => new Intl.NumberFormat().format(value);
+  }, []);
+  const binarySizeFormatter = useMemo(() => {
+    const formatter = Formatter.getInstance().getFormatter("binary_size");
+    if (typeof formatter === "function") {
+      return (value: number) => String(formatter(value));
+    }
+    return (value: number) => String(value);
+  }, []);
 
   useEffect(() => {
     if (activeTab === "topo") {
@@ -351,6 +380,22 @@ export function SpanLogInspectorTab({
     );
   }, []);
 
+  const toSafeNumber = useCallback((value: unknown): number => {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : 0;
+    }
+    if (typeof value === "string") {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  }, []);
+
+  const elapsedSeconds = useMemo(
+    () => streamProgress.elapsedNs / 1_000_000_000,
+    [streamProgress.elapsedNs]
+  );
+
   const loadTraceLog = useCallback(async () => {
     if (!activeTraceId) {
       return;
@@ -364,6 +409,13 @@ export function SpanLogInspectorTab({
     }
 
     setLoading(true);
+    setStreamProgress({
+      readRows: 0,
+      readBytes: 0,
+      totalRowsToRead: 0,
+      elapsedNs: 0,
+      receivedRows: 0,
+    });
     try {
       const timezone = connection.metadata.timezone;
       const sql = new SQLQueryBuilder(
@@ -375,7 +427,6 @@ WHERE trace_id = '{traceId}'
   AND finish_date <= toDate({to:String})
   AND fromUnixTimestamp64Micro(finish_time_us) >= {from:String}
   AND fromUnixTimestamp64Micro(finish_time_us) < {to:String}
-ORDER BY start_time_us
 `
       )
         .timeSpan(selectedTimeSpan.getTimeSpan(), timezone)
@@ -397,11 +448,33 @@ ORDER BY start_time_us
       const rows: Record<string, unknown>[] = [];
       await HttpResponseLineReader.read(reader, (line) => {
         const row = JSON.parse(line) as Record<string, unknown>;
+        const progress = row.progress;
+        if (progress && typeof progress === "object" && !Array.isArray(progress)) {
+          const progressData = progress as Record<string, unknown>;
+          setStreamProgress((prev) => ({
+            ...prev,
+            readRows: toSafeNumber(progressData.read_rows),
+            readBytes: toSafeNumber(progressData.read_bytes),
+            totalRowsToRead: toSafeNumber(progressData.total_rows_to_read),
+            elapsedNs: toSafeNumber(progressData.elapsed_ns),
+          }));
+        }
+
         if (row.row) {
           rows.push(normalizeSpanLogAttributes(row.row as Record<string, unknown>));
+          if (rows.length % 100 === 0) {
+            setStreamProgress((prev) => ({
+              ...prev,
+              receivedRows: rows.length,
+            }));
+          }
         }
       });
 
+      setStreamProgress((prev) => ({
+        ...prev,
+        receivedRows: rows.length,
+      }));
       setTraceLogs(rows);
       setLoadError(null);
     } catch (error) {
@@ -412,7 +485,7 @@ ORDER BY start_time_us
     } finally {
       setLoading(false);
     }
-  }, [activeTraceId, connection, selectedTimeSpan]);
+  }, [activeTraceId, connection, selectedTimeSpan, toSafeNumber]);
 
   useEffect(() => {
     loadTraceLog();
@@ -427,6 +500,17 @@ ORDER BY start_time_us
         isLoading={isLoading}
         onRefresh={loadTraceLog}
       />
+      {isLoading && (
+        <div className="px-3 py-2 border-y bg-muted/20">
+          <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span>{`Received: ${numberFormatter(streamProgress.receivedRows)} rows`}</span>
+            <span>{`Read: ${numberFormatter(streamProgress.readRows)} rows`}</span>
+            <span>{`Total: ${numberFormatter(streamProgress.totalRowsToRead)} rows`}</span>
+            <span>{`Bytes: ${binarySizeFormatter(streamProgress.readBytes)}`}</span>
+            <span>{`Elapsed: ${elapsedSeconds.toFixed(2)}s`}</span>
+          </div>
+        </div>
+      )}
       {loadError ? (
         <div className="px-2">
           <QueryResponseErrorView

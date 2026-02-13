@@ -1,3 +1,4 @@
+import { TopologyGraphFlow } from "@/components/shared/topology/topology-graph-flow";
 import { Formatter } from "@/lib/formatter";
 import {
   BaseEdge,
@@ -6,21 +7,16 @@ import {
   Handle,
   MarkerType,
   Position,
-  ReactFlow,
-  ReactFlowProvider,
-  useEdgesState,
-  useNodesState,
-  useReactFlow,
   type Edge,
   type EdgeProps,
+  type EdgeTypes,
   type Node,
+  type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import dagre from "dagre";
 import {
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useState,
@@ -50,11 +46,15 @@ interface SpanLogInspectorTopoViewProps {
 
 function TopoNodeRenderer({ data }: { data: TopoNodeData }) {
   return (
-    <div className="rounded-lg border-2 shadow-lg min-w-[160px] bg-background border-border relative px-3 py-2">
+    <div className="rounded-lg border-2 shadow-lg w-[320px] bg-background border-border relative px-3 py-2">
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
-      <div className="text-sm font-semibold text-foreground text-center">{data.node.label}</div>
-      <div className="text-[11px] text-muted-foreground text-center">{data.node.description}</div>
+      <div className="text-sm font-semibold text-foreground text-center truncate">
+        {data.node.label}
+      </div>
+      <div className="text-[11px] text-muted-foreground text-center truncate">
+        {data.node.description}
+      </div>
     </div>
   );
 }
@@ -115,13 +115,12 @@ interface TraceTopoFlowProps {
   onEdgeSelected: (edge: TraceTopoEdge | undefined) => void;
 }
 
-const TraceTopoFlowInner = ({
+const TraceTopoFlow = ({
   topoNodes,
   topoEdges,
   onControlsReady,
   onEdgeSelected,
 }: TraceTopoFlowProps) => {
-  const { fitView, zoomIn, zoomOut } = useReactFlow();
   const microsecondFormatter = Formatter.getInstance().getFormatter("microsecond");
 
   const edgeById = useMemo(() => {
@@ -162,74 +161,20 @@ const TraceTopoFlowInner = ({
     });
   }, [topoEdges, microsecondFormatter]);
 
-  const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(initialNodes);
-  const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const nodeTypes: NodeTypes = useMemo(
+    () => ({
+      topoNode: TopoNodeRenderer,
+    }),
+    []
+  );
+  const edgeTypes: EdgeTypes = useMemo(
+    () => ({
+      topoEdge: TopoEdgeRenderer,
+    }),
+    []
+  );
 
-  const layoutGraph = useCallback((nodes: Node[], edges: Edge[]) => {
-    if (nodes.length === 0) {
-      return [];
-    }
-    const graph = new dagre.graphlib.Graph();
-    graph.setDefaultEdgeLabel(() => ({}));
-    graph.setGraph({ rankdir: "LR", nodesep: 60, ranksep: 160 });
-    const nodeWidth = 180;
-    const nodeHeight = 72;
-
-    for (const node of nodes) {
-      graph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
-    }
-    for (const edge of edges) {
-      graph.setEdge(edge.source, edge.target);
-    }
-    dagre.layout(graph);
-
-    return nodes.map((node, index) => {
-      const positionedNode = graph.node(node.id);
-      if (!positionedNode) {
-        return {
-          ...node,
-          position: { x: index * 220, y: 80 },
-          targetPosition: Position.Left,
-          sourcePosition: Position.Right,
-        };
-      }
-      return {
-        ...node,
-        targetPosition: Position.Left,
-        sourcePosition: Position.Right,
-        position: {
-          x: positionedNode.x - nodeWidth / 2,
-          y: positionedNode.y - nodeHeight / 2,
-        },
-      };
-    });
-  }, []);
-
-  useEffect(() => {
-    setFlowEdges(initialEdges);
-    setFlowNodes(layoutGraph(initialNodes, initialEdges));
-  }, [initialNodes, initialEdges, layoutGraph, setFlowEdges, setFlowNodes]);
-
-  useEffect(() => {
-    onControlsReady({
-      zoomIn: () => zoomIn(),
-      zoomOut: () => zoomOut(),
-      fitView: () => fitView({ padding: 0.2 }),
-    });
-  }, [fitView, onControlsReady, zoomIn, zoomOut]);
-
-  useEffect(() => {
-    if (flowNodes.length === 0) {
-      return;
-    }
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        fitView({ padding: 0.2, duration: 300, maxZoom: 1.5, minZoom: 0.1 });
-      });
-    });
-  }, [fitView, flowNodes.length]);
-
-  const handleEdgeClick = useCallback(
+  const handleEdgeClickHandler = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
       onEdgeSelected(edgeById.get(edge.id));
     },
@@ -237,36 +182,18 @@ const TraceTopoFlowInner = ({
   );
 
   return (
-    <div className="w-full h-full">
-      <style>{`
-        .react-flow__attribution {
-          display: none !important;
-        }
-      `}</style>
-      <ReactFlow
-        nodes={flowNodes}
-        edges={flowEdges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onEdgeClick={handleEdgeClick}
-        nodesDraggable={true}
-        nodesConnectable={false}
-        panOnDrag={true}
-        panOnScroll={true}
-        zoomOnScroll={false}
-        fitView
-      />
-    </div>
-  );
-};
-
-const TraceTopoFlow = (props: TraceTopoFlowProps) => {
-  return (
-    <ReactFlowProvider>
-      <TraceTopoFlowInner {...props} />
-    </ReactFlowProvider>
+    <TopologyGraphFlow
+      initialNodes={initialNodes}
+      initialEdges={initialEdges}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      onEdgeClick={handleEdgeClickHandler}
+      onControlsReady={onControlsReady}
+      nodeWidth={320}
+      nodeHeight={72}
+      nodesep={60}
+      ranksep={160}
+    />
   );
 };
 
