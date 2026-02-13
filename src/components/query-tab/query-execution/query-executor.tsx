@@ -28,6 +28,7 @@ interface QueryExecutionContextType {
   cancelQuery: (queryId: string) => void;
   deleteQuery: (queryId: string) => void;
   deleteAllQueries: () => void;
+  fetchTableData: (queryId: string, sql: string) => void;
 }
 
 const QueryExecutionContext = createContext<QueryExecutionContextType | undefined>(undefined);
@@ -273,6 +274,71 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
     setSqlMessages([]);
   }, []);
 
+  const fetchTableData = useCallback(
+    (queryId: string, sql: string) => {
+      if (!connection) return;
+
+      // Set loading state
+      setSqlMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === queryId ? { ...msg, isLoadingTableData: true } : msg
+        )
+      );
+
+      // Execute query with JSON format
+      (async () => {
+        try {
+          const { response, abortController: apiAbortController } = connection.query(sql, {
+            default_format: "JSON",
+          });
+
+          // Store abort controller with a unique key for table data fetch
+          const tableDataKey = `${queryId}-table`;
+          abortControllersRef.current.set(tableDataKey, apiAbortController);
+
+          const apiResponse = await response;
+
+          if (apiAbortController.signal.aborted) {
+            return;
+          }
+
+          const tableData = apiResponse.data.text();
+
+          // Update message with table data
+          setSqlMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === queryId
+                ? {
+                    ...msg,
+                    isLoadingTableData: false,
+                    queryResponse: msg.queryResponse
+                      ? { ...msg.queryResponse, tableData }
+                      : undefined,
+                  }
+                : msg
+            )
+          );
+
+          abortControllersRef.current.delete(tableDataKey);
+        } catch (error) {
+          const apiError = error as QueryError;
+
+          if (apiError.name !== "AbortError" && !apiError.message?.includes("aborted")) {
+            // Real error - clear loading state
+            setSqlMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === queryId ? { ...msg, isLoadingTableData: false } : msg
+              )
+            );
+          }
+
+          abortControllersRef.current.delete(`${queryId}-table`);
+        }
+      })();
+    },
+    [connection]
+  );
+
   const value = useMemo(
     () => ({
       isSqlExecuting,
@@ -281,8 +347,9 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
       cancelQuery,
       deleteQuery,
       deleteAllQueries,
+      fetchTableData,
     }),
-    [isSqlExecuting, sqlMessages, executeQuery, cancelQuery, deleteQuery, deleteAllQueries]
+    [isSqlExecuting, sqlMessages, executeQuery, cancelQuery, deleteQuery, deleteAllQueries, fetchTableData]
   );
 
   return <QueryExecutionContext.Provider value={value}>{children}</QueryExecutionContext.Provider>;
