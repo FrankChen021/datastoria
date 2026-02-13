@@ -2,9 +2,9 @@ import { QueryError } from "@/lib/connection/connection";
 import type { ToolExecutor, ToolProgressCallback } from "../client-tool-types";
 import {
   buildTimeFilter,
-  handleUnknown,
   isStatusContextReusable,
   resolveScope,
+  runScenarioEvidence,
   type CanonicalSymptom,
   type EvidenceGap,
   type RcaEvidenceInput,
@@ -13,14 +13,17 @@ import {
   type SymptomContext,
   type SymptomHandler,
 } from "./collect-rca-evidence-common";
-import { collectHighPartCountEvidence } from "./collect-rca-evidence-high-part";
-import { collectHighPartitionCountEvidence } from "./collect-rca-evidence-high-partition";
-import { collectHighQueryLatencyEvidence } from "./collect-rca-evidence-high-query-latency";
+import { collectUnknownEvidence } from "./collect-rca-evidence-default";
+import { HIGH_PART_COUNT_SCENARIO } from "./collect-rca-evidence-high-part";
+import { HIGH_PARTITION_COUNT_SCENARIO } from "./collect-rca-evidence-high-partition";
+import { HIGH_QUERY_LATENCY_SCENARIO } from "./collect-rca-evidence-high-query-latency";
 
 const SYMPTOM_HANDLERS: Partial<Record<CanonicalSymptom, SymptomHandler>> = {
-  high_query_latency: collectHighQueryLatencyEvidence,
-  high_part_count: collectHighPartCountEvidence,
-  high_partition_count: collectHighPartitionCountEvidence,
+  high_query_latency: async (context) => runScenarioEvidence(context, HIGH_QUERY_LATENCY_SCENARIO),
+  high_part_count: async (context) => runScenarioEvidence(context, HIGH_PART_COUNT_SCENARIO),
+  high_partition_count: async (context) =>
+    runScenarioEvidence(context, HIGH_PARTITION_COUNT_SCENARIO),
+  unknown: collectUnknownEvidence,
 };
 
 export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvidenceOutput> = async (
@@ -47,6 +50,7 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
         related_symptoms: [],
         observations: [],
         candidates: [],
+        excluded_candidates: [],
         possible_actions: [],
         gaps,
         generated_at: new Date().toISOString(),
@@ -65,6 +69,7 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
       connection,
       scope: resolvedScope,
       target: input.target,
+      symptomText: input.symptom_text,
       timeFilter: filter,
       timeWindowMinutes: minutes,
       gaps,
@@ -74,7 +79,7 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
     progressCallback?.("collect rca evidence", 30, "started");
 
     const handler = SYMPTOM_HANDLERS[input.symptom];
-    if (input.symptom !== "unknown" && !handler) {
+    if (!handler) {
       gaps.push({
         description: "symptom handler unavailable",
         reason: `symptom '${input.symptom}' is not implemented in Phase 1`,
@@ -89,6 +94,7 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
         related_symptoms: [],
         observations: [],
         candidates: [],
+        excluded_candidates: [],
         possible_actions: [],
         gaps,
         generated_at: new Date().toISOString(),
@@ -96,10 +102,7 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
       };
     }
 
-    const result =
-      input.symptom === "unknown"
-        ? await handleUnknown(context, input.symptom_text || "")
-        : await (handler as SymptomHandler)(context);
+    const result = await (handler as SymptomHandler)(context);
 
     progressCallback?.("collect rca evidence", 90, "success");
 
@@ -112,6 +115,7 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
       related_symptoms: result.related_symptoms,
       observations: result.observations,
       candidates: result.candidates,
+      excluded_candidates: result.excluded_candidates,
       possible_actions: result.possible_actions,
       gaps,
       generated_at: new Date().toISOString(),
@@ -137,6 +141,7 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
       related_symptoms: [],
       observations: [],
       candidates: [],
+      excluded_candidates: [],
       possible_actions: [],
       gaps,
       generated_at: new Date().toISOString(),

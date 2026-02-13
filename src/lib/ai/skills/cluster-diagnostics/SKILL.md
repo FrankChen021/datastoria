@@ -80,6 +80,7 @@ Use compact structure only:
 1. **RCA Verdict**: one sentence, max 30 words.
 2. **Top Candidates**: markdown table with max 3 rows: `cause | signal_strength | why`.
 3. **Key Evidence**: max 3 bullets, each bullet must include at least one metric/value from tool output.
+   When `excluded_candidates` is non-empty, include at least one bullet explaining why a plausible cause was excluded (use `missing_required` + metric values).
 4. **Possible Actions**: max 3 numbered items, sorted by impact.
 5. **Gaps / Next Checks**: max 2 bullets.
 

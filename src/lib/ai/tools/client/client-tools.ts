@@ -17,10 +17,7 @@ import { exploreSchemaExecutor } from "./explore-schema";
 import { findExpensiveQueriesExecutor } from "./find-expensive-queries";
 import { getTablesExecutor } from "./get-tables";
 import { collectRcaEvidenceExecutor } from "./rca/collect-rca-evidence";
-import {
-  type RcaEvidenceInput,
-  type RcaEvidenceOutput,
-} from "./rca/collect-rca-evidence-common";
+import { type RcaEvidenceInput, type RcaEvidenceOutput } from "./rca/collect-rca-evidence-common";
 import {
   getClusterStatusExecutor,
   type GetClusterStatusInput,
@@ -556,6 +553,15 @@ export const ClientTools = {
           next_checks: z.array(z.string()),
         })
       ),
+      excluded_candidates: z
+        .array(
+          z.object({
+            cause: z.string(),
+            missing_required: z.array(z.string()),
+            evidence_against: z.array(z.string()),
+          })
+        )
+        .optional(),
       possible_actions: z.array(
         z.object({
           title: z.string(),

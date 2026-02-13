@@ -1,19 +1,14 @@
 import {
   asNumber,
   buildQueryLogPredicate,
-  evaluateRules,
-  runQueries,
-  scoreCandidate,
   type PossibleAction,
-  type QueryResults,
   type QuerySpec,
   type RuleSpec,
+  type ScenarioSpec,
   type SymptomContext,
-  type SymptomResult,
-  type Target,
 } from "./collect-rca-evidence-common";
 
-type HighQueryLatencyContext = SymptomContext & {
+export type HighQueryLatencyContext = SymptomContext & {
   scopePredicate: string;
 };
 
@@ -189,38 +184,24 @@ const HIGH_QUERY_LATENCY_ACTIONS: PossibleAction[] = [
   },
 ];
 
-function resolveHighQueryLatencyTarget(
-  context: SymptomContext,
-  results: QueryResults
-): Target | undefined {
-  const { scope, target } = context;
-  const sampleQueryHash = String(results["query_log"]?.metrics["sample_query_hash"] ?? "");
-  if (scope === "query_pattern" && sampleQueryHash) {
-    return {
-      ...target,
-      query_hash: target?.query_hash || sampleQueryHash,
-    };
-  }
-  return target;
-}
-
-export async function collectHighQueryLatencyEvidence(context: SymptomContext): Promise<SymptomResult> {
-  const { scope, target } = context;
-  const ctx: HighQueryLatencyContext = {
-    ...context,
-    scopePredicate: buildQueryLogPredicate(scope, target),
-  };
-
-  const results = await runQueries(ctx, HIGH_QUERY_LATENCY_QUERIES);
-  const candidateRules = evaluateRules(HIGH_QUERY_LATENCY_RULES, results);
-  const candidates = candidateRules
-    .map(scoreCandidate)
-    .sort((a, b) => b.signal_strength - a.signal_strength);
-
-  return {
-    observations: Object.values(results),
-    candidates,
-    possible_actions: HIGH_QUERY_LATENCY_ACTIONS,
-    target: resolveHighQueryLatencyTarget(context, results),
-  };
-}
+export const HIGH_QUERY_LATENCY_SCENARIO: ScenarioSpec<HighQueryLatencyContext> = {
+  queries: HIGH_QUERY_LATENCY_QUERIES,
+  rules: HIGH_QUERY_LATENCY_RULES,
+  possible_actions: HIGH_QUERY_LATENCY_ACTIONS,
+  prepareContext: async (baseContext) => ({
+    ...baseContext,
+    scopePredicate: buildQueryLogPredicate(baseContext.scope, baseContext.target),
+  }),
+  finalizeResult: ({ context, results }) => {
+    const sampleQueryHash = String(results["query_log"]?.metrics["sample_query_hash"] ?? "");
+    if (context.scope === "query_pattern" && sampleQueryHash) {
+      return {
+        target: {
+          ...context.target,
+          query_hash: context.target?.query_hash || sampleQueryHash,
+        },
+      };
+    }
+    return {};
+  },
+};
