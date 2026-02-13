@@ -118,10 +118,9 @@ export class QuerySuggestionManager {
             absoluteUrl = `https://clickhouse.com/docs/sql-reference/functions/${cleanUrl}`;
           } else if (type === "setting") {
             absoluteUrl = `https://clickhouse.com/docs/operations/settings/${cleanUrl}`;
-          } else if (type === 'server_setting') {
+          } else if (type === "server_setting") {
             absoluteUrl = `https://clickhouse.com/docs/operations/server-configuration-parameters/settings${cleanUrl}`;
-          }
-          else {
+          } else {
             absoluteUrl = `https://clickhouse.com/docs/${cleanUrl}`;
           }
         }
@@ -902,8 +901,8 @@ SELECT * FROM (
             // Filter completions based on the search prefix (after @)
             const tableCompletions = searchPrefix
               ? this.qualifiedTableCompletions.filter(
-                (c) => c.value && c.value.toLowerCase().includes(searchPrefix)
-              )
+                  (c) => c.value && c.value.toLowerCase().includes(searchPrefix)
+                )
               : this.qualifiedTableCompletions;
 
             // Add custom insertMatch to each completion item
