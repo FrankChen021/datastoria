@@ -6,6 +6,7 @@ import { DatabaseTab } from "@/components/database-tab/database-tab";
 import { NodeTab } from "@/components/node-tab/node-tab";
 import { QueryLogInspectorTab } from "@/components/query-log-inspector/query-log-inspector-tab";
 import { QueryTab } from "@/components/query-tab/query-tab";
+import { SpanLogInspectorTab } from "@/components/span-log-inspector/span-log-inspector-tab";
 import { SYSTEM_TABLE_REGISTRY } from "@/components/system-table-tab/system-table-registry";
 import { TabManager, type TabInfo } from "@/components/tab-manager";
 import { TableTab } from "@/components/table-tab/table-tab";
@@ -576,6 +577,8 @@ export const MainPageTabList = memo(function MainPageTabList({
           return { id: tab.id, label: "Query", icon: Terminal };
         } else if (tab.type === "query-log") {
           return { id: tab.id, label: tab.queryId || "Query Log Viewer", icon: Search };
+        } else if (tab.type === "span-log") {
+          return { id: tab.id, label: tab.traceId || "Span Log Viewer", icon: Search };
         } else if (tab.type === "node") {
           return { id: tab.id, label: `${tab.host}`, icon: Monitor };
         } else if (tab.type === "cluster") {
@@ -689,6 +692,18 @@ export const MainPageTabList = memo(function MainPageTabList({
             aria-hidden={activeTab !== tab.id}
           >
             <QueryLogInspectorTab initialQueryId={tab.queryId} initialEventDate={tab.eventDate} />
+          </div>
+        );
+      }
+      if (tab.type === "span-log") {
+        return (
+          <div
+            key={tab.id}
+            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
+            role="tabpanel"
+            aria-hidden={activeTab !== tab.id}
+          >
+            <SpanLogInspectorTab initialTraceId={tab.traceId} initialEventDate={tab.eventDate} />
           </div>
         );
       }

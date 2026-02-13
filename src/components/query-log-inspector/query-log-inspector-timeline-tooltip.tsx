@@ -36,6 +36,7 @@ export function calculateTooltipPosition(x: number, y: number) {
 
 const QueryLogTimelineTooltipImpl = ({ node }: { node: QueryLogTreeNode }) => {
   const log = node.queryLog;
+  const queryText = typeof log.query === "string" ? log.query : "";
 
   return (
     <div className="flex flex-col gap-1">
@@ -60,12 +61,12 @@ const QueryLogTimelineTooltipImpl = ({ node }: { node: QueryLogTreeNode }) => {
 
           {log && (
             <>
-              {log.query && (
+              {queryText !== "" && (
                 <div className="flex flex-col">
                   <span className="font-bold">Query:</span>
                   <span className="text-muted-foreground text-xs font-mono break-all mt-1">
-                    {log.query.substring(0, 200)}
-                    {log.query.length > 200 ? "..." : ""}
+                    {queryText.substring(0, 200)}
+                    {queryText.length > 200 ? "..." : ""}
                   </span>
                 </div>
               )}

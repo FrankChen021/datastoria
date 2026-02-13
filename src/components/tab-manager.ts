@@ -15,6 +15,7 @@ export type TabType =
   | "cluster"
   | "dashboard"
   | "query-log"
+  | "span-log"
   | "system-table";
 
 export interface BaseTabInfo {
@@ -62,6 +63,12 @@ export interface QueryLogTabInfo extends BaseTabInfo {
   eventDate?: string;
 }
 
+export interface SpanLogTabInfo extends BaseTabInfo {
+  type: "span-log";
+  traceId?: string;
+  eventDate?: string;
+}
+
 export interface SystemTableTabInfo extends BaseTabInfo {
   type: "system-table";
   tableName: string;
@@ -75,6 +82,7 @@ export type TabInfo =
   | NodeTabInfo
   | ClusterTabInfo
   | QueryLogTabInfo
+  | SpanLogTabInfo
   | SystemTableTabInfo;
 
 /**
