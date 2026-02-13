@@ -33,6 +33,7 @@ export interface QueryResponseViewModel {
   httpStatus?: number;
   httpHeaders?: Record<string, string>;
   data?: unknown;
+  tableData?: unknown; // JSON format response (cached for table view)
 }
 
 export interface QueryErrorDisplay {
@@ -71,6 +72,7 @@ export interface SQLMessage {
     statementIndex: number;
     statementCount: number;
   };
+  isLoadingTableData?: boolean; // Whether table data is being fetched
   view: QueryViewType | string;
   viewArgs?: {
     showRequest?: "show" | "hide" | "collapse";
