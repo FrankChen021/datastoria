@@ -22,10 +22,10 @@ export type SystemTableTabEntry = {
 export const SYSTEM_TABLE_REGISTRY = new Map<string, SystemTableTabEntry>([
   ["dashboards", { component: Dashboards }],
   ["distributed_ddl_queue", { component: DistributedDDLQueue }],
+  ["opentelemetry_span_log", { component: OpenTelemetrySpanLog }],
   ["query_log", { component: QueryLog }],
   ["query_views_log", { component: QueryViewsLog }],
   ["part_log", { component: PartLog }],
-  ["opentelemetry_span_log", { component: OpenTelemetrySpanLog }],
   ["processes", { component: Processes }],
   ["zookeeper", { component: Zookeeper }],
 ]);

@@ -43,7 +43,7 @@ export interface SelectorFilterSpec {
    *
    * For SQL data sources, supported template params (replaced by DashboardFilterComponent):
    * - {from:String}, {to:String}, {rounding:UInt32}, {seconds:UInt32}, {startTimestamp:UInt32}, {endTimestamp:UInt32}
-   *   (same behavior as `replaceTimeSpanParams`)
+   *   (same behavior as SQLQueryBuilder time span replacement)
    * - {filterExpression:String} -> combined expression from previous selectors (or "1=1" if empty)
    * - {timeFilter:String} -> generated from the date_time filter spec (or default time column if missing)
    *

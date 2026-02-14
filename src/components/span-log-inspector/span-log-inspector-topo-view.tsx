@@ -1,4 +1,5 @@
 import { TopologyGraphFlow } from "@/components/shared/topology/topology-graph-flow";
+import { Button } from "@/components/ui/button";
 import { Formatter } from "@/lib/formatter";
 import {
   BaseEdge,
@@ -14,39 +15,28 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import {
-  forwardRef,
-  useCallback,
-  useImperativeHandle,
-  useMemo,
-  useState,
-  type ForwardedRef,
-} from "react";
+import { X } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { SpanLogInspectorTableView } from "./span-log-inspector-table-view";
+import type { SpanLogTreeNode } from "./span-log-inspector-timeline-types";
 import {
   buildTraceTopo,
   type TraceTopoEdge,
   type TraceTopoNode,
 } from "./span-log-inspector-topo-builder";
 
-export interface GraphControlsRef {
-  zoomIn: () => void;
-  zoomOut: () => void;
-  fitView: () => void;
-}
-
 interface TopoNodeData {
   node: TraceTopoNode;
 }
 
 interface SpanLogInspectorTopoViewProps {
-  traceLogs: Record<string, unknown>[];
+  spanTree: SpanLogTreeNode[];
 }
 
 function TopoNodeRenderer({ data }: { data: TopoNodeData }) {
   return (
-    <div className="rounded-lg border-2 shadow-lg w-[320px] bg-background border-border relative px-3 py-2">
+    <div className="rounded-lg border-2 shadow-lg min-w-[150px] bg-background border-border relative px-3 py-2">
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
       <div className="text-sm font-semibold text-foreground text-center truncate">
@@ -67,7 +57,8 @@ function TopoEdgeRenderer({ id, sourceX, sourceY, targetX, targetY, data, marker
     targetY,
   });
 
-  const edgeColor = typeof data?.color === "string" ? data.color : "hsl(var(--muted-foreground))";
+  const edgeColor = typeof data?.color === "string" ? data.color : undefined;
+  const isSelected = data?.isSelected === true;
   const label = typeof data?.label === "string" ? data.label : "";
   const edgeMarkerEnd = typeof markerEnd === "string" ? markerEnd : MarkerType.ArrowClosed;
 
@@ -77,7 +68,7 @@ function TopoEdgeRenderer({ id, sourceX, sourceY, targetX, targetY, data, marker
         id={id}
         path={edgePath}
         markerEnd={edgeMarkerEnd}
-        style={{ strokeWidth: 2, stroke: edgeColor }}
+        style={{ strokeWidth: 2, ...(edgeColor ? { stroke: edgeColor } : {}) }}
       />
       {label !== "" && (
         <EdgeLabelRenderer>
@@ -86,13 +77,14 @@ function TopoEdgeRenderer({ id, sourceX, sourceY, targetX, targetY, data, marker
               position: "absolute",
               transform: `translate(-50%, -100%) translate(${labelX}px,${labelY - 4}px)`,
               background: "hsl(var(--background))",
-              border: "1px solid hsl(var(--border))",
+              border: isSelected ? "1px solid #3b82f6" : "1px solid hsl(var(--border))",
               borderRadius: 4,
               fontSize: 10,
               color: "hsl(var(--foreground))",
               whiteSpace: "pre-line",
               textAlign: "center",
               padding: "2px 6px",
+              boxShadow: isSelected ? "0 0 0 1px #3b82f6 inset" : undefined,
               pointerEvents: "all",
             }}
             className="nodrag nopan"
@@ -105,20 +97,17 @@ function TopoEdgeRenderer({ id, sourceX, sourceY, targetX, targetY, data, marker
   );
 }
 
-const nodeTypes = { topoNode: TopoNodeRenderer };
-const edgeTypes = { topoEdge: TopoEdgeRenderer };
-
 interface TraceTopoFlowProps {
   topoNodes: TraceTopoNode[];
   topoEdges: TraceTopoEdge[];
-  onControlsReady: (controls: GraphControlsRef) => void;
+  selectedEdgeId?: string;
   onEdgeSelected: (edge: TraceTopoEdge | undefined) => void;
 }
 
 const TraceTopoFlow = ({
   topoNodes,
   topoEdges,
-  onControlsReady,
+  selectedEdgeId,
   onEdgeSelected,
 }: TraceTopoFlowProps) => {
   const microsecondFormatter = Formatter.getInstance().getFormatter("microsecond");
@@ -144,7 +133,9 @@ const TraceTopoFlow = ({
   const initialEdges: Edge[] = useMemo(() => {
     return topoEdges.map((edge) => {
       const avgDuration = edge.count > 0 ? Math.floor(edge.totalDurationUs / edge.count) : 0;
-      const edgeColor = edge.errorCount > 0 ? "#ef4444" : "hsl(var(--muted-foreground))";
+      const isSelected = selectedEdgeId === edge.id;
+      const edgeColor = edge.errorCount > 0 ? "#ef4444" : undefined;
+      const selectedEdgeColor = edge.errorCount > 0 ? "#dc2626" : "#3b82f6";
       const label =
         edge.count <= 1
           ? `${edge.count} call\nRT=${microsecondFormatter(edge.maxDurationUs)}`
@@ -154,12 +145,20 @@ const TraceTopoFlow = ({
         source: edge.source,
         target: edge.target,
         type: "topoEdge",
-        data: { edge, label, color: edgeColor } as Record<string, unknown>,
+        data: {
+          edge,
+          label,
+          color: isSelected ? selectedEdgeColor : edgeColor,
+          isSelected,
+        } as Record<string, unknown>,
         markerEnd: { type: MarkerType.ArrowClosed },
-        style: { strokeWidth: 2, stroke: edgeColor },
+        style: {
+          strokeWidth: isSelected ? 3 : 2,
+          ...(isSelected ? { stroke: selectedEdgeColor } : edgeColor ? { stroke: edgeColor } : {}),
+        },
       };
     });
-  }, [topoEdges, microsecondFormatter]);
+  }, [topoEdges, microsecondFormatter, selectedEdgeId]);
 
   const nodeTypes: NodeTypes = useMemo(
     () => ({
@@ -188,38 +187,17 @@ const TraceTopoFlow = ({
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       onEdgeClick={handleEdgeClickHandler}
-      onControlsReady={onControlsReady}
-      nodeWidth={320}
-      nodeHeight={72}
+      nodeWidth={150}
+      nodeHeight={60}
       nodesep={60}
       ranksep={160}
     />
   );
 };
 
-export const SpanLogInspectorTopoView = forwardRef(function SpanLogInspectorTopoView(
-  { traceLogs }: SpanLogInspectorTopoViewProps,
-  ref: ForwardedRef<GraphControlsRef>
-) {
-  const topo = useMemo(() => buildTraceTopo(traceLogs), [traceLogs]);
+export function SpanLogInspectorTopoView({ spanTree }: SpanLogInspectorTopoViewProps) {
+  const topo = useMemo(() => buildTraceTopo(spanTree), [spanTree]);
   const [selectedEdge, setSelectedEdge] = useState<TraceTopoEdge | undefined>(undefined);
-  const [controls, setControls] = useState<GraphControlsRef | undefined>(undefined);
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      zoomIn: () => {
-        controls?.zoomIn();
-      },
-      zoomOut: () => {
-        controls?.zoomOut();
-      },
-      fitView: () => {
-        controls?.fitView();
-      },
-    }),
-    [controls]
-  );
 
   const microsecondFormatter = Formatter.getInstance().getFormatter("microsecond");
   const avgDuration = selectedEdge
@@ -228,42 +206,44 @@ export const SpanLogInspectorTopoView = forwardRef(function SpanLogInspectorTopo
       : 0
     : 0;
 
-  if (selectedEdge) {
-    return (
-      <PanelGroup direction="vertical" className="h-full min-h-0">
-        <Panel defaultSize={60} minSize={30}>
-          <div className="h-full w-full min-h-0">
-            <TraceTopoFlow
-              topoNodes={topo.nodes}
-              topoEdges={topo.edges}
-              onControlsReady={setControls}
-              onEdgeSelected={setSelectedEdge}
-            />
-          </div>
-        </Panel>
-        <PanelResizeHandle className="h-[1px] w-full cursor-row-resize hover:bg-border/80 transition-colors" />
-        <Panel defaultSize={40} minSize={20}>
-          <div className="h-full min-h-0 flex flex-col border-t">
-            <div className="px-3 py-2 border-b bg-muted/20 text-xs text-muted-foreground">
-              {`${selectedEdge.source} -> ${selectedEdge.target} | ${selectedEdge.count} calls | ${selectedEdge.errorCount} errors | avg ${microsecondFormatter(avgDuration)}`}
-            </div>
-            <div className="flex-1 min-h-0 overflow-auto">
-              <SpanLogInspectorTableView traceLogs={selectedEdge.sampleRows} />
-            </div>
-          </div>
-        </Panel>
-      </PanelGroup>
-    );
-  }
-
+  // Always render the same component tree so that ReactFlow is never
+  // unmounted/remounted when the detail pane opens or closes.
   return (
-    <div className="h-full w-full min-h-0">
-      <TraceTopoFlow
-        topoNodes={topo.nodes}
-        topoEdges={topo.edges}
-        onControlsReady={setControls}
-        onEdgeSelected={setSelectedEdge}
-      />
-    </div>
+    <PanelGroup direction="vertical" className="h-full min-h-0">
+      <Panel defaultSize={selectedEdge ? 60 : 100} minSize={30}>
+        <div className="h-full w-full min-h-0">
+          <TraceTopoFlow
+            topoNodes={topo.nodes}
+            topoEdges={topo.edges}
+            selectedEdgeId={selectedEdge?.id}
+            onEdgeSelected={setSelectedEdge}
+          />
+        </div>
+      </Panel>
+
+      {selectedEdge && (
+        <>
+          <PanelResizeHandle className="h-[1px] w-full cursor-row-resize hover:bg-border/80 transition-colors" />
+          <Panel defaultSize={40} minSize={20}>
+            <div className="h-full min-h-0 flex flex-col border-t">
+              <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/20 text-xs text-muted-foreground">
+                <span>{`${selectedEdge.source} -> ${selectedEdge.target} | ${selectedEdge.count} calls | ${selectedEdge.errorCount} errors | avg ${microsecondFormatter(avgDuration)}`}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedEdge(undefined)}
+                  className="h-6 w-6 flex-shrink-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+              <div className="flex-1 min-h-0 overflow-auto">
+                <SpanLogInspectorTableView spanLogs={selectedEdge.sampleRows} />
+              </div>
+            </div>
+          </Panel>
+        </>
+      )}
+    </PanelGroup>
   );
-});
+}

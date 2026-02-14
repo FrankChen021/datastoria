@@ -81,8 +81,14 @@ function flattenVisibleNodes(
 function applyPattern(node: TimelineNode, pattern: string): boolean {
   const idx = node._search.indexOf(pattern);
   if (idx >= 0) {
-    node._matchedIndex = idx;
-    node._matchedLength = pattern.length;
+    const displayIdx = node._display.toLowerCase().indexOf(pattern);
+    if (displayIdx >= 0) {
+      node._matchedIndex = displayIdx;
+      node._matchedLength = pattern.length;
+    } else {
+      node._matchedIndex = -1;
+      node._matchedLength = 0;
+    }
     return true;
   }
   node._matchedIndex = -1;
@@ -517,14 +523,11 @@ const SharedTimelineView = React.memo(
       const showDetailPane = !!selectedNode && !!renderDetailPane;
 
       return (
-        <PanelGroup direction="horizontal" className="w-full h-full pt-2">
+        <PanelGroup direction="horizontal" className="w-full h-full">
           <Panel defaultSize={showDetailPane ? 70 : 100} minSize={30}>
             <div
               ref={containerRef}
-              className={cn(
-                "w-full h-full overflow-auto rounded-sm border-t border-l",
-                showDetailPane ? "rounded-r-none" : "border-r"
-              )}
+              className={cn("w-full h-full overflow-auto border-t")}
               onMouseEnter={handleViewMouseEnter}
               onMouseLeave={handleViewMouseLeave}
             >
@@ -538,7 +541,7 @@ const SharedTimelineView = React.memo(
                     autoFocus={isActive}
                   />
                 </div>
-                <div className="w-[2px] mx-0.5 h-full bg-gray-300 dark:bg-gray-600 rounded-sm" />
+                <div className="w-[2px] mx-0.5 h-full bg-gray-300 dark:bg-gray-600" />
                 <div className="flex-1 px-2 text-sm flex items-center justify-between text-gray-900 dark:text-gray-100">
                   <span>Timeline</span>
                   <div className="flex items-center gap-1">
@@ -598,6 +601,7 @@ const SharedTimelineView = React.memo(
                       >
                         <TimelineRow
                           node={node}
+                          searchTerm={currentSearchTerm}
                           isSelected={isSelected}
                           isExpanded={isExpanded}
                           treeWidthPercent={treeWidthPercent}
@@ -628,7 +632,7 @@ const SharedTimelineView = React.memo(
           {showDetailPane && selectedNode && renderDetailPane && (
             <>
               <PanelResizeHandle className="w-[1px] h-full cursor-col-resize bg-border hover:bg-border/80 transition-colors" />
-              <Panel defaultSize={30} minSize={20} className="rounded-r-sm">
+              <Panel defaultSize={30} minSize={20} className="">
                 {renderDetailPane(selectedNode, handleCloseDetailPane)}
               </Panel>
             </>

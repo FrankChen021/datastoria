@@ -1,50 +1,48 @@
-import { CollapsibleSection } from "@/components/shared/collapsible-section";
 import type { FieldOption } from "@/components/shared/dashboard/dashboard-model";
 import { DataTable } from "@/components/shared/dashboard/data-table";
 import { useMemo } from "react";
 
 interface SpanLogInspectorTableViewProps {
-  traceLogs: Record<string, unknown>[];
+  spanLogs: Record<string, unknown>[];
 }
 
-export function SpanLogInspectorTableView({ traceLogs }: SpanLogInspectorTableViewProps) {
+export function SpanLogInspectorTableView({ spanLogs }: SpanLogInspectorTableViewProps) {
   const fieldOptions: FieldOption[] = useMemo(() => {
     return [
-      { name: "service_name" },
-      { name: "operation_name" },
-      { name: "span_kind" },
-      { name: "status_code", align: "center" },
-      { name: "start_time_us", format: "microsecond", align: "center" },
-      { name: "duration_us", format: "microsecond", align: "center" },
-      { name: "trace_id" },
-      { name: "span_id" },
-      { name: "parent_span_id" },
+      {
+        name: "start_time_us",
+        format: "yyyyMMddHHmmssSSS",
+        formatArgs: [1000],
+        align: "center",
+      } as FieldOption,
+      {
+        name: "finish_time_us",
+        format: "yyyyMMddHHmmssSSS",
+        formatArgs: [1000],
+        align: "center",
+      } as FieldOption,
     ];
   }, []);
 
   const meta = useMemo(() => {
-    const names = new Set<string>();
-    for (const row of traceLogs) {
-      for (const key of Object.keys(row)) {
-        names.add(key);
-      }
+    if (spanLogs.length === 0) {
+      return [];
     }
-    return Array.from(names).map((name) => ({ name, type: "String" }));
-  }, [traceLogs]);
+    return Object.keys(spanLogs[0]).map((name) => ({ name, type: "String" }));
+  }, [spanLogs]);
 
   return (
-    <div className="w-full flex flex-col gap-6 py-2">
-      <CollapsibleSection title="Trace Spans">
-        <DataTable
-          enableIndexColumn
-          enableShowRowDetail
-          enableCompactMode
-          data={traceLogs}
-          meta={meta}
-          fieldOptions={fieldOptions}
-          defaultSort={{ column: "start_time_us", direction: "desc" }}
-        />
-      </CollapsibleSection>
+    <div className="w-full flex flex-col gap-6">
+      <DataTable
+        className="border-t border-b"
+        enableIndexColumn
+        enableShowRowDetail
+        enableCompactMode
+        data={spanLogs}
+        meta={meta}
+        fieldOptions={fieldOptions}
+        defaultSort={{ column: "start_time_us", direction: "desc" }}
+      />
       <div className="pb-12"></div>
     </div>
   );

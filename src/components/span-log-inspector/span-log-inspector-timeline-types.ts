@@ -1,7 +1,19 @@
 import type { TimelineNode, TimelineStats } from "@/components/shared/timeline/timeline-types";
 import { colorGenerator } from "@/lib/color-generator";
 
-export interface SpanLogTreeNode extends TimelineNode {
+export interface SpanLogElement extends Record<string, unknown> {
+  attribute?: Record<string, string>;
+  hostname?: string;
+  operation_name?: string;
+  span_id?: string | number;
+  parent_span_id?: string | number;
+  trace_id?: string;
+  kind?: string | number;
+  start_time_us?: string | number;
+  finish_time_us?: string | number;
+}
+
+export interface SpanLogTreeNode extends TimelineNode<SpanLogElement> {
   children: SpanLogTreeNode[];
 }
 
@@ -28,12 +40,21 @@ function toStringValue(value: unknown): string {
   return String(value);
 }
 
-export function transformSpanRowsToTimelineTree(traceLogs: Record<string, unknown>[]): {
+function compactServerName(value: string): string {
+  const first = value.split(".")[0];
+  return first || value;
+}
+
+function getInstanceName(span: SpanLogElement): string {
+  return toStringValue(span.hostname) || "-";
+}
+
+export function transformSpanRowsToTimelineTree(spanLogs: SpanLogElement[]): {
   tree: SpanLogTreeNode[];
   flatList: SpanLogTreeNode[];
   stats: TimelineStats;
 } {
-  if (traceLogs.length === 0) {
+  if (spanLogs.length === 0) {
     return {
       tree: [],
       flatList: [],
@@ -41,12 +62,17 @@ export function transformSpanRowsToTimelineTree(traceLogs: Record<string, unknow
     };
   }
 
-  const nodeMap = new Map<string, SpanLogTreeNode>();
-  const recordList: Array<{
+  /**
+   * key: span id
+   * val: span
+   */
+  const spanMap = new Map<string, SpanLogTreeNode>();
+  const spanList: Array<{
     node: SpanLogTreeNode;
     spanId: string;
     parentSpanId: string;
     eventTime: number;
+    instanceName: string;
   }> = [];
   const eventTimeMap = new Map<string, number>();
   const flatList: SpanLogTreeNode[] = [];
@@ -54,61 +80,71 @@ export function transformSpanRowsToTimelineTree(traceLogs: Record<string, unknow
   let maxTimestamp = Number.MIN_SAFE_INTEGER;
   let nodeIndex = 0;
 
-  for (const log of traceLogs) {
-    const spanId = toStringValue(log.span_id);
-    const parentSpanId = toStringValue(log.parent_span_id);
-    const serviceName = toStringValue(log.service_name) || "unknown-service";
-    const operationName =
-      toStringValue(log.operation_name) || toStringValue(log.span_name) || spanId;
+  for (const span of spanLogs) {
+    const spanId = toStringValue(span.span_id);
+    const parentSpanId = toStringValue(span.parent_span_id);
+    const instanceName = getInstanceName(span);
+    const operationName = toStringValue(span.operation_name) || spanId;
 
-    const startTime = toNumber(log.start_time_us);
-    const durationUs = toNumber(log.finish_time_us) - toNumber(log.start_time_us);
+    const startTime = toNumber(span.start_time_us);
+    const durationUs = toNumber(span.finish_time_us) - toNumber(span.start_time_us);
 
     if (startTime < minTimestamp) minTimestamp = startTime;
     if (startTime + durationUs > maxTimestamp) maxTimestamp = startTime + durationUs;
 
-    const node: SpanLogTreeNode = {
+    const spanTreeNode: SpanLogTreeNode = {
       id: `trace-node-${nodeIndex++}`,
       queryId: spanId,
       startTime,
       costTime: durationUs,
-      queryLog: log,
+      data: span,
       _display: `${operationName}`,
-      _description: serviceName,
-      _search: `${serviceName} ${operationName}`.toLowerCase(),
+      _description: "",
+      _search: `${instanceName} ${operationName}`.toLowerCase(),
       _matchedIndex: -1,
       _matchedLength: 0,
-      _color: colorGenerator.getColor(serviceName),
+      _color: colorGenerator.getColor(instanceName),
       children: [],
       childCount: 0,
       depth: 0,
     };
 
-    nodeMap.set(spanId, node);
-    eventTimeMap.set(node.id, startTime);
-    recordList.push({
-      node,
+    spanMap.set(spanId, spanTreeNode);
+    eventTimeMap.set(spanTreeNode.id, startTime);
+    spanList.push({
+      node: spanTreeNode,
       spanId,
       parentSpanId,
       eventTime: startTime,
+      instanceName,
     });
-    flatList.push(node);
+    flatList.push(spanTreeNode);
   }
 
   const roots: SpanLogTreeNode[] = [];
-  for (const record of recordList) {
-    if (record.parentSpanId === "" || record.parentSpanId === record.spanId) {
-      roots.push(record.node);
+  for (const span of spanList) {
+    if (span.parentSpanId === "" || span.parentSpanId === span.spanId) {
+      roots.push(span.node);
       continue;
     }
-    const parent = nodeMap.get(record.parentSpanId);
+    const parent = spanMap.get(span.parentSpanId);
     if (!parent) {
-      roots.push(record.node);
+      roots.push(span.node);
       continue;
     }
-    record.node.depth = parent.depth + 1;
-    parent.children.push(record.node);
+    parent.children.push(span.node);
     parent.childCount = parent.children.length;
+  }
+
+  const assignDepth = (node: SpanLogTreeNode, depth: number) => {
+    node.depth = depth;
+    for (const child of node.children) {
+      assignDepth(child, depth + 1);
+    }
+  };
+
+  for (const root of roots) {
+    assignDepth(root, 0);
   }
 
   const sortChildren = (node: SpanLogTreeNode) => {

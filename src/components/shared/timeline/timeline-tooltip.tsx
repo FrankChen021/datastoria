@@ -30,7 +30,7 @@ export function calculateTimelineTooltipPosition(x: number, y: number) {
 }
 
 const TimelineTooltipImpl = ({ node }: { node: TimelineNode }) => {
-  const log = node.queryLog;
+  const log = node.data;
   const queryValue = typeof log.query === "string" ? log.query : "";
 
   return (

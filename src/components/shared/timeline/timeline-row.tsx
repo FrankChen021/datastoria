@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Formatter } from "@/lib/formatter";
+import { TextHighlighter } from "@/lib/text-highlighter";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import React, { useCallback, useState } from "react";
 import type { TimelineNode } from "./timeline-types";
@@ -12,6 +13,7 @@ const microSecondFormat = Formatter.getInstance().getFormatter("microsecond");
 
 interface TimelineRowProps {
   node: TimelineNode;
+  searchTerm: string;
   isSelected: boolean;
   isExpanded: boolean;
   treeWidthPercent: number;
@@ -28,6 +30,7 @@ interface TimelineRowProps {
 export const TimelineRow = React.memo(
   ({
     node,
+    searchTerm,
     isSelected,
     isExpanded,
     treeWidthPercent,
@@ -70,18 +73,11 @@ export const TimelineRow = React.memo(
 
     const renderDisplayName = () => {
       if (node._matchedLength > 0) {
-        const before = node._display.substring(0, node._matchedIndex);
-        const match = node._display.substring(
+        return TextHighlighter.highlight2(
+          node._display,
           node._matchedIndex,
-          node._matchedIndex + node._matchedLength
-        );
-        const after = node._display.substring(node._matchedIndex + node._matchedLength);
-        return (
-          <>
-            {before}
-            <span className="bg-yellow-200 dark:bg-yellow-600">{match}</span>
-            {after}
-          </>
+          node._matchedIndex + node._matchedLength,
+          "bg-yellow-200 dark:bg-yellow-600"
         );
       }
       return node._display;
@@ -116,7 +112,7 @@ export const TimelineRow = React.memo(
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-[16px] w-[16px] p-0 border-0 rounded-none flex-shrink-0"
+                className="h-[16px] w-[16px] p-0 border-0 rounded-none flex-shrink-0 hover:bg-transparent active:bg-transparent focus-visible:bg-transparent"
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleExpand(node.id);
@@ -195,6 +191,7 @@ export const TimelineRow = React.memo(
   (prevProps, nextProps) => {
     return (
       prevProps.node.id === nextProps.node.id &&
+      prevProps.searchTerm === nextProps.searchTerm &&
       prevProps.node._matchedIndex === nextProps.node._matchedIndex &&
       prevProps.node._matchedLength === nextProps.node._matchedLength &&
       prevProps.isSelected === nextProps.isSelected &&

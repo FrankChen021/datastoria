@@ -22,47 +22,13 @@ export const OpenTelemetrySpanLog = memo(
   ({ database: _database, table: _table }: OpenTelemetrySpanLogProps) => {
     const { connection } = useConnection();
 
-    const distributionQuery = useMemo(
-      () => `
-SELECT
-  toStartOfInterval(fromUnixTimestamp64Micro(start_time_us), interval {rounding:UInt32} second) as t,
-  FQDN() as service_name,
-  count() as count
-FROM {clusterAllReplicas:system.opentelemetry_span_log}
-WHERE 
-  {filterExpression:String}
-  AND finish_date >= toDate({from:String}) 
-  AND finish_date <= toDate({to:String})
-  AND fromUnixTimestamp64Micro(finish_time_us) >= {from:String}
-  AND fromUnixTimestamp64Micro(finish_time_us) < {to:String}
-GROUP BY t, service_name
-ORDER BY t, service_name
-`,
-      []
-    );
-
-    const tableQuery = useMemo(
-      () => `
-SELECT *
-FROM {clusterAllReplicas:system.opentelemetry_span_log}
-WHERE 
-  {filterExpression:String}
-  AND finish_date >= toDate({from:String}) 
-  AND finish_date <= toDate({to:String})
-  AND fromUnixTimestamp64Micro(finish_time_us) >= {from:String}
-  AND fromUnixTimestamp64Micro(finish_time_us) < {to:String}
-ORDER BY start_time_us DESC
-`,
-      []
-    );
-
     const filterSpecs = useMemo<FilterSpec[]>(() => {
       return [
         {
           filterType: "date_time",
           alias: "_interval",
           displayText: "time",
-          timeColumn: "fromUnixTimestamp64Micro(finish_time_us)",
+          timeColumn: "finish_time_us",
           defaultTimeSpan: "Last 15 Mins",
         } as DateTimeFilterSpec,
         {
@@ -77,16 +43,16 @@ FROM {clusterAllReplicas:system.opentelemetry_span_log}
 WHERE ({filterExpression:String})
   AND finish_date >= toDate({from:String}) 
   AND finish_date <= toDate({to:String})
-  AND fromUnixTimestamp64Micro(finish_time_us) >= {from:String}
-  AND fromUnixTimestamp64Micro(finish_time_us) < {to:String}
+  AND finish_time_us >= {startTimestampUs:UInt64}
+  AND finish_time_us < {endTimestampUs:UInt64}
 ORDER BY 1
 LIMIT 200`,
           },
         } as SelectorFilterSpec,
         {
           filterType: "select",
-          name: "span_kind",
-          displayText: "span_kind",
+          name: "kind",
+          displayText: "kind",
           onPreviousFilters: true,
           datasource: {
             type: "sql",
@@ -95,9 +61,9 @@ FROM {clusterAllReplicas:system.opentelemetry_span_log}
 WHERE ({filterExpression:String})
   AND event_date >= toDate({from:String}) 
   AND event_date <= toDate({to:String})
-  AND fromUnixTimestamp64Micro(start_time_us) >= {from:String}
-  AND fromUnixTimestamp64Micro(start_time_us) < {to:String}
-  AND span_kind != ''
+  AND start_time_us >= {startTimestampUs:UInt64}
+  AND start_time_us < {endTimestampUs:UInt64}
+  AND kind != ''
 ORDER BY span_kind
 LIMIT 100`,
           },
@@ -114,15 +80,25 @@ LIMIT 100`,
             type: "bar",
             titleOption: { title: "Trace Span Distribution", showTitle: true, align: "left" },
             datasource: {
-              sql: distributionQuery,
+              sql: `SELECT
+  toStartOfInterval(fromUnixTimestamp64Micro(start_time_us), interval {rounding:UInt32} second) as t,
+  count() as count
+FROM {clusterAllReplicas:system.opentelemetry_span_log}
+WHERE 
+  {filterExpression:String}
+  AND finish_date >= toDate({from:String}) 
+  AND finish_date <= toDate({to:String})
+  AND finish_time_us >= {startTimestampUs:UInt64}
+  AND finish_time_us < {endTimestampUs:UInt64}
+GROUP BY t
+ORDER BY t`,
             },
             legendOption: {
-              placement: "inside",
+              placement: "none",
             },
             fieldOptions: {
               t: { name: "t", type: "datetime" },
               count: { name: "count", type: "number" },
-              service_name: { name: "service_name", type: "string" },
             },
             stacked: true,
             height: 150,
@@ -132,7 +108,15 @@ LIMIT 100`,
             type: "table",
             titleOption: { title: "Tracing Span Records", showTitle: true, align: "left" },
             datasource: {
-              sql: tableQuery,
+              sql: `SELECT *
+FROM {clusterAllReplicas:system.opentelemetry_span_log}
+WHERE 
+  {filterExpression:String}
+  AND finish_date >= toDate({from:String}) 
+  AND finish_date <= toDate({to:String})
+  AND finish_time_us >= {startTimestampUs:UInt64}
+  AND finish_time_us < {endTimestampUs:UInt64}
+ORDER BY start_time_us DESC`,
             },
             sortOption: {
               serverSideSorting: true,
@@ -161,17 +145,28 @@ LIMIT 100`,
               },
               start_time_us: {
                 position: 2,
-                format: "microsecond",
+                name: "start_time_us",
+                format: "yyyyMMddHHmmssSSS",
+                formatArgs: [1000],
               },
-              duration_us: {
-                format: "microsecond",
+              finish_time_us: {
+                position: 3,
+                name: "finish_time_us",
+                format: "yyyyMMddHHmmssSSS",
+                formatArgs: [1000],
+              },
+              span_id: {
+                format: "string",
+              },
+              parent_span_id: {
+                format: "string",
               },
             },
             gridPos: { w: 24, h: 18 },
           } as TableDescriptor,
         ],
       };
-    }, [distributionQuery, tableQuery]);
+    }, []);
 
     return (
       <DashboardPage
@@ -182,7 +177,7 @@ LIMIT 100`,
         showTimeSpanSelector={true}
         showRefresh={true}
         showAutoRefresh={false}
-        chartSelectionFilterName="service_name"
+        chartSelectionFilterName="instance_name"
       />
     );
   }

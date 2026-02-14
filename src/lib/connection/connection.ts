@@ -97,6 +97,7 @@ export interface ConnectionMetadata {
   metric_log_table_has_ProfileEvent_MergeSourceParts: boolean;
   metric_log_table_has_ProfileEvent_MutationTotalParts: boolean;
   query_log_table_has_hostname_column: boolean;
+  span_log_table_has_hostname_column: boolean;
   part_log_table_has_node_name_column: boolean;
 
   // Functions
@@ -176,6 +177,7 @@ export class Connection {
       metric_log_table_has_ProfileEvent_MergeSourceParts: false,
       metric_log_table_has_ProfileEvent_MutationTotalParts: false,
       query_log_table_has_hostname_column: false,
+      span_log_table_has_hostname_column: false,
       part_log_table_has_node_name_column: false,
 
       // Functions

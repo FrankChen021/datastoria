@@ -199,6 +199,23 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
       console.warn("Failed to check query_log_table_has_hostname_column:", e);
     });
 
+  const spanLogTableQuery = connection
+    .query(`SELECT hasColumnInTable('system', 'opentelemetry_span_log', 'hostname')`, {
+      default_format: "JSONCompact",
+    })
+    .response.then((response) => {
+      if (response.httpStatus === 200) {
+        const data = response.data.json<JSONCompactFormatResponse>();
+        connection.metadata = {
+          ...connection.metadata,
+          span_log_table_has_hostname_column: Boolean(data.data[0]?.[0]),
+        };
+      }
+    })
+    .catch((e) => {
+      console.warn("Failed to check span_log_table_has_hostname_column:", e);
+    });
+
   const partLogTableQuery = connection
     .query(`SELECT hasColumnInTable('system', 'part_log', 'hostname')`, {
       default_format: "JSONCompact",
@@ -285,6 +302,7 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
     functionTableQuery,
     metricLogTableQuery,
     queryLogTableQuery,
+    spanLogTableQuery,
     partLogTableQuery,
   ]);
 }

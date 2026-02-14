@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import {
   MarkerType,
   Position,
@@ -12,6 +13,7 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import dagre from "dagre";
+import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 interface TopologyGraphFlowProps {
@@ -37,6 +39,8 @@ interface TopologyGraphFlowProps {
   fallbackNodeXStep?: number;
   fallbackNodeY?: number;
   hideHandles?: boolean;
+  showFloatingControls?: boolean;
+  enableAutoFit?: boolean;
 }
 
 const TopologyGraphFlowInner = ({
@@ -58,12 +62,29 @@ const TopologyGraphFlowInner = ({
   fallbackNodeXStep = 200,
   fallbackNodeY = 100,
   hideHandles = false,
+  showFloatingControls = true,
+  enableAutoFit = true,
 }: TopologyGraphFlowProps) => {
   const { fitView, zoomIn, zoomOut } = useReactFlow();
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(initialNodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(initialEdges);
   const layoutedGraphRef = useRef<string>("");
   const hasFittedViewRef = useRef<boolean>(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastContainerSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  // Centralize fitView so initial mount and "became visible" resize paths stay consistent.
+  const runFitView = useCallback(
+    (duration = 300) => {
+      try {
+        fitView({ padding: 0.2, duration, maxZoom: 1.5, minZoom: 0.1 });
+        hasFittedViewRef.current = true;
+      } catch {
+        // Ignore fit view failures from transient render states.
+      }
+    },
+    [fitView]
+  );
 
   const getLayoutedNodes = useCallback(
     (nodes: Node[], edges: Edge[]) => {
@@ -117,24 +138,35 @@ const TopologyGraphFlowInner = ({
         .sort()
         .join(",");
 
-    if (graphSignature === layoutedGraphRef.current) {
-      return;
+    const isSameGraph = graphSignature === layoutedGraphRef.current;
+    if (!isSameGraph) {
+      const nextNodes =
+        initialEdges.length > 0
+          ? getLayoutedNodes(initialNodes, initialEdges)
+          : initialNodes.map((node, index) => ({
+              ...node,
+              position: { x: index * fallbackNodeXStep, y: fallbackNodeY },
+              targetPosition: Position.Left,
+              sourcePosition: Position.Right,
+            }));
+
+      setFlowNodes(nextNodes);
+      layoutedGraphRef.current = graphSignature;
+      hasFittedViewRef.current = false;
+    } else {
+      // Same graph structure — sync node data (e.g. isSelected) while
+      // preserving existing positions so no relayout occurs.
+      setFlowNodes((prev) =>
+        prev.map((existing) => {
+          const updated = initialNodes.find((n) => n.id === existing.id);
+          return updated ? { ...existing, data: updated.data } : existing;
+        })
+      );
     }
 
-    const nextNodes =
-      initialEdges.length > 0
-        ? getLayoutedNodes(initialNodes, initialEdges)
-        : initialNodes.map((node, index) => ({
-            ...node,
-            position: { x: index * fallbackNodeXStep, y: fallbackNodeY },
-            targetPosition: Position.Left,
-            sourcePosition: Position.Right,
-          }));
-
-    setFlowNodes(nextNodes);
+    // Always sync edges so style/data updates (e.g. selected edge) are applied
+    // without forcing a full relayout.
     setFlowEdges(initialEdges);
-    layoutedGraphRef.current = graphSignature;
-    hasFittedViewRef.current = false;
   }, [
     fallbackNodeXStep,
     fallbackNodeY,
@@ -146,22 +178,50 @@ const TopologyGraphFlowInner = ({
   ]);
 
   useEffect(() => {
-    if (flowNodes.length === 0 || hasFittedViewRef.current) {
+    if (!enableAutoFit || flowNodes.length === 0 || hasFittedViewRef.current) {
       return;
     }
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setTimeout(() => {
-          try {
-            fitView({ padding: 0.2, duration: 300, maxZoom: 1.5, minZoom: 0.1 });
-            hasFittedViewRef.current = true;
-          } catch {
-            // Ignore fit view failures from transient render states.
-          }
+          runFitView(300);
         }, 100);
       });
     });
-  }, [fitView, flowNodes.length]);
+  }, [enableAutoFit, flowNodes.length, runFitView]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry || flowNodes.length === 0) {
+        return;
+      }
+      const width = entry.contentRect.width;
+      const height = entry.contentRect.height;
+      if (width < 10 || height < 10) {
+        lastContainerSizeRef.current = { width, height };
+        return;
+      }
+
+      const prev = lastContainerSizeRef.current;
+      const becameVisible = prev.width < 10 || prev.height < 10;
+      lastContainerSizeRef.current = { width, height };
+
+      if (!enableAutoFit || !becameVisible) {
+        return;
+      }
+
+      requestAnimationFrame(() => {
+        runFitView(250);
+      });
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [enableAutoFit, flowNodes.length, runFitView]);
 
   useEffect(() => {
     if (!onControlsReady) {
@@ -195,16 +255,49 @@ const TopologyGraphFlowInner = ({
 
   return (
     <div
+      ref={containerRef}
       className={className}
       style={{
         width: "100%",
         height: "100%",
         minWidth: "100px",
         minHeight: "100px",
+        position: "relative",
         ...style,
       }}
     >
       <style>{styleText}</style>
+      {showFloatingControls && (
+        <div className="absolute top-1 right-2 z-10 flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => zoomIn()}
+            className="h-7 w-7 bg-background/90 backdrop-blur-sm"
+            title="Zoom In"
+          >
+            <ZoomIn className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => zoomOut()}
+            className="h-7 w-7 bg-background/90 backdrop-blur-sm"
+            title="Zoom Out"
+          >
+            <ZoomOut className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => fitView({ padding: 0.2 })}
+            className="h-7 w-7 bg-background/90 backdrop-blur-sm"
+            title="Fit View"
+          >
+            <Maximize2 className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
       <ReactFlow
         id={graphId}
         nodes={flowNodes}
@@ -216,7 +309,6 @@ const TopologyGraphFlowInner = ({
         onEdgeClick={onEdgeClick}
         onNodeClick={onNodeClick}
         defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed } }}
-        fitView
         nodesDraggable={true}
         nodesConnectable={false}
         elementsSelectable={true}

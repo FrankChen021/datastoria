@@ -168,7 +168,7 @@ export function QueryLogInspectorTableView({ queryLogs, meta }: QueryLogInspecto
   }, [detailedFieldOptions]);
 
   return (
-    <div className="w-full flex flex-col gap-6 py-2">
+    <div className="w-full flex flex-col gap-6">
       <CollapsibleSection title="Query Logs by Host">
         <DataTable
           enableIndexColumn

@@ -18,7 +18,7 @@ const QueryLogTimelineView = React.memo(
   forwardRef<ExpandableTreeView, QueryLogTimelineViewProps>(
     ({ inputNodeTree, inputNodeList, timelineStats, isActive }, ref) => {
       const renderQueryLogTooltipContent = (node: TimelineNode) => {
-        const log = node.queryLog;
+        const log = node.data;
         const queryValue = typeof log.query === "string" ? log.query : "";
 
         return (
@@ -97,7 +97,7 @@ const QueryLogTimelineView = React.memo(
           processingMessage="Processing timeline data..."
           noDataMessage="No nodes found"
           renderDetailPane={(selectedNode, onClose) => (
-            <QueryLogDetailPane selectedQueryLog={selectedNode.queryLog} onClose={onClose} />
+            <QueryLogDetailPane queryLogs={[selectedNode.data]} onClose={onClose} />
           )}
           renderTooltipContent={renderQueryLogTooltipContent}
         />

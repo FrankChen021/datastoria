@@ -66,7 +66,7 @@ export function transformQueryLogsToTree(queryLogs: any[]): {
 
     const node: QueryLogTreeNode = {
       id: `node-${nodeIndex++}`,
-      queryLog: log,
+      data: log,
       _display: displayName,
       _search: displayName.toLowerCase(),
       _matchedIndex: -1,
@@ -91,7 +91,7 @@ export function transformQueryLogsToTree(queryLogs: any[]): {
   const rootNodes: QueryLogTreeNode[] = [];
 
   flatList.forEach((node) => {
-    const log = node.queryLog;
+    const log = node.data;
     const queryId = toStringValue(log.query_id);
     const initialQueryId = toStringValue(log.initial_query_id);
 

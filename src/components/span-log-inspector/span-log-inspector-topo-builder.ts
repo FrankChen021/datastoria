@@ -1,4 +1,6 @@
 import { colorGenerator } from "@/lib/color-generator";
+import type { SpanLogElement, SpanLogTreeNode } from "./span-log-inspector-timeline-types";
+import { parseAttributes } from "./span-log-utils";
 
 interface TraceRowRef {
   spanId: string;
@@ -8,7 +10,9 @@ interface TraceRowRef {
   kind: string;
   durationUs: number;
   status: string;
-  raw: Record<string, unknown>;
+  startTimeUs: number;
+  attributes: Record<string, unknown>;
+  raw: SpanLogElement;
 }
 
 export interface TraceTopoNode {
@@ -29,7 +33,7 @@ export interface TraceTopoEdge {
   minDurationUs: number;
   maxDurationUs: number;
   totalDurationUs: number;
-  sampleRows: Record<string, unknown>[];
+  sampleRows: SpanLogElement[];
 }
 
 export interface TraceTopoData {
@@ -72,14 +76,9 @@ function isErrorStatus(status: string): boolean {
   return normalized.includes("error") || normalized.includes("fail");
 }
 
-function normalizeTraceRow(row: Record<string, unknown>): TraceRowRef {
-  const serviceName = toStringValue(row.service_name) || "unknown-service";
-  const instanceName =
-    toStringValue(row.service_instance_id) ||
-    toStringValue(row.host_name) ||
-    toStringValue(row.host) ||
-    toStringValue(row.fqdn) ||
-    "-";
+function normalizeTraceRow(row: SpanLogElement): TraceRowRef {
+  const serviceName = "ClickHouse";
+  const instanceName = toStringValue(row.hostname);
 
   const startTimeUs = toNumber(row.start_time_us);
   const finishTimeUs = toNumber(row.finish_time_us);
@@ -90,9 +89,16 @@ function normalizeTraceRow(row: Record<string, unknown>): TraceRowRef {
     parentSpanId: toStringValue(row.parent_span_id),
     serviceName,
     instanceName,
-    kind: toStringValue(row.kind).toUpperCase(),
+    kind: toStringValue(row.kind || row.span_kind)
+      .trim()
+      .toUpperCase(),
     durationUs,
-    status: toStringValue(row.status_code),
+    status: toStringValue(row.status_code || row.status),
+    startTimeUs,
+    attributes:
+      parseAttributes(
+        row.attribute ?? row.attributes ?? row.span_attributes ?? row.attributes_json ?? row.tags
+      ) ?? {},
     raw: row,
   };
 }
@@ -101,20 +107,244 @@ function getNodeKey(row: TraceRowRef): string {
   return `${row.serviceName}::${row.instanceName}`;
 }
 
-export function buildTraceTopo(traceLogs: Record<string, unknown>[]): TraceTopoData {
-  if (traceLogs.length === 0) {
+function isTerminationKind(kind: string): boolean {
+  return kind === "SERVER" || kind === "CONSUMER" || kind === "TIMER";
+}
+
+function isClientKind(kind: string): boolean {
+  return kind === "CLIENT";
+}
+
+function isProducerKind(kind: string): boolean {
+  return kind === "PRODUCER";
+}
+
+function shortenUserAgent(userAgent: string): string {
+  const trimmed = userAgent.trim();
+  if (trimmed === "") {
+    return "user";
+  }
+  if (!trimmed.startsWith("Mozilla/")) {
+    return trimmed;
+  }
+
+  const osMatch = trimmed.match(/\(([^)]+)\)/);
+  const os = osMatch ? ` (${osMatch[1]})` : "";
+  if (trimmed.includes("Edg/")) {
+    return `Edge${os}`;
+  }
+  if (trimmed.includes("OPR/")) {
+    return `Opera${os}`;
+  }
+  if (trimmed.includes("Firefox/")) {
+    return `Firefox${os}`;
+  }
+  if (trimmed.includes("Safari/") && !trimmed.includes("Chrome/")) {
+    return `Safari${os}`;
+  }
+  if (trimmed.includes("Chrome/")) {
+    return `Chrome${os}`;
+  }
+  return trimmed;
+}
+
+function getFirstNonEmptyValue(
+  row: Record<string, unknown>,
+  attributes: Record<string, unknown>,
+  keys: string[]
+): string {
+  for (const key of keys) {
+    const value = toStringValue(attributes[key] ?? row[key]);
+    if (value !== "") {
+      return value;
+    }
+  }
+  return "";
+}
+
+function buildEndpoint(row: Record<string, unknown>, attributes: Record<string, unknown>): string {
+  const directEndpoint = getFirstNonEmptyValue(row, attributes, [
+    "net.peer",
+    "peer.service",
+    "peer.address",
+    "peer.hostname",
+    "net.sock.peer.addr",
+    "net.peer.ip",
+    "network.peer.address",
+    "network.peer.name",
+    "server.address",
+    "server.socket.address",
+    "http.host",
+    "rpc.service",
+    "db.instance",
+  ]);
+  if (directEndpoint !== "") {
+    const normalizedEndpoint = directEndpoint.trim();
+    const explicitPort = getFirstNonEmptyValue(row, attributes, [
+      "net.peer.port",
+      "net.sock.peer.port",
+      "network.peer.port",
+      "server.port",
+      "server.socket.port",
+      "db.port",
+    ]);
+    if (
+      explicitPort !== "" &&
+      !normalizedEndpoint.includes(":") &&
+      !normalizedEndpoint.startsWith("[")
+    ) {
+      return `${normalizedEndpoint}:${explicitPort}`;
+    }
+    return directEndpoint;
+  }
+
+  const host = getFirstNonEmptyValue(row, attributes, [
+    "net.peer.name",
+    "net.peer.ip",
+    "network.peer.address",
+    "network.peer.name",
+    "server.address",
+    "server.socket.address",
+    "peer.hostname",
+    "db.host",
+    "target",
+  ]);
+  const port = getFirstNonEmptyValue(row, attributes, [
+    "net.peer.port",
+    "net.sock.peer.port",
+    "network.peer.port",
+    "server.port",
+    "server.socket.port",
+    "db.port",
+  ]);
+  if (host !== "" && port !== "") {
+    return `${host}:${port}`;
+  }
+  if (host !== "") {
+    return host;
+  }
+
+  const endpointFromUrl = getFirstNonEmptyValue(row, attributes, [
+    "http.url",
+    "url.full",
+    "url.original",
+    "db.connection_string",
+  ]);
+  if (endpointFromUrl !== "") {
+    try {
+      const parsed = new URL(endpointFromUrl);
+      if (parsed.hostname !== "" && parsed.port !== "") {
+        return `${parsed.hostname}:${parsed.port}`;
+      }
+      if (parsed.hostname !== "") {
+        return parsed.hostname;
+      }
+    } catch {
+      // Keep raw endpoint text.
+    }
+    return endpointFromUrl;
+  }
+  return "";
+}
+
+function buildRemoteTarget(child: TraceRowRef): TraceRowRef | undefined {
+  let remoteApplication = "";
+  let remoteInstance = buildEndpoint(child.raw, child.attributes);
+  const operationName = toStringValue(
+    child.raw.operation_name || child.attributes["operation_name"]
+  );
+
+  if (isClientKind(child.kind)) {
+    if (operationName === "Connection::sendQuery()") {
+      remoteApplication = "ClickHouse";
+    } else if (toStringValue(child.attributes["http.client"]) !== "") {
+      remoteApplication = "http";
+    } else if (toStringValue(child.attributes["messaging.system"]) !== "") {
+      remoteApplication = toStringValue(child.attributes["messaging.system"]);
+    } else if (toStringValue(child.attributes["db.system"]) !== "") {
+      remoteApplication = toStringValue(child.attributes["db.system"]);
+      const fromConnection = toStringValue(child.attributes["db.connection_string"]);
+      if (remoteInstance === "") {
+        remoteInstance = fromConnection;
+      }
+      if (remoteInstance === "") {
+        remoteInstance = "unknown";
+      }
+    } else if (toStringValue(child.attributes["rpc.system"]) !== "") {
+      remoteApplication = toStringValue(child.attributes["rpc.system"]);
+    } else {
+      remoteApplication = "unknown";
+    }
+  } else if (isProducerKind(child.kind)) {
+    remoteApplication = toStringValue(child.attributes["messaging.system"]);
+    if (remoteApplication === "") {
+      remoteApplication =
+        toStringValue(child.attributes["messaging.kafka.topic"]) !== "" ? "kafka" : "unknown";
+    }
+  }
+
+  if (remoteApplication === "") {
+    return undefined;
+  }
+
+  if (remoteInstance === "") {
+    remoteInstance = "unknown";
+  }
+
+  if (remoteInstance === child.instanceName && remoteApplication === child.serviceName) {
+    return undefined;
+  }
+
+  return {
+    spanId: `remote::${remoteApplication}::${remoteInstance}::${child.spanId}`,
+    parentSpanId: child.spanId,
+    serviceName: remoteApplication,
+    instanceName: remoteInstance,
+    kind: "",
+    durationUs: 0,
+    status: "",
+    startTimeUs: child.startTimeUs,
+    attributes: {},
+    raw: child.raw,
+  };
+}
+
+function inferEntryServiceName(roots: SpanLogTreeNode[]): string {
+  for (const root of roots) {
+    const rootRef = normalizeTraceRow(root.data);
+    const userAgent = getFirstNonEmptyValue(rootRef.raw, rootRef.attributes, [
+      "http.user.agent",
+      "http.request.header.user-agent",
+      "http.header.User-Agent",
+      "user_agent",
+      "user-agent",
+    ]);
+    if (userAgent !== "") {
+      return shortenUserAgent(userAgent);
+    }
+  }
+
+  for (const root of roots) {
+    const rootRef = normalizeTraceRow(root.data);
+    const rpcSystem = getFirstNonEmptyValue(rootRef.raw, rootRef.attributes, ["rpc.system"]);
+    if (rpcSystem !== "") {
+      return `${rpcSystem}-client`;
+    }
+  }
+
+  return "user";
+}
+
+export function buildTraceTopo(spanTree: SpanLogTreeNode[]): TraceTopoData {
+  if (spanTree.length === 0) {
     return { nodes: [], edges: [] };
   }
 
-  const rows = traceLogs.map(normalizeTraceRow).filter((row) => row.spanId !== "");
-  const spanMap = new Map<string, TraceRowRef>();
-  for (const row of rows) {
-    spanMap.set(row.spanId, row);
-  }
+  const roots = spanTree.filter((node) => toStringValue(node.data.span_id) !== "");
 
   const nodeMap = new Map<string, TraceTopoNode>();
   const edgeMap = new Map<string, TraceTopoEdge>();
-  const getOrCreateNode = (row: TraceRowRef) => {
+  const getOrCreateNode = (row: TraceRowRef): TraceTopoNode => {
     const nodeId = getNodeKey(row);
     const existing = nodeMap.get(nodeId);
     if (existing) {
@@ -132,7 +362,7 @@ export function buildTraceTopo(traceLogs: Record<string, unknown>[]): TraceTopoD
     return node;
   };
 
-  const getOrCreateEdge = (sourceId: string, targetId: string) => {
+  const getOrCreateEdge = (sourceId: string, targetId: string): TraceTopoEdge => {
     const edgeId = `${sourceId}->${targetId}`;
     const existing = edgeMap.get(edgeId);
     if (existing) {
@@ -153,7 +383,7 @@ export function buildTraceTopo(traceLogs: Record<string, unknown>[]): TraceTopoD
     return edge;
   };
 
-  const updateEdge = (edge: TraceTopoEdge, row: TraceRowRef) => {
+  const updateEdge = (edge: TraceTopoEdge, row: TraceRowRef): void => {
     edge.count += 1;
     edge.totalDurationUs += row.durationUs;
     edge.minDurationUs = Math.min(edge.minDurationUs, row.durationUs);
@@ -166,52 +396,69 @@ export function buildTraceTopo(traceLogs: Record<string, unknown>[]): TraceTopoD
     }
   };
 
-  // Build service dependency edges based on span parent-child relationships.
-  for (const row of rows) {
-    getOrCreateNode(row);
-    if (row.parentSpanId === "" || row.parentSpanId === row.spanId) {
-      continue;
-    }
-    const parent = spanMap.get(row.parentSpanId);
-    if (!parent) {
-      continue;
-    }
-    getOrCreateNode(parent);
-    const sourceNodeId = getNodeKey(parent);
-    const targetNodeId = getNodeKey(row);
+  const addLink = (source: TraceRowRef, target: TraceRowRef, isTargetFake = false): void => {
+    const sourceNode = getOrCreateNode(source);
+    const targetNode = getOrCreateNode(target);
+    const edge = getOrCreateEdge(sourceNode.id, targetNode.id);
+    updateEdge(edge, isTargetFake ? source : target);
+  };
 
-    // Follow Bithon's approach: collapse in-process calls within same service/instance.
-    if (sourceNodeId === targetNodeId && row.kind !== "SERVER" && row.kind !== "CONSUMER") {
-      continue;
+  const buildLink = (upstreamService: TraceRowRef, childSpans: SpanLogTreeNode[]): boolean => {
+    let hasTermination = false;
+
+    for (const childNode of childSpans) {
+      const child = normalizeTraceRow(childNode.data);
+      if (
+        upstreamService.serviceName === child.serviceName &&
+        upstreamService.instanceName === child.instanceName &&
+        !isTerminationKind(child.kind)
+      ) {
+        if (buildLink(upstreamService, childNode.children)) {
+          hasTermination = true;
+        }
+      } else {
+        hasTermination = true;
+        addLink(upstreamService, child);
+        buildLink(child, childNode.children);
+      }
+
+      if (childNode.children.length === 0 || !hasTermination) {
+        const remoteTarget = buildRemoteTarget(child);
+        if (remoteTarget) {
+          addLink(child, remoteTarget, true);
+          hasTermination = true;
+        }
+      }
     }
 
-    const edge = getOrCreateEdge(sourceNodeId, targetNodeId);
-    updateEdge(edge, row);
+    return hasTermination;
+  };
+
+  for (const root of roots) {
+    const rootRef = normalizeTraceRow(root.data);
+    getOrCreateNode(rootRef);
+    buildLink(rootRef, root.children);
   }
 
-  const roots = rows.filter((row) => {
-    if (row.parentSpanId === "" || row.parentSpanId === row.spanId) {
-      return true;
-    }
-    return !spanMap.has(row.parentSpanId);
-  });
   if (roots.length > 0) {
     const entryNodeId = "entry::user";
     if (!nodeMap.has(entryNodeId)) {
+      const entryServiceName = inferEntryServiceName(roots);
       nodeMap.set(entryNodeId, {
         id: entryNodeId,
-        serviceName: "entry",
+        serviceName: entryServiceName,
         instanceName: "user",
-        label: "Entry",
-        description: "user",
-        color: colorGenerator.getColor("entry").foreground,
+        label: entryServiceName,
+        description: "",
+        color: colorGenerator.getColor(entryServiceName).foreground,
       });
     }
 
     for (const root of roots) {
-      const rootNode = getOrCreateNode(root);
+      const rootRef = normalizeTraceRow(root.data);
+      const rootNode = getOrCreateNode(rootRef);
       const edge = getOrCreateEdge(entryNodeId, rootNode.id);
-      updateEdge(edge, root);
+      updateEdge(edge, rootRef);
     }
   }
 

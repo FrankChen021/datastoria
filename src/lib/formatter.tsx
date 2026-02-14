@@ -133,6 +133,7 @@ function MapTableComponent({ mapData }: { mapData: Array<{ key: unknown; value: 
 
 export type FormatName =
   | "json_string"
+  | "string"
   | "percentage"
   | "percentage_0_1" // for number in the range of [0,1]. input: 0.1, output: 10%
   | "percentage_bar" // Renders a rectangular bar showing the percentage value
@@ -229,6 +230,10 @@ export class Formatter {
         : v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     };
 
+    this._formatters["string"] = (v) => {
+      return v === undefined || v === null ? "null" : String(v);
+    };
+
     this._formatters["percentage"] = (v) => {
       if (v === "NaN" || v === undefined || v === null) return "0%";
       const numValue = typeof v === "number" ? v : Number(v);
@@ -298,14 +303,23 @@ export class Formatter {
     this._formatters["shortDateTime"] = (v) =>
       DateTimeExtension.formatDateTime(this.toDateValue(v), "MM-dd HH:mm:ss");
 
-    this._formatters["yyyyMMddHHmmss"] = (v) =>
-      DateTimeExtension.toYYYYMMddHHmmss(this.toDateValue(v));
-    this._formatters["yyyyMMddHHmmssSSS"] = (v) =>
-      DateTimeExtension.formatDateTime(this.toDateValue(v), "yyyy-MM-dd HH:mm:ss.SSS");
-    this._formatters["MMddHHmmss"] = (v) =>
-      DateTimeExtension.formatDateTime(this.toDateValue(v), "MM-dd HH:mm:ss");
-    this._formatters["MMddHHmmssSSS"] = (v) =>
-      DateTimeExtension.formatDateTime(this.toDateValue(v), "MM-dd HH:mm:ss.SSS");
+    this._formatters["yyyyMMddHHmmss"] = (v, params) =>
+      DateTimeExtension.toYYYYMMddHHmmss(this.toDateValue(this.applyTimestampDivisor(v, params)));
+    this._formatters["yyyyMMddHHmmssSSS"] = (v, params) =>
+      DateTimeExtension.formatDateTime(
+        this.toDateValue(this.applyTimestampDivisor(v, params)),
+        "yyyy-MM-dd HH:mm:ss.SSS"
+      );
+    this._formatters["MMddHHmmss"] = (v, params) =>
+      DateTimeExtension.formatDateTime(
+        this.toDateValue(this.applyTimestampDivisor(v, params)),
+        "MM-dd HH:mm:ss"
+      );
+    this._formatters["MMddHHmmssSSS"] = (v, params) =>
+      DateTimeExtension.formatDateTime(
+        this.toDateValue(this.applyTimestampDivisor(v, params)),
+        "MM-dd HH:mm:ss.SSS"
+      );
 
     // For compatibility only, use DateTime formatter above instead
     this._formatters["time"] = (v) => {
@@ -502,6 +516,21 @@ export class Formatter {
     if (value instanceof Date) return value;
     const numValue = typeof value === "number" ? value : Number(value);
     return Number.isFinite(numValue) ? new Date(numValue) : new Date(String(value));
+  }
+
+  private applyTimestampDivisor(value: unknown, params?: unknown[]): unknown {
+    const divisor = params?.[0];
+    const divisorNumber = typeof divisor === "number" ? divisor : Number(divisor);
+    if (!Number.isFinite(divisorNumber) || divisorNumber === 0) {
+      return value;
+    }
+
+    const numValue = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(numValue)) {
+      return value;
+    }
+
+    return numValue / divisorNumber;
   }
 
   private formatMapValue = (v: unknown): React.ReactNode => {
