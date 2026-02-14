@@ -7,6 +7,7 @@ import TimeSpanSelector, {
 import FloatingProgressBar from "@/components/shared/floating-progress-bar";
 import SharedTimelineView from "@/components/shared/timeline/timeline-view";
 import { Button } from "@/components/ui/button";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { QueryError } from "@/lib/connection/connection";
@@ -397,6 +398,46 @@ WHERE trace_id = '{traceId}'
               Topology View
             </TabsTrigger>
           </TabsList>
+          <HoverCard openDelay={200} closeDelay={100}>
+            <HoverCardTrigger asChild>
+              <div className="text-xs ml-1 text-muted-foreground flex flex-shrink-0 items-end gap-x-4 cursor-default rounded px-1 -mx-1 border border-transparent hover:border-border">
+                <div className="flex flex-col items-center gap-0.5 text-left">
+                  <span>Received Rows</span>
+                  <span className="font-medium tabular-nums text-foreground">
+                    {numberFormatter(streamProgress.receivedRows)}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center gap-0.5 text-left">
+                  <span>Elapsed(s)</span>
+                  <span className="font-medium tabular-nums text-foreground">
+                    {elapsedSeconds.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </HoverCardTrigger>
+            <HoverCardContent side="bottom" align="start" className="w-auto p-3">
+              <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-2">
+                <div className="flex flex-col items-center gap-0.5 text-left">
+                  <span>Read Rows</span>
+                  <span className="font-medium tabular-nums text-foreground">
+                    {numberFormatter(streamProgress.readRows)}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center gap-0.5 text-left">
+                  <span>Total Rows to Read</span>
+                  <span className="font-medium tabular-nums text-foreground">
+                    {numberFormatter(streamProgress.totalRowsToRead)}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center gap-0.5 text-left">
+                  <span>Read Bytes</span>
+                  <span className="font-medium tabular-nums text-foreground">
+                    {binarySizeFormatter(streamProgress.readBytes)}
+                  </span>
+                </div>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
           <div className="ml-auto flex items-center gap-2 min-w-0">
             <HeaderControls
               initialTraceId={initialTraceId}
@@ -407,17 +448,6 @@ WHERE trace_id = '{traceId}'
             />
           </div>
         </div>
-        {isLoading && (
-          <div className="px-3 py-2 border-y bg-muted/20">
-            <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span>{`Received: ${numberFormatter(streamProgress.receivedRows)} rows`}</span>
-              <span>{`Read: ${numberFormatter(streamProgress.readRows)} rows`}</span>
-              <span>{`Total: ${numberFormatter(streamProgress.totalRowsToRead)} rows`}</span>
-              <span>{`Bytes: ${binarySizeFormatter(streamProgress.readBytes)}`}</span>
-              <span>{`Elapsed: ${elapsedSeconds.toFixed(2)}s`}</span>
-            </div>
-          </div>
-        )}
         <div className="flex-1 relative overflow-hidden">
           {loadError ? (
             <div className="px-2">

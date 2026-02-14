@@ -56,16 +56,14 @@ LIMIT 200`,
           onPreviousFilters: true,
           datasource: {
             type: "sql",
-            sql: `SELECT DISTINCT span_kind
+            sql: `SELECT DISTINCT kind
 FROM {clusterAllReplicas:system.opentelemetry_span_log}
 WHERE ({filterExpression:String})
-  AND event_date >= toDate({from:String}) 
-  AND event_date <= toDate({to:String})
-  AND start_time_us >= {startTimestampUs:UInt64}
-  AND start_time_us < {endTimestampUs:UInt64}
-  AND kind != ''
-ORDER BY span_kind
-LIMIT 100`,
+  AND finish_date >= toDate({from:String}) 
+  AND finish_date <= toDate({to:String})
+  AND finish_time_us >= {startTimestampUs:UInt64}
+  AND finish_time_us < {endTimestampUs:UInt64}
+ORDER BY 1`,
           },
         } as SelectorFilterSpec,
       ];
@@ -82,6 +80,7 @@ LIMIT 100`,
             datasource: {
               sql: `SELECT
   toStartOfInterval(fromUnixTimestamp64Micro(start_time_us), interval {rounding:UInt32} second) as t,
+  kind,
   count() as count
 FROM {clusterAllReplicas:system.opentelemetry_span_log}
 WHERE 
@@ -90,19 +89,20 @@ WHERE
   AND finish_date <= toDate({to:String})
   AND finish_time_us >= {startTimestampUs:UInt64}
   AND finish_time_us < {endTimestampUs:UInt64}
-GROUP BY t
-ORDER BY t`,
+GROUP BY 1, 2
+ORDER BY 1`,
             },
             legendOption: {
-              placement: "none",
+              placement: "bottom",
+              values: ["count", "min", "max"],
             },
             fieldOptions: {
               t: { name: "t", type: "datetime" },
               count: { name: "count", type: "number" },
+              kind: { name: "kind", type: "string" },
             },
             stacked: true,
-            height: 150,
-            gridPos: { w: 24, h: 4 },
+            gridPos: { w: 24, h: 6 },
           } as TimeseriesDescriptor,
           {
             type: "table",
@@ -177,7 +177,7 @@ ORDER BY start_time_us DESC`,
         showTimeSpanSelector={true}
         showRefresh={true}
         showAutoRefresh={false}
-        chartSelectionFilterName="instance_name"
+        chartSelectionFilterName="kind"
       />
     );
   }

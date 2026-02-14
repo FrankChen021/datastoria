@@ -89,9 +89,7 @@ function normalizeTraceRow(row: SpanLogElement): TraceRowRef {
     parentSpanId: toStringValue(row.parent_span_id),
     serviceName,
     instanceName,
-    kind: toStringValue(row.kind || row.span_kind)
-      .trim()
-      .toUpperCase(),
+    kind: toStringValue(row.kind).trim().toUpperCase(),
     durationUs,
     status: toStringValue(row.status_code || row.status),
     startTimeUs,
