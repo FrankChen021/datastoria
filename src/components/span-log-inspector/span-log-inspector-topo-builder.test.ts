@@ -49,21 +49,19 @@ describe("span-log-inspector-topo-builder", () => {
 
     expect(topo.nodes).toHaveLength(3);
     expect(topo.nodes.map((node) => node.id).sort()).toEqual([
-      "ClickHouse::orders-1",
+      "ClickHouse::",
       "entry::user",
       "http::api.partner.internal:443",
     ]);
 
     expect(topo.edges).toHaveLength(2);
 
-    const entryToServer = topo.edges.find(
-      (edge) => edge.id === "entry::user->ClickHouse::orders-1"
-    );
+    const entryToServer = topo.edges.find((edge) => edge.id === "entry::user->ClickHouse::");
     expect(entryToServer).toBeDefined();
     expect(entryToServer?.count).toBe(1);
 
     const serverToRemote = topo.edges.find(
-      (edge) => edge.id === "ClickHouse::orders-1->http::api.partner.internal:443"
+      (edge) => edge.id === "ClickHouse::->http::api.partner.internal:443"
     );
     expect(serverToRemote).toBeDefined();
     expect(serverToRemote?.count).toBe(1);
@@ -102,19 +100,15 @@ describe("span-log-inspector-topo-builder", () => {
 
     expect(topo.nodes).toHaveLength(3);
     expect(topo.nodes.map((node) => node.id).sort()).toEqual([
-      "ClickHouse::orders-1",
+      "ClickHouse::",
       "entry::user",
       "http::inventory.service.svc:8443",
     ]);
 
     expect(topo.edges).toHaveLength(2);
+    expect(topo.edges.find((edge) => edge.id === "entry::user->ClickHouse::")).toBeDefined();
     expect(
-      topo.edges.find((edge) => edge.id === "entry::user->ClickHouse::orders-1")
-    ).toBeDefined();
-    expect(
-      topo.edges.find(
-        (edge) => edge.id === "ClickHouse::orders-1->http::inventory.service.svc:8443"
-      )
+      topo.edges.find((edge) => edge.id === "ClickHouse::->http::inventory.service.svc:8443")
     ).toBeDefined();
   });
 
@@ -152,12 +146,12 @@ describe("span-log-inspector-topo-builder", () => {
 
     expect(topo.nodes).toHaveLength(3);
     expect(topo.nodes.map((node) => node.id).sort()).toEqual([
-      "ClickHouse::orders-1",
+      "ClickHouse::",
       "clickhouse::10.0.0.12:9000",
       "entry::user",
     ]);
     expect(
-      topo.edges.find((edge) => edge.id === "ClickHouse::orders-1->clickhouse::10.0.0.12:9000")
+      topo.edges.find((edge) => edge.id === "ClickHouse::->clickhouse::10.0.0.12:9000")
     ).toBeDefined();
   });
 
@@ -165,8 +159,7 @@ describe("span-log-inspector-topo-builder", () => {
     const serverSpan = createSpan({
       span_id: "r1",
       parent_span_id: "",
-      span_kind: "SPAN_KIND_SERVER",
-      kind: "",
+      kind: "SERVER",
       start_time_us: 1000,
       finish_time_us: 7000,
     });
@@ -180,11 +173,10 @@ describe("span-log-inspector-topo-builder", () => {
     const leafClient = createSpan({
       span_id: "r3",
       parent_span_id: "r2",
-      span_kind: "SPAN_KIND_CLIENT",
-      kind: "",
+      kind: "CLIENT",
       start_time_us: 3000,
       finish_time_us: 3500,
-      span_attributes: JSON.stringify({
+      attribute: JSON.stringify({
         "db.system": "clickhouse",
         "server.address": "10.10.10.20",
         "server.port": "9440",
@@ -193,7 +185,7 @@ describe("span-log-inspector-topo-builder", () => {
 
     const topo = buildTopo([serverSpan, midSpan, leafClient]);
     expect(topo.nodes.map((node) => node.id).sort()).toEqual([
-      "ClickHouse::orders-1",
+      "ClickHouse::",
       "clickhouse::10.10.10.20:9440",
       "entry::user",
     ]);
