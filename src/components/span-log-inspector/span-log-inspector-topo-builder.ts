@@ -76,9 +76,22 @@ function isErrorStatus(status: string): boolean {
   return normalized.includes("error") || normalized.includes("fail");
 }
 
+function normalizeKind(kind: string, spanKind: unknown): string {
+  const k = kind.trim().toUpperCase();
+  if (k !== "") {
+    return k;
+  }
+  const sk = toStringValue(spanKind).trim().toUpperCase();
+  if (sk === "SPAN_KIND_CLIENT") return "CLIENT";
+  if (sk === "SPAN_KIND_SERVER") return "SERVER";
+  if (sk === "SPAN_KIND_PRODUCER") return "PRODUCER";
+  if (sk === "SPAN_KIND_CONSUMER") return "CONSUMER";
+  return "";
+}
+
 function normalizeTraceRow(row: SpanLogElement): TraceRowRef {
   const serviceName = "ClickHouse";
-  const instanceName = toStringValue(row.hostname);
+  const instanceName = toStringValue(row.hostname) || toStringValue(row.service_instance_id) || "";
 
   const startTimeUs = toNumber(row.start_time_us);
   const finishTimeUs = toNumber(row.finish_time_us);
@@ -89,7 +102,7 @@ function normalizeTraceRow(row: SpanLogElement): TraceRowRef {
     parentSpanId: toStringValue(row.parent_span_id),
     serviceName,
     instanceName,
-    kind: toStringValue(row.kind).trim().toUpperCase(),
+    kind: normalizeKind(toStringValue(row.kind), row.span_kind),
     durationUs,
     status: toStringValue(row.status_code || row.status),
     startTimeUs,
