@@ -350,7 +350,7 @@ WHERE trace_id = '{traceId}'
 
           if (row.row) {
             const e = row.row as SpanLogElement;
-            if(e.hostname.includes("209")) {
+            if (e.hostname.includes("209")) {
               e.hostname = "192.168.1.200";
             } else {
               e.hostname = "192.168.1.100";

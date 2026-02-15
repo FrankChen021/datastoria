@@ -111,12 +111,8 @@ export function renderSpanLogTimelineDetailPane(spanLogNode: SpanLogTreeNode, on
                 <TableBody>
                   {params.map(({ name, value }) => (
                     <TableRow key={name}>
-                      <TableCell className="py-1 text-xs align-top break-all">
-                        {name}
-                      </TableCell>
-                      <TableCell className="py-1 text-xs align-top break-all">
-                        {value}
-                      </TableCell>
+                      <TableCell className="py-1 text-xs align-top break-all">{name}</TableCell>
+                      <TableCell className="py-1 text-xs align-top break-all">{value}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

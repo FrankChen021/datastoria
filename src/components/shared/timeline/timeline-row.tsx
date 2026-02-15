@@ -91,12 +91,13 @@ export const TimelineRow = React.memo(
         onMouseLeave={handleMouseLeave}
       >
         <div
-          className={`flex items-center h-[36px] w-full cursor-pointer ${isSelected
-            ? "bg-cyan-50 dark:bg-cyan-900/30"
-            : isHovered
-              ? "bg-gray-100 dark:bg-gray-700/50"
-              : ""
-            }`}
+          className={`flex items-center h-[36px] w-full cursor-pointer ${
+            isSelected
+              ? "bg-cyan-50 dark:bg-cyan-900/30"
+              : isHovered
+                ? "bg-gray-100 dark:bg-gray-700/50"
+                : ""
+          }`}
           onClick={() => onSelect(node)}
         >
           {/* Tree node */}
