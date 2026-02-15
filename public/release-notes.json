@@ -1,5 +1,83 @@
 [
   {
+    "id": "57eb113",
+    "date": "2026-02-15T13:06:25.518Z",
+    "notes": [
+      {
+        "text": "Prune stale validate_sql tool parts from LLM context",
+        "pr": 38,
+        "type": "feature",
+        "merged_at": "2026-02-10T14:49:11Z"
+      },
+      {
+        "text": "Improve query request and schema tree view style",
+        "pr": 40,
+        "type": "feature",
+        "merged_at": "2026-02-11T13:52:30Z"
+      },
+      {
+        "text": "Add two more table size panels under cluster group",
+        "pr": 41,
+        "type": "feature",
+        "merged_at": "2026-02-11T13:52:44Z"
+      },
+      {
+        "text": "Improve the drop table dialog",
+        "pr": 42,
+        "type": "feature",
+        "merged_at": "2026-02-11T13:52:54Z"
+      },
+      {
+        "text": "Add select count to context menu for quick access",
+        "pr": 43,
+        "type": "feature",
+        "merged_at": "2026-02-12T23:22:45Z"
+      },
+      {
+        "text": "Move compressed size column in front of the uncompressed one",
+        "pr": 45,
+        "type": "feature",
+        "merged_at": "2026-02-13T12:37:54Z"
+      },
+      {
+        "text": "Don't truncate table name in AI response",
+        "pr": 44,
+        "type": "feature",
+        "merged_at": "2026-02-13T12:38:05Z"
+      },
+      {
+        "text": "Support introspection of span logs",
+        "pr": 47,
+        "type": "feature",
+        "merged_at": "2026-02-15T13:05:20Z"
+      },
+      {
+        "text": "FIx video links",
+        "pr": 35,
+        "type": "fix",
+        "merged_at": "2026-02-10T01:48:07Z"
+      },
+      {
+        "text": "Fix query log inspector, connection re-initialization, and UI polish",
+        "pr": 36,
+        "type": "fix",
+        "merged_at": "2026-02-10T12:38:26Z"
+      },
+      {
+        "text": "Fix stack trace queries to be compatible with some old releases",
+        "pr": 39,
+        "type": "fix",
+        "merged_at": "2026-02-10T15:27:12Z"
+      },
+      {
+        "text": "Fix suggestions of server_settings in the editor",
+        "pr": 46,
+        "type": "fix",
+        "merged_at": "2026-02-13T12:48:06Z"
+      }
+    ]
+  },
+  {
     "id": "f31a217",
     "date": "2026-02-09T12:18:11.324Z",
     "notes": [
