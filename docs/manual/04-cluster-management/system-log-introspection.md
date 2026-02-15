@@ -15,10 +15,11 @@ DataStoria provides powerful system log introspection tools that allow you to an
 
 Currently these system tables are supported:
 
+- **[system.ddl_distribution_queue](./system-ddl-distributed-queue.md)** — Monitor distributed DDL operations across cluster nodes
+- **[system.opentelemetry_span_log](./opentelemetry-span-log.md)** — Inspect OpenTelemetry span logs with trace distribution and trace ID links
 - **[system.query_log](./system-query-log.md)** — Analyze query execution logs with filters, charts, and AI-powered insights
 - **[system.query_views_log](./system-query-views-log.md)** — Monitor query view executions including materialized views and live views
 - **[system.part_log](./system-part-log.md)** — Monitor part-level operations including merges, mutations, and downloads
-- **[system.ddl_distribution_queue](./system-ddl-distributed-queue.md)** — Monitor distributed DDL operations across cluster nodes
 - **[system.zookeeper](./system-zookeeper.md)** — Browse and inspect ZooKeeper data with a tree-table interface
 - **system.dashboard** — Dashboard configuration and metadata
 
@@ -27,6 +28,12 @@ You can access these introspection tools from the side bar icon button as shown 
 ![system-table-introspection-1](./img/system-table-introspection-1.jpg)
 
 ## Available System Tables
+
+### system.opentelemetry_span_log
+
+The OpenTelemetry Span Log Introspection tool analyzes spans in `system.opentelemetry_span_log`. View trace span distribution by time and kind, filter by hostname (FQDN) and span kind, and open individual traces via trace ID links for distributed tracing and observability.
+
+**[Learn more about system.opentelemetry_span_log →](./opentelemetry-span-log.md)**
 
 ### system.query_log
 
