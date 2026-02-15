@@ -93,8 +93,7 @@ GROUP BY 1, 2
 ORDER BY 1`,
             },
             legendOption: {
-              placement: "bottom",
-              values: ["count", "min", "max"],
+              placement: "inside",
             },
             fieldOptions: {
               t: { name: "t", type: "datetime" },

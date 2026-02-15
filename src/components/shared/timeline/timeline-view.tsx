@@ -532,7 +532,7 @@ const SharedTimelineView = React.memo(
               onMouseLeave={handleViewMouseLeave}
             >
               <div className="flex items-center h-8 border-b border-gray-200 dark:border-gray-700 font-medium bg-gray-50 dark:bg-gray-800">
-                <div style={{ width: `${treeWidthPercent}%` }}>
+                <div className="shrink-0" style={{ width: `${treeWidthPercent}%` }}>
                   <DebouncedSearchInput
                     inputClassName="h-8 border-0 border-b rounded-none"
                     placeholder={`${Formatter.getInstance().getFormatter("comma_number")(timelineStats.totalNodes)} ${searchPlaceholderSuffix}`}
@@ -541,8 +541,8 @@ const SharedTimelineView = React.memo(
                     autoFocus={isActive}
                   />
                 </div>
-                <div className="w-[2px] mx-0.5 h-full bg-gray-300 dark:bg-gray-600" />
-                <div className="flex-1 px-2 text-sm flex items-center justify-between text-gray-900 dark:text-gray-100">
+                <div className="w-[2px] shrink-0 mx-0.5 h-full bg-gray-300 dark:bg-gray-600" />
+                <div className="flex-1 min-w-0 px-2 text-sm flex items-center justify-between text-gray-900 dark:text-gray-100">
                   <span>Timeline</span>
                   <div className="flex items-center gap-1">
                     <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">Zoom</span>

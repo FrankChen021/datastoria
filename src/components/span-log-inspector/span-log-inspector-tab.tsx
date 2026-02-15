@@ -105,9 +105,9 @@ const HeaderControls = memo(function HeaderControls({
   );
 
   return (
-    <div className={`relative flex-shrink-0 flex items-center min-w-0 ${className ?? ""}`}>
-      <div className="relative flex-1">
-        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+    <div className={`relative flex items-center min-w-0 w-full ${className ?? ""}`}>
+      <div className="relative flex-1 min-w-0">
+        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground shrink-0" />
         <Input
           ref={inputRef}
           type="text"
@@ -115,10 +115,10 @@ const HeaderControls = memo(function HeaderControls({
           value={searchTraceId}
           onChange={(e) => setSearchTraceId(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="pl-8 h-9 rounded-sm w-[40rem] max-w-[65vw] rounded-r-none"
+          className="pl-8 h-9 rounded-r-none min-w-0 w-full rounded-l-sm"
         />
       </div>
-      <div className="flex items-center">
+      <div className="flex items-center shrink-0">
         <TimeSpanSelector
           key="default"
           defaultTimeSpan={defaultTimeSpan}
@@ -174,7 +174,7 @@ interface StreamProgressState {
   readRows: number;
   readBytes: number;
   totalRowsToRead: number;
-  elapsedNs: number;
+  elapsedMs: number;
   receivedRows: number;
 }
 
@@ -239,7 +239,7 @@ export function SpanLogInspectorTab({
     readRows: 0,
     readBytes: 0,
     totalRowsToRead: 0,
-    elapsedNs: 0,
+    elapsedMs: 0,
     receivedRows: 0,
   });
   const [timelineData, setTimelineData] = useState(() => transformSpanRowsToTimelineTree([]));
@@ -280,12 +280,9 @@ export function SpanLogInspectorTab({
     return 0;
   }, []);
 
-  const elapsedSeconds = useMemo(
-    () => streamProgress.elapsedNs / 1_000_000_000,
-    [streamProgress.elapsedNs]
-  );
+  const elapsedSeconds = useMemo(() => streamProgress.elapsedMs, [streamProgress.elapsedMs]);
 
-  const loadSpanLogs = useCallback(async () => {
+  const loadSpanLogs = useCallback(() => {
     if (!activeTraceId) {
       return;
     }
@@ -302,13 +299,13 @@ export function SpanLogInspectorTab({
       readRows: 0,
       readBytes: 0,
       totalRowsToRead: 0,
-      elapsedNs: 0,
+      elapsedMs: 0,
       receivedRows: 0,
     });
-    try {
-      const timezone = connection.metadata.timezone;
-      const sql = new SQLQueryBuilder(
-        `
+
+    const timezone = connection.metadata.timezone;
+    const sql = new SQLQueryBuilder(
+      `
 SELECT ${connection.metadata.span_log_table_has_hostname_column ? "" : "FQDN() as hostname, "}*
 FROM {clusterAllReplicas:system.opentelemetry_span_log}
 WHERE trace_id = '{traceId}'
@@ -317,65 +314,77 @@ WHERE trace_id = '{traceId}'
   AND finish_time_us >= {startTimestampUs:UInt64}
   AND finish_time_us < {endTimestampUs:UInt64}
 `
-      )
-        .timeSpan(selectedTimeSpan.getTimeSpan(), timezone)
-        .replace("traceId", activeTraceId)
-        .build();
+    )
+      .timeSpan(selectedTimeSpan.getTimeSpan(), timezone)
+      .replace("traceId", activeTraceId)
+      .build();
 
-      setQueryText(sql);
-      const { response } = connection.queryRawResponse(sql, {
-        default_format: "JSONEachRowWithProgress",
-        output_format_json_quote_64bit_integers: 0,
-      });
+    setQueryText(sql);
+    const { response } = connection.queryRawResponse(sql, {
+      default_format: "JSONEachRowWithProgress",
+      output_format_json_quote_64bit_integers: 0,
+    });
 
-      const rawResponse = await response;
-      const reader = rawResponse.body?.getReader();
-      if (!reader) {
-        throw new Error("Empty stream response");
-      }
+    const now = Date.now();
 
-      const logs: SpanLogElement[] = [];
-      await HttpResponseLineReader.read(reader, (line) => {
-        const row = JSON.parse(line) as Record<string, unknown>;
-        const progress = row.progress;
-        if (progress && typeof progress === "object" && !Array.isArray(progress)) {
-          const progressData = progress as Record<string, unknown>;
-          setStreamProgress((prev) => ({
-            ...prev,
-            readRows: toSafeNumber(progressData.read_rows),
-            readBytes: toSafeNumber(progressData.read_bytes),
-            totalRowsToRead: toSafeNumber(progressData.total_rows_to_read),
-            elapsedNs: toSafeNumber(progressData.elapsed_ns),
-          }));
+    response
+      .then((rawResponse) => {
+        const reader = rawResponse.body?.getReader();
+        if (!reader) {
+          throw new Error("Empty stream response");
         }
-
-        if (row.row) {
-          logs.push(normalizeSpanLogAttributes(row.row as SpanLogElement));
-          if (logs.length % 100 === 0) {
+        const logs: SpanLogElement[] = [];
+        return HttpResponseLineReader.read(reader, (line) => {
+          const row = JSON.parse(line) as Record<string, unknown>;
+          const progress = row.progress;
+          if (progress && typeof progress === "object" && !Array.isArray(progress)) {
+            const progressData = progress as Record<string, unknown>;
             setStreamProgress((prev) => ({
               ...prev,
-              receivedRows: logs.length,
+              readRows: toSafeNumber(progressData.read_rows),
+              readBytes: toSafeNumber(progressData.read_bytes),
+              totalRowsToRead: toSafeNumber(progressData.total_rows_to_read),
+              elapsedMs: Date.now() - now,
             }));
           }
-        }
-      });
 
-      setStreamProgress((prev) => ({
-        ...prev,
-        receivedRows: logs.length,
-      }));
-      setSpanLogs(logs);
-      setTimelineData(transformSpanRowsToTimelineTree(logs));
-      setLoadError(null);
-    } catch (error) {
-      setSpanLogs([]);
-      setTimelineData(transformSpanRowsToTimelineTree([]));
-      if (!(error instanceof String && error.toString().includes("canceled"))) {
-        setLoadError(error as QueryError);
-      }
-    } finally {
-      setLoading(false);
-    }
+          if (row.row) {
+            const e = row.row as SpanLogElement;
+            if(e.hostname.includes("209")) {
+              e.hostname = "192.168.1.200";
+            } else {
+              e.hostname = "192.168.1.100";
+            }
+            logs.push(normalizeSpanLogAttributes(row.row as SpanLogElement));
+            if (logs.length % 10 === 0) {
+              setStreamProgress((prev) => ({
+                ...prev,
+                receivedRows: logs.length,
+              }));
+            }
+          }
+        }).then(() => logs);
+      })
+      .then((logs) => {
+        setStreamProgress((prev) => ({
+          ...prev,
+          receivedRows: logs.length,
+          elapsedMs: Date.now() - now,
+        }));
+        setSpanLogs(logs);
+        setTimelineData(transformSpanRowsToTimelineTree(logs));
+        setLoadError(null);
+      })
+      .catch((error) => {
+        setSpanLogs([]);
+        setTimelineData(transformSpanRowsToTimelineTree([]));
+        if (!(error instanceof String && error.toString().includes("canceled"))) {
+          setLoadError(error as QueryError);
+        }
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [activeTraceId, connection, selectedTimeSpan, toSafeNumber]);
 
   useEffect(() => {
@@ -402,15 +411,21 @@ WHERE trace_id = '{traceId}'
             <HoverCardTrigger asChild>
               <div className="text-xs ml-1 text-muted-foreground flex flex-shrink-0 items-end gap-x-4 cursor-default rounded px-1 -mx-1 border border-transparent hover:border-border">
                 <div className="flex flex-col items-center gap-0.5 text-left">
-                  <span>Received Rows</span>
+                  <span>Read Rows</span>
+                  <span className="font-medium tabular-nums text-foreground">
+                    {numberFormatter(streamProgress.readRows)}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center gap-0.5 text-left">
+                  <span>Result Rows</span>
                   <span className="font-medium tabular-nums text-foreground">
                     {numberFormatter(streamProgress.receivedRows)}
                   </span>
                 </div>
                 <div className="flex flex-col items-center gap-0.5 text-left">
-                  <span>Elapsed(s)</span>
+                  <span>Elapsed</span>
                   <span className="font-medium tabular-nums text-foreground">
-                    {elapsedSeconds.toFixed(2)}
+                    {Formatter.getInstance().getFormatter("millisecond")(streamProgress.elapsedMs)}
                   </span>
                 </div>
               </div>
@@ -438,7 +453,7 @@ WHERE trace_id = '{traceId}'
               </div>
             </HoverCardContent>
           </HoverCard>
-          <div className="ml-auto flex items-center gap-2 min-w-0">
+          <div className="ml-auto flex-1 flex items-center gap-2 min-w-0 pl-6">
             <HeaderControls
               initialTraceId={initialTraceId}
               onSearch={handleSearch}

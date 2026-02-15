@@ -5,11 +5,35 @@ import { QueryIdLink } from "@/components/shared/query-id-link";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Formatter } from "@/lib/formatter";
 import { SqlUtils } from "@/lib/sql-utils";
 import { X } from "lucide-react";
 import type { SpanLogTreeNode } from "./span-log-inspector-timeline-types";
 import { parseAttributes } from "./span-log-utils";
+
+function parseUriQueryParams(uri: string): { name: string; value: string }[] {
+  try {
+    const url =
+      uri.startsWith("http://") || uri.startsWith("https://")
+        ? new URL(uri)
+        : new URL(uri, "http://dummy");
+    const entries: { name: string; value: string }[] = [];
+    url.searchParams.forEach((value, name) => {
+      entries.push({ name, value });
+    });
+    return entries;
+  } catch {
+    return [];
+  }
+}
 
 export function renderSpanLogTimelineDetailPane(spanLogNode: SpanLogTreeNode, onClose: () => void) {
   const spanLog = spanLogNode.data;
@@ -67,6 +91,38 @@ export function renderSpanLogTimelineDetailPane(spanLogNode: SpanLogTreeNode, on
         if (attributeName === "clickhouse.query_id") {
           const queryId = String(v);
           return <QueryIdLink displayQueryId={queryId} queryId={queryId} showIcon={true} />;
+        }
+        if (attributeName === "clickhouse.uri") {
+          const uri = String(v);
+          const params = parseUriQueryParams(uri);
+          if (params.length === 0) {
+            return uri;
+          }
+          return (
+            <div className="space-y-0">
+              <span className="text-muted-foreground break-all">{uri}</span>
+              <Table className="mt-2">
+                <TableHeader className="border-t border-b">
+                  <TableRow>
+                    <TableHead className="w-[min(12rem,30%)] py-1">query parameter name</TableHead>
+                    <TableHead className="py-1">query parameter value</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {params.map(({ name, value }) => (
+                    <TableRow key={name}>
+                      <TableCell className="py-1 text-xs align-top break-all">
+                        {name}
+                      </TableCell>
+                      <TableCell className="py-1 text-xs align-top break-all">
+                        {value}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          );
         }
         if (binarySizeAttributes.has(attributeName)) {
           return binarySizeFormatter(v);

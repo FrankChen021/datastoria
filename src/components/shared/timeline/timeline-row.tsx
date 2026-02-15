@@ -91,15 +91,15 @@ export const TimelineRow = React.memo(
         onMouseLeave={handleMouseLeave}
       >
         <div
-          className={`flex items-center h-[36px] w-full cursor-pointer ${
-            isSelected
-              ? "bg-cyan-50 dark:bg-cyan-900/30"
-              : isHovered
-                ? "bg-gray-100 dark:bg-gray-700/50"
-                : ""
-          }`}
+          className={`flex items-center h-[36px] w-full cursor-pointer ${isSelected
+            ? "bg-cyan-50 dark:bg-cyan-900/30"
+            : isHovered
+              ? "bg-gray-100 dark:bg-gray-700/50"
+              : ""
+            }`}
           onClick={() => onSelect(node)}
         >
+          {/* Tree node */}
           <div
             className="flex items-center min-w-[60px] overflow-hidden"
             style={{
@@ -146,12 +146,14 @@ export const TimelineRow = React.memo(
             </div>
           </div>
 
+          {/* Splitter */}
           <div
-            className="cursor-col-resize bg-[#e0e0e0] h-[36px] mx-0.5 rounded-sm z-[2]"
+            className="cursor-col-resize bg-gray-300 dark:bg-gray-600 h-[36px] mx-0.5 rounded-none z-[2]"
             style={{ width: SPLITTER_WIDTH }}
             onMouseDown={onSplitterMouseDown}
           />
 
+          {/* timeline bar */}
           <div className="flex-1 relative h-[36px] items-center flex">
             <div
               className="w-full relative"

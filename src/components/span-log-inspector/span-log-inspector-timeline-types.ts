@@ -3,7 +3,7 @@ import { colorGenerator } from "@/lib/color-generator";
 
 export interface SpanLogElement extends Record<string, unknown> {
   attribute?: Record<string, string>;
-  hostname?: string;
+  hostname: string;
   operation_name?: string;
   span_id?: string | number;
   parent_span_id?: string | number;
