@@ -1,10 +1,11 @@
+import type { TimelineNode } from "@/components/shared/timeline/timeline-types";
 import { Separator } from "@/components/ui/separator";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { Formatter } from "@/lib/formatter";
-import type { SpanLogTreeNode } from "./span-log-inspector-timeline-types";
+import type { SpanLogElement } from "./span-log-inspector-timeline-types";
 
-export function spanLogTimelineTooltip(node: SpanLogTreeNode) {
-  const log = node.data;
+export function spanLogTimelineTooltip(node: TimelineNode) {
+  const log = node.data as SpanLogElement;
   const depth = node.depth;
   const hostName = log.hostname;
   const operationName = typeof log.operation_name === "string" ? log.operation_name : "-";

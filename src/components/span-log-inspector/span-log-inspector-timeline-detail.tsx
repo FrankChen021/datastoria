@@ -3,6 +3,7 @@ import type { FieldOption } from "@/components/shared/dashboard/dashboard-model"
 import { DataTable } from "@/components/shared/dashboard/data-table";
 import { QueryIdLink } from "@/components/shared/query-id-link";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
+import type { TimelineNode } from "@/components/shared/timeline/timeline-types";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import {
@@ -16,7 +17,7 @@ import {
 import { Formatter } from "@/lib/formatter";
 import { SqlUtils } from "@/lib/sql-utils";
 import { X } from "lucide-react";
-import type { SpanLogTreeNode } from "./span-log-inspector-timeline-types";
+import type { SpanLogElement } from "./span-log-inspector-timeline-types";
 import { parseAttributes } from "./span-log-utils";
 
 function parseUriQueryParams(uri: string): { name: string; value: string }[] {
@@ -35,8 +36,8 @@ function parseUriQueryParams(uri: string): { name: string; value: string }[] {
   }
 }
 
-export function renderSpanLogTimelineDetailPane(spanLogNode: SpanLogTreeNode, onClose: () => void) {
-  const spanLog = spanLogNode.data;
+export function renderSpanLogTimelineDetailPane(selectedNode: TimelineNode, onClose: () => void) {
+  const spanLog = selectedNode.data as SpanLogElement;
   const attributes = spanLog.attribute ? spanLog.attribute : {};
   const sqlValueRaw = attributes["db.statement"];
   const sqlValue = typeof sqlValueRaw === "string" ? sqlValueRaw : "";
