@@ -193,7 +193,6 @@ export const MODELS: ModelProps[] = [
     description: "Anthropic's fastest model with near-frontier intelligence.",
   },
 
-
   // OpenRouter models
   {
     provider: "OpenRouter",
