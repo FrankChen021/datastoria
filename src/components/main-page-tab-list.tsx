@@ -6,6 +6,7 @@ import { DatabaseTab } from "@/components/database-tab/database-tab";
 import { NodeTab } from "@/components/node-tab/node-tab";
 import { QueryLogInspectorTab } from "@/components/query-log-inspector/query-log-inspector-tab";
 import { QueryTab } from "@/components/query-tab/query-tab";
+import { SpanLogInspectorTab } from "@/components/span-log-inspector/span-log-inspector-tab";
 import { SYSTEM_TABLE_REGISTRY } from "@/components/system-table-tab/system-table-registry";
 import { TabManager, type TabInfo } from "@/components/tab-manager";
 import { TableTab } from "@/components/table-tab/table-tab";
@@ -22,9 +23,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Connection } from "@/lib/connection/connection";
 import { hostNameManager } from "@/lib/host-name-manager";
+import { StringUtils } from "@/lib/string-utils";
 import {
   ChevronDown,
   ChevronLeft,
@@ -575,7 +578,27 @@ export const MainPageTabList = memo(function MainPageTabList({
         if (tab.type === "query") {
           return { id: tab.id, label: "Query", icon: Terminal };
         } else if (tab.type === "query-log") {
-          return { id: tab.id, label: tab.queryId || "Query Log Viewer", icon: Search };
+          const rawId = tab.queryId || "";
+          const prefix = "query log: ";
+          const fallback = "Query Log Viewer";
+          if (!rawId) {
+            return { id: tab.id, label: fallback, icon: Search };
+          }
+          const { truncated, wasTruncated } = StringUtils.truncateIdMiddle(rawId);
+          const label = prefix + truncated;
+          const fullLabel = wasTruncated ? prefix + rawId : undefined;
+          return { id: tab.id, label, icon: Search, fullLabel };
+        } else if (tab.type === "span-log") {
+          const rawId = tab.traceId || "";
+          const prefix = "span log: ";
+          const fallback = "Span Log Viewer";
+          if (!rawId) {
+            return { id: tab.id, label: fallback, icon: Search };
+          }
+          const { truncated, wasTruncated } = StringUtils.truncateIdMiddle(rawId);
+          const label = prefix + truncated;
+          const fullLabel = wasTruncated ? prefix + rawId : undefined;
+          return { id: tab.id, label, icon: Search, fullLabel };
         } else if (tab.type === "node") {
           return { id: tab.id, label: `${tab.host}`, icon: Monitor };
         } else if (tab.type === "cluster") {
@@ -590,7 +613,10 @@ export const MainPageTabList = memo(function MainPageTabList({
         }
         return null;
       })
-      .filter((item): item is { id: string; label: string; icon: LucideIcon } => item !== null);
+      .filter(
+        (item): item is { id: string; label: string; icon: LucideIcon; fullLabel?: string } =>
+          item !== null
+      );
   }, [sortedTabs]);
 
   // Memoize tab content to prevent unnecessary re-renders
@@ -692,6 +718,18 @@ export const MainPageTabList = memo(function MainPageTabList({
           </div>
         );
       }
+      if (tab.type === "span-log") {
+        return (
+          <div
+            key={tab.id}
+            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
+            role="tabpanel"
+            aria-hidden={activeTab !== tab.id}
+          >
+            <SpanLogInspectorTab initialTraceId={tab.traceId} initialEventDate={tab.eventDate} />
+          </div>
+        );
+      }
       return null;
     });
   }, [sortedTabs, activeTab]);
@@ -723,7 +761,14 @@ export const MainPageTabList = memo(function MainPageTabList({
                   return null;
                 }
 
-                const { label: tabLabel, icon: TabIcon } = tabInfo;
+                const { label: tabLabel, icon: TabIcon, fullLabel } = tabInfo;
+
+                const labelContent = (
+                  <>
+                    <TabIcon className="h-4 w-4 mr-1.5 shrink-0" />
+                    <span className={fullLabel ? "" : "truncate"}>{tabLabel}</span>
+                  </>
+                );
 
                 return (
                   <ContextMenu key={tab.id}>
@@ -734,8 +779,18 @@ export const MainPageTabList = memo(function MainPageTabList({
                           className="rounded-none border-t-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-muted data-[state=active]:font-semibold pr-8"
                           onClick={() => setActiveTab(tab.id)}
                         >
-                          <TabIcon className="h-4 w-4 mr-1.5" />
-                          <span>{tabLabel}</span>
+                          {fullLabel ? (
+                            <HoverCard openDelay={200} closeDelay={100}>
+                              <HoverCardTrigger asChild>
+                                <span className="flex items-center min-w-0">{labelContent}</span>
+                              </HoverCardTrigger>
+                              <HoverCardContent className="p-2 max-w-[400px]">
+                                <div className="font-mono text-xs break-all">{fullLabel}</div>
+                              </HoverCardContent>
+                            </HoverCard>
+                          ) : (
+                            labelContent
+                          )}
                         </TabsTrigger>
                         <button
                           onClick={(e) => handleCloseTab(tab.id, e)}

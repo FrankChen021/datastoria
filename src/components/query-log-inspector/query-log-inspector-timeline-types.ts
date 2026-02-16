@@ -1,41 +1,27 @@
-import { colorGenerator, type Color } from "@/lib/color-generator";
+import type { TimelineNode, TimelineStats } from "@/components/shared/timeline/timeline-types";
+import { colorGenerator } from "@/lib/color-generator";
 import { hostNameManager } from "@/lib/host-name-manager";
 
+export type { TimelineStats };
+
 // Query log tree node structure for timeline
-export interface QueryLogTreeNode {
+export interface QueryLogTreeNode extends TimelineNode {
   // Unique identifier for this node
-  id: string;
-
-  // Original query log data
-  queryLog: any;
-
-  // Display properties
-  _display: string;
-  _search: string;
-  _matchedIndex: number;
-  _matchedLength: number;
-  _color: Color;
-
-  // Tree structure
   children: QueryLogTreeNode[];
-  childCount: number;
-  depth: number;
-
-  // Timeline positioning
-  startTime: number; // in microseconds
-  costTime: number; // duration in microseconds
-
-  // Query log specific fields
   host: string;
   queryType: string;
   queryId: string;
   eventTime: number;
 }
 
-export interface TimelineStats {
-  totalNodes: number;
-  minTimestamp: number;
-  maxTimestamp: number;
+function toStringValue(value: unknown, fallback = ""): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  return String(value);
 }
 
 /**
@@ -72,15 +58,15 @@ export function transformQueryLogsToTree(queryLogs: any[]): {
     if (startTime < minTimestamp) minTimestamp = startTime;
     if (startTime + duration > maxTimestamp) maxTimestamp = startTime + duration;
 
-    const host = log.host || "Unknown";
-    const queryType = log.type || "Unknown";
-    const queryId = log.query_id || "";
+    const host = toStringValue(log.host, "Unknown");
+    const queryType = toStringValue(log.type, "Unknown");
+    const queryId = toStringValue(log.query_id);
     const displayName = hostNameManager.getShortHostname(host);
     const color = colorGenerator.getColor(host);
 
     const node: QueryLogTreeNode = {
       id: `node-${nodeIndex++}`,
-      queryLog: log,
+      data: log,
       _display: displayName,
       _search: displayName.toLowerCase(),
       _matchedIndex: -1,
@@ -105,9 +91,9 @@ export function transformQueryLogsToTree(queryLogs: any[]): {
   const rootNodes: QueryLogTreeNode[] = [];
 
   flatList.forEach((node) => {
-    const log = node.queryLog;
-    const queryId = log.query_id || "";
-    const initialQueryId = log.initial_query_id || "";
+    const log = node.data;
+    const queryId = toStringValue(log.query_id);
+    const initialQueryId = toStringValue(log.initial_query_id);
 
     // Root node: initial_query_id == query_id
     if (initialQueryId === queryId || !initialQueryId) {

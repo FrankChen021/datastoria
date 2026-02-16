@@ -82,8 +82,10 @@ export const MessageMarkdown = memo(function MessageMarkdown({
                   table={tableInfo.table}
                   showDatabase={true}
                   variant="link"
-                  className="underline decoration-dotted underline-offset-2 font-normal text-sm"
-                  showLinkIcon={false}
+                  className="underline decoration-dotted underline-offset-2 font-normal text-sm gap-1"
+                  showLinkIcon={true}
+                  // Use a large number to make sure name is completely displayed
+                  maxLength={4096}
                 />
               );
             }
@@ -99,7 +101,9 @@ export const MessageMarkdown = memo(function MessageMarkdown({
                   database={databaseInfo.name}
                   variant="link"
                   className="underline decoration-dotted underline-offset-2 font-normal text-sm"
-                  showLinkIcon={false}
+                  showLinkIcon={true}
+                  // Use a large number to make sure name is completely displayed
+                  maxLength={512}
                 />
               );
             }

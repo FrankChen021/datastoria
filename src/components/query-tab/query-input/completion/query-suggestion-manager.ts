@@ -118,6 +118,8 @@ export class QuerySuggestionManager {
             absoluteUrl = `https://clickhouse.com/docs/sql-reference/functions/${cleanUrl}`;
           } else if (type === "setting") {
             absoluteUrl = `https://clickhouse.com/docs/operations/settings/${cleanUrl}`;
+          } else if (type === "server_setting") {
+            absoluteUrl = `https://clickhouse.com/docs/operations/server-configuration-parameters/settings${cleanUrl}`;
           } else {
             absoluteUrl = `https://clickhouse.com/docs/${cleanUrl}`;
           }
@@ -262,7 +264,7 @@ export class QuerySuggestionManager {
       } else if (type === "setting") {
         this.userSettingsCompletion.push(completion);
         this.allSettingsCompletion.push(completion);
-      } else if (type === "merge_tree_setting") {
+      } else if (type === "merge_tree_setting" || type === "server_setting") {
         this.allSettingsCompletion.push(completion);
       } else if (type === "engine") {
         this.engineCompletion.push(completion);

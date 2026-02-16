@@ -1012,6 +1012,7 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
   }
 
   const cellPaddingClass = enableCompactMode ? "!py-0.5" : "!p-2";
+  const compactHeaderHeightClass = enableCompactMode ? "h-[33px]" : "";
 
   return (
     <div className={cn("relative w-full h-full", className)}>
@@ -1026,6 +1027,7 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
                 <TableHead
                   className={cn(
                     "w-[40px] text-center",
+                    compactHeaderHeightClass,
                     cellPaddingClass,
                     stickyHeader &&
                       "sticky top-0 z-10 bg-background shadow-[0_1px_0_0_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.1)]"
@@ -1038,6 +1040,7 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
                 <TableHead
                   className={cn(
                     "w-[50px] text-center",
+                    compactHeaderHeightClass,
                     cellPaddingClass,
                     stickyHeader &&
                       "sticky top-0 z-10 bg-background shadow-[0_1px_0_0_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.1)]"
@@ -1051,6 +1054,7 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
                   key={fieldOption.name}
                   className={cn(
                     "whitespace-nowrap",
+                    compactHeaderHeightClass,
                     cellPaddingClass,
                     getCellAlignmentClass(fieldOption),
                     fieldOption.sortable !== false && "cursor-pointer hover:bg-muted/50",

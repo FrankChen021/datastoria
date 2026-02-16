@@ -7,20 +7,21 @@ export interface Color {
   text: string;
 }
 
-// Professional color palette
+// Dark-mode friendly palette: softer saturation, good contrast on dark backgrounds.
+// Foreground is used for timeline bars and topo strokes; avoids harsh yellow/orange.
 const APP_COLORS = [
-  { background: "#EDF5FD", foreground: "#4285F4", hover: "rgb(230, 247, 249)", text: "#1976D2" },
-  { background: "#F0F7F0", foreground: "#EA4335", hover: "rgb(230, 247, 249)", text: "#388E3C" },
-  { background: "#FFF5E6", foreground: "#FBBC05", hover: "rgb(230, 247, 249)", text: "#F57C00" },
-  { background: "#F7EEFA", foreground: "#34A853", hover: "rgb(230, 247, 249)", text: "#7B1FA2" },
-  { background: "#E6F7F9", foreground: "#3498db", hover: "rgb(230, 247, 249)", text: "#0097A7" },
-  { background: "#FEE9F1", foreground: "#e74c3c", hover: "rgb(230, 247, 249)", text: "#C2185B" },
-  { background: "#F5F2F0", foreground: "#2ecc71", hover: "rgb(230, 247, 249)", text: "#3E2723" },
-  { background: "#EEF0F9", foreground: "#f39c12", hover: "rgb(230, 247, 249)", text: "#303F9F" },
-  { background: "#F4F9F0", foreground: "#9b59b6", hover: "rgb(230, 247, 249)", text: "#689F38" },
-  { background: "#FFF9E6", foreground: "#1abc9c", hover: "rgb(230, 247, 249)", text: "#FFA000" },
-  { background: "#E6F5F3", foreground: "#d35400", hover: "rgb(230, 247, 249)", text: "#00796B" },
-  { background: "#FEF0ED", foreground: "#c0392b", hover: "rgb(230, 247, 249)", text: "#E64A19" },
+  { background: "#1e3a5f", foreground: "#60a5fa", hover: "rgb(56, 189, 248)", text: "#93c5fd" },
+  { background: "#1e3d2f", foreground: "#4ade80", hover: "rgb(52, 211, 153)", text: "#86efac" },
+  { background: "#1e3d38", foreground: "#2dd4bf", hover: "rgb(45, 212, 191)", text: "#5eead4" },
+  { background: "#3d2a4a", foreground: "#a78bfa", hover: "rgb(167, 139, 250)", text: "#c4b5fd" },
+  { background: "#1e3a4a", foreground: "#38bdf8", hover: "rgb(56, 189, 248)", text: "#7dd3fc" },
+  { background: "#3d2a2e", foreground: "#f472b6", hover: "rgb(244, 114, 182)", text: "#f9a8d4" },
+  { background: "#2a3d1e", foreground: "#84cc16", hover: "rgb(132, 204, 22)", text: "#a3e635" },
+  { background: "#3d351e", foreground: "#ca8a04", hover: "rgb(202, 138, 4)", text: "#eab308" },
+  { background: "#2e2a3d", foreground: "#818cf8", hover: "rgb(129, 140, 248)", text: "#a5b4fc" },
+  { background: "#1e3d35", foreground: "#34d399", hover: "rgb(52, 211, 153)", text: "#6ee7b7" },
+  { background: "#3d2e1e", foreground: "#fb923c", hover: "rgb(251, 146, 60)", text: "#fdba74" },
+  { background: "#3d1e2a", foreground: "#f87171", hover: "rgb(248, 113, 113)", text: "#fca5a5" },
 ] as Color[];
 
 // Export the number of available colors for use in session ID generation

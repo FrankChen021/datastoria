@@ -5,8 +5,8 @@ import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highl
 import { Button } from "@/components/ui/button";
 import { Formatter, type ObjectFormatter } from "@/lib/formatter";
 import { SqlUtils } from "@/lib/sql-utils";
-import { X } from "lucide-react";
-import React, { memo, useMemo } from "react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import { Panel } from "react-resizable-panels";
 
 // Helper function to get comma number formatter
@@ -51,18 +51,31 @@ function formatProfileEventsValue(value: unknown): string | React.ReactNode {
 
 // Component: Query Log Detail Pane
 interface QueryLogDetailPaneProps {
-  selectedQueryLog: Record<string, unknown>;
+  queryLogs: Record<string, unknown>[];
   onClose: () => void;
   sourceNode?: string;
   targetNode?: string;
+  className?: string;
 }
 
 export const QueryLogDetailPane = memo(function QueryLogDetailPane({
-  selectedQueryLog,
+  queryLogs,
   onClose,
   sourceNode,
   targetNode,
+  className,
 }: QueryLogDetailPaneProps) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Reset index when the set of query logs changes (new edge clicked).
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [queryLogs]);
+
+  const selectedQueryLog = queryLogs[currentIndex];
+  const totalCount = queryLogs.length;
+  const hasMultiple = totalCount > 1;
+
   // Render main query log table
   const renderMainQueryLogTable = useMemo(() => {
     if (!selectedQueryLog) {
@@ -235,16 +248,43 @@ export const QueryLogDetailPane = memo(function QueryLogDetailPane({
       defaultSize={40}
       minSize={5}
       maxSize={70}
-      className="bg-background shadow-lg flex flex-col h-full border-l border-t border-r rounded-sm"
+      className={`bg-background shadow-lg flex flex-col h-full border-t ${className ?? ""}`}
     >
-      {/* Header with close button */}
-      <div className="flex items-center justify-between pl-3 pr-1 py-2 border-b flex-shrink-0 h-10">
-        <h4 className="truncate font-semibold text-sm">
+      {/* Header with sub-query navigator and close button */}
+      <div className="flex items-center justify-between px-2 border-b flex-shrink-0 h-8">
+        <h4 className="truncate font-semibold text-sm min-w-0">
           Query Id: {String(selectedQueryLog.query_id)}
         </h4>
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-6 w-6">
-          <X className="!h-3 !w-3" />
-        </Button>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {hasMultiple && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                disabled={currentIndex === 0}
+                onClick={() => setCurrentIndex(currentIndex - 1)}
+              >
+                <ChevronLeft className="!h-3 !w-3" />
+              </Button>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {currentIndex + 1} / {totalCount}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                disabled={currentIndex === totalCount - 1}
+                onClick={() => setCurrentIndex(currentIndex + 1)}
+              >
+                <ChevronRight className="!h-3 !w-3" />
+              </Button>
+            </>
+          )}
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-6 w-6">
+            <X className="!h-3 !w-3" />
+          </Button>
+        </div>
       </div>
 
       {/* Content */}

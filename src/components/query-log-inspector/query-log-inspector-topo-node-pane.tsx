@@ -25,6 +25,7 @@ function EdgeTable({ edges, type, emptyMessage = "No query available" }: EdgeTab
     () => Formatter.getInstance().getFormatter("comma_number"),
     []
   );
+  const sqlFormatter = Formatter.getInstance().getFormatter("sql");
 
   const [sort, setSort] = useState<{ column: string | null; direction: "asc" | "desc" | null }>({
     column: null,
@@ -51,6 +52,7 @@ function EdgeTable({ edges, type, emptyMessage = "No query available" }: EdgeTab
         duration: edge.queryLog.query_duration_ms,
         rows: edge.queryLog.result_rows,
         type: edge.queryLog.type,
+        query: edge.queryLog.query || "",
       };
 
       // Flatten ProfileEvents
@@ -166,6 +168,9 @@ function EdgeTable({ edges, type, emptyMessage = "No query available" }: EdgeTab
               Type
               {getSortIcon("type")}
             </th>
+            <th className="px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap h-10 bg-background">
+              Query
+            </th>
             {/* Dynamic ProfileEvents Columns */}
             {profileEventKeys.map((key) => (
               <th
@@ -207,6 +212,9 @@ function EdgeTable({ edges, type, emptyMessage = "No query available" }: EdgeTab
                   : row.type === "QueryFinish"
                     ? "Finished"
                     : "Exception"}
+              </td>
+              <td className="p-4 align-middle !p-2 whitespace-nowrap">
+                {sqlFormatter(row.query, [80])}
               </td>
               {/* Dynamic ProfileEvents Cells */}
               {profileEventKeys.map((key) => (
@@ -250,35 +258,31 @@ export const QueryLogInspectorTopoNodePane = memo(function QueryLogInspectorTopo
 
       {/* Content */}
       <div className="flex-1 overflow-auto space-y-2 pb-16">
-        {/* Incoming Edges Section */}
-        <CollapsibleSection
-          title="Incoming Queries"
-          className="border-0 rounded-none"
-          defaultOpen={true}
-        >
-          <div className="px-3 py-1">
-            <EdgeTable
-              edges={selectedNode.incomingEdges}
-              type="incoming"
-              emptyMessage="No incoming queries"
-            />
-          </div>
-        </CollapsibleSection>
+        {/* Incoming Edges Section — only shown when there are incoming queries */}
+        {selectedNode.incomingEdges.length > 0 && (
+          <CollapsibleSection
+            title="Incoming Queries"
+            className="border-0 rounded-none"
+            defaultOpen={true}
+          >
+            <div className="px-3 py-1">
+              <EdgeTable edges={selectedNode.incomingEdges} type="incoming" />
+            </div>
+          </CollapsibleSection>
+        )}
 
-        {/* Outgoing Edges Section */}
-        <CollapsibleSection
-          title="Outgoing Queries"
-          className="border-0 rounded-none"
-          defaultOpen={true}
-        >
-          <div className="px-3 py-1">
-            <EdgeTable
-              edges={selectedNode.outgoingEdges}
-              type="outgoing"
-              emptyMessage="No outgoing edges"
-            />
-          </div>
-        </CollapsibleSection>
+        {/* Outgoing Edges Section — only shown when there are outgoing queries */}
+        {selectedNode.outgoingEdges.length > 0 && (
+          <CollapsibleSection
+            title="Outgoing Queries"
+            className="border-0 rounded-none"
+            defaultOpen={true}
+          >
+            <div className="px-3 py-1">
+              <EdgeTable edges={selectedNode.outgoingEdges} type="outgoing" />
+            </div>
+          </CollapsibleSection>
+        )}
       </div>
     </Panel>
   );
