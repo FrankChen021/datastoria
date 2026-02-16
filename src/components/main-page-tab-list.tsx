@@ -2,6 +2,7 @@ import { AppLogo } from "@/components/app-logo";
 import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { ClusterTab } from "@/components/cluster-tab/cluster-tab";
 import { useConnection } from "@/components/connection/connection-context";
+import { DashboardTab } from "@/components/dashboard-tab/dashboard-tab";
 import { DatabaseTab } from "@/components/database-tab/database-tab";
 import { NodeTab } from "@/components/node-tab/node-tab";
 import { QueryLogInspectorTab } from "@/components/query-log-inspector/query-log-inspector-tab";
@@ -33,6 +34,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
+  LayoutDashboard,
   Monitor,
   Network,
   ScrollText,
@@ -110,6 +112,14 @@ function EmptyTabPlaceholderComponent() {
     });
   }, []);
 
+  const openDashboard = useCallback(() => {
+    TabManager.openTab({
+      id: `custom-dashboard:new`,
+      type: "custom-dashboard",
+      dashboardId: "new",
+    });
+  }, []);
+
   return (
     <div className="h-full w-full flex flex-col items-center justify-center bg-muted/5 text-center animate-in fade-in zoom-in-95 duration-300">
       <div className="bg-background shadow-sm">
@@ -142,6 +152,10 @@ function EmptyTabPlaceholderComponent() {
             Cluster Status
           </EmptyStateButton>
         )}
+
+        <EmptyStateButton icon={LayoutDashboard} onClick={openDashboard}>
+          Create Dashboard
+        </EmptyStateButton>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -610,6 +624,8 @@ export const MainPageTabList = memo(function MainPageTabList({
         } else if (tab.type === "system-table") {
           const tabTitle = `system.${tab.tableName}`;
           return { id: tab.id, label: tabTitle, icon: Telescope };
+        } else if (tab.type === "custom-dashboard") {
+          return { id: tab.id, label: "Dashboard", icon: LayoutDashboard };
         }
         return null;
       })
@@ -727,6 +743,18 @@ export const MainPageTabList = memo(function MainPageTabList({
             aria-hidden={activeTab !== tab.id}
           >
             <SpanLogInspectorTab initialTraceId={tab.traceId} initialEventDate={tab.eventDate} />
+          </div>
+        );
+      }
+      if (tab.type === "custom-dashboard") {
+        return (
+          <div
+            key={tab.id}
+            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
+            role="tabpanel"
+            aria-hidden={activeTab !== tab.id}
+          >
+            <DashboardTab dashboardId={tab.dashboardId} viewId={tab.viewId} tabId={tab.id} />
           </div>
         );
       }

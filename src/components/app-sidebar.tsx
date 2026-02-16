@@ -41,6 +41,7 @@ import {
   Database,
   HelpCircle,
   History,
+  LayoutDashboard,
   LogOut,
   Monitor,
   Network,
@@ -353,6 +354,32 @@ function DashboardSidebarMenuItem() {
   );
 }
 
+function CustomDashboardSidebarMenuItem() {
+  const openCustomDashboard = () => {
+    TabManager.openTab({
+      id: `custom-dashboard:new`,
+      type: "custom-dashboard",
+      dashboardId: "new",
+    });
+  };
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        tooltip={{
+          children: "My Dashboards",
+          className: "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
+        }}
+        size="default"
+        onClick={openCustomDashboard}
+      >
+        <LayoutDashboard className="h-5 w-5" />
+        <span>My Dashboards</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
 export function AppSidebar() {
   const { isConnectionAvailable, pendingConfig } = useConnection();
   const { data: session } = useSession();
@@ -408,6 +435,8 @@ export function AppSidebar() {
                 </SidebarMenuItem>
 
                 <DashboardSidebarMenuItem />
+
+                <CustomDashboardSidebarMenuItem />
 
                 <SystemTableIntrospectionSidebarMenuItem />
 
