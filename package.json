@@ -100,6 +100,7 @@
     "react-day-picker": "^8.10.1",
     "react-dom": "^19.2.3",
     "react-markdown": "^10.1.0",
+    "streamdown": "^2.1.0",
     "react-resizable-panels": "^3.0.6",
     "react-syntax-highlighter": "^16.1.0",
     "recharts": "^2.15.4",

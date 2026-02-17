@@ -2,9 +2,9 @@ import { useConnection } from "@/components/connection/connection-context";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { cn } from "@/lib/utils";
-import { memo, useEffect, useMemo, useRef } from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
+import { type ComponentProps, memo, useEffect, useMemo, useRef } from "react";
 import remarkGfm from "remark-gfm";
+import { Streamdown } from "streamdown";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 import { MessageMarkdownUserActions } from "./message-user-actions";
@@ -43,7 +43,9 @@ export const MessageMarkdown = memo(function MessageMarkdown({
     databaseNamesRef.current = connection?.metadata?.databaseNames;
   }, [connection?.metadata?.tableNames, connection?.metadata?.databaseNames]);
 
-  const components = useMemo<Components>(
+  type StreamdownComponents = ComponentProps<typeof Streamdown>["components"];
+
+  const components = useMemo<StreamdownComponents>(
     () => ({
       code: ({ className: codeClassName, children, ...props }: React.ComponentProps<"code">) => {
         if (codeClassName === "language-sql" || codeClassName === "language-clickhouse") {
@@ -226,9 +228,9 @@ export const MessageMarkdown = memo(function MessageMarkdown({
 
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none text-sm relative">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <Streamdown remarkPlugins={[remarkGfm]} components={components}>
         {text}
-      </ReactMarkdown>
+      </Streamdown>
     </div>
   );
 });
