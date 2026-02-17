@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Connection } from "./connection";
 
 const mockGetContext = vi.fn();
 
@@ -9,8 +10,6 @@ vi.mock("@/components/settings/query-context/query-context-manager", () => ({
     }),
   },
 }));
-
-import { Connection } from "./connection";
 
 describe("Connection query context parameters", () => {
   beforeEach(() => {
@@ -55,12 +54,10 @@ describe("Connection query context parameters", () => {
       password: "",
     });
 
-    await connection
-      .query("SELECT 1", {
-        max_execution_time: 10,
-        default_format: "JSON",
-      })
-      .response;
+    await connection.query("SELECT 1", {
+      max_execution_time: 10,
+      default_format: "JSON",
+    }).response;
 
     const fetchUrl = fetchMock.mock.calls[0][0] as string;
     const url = new URL(fetchUrl);

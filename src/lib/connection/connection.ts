@@ -193,12 +193,12 @@ export class Connection {
     return new Connection(config);
   }
 
-  private buildQueryParameters(params?: Record<string, unknown>): Record<string, unknown> {
+  private buildQueryParameters(userParams?: Record<string, unknown>): Record<string, unknown> {
     // Precedence: URL params < query context < request params
     const queryParameters: Record<string, unknown> = Object.assign({}, this.userParams);
     Object.assign(queryParameters, QueryContextManager.getInstance().getContext());
-    if (params) {
-      Object.assign(queryParameters, params);
+    if (userParams) {
+      Object.assign(queryParameters, userParams);
     }
     if (!queryParameters["default_format"]) {
       queryParameters["default_format"] = "JSONCompact";
