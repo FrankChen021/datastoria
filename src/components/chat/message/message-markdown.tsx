@@ -228,7 +228,11 @@ export const MessageMarkdown = memo(function MessageMarkdown({
 
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none text-sm relative">
-      <Streamdown remarkPlugins={[remarkGfm]} components={components}>
+      {/* Don't set the animated prop, it will cause the markdown to be rendered twice. */}
+      <Streamdown
+        className="space-y-0"
+        remarkPlugins={[remarkGfm]}
+        components={components}>
         {text}
       </Streamdown>
     </div>
