@@ -2,9 +2,9 @@ import { useConnection } from "@/components/connection/connection-context";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { cn } from "@/lib/utils";
-import { type ComponentProps, memo, useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Streamdown } from "streamdown";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 import { MessageMarkdownUserActions } from "./message-user-actions";
@@ -43,9 +43,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
     databaseNamesRef.current = connection?.metadata?.databaseNames;
   }, [connection?.metadata?.tableNames, connection?.metadata?.databaseNames]);
 
-  type StreamdownComponents = ComponentProps<typeof Streamdown>["components"];
-
-  const components = useMemo<StreamdownComponents>(
+  const components = useMemo<Components>(
     () => ({
       code: ({ className: codeClassName, children, ...props }: React.ComponentProps<"code">) => {
         if (codeClassName === "language-sql" || codeClassName === "language-clickhouse") {
@@ -228,13 +226,9 @@ export const MessageMarkdown = memo(function MessageMarkdown({
 
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none text-sm relative">
-      {/* Don't set the animated prop, it will cause the markdown to be rendered twice. */}
-      <Streamdown
-        className="space-y-0"
-        remarkPlugins={[remarkGfm]}
-        components={components}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {text}
-      </Streamdown>
+      </ReactMarkdown>
     </div>
   );
 });
