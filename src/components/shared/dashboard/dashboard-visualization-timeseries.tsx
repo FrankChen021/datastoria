@@ -587,11 +587,16 @@ export const TimeseriesVisualization = React.forwardRef<
   useEffect(() => {
     const chartInstance = chartInstanceRef.current;
     if (!chartInstance) return;
+    const clearChartListeners = () => {
+      if (chartInstance.isDisposed()) return;
+      chartInstance.off("mouseover");
+      chartInstance.off("mouseout");
+      chartInstance.off("globalout");
+      chartInstance.off("click");
+    };
 
     // Track hovered series for tooltip highlighting.
-    chartInstance.off("mouseover");
-    chartInstance.off("mouseout");
-    chartInstance.off("globalout");
+    clearChartListeners();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     chartInstance.on("mouseover", { componentType: "series" } as any, (p: any) => {
       hoveredSeriesRef.current = typeof p?.seriesName === "string" ? p.seriesName : null;
@@ -669,10 +674,7 @@ export const TimeseriesVisualization = React.forwardRef<
     }
 
     return () => {
-      chartInstance.off("mouseover");
-      chartInstance.off("mouseout");
-      chartInstance.off("globalout");
-      chartInstance.off("click");
+      clearChartListeners();
     };
   }, [onChartSelection]);
 

@@ -339,9 +339,7 @@ export const GaugeVisualization = React.forwardRef<GaugeVisualizationRef, GaugeV
                 offsetCenter: [0, 0],
                 // Add underline style when drilldown is available to indicate it's clickable
                 ...(hasDrilldown() && {
-                  textStyle: {
-                    textDecoration: "underline",
-                  },
+                  textDecoration: "underline",
                 }),
               },
               data: [

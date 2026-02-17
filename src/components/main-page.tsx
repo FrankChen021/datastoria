@@ -713,6 +713,8 @@ export function MainPage() {
         <PanelGroup direction="horizontal" className="h-full w-full min-w-0">
           {/* Left Panel: Schema Tree View - always mounted, hidden in fullscreen */}
           <Panel
+            id="schema-panel"
+            order={1}
             ref={schemaPanelRef}
             defaultSize={showSchemaTree ? DEFAULT_SCHEMA_PANEL_SIZE : 0}
             minSize={0}
@@ -721,12 +723,18 @@ export function MainPage() {
             <SidebarPanel initialSchemaData={loadedSchemaData} />
           </Panel>
 
-          {showSchemaTree && (
-            <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
-          )}
+          <PanelResizeHandle
+            className={`w-0.5 transition-colors ${
+              showSchemaTree
+                ? "bg-border hover:bg-border/80 cursor-col-resize"
+                : "bg-transparent hover:bg-transparent cursor-default pointer-events-none"
+            }`}
+          />
 
           {/* Right Panel: Contains both Tabs and Chat in a nested layout */}
           <Panel
+            id="main-content-panel"
+            order={2}
             defaultSize={100 - DEFAULT_SCHEMA_PANEL_SIZE}
             minSize={20}
             className="bg-background"
@@ -735,6 +743,8 @@ export function MainPage() {
             <PanelGroup direction="horizontal" className="h-full w-full">
               {/* Tabs Panel - always mounted, visibility controlled by CSS */}
               <Panel
+                id="tabs-panel"
+                order={1}
                 ref={tabsPanelRef}
                 defaultSize={showTabsVisible ? (showChatPanel ? 60 : 100) : 0}
                 minSize={0}
@@ -745,22 +755,26 @@ export function MainPage() {
                 </div>
               </Panel>
 
-              {/* Resize Handle between Tabs and Chat - only when both visible */}
-              {showTabsVisible && showChatPanel && (
-                <PanelResizeHandle className="w-0.5 bg-border hover:bg-border/80 transition-colors" />
-              )}
+              {/* Resize Handle between Tabs and Chat */}
+              <PanelResizeHandle
+                className={`w-0.5 transition-colors ${
+                  showTabsVisible && showChatPanel
+                    ? "bg-border hover:bg-border/80 cursor-col-resize"
+                    : "bg-transparent hover:bg-transparent cursor-default pointer-events-none"
+                }`}
+              />
 
-              {/* Chat Panel */}
-              {showChatPanel && (
-                <Panel
-                  ref={chatPanelRef}
-                  defaultSize={showTabsVisible ? 40 : 100}
-                  minSize={20}
-                  className="bg-background"
-                >
-                  <ChatPanel onClose={closeChatPanel} />
-                </Panel>
-              )}
+              {/* Chat Panel - always mounted, visibility controlled by CSS */}
+              <Panel
+                id="chat-panel"
+                order={2}
+                ref={chatPanelRef}
+                defaultSize={showChatPanel ? (showTabsVisible ? 40 : 100) : 0}
+                minSize={showChatPanel ? 20 : 0}
+                className={`bg-background ${!showChatPanel ? "!w-0 !min-w-0 !max-w-0 overflow-hidden" : ""}`}
+              >
+                {showChatPanel && <ChatPanel onClose={closeChatPanel} />}
+              </Panel>
             </PanelGroup>
           </Panel>
         </PanelGroup>
