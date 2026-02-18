@@ -1,4 +1,5 @@
 import type { DependencyTableInfo } from "@/components/dependency-view/dependency-types";
+import { QueryContextManager } from "@/components/settings/query-context/query-context-manager";
 import type { ConnectionConfig } from "./connection-config";
 
 // Re-export ConnectionConfig for convenience
@@ -192,6 +193,19 @@ export class Connection {
     return new Connection(config);
   }
 
+  private buildQueryParameters(userParams?: Record<string, unknown>): Record<string, unknown> {
+    // Precedence: URL params < query context < request params
+    const queryParameters: Record<string, unknown> = Object.assign({}, this.userParams);
+    Object.assign(queryParameters, QueryContextManager.getInstance().getContext());
+    if (userParams) {
+      Object.assign(queryParameters, userParams);
+    }
+    if (!queryParameters["default_format"]) {
+      queryParameters["default_format"] = "JSONCompact";
+    }
+    return queryParameters;
+  }
+
   public query(
     sql: string,
     params?: Record<string, unknown>,
@@ -215,15 +229,7 @@ export class Connection {
       requestHeaders["Content-Type"] = "text/plain";
     }
 
-    // Merge user params with request params (request params take precedence)
-    const queryParameters: Record<string, unknown> = Object.assign({}, this.userParams);
-    if (params) {
-      Object.assign(queryParameters, params);
-    }
-    // Add default format if not specified
-    if (!queryParameters["default_format"]) {
-      queryParameters["default_format"] = "JSONCompact";
-    }
+    const queryParameters = this.buildQueryParameters(params);
 
     // Can't add this header automatically
     // Some clusters are deployed after load balancers which may have enable CORS already
@@ -345,13 +351,7 @@ export class Connection {
       requestHeaders["Content-Type"] = "text/plain";
     }
 
-    const queryParameters: Record<string, unknown> = Object.assign({}, this.userParams);
-    if (params) {
-      Object.assign(queryParameters, params);
-    }
-    if (!queryParameters["default_format"]) {
-      queryParameters["default_format"] = "JSONCompact";
-    }
+    const queryParameters = this.buildQueryParameters(params);
 
     const url = new URL(this.path, this.host);
     Object.entries(queryParameters).forEach(([key, value]) => {

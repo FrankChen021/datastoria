@@ -14,7 +14,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (!CLIENT_ID) {
-    return NextResponse.json({ error: "GitHub Client ID is not configured" }, { status: 500 });
+    return NextResponse.json(
+      { error: "GitHub Client ID is not configured", code: "GITHUB_CLIENT_ID_NOT_CONFIGURED" },
+      { status: 503 }
+    );
   }
 
   const body = await req.json().catch(() => null);

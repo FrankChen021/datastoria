@@ -1,7 +1,7 @@
 import { AskAIButton } from "@/components/shared/ask-ai-button";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { parseErrorLocation, type ErrorLocation } from "@/lib/clickhouse-error-parser";
+import { parseErrorLocation, type ErrorLocation } from "@/lib/clickhouse/clickhouse-error-parser";
 import { AlertCircleIcon } from "lucide-react";
 import { memo, useMemo, useState } from "react";
 import type { QueryErrorDisplay } from "../query-view-model";

@@ -1,3 +1,5 @@
+import { markedAdmonitionExtension } from "@/lib/clickhouse/admonition-preprocessor";
+import { transformMarkdownLink } from "@/lib/clickhouse/clickhouse-docs-link";
 import { Connection, type JSONCompactFormatResponse } from "@/lib/connection/connection";
 import { StringUtils } from "@/lib/string-utils";
 import type { Ace } from "ace-builds";
@@ -5,49 +7,7 @@ import { marked } from "marked";
 import { QuerySnippetManager } from "../../snippet/query-snippet-manager";
 
 // Register the custom extension for :::type blocks (like :::note, :::warning)
-marked.use({
-  extensions: [
-    {
-      name: "admonition",
-      level: "block",
-      start(src) {
-        return src.match(/^\s*:::([a-zA-Z]+)/)?.index;
-      },
-      tokenizer(src) {
-        const rule = /^(\s*):::([a-zA-Z]+)\s*\n([\s\S]*?)\n\s*:::/;
-        const match = rule.exec(src);
-        if (match) {
-          const type = match[2];
-          let text = match[3];
-          // Remove indentation from the content if present (based on the opening tag's indentation)
-          const indentation = match[1];
-          if (indentation) {
-            const lines = text.split("\n");
-            text = lines
-              .map((line) => (line.startsWith(indentation) ? line.slice(indentation.length) : line))
-              .join("\n");
-          }
-
-          const token = {
-            type: "admonition",
-            raw: match[0],
-            text: text.trim(),
-            displayType: type,
-            tokens: [],
-          };
-          // Parse the content inside the note as markdown
-          this.lexer.blockTokens(token.text, token.tokens);
-          return token;
-        }
-      },
-      renderer(token) {
-        const type = token.displayType || "note";
-        const title = type.charAt(0).toUpperCase() + type.slice(1);
-        return `<div class="admonition ${type}"><div class="admonition-title">${title}</div><div class="admonition-content">${(this.parser.parse(token.tokens || []) as string).trim()}</div></div>`;
-      },
-    },
-  ],
-});
+marked.use({ extensions: [markedAdmonitionExtension] });
 
 type CompletionItem = {
   doc?: string;
@@ -98,41 +58,19 @@ export class QuerySuggestionManager {
         title?: string | null;
         tokens: any;
       }) {
-        if (!href) {
-          // If no href, render just the text content
-          const text = this.parser
-            ? this.parser.parseInline(tokens)
-            : tokens.map((t: any) => t.raw || t.text || "").join("");
-          return text;
-        }
-
-        let absoluteUrl = href;
-        if (!/^https?:\/\//.test(href)) {
-          // If it's a relative URL, prepend the ClickHouse docs base URL
-          // Remove leading slash if present to avoid double slashes
-          let cleanUrl = href.startsWith("/") ? href.slice(1) : href;
-
-          // Remove .md suffix (e.g., "test.md" -> "test", "test.md#anchor" -> "test#anchor", "test.md/#anchor" -> "test/#anchor", "test.md/" -> "test/")
-          cleanUrl = cleanUrl.replace(/\.md(\/|#|\/#|$)/g, "$1");
-          if (type === "function") {
-            absoluteUrl = `https://clickhouse.com/docs/sql-reference/functions/${cleanUrl}`;
-          } else if (type === "setting") {
-            absoluteUrl = `https://clickhouse.com/docs/operations/settings/${cleanUrl}`;
-          } else if (type === "server_setting") {
-            absoluteUrl = `https://clickhouse.com/docs/operations/server-configuration-parameters/settings${cleanUrl}`;
-          } else {
-            absoluteUrl = `https://clickhouse.com/docs/${cleanUrl}`;
-          }
-        }
-
-        const titleAttr = title ? ` title="${title}"` : "";
-
         // Parse tokens to get the link text using the parser
         const text = this.parser
           ? this.parser.parseInline(tokens)
           : tokens.map((t: any) => t.raw || t.text || "").join("");
 
+        if (!href) {
+          // If no href, render just the text content
+          return text;
+        }
+
         // Style links with underline and color, open in new window
+        const absoluteUrl = transformMarkdownLink(type || "default", href);
+        const titleAttr = title ? ` title="${title}"` : "";
         return `<a href="${absoluteUrl}" target="_blank" rel="noopener noreferrer"${titleAttr} style="text-decoration: underline; cursor: pointer;">${text}</a>`;
       };
 

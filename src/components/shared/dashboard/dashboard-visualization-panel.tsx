@@ -4,7 +4,7 @@ import { useConnection } from "@/components/connection/connection-context";
 import { AskAIButton } from "@/components/shared/ask-ai-button";
 import { Dialog } from "@/components/shared/use-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ErrorCode } from "@/lib/clickhouse-error-parser";
+import { ErrorCode } from "@/lib/clickhouse/clickhouse-error-parser";
 import { QueryError } from "@/lib/connection/connection";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import {

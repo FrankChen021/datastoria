@@ -330,6 +330,10 @@ export function useModelConfig() {
     }
 
     if (now >= accessTokenExpiresAt) {
+      if (copilotSetting.authError === "refresh_failed") {
+        clearRefreshTimer();
+        return;
+      }
       refreshCopilotToken(copilotSetting.refreshToken).then((data) => {
         if (!data) {
           manager.updateProviderSetting(PROVIDER_GITHUB_COPILOT, { authError: "refresh_failed" });

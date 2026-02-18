@@ -175,22 +175,29 @@ export const MODELS: ModelProps[] = [
   // https://platform.claude.com/docs/en/about-claude/models/overview
   {
     provider: "Anthropic",
-    modelId: "claude-sonnet-4-5",
+    modelId: "claude-opus-4-6",
     free: false,
     autoSelectable: false,
-    description: "Anthropic's latest Sonnet model with extreme intelligence and reliability.",
-  },
-  {
-    provider: "Anthropic",
-    modelId: "claude-haiku-4-5",
-    free: false,
-    description: "Anthropic's fast and lightweight model for near-instant responses.",
+    description: "Anthropic's most intelligent model for building agents and coding.",
   },
   {
     provider: "Anthropic",
     modelId: "claude-opus-4-5",
     free: false,
     description: "Anthropic's most powerful model for highly complex analysis.",
+  },
+  {
+    provider: "Anthropic",
+    modelId: "claude-sonnet-4-5",
+    free: false,
+    autoSelectable: false,
+    description: "Anthropic's best combination of speed and intelligence.",
+  },
+  {
+    provider: "Anthropic",
+    modelId: "claude-haiku-4-5",
+    free: false,
+    description: "Anthropic's fastest model with near-frontier intelligence.",
   },
 
   // OpenRouter models
