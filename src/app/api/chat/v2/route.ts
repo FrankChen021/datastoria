@@ -1,4 +1,4 @@
-import { auth, isAuthEnabled } from "@/auth";
+import { getAuthenticatedUserEmail } from "@/auth";
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
 import { generateChatTitle } from "@/lib/ai/agent/generate-chat-title";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "@/lib/ai/agent/orchestrator-prompt";
@@ -11,7 +11,6 @@ import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { ServerTools } from "@/lib/ai/tools/server/server-tools";
 import { APICallError } from "@ai-sdk/provider";
 import { convertToModelMessages, RetryError, stepCountIs, streamText, type UIMessage } from "ai";
-import type { Session } from "next-auth";
 import { v7 as uuidv7 } from "uuid";
 
 export const dynamic = "force-dynamic";
@@ -110,15 +109,9 @@ const TITLE_WAIT_MS = 3000;
  */
 export async function POST(req: Request) {
   try {
-    const session = isAuthEnabled() ? ((await auth()) as Session) : null;
-    if (isAuthEnabled() && !session?.user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized", message: "Authentication required" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    const userEmail = getAuthenticatedUserEmail(req);
 
-    const userEmail = session?.user?.email ?? undefined;
+    console.log("userEmail", userEmail);
 
     let apiRequest: ChatV2Request;
     try {
@@ -163,11 +156,8 @@ export async function POST(req: Request) {
           apiKey: auto.apiKey,
         };
       }
-    } catch {
-      return new Response(
-        "No AI API key configured. Set OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY",
-        { status: 500 }
-      );
+    } catch (e) {
+      return new Response(e instanceof Error ? e.message : "Unknown error", { status: 500 });
     }
 
     const model = LanguageModelProviderFactory.createModel(

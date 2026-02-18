@@ -1,31 +1,32 @@
-import { auth, isAuthEnabled } from "@/auth";
+import { allowAnonymousUser, auth, AUTH_HEADER_USER_EMAIL } from "@/auth";
 import type { Session } from "next-auth";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
-  // Skip authentication check if auth is not enabled
-  if (!isAuthEnabled()) {
-    return NextResponse.next();
-  }
-
   const { pathname } = request.nextUrl;
 
-  // Allow access to login page and auth API routes
+  // Allow access to login page and auth API routes without auth check
   if (pathname.startsWith("/login") || pathname.startsWith("/api/auth")) {
     return NextResponse.next();
   }
 
-  // Check if user is authenticated
-  const session = (await auth()) as Session;
+  if (allowAnonymousUser()) {
+    return NextResponse.next();
+  }
 
+  // Require authentication
+  const session = (await auth()) as Session;
   if (!session?.user) {
-    // Redirect to login page with callback URL
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  const newHeaders = new Headers(request.headers);
+  if (session.user.email) {
+    newHeaders.set(AUTH_HEADER_USER_EMAIL, session.user.email);
+  }
+  return NextResponse.next({ request: { headers: newHeaders } });
 }
 
 // Configure which routes to run proxy on

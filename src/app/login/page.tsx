@@ -1,5 +1,5 @@
-import { getEnabledProviders } from "@/auth";
 import { LoginForm } from "@/app/login/login-form";
+import { getEnabledProviders } from "@/auth";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {

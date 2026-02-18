@@ -6,20 +6,30 @@ import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 
-/** Provider enabled when credentials are configured. Single source of truth for auth and login UI. */
+/** Header name for authenticated user email, set by proxy. APIs read via getAuthenticatedUserEmail(request). */
+export const AUTH_HEADER_USER_EMAIL = "x-datastoria-user-email";
+
+/** Reads authenticated user email from request headers (set by proxy). Returns undefined for anonymous users. */
+export function getAuthenticatedUserEmail(request: Request): string | undefined {
+  const email = request.headers.get(AUTH_HEADER_USER_EMAIL);
+  return email && email.length > 0 ? email : undefined;
+}
+
+/** Provider enabled when credentials are configured AND NEXTAUTH_*_ENABLED is "true". Single source of truth for auth and login UI. */
 export function getEnabledProviders() {
   return {
-    google: Boolean(
-      process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-    ),
-    github: Boolean(
-      process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
-    ),
-    microsoft: Boolean(
-      process.env.MICROSOFT_CLIENT_ID &&
+    google:
+      Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) &&
+      process.env.NEXTAUTH_GOOGLE_ENABLED === "true",
+    github:
+      Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) &&
+      process.env.NEXTAUTH_GITHUB_ENABLED === "true",
+    microsoft:
+      Boolean(
+        process.env.MICROSOFT_CLIENT_ID &&
         process.env.MICROSOFT_CLIENT_SECRET &&
         process.env.MICROSOFT_TENANT_ID
-    ),
+      ) && process.env.NEXTAUTH_MICROSOFT_ENABLED === "true",
   };
 }
 
@@ -149,6 +159,23 @@ const authConfig: NextAuthConfig = {
  */
 export function isAuthEnabled() {
   return authConfig.providers && authConfig.providers.length > 0;
+}
+
+/**
+ * When true, anonymous users are allowed (optional auth).
+ * When false (ALLOW_ANONYMOUS_USER=false), authentication is required.
+ * Default: true when not set.
+ */
+export function allowAnonymousUser(): boolean {
+  return process.env.ALLOW_ANONYMOUS_USER !== "false";
+}
+
+// Validate config at module load: ALLOW_ANONYMOUS_USER=false requires at least one OAuth provider
+if (process.env.ALLOW_ANONYMOUS_USER === "false" && !isAuthEnabled()) {
+  throw new Error(
+    "ALLOW_ANONYMOUS_USER=false requires at least one OAuth provider. " +
+      "Configure Google, GitHub, or Microsoft OAuth credentials and set the corresponding NEXTAUTH_*_ENABLED=true."
+  );
 }
 
 /** Result shape when auth is enabled; used for typing the conditional export. */

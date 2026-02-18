@@ -5,7 +5,7 @@ import type { DatabaseContext } from "@/components/chat/chat-context";
  */
 export interface ServerDatabaseContext extends DatabaseContext {
   /**
-   * User email from authentication session.
+   * User email from authentication session. Undefined for anonymous users.
    */
-  userEmail: string;
+  userEmail?: string;
 }
