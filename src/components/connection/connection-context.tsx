@@ -34,7 +34,14 @@ export const ConnectionContext = createContext<ConnectionContextType>({
   },
 });
 
-export function ConnectionProvider({ children }: { children: React.ReactNode }) {
+export function ConnectionProvider({
+  children,
+  createConnectionFromPending,
+}: {
+  children: React.ReactNode;
+  /** When true, creates Connection from pendingConfig on mount. Use for dialogs rendered outside the main app tree. */
+  createConnectionFromPending?: boolean;
+}) {
   const [isConnectionAvailable, setIsConnectionAvailable] = useState<boolean>(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [connection, setConnection] = useState<Connection | null>(null);
@@ -47,9 +54,13 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     const lastUsedConnection = ConnectionManager.getInstance().getLastSelectedOrFirst();
     if (lastUsedConnection) {
       setPendingConfig(lastUsedConnection);
-      // We don't create connection here, MainPage will handle initialization from pendingConfig
+      if (createConnectionFromPending) {
+        setConnection(Connection.create(lastUsedConnection));
+        setIsConnectionAvailable(true);
+      }
+      // Otherwise MainPage will handle initialization from pendingConfig
     }
-  }, []);
+  }, [createConnectionFromPending]);
 
   // When storage provider changes (e.g. session loads and we switch from <default> to user bucket),
   // re-read the initial connection so we show saved connections instead of always showing the wizard.

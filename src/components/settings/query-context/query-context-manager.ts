@@ -8,13 +8,6 @@ class QueryContextManager {
     return StorageManager.getInstance().getStorageProvider().subStorage("settings:query-context");
   }
 
-  private defaultContext: QueryContext = {
-    opentelemetry_start_trace_probability: false,
-    output_format_pretty_row_numbers: true,
-    output_format_pretty_max_rows: 1000,
-    max_execution_time: 60,
-  };
-
   public static getInstance(): QueryContextManager {
     if (!QueryContextManager.instance) {
       QueryContextManager.instance = new QueryContextManager();
@@ -23,14 +16,20 @@ class QueryContextManager {
   }
 
   public getContext(): QueryContext {
-    const stored = this.getStoredContext();
-    // Merge defaults with stored values (defaults are applied when reading)
-    return { ...this.defaultContext, ...stored };
+    return this.getStoredContext();
   }
 
   public getStoredContext(): Partial<QueryContext> {
     // Get stored context without defaults (for editing)
-    return this.storage.getAsJSON<Partial<QueryContext>>(() => ({}));
+    return this.storage.getAsJSON<Partial<QueryContext>>(() => ({
+      //
+      // Default context values
+      //
+      // opentelemetry_start_trace_probability: 1,
+      // output_format_pretty_row_numbers: true,
+      // output_format_pretty_max_rows: 1000,
+      max_execution_time: 60,
+    }));
   }
 
   public setContext(context: Partial<QueryContext>): void {

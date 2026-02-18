@@ -17,13 +17,15 @@ import ReactMarkdown from "react-markdown";
 
 export interface SuggestionItem {
   name: string;
-  type: string;
-  description: string;
+  descriptionMarkdown: string;
+  tag?: React.ReactNode;
 }
 
 interface SuggestionListProps {
   items: SuggestionItem[];
   onSelect: (item: SuggestionItem) => void;
+  /** Custom renderer for description. If not provided, uses default markdown (no admonition support). */
+  descriptionRender?: (descriptionMarkdown: string) => React.ReactNode;
   initialValue?: string;
   onValueChange?: (value: string) => void;
   onCancel?: () => void;
@@ -49,7 +51,8 @@ function filterItems(value: string, search: string): number {
   return 0; // Hide item
 }
 
-function SuggestionDescription({ description }: { description: string }) {
+/** Default markdown render (no admonition support). Used when descriptionRender is not provided. */
+function DefaultDescriptionRender({ descriptionMarkdown }: { descriptionMarkdown: string }) {
   return (
     <div className="text-sm text-foreground [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:ml-4 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:ml-4 [&_ol]:mb-2 [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:rounded [&_pre]:overflow-x-auto [&_pre]:mb-2 [&_pre_code]:block [&_pre_code]:p-0 [&_pre_code]:bg-transparent [&_pre_code]:m-0 [&_strong]:font-semibold [&_em]:italic">
       <ReactMarkdown
@@ -67,7 +70,7 @@ function SuggestionDescription({ description }: { description: string }) {
           ),
         }}
       >
-        {description || "No description available."}
+        {descriptionMarkdown || "No description available."}
       </ReactMarkdown>
     </div>
   );
@@ -171,6 +174,7 @@ function ItemList({
             <span className="font-medium text-sm flex-1 min-w-0 truncate">
               {TextHighlighter.highlight(item.name, search, "text-yellow-500 dark:text-yellow-400")}
             </span>
+            {item.tag}
           </CommandItem>
         ))}
       </CommandGroup>
@@ -181,6 +185,7 @@ function ItemList({
 export const SuggestionList: React.FC<SuggestionListProps> = ({
   items,
   onSelect,
+  descriptionRender,
   initialValue,
   onValueChange,
   onCancel,
@@ -314,12 +319,11 @@ export const SuggestionList: React.FC<SuggestionListProps> = ({
               data-panel="right"
               className="w-[400px] max-h-[300px] overflow-y-auto p-3 bg-popover border self-start"
             >
-              <div className="space-y-2">
-                <div className="text-xs text-muted-foreground mb-2">
-                  Type: <span className="font-mono">{selectedItem.type}</span>
-                </div>
-                <SuggestionDescription description={selectedItem.description} />
-              </div>
+              {descriptionRender ? (
+                descriptionRender(selectedItem.descriptionMarkdown)
+              ) : (
+                <DefaultDescriptionRender descriptionMarkdown={selectedItem.descriptionMarkdown} />
+              )}
             </div>
           )}
         </PopoverContent>

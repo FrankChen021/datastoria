@@ -103,6 +103,7 @@
     "react-resizable-panels": "^3.0.6",
     "react-syntax-highlighter": "^16.1.0",
     "recharts": "^2.15.4",
+    "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "sql-formatter": "^15.4.4",
     "tailwind-merge": "^3.3.1",

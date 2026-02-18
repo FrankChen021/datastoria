@@ -1,3 +1,4 @@
+import { ConnectionProvider } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -174,6 +175,11 @@ export function showSettingsDialog(options: ShowSettingsDialogOptions = {}) {
     }
   };
 
-  // Render the full-screen component
-  root.render(<SettingsDialogWrapper onCancel={cleanup} initialSection={initialSection} />);
+  // Render the full-screen component. ConnectionProvider with createConnectionFromPending
+  // creates a connection from the last selected config so QueryContextEdit can use useConnection.
+  root.render(
+    <ConnectionProvider createConnectionFromPending>
+      <SettingsDialogWrapper onCancel={cleanup} initialSection={initialSection} />
+    </ConnectionProvider>
+  );
 }
