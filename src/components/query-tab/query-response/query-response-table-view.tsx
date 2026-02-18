@@ -62,6 +62,7 @@ export const QueryResponseTableView = memo(function QueryResponseTableView({
         fieldOptions={[]}
         enableIndexColumn={true}
         enableCompactMode={enableCompactMode}
+        enableCellExpansion={true}
       />
     </div>
   );

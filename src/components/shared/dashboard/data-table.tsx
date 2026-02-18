@@ -1,3 +1,10 @@
+import { CopyButton } from "@/components/ui/copy-button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Formatter, type FormatName } from "@/lib/formatter";
@@ -41,6 +48,8 @@ interface DataTableRowProps {
     context?: Record<string, unknown>
   ) => React.ReactNode;
   getCellAlignmentClass: (fieldOption: FieldOption) => string;
+  onCellClick?: (e: React.MouseEvent, column: string, value: unknown) => void;
+  enableCellExpansion: boolean;
   additionalProps?: React.HTMLAttributes<HTMLTableRowElement> & { "data-index"?: number };
 }
 
@@ -58,6 +67,8 @@ const DataTableRow = memo(function DataTableRow({
   onToggleExpansion,
   formatCellValue,
   getCellAlignmentClass,
+  onCellClick,
+  enableCellExpansion,
   additionalProps,
 }: DataTableRowProps) {
   const cellPaddingClass = enableCompactMode ? "!py-0.5" : "!p-2";
@@ -128,16 +139,19 @@ const DataTableRow = memo(function DataTableRow({
             );
           }
 
+          const cellValue = row[fieldOption.name];
           return (
             <TableCell
               key={fieldOption.name}
               className={cn(
                 getCellAlignmentClass(fieldOption),
                 "whitespace-nowrap",
-                cellPaddingClass
+                cellPaddingClass,
+                enableCellExpansion && "cursor-pointer hover:bg-muted/30"
               )}
+              onClick={(e) => onCellClick?.(e, fieldOption.name!, cellValue)}
             >
-              {formatCellValue(row[fieldOption.name], fieldOption, row)}
+              {formatCellValue(cellValue, fieldOption, row)}
             </TableCell>
           );
         })}
@@ -266,6 +280,11 @@ export interface DataTableProps {
    * When enabled, applies p-1 padding to cells instead of p-2
    */
   enableCompactMode?: boolean;
+  /**
+   * Enable cell expansion dialog (default: false)
+   * When enabled, clicking any cell opens a dialog showing the full cell content
+   */
+  enableCellExpansion?: boolean;
 }
 
 export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataTable(
@@ -291,6 +310,7 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
     onTableScroll,
     enableShowRowDetail = false,
     enableCompactMode = false,
+    enableCellExpansion = false,
   }: DataTableProps,
   ref
 ) {
@@ -326,6 +346,9 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
   // Column visibility state - all columns visible by default
   const [columnVisibility, setColumnVisibility] = useState<Map<string, boolean>>(new Map());
 
+  // Cell expansion dialog state
+  const [expandedCell, setExpandedCell] = useState<{ column: string; value: unknown } | null>(null);
+
   // Toggle row expansion
   const toggleRowExpansion = useCallback((rowIndex: number) => {
     setExpandedRows((prev) => {
@@ -338,6 +361,16 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
       return next;
     });
   }, []);
+
+  // Handle cell click for expansion
+  const handleCellClick = useCallback(
+    (e: React.MouseEvent, column: string, value: unknown) => {
+      if (!enableCellExpansion) return;
+      e.stopPropagation();
+      setExpandedCell({ column, value });
+    },
+    [enableCellExpansion]
+  );
 
   // Calculate columns based on props
   const columns = useMemo(() => {
@@ -807,6 +840,17 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
     []
   );
 
+  // Format cell value as string for the expansion dialog
+  const formatCellValueAsString = useCallback((value: unknown): string => {
+    if (value === null || value === undefined) {
+      return "";
+    }
+    if (typeof value === "object") {
+      return JSON.stringify(value, null, 2);
+    }
+    return String(value);
+  }, []);
+
   // Get cell alignment class
   const getCellAlignmentClass = useCallback((fieldOption: FieldOption): string => {
     switch (fieldOption.align) {
@@ -971,6 +1015,8 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
               onToggleExpansion={toggleRowExpansion}
               formatCellValue={formatCellValue}
               getCellAlignmentClass={getCellAlignmentClass}
+              onCellClick={handleCellClick}
+              enableCellExpansion={enableCellExpansion}
               additionalProps={{
                 "data-index": virtualRow.index,
                 style: {
@@ -1085,6 +1131,30 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
           </TableBody>
         </table>
       </div>
+
+      {/* Cell Expansion Dialog */}
+      {enableCellExpansion && (
+        <Dialog open={expandedCell !== null} onOpenChange={(open) => !open && setExpandedCell(null)}>
+          <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="text-sm font-medium">
+                {expandedCell?.column}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="relative flex-1 min-h-0">
+              <div className="overflow-auto max-h-[60vh] p-4 bg-muted/30 rounded-md">
+                <pre className="whitespace-pre-wrap break-words font-mono text-sm">
+                  {expandedCell ? formatCellValueAsString(expandedCell.value) : ""}
+                </pre>
+              </div>
+              <CopyButton
+                value={expandedCell ? formatCellValueAsString(expandedCell.value) : ""}
+                className="top-2 right-2"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 });
