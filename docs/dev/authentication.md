@@ -68,10 +68,9 @@ Add the generated secret and at least one provider configuration to your `.env` 
 ```env
 NEXTAUTH_SECRET=<paste-your-secret-here>
 
-# Example for Google OAuth:
+# Example for Google OAuth (provider is enabled when both credentials are set):
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-NEXTAUTH_GOOGLE_ENABLED=true
 ```
 
 ### 3. Configure OAuth Callback URLs
@@ -127,7 +126,6 @@ NEXTAUTH_SECRET=your-generated-secret-here
 ```env
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-NEXTAUTH_GOOGLE_ENABLED=true
 ```
 
 ### GitHub OAuth
@@ -145,7 +143,6 @@ NEXTAUTH_GOOGLE_ENABLED=true
 ```env
 GITHUB_CLIENT_ID=your-github-client-id
 GITHUB_CLIENT_SECRET=your-github-client-secret
-NEXTAUTH_GITHUB_ENABLED=true
 ```
 
 ### Microsoft Entra ID OAuth
@@ -179,7 +176,6 @@ NEXTAUTH_GITHUB_ENABLED=true
 MICROSOFT_CLIENT_ID=your-microsoft-client-id
 MICROSOFT_CLIENT_SECRET=your-microsoft-client-secret
 MICROSOFT_TENANT_ID=your-microsoft-tenant-id
-NEXTAUTH_MICROSOFT_ENABLED=true
 ```
 
 ---
@@ -214,7 +210,7 @@ npm start
 
 - **"Authentication is not enabled"**: Add OAuth credentials to `.env` and restart the server.
 - **"Redirect URI mismatch"**: Ensure callback URLs match exactly, including protocol.
-- **Login page shows no buttons**: Set `NEXTAUTH_*_ENABLED=true` for your provider(s).
+- **Login page shows no buttons**: Ensure `CLIENT_ID` and `CLIENT_SECRET` (and `TENANT_ID` for Microsoft) are set for your provider(s).
 - **Session expires immediately**: Check `NEXTAUTH_SECRET` and ensure cookies are enabled.
 
 ---

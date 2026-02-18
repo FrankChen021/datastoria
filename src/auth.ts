@@ -6,12 +6,29 @@ import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 
+/** Provider enabled when credentials are configured. Single source of truth for auth and login UI. */
+export function getEnabledProviders() {
+  return {
+    google: Boolean(
+      process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ),
+    github: Boolean(
+      process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+    ),
+    microsoft: Boolean(
+      process.env.MICROSOFT_CLIENT_ID &&
+        process.env.MICROSOFT_CLIENT_SECRET &&
+        process.env.MICROSOFT_TENANT_ID
+    ),
+  };
+}
+
 function getAuthProviders(): Provider[] {
   const providers: Provider[] = [];
+  const enabled = getEnabledProviders();
 
   // Add Google Auth Provider
-  const isGoogleAuthEnabled = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET;
-  if (isGoogleAuthEnabled) {
+  if (enabled.google) {
     providers.push(
       GoogleProvider({
         clientId: process.env.GOOGLE_CLIENT_ID,
@@ -21,8 +38,7 @@ function getAuthProviders(): Provider[] {
   }
 
   // Add GitHub Auth Provider
-  const isGitHubAuthEnabled = process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET;
-  if (isGitHubAuthEnabled) {
+  if (enabled.github) {
     providers.push(
       GitHubProvider({
         clientId: process.env.GITHUB_CLIENT_ID,
@@ -32,11 +48,7 @@ function getAuthProviders(): Provider[] {
   }
 
   // Add Microsoft Entra ID (formerly Azure AD) Auth Provider
-  const isMicrosoftAuthEnabled =
-    process.env.MICROSOFT_CLIENT_ID &&
-    process.env.MICROSOFT_CLIENT_SECRET &&
-    process.env.MICROSOFT_TENANT_ID;
-  if (isMicrosoftAuthEnabled) {
+  if (enabled.microsoft) {
     providers.push(
       MicrosoftEntraID({
         clientId: process.env.MICROSOFT_CLIENT_ID,
