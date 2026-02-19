@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tree, type TreeDataItem } from "@/components/ui/tree";
 import { cn } from "@/lib/utils";
-import { Code, FileText, FolderClosed, Plus, Search, X } from "lucide-react";
+import { Code, FolderClosed, Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { QuerySnippetManager } from "./query-snippet-manager";
 import { openSaveSnippetDialog } from "./save-snippet-dialog";
@@ -90,7 +90,7 @@ function appendSnippetsToTree(
       labelContent: leafName,
       search: leafName,
       type: "leaf",
-      icon: snippet.builtin ? FileText : Code,
+      icon: Code,
       data: snippet,
       labelTooltip: <SnippetTooltipContent snippet={snippet} />,
       nodeTooltipClassName: "w-[400px] max-w-none p-0",
