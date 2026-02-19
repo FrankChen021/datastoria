@@ -105,3 +105,113 @@ describe("SqlUtils.toExplainSQL", () => {
     expect(rawSQL).toBe("SELECT 1 /* FORMAT JSON */");
   });
 });
+
+describe("SqlUtils.resolveRunSql", () => {
+  it("returns selected text when selection exists", () => {
+    const sql = SqlUtils.resolveExecutionSql({
+      selectedText: " SELECT 42 ",
+      text: "SELECT 1; SELECT 2;",
+      cursorRow: 0,
+      cursorColumn: 0,
+    });
+
+    expect(sql).toBe("SELECT 42");
+  });
+
+  it("returns statement at cursor when no selection", () => {
+    const sql = SqlUtils.resolveExecutionSql({
+      selectedText: "",
+      text: "SELECT 1;\nSELECT 2;\nSELECT 3;",
+      cursorRow: 1,
+      cursorColumn: 3,
+    });
+
+    expect(sql).toBe("SELECT 2;");
+  });
+
+  it("returns empty when editor text is empty", () => {
+    const sql = SqlUtils.resolveExecutionSql({
+      selectedText: "",
+      text: "   ",
+      cursorRow: 0,
+      cursorColumn: 0,
+    });
+
+    expect(sql).toBe("");
+  });
+
+  it("returns only the current line when semicolons are absent", () => {
+    const sql = SqlUtils.resolveExecutionSql({
+      selectedText: "",
+      text: "SELECT version()\nselect version()",
+      cursorRow: 1,
+      cursorColumn: 8,
+    });
+
+    expect(sql).toBe("select version()");
+  });
+});
+
+describe("SqlUtils.splitSqlScript", () => {
+  it("splits by semicolon when present", () => {
+    expect(SqlUtils.splitSqlStatements("SELECT 1; SELECT 2;")).toEqual(["SELECT 1", "SELECT 2"]);
+  });
+
+  it("does not split semicolons in strings", () => {
+    expect(SqlUtils.splitSqlStatements("SELECT 'a;b'; SELECT 2;")).toEqual([
+      "SELECT 'a;b'",
+      "SELECT 2",
+    ]);
+  });
+
+  it("keeps SQL as one statement when semicolon is absent", () => {
+    expect(SqlUtils.splitSqlStatements("SELECT 1\n\nSELECT 2\nFROM t")).toEqual([
+      "SELECT 1\n\nSELECT 2\nFROM t",
+    ]);
+    expect(SqlUtils.splitSqlStatements("SELECT 1\nSELECT 2")).toEqual(["SELECT 1\nSELECT 2"]);
+  });
+
+  it("splits by non-empty line when splitter is newline", () => {
+    expect(SqlUtils.splitSqlStatements("SELECT 1\n\nSELECT 2\nFROM t", "newline")).toEqual([
+      "SELECT 1",
+      "SELECT 2",
+      "FROM t",
+    ]);
+  });
+
+  it("splits by custom literal separator", () => {
+    expect(
+      SqlUtils.splitSqlStatements("SELECT 1@@SELECT 2@@SELECT 3", "custom", {
+        value: "@@",
+        isRegex: false,
+      })
+    ).toEqual(["SELECT 1", "SELECT 2", "SELECT 3"]);
+  });
+
+  it("keeps semicolon behavior when custom splitter is semicolon", () => {
+    expect(
+      SqlUtils.splitSqlStatements("SELECT 'a;b'; SELECT 2;", "custom", {
+        value: ";",
+        isRegex: false,
+      })
+    ).toEqual(["SELECT 'a;b'", "SELECT 2"]);
+  });
+
+  it("splits by custom regex separator", () => {
+    expect(
+      SqlUtils.splitSqlStatements("SELECT 1--split--SELECT 2", "custom", {
+        value: "--split--",
+        isRegex: true,
+      })
+    ).toEqual(["SELECT 1", "SELECT 2"]);
+  });
+
+  it("falls back to single statement when custom regex is invalid", () => {
+    expect(
+      SqlUtils.splitSqlStatements("SELECT 1;SELECT 2", "custom", {
+        value: "(",
+        isRegex: true,
+      })
+    ).toEqual(["SELECT 1;SELECT 2"]);
+  });
+});

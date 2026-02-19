@@ -1,5 +1,6 @@
 import { useConnection } from "@/components/connection/connection-context";
 import { useTheme } from "@/components/shared/theme-provider";
+import { SqlUtils } from "@/lib/sql-utils";
 import type { Ace } from "ace-builds";
 import dynamic from "next/dynamic";
 import {
@@ -53,7 +54,7 @@ interface QueryInputViewProps {
   initialMode?: "replace" | "insert";
   storageKey?: string;
   language?: string;
-  onRun?: (text: string) => void;
+  onRun?: (sql: string) => void;
 }
 
 // Logic to apply query to editor
@@ -369,18 +370,28 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           name: "run",
           bindKey: { win: "Ctrl-Enter", mac: "Command-Enter" },
           exec: () => {
-            const text =
-              extendedEditor.getSelectedText().trim() || extendedEditor.getValue().trim();
-            if (text && latestOnRun.current) {
-              latestOnRun.current(text);
+            if (extendedEditor.getValue().trim().length > 0 && latestOnRun.current) {
+              const cursor = extendedEditor.getCursorPosition();
+              const sql = SqlUtils.resolveExecutionSql({
+                selectedText: extendedEditor.getSelectedText(),
+                text: extendedEditor.getValue(),
+                cursorRow: cursor.row,
+                cursorColumn: cursor.column,
+              });
+              if (sql.length > 0) {
+                latestOnRun.current(sql);
+              }
             }
           },
         });
 
         // When editor is ready, update the editor state
+        const initialCursor = extendedEditor.getCursorPosition();
         updateQueryInputState({
-          text: extendedEditor.getValue().trim(),
+          text: extendedEditor.getValue(),
           selectedText: "",
+          cursorRow: initialCursor.row,
+          cursorColumn: initialCursor.column,
         });
 
         // Add command to toggle mode
@@ -443,9 +454,12 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
       // Update global state with full text
       if (editorRef.current) {
         const selected = editorRef.current.getSelectedText().trim();
+        const cursor = editorRef.current.getCursorPosition();
         updateQueryInputState({
-          text: text.trim(),
+          text,
           selectedText: selected,
+          cursorRow: cursor.row,
+          cursorColumn: cursor.column,
         });
       }
     }, 200);
@@ -453,10 +467,27 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
     const handleSelectionChange = useCallback(() => {
       if (editorRef.current) {
         const selected = editorRef.current.getSelectedText().trim();
-        const allText = editorRef.current.getValue().trim();
+        const allText = editorRef.current.getValue();
+        const cursor = editorRef.current.getCursorPosition();
         updateQueryInputState({
           selectedText: selected,
           text: allText,
+          cursorRow: cursor.row,
+          cursorColumn: cursor.column,
+        });
+      }
+    }, []);
+
+    const handleCursorChange = useCallback(() => {
+      if (editorRef.current) {
+        const selected = editorRef.current.getSelectedText().trim();
+        const allText = editorRef.current.getValue();
+        const cursor = editorRef.current.getCursorPosition();
+        updateQueryInputState({
+          selectedText: selected,
+          text: allText,
+          cursorRow: cursor.row,
+          cursorColumn: cursor.column,
         });
       }
     }, []);
@@ -501,6 +532,7 @@ Press ${keyBindings.autocomplete} to show suggestions.
           onLoad={handleEditorLoad}
           onChange={handleChange}
           onSelectionChange={handleSelectionChange}
+          onCursorChange={handleCursorChange}
         />
       </div>
     );

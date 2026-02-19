@@ -43,12 +43,16 @@ const QueryTabContent = ({
 
   // Unified handler for Cmd+Enter in QueryInputView
   const handleInputRun = useCallback(
-    (textToRun: string) => {
-      if (!connection || textToRun.length === 0 || isSqlExecuting) {
+    (sql: string) => {
+      if (!connection || isSqlExecuting) {
         return;
       }
 
-      executeQuery(textToRun);
+      if (sql.trim().length === 0) {
+        return;
+      }
+
+      executeQuery(sql);
     },
     [executeQuery, connection, isSqlExecuting]
   );

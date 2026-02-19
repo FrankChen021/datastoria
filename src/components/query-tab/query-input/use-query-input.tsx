@@ -3,11 +3,15 @@ import { useEffect, useState } from "react";
 interface QueryInputState {
   selectedText: string;
   text: string;
+  cursorRow: number;
+  cursorColumn: number;
 }
 
 const globalState: QueryInputState = {
   selectedText: "",
   text: "",
+  cursorRow: 0,
+  cursorColumn: 0,
 };
 
 const globalListeners: Set<() => void> = new Set();
@@ -23,6 +27,16 @@ export function updateQueryInputState(state: Partial<QueryInputState>) {
 
   if (state.text !== undefined && globalState.text !== state.text) {
     globalState.text = state.text;
+    changed = true;
+  }
+
+  if (state.cursorRow !== undefined && globalState.cursorRow !== state.cursorRow) {
+    globalState.cursorRow = state.cursorRow;
+    changed = true;
+  }
+
+  if (state.cursorColumn !== undefined && globalState.cursorColumn !== state.cursorColumn) {
+    globalState.cursorColumn = state.cursorColumn;
     changed = true;
   }
 
