@@ -213,7 +213,19 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
               <Copy className="!h-3 !w-3" />
             </Button>
           )}
-          {!isBuiltin && (
+          {isBuiltin ? (
+            <span title="Built-in snippets are read-only. Clone to edit a copy.">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 opacity-50"
+                disabled
+                title="Built-in snippets are read-only. Clone to edit a copy."
+              >
+                <Pencil className="!h-3 !w-3" />
+              </Button>
+            </span>
+          ) : (
             <>
               <Button
                 variant="ghost"
