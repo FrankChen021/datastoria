@@ -175,25 +175,17 @@ export function SnippetListView() {
         </Button>
       </div>
 
-      <div className="h-full overflow-y-auto px-1">
-        {treeData.length > 0 && (
-          <Tree
-            data={treeData}
-            search={search}
-            showChildCount={true}
-            className="overflow-visible px-0"
-            folderIcon={FolderClosed}
-            itemIcon={Code}
-            expandAll
-            pathSeparator="/"
-            rowHeight={30}
-          />
-        )}
-
-        {snippets.length === 0 && (
-          <div className="text-center text-sm text-muted-foreground py-4">No snippets found</div>
-        )}
-      </div>
+      <Tree
+        data={treeData}
+        search={search}
+        showChildCount={true}
+        className="h-full"
+        folderIcon={FolderClosed}
+        itemIcon={Code}
+        expandAll
+        pathSeparator="/"
+        rowHeight={30}
+      />
 
       <SaveSnippetDialog
         open={showAddDialog}

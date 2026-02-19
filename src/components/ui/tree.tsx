@@ -605,7 +605,7 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
     return (
       <div
         ref={parentRef}
-        className={cn("relative overflow-auto px-2", className)}
+        className={cn("relative overflow-auto px-1", className)}
         tabIndex={0}
         onKeyDown={handleKeyDown}
         style={{ outline: "none" }}
