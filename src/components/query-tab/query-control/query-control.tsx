@@ -14,15 +14,21 @@ import { useCallback, useState } from "react";
 import { useQueryExecutor } from "../query-execution/query-executor";
 import { useQueryInput } from "../query-input/use-query-input";
 import { SaveSnippetDialog } from "../snippet/save-snippet-dialog";
+import { showMultipleStatementsConfirmDialog } from "./multiple-statements-confirm-dialog";
 
 export function QueryControl() {
-  const { isSqlExecuting, executeQuery } = useQueryExecutor();
+  const { isSqlExecuting, executeQuery, executeBatch } = useQueryExecutor();
   const { connection } = useConnection();
-  const { selectedText, text } = useQueryInput();
+  const { selectedText, text, cursorRow, cursorColumn } = useQueryInput();
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
 
-  const handleRun = useCallback(() => {
-    const sql = selectedText || text;
+  const handleRunCurrentLine = useCallback(() => {
+    const sql = SqlUtils.resolveExecutionSql({
+      selectedText: "",
+      text,
+      cursorRow,
+      cursorColumn,
+    });
 
     if (sql.length === 0) return;
 
@@ -32,47 +38,100 @@ export function QueryControl() {
 
     // executeQuery now handles comment removal and vertical format detection
     executeQuery(sql);
-  }, [selectedText, text, executeQuery, connection]);
+  }, [text, cursorRow, cursorColumn, executeQuery, connection]);
+
+  const handleRunSelectedText = useCallback(() => {
+    const sql = selectedText.trim();
+    if (sql.length === 0) {
+      return;
+    }
+    executeQuery(sql);
+  }, [selectedText, executeQuery]);
 
   const handleExplain = useCallback(
     (type: string) => {
-      const { explainSQL, rawSQL } = SqlUtils.toExplainSQL(type, selectedText || text);
+      const sql = SqlUtils.resolveExecutionSql({
+        selectedText,
+        text,
+        cursorRow,
+        cursorColumn,
+      });
+      const { explainSQL, rawSQL } = SqlUtils.toExplainSQL(type, sql);
       if (rawSQL.length === 0) {
         return;
       }
       const viewType = type === "plan-indexes" || type === "plan-actions" ? "plan" : type;
       executeQuery(explainSQL, rawSQL, { view: viewType });
     },
-    [selectedText, text, executeQuery]
+    [selectedText, text, cursorRow, cursorColumn, executeQuery]
   );
 
-  const isDisabled = isSqlExecuting || (selectedText.length === 0 && text.length === 0);
+  const handleRunBatchSqls = useCallback(() => {
+    const source = selectedText.trim().length > 0 ? "selection" : "all";
+    const sqlText = source === "selection" ? selectedText : text;
+    if (sqlText.trim().length === 0) {
+      return;
+    }
+    showMultipleStatementsConfirmDialog({
+      source,
+      sqlText,
+      defaultFailureMode: "abort",
+      defaultSplitter: "semicolon",
+      onConfirm: (selectedStatements, failureMode) => {
+        executeBatch(selectedStatements, { failureMode, source });
+      },
+    });
+  }, [selectedText, text, executeBatch]);
+
+  const hasEditorText = text.trim().length > 0;
+  const hasSelectedText = selectedText.trim().length > 0;
+  const isRunPrimaryDisabled = isSqlExecuting || (!hasSelectedText && !hasEditorText);
+  const isRunBatchDisabled = isSqlExecuting || !hasEditorText;
+  const isExplainDisabled = isSqlExecuting || !hasEditorText;
+  const isSaveDisabled = isSqlExecuting || !hasEditorText;
 
   return (
     <TooltipProvider>
       <div className="flex h-8 w-full gap-2 rounded-sm items-center px-2 text-xs transition-colors">
-        <Button
-          disabled={isDisabled}
-          onClick={handleRun}
-          size="sm"
-          variant="ghost"
-          className={`h-6 gap-1 px-2 text-xs rounded-sm`}
-        >
-          <Play className="h-3 w-3" />
-          {selectedText ? "Run Selected SQL(Cmd+Enter)" : "Run SQL(Cmd+Enter)"}
-        </Button>
-
+        <div className="flex">
+          <Button
+            disabled={isRunPrimaryDisabled}
+            onClick={hasSelectedText ? handleRunSelectedText : handleRunCurrentLine}
+            size="sm"
+            variant="ghost"
+            className={`h-6 gap-1 px-2 text-xs rounded-sm`}
+          >
+            <Play className="h-3 w-3" />
+            {hasSelectedText ? "Run Selected Text(Cmd+Enter)" : "Run Current Line(Cmd+Enter)"}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                disabled={isRunBatchDisabled}
+                size="sm"
+                variant="ghost"
+                className="h-6 px-1 text-xs rounded-sm"
+                aria-label="Run options"
+              >
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={handleRunBatchSqls}>Run Batch SQLs</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         <Separator orientation="vertical" className="h-4" />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
-              disabled={isDisabled}
+              disabled={isExplainDisabled}
               size="sm"
               variant="ghost"
               className="h-6 gap-1 px-2 text-xs rounded-sm"
             >
-              {selectedText ? "Explain Selected SQL" : "Explain SQL"}
+              {selectedText ? "Explain Selected SQL" : "Explain Current Line"}
               <ChevronDown className="h-3 w-3" />
             </Button>
           </DropdownMenuTrigger>
@@ -99,7 +158,7 @@ export function QueryControl() {
         <Separator orientation="vertical" className="h-4" />
 
         <Button
-          disabled={isDisabled}
+          disabled={isSaveDisabled}
           size="sm"
           variant="ghost"
           className="h-6 gap-1 px-2 text-xs rounded-sm"
