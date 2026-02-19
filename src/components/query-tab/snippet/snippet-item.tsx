@@ -213,45 +213,34 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
               <Copy className="!h-3 !w-3" />
             </Button>
           )}
-          {isBuiltin ? (
-            <span title="Built-in snippets are read-only. Clone to edit a copy.">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 opacity-50"
-                disabled
-                title="Built-in snippets are read-only. Clone to edit a copy."
-              >
-                <Pencil className="!h-3 !w-3" />
-              </Button>
-            </span>
-          ) : (
-            <>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEditClick();
-                }}
-                title="Edit"
-              >
-                <Pencil className="!h-3 !w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 hover:text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteClick();
-                }}
-                title="Delete"
-              >
-                <Trash2 className="!h-3 !w-3" />
-              </Button>
-            </>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-6 w-6 ${isBuiltin ? "opacity-50" : ""}`}
+            disabled={isBuiltin}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isBuiltin) {
+                handleEditClick();
+              }
+            }}
+            title={isBuiltin ? "Built-in snippets are read-only. Clone to edit a copy." : "Edit"}
+          >
+            <Pencil className="!h-3 !w-3" />
+          </Button>
+          {!isBuiltin && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteClick();
+              }}
+              title="Delete"
+            >
+              <Trash2 className="!h-3 !w-3" />
+            </Button>
           )}
         </div>
       </div>
