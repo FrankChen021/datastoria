@@ -1,7 +1,7 @@
 import { useSqlExecution } from "@/components/chat/sql-execution-context";
 import { useConnection } from "@/components/connection/connection-context";
 import { QueryExecutionTimer } from "@/components/query-tab/query-execution-timer";
-import { SaveSnippetDialog } from "@/components/query-tab/snippet/save-snippet-dialog";
+import { openSaveSnippetDialog } from "@/components/query-tab/snippet/save-snippet-dialog";
 import { CopyButton } from "@/components/ui/copy-button";
 import type { QueryError } from "@/lib/connection/connection";
 import { SqlUtils } from "@/lib/sql-utils";
@@ -39,7 +39,6 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
   const [queryResponse, setQueryResponse] = useState<QueryResponseViewModel | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [showResults, setShowResults] = useState(true);
-  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const queryResponseRef = useRef<HTMLDivElement>(null);
 
   const handleRun = async (e: React.MouseEvent) => {
@@ -153,18 +152,12 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
               "h-5 w-5 opacity-60 hover:opacity-100 transition-all",
               isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
             )}
-            onClick={() => setIsSaveDialogOpen(true)}
+            onClick={() => openSaveSnippetDialog({ initialSql: code })}
             title="Save as snippet"
           >
             <Bookmark className="!h-3 !w-3" />
           </Button>
         </div>
-
-        <SaveSnippetDialog
-          open={isSaveDialogOpen}
-          onOpenChange={setIsSaveDialogOpen}
-          initialSql={code}
-        />
 
         <ThemedSyntaxHighlighter
           language={language}

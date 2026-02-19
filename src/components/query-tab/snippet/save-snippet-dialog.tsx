@@ -1,13 +1,11 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog } from "../../shared/use-dialog";
 import { QuerySnippetManager } from "../snippet/query-snippet-manager";
 
-interface SaveSnippetDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface OpenSaveSnippetDialogOptions {
   initialSql?: string;
   initialName?: string;
   onSaved?: () => void;
@@ -26,7 +24,7 @@ function SaveSnippetForm({
 }: {
   initialName: string;
   initialSql: string;
-  formRef: React.MutableRefObject<SaveSnippetFormRef | null>;
+  formRef: { current: SaveSnippetFormRef | null };
 }) {
   const [name, setName] = useState(initialName);
   const [sql, setSql] = useState(initialSql);
@@ -76,78 +74,61 @@ function SaveSnippetForm({
   );
 }
 
-export function SaveSnippetDialog({
-  open,
-  onOpenChange,
+export function openSaveSnippetDialog({
   initialSql = "",
   initialName = "",
   onSaved,
-}: SaveSnippetDialogProps) {
-  const formRef = useRef<SaveSnippetFormRef | null>(null);
+}: OpenSaveSnippetDialogOptions = {}) {
+  const formRef: { current: SaveSnippetFormRef | null } = { current: null };
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    Dialog.showDialog({
-      title: "Save Snippet",
-      description:
-        "Save your query as a reusable snippet. You can access it from the snippet library or auto-complete it in the editor.",
-      className: "sm:max-w-[800px]",
-      mainContent: (
-        <SaveSnippetForm initialName={initialName} initialSql={initialSql} formRef={formRef} />
-      ),
-      onCancel: () => {
-        onOpenChange(false);
+  Dialog.showDialog({
+    title: "Save Snippet",
+    description:
+      "Save your query as a reusable snippet. You can access it from the snippet library or auto-complete it in the editor.",
+    className: "sm:max-w-[800px]",
+    mainContent: (
+      <SaveSnippetForm initialName={initialName} initialSql={initialSql} formRef={formRef} />
+    ),
+    dialogButtons: [
+      {
+        text: "Cancel",
+        default: false,
+        variant: "outline",
+        onClick: async () => true,
       },
-      dialogButtons: [
-        {
-          text: "Cancel",
-          default: false,
-          variant: "outline",
-          onClick: async () => {
-            onOpenChange(false);
+      {
+        text: "Save",
+        default: true,
+        onClick: async () => {
+          const name = formRef.current?.getName().trim() ?? "";
+          const sql = formRef.current?.getSql().trim() ?? "";
+
+          if (!name) {
+            formRef.current?.setError("Name is required");
+            return false;
+          }
+          if (!sql) {
+            formRef.current?.setError("SQL is required");
+            return false;
+          }
+
+          const manager = QuerySnippetManager.getInstance();
+          if (manager.hasSnippet(name)) {
+            formRef.current?.setError("Snippet name already exists");
+            return false;
+          }
+
+          try {
+            manager.addSnippet(name, sql);
+            onSaved?.();
             return true;
-          },
+          } catch (error) {
+            console.error(error);
+            formRef.current?.setError("Failed to save snippet");
+            return false;
+          }
         },
-        {
-          text: "Save",
-          default: true,
-          onClick: async () => {
-            const name = formRef.current?.getName().trim() ?? "";
-            const sql = formRef.current?.getSql().trim() ?? "";
-
-            if (!name) {
-              formRef.current?.setError("Name is required");
-              return false;
-            }
-            if (!sql) {
-              formRef.current?.setError("SQL is required");
-              return false;
-            }
-
-            const manager = QuerySnippetManager.getInstance();
-            if (manager.hasSnippet(name)) {
-              formRef.current?.setError("Snippet name already exists");
-              return false;
-            }
-
-            try {
-              manager.addSnippet(name, sql);
-              onSaved?.();
-              onOpenChange(false);
-              return true;
-            } catch (error) {
-              console.error(error);
-              formRef.current?.setError("Failed to save snippet");
-              return false;
-            }
-          },
-        },
-      ],
-    });
-  }, [open, initialName, initialSql, onOpenChange, onSaved]);
-
-  return null;
+      },
+    ],
+  });
 }

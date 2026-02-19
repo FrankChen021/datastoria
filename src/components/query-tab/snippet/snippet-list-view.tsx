@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Code, FileText, FolderClosed, Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { QuerySnippetManager } from "./query-snippet-manager";
-import { SaveSnippetDialog } from "./save-snippet-dialog";
+import { openSaveSnippetDialog } from "./save-snippet-dialog";
 import type { Snippet } from "./snippet";
 import { SnippetTooltipContent } from "./snippet-item";
 
@@ -107,7 +107,6 @@ function appendSnippetsToTree(
 export function SnippetListView() {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [search, setSearch] = useState("");
-  const [showAddDialog, setShowAddDialog] = useState(false);
 
   useEffect(() => {
     const manager = QuerySnippetManager.getInstance();
@@ -168,7 +167,7 @@ export function SnippetListView() {
           variant="ghost"
           size="sm"
           className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
-          onClick={() => setShowAddDialog(true)}
+          onClick={() => openSaveSnippetDialog()}
           title="Add new snippet"
         >
           <Plus className="h-4 w-4" />
@@ -185,13 +184,6 @@ export function SnippetListView() {
         expandAll
         pathSeparator="/"
         rowHeight={30}
-      />
-
-      <SaveSnippetDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
-        initialSql=""
-        initialName=""
       />
     </div>
   );
