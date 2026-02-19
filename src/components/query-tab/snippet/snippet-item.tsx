@@ -50,7 +50,10 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
   };
 
   const handleSaveEdit = () => {
-    if (!editCaption.trim() || !editSql.trim()) {
+    const normalizedCaption = editCaption.trim();
+    const normalizedSql = editSql.trim();
+
+    if (!normalizedCaption || !normalizedSql) {
       Dialog.alert({
         title: "Validation Error",
         description: "Name and SQL are required.",
@@ -58,7 +61,16 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
       return;
     }
     try {
-      QuerySnippetManager.getInstance().replaceSnippet(snippet.caption, editCaption, editSql);
+      const manager = QuerySnippetManager.getInstance();
+      if (normalizedCaption !== snippet.caption && manager.hasSnippet(normalizedCaption)) {
+        Dialog.alert({
+          title: "Validation Error",
+          description: "Snippet name already exists.",
+        });
+        return;
+      }
+
+      manager.replaceSnippet(snippet.caption, normalizedCaption, normalizedSql);
       setIsEditing(false);
     } catch {
       Dialog.alert({
@@ -214,6 +226,7 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
       <Separator />
       {showDeleteConfirm && (
         <div
+          id="delete-confirm-section"
           className="bg-destructive/10 border-l-4 border-destructive px-3 py-2"
           onClick={(e) => e.stopPropagation()}
         >
@@ -253,7 +266,7 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
         </div>
       )}
       {showDeleteConfirm && <Separator />}
-      <div className="max-h-[300px] min-h-[200px] overflow-auto">
+      <div id="snippet-sql" className="max-h-[300px] min-h-[200px] overflow-auto">
         <ThemedSyntaxHighlighter
           language="sql"
           customStyle={{

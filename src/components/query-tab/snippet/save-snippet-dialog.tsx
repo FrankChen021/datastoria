@@ -42,23 +42,26 @@ export function SaveSnippetDialog({
   }, [open, initialName, initialSql]);
 
   const handleSave = () => {
-    if (!name.trim()) {
+    const normalizedName = name.trim();
+    const normalizedSql = sql.trim();
+
+    if (!normalizedName) {
       setError("Name is required");
       return;
     }
-    if (!sql.trim()) {
+    if (!normalizedSql) {
       setError("SQL is required");
       return;
     }
 
     try {
       const manager = QuerySnippetManager.getInstance();
+      if (manager.hasSnippet(normalizedName)) {
+        setError("Snippet name already exists");
+        return;
+      }
 
-      // If updating an existing snippet (based on name match), we are just overwriting it.
-      // If we wanted to support "renaming" where we delete the old one, we'd need the old name passed in.
-      // For now, this is a simple save/overwrite by name.
-
-      manager.addSnippet(name, sql);
+      manager.addSnippet(normalizedName, normalizedSql);
       onOpenChange(false);
       onSaved?.();
     } catch (e) {
