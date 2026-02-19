@@ -121,23 +121,15 @@ export function SnippetListView() {
     return unsubscribe;
   }, []);
 
-  const { treeData, resultCount } = useMemo(() => {
-    const lowerSearch = search.toLowerCase().trim();
+  const treeData = useMemo(() => {
     const user: UISnippet[] = [];
     const builtin: UISnippet[] = [];
 
     for (const snippet of snippets) {
-      const lowerCaption = snippet.caption.toLowerCase();
-      const matchedIndex = lowerSearch ? lowerCaption.indexOf(lowerSearch) : -1;
-
-      if (lowerSearch && matchedIndex === -1) {
-        continue;
-      }
-
       const uiSnippet: UISnippet = {
         snippet,
-        matchedIndex,
-        matchedLength: lowerSearch.length,
+        matchedIndex: -1,
+        matchedLength: 0,
       };
 
       if (snippet.builtin) {
@@ -152,12 +144,8 @@ export function SnippetListView() {
     appendSnippetsToTree(roots, folderCache, user, "user");
     appendSnippetsToTree(roots, folderCache, builtin, "builtin", "built_in");
     sortTreeData(roots);
-
-    return {
-      treeData: roots,
-      resultCount: user.length + builtin.length,
-    };
-  }, [snippets, search]);
+    return roots;
+  }, [snippets]);
 
   return (
     <div className="flex flex-col h-full w-full">
@@ -198,6 +186,7 @@ export function SnippetListView() {
         {treeData.length > 0 && (
           <Tree
             data={treeData}
+            search={search}
             className="overflow-visible px-0"
             folderIcon={FolderClosed}
             itemIcon={Code}
@@ -207,7 +196,7 @@ export function SnippetListView() {
           />
         )}
 
-        {resultCount === 0 && (
+        {snippets.length === 0 && (
           <div className="text-center text-sm text-muted-foreground py-4">No snippets found</div>
         )}
       </div>
