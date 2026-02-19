@@ -8,7 +8,6 @@ import { QuerySnippetManager } from "./query-snippet-manager";
 import { SaveSnippetDialog } from "./save-snippet-dialog";
 import type { Snippet } from "./snippet";
 import { SnippetTooltipContent } from "./snippet-item";
-import type { UISnippet } from "./ui-snippet";
 
 function splitCaption(caption: string) {
   const segments = caption.split("/").filter((segment) => segment.length > 0);
@@ -45,7 +44,7 @@ function createFolderNode(id: string, name: string): TreeDataItem {
 function appendSnippetsToTree(
   roots: TreeDataItem[],
   folderCache: Map<string, TreeDataItem>,
-  snippets: UISnippet[],
+  snippets: Snippet[],
   source: "user" | "builtin",
   rootName?: string
 ) {
@@ -60,8 +59,8 @@ function appendSnippetsToTree(
     folderCache.set(rootPrefix, rootFolder);
   }
 
-  for (const uiSnippet of snippets) {
-    const pathSegments = splitCaption(uiSnippet.snippet.caption);
+  for (const snippet of snippets) {
+    const pathSegments = splitCaption(snippet.caption);
     const leafName = pathSegments[pathSegments.length - 1]!;
     const parentSegments = pathSegments.slice(0, -1);
 
@@ -87,13 +86,13 @@ function appendSnippetsToTree(
     }
 
     const leafNode: TreeDataItem = {
-      id: `leaf:${source}:${uiSnippet.snippet.caption}`,
+      id: `leaf:${source}:${snippet.caption}`,
       labelContent: leafName,
       search: leafName,
       type: "leaf",
-      icon: uiSnippet.snippet.builtin ? FileText : Code,
-      data: uiSnippet,
-      nodeTooltip: <SnippetTooltipContent snippet={uiSnippet.snippet} />,
+      icon: snippet.builtin ? FileText : Code,
+      data: snippet,
+      nodeTooltip: <SnippetTooltipContent snippet={snippet} />,
       nodeTooltipClassName: "w-[400px] max-w-none p-0",
     };
 
@@ -122,20 +121,14 @@ export function SnippetListView() {
   }, []);
 
   const treeData = useMemo(() => {
-    const user: UISnippet[] = [];
-    const builtin: UISnippet[] = [];
+    const user: Snippet[] = [];
+    const builtin: Snippet[] = [];
 
     for (const snippet of snippets) {
-      const uiSnippet: UISnippet = {
-        snippet,
-        matchedIndex: -1,
-        matchedLength: 0,
-      };
-
       if (snippet.builtin) {
-        builtin.push(uiSnippet);
+        builtin.push(snippet);
       } else {
-        user.push(uiSnippet);
+        user.push(snippet);
       }
     }
 

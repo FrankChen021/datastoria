@@ -1,36 +1,14 @@
 import { Button } from "@/components/ui/button";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { TextHighlighter } from "@/lib/text-highlighter";
-import { cn } from "@/lib/utils";
-import {
-  AlertCircle,
-  ArrowRight,
-  Check,
-  Code,
-  Copy,
-  FileText,
-  Pencil,
-  Play,
-  Trash2,
-  X,
-} from "lucide-react";
+import { AlertCircle, ArrowRight, Check, Copy, Pencil, Play, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
 import { Dialog } from "../../shared/use-dialog";
 import { TabManager } from "../../tab-manager";
 import { QuerySnippetManager } from "./query-snippet-manager";
 import type { Snippet } from "./snippet";
-import type { UISnippet } from "./ui-snippet";
-
-interface SnippetItemProps {
-  uiSnippet: UISnippet;
-  displayCaption?: string;
-  indentLevel?: number;
-  className?: string;
-}
 
 interface SnippetTooltipContentProps {
   snippet: Snippet;
@@ -314,83 +292,5 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
         onInsert={handleInsert}
       />
     </div>
-  );
-}
-
-export function SnippetItem({
-  uiSnippet,
-  displayCaption,
-  indentLevel = 0,
-  className,
-}: SnippetItemProps) {
-  const { snippet, matchedIndex, matchedLength } = uiSnippet;
-  const isBuiltin = snippet.builtin;
-  const [hoverCardOpen, setHoverCardOpen] = useState(false);
-  const caption = displayCaption ?? snippet.caption;
-  const captionNode =
-    !displayCaption && matchedIndex >= 0
-      ? TextHighlighter.highlight2(
-          snippet.caption,
-          matchedIndex,
-          matchedIndex + matchedLength,
-          "text-yellow-500"
-        )
-      : caption;
-
-  const handleRun = (snippet: Snippet) => {
-    TabManager.activateQueryTab({
-      query: snippet.sql,
-      execute: true,
-      mode: "none",
-    });
-    setHoverCardOpen(false);
-  };
-
-  const handleInsert = (snippet: Snippet) => {
-    TabManager.activateQueryTab({
-      query: "-- " + snippet.caption + "\n" + snippet.sql,
-      execute: false,
-      mode: "insert",
-    });
-    setHoverCardOpen(false);
-  };
-
-  return (
-    <HoverCard open={hoverCardOpen} onOpenChange={setHoverCardOpen} openDelay={300}>
-      <HoverCardTrigger asChild>
-        <div
-          className={cn(
-            "group flex items-center justify-between py-1.5 pr-1 hover:bg-accent hover:text-accent-foreground rounded-none text-sm transition-colors cursor-pointer",
-            className
-          )}
-          style={{ paddingLeft: `${indentLevel * 16 + 12}px` }}
-        >
-          <div className="flex items-center gap-2 overflow-hidden flex-1">
-            {isBuiltin ? (
-              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-            ) : (
-              <Code className="h-4 w-4 shrink-0 text-blue-500" />
-            )}
-            <div className="flex flex-col overflow-hidden min-w-0">
-              <span className="font-medium truncate">{captionNode}</span>
-            </div>
-          </div>
-        </div>
-      </HoverCardTrigger>
-      <HoverCardContent
-        side="bottom"
-        align="start"
-        sideOffset={0}
-        alignOffset={120}
-        className="w-[400px] p-0 overflow-hidden flex flex-col"
-      >
-        <SnippetHoverCardContent
-          snippet={snippet}
-          isBuiltin={isBuiltin}
-          onRun={handleRun}
-          onInsert={handleInsert}
-        />
-      </HoverCardContent>
-    </HoverCard>
   );
 }
