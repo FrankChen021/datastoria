@@ -49,6 +49,7 @@ type TreeProps = React.HTMLAttributes<HTMLDivElement> & {
   initialExpandedIds?: string[];
   folderIcon?: LucideIcon;
   itemIcon?: LucideIcon;
+  showChildCount?: boolean;
   // Integrated search support
   search?: string;
   pathSeparator?: string; // default '.'
@@ -190,6 +191,7 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
       onNodeContextMenu,
       rowHeight = 32,
       overscan = 5,
+      showChildCount = false,
       ...props
     },
     ref
@@ -697,7 +699,7 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
                       <span className="flex items-center gap-1 shrink-0">{renderTag(node.tag)}</span>,
                       node.tagTooltip
                     )}
-                    {hasChildren && (
+                    {showChildCount && hasChildren && (
                       <Badge variant="secondary" className="py-0 ml-1 rounded-sm px-1 font-normal whitespace-nowrap">
                         {childCount}
                       </Badge>

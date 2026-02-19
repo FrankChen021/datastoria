@@ -175,11 +175,12 @@ export function SnippetListView() {
         </Button>
       </div>
 
-      <div className="h-full overflow-y-auto">
+      <div className="h-full overflow-y-auto px-1">
         {treeData.length > 0 && (
           <Tree
             data={treeData}
             search={search}
+            showChildCount={true}
             className="overflow-visible px-0"
             folderIcon={FolderClosed}
             itemIcon={Code}
