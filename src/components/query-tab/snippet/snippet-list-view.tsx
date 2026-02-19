@@ -93,9 +93,7 @@ export function SnippetListView() {
       </div>
 
       <div className="h-full overflow-y-auto">
-        <SnippetItems snippets={userSnippets} title="User Defined" />
-
-        <SnippetItems snippets={builtinSnippets} rootName="built_in" />
+        <SnippetItems userSnippets={userSnippets} builtinSnippets={builtinSnippets} />
 
         {userSnippets.length === 0 && builtinSnippets.length === 0 && (
           <div className="text-center text-sm text-muted-foreground py-4">No snippets found</div>

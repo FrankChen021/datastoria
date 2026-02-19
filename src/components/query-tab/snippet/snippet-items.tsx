@@ -5,9 +5,8 @@ import { SnippetTooltipContent } from "./snippet-item";
 import type { UISnippet } from "./ui-snippet";
 
 interface SnippetItemsProps {
-  snippets: UISnippet[];
-  title?: string;
-  rootName?: string;
+  userSnippets: UISnippet[];
+  builtinSnippets: UISnippet[];
 }
 
 function splitCaption(caption: string) {
@@ -42,9 +41,15 @@ function createFolderNode(id: string, name: string): TreeDataItem {
   };
 }
 
-function buildSnippetTreeData(snippets: UISnippet[], rootName?: string): TreeDataItem[] {
-  const roots: TreeDataItem[] = [];
-  const folderCache = new Map<string, TreeDataItem>();
+function appendSnippetsToTree(
+  roots: TreeDataItem[],
+  folderCache: Map<string, TreeDataItem>,
+  snippets: UISnippet[],
+  source: "user" | "builtin",
+  rootName?: string
+) {
+  if (snippets.length === 0) return;
+
   const rootPrefix = rootName ?? "__root__";
 
   let rootFolder: TreeDataItem | undefined;
@@ -81,7 +86,7 @@ function buildSnippetTreeData(snippets: UISnippet[], rootName?: string): TreeDat
     }
 
     const leafNode: TreeDataItem = {
-      id: `leaf:${uiSnippet.snippet.caption}`,
+      id: `leaf:${source}:${uiSnippet.snippet.caption}`,
       labelContent: leafName,
       search: leafName,
       type: "leaf",
@@ -97,22 +102,30 @@ function buildSnippetTreeData(snippets: UISnippet[], rootName?: string): TreeDat
       roots.push(leafNode);
     }
   }
+}
 
+function buildSnippetTreeData(
+  userSnippets: UISnippet[],
+  builtinSnippets: UISnippet[]
+): TreeDataItem[] {
+  const roots: TreeDataItem[] = [];
+  const folderCache = new Map<string, TreeDataItem>();
+
+  appendSnippetsToTree(roots, folderCache, userSnippets, "user");
+  appendSnippetsToTree(roots, folderCache, builtinSnippets, "builtin", "built_in");
   sortTreeData(roots);
   return roots;
 }
 
-export function SnippetItems({ snippets, title, rootName }: SnippetItemsProps) {
-  const treeData = useMemo(() => buildSnippetTreeData(snippets, rootName), [snippets, rootName]);
-  if (snippets.length === 0) return null;
+export function SnippetItems({ userSnippets, builtinSnippets }: SnippetItemsProps) {
+  const treeData = useMemo(
+    () => buildSnippetTreeData(userSnippets, builtinSnippets),
+    [userSnippets, builtinSnippets]
+  );
+  if (treeData.length === 0) return null;
 
   return (
     <div>
-      {title && (
-        <div className="px-2 py-1 text-xs font-semibold tracking-wider text-muted-foreground">
-          {title}
-        </div>
-      )}
       {treeData.length > 0 && (
         <Tree
           data={treeData}
