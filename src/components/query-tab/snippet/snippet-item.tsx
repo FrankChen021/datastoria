@@ -103,6 +103,13 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
               setEditCaption(e.target.value);
               setEditError(null);
             }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSaveEdit();
+              }
+            }}
             className="h-8 text-sm"
             autoFocus
           />
