@@ -1,7 +1,7 @@
-import { Button } from "@/components/ui/button";
-import { ChevronRight, FolderClosed } from "lucide-react";
-import { useMemo, useState } from "react";
-import { SnippetItem } from "./snippet-item";
+import { Tree, type TreeDataItem } from "@/components/ui/tree";
+import { Code, FileText, FolderClosed } from "lucide-react";
+import { useMemo } from "react";
+import { SnippetTooltipContent } from "./snippet-item";
 import type { UISnippet } from "./ui-snippet";
 
 interface SnippetItemsProps {
@@ -10,141 +10,100 @@ interface SnippetItemsProps {
   rootName?: string;
 }
 
-type SnippetTreeNode = SnippetTreeFolderNode | SnippetTreeLeafNode;
-
-interface SnippetTreeFolderNode {
-  type: "folder";
-  id: string;
-  name: string;
-  children: SnippetTreeNode[];
-}
-
-interface SnippetTreeLeafNode {
-  type: "leaf";
-  id: string;
-  name: string;
-  uiSnippet: UISnippet;
-}
-
-function sortTree(nodes: SnippetTreeNode[]) {
-  nodes.sort((a, b) => {
-    if (a.type !== b.type) {
-      return a.type === "folder" ? -1 : 1;
-    }
-    return a.name.localeCompare(b.name);
-  });
-
-  for (const node of nodes) {
-    if (node.type === "folder") {
-      sortTree(node.children);
-    }
-  }
-}
-
 function splitCaption(caption: string) {
   const segments = caption.split("/").filter((segment) => segment.length > 0);
   return segments.length > 0 ? segments : [caption];
 }
 
-function buildSnippetTree(snippets: UISnippet[], rootName?: string): SnippetTreeNode[] {
-  const roots: SnippetTreeNode[] = [];
-  const folderCache = new Map<string, SnippetTreeFolderNode>();
-
-  const upsertFolder = (parent: SnippetTreeNode[], parentPath: string, folderName: string) => {
-    const folderId = `${parentPath}/${folderName}`;
-    const cached = folderCache.get(folderId);
-    if (cached) {
-      return cached;
+function sortTreeData(nodes: TreeDataItem[]) {
+  nodes.sort((a, b) => {
+    const aIsFolder = (a.type ?? "leaf") === "folder";
+    const bIsFolder = (b.type ?? "leaf") === "folder";
+    if (aIsFolder !== bIsFolder) {
+      return aIsFolder ? -1 : 1;
     }
+    return String(a.labelContent).localeCompare(String(b.labelContent));
+  });
 
-    const folder: SnippetTreeFolderNode = {
-      type: "folder",
-      id: `folder:${folderId}`,
-      name: folderName,
-      children: [],
-    };
-    parent.push(folder);
-    folderCache.set(folderId, folder);
-    return folder;
+  for (const node of nodes) {
+    if (node.children && node.children.length > 0) {
+      sortTreeData(node.children);
+    }
+  }
+}
+
+function createFolderNode(id: string, name: string): TreeDataItem {
+  return {
+    id,
+    labelContent: name,
+    search: name,
+    type: "folder",
+    children: [],
   };
+}
 
-  const rootParent = roots;
-  const rootPathPrefix = rootName ? rootName : "__root__";
-  const rootFolder = rootName ? upsertFolder(rootParent, "__root__", rootName) : undefined;
+function buildSnippetTreeData(snippets: UISnippet[], rootName?: string): TreeDataItem[] {
+  const roots: TreeDataItem[] = [];
+  const folderCache = new Map<string, TreeDataItem>();
+  const rootPrefix = rootName ?? "__root__";
+
+  let rootFolder: TreeDataItem | undefined;
+  if (rootName) {
+    rootFolder = createFolderNode(`folder:${rootPrefix}`, rootName);
+    roots.push(rootFolder);
+    folderCache.set(rootPrefix, rootFolder);
+  }
 
   for (const uiSnippet of snippets) {
     const pathSegments = splitCaption(uiSnippet.snippet.caption);
     const leafName = pathSegments[pathSegments.length - 1]!;
     const parentSegments = pathSegments.slice(0, -1);
 
-    let currentChildren = rootFolder ? rootFolder.children : roots;
-    let currentPath = rootPathPrefix;
+    let currentParent = rootFolder;
+    let currentPath = rootPrefix;
 
-    for (const folderName of parentSegments) {
-      const folder = upsertFolder(currentChildren, currentPath, folderName);
-      currentChildren = folder.children;
-      currentPath = `${currentPath}/${folderName}`;
+    for (const segment of parentSegments) {
+      const nextPath = `${currentPath}/${segment}`;
+      let folder = folderCache.get(nextPath);
+
+      if (!folder) {
+        folder = createFolderNode(`folder:${nextPath}`, segment);
+        if (currentParent) {
+          currentParent.children!.push(folder);
+        } else {
+          roots.push(folder);
+        }
+        folderCache.set(nextPath, folder);
+      }
+
+      currentParent = folder;
+      currentPath = nextPath;
     }
 
-    currentChildren.push({
-      type: "leaf",
+    const leafNode: TreeDataItem = {
       id: `leaf:${uiSnippet.snippet.caption}`,
-      name: leafName,
-      uiSnippet,
-    });
+      labelContent: leafName,
+      search: leafName,
+      type: "leaf",
+      icon: uiSnippet.snippet.builtin ? FileText : Code,
+      data: uiSnippet,
+      nodeTooltip: <SnippetTooltipContent snippet={uiSnippet.snippet} />,
+      nodeTooltipClassName: "w-[400px] max-w-none p-0",
+    };
+
+    if (currentParent) {
+      currentParent.children!.push(leafNode);
+    } else {
+      roots.push(leafNode);
+    }
   }
 
-  sortTree(roots);
+  sortTreeData(roots);
   return roots;
 }
 
-function SnippetTreeRows({ nodes, depth }: { nodes: SnippetTreeNode[]; depth: number }) {
-  return (
-    <>
-      {nodes.map((node) =>
-        node.type === "folder" ? (
-          <FolderNode key={node.id} node={node} depth={depth} />
-        ) : (
-          <SnippetItem
-            key={node.id}
-            uiSnippet={node.uiSnippet}
-            displayCaption={node.name}
-            indentLevel={depth}
-          />
-        )
-      )}
-    </>
-  );
-}
-
-function FolderNode({ node, depth }: { node: SnippetTreeFolderNode; depth: number }) {
-  const [expanded, setExpanded] = useState(true);
-
-  return (
-    <div>
-      <Button
-        variant="ghost"
-        className="h-auto w-full justify-start rounded-none px-0 py-1.5 text-sm font-normal"
-        style={{ paddingLeft: `${depth * 16 + 12}px` }}
-        onClick={() => setExpanded((prev) => !prev)}
-      >
-        <ChevronRight
-          className={`mr-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-            expanded ? "rotate-90" : ""
-          }`}
-        />
-        <FolderClosed className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
-        <span className="truncate">{node.name}</span>
-      </Button>
-      {expanded && node.children.length > 0 && (
-        <SnippetTreeRows nodes={node.children} depth={depth + 1} />
-      )}
-    </div>
-  );
-}
-
 export function SnippetItems({ snippets, title, rootName }: SnippetItemsProps) {
-  const tree = useMemo(() => buildSnippetTree(snippets, rootName), [snippets, rootName]);
+  const treeData = useMemo(() => buildSnippetTreeData(snippets, rootName), [snippets, rootName]);
   if (snippets.length === 0) return null;
 
   return (
@@ -154,9 +113,17 @@ export function SnippetItems({ snippets, title, rootName }: SnippetItemsProps) {
           {title}
         </div>
       )}
-      <div className="space-y-0.5">
-        {tree.length > 0 && <SnippetTreeRows nodes={tree} depth={0} />}
-      </div>
+      {treeData.length > 0 && (
+        <Tree
+          data={treeData}
+          className="overflow-visible px-0"
+          folderIcon={FolderClosed}
+          itemIcon={Code}
+          expandAll
+          pathSeparator="/"
+          rowHeight={30}
+        />
+      )}
     </div>
   );
 }

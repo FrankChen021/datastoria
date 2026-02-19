@@ -32,6 +32,10 @@ interface SnippetItemProps {
   className?: string;
 }
 
+interface SnippetTooltipContentProps {
+  snippet: Snippet;
+}
+
 function SnippetHoverCardContent({
   snippet,
   isBuiltin,
@@ -279,6 +283,37 @@ function SnippetHoverCardContent({
         </ThemedSyntaxHighlighter>
       </div>
     </>
+  );
+}
+
+export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
+  const isBuiltin = snippet.builtin;
+
+  const handleRun = (target: Snippet) => {
+    TabManager.activateQueryTab({
+      query: target.sql,
+      execute: true,
+      mode: "none",
+    });
+  };
+
+  const handleInsert = (target: Snippet) => {
+    TabManager.activateQueryTab({
+      query: "-- " + target.caption + "\n" + target.sql,
+      execute: false,
+      mode: "insert",
+    });
+  };
+
+  return (
+    <div className="w-[400px] overflow-hidden p-0">
+      <SnippetHoverCardContent
+        snippet={snippet}
+        isBuiltin={isBuiltin}
+        onRun={handleRun}
+        onInsert={handleInsert}
+      />
+    </div>
   );
 }
 

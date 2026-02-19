@@ -34,6 +34,8 @@ interface TreeDataItem {
   tagTooltip?: React.ReactNode;
   // Tooltip for the entire node - if provided, the entire row will be wrapped in a HoverCard
   nodeTooltip?: React.ReactNode;
+  // Optional className override for nodeTooltip HoverCard content
+  nodeTooltipClassName?: string;
   // Internal: used for testing to store original label
   _originalLabel?: string;
 }
@@ -708,7 +710,9 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
             if (node.nodeTooltip) {
               return (
                 <React.Fragment key={node.id}>
-                  {renderTooltip(rowContent, node.nodeTooltip)}
+                  {renderTooltip(rowContent, node.nodeTooltip, {
+                    className: node.nodeTooltipClassName,
+                  })}
                 </React.Fragment>
               );
             }
