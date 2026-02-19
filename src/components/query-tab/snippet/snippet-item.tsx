@@ -5,7 +5,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { AlertCircle, ArrowRight, Check, Copy, Pencil, Play, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { ThemedSyntaxHighlighter } from "../../shared/themed-syntax-highlighter";
-import { Dialog } from "../../shared/use-dialog";
 import { TabManager } from "../../tab-manager";
 import { QuerySnippetManager } from "./query-snippet-manager";
 import type { Snippet } from "./snippet";
@@ -19,6 +18,7 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editCaption, setEditCaption] = useState(snippet.caption);
   const [editSql, setEditSql] = useState(snippet.sql);
+  const [editError, setEditError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleRun = (target: Snippet) => {
@@ -40,12 +40,14 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
   const handleEditClick = () => {
     setEditCaption(snippet.caption);
     setEditSql(snippet.sql);
+    setEditError(null);
     setIsEditing(true);
   };
 
   const handleCloneClick = () => {
     setEditCaption(`${snippet.caption}_copy`);
     setEditSql(snippet.sql);
+    setEditError(null);
     setIsEditing(true);
   };
 
@@ -54,33 +56,26 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
     const normalizedSql = editSql.trim();
 
     if (!normalizedCaption || !normalizedSql) {
-      Dialog.alert({
-        title: "Validation Error",
-        description: "Name and SQL are required.",
-      });
+      setEditError("Name and SQL are required.");
       return;
     }
     try {
       const manager = QuerySnippetManager.getInstance();
       if (normalizedCaption !== snippet.caption && manager.hasSnippet(normalizedCaption)) {
-        Dialog.alert({
-          title: "Validation Error",
-          description: "Snippet name already exists.",
-        });
+        setEditError("Snippet name already exists.");
         return;
       }
 
       manager.replaceSnippet(snippet.caption, normalizedCaption, normalizedSql);
+      setEditError(null);
       setIsEditing(false);
     } catch {
-      Dialog.alert({
-        title: "Error",
-        description: "Failed to save snippet.",
-      });
+      setEditError("Failed to save snippet.");
     }
   };
 
   const handleCancelEdit = () => {
+    setEditError(null);
     setIsEditing(false);
   };
 
@@ -104,7 +99,10 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
           <Input
             id="edit-caption"
             value={editCaption}
-            onChange={(e) => setEditCaption(e.target.value)}
+            onChange={(e) => {
+              setEditCaption(e.target.value);
+              setEditError(null);
+            }}
             className="h-8 text-sm"
             autoFocus
           />
@@ -138,11 +136,33 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
           </div>
         </div>
         <Separator />
+        {editError && (
+          <>
+            <div
+              className="bg-destructive/10 border-l-4 border-destructive px-3 py-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm mb-1 text-destructive">
+                    Validation error
+                  </div>
+                  <div className="text-xs text-muted-foreground">{editError}</div>
+                </div>
+              </div>
+            </div>
+            <Separator />
+          </>
+        )}
         <div className="flex flex-col p-[12px] gap-2">
           <Textarea
             id="edit-sql"
             value={editSql}
-            onChange={(e) => setEditSql(e.target.value)}
+            onChange={(e) => {
+              setEditSql(e.target.value);
+              setEditError(null);
+            }}
             className="font-mono text-xs min-h-[200px]"
           />
         </div>
