@@ -14,21 +14,28 @@ interface SnippetTooltipContentProps {
   snippet: Snippet;
 }
 
-function SnippetHoverCardContent({
-  snippet,
-  isBuiltin,
-  onRun,
-  onInsert,
-}: {
-  snippet: Snippet;
-  isBuiltin: boolean;
-  onRun: (snippet: Snippet) => void;
-  onInsert: (snippet: Snippet) => void;
-}) {
+export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
+  const isBuiltin = snippet.builtin;
   const [isEditing, setIsEditing] = useState(false);
   const [editCaption, setEditCaption] = useState(snippet.caption);
   const [editSql, setEditSql] = useState(snippet.sql);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleRun = (target: Snippet) => {
+    TabManager.activateQueryTab({
+      query: target.sql,
+      execute: true,
+      mode: "none",
+    });
+  };
+
+  const handleInsert = (target: Snippet) => {
+    TabManager.activateQueryTab({
+      query: "-- " + target.caption + "\n" + target.sql,
+      execute: false,
+      mode: "insert",
+    });
+  };
 
   const handleEditClick = () => {
     setEditCaption(snippet.caption);
@@ -53,7 +60,7 @@ function SnippetHoverCardContent({
     try {
       QuerySnippetManager.getInstance().replaceSnippet(snippet.caption, editCaption, editSql);
       setIsEditing(false);
-    } catch (e) {
+    } catch {
       Dialog.alert({
         title: "Error",
         description: "Failed to save snippet.",
@@ -80,7 +87,7 @@ function SnippetHoverCardContent({
 
   if (isEditing) {
     return (
-      <>
+      <div className="w-[400px] overflow-hidden p-0">
         <div className="flex items-center justify-between gap-2 p-2 bg-muted/30">
           <Input
             id="edit-caption"
@@ -127,12 +134,12 @@ function SnippetHoverCardContent({
             className="font-mono text-xs min-h-[200px]"
           />
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="w-[400px] overflow-hidden p-0">
       <div className="flex items-center justify-between gap-2 p-2 bg-muted/30">
         <span className="font-medium text-sm truncate">{snippet.caption}</span>
         <div className="flex items-center gap-1">
@@ -142,7 +149,7 @@ function SnippetHoverCardContent({
             className="h-6 w-6"
             onClick={(e) => {
               e.stopPropagation();
-              onRun(snippet);
+              handleRun(snippet);
             }}
             title="Run in new tab"
           >
@@ -154,7 +161,7 @@ function SnippetHoverCardContent({
             className="h-6 w-6"
             onClick={(e) => {
               e.stopPropagation();
-              onInsert(snippet);
+              handleInsert(snippet);
             }}
             title="Insert at cursor"
           >
@@ -260,37 +267,6 @@ function SnippetHoverCardContent({
           {snippet.sql}
         </ThemedSyntaxHighlighter>
       </div>
-    </>
-  );
-}
-
-export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
-  const isBuiltin = snippet.builtin;
-
-  const handleRun = (target: Snippet) => {
-    TabManager.activateQueryTab({
-      query: target.sql,
-      execute: true,
-      mode: "none",
-    });
-  };
-
-  const handleInsert = (target: Snippet) => {
-    TabManager.activateQueryTab({
-      query: "-- " + target.caption + "\n" + target.sql,
-      execute: false,
-      mode: "insert",
-    });
-  };
-
-  return (
-    <div className="w-[400px] overflow-hidden p-0">
-      <SnippetHoverCardContent
-        snippet={snippet}
-        isBuiltin={isBuiltin}
-        onRun={handleRun}
-        onInsert={handleInsert}
-      />
     </div>
   );
 }
