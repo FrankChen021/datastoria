@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { TextHighlighter } from "@/lib/text-highlighter";
+import { cn } from "@/lib/utils";
 import {
   AlertCircle,
   ArrowRight,
@@ -26,6 +27,9 @@ import type { UISnippet } from "./ui-snippet";
 
 interface SnippetItemProps {
   uiSnippet: UISnippet;
+  displayCaption?: string;
+  indentLevel?: number;
+  className?: string;
 }
 
 function SnippetHoverCardContent({
@@ -278,19 +282,25 @@ function SnippetHoverCardContent({
   );
 }
 
-export function SnippetItem({ uiSnippet }: SnippetItemProps) {
+export function SnippetItem({
+  uiSnippet,
+  displayCaption,
+  indentLevel = 0,
+  className,
+}: SnippetItemProps) {
   const { snippet, matchedIndex, matchedLength } = uiSnippet;
   const isBuiltin = snippet.builtin;
   const [hoverCardOpen, setHoverCardOpen] = useState(false);
+  const caption = displayCaption ?? snippet.caption;
   const captionNode =
-    matchedIndex >= 0
+    !displayCaption && matchedIndex >= 0
       ? TextHighlighter.highlight2(
           snippet.caption,
           matchedIndex,
           matchedIndex + matchedLength,
           "text-yellow-500"
         )
-      : snippet.caption;
+      : caption;
 
   const handleRun = (snippet: Snippet) => {
     TabManager.activateQueryTab({
@@ -313,7 +323,13 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
   return (
     <HoverCard open={hoverCardOpen} onOpenChange={setHoverCardOpen} openDelay={300}>
       <HoverCardTrigger asChild>
-        <div className="group flex items-center justify-between py-1.5 pl-5 pr-1 hover:bg-accent hover:text-accent-foreground rounded-none text-sm transition-colors cursor-pointer">
+        <div
+          className={cn(
+            "group flex items-center justify-between py-1.5 pr-1 hover:bg-accent hover:text-accent-foreground rounded-none text-sm transition-colors cursor-pointer",
+            className
+          )}
+          style={{ paddingLeft: `${indentLevel * 16 + 12}px` }}
+        >
           <div className="flex items-center gap-2 overflow-hidden flex-1">
             {isBuiltin ? (
               <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
