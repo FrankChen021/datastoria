@@ -228,20 +228,21 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
           >
             <Pencil className="!h-3 !w-3" />
           </Button>
-          {!isBuiltin && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 hover:text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-6 w-6 ${isBuiltin ? "opacity-50" : "hover:text-destructive"}`}
+            disabled={isBuiltin}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isBuiltin) {
                 handleDeleteClick();
-              }}
-              title="Delete"
-            >
-              <Trash2 className="!h-3 !w-3" />
-            </Button>
-          )}
+              }
+            }}
+            title={isBuiltin ? "Built-in snippets cannot be deleted." : "Delete"}
+          >
+            <Trash2 className="!h-3 !w-3" />
+          </Button>
         </div>
       </div>
       <Separator />
