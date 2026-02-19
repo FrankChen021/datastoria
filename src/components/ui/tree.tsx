@@ -49,7 +49,6 @@ type TreeProps = React.HTMLAttributes<HTMLDivElement> & {
   initialExpandedIds?: string[];
   folderIcon?: LucideIcon;
   itemIcon?: LucideIcon;
-  showChildCount?: boolean;
   // Integrated search support
   search?: string;
   pathSeparator?: string; // default '.'
@@ -191,7 +190,6 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
       onNodeContextMenu,
       rowHeight = 32,
       overscan = 5,
-      showChildCount = false,
       ...props
     },
     ref
@@ -684,24 +682,27 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
                 {/* Icon */}
                 {Icon && <Icon className="h-4 w-4 shrink-0 mr-2 text-accent-foreground/50" aria-hidden="true" />}
 
-                {/* Text and child count */}
+                {/* Text, tag and child count */}
                 <span className="flex items-center justify-between flex-grow min-w-0">
                   {renderTooltip(
-                    <span className="text-sm truncate">
-                      {node.labelContent}
-                      {showChildCount && hasChildren && (
-                        <Badge variant="secondary" className="ml-2 rounded-sm px-1 font-normal whitespace-nowrap">
-                          {childCount}
-                        </Badge>
-                      )}
-                    </span>,
-                    node.labelTooltip
+                    <span className="text-sm truncate">{node.labelContent}</span>,
+                    node.labelTooltip,
+                    {
+                      className: node.nodeTooltipClassName,
+                    }
                   )}
-                  {/* Tag */}
-                  {renderTooltip(
-                    <span className="flex items-center gap-1 shrink-0">{renderTag(node.tag)}</span>,
-                    node.tagTooltip
-                  )}
+                  <span className="flex items-center gap-1 shrink-0">
+                    {/* Tag */}
+                    {renderTooltip(
+                      <span className="flex items-center gap-1 shrink-0">{renderTag(node.tag)}</span>,
+                      node.tagTooltip
+                    )}
+                    {hasChildren && (
+                      <Badge variant="secondary" className="py-0 ml-1 rounded-sm px-1 font-normal whitespace-nowrap">
+                        {childCount}
+                      </Badge>
+                    )}
+                  </span>
                 </span>
               </div>
             );

@@ -92,7 +92,7 @@ function appendSnippetsToTree(
       type: "leaf",
       icon: snippet.builtin ? FileText : Code,
       data: snippet,
-      nodeTooltip: <SnippetTooltipContent snippet={snippet} />,
+      labelTooltip: <SnippetTooltipContent snippet={snippet} />,
       nodeTooltipClassName: "w-[400px] max-w-none p-0",
     };
 
