@@ -27,6 +27,23 @@ interface DashboardPageProps {
   showAutoRefresh?: boolean;
   chartSelectionFilterName?: string;
   /**
+   * Hide the internal filter bar. Use this when providing external filter control.
+   */
+  hideFilterBar?: boolean;
+  /**
+   * External filter expression to use when hideFilterBar is true.
+   * Panels will be refreshed with this expression.
+   */
+  externalFilterExpression?: string;
+  /**
+   * External time span to use when hideFilterBar is true.
+   */
+  externalTimeSpan?: TimeSpan;
+  /**
+   * Callback when external refresh is needed (e.g., on mount or when external filters change).
+   */
+  onExternalRefresh?: (refresh: (timeSpan: TimeSpan, filterExpression: string) => void) => void;
+  /**
    * Children to render below the dashboard panels.
    * Children can use the useDashboardRefresh hook to register
    * themselves for automatic refresh when the dashboard refreshes.
@@ -46,6 +63,10 @@ const DashboardPage = forwardRef<DashboardPageRef, DashboardPageProps>(
       showRefresh = true,
       showAutoRefresh = false,
       chartSelectionFilterName,
+      hideFilterBar = false,
+      externalFilterExpression,
+      externalTimeSpan,
+      onExternalRefresh,
       children,
     },
     ref
@@ -116,9 +137,30 @@ const DashboardPage = forwardRef<DashboardPageRef, DashboardPageProps>(
       []
     );
 
+    // External refresh function for when hideFilterBar is true
+    const refreshPanelsExternal = useCallback(
+      (timeSpan: TimeSpan, filterExpression: string) => {
+        panelsRef.current?.refresh(timeSpan, filterExpression || "1=1");
+      },
+      []
+    );
+
+    // Expose refresh function to parent when using external filter control
+    useEffect(() => {
+      if (hideFilterBar && onExternalRefresh) {
+        onExternalRefresh(refreshPanelsExternal);
+      }
+    }, [hideFilterBar, onExternalRefresh, refreshPanelsExternal]);
+
+    // Initial refresh - either internal or external
     useEffect(() => {
       const timer = setTimeout(() => {
-        if (filterRef.current) {
+        if (hideFilterBar) {
+          // Use external filter state
+          if (externalTimeSpan) {
+            refreshPanelsExternal(externalTimeSpan, externalFilterExpression || "1=1");
+          }
+        } else if (filterRef.current) {
           const timeSpan = filterRef.current.getSelectedTimeSpan();
           const filter = filterRef.current.getSelectedFilter();
           refreshPanels(timeSpan, filter);
@@ -126,7 +168,7 @@ const DashboardPage = forwardRef<DashboardPageRef, DashboardPageProps>(
       }, 0);
 
       return () => clearTimeout(timer);
-    }, [refreshPanels]);
+    }, [refreshPanels, hideFilterBar, externalTimeSpan, externalFilterExpression, refreshPanelsExternal]);
 
     const handleSelectionFilterChange = useCallback(
       (filter: SelectedFilter) => {
@@ -175,7 +217,7 @@ const DashboardPage = forwardRef<DashboardPageRef, DashboardPageProps>(
 
     return (
       <div className="flex flex-col h-full w-full overflow-hidden p-2 gap-2">
-        {hasFilters && (
+        {!hideFilterBar && hasFilters && (
           <DashboardFilterComponent
             ref={filterRef}
             filterSpecs={filterSpecs}
@@ -191,7 +233,7 @@ const DashboardPage = forwardRef<DashboardPageRef, DashboardPageProps>(
           </DashboardFilterComponent>
         )}
 
-        {!hasFilters && (
+        {!hideFilterBar && !hasFilters && (
           <DashboardFilterComponent
             ref={filterRef}
             filterSpecs={[]}
