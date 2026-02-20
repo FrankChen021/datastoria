@@ -1,4 +1,4 @@
-import { auth, isAuthEnabled } from "@/auth";
+import { getAuthenticatedUserEmail } from "@/auth";
 import type { DatabaseContext } from "@/components/chat/chat-context";
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
 import { PlanningAgent } from "@/lib/ai/agent/plan/planning-agent";
@@ -10,7 +10,6 @@ import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { SseStreamer } from "@/lib/sse-streamer";
 import { APICallError } from "@ai-sdk/provider";
 import { convertToModelMessages, RetryError, type UIMessage } from "ai";
-import type { Session } from "next-auth";
 
 // Force dynamic rendering (no static generation)
 export const dynamic = "force-dynamic";
@@ -127,20 +126,7 @@ function extractErrorMessage(error: unknown): string {
  */
 export async function POST(req: Request) {
   try {
-    // Ensure user is authenticated (middleware should handle this, but double-check for safety)
-    const session = isAuthEnabled() ? ((await auth()) as Session) : null;
-    if (isAuthEnabled() && !session?.user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized", message: "Authentication required" }),
-        {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Extract user email from session
-    const userEmail = session?.user?.email || undefined;
+    const userEmail = getAuthenticatedUserEmail(req);
 
     // Parse request body with size validation
     let apiRequest: ChatRequest;

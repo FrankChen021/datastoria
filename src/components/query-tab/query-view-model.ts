@@ -68,7 +68,10 @@ export interface SQLMessage {
   queryRequest: QueryRequestViewModel;
   queryResponse?: QueryResponseViewModel; // Response after query execution
   isExecuting: boolean; // Whether the query is currently executing
-  isLoadingTableData?: boolean; // Whether table data is being fetched
+  batch?: {
+    statementIndex: number;
+    statementCount: number;
+  };
   view: QueryViewType | string;
   viewArgs?: {
     showRequest?: "show" | "hide" | "collapse";

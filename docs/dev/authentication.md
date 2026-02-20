@@ -33,8 +33,12 @@ DataStoria supports optional authentication using NextAuth.js with OAuth provide
 
 Authentication is **optional** in DataStoria. If no OAuth providers are configured, the application will run without authentication and users can access it directly.
 
+**`ALLOW_ANONYMOUS_USER`** controls whether anonymous users can access the app:
+- `true` or unset (default): Anonymous users are allowed; authentication is optional
+- `false`: Authentication is required; anonymous users are redirected to login. **Requires at least one OAuth provider**—the app will exit with an error if none are configured
+
 When authentication is enabled:
-- Users must sign in before accessing the console
+- Users must sign in before accessing the console (when `ALLOW_ANONYMOUS_USER=false`)
 - Multiple OAuth providers can be enabled simultaneously
 - User sessions are maintained with JWT tokens
 - Sessions last for 7 days by default
@@ -68,10 +72,10 @@ Add the generated secret and at least one provider configuration to your `.env` 
 ```env
 NEXTAUTH_SECRET=<paste-your-secret-here>
 
-# Example for Google OAuth:
+# Example for Google OAuth (provider is enabled when credentials are set AND NEXTAUTH_GOOGLE_ENABLED=true):
+NEXTAUTH_GOOGLE_ENABLED=true
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-NEXTAUTH_GOOGLE_ENABLED=true
 ```
 
 ### 3. Configure OAuth Callback URLs
@@ -85,6 +89,20 @@ In your OAuth provider settings, add:
 ---
 
 ## Configuration
+
+### Anonymous Access
+
+Set `ALLOW_ANONYMOUS_USER=false` in your `.env` to require authentication. When set to `false`, at least one OAuth provider must be configured or the application will exit with an error.
+
+```env
+# Allow anonymous users (default)
+ALLOW_ANONYMOUS_USER=true
+
+# Require authentication
+ALLOW_ANONYMOUS_USER=false
+```
+
+### Provider Setup
 
 1. Create a `.env` file in the root directory (copy from `.env.example`):
 
@@ -125,9 +143,9 @@ NEXTAUTH_SECRET=your-generated-secret-here
 2. **Configure Environment Variables:**
 
 ```env
+NEXTAUTH_GOOGLE_ENABLED=true
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-NEXTAUTH_GOOGLE_ENABLED=true
 ```
 
 ### GitHub OAuth
@@ -143,9 +161,9 @@ NEXTAUTH_GOOGLE_ENABLED=true
 2. **Configure Environment Variables:**
 
 ```env
+NEXTAUTH_GITHUB_ENABLED=true
 GITHUB_CLIENT_ID=your-github-client-id
 GITHUB_CLIENT_SECRET=your-github-client-secret
-NEXTAUTH_GITHUB_ENABLED=true
 ```
 
 ### Microsoft Entra ID OAuth
@@ -176,10 +194,10 @@ NEXTAUTH_GITHUB_ENABLED=true
 4. **Configure Environment Variables:**
 
 ```env
+NEXTAUTH_MICROSOFT_ENABLED=true
 MICROSOFT_CLIENT_ID=your-microsoft-client-id
 MICROSOFT_CLIENT_SECRET=your-microsoft-client-secret
 MICROSOFT_TENANT_ID=your-microsoft-tenant-id
-NEXTAUTH_MICROSOFT_ENABLED=true
 ```
 
 ---
@@ -214,7 +232,7 @@ npm start
 
 - **"Authentication is not enabled"**: Add OAuth credentials to `.env` and restart the server.
 - **"Redirect URI mismatch"**: Ensure callback URLs match exactly, including protocol.
-- **Login page shows no buttons**: Set `NEXTAUTH_*_ENABLED=true` for your provider(s).
+- **Login page shows no buttons**: Set `NEXTAUTH_*_ENABLED=true` and ensure `CLIENT_ID` and `CLIENT_SECRET` (and `TENANT_ID` for Microsoft) are configured for your provider(s).
 - **Session expires immediately**: Check `NEXTAUTH_SECRET` and ensure cookies are enabled.
 
 ---

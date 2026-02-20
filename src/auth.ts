@@ -6,12 +6,39 @@ import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 
+/** Header name for authenticated user email, set by proxy. APIs read via getAuthenticatedUserEmail(request). */
+export const AUTH_HEADER_USER_EMAIL = "x-datastoria-user-email";
+
+/** Reads authenticated user email from request headers (set by proxy). Returns undefined for anonymous users. */
+export function getAuthenticatedUserEmail(request: Request): string | undefined {
+  const email = request.headers.get(AUTH_HEADER_USER_EMAIL);
+  return email && email.length > 0 ? email : undefined;
+}
+
+/** Provider enabled when credentials are configured AND NEXTAUTH_*_ENABLED is "true". Single source of truth for auth and login UI. */
+export function getEnabledProviders() {
+  return {
+    google:
+      Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) &&
+      process.env.NEXTAUTH_GOOGLE_ENABLED === "true",
+    github:
+      Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) &&
+      process.env.NEXTAUTH_GITHUB_ENABLED === "true",
+    microsoft:
+      Boolean(
+        process.env.MICROSOFT_CLIENT_ID &&
+        process.env.MICROSOFT_CLIENT_SECRET &&
+        process.env.MICROSOFT_TENANT_ID
+      ) && process.env.NEXTAUTH_MICROSOFT_ENABLED === "true",
+  };
+}
+
 function getAuthProviders(): Provider[] {
   const providers: Provider[] = [];
+  const enabled = getEnabledProviders();
 
   // Add Google Auth Provider
-  const isGoogleAuthEnabled = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET;
-  if (isGoogleAuthEnabled) {
+  if (enabled.google) {
     providers.push(
       GoogleProvider({
         clientId: process.env.GOOGLE_CLIENT_ID,
@@ -21,8 +48,7 @@ function getAuthProviders(): Provider[] {
   }
 
   // Add GitHub Auth Provider
-  const isGitHubAuthEnabled = process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET;
-  if (isGitHubAuthEnabled) {
+  if (enabled.github) {
     providers.push(
       GitHubProvider({
         clientId: process.env.GITHUB_CLIENT_ID,
@@ -32,11 +58,7 @@ function getAuthProviders(): Provider[] {
   }
 
   // Add Microsoft Entra ID (formerly Azure AD) Auth Provider
-  const isMicrosoftAuthEnabled =
-    process.env.MICROSOFT_CLIENT_ID &&
-    process.env.MICROSOFT_CLIENT_SECRET &&
-    process.env.MICROSOFT_TENANT_ID;
-  if (isMicrosoftAuthEnabled) {
+  if (enabled.microsoft) {
     providers.push(
       MicrosoftEntraID({
         clientId: process.env.MICROSOFT_CLIENT_ID,
@@ -137,6 +159,23 @@ const authConfig: NextAuthConfig = {
  */
 export function isAuthEnabled() {
   return authConfig.providers && authConfig.providers.length > 0;
+}
+
+/**
+ * When true, anonymous users are allowed (optional auth).
+ * When false (ALLOW_ANONYMOUS_USER=false), authentication is required.
+ * Default: true when not set.
+ */
+export function allowAnonymousUser(): boolean {
+  return process.env.ALLOW_ANONYMOUS_USER !== "false";
+}
+
+// Validate config at module load: ALLOW_ANONYMOUS_USER=false requires at least one OAuth provider
+if (process.env.ALLOW_ANONYMOUS_USER === "false" && !isAuthEnabled()) {
+  throw new Error(
+    "ALLOW_ANONYMOUS_USER=false requires at least one OAuth provider. " +
+      "Configure Google, GitHub, or Microsoft OAuth credentials and set the corresponding NEXTAUTH_*_ENABLED=true."
+  );
 }
 
 /** Result shape when auth is enabled; used for typing the conditional export. */

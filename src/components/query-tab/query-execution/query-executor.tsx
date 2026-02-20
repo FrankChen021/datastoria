@@ -14,6 +14,8 @@ import { v7 as uuid } from "uuid";
 import type { QueryResponseViewModel, SQLMessage } from "../query-view-model";
 
 const MAX_MESSAGE_LIST_SIZE = 100;
+type BatchFailureMode = "abort" | "continue";
+type BatchSource = "all" | "selection";
 
 interface QueryExecutionContextType {
   isSqlExecuting: boolean;
@@ -24,6 +26,10 @@ interface QueryExecutionContextType {
     rawSQL?: string,
     options?: { view?: string },
     params?: Record<string, unknown>
+  ) => void;
+  executeBatch: (
+    statements: string[],
+    options: { failureMode: BatchFailureMode; source: BatchSource }
   ) => void;
   cancelQuery: (queryId: string) => void;
   deleteQuery: (queryId: string) => void;
@@ -43,13 +49,17 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
   // Derive SQL execution state from sqlMessages
   const isSqlExecuting = useMemo(() => sqlMessages.some((msg) => msg.isExecuting), [sqlMessages]);
 
-  const executeQuery = useCallback(
-    (
+  const executeQueryInternal = useCallback(
+    async (
       sql: string,
       rawSQL?: string,
       options?: { view?: string },
-      params?: Record<string, unknown>
-    ) => {
+      params?: Record<string, unknown>,
+      batchMeta?: {
+        statementIndex: number;
+        statementCount: number;
+      }
+    ): Promise<"success" | "failed" | "aborted" | "empty"> => {
       // Process SQL: remove comments and check for vertical format
       let processedSQL = SqlUtils.removeComments(sql);
       let useVerticalFormat = false;
@@ -59,14 +69,12 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
         useVerticalFormat = true;
       }
       if (processedSQL.length === 0) {
-        return;
+        return "empty";
       }
 
-      // For explain queries, extract the original SQL from the EXPLAIN statement
       const view = options?.view;
       const isExplainQuery = view && view !== "query";
 
-      // Determine default format based on view and vertical format flag
       let defaultFormat: string;
       if (view === "estimate") {
         defaultFormat = "PrettyCompactMonoBlock";
@@ -78,12 +86,10 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
         defaultFormat = "PrettyCompactMonoBlock";
       }
 
-      // Build query parameters
       const queryParams = params || {};
       const queryId = uuid();
       const timestamp = Date.now();
 
-      // Set defaults if not provided
       if (!queryParams.query_id) {
         queryParams.query_id = queryId;
       }
@@ -91,7 +97,6 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
         queryParams.default_format = defaultFormat;
       }
 
-      // Add row numbers for pretty formats (unless explicitly disabled)
       if (
         !isExplainQuery &&
         !useVerticalFormat &&
@@ -100,10 +105,8 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
         queryParams.output_format_pretty_row_numbers = true;
       }
 
-      // 1. Create initial message with executing state
       setSqlMessages((prevList) => {
         let newList = prevList;
-        // Optional: limit local SQL history size
         if (newList.length >= MAX_MESSAGE_LIST_SIZE) {
           newList = newList.slice(newList.length - MAX_MESSAGE_LIST_SIZE + 1);
         }
@@ -116,6 +119,11 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
           viewArgs: { params: queryParams },
           isExecuting: true,
           queryResponse: undefined,
+          batch: batchMeta
+            ? {
+                ...batchMeta,
+              }
+            : undefined,
           queryRequest: {
             sql: processedSQL,
             rawSQL: rawSQL || processedSQL,
@@ -126,7 +134,6 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
             showRequest: "show",
             params: queryParams,
             onCancel: () => {
-              // Cancel handler will be set below
               abortControllersRef.current.get(queryId)?.abort();
             },
           },
@@ -135,9 +142,7 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
         return [...newList, queryMsg];
       });
 
-      // 2. Execute the query asynchronously
       if (!connection) {
-        // No connection - update with error immediately
         setSqlMessages((prev) =>
           prev.map((msg) =>
             msg.id === queryId
@@ -154,98 +159,175 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
               : msg
           )
         );
-        return;
+        return "failed";
       }
 
-      // Execute query
-      (async () => {
-        try {
-          const { response, abortController: apiAbortController } = connection.query(
-            processedSQL,
-            queryParams
-          );
+      try {
+        const { response, abortController: apiAbortController } = connection.query(
+          processedSQL,
+          queryParams
+        );
 
-          // Store abort controller
-          abortControllersRef.current.set(queryId, apiAbortController);
+        abortControllersRef.current.set(queryId, apiAbortController);
+        const apiResponse = await response;
+        if (apiAbortController.signal.aborted) {
+          return "aborted";
+        }
 
-          const apiResponse = await response;
+        const responseData = apiResponse.data.text();
 
-          // Check if request was aborted
-          if (apiAbortController.signal.aborted) {
-            return;
-          }
+        const queryResponse: QueryResponseViewModel = {
+          queryId: queryId,
+          traceId: null,
+          message: null,
+          httpStatus: apiResponse.httpStatus,
+          httpHeaders: apiResponse.httpHeaders,
+          data: responseData,
+        };
 
-          // For dependency view, keep the JSON structure; for others, convert to string
-          const responseData = apiResponse.data.text();
+        setSqlMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === queryId
+              ? {
+                  ...msg,
+                  isExecuting: false,
+                  queryResponse,
+                }
+              : msg
+          )
+        );
 
-          const queryResponse: QueryResponseViewModel = {
-            queryId: queryId,
-            traceId: null,
-            message: null,
-            httpStatus: apiResponse.httpStatus,
-            httpHeaders: apiResponse.httpHeaders,
-            data: responseData,
-          };
+        abortControllersRef.current.delete(queryId);
+        return "success";
+      } catch (error) {
+        const apiError = error as QueryError;
 
-          // Update message with response
+        if (apiError.name === "AbortError" || apiError.message?.includes("aborted")) {
           setSqlMessages((prev) =>
             prev.map((msg) =>
               msg.id === queryId
                 ? {
                     ...msg,
                     isExecuting: false,
-                    queryResponse,
                   }
                 : msg
             )
           );
-
           abortControllersRef.current.delete(queryId);
-        } catch (error) {
-          // Only set error response if it's not a cancellation
-          const apiError = error as QueryError;
+          return "aborted";
+        }
 
-          if (apiError.name === "AbortError" || apiError.message?.includes("aborted")) {
-            // Query was cancelled - just mark as not executing
-            setSqlMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === queryId
-                  ? {
-                      ...msg,
-                      isExecuting: false,
-                    }
-                  : msg
-              )
-            );
-          } else {
-            // Real error - update with error response
-            const queryResponse: QueryResponseViewModel = {
-              queryId: queryId,
-              traceId: null,
-              message: apiError.message || String(error),
-              httpStatus: apiError.httpStatus,
-              httpHeaders: apiError.httpHeaders,
-              data: apiError.data,
-            };
+        const queryResponse: QueryResponseViewModel = {
+          queryId: queryId,
+          traceId: null,
+          message: apiError.message || String(error),
+          httpStatus: apiError.httpStatus,
+          httpHeaders: apiError.httpHeaders,
+          data: apiError.data,
+        };
 
-            setSqlMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === queryId
-                  ? {
-                      ...msg,
-                      isExecuting: false,
-                      queryResponse,
-                    }
-                  : msg
-              )
-            );
+        setSqlMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === queryId
+              ? {
+                  ...msg,
+                  isExecuting: false,
+                  queryResponse,
+                }
+              : msg
+          )
+        );
+
+        abortControllersRef.current.delete(queryId);
+        return "failed";
+      }
+    },
+    [connection]
+  );
+
+  const executeQuery = useCallback(
+    (
+      sql: string,
+      rawSQL?: string,
+      options?: { view?: string },
+      params?: Record<string, unknown>
+    ) => {
+      void executeQueryInternal(sql, rawSQL, options, params);
+    },
+    [executeQueryInternal]
+  );
+
+  const executeBatch = useCallback(
+    (statements: string[], options: { failureMode: BatchFailureMode; source: BatchSource }) => {
+      const normalizedStatements = statements
+        .map((statement) => statement.trim())
+        .filter((statement) => statement.length > 0);
+      if (normalizedStatements.length === 0) {
+        return;
+      }
+
+      const statementCount = normalizedStatements.length;
+
+      void (async () => {
+        for (let index = 0; index < normalizedStatements.length; index++) {
+          const statement = normalizedStatements[index];
+          const result = await executeQueryInternal(statement, statement, undefined, undefined, {
+            statementIndex: index,
+            statementCount,
+          });
+
+          if (result === "failed" && options.failureMode === "abort") {
+            const skippedMessages: SQLMessage[] = normalizedStatements
+              .slice(index + 1)
+              .map((skippedStatement, skippedOffset) => {
+                const skippedIndex = index + skippedOffset + 1;
+                const queryId = uuid();
+                const timestamp = Date.now() + skippedOffset + 1;
+                return {
+                  type: "sql",
+                  id: queryId,
+                  timestamp,
+                  view: "query",
+                  isExecuting: false,
+                  batch: {
+                    statementIndex: skippedIndex,
+                    statementCount,
+                  },
+                  queryRequest: {
+                    sql: skippedStatement,
+                    rawSQL: skippedStatement,
+                    requestServer: connection?.name || "Server",
+                    queryId,
+                    traceId: null,
+                    timestamp,
+                    showRequest: "show",
+                    onCancel: () => {},
+                  },
+                  queryResponse: {
+                    queryId,
+                    traceId: null,
+                    message: "Skipped due to previous statement failure in batch mode.",
+                    httpStatus: 0,
+                  },
+                };
+              });
+
+            if (skippedMessages.length > 0) {
+              setSqlMessages((prev) => {
+                let next = prev;
+                if (next.length + skippedMessages.length > MAX_MESSAGE_LIST_SIZE) {
+                  const keep = Math.max(0, MAX_MESSAGE_LIST_SIZE - skippedMessages.length);
+                  next = next.slice(next.length - keep);
+                }
+                return [...next, ...skippedMessages];
+              });
+            }
+            break;
           }
-
-          abortControllersRef.current.delete(queryId);
         }
       })();
     },
-    [connection]
+    [connection?.name, executeQueryInternal]
   );
 
   const cancelQuery = useCallback((queryId: string) => {
@@ -344,12 +426,21 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
       isSqlExecuting,
       sqlMessages,
       executeQuery,
+      executeBatch,
       cancelQuery,
       deleteQuery,
       deleteAllQueries,
       fetchTableData,
     }),
-    [isSqlExecuting, sqlMessages, executeQuery, cancelQuery, deleteQuery, deleteAllQueries, fetchTableData]
+    [
+      isSqlExecuting,
+      sqlMessages,
+      executeQuery,
+      executeBatch,
+      cancelQuery,
+      deleteQuery,
+      deleteAllQueries,
+    ]
   );
 
   return <QueryExecutionContext.Provider value={value}>{children}</QueryExecutionContext.Provider>;

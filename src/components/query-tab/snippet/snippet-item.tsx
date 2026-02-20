@@ -294,9 +294,9 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
 
   const handleRun = (snippet: Snippet) => {
     TabManager.activateQueryTab({
-      query: "-- " + snippet.caption + "\n" + snippet.sql,
+      query: snippet.sql,
       execute: true,
-      mode: "insert",
+      mode: "none",
     });
     setHoverCardOpen(false);
   };

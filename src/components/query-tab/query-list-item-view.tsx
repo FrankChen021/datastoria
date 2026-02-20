@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Formatter } from "@/lib/formatter";
@@ -15,6 +16,10 @@ interface QueryListItemViewProps extends QueryViewProps {
   isFirst?: boolean;
   queryResponse?: QueryResponseViewModel;
   isExecuting: boolean;
+  batch?: {
+    statementIndex: number;
+    statementCount: number;
+  };
   tabId?: string;
   scrollRootRef?: React.RefObject<HTMLDivElement | null>;
 }
@@ -54,6 +59,7 @@ export function QueryListItemView({
   isFirst,
   queryResponse,
   isExecuting,
+  batch,
   tabId,
   scrollRootRef,
 }: QueryListItemViewProps) {
@@ -297,6 +303,14 @@ export function QueryListItemView({
       {/* Header */}
       <div className="flex items-center gap-2 mb-1">
         <h4 className="text-sm font-semibold text-muted-foreground">{timestamp}</h4>
+        {batch && (
+          <Badge
+            variant="outline"
+            className="h-[20px] rounded-lg border-border/70 bg-transparent px-2 py-0 text-[10px] text-muted-foreground font-normal shadow-none"
+          >
+            Batch {batch.statementIndex + 1}/{batch.statementCount}
+          </Badge>
+        )}
         {!isExecuting && onQueryDelete && (
           <Button
             ref={deleteButtonRef}
