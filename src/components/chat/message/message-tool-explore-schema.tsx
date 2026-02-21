@@ -107,7 +107,7 @@ export const MessageToolExploreSchema = memo(function MessageToolExploreSchema({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {table.columns?.map((col, colIdx: number) => (
+                      {table.columns?.map((col: { name: string; type: string }, colIdx: number) => (
                         <TableRow key={colIdx} className="hover:bg-muted/30 border-b last:border-0">
                           <TableCell className="py-1 px-2 whitespace-nowrap border-r last:border-r-0">
                             {col.name}

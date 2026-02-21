@@ -24,8 +24,6 @@ export const MessageToolGeneral = memo(function MessageToolGeneral({
 
   return (
     <CollapsiblePart toolName={toolName} state={state} isRunning={isRunning}>
-      <ToolProgressIndicator toolCallId={toolCallId} />
-
       {toolPart.input != null && (
         <div className="mt-1 max-h-[300px] overflow-auto text-[10px] text-muted-foreground">
           <div className="mb-0.5">input:</div>
@@ -34,6 +32,9 @@ export const MessageToolGeneral = memo(function MessageToolGeneral({
           </pre>
         </div>
       )}
+
+      <ToolProgressIndicator toolCallId={toolCallId} />
+
       {toolPart.output != null && (
         <div className="mt-1 max-h-[300px] overflow-auto text-[10px] text-muted-foreground">
           <div className="mb-0.5">output:</div>

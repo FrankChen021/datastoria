@@ -63,8 +63,8 @@ export function CollapsiblePart({
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   useEffect(() => {
-    setIsExpanded(defaultExpanded);
-  }, [defaultExpanded]);
+    setIsExpanded(defaultExpanded || state !== "output-available");
+  }, [defaultExpanded, state]);
 
   // Determine if tool is complete
   // Use external success value if provided, otherwise use state-based logic
