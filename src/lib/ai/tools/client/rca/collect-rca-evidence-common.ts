@@ -31,11 +31,82 @@ type TimeRange = {
   to: string;
 };
 
+export type RcaThresholds = {
+  high_query_latency: {
+    avg_read_rows_gte: number;
+    avg_read_bytes_gte: number;
+    p99_latency_ms_gte: number;
+    active_merges_gt: number;
+    max_merge_elapsed_seconds_gt: number;
+    p95_latency_ms_gte: number;
+    memory_used_percent_gte: number;
+    avg_query_memory_bytes_gte: number;
+  };
+  high_part_count: {
+    inserts_per_minute_gt: number;
+    avg_rows_per_insert_lt: number;
+    total_active_parts_gt: number;
+    active_merges_gt: number;
+    max_merge_elapsed_seconds_gt: number;
+    distinct_partitions_gt: number;
+    partition_to_parts_ratio_gt: number;
+    max_parts_per_partition_gt: number;
+    related_symptom_distinct_partitions_gte: number;
+    related_symptom_signal_strength_gte: number;
+  };
+  high_partition_count: {
+    partition_count_gt: number;
+    recent_partitions_gt: number;
+    partition_to_parts_ratio_gt: number;
+    avg_rows_per_insert_lt: number;
+    unbounded_growth_partition_count_gt: number;
+  };
+};
+
+export type RcaThresholdOverrides = {
+  high_query_latency?: Partial<RcaThresholds["high_query_latency"]>;
+  high_part_count?: Partial<RcaThresholds["high_part_count"]>;
+  high_partition_count?: Partial<RcaThresholds["high_partition_count"]>;
+};
+
+export const DEFAULT_RCA_THRESHOLDS: RcaThresholds = {
+  high_query_latency: {
+    avg_read_rows_gte: 1_000_000,
+    avg_read_bytes_gte: 1_000_000_000,
+    p99_latency_ms_gte: 2000,
+    active_merges_gt: 10,
+    max_merge_elapsed_seconds_gt: 600,
+    p95_latency_ms_gte: 1000,
+    memory_used_percent_gte: 85,
+    avg_query_memory_bytes_gte: 1_000_000_000,
+  },
+  high_part_count: {
+    inserts_per_minute_gt: 10,
+    avg_rows_per_insert_lt: 10_000,
+    total_active_parts_gt: 3000,
+    active_merges_gt: 20,
+    max_merge_elapsed_seconds_gt: 600,
+    distinct_partitions_gt: 500,
+    partition_to_parts_ratio_gt: 0.2,
+    max_parts_per_partition_gt: 1000,
+    related_symptom_distinct_partitions_gte: 100,
+    related_symptom_signal_strength_gte: 0.3,
+  },
+  high_partition_count: {
+    partition_count_gt: 1000,
+    recent_partitions_gt: 100,
+    partition_to_parts_ratio_gt: 0.3,
+    avg_rows_per_insert_lt: 10_000,
+    unbounded_growth_partition_count_gt: 500,
+  },
+};
+
 export type RcaEvidenceInput = {
   symptom: CanonicalSymptom;
   scope?: Scope;
   target?: Target;
   symptom_text?: string;
+  thresholds?: RcaThresholdOverrides;
   time_window?: number;
   time_range?: TimeRange;
   status_context?: {
@@ -54,6 +125,27 @@ export type Observation = {
   source: string;
   description: string;
   metrics: Record<string, number | string | null>;
+  partition_key_columns?: Array<{
+    name: string;
+    data_type: string;
+    sample_value: string | number | null;
+    sample_values?: Array<string | number | null>;
+  }>;
+  scope_summary?: {
+    level: "cluster" | "node" | "table";
+    aggregation_semantics: "additive" | "ratio" | "quantile" | "inventory";
+    cluster_aggregation?: string;
+  };
+  top_nodes?: Array<{
+    node: string;
+    metrics: Record<string, number | string | null>;
+  }>;
+  nodes_over_threshold?: Array<{
+    node: string;
+    metric: string;
+    value: number;
+    threshold: number;
+  }>;
 };
 
 export type CauseCandidate = {
@@ -186,6 +278,7 @@ export type SymptomContext = {
   scope: Scope;
   target?: Target;
   symptomText?: string;
+  thresholds: RcaThresholds;
   timeFilter: TimeFilter;
   timeWindowMinutes: number;
   gaps: EvidenceGap[];
@@ -209,7 +302,7 @@ type ScenarioResult = {
 
 export type ScenarioSpec<Ctx extends SymptomContext = SymptomContext> = {
   queries: QuerySpec<Ctx>[];
-  rules: RuleSpec[];
+  rules: RuleSpec[] | ((context: Ctx) => RuleSpec[]);
   possible_actions: PossibleAction[];
   prepareContext?: (context: SymptomContext) => Promise<Ctx>;
   finalizeResult?: (input: {
@@ -226,6 +319,78 @@ export async function queryJsonCompact(
   const { response } = connection.query(sql, { default_format: "JSONCompact" });
   const apiResponse = await response;
   return apiResponse.data.json<JSONCompactFormatResponse>();
+}
+
+function escapeSqlLiteral(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("'", "\\'");
+}
+
+function quoteIdentifier(name: string): string {
+  return `\`${name.replaceAll("`", "``")}\``;
+}
+
+function truncateSampleValue(value: unknown): string | number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const text = String(value);
+  return text.length > 64 ? `${text.slice(0, 61)}...` : text;
+}
+
+export async function enrichPartitionKeyColumns(
+  context: SymptomContext,
+  target: Target | undefined,
+  observations: Observation[],
+  stage: string,
+  progress: number
+): Promise<void> {
+  if (!target?.database || !target.table) return;
+  const partitionObservation = observations.find(
+    (obs) =>
+      typeof obs.metrics["partition_key"] === "string" &&
+      String(obs.metrics["partition_key"]).length > 0
+  );
+  if (!partitionObservation) return;
+
+  await runProbe(context, stage, progress, async () => {
+    const database = escapeSqlLiteral(target.database!);
+    const table = escapeSqlLiteral(target.table!);
+
+    const columnsData = await queryJsonCompact(
+      context.connection,
+      `
+SELECT name, type
+FROM system.columns
+WHERE database = '${database}'
+  AND table = '${table}'
+  AND is_in_partition_key = 1
+ORDER BY position`
+    );
+
+    const columnRows = (columnsData.data ?? []) as (string | number | null)[][];
+    if (columnRows.length === 0) return;
+
+    const columns = columnRows.map((row) => ({
+      name: String(row[0] ?? ""),
+      data_type: String(row[1] ?? "unknown"),
+    }));
+
+    const selectList = columns.map((col) => quoteIdentifier(col.name)).join(", ");
+    const sampleData = await queryJsonCompact(
+      context.connection,
+      `
+SELECT ${selectList}
+FROM ${quoteIdentifier(target.database!)}.${quoteIdentifier(target.table!)}
+LIMIT 3`
+    );
+    const sampleRows = (sampleData.data ?? []) as (string | number | null)[][];
+
+    partitionObservation.partition_key_columns = columns.map((col, idx) => ({
+      name: col.name,
+      data_type: col.data_type,
+      sample_value: truncateSampleValue(sampleRows[0]?.[idx]),
+      sample_values: sampleRows.slice(0, 3).map((row) => truncateSampleValue(row[idx])),
+    }));
+  });
 }
 
 function stringifyError(error: unknown): string {
@@ -411,7 +576,9 @@ export async function runScenarioEvidence<Ctx extends SymptomContext = SymptomCo
     ? await scenario.prepareContext(context)
     : (context as Ctx);
   const results = await runQueries(scenarioContext, scenario.queries);
-  const candidateRules = evaluateRules(scenario.rules, results);
+  const rules =
+    typeof scenario.rules === "function" ? scenario.rules(scenarioContext) : scenario.rules;
+  const candidateRules = evaluateRules(rules, results);
   const includedRules = candidateRules.filter((rule) =>
     rule.indicators.filter((ind) => ind.required).every((ind) => ind.matched)
   );
@@ -566,6 +733,23 @@ export function buildTimeFilter(input: RcaEvidenceInput): { filter: TimeFilter; 
         `AND event_time >= now() - INTERVAL ${minutes} MINUTE`,
     },
     minutes,
+  };
+}
+
+export function resolveRcaThresholds(overrides?: RcaThresholdOverrides): RcaThresholds {
+  return {
+    high_query_latency: {
+      ...DEFAULT_RCA_THRESHOLDS.high_query_latency,
+      ...(overrides?.high_query_latency ?? {}),
+    },
+    high_part_count: {
+      ...DEFAULT_RCA_THRESHOLDS.high_part_count,
+      ...(overrides?.high_part_count ?? {}),
+    },
+    high_partition_count: {
+      ...DEFAULT_RCA_THRESHOLDS.high_partition_count,
+      ...(overrides?.high_partition_count ?? {}),
+    },
   };
 }
 

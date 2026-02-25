@@ -3,6 +3,7 @@ import {
   buildQueryLogPredicate,
   type PossibleAction,
   type QuerySpec,
+  type RcaThresholds,
   type RuleSpec,
   type ScenarioSpec,
   type SymptomContext,
@@ -32,6 +33,11 @@ WHERE {timeFilterExpression}
     toObservation: (row, ctx) => ({
       source: "system.query_log",
       description: `Latency summary over last ${ctx.timeWindowMinutes} minutes`,
+      scope_summary: {
+        level: "cluster",
+        aggregation_semantics: "quantile",
+        cluster_aggregation: "cluster-wide query_log quantiles",
+      },
       metrics: {
         p95_ms: Number(asNumber(row?.[0]).toFixed(2)),
         p99_ms: Number(asNumber(row?.[1]).toFixed(2)),
@@ -54,6 +60,11 @@ FROM {clusterAllReplicas:system.merges}`,
     toObservation: (row, _ctx) => ({
       source: "system.merges",
       description: "Merge pressure snapshot",
+      scope_summary: {
+        level: "cluster",
+        aggregation_semantics: "additive",
+        cluster_aggregation: "sum/max across replicas",
+      },
       metrics: {
         active_merges: asNumber(row?.[0]),
         max_merge_elapsed_seconds: Number(asNumber(row?.[1]).toFixed(2)),
@@ -66,105 +77,151 @@ FROM {clusterAllReplicas:system.merges}`,
     progressWeight: 50,
     sqlTemplate: `
 SELECT
-  ifNull(sumIf(value, metric = 'MemoryTracking') / nullIf(sumIf(value, metric = 'MemoryTracking') + sumIf(value, metric = 'MemoryAvailable'), 0) * 100, 0) AS memory_used_percent
-FROM {clusterAllReplicas:system.asynchronous_metrics}`,
-    toObservation: (row, _ctx) => ({
-      source: "system.asynchronous_metrics",
-      description: "Memory pressure snapshot",
-      metrics: {
-        memory_used_percent: Number(asNumber(row?.[0]).toFixed(2)),
-      },
-    }),
+  ifNull(max(memory_used_percent), 0) AS memory_used_percent_max,
+  ifNull(argMax(host, memory_used_percent), '') AS max_memory_node
+FROM (
+  SELECT
+    FQDN() AS host,
+    (SELECT value FROM system.metrics WHERE metric = 'MemoryTracking') AS usedBytes,
+    (SELECT value FROM system.asynchronous_metrics WHERE metric = 'OSMemoryTotal') AS totalBytes,
+    ifNull(usedBytes / nullIf(totalBytes, 0) * 100, 0) AS memory_used_percent
+  FROM {clusterAllReplicas:system.one}
+)`,
+    toObservation: (row, ctx) => {
+      const maxMemoryUsedPercent = Number(asNumber(row?.[0]).toFixed(2));
+      const maxMemoryNode = String(row?.[1] ?? "");
+      return {
+        source: "system.asynchronous_metrics",
+        description: `Memory pressure hotspot snapshot over last ${ctx.timeWindowMinutes} minutes`,
+        scope_summary: {
+          level: "cluster",
+          aggregation_semantics: "ratio",
+          cluster_aggregation: "max per-node memory ratio",
+        },
+        metrics: {
+          memory_used_percent_max: maxMemoryUsedPercent,
+          max_memory_node: maxMemoryNode,
+        },
+        top_nodes: maxMemoryNode
+          ? [
+              {
+                node: maxMemoryNode,
+                metrics: {
+                  memory_used_percent: maxMemoryUsedPercent,
+                },
+              },
+            ]
+          : undefined,
+        nodes_over_threshold:
+          maxMemoryNode &&
+          maxMemoryUsedPercent >= ctx.thresholds.high_query_latency.memory_used_percent_gte
+            ? [
+                {
+                  node: maxMemoryNode,
+                  metric: "memory_used_percent",
+                  value: maxMemoryUsedPercent,
+                  threshold: ctx.thresholds.high_query_latency.memory_used_percent_gte,
+                },
+              ]
+            : [],
+      };
+    },
   },
 ];
 
-const HIGH_QUERY_LATENCY_RULES: RuleSpec[] = [
-  {
-    cause: "full_scan",
-    next_check_hints: [
-      "inspect query plan for high-latency hashes and verify predicate selectivity",
-    ],
-    indicators: [
-      {
-        description: "avg read rows >= 1M",
-        match: (r) => {
-          const v = asNumber(r["query_log"]?.metrics["avg_read_rows"]);
-          return { matched: v >= 1_000_000, actual: v.toFixed(2) };
+function buildHighQueryLatencyRules(thresholds: RcaThresholds): RuleSpec[] {
+  const t = thresholds.high_query_latency;
+  return [
+    {
+      cause: "full_scan",
+      next_check_hints: [
+        "inspect query plan for high-latency hashes and verify predicate selectivity",
+      ],
+      indicators: [
+        {
+          description: `avg read rows >= ${t.avg_read_rows_gte}`,
+          match: (r) => {
+            const v = asNumber(r["query_log"]?.metrics["avg_read_rows"]);
+            return { matched: v >= t.avg_read_rows_gte, actual: v.toFixed(2) };
+          },
         },
-      },
-      {
-        description: "avg read bytes >= 1GB",
-        match: (r) => {
-          const v = asNumber(r["query_log"]?.metrics["avg_read_bytes"]);
-          return { matched: v >= 1_000_000_000, actual: v.toFixed(2) };
+        {
+          description: `avg read bytes >= ${t.avg_read_bytes_gte}`,
+          match: (r) => {
+            const v = asNumber(r["query_log"]?.metrics["avg_read_bytes"]);
+            return { matched: v >= t.avg_read_bytes_gte, actual: v.toFixed(2) };
+          },
         },
-      },
-      {
-        description: "p99 latency >= 2000ms",
-        required: true,
-        match: (r) => {
-          const v = asNumber(r["query_log"]?.metrics["p99_ms"]);
-          return { matched: v >= 2000, actual: `${v.toFixed(2)}ms` };
+        {
+          description: `p99 latency >= ${t.p99_latency_ms_gte}ms`,
+          required: true,
+          match: (r) => {
+            const v = asNumber(r["query_log"]?.metrics["p99_ms"]);
+            return { matched: v >= t.p99_latency_ms_gte, actual: `${v.toFixed(2)}ms` };
+          },
         },
-      },
-    ],
-  },
-  {
-    cause: "merge_pressure",
-    next_check_hints: ["check part churn and merge scheduler pressure on top tables"],
-    indicators: [
-      {
-        required: true,
-        description: "active merges > 10",
-        match: (r) => {
-          const v = asNumber(r["merges"]?.metrics["active_merges"]);
-          return { matched: v > 10, actual: v };
+      ],
+    },
+    {
+      cause: "merge_pressure",
+      next_check_hints: ["check part churn and merge scheduler pressure on top tables"],
+      indicators: [
+        {
+          required: true,
+          description: `active merges > ${t.active_merges_gt}`,
+          match: (r) => {
+            const v = asNumber(r["merges"]?.metrics["active_merges"]);
+            return { matched: v > t.active_merges_gt, actual: v };
+          },
         },
-      },
-      {
-        description: "max merge elapsed > 600s",
-        match: (r) => {
-          const v = asNumber(r["merges"]?.metrics["max_merge_elapsed_seconds"]);
-          return { matched: v > 600, actual: `${v.toFixed(2)}s` };
+        {
+          description: `max merge elapsed > ${t.max_merge_elapsed_seconds_gt}s`,
+          match: (r) => {
+            const v = asNumber(r["merges"]?.metrics["max_merge_elapsed_seconds"]);
+            return {
+              matched: v > t.max_merge_elapsed_seconds_gt,
+              actual: `${v.toFixed(2)}s`,
+            };
+          },
         },
-      },
-      {
-        description: "p95 latency >= 1000ms",
-        match: (r) => {
-          const v = asNumber(r["query_log"]?.metrics["p95_ms"]);
-          return { matched: v >= 1000, actual: `${v.toFixed(2)}ms` };
+        {
+          description: `p95 latency >= ${t.p95_latency_ms_gte}ms`,
+          match: (r) => {
+            const v = asNumber(r["query_log"]?.metrics["p95_ms"]);
+            return { matched: v >= t.p95_latency_ms_gte, actual: `${v.toFixed(2)}ms` };
+          },
         },
-      },
-    ],
-  },
-  {
-    cause: "memory_pressure",
-    indicators: [
-      {
-        required: true,
-        description: "memory used >= 85%",
-        match: (r) => {
-          const v = asNumber(r["metrics"]?.metrics["memory_used_percent"]);
-          return { matched: v >= 85, actual: `${v.toFixed(2)}%` };
+      ],
+    },
+    {
+      cause: "memory_pressure",
+      indicators: [
+        {
+          required: true,
+          description: `memory used >= ${t.memory_used_percent_gte}%`,
+          match: (r) => {
+            const v = asNumber(r["metrics"]?.metrics["memory_used_percent_max"]);
+            return { matched: v >= t.memory_used_percent_gte, actual: `${v.toFixed(2)}%` };
+          },
         },
-      },
-      {
-        description: "avg query memory >= 1GB",
-        match: (r) => {
-          const v = asNumber(r["query_log"]?.metrics["avg_memory_bytes"]);
-          return { matched: v >= 1_000_000_000, actual: v.toFixed(2) };
+        {
+          description: `avg query memory >= ${t.avg_query_memory_bytes_gte}`,
+          match: (r) => {
+            const v = asNumber(r["query_log"]?.metrics["avg_memory_bytes"]);
+            return { matched: v >= t.avg_query_memory_bytes_gte, actual: v.toFixed(2) };
+          },
         },
-      },
-      {
-        description: "p99 latency >= 2000ms",
-        match: (r) => {
-          const v = asNumber(r["query_log"]?.metrics["p99_ms"]);
-          return { matched: v >= 2000, actual: `${v.toFixed(2)}ms` };
+        {
+          description: `p99 latency >= ${t.p99_latency_ms_gte}ms`,
+          match: (r) => {
+            const v = asNumber(r["query_log"]?.metrics["p99_ms"]);
+            return { matched: v >= t.p99_latency_ms_gte, actual: `${v.toFixed(2)}ms` };
+          },
         },
-      },
-    ],
-  },
-];
+      ],
+    },
+  ];
+}
 
 const HIGH_QUERY_LATENCY_ACTIONS: PossibleAction[] = [
   {
@@ -186,7 +243,7 @@ const HIGH_QUERY_LATENCY_ACTIONS: PossibleAction[] = [
 
 export const HIGH_QUERY_LATENCY_SCENARIO: ScenarioSpec<HighQueryLatencyContext> = {
   queries: HIGH_QUERY_LATENCY_QUERIES,
-  rules: HIGH_QUERY_LATENCY_RULES,
+  rules: (context) => buildHighQueryLatencyRules(context.thresholds),
   possible_actions: HIGH_QUERY_LATENCY_ACTIONS,
   prepareContext: async (baseContext) => ({
     ...baseContext,
