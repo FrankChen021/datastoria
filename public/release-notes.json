@@ -1,5 +1,95 @@
 [
   {
+    "id": "0947e25",
+    "date": "2026-02-25T15:59:48.961Z",
+    "notes": [
+      {
+        "text": "Add opus 4.6 model",
+        "pr": 48,
+        "type": "feature",
+        "merged_at": "2026-02-16T14:58:03Z"
+      },
+      {
+        "text": "Support execution of multiple sql statements",
+        "pr": 54,
+        "type": "feature",
+        "merged_at": "2026-02-19T05:01:53Z"
+      },
+      {
+        "text": "Add support for nebius provider",
+        "pr": 58,
+        "type": "feature",
+        "merged_at": "2026-02-25T02:18:16Z"
+      },
+      {
+        "text": "add table view for query results",
+        "pr": 60,
+        "type": "feature",
+        "merged_at": "2026-02-25T04:57:03Z"
+      },
+      {
+        "text": "Improve chat input table suggestions",
+        "pr": 62,
+        "type": "feature",
+        "merged_at": "2026-02-25T15:33:21Z"
+      },
+      {
+        "text": "Support to organize snippets in dir",
+        "pr": 64,
+        "type": "feature",
+        "merged_at": "2026-02-25T15:57:12Z"
+      },
+      {
+        "text": "Fix infinite token refresh api call",
+        "pr": 49,
+        "type": "fix",
+        "merged_at": "2026-02-17T16:53:03Z"
+      },
+      {
+        "text": "Fix re-rendering problem by replacing react-markdown with streamdown",
+        "pr": 50,
+        "type": "fix",
+        "merged_at": "2026-02-17T17:05:33Z"
+      },
+      {
+        "text": "Fix ECharts dispose and panel layout warnings",
+        "pr": 51,
+        "type": "fix",
+        "merged_at": "2026-02-17T17:10:17Z"
+      },
+      {
+        "text": "Fix query context not passed to query",
+        "pr": 52,
+        "type": "fix",
+        "merged_at": "2026-02-18T09:01:28Z"
+      },
+      {
+        "text": "Fix auth provider consistency and optional anonymous access",
+        "pr": 53,
+        "type": "fix",
+        "merged_at": "2026-02-18T11:28:30Z"
+      },
+      {
+        "text": "Fix snippet hover run to execute without editor insert",
+        "pr": 55,
+        "type": "fix",
+        "merged_at": "2026-02-19T05:02:15Z"
+      },
+      {
+        "text": "Fix invalid Docker image tag when DOCKERHUB_USERNAME secret is unset",
+        "pr": 61,
+        "type": "fix",
+        "merged_at": "2026-02-25T02:23:42Z"
+      },
+      {
+        "text": "Fix chat history search and highlighting",
+        "pr": 63,
+        "type": "fix",
+        "merged_at": "2026-02-25T15:38:59Z"
+      }
+    ]
+  },
+  {
     "id": "57eb113",
     "date": "2026-02-15T13:06:25.518Z",
     "notes": [
