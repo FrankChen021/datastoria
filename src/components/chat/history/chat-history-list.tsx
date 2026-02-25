@@ -14,6 +14,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { Chat } from "@/lib/ai/chat-types";
 import "@/lib/number-utils";
+import { TextHighlighter } from "@/lib/text-highlighter";
 import { cn } from "@/lib/utils";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { AlertCircle, Check, Eraser, Pencil, Plus, Trash2 } from "lucide-react";
@@ -22,6 +23,7 @@ import * as React from "react";
 interface HistoryItemProps {
   item: Chat;
   isSelected: boolean;
+  searchQuery: string;
   onSelect: () => void;
   onDelete: (id: string, e: React.MouseEvent) => void;
   onEdit: (id: string, newTitle: string) => void;
@@ -30,6 +32,7 @@ interface HistoryItemProps {
 const HistoryItem: React.FC<HistoryItemProps> = ({
   item,
   isSelected,
+  searchQuery,
   onSelect,
   onDelete,
   onEdit,
@@ -111,15 +114,12 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
             <span
               className={`text-[11px] truncate ${isSelected ? "font-semibold" : "font-medium"}`}
             >
-              {item.title || "New Conversation"}
+              {TextHighlighter.highlight(item.title!, searchQuery)}
             </span>
           )}
         </div>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
-        <span className="text-[9px] text-muted-foreground whitespace-nowrap">
-          {(new Date().getTime() - new Date(item.updatedAt).getTime()).formatTimeDiff()}
-        </span>
         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
           <Button
             variant="ghost"
@@ -138,6 +138,9 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
             <Trash2 className="!h-2.5 !w-2.5" />
           </Button>
         </div>
+        <span className="text-[9px] text-muted-foreground whitespace-nowrap">
+          {(new Date().getTime() - new Date(item.updatedAt).getTime()).formatTimeDiff()}
+        </span>
       </div>
     </CommandItem>
   );
@@ -281,11 +284,18 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
       [fetchHistory]
     );
 
+    const [searchQuery, setSearchQuery] = React.useState("");
+
     const groupedHistory = React.useMemo(() => {
+      const query = searchQuery.trim().toLowerCase();
+      const toGroup = query
+        ? history.filter((item) => (item.title || "New Conversation").toLowerCase().includes(query))
+        : history;
+
       const groups: { label: string; items: Chat[] }[] = [];
       const map: Record<string, number> = {};
 
-      for (const item of history) {
+      for (const item of toGroup) {
         const label = getGroupLabel(item.updatedAt);
         if (map[label] === undefined) {
           map[label] = groups.length;
@@ -294,7 +304,7 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
         groups[map[label]].items.push(item);
       }
       return groups;
-    }, [history]);
+    }, [history, searchQuery]);
 
     return (
       <div className="flex flex-col h-[300px]">
@@ -302,8 +312,14 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
           className="rounded-sm border-0"
           value={selectedChatId}
           onValueChange={setSelectedChatId}
+          shouldFilter={false}
         >
-          <CommandInput placeholder="Search conversations..." className="h-9" />
+          <CommandInput
+            placeholder="Search conversations..."
+            className="h-9"
+            value={searchQuery}
+            onValueChange={setSearchQuery}
+          />
           <CommandList className="flex-1 max-h-none">
             <CommandEmpty>No conversations found.</CommandEmpty>
             {groupedHistory.map((group) => (
@@ -319,6 +335,7 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
                     key={item.chatId}
                     item={item}
                     isSelected={item.chatId === currentChatId}
+                    searchQuery={searchQuery}
                     onDelete={handleDeleteChat}
                     onEdit={handleEditTitle}
                     onSelect={() => {
