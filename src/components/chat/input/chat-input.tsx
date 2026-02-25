@@ -95,7 +95,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         const search = `${name} ${database} ${table} ${engine} ${tableInfo.comment || ""}`.toLowerCase();
 
         const description = (
-          <div className="space-y-3 text-xs font-mono">
+          <div className="space-y-3 text-xs">
             <div>
               <div className="text-muted-foreground mb-0.5">Database</div>
               <div className="text-foreground whitespace-pre-wrap break-all">
@@ -136,15 +136,16 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     }, [connection?.metadata?.tableNames]);
 
     const handleSelectTable = React.useCallback(
-      (tableName: string) => {
+      (group: string, tableName: string) => {
+        const fullName = `${group}.${tableName}`;
         const beforeMention = input.substring(0, suggestionStartPos);
         const afterMention = input.substring(textareaRef.current?.selectionStart || input.length);
-        const newText = beforeMention + `@${tableName} ` + afterMention;
+        const newText = beforeMention + `@${fullName} ` + afterMention;
         setInput(newText);
         suggestionRef.current?.close();
 
         setTimeout(() => {
-          const newCursorPos = suggestionStartPos + tableName.length + 2;
+          const newCursorPos = suggestionStartPos + fullName.length + 2;
           if (textareaRef.current) {
             textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
             textareaRef.current.focus();

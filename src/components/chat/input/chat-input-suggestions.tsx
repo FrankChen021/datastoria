@@ -33,7 +33,7 @@ export interface ChatInputSuggestionsType {
 }
 
 interface ChatInputSuggestionsProps {
-  onSelect: (tableName: string) => void;
+  onSelect: (group: string, tableName: string) => void;
   onInteractOutside?: (target: EventTarget | null) => boolean;
   suggestions: ChatInputSuggestionItem[];
 }
@@ -112,7 +112,8 @@ export const ChatInputSuggestions = React.memo(
               return true;
             }
             if (e.key === "Enter" && !e.shiftKey) {
-              onSelect(flatSuggestions[activeIndex].name);
+              const item = flatSuggestions[activeIndex];
+              onSelect(item.group, item.name);
               return true;
             }
           }
@@ -130,8 +131,8 @@ export const ChatInputSuggestions = React.memo(
       }, [activeIndex, open]);
 
       const handleSelect = React.useCallback(
-        (name: string) => {
-          onSelect(name);
+        (group: string, name: string) => {
+          onSelect(group, name);
           setOpen(false);
         },
         [onSelect]
@@ -182,9 +183,9 @@ export const ChatInputSuggestions = React.memo(
                             const isSelected = table.globalIndex === activeIndex;
                             return (
                               <CommandItem
-                                key={table.name}
+                                key={group + "." + table.name}
                                 value={table.name}
-                                onSelect={() => handleSelect(table.name)}
+                                onSelect={() => handleSelect(group, table.name)}
                                 onMouseEnter={() => setActiveIndex(table.globalIndex)}
                                 className={cn(
                                   "py-1 pl-6 flex w-full items-center gap-2 cursor-pointer hover:bg-accent hover:text-accent-foreground",
