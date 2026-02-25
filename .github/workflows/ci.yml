@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/datastoria
+  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME != '' && format('{0}/datastoria', secrets.DOCKERHUB_USERNAME) || 'datastoria' }}
 
 jobs:
   build:
