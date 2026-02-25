@@ -9,8 +9,8 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
-import { TextHighlighter } from "@/lib/text-highlighter";
 import { StringUtils } from "@/lib/string-utils";
+import { TextHighlighter } from "@/lib/text-highlighter";
 import { cn } from "@/lib/utils";
 import * as React from "react";
 
@@ -54,7 +54,11 @@ export const ChatInputSuggestions = React.memo(
         })[] = [];
         const groupedSuggestions: Record<
           string,
-          (ChatInputSuggestionItem & { globalIndex: number; matchStart: number; matchLength: number })[]
+          (ChatInputSuggestionItem & {
+            globalIndex: number;
+            matchStart: number;
+            matchLength: number;
+          })[]
         > = {};
 
         let globalIndex = 0;
@@ -70,8 +74,10 @@ export const ChatInputSuggestions = React.memo(
             let include = false;
             if (searchParts.length === 1) {
               nameIndex = StringUtils.indexOfIgnoreCase(suggestionItem.name, groupPart);
-              include = groupPart === "" || StringUtils.indexOfIgnoreCase(suggestionItem.group, groupPart) >= 0
-                || nameIndex >= 0;
+              include =
+                groupPart === "" ||
+                StringUtils.indexOfIgnoreCase(suggestionItem.group, groupPart) >= 0 ||
+                nameIndex >= 0;
             } else if (searchParts.length === 2) {
               nameIndex = StringUtils.indexOfIgnoreCase(suggestionItem.name, namePart);
               include = suggestionItem.group === groupPart && nameIndex >= 0;
@@ -84,7 +90,12 @@ export const ChatInputSuggestions = React.memo(
           const group = suggestionItem.group || "Global";
           if (!groupedSuggestions[group]) groupedSuggestions[group] = [];
 
-          const item = { ...suggestionItem, globalIndex, matchStart: nameIndex, matchLength: nameLength };
+          const item = {
+            ...suggestionItem,
+            globalIndex,
+            matchStart: nameIndex,
+            matchLength: nameLength,
+          };
           flatSuggestions.push(item);
           groupedSuggestions[group].push(item);
           globalIndex++;
@@ -95,7 +106,7 @@ export const ChatInputSuggestions = React.memo(
 
       React.useImperativeHandle(ref, () => ({
         open: (query: string) => {
-          setSearchParts(query.toLowerCase().split('.'));
+          setSearchParts(query.toLowerCase().split("."));
           setActiveIndex(0);
           setOpen(true);
         },
@@ -223,7 +234,9 @@ export const ChatInputSuggestions = React.memo(
                                   {TextHighlighter.highlight2(
                                     table.name,
                                     table.matchStart,
-                                    table.matchStart >= 0 ? table.matchStart + table.matchLength : -1,
+                                    table.matchStart >= 0
+                                      ? table.matchStart + table.matchLength
+                                      : -1,
                                     "text-yellow-500"
                                   )}
                                 </span>

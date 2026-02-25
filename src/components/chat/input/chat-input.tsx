@@ -95,9 +95,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           <div className="space-y-3 text-xs">
             <div>
               <div className="text-muted-foreground mb-0.5">Database</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">
-                {database || "-"}
-              </div>
+              <div className="text-foreground whitespace-pre-wrap break-all">{database || "-"}</div>
             </div>
             <div>
               <div className="text-muted-foreground mb-0.5">Table</div>
@@ -105,9 +103,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             </div>
             <div>
               <div className="text-muted-foreground mb-0.5">Engine</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">
-                {engine || "-"}
-              </div>
+              <div className="text-foreground whitespace-pre-wrap break-all">{engine || "-"}</div>
             </div>
             {tableInfo.comment ? (
               <div>
