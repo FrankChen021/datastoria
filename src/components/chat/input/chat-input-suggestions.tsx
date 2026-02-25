@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { TextHighlighter } from "@/lib/text-highlighter";
+import { StringUtils } from "@/lib/string-utils";
 import { cn } from "@/lib/utils";
 import * as React from "react";
 
@@ -39,35 +40,62 @@ interface ChatInputSuggestionsProps {
 
 export const ChatInputSuggestions = React.memo(
   React.forwardRef<ChatInputSuggestionsType, ChatInputSuggestionsProps>(
-    ({ onSelect, onInteractOutside, suggestions: allSuggestions }, ref) => {
+    ({ onSelect, onInteractOutside, suggestions }, ref) => {
       const [open, setOpen] = React.useState(false);
       const [activeIndex, setActiveIndex] = React.useState(0);
-      const [searchQuery, setSearchQuery] = React.useState("");
+      const [searchParts, setSearchParts] = React.useState<string[] | undefined>(undefined);
       const activeItemRef = React.useRef<HTMLDivElement>(null);
 
       const { flatSuggestions, groupedSuggestions } = React.useMemo(() => {
-        const lowerQuery = searchQuery.toLowerCase();
-        const filtered = allSuggestions.filter((t) => t.search.includes(lowerQuery)).slice(0, 100);
-
-        const flatSuggestions: (ChatInputSuggestionItem & { globalIndex: number })[] = [];
-        const groupedSuggestions: Record<string, (ChatInputSuggestionItem & { globalIndex: number })[]> = {};
+        const flatSuggestions: (ChatInputSuggestionItem & {
+          globalIndex: number;
+          matchStart: number;
+          matchLength: number;
+        })[] = [];
+        const groupedSuggestions: Record<
+          string,
+          (ChatInputSuggestionItem & { globalIndex: number; matchStart: number; matchLength: number })[]
+        > = {};
 
         let globalIndex = 0;
-        for (const table of filtered) {
-          const group = table.group || "Global";
+
+        for (const suggestionItem of suggestions) {
+          let nameIndex = -1;
+          let nameLength = 0;
+
+          if (searchParts && searchParts.length > 0) {
+            const groupPart = searchParts[0];
+            const namePart = searchParts.length === 2 ? searchParts[1] : searchParts[0];
+
+            let include = false;
+            if (searchParts.length === 1) {
+              nameIndex = StringUtils.indexOfIgnoreCase(suggestionItem.name, groupPart);
+              include = groupPart === "" || StringUtils.indexOfIgnoreCase(suggestionItem.group, groupPart) >= 0
+                || nameIndex >= 0;
+            } else if (searchParts.length === 2) {
+              nameIndex = StringUtils.indexOfIgnoreCase(suggestionItem.name, namePart);
+              include = suggestionItem.group === groupPart && nameIndex >= 0;
+            }
+            if (!include) continue;
+
+            nameLength = namePart.length;
+          }
+
+          const group = suggestionItem.group || "Global";
           if (!groupedSuggestions[group]) groupedSuggestions[group] = [];
-          const item = { ...table, globalIndex };
+
+          const item = { ...suggestionItem, globalIndex, matchStart: nameIndex, matchLength: nameLength };
           flatSuggestions.push(item);
           groupedSuggestions[group].push(item);
           globalIndex++;
         }
 
         return { flatSuggestions, groupedSuggestions };
-      }, [allSuggestions, searchQuery]);
+      }, [suggestions, searchParts]);
 
       React.useImperativeHandle(ref, () => ({
         open: (query: string) => {
-          setSearchQuery(query);
+          setSearchParts(query.toLowerCase().split('.'));
           setActiveIndex(0);
           setOpen(true);
         },
@@ -111,8 +139,7 @@ export const ChatInputSuggestions = React.memo(
               return true;
             }
             if (e.key === "Enter" && !e.shiftKey) {
-              const item = flatSuggestions[activeIndex];
-              onSelect(item.group, item.name);
+              onSelect(flatSuggestions[activeIndex].group, flatSuggestions[activeIndex].name);
               return true;
             }
           }
@@ -169,7 +196,7 @@ export const ChatInputSuggestions = React.memo(
                   value={flatSuggestions[activeIndex]?.name}
                   shouldFilter={false}
                 >
-                  <CommandList className="flex-1 overflow-y-auto py-2">
+                  <CommandList className="flex-1 overflow-y-auto pt-1">
                     <CommandEmpty>No items found</CommandEmpty>
                     {flatSuggestions.length > 0 &&
                       Object.entries(groupedSuggestions).map(([group, tables]) => (
@@ -193,7 +220,12 @@ export const ChatInputSuggestions = React.memo(
                                 ref={isSelected ? activeItemRef : null}
                               >
                                 <span className="flex-1 min-w-0 truncate">
-                                  {TextHighlighter.highlight(table.tableName, searchQuery)}
+                                  {TextHighlighter.highlight2(
+                                    table.name,
+                                    table.matchStart,
+                                    table.matchStart >= 0 ? table.matchStart + table.matchLength : -1,
+                                    "text-yellow-500"
+                                  )}
                                 </span>
                                 {table.badge && (
                                   <Badge
