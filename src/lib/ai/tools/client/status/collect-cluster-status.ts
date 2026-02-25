@@ -9,12 +9,16 @@ import {
 type StatusSeverity = "OK" | "WARNING" | "CRITICAL";
 type StatusAnalysisMode = "snapshot" | "windowed";
 type StatusCheckCategory =
-  | "replication"
-  | "disk"
+  | "cpu"
   | "memory"
+  | "disk"
+  | "select_queries"
+  | "insert_queries"
+  | "ddl_queries"
+  | "parts"
+  | "replication"
   | "merges"
   | "mutations"
-  | "parts"
   | "errors"
   | "connections";
 
@@ -25,10 +29,14 @@ export type GetClusterStatusInput = {
   thresholds?: {
     disk_warning?: number;
     disk_critical?: number;
+    cpu_cores_used_warning?: number;
+    cpu_cores_used_critical?: number;
     replication_lag_warning_seconds?: number;
     replication_lag_critical_seconds?: number;
     parts_warning?: number;
     parts_critical?: number;
+    query_p95_warning_ms?: number;
+    query_p95_critical_ms?: number;
   };
   max_outliers?: number;
   window?: {
@@ -85,6 +93,36 @@ function limitOutliers<T>(items: T[], maxOutliers: number | undefined): T[] {
   return items.slice(0, maxOutliers);
 }
 
+function escapeSqlLiteral(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("'", "\\'");
+}
+
+function buildLogTimeFilter(
+  window: GetClusterStatusInput["window"] | undefined,
+  defaultMinutes = 15
+): { whereClause: string; windowMinutes: number; windowLabel: string } {
+  if (window?.time_range?.from && window?.time_range?.to) {
+    const from = escapeSqlLiteral(window.time_range.from);
+    const to = escapeSqlLiteral(window.time_range.to);
+    return {
+      whereClause:
+        `event_date >= toDate('${from}') AND event_date <= toDate('${to}') ` +
+        `AND event_time >= toDateTime('${from}') AND event_time <= toDateTime('${to}')`,
+      windowMinutes: window.time_window ?? defaultMinutes,
+      windowLabel: `${window.time_range.from} to ${window.time_range.to}`,
+    };
+  }
+
+  const windowMinutes = window?.time_window ?? defaultMinutes;
+  return {
+    whereClause:
+      `event_date >= toDate(now() - INTERVAL ${windowMinutes} MINUTE) ` +
+      `AND event_time >= now() - INTERVAL ${windowMinutes} MINUTE`,
+    windowMinutes,
+    windowLabel: `${windowMinutes}m`,
+  };
+}
+
 async function queryJsonCompact(
   sql: string,
   connection: Parameters<ToolExecutor<GetClusterStatusInput, GetClusterStatusOutput>>[1]
@@ -96,12 +134,128 @@ async function queryJsonCompact(
 
 type CategoryHandlerContext = {
   connection: Parameters<ToolExecutor<GetClusterStatusInput, GetClusterStatusOutput>>[1];
+  window?: GetClusterStatusInput["window"];
   thresholds?: GetClusterStatusInput["thresholds"];
   maxOutliers: number;
   registerObservedNode: (node: string) => void;
   registerIssueNode: (node: string) => void;
 };
 type CategoryHandler = (context: CategoryHandlerContext) => Promise<HealthCategorySummary>;
+
+type QueryPerformanceCategoryConfig = {
+  categoryLabel: string;
+  queryKindPredicate: string;
+};
+
+async function collectQueryPerformanceCategory(
+  {
+    connection,
+    window,
+    thresholds,
+    maxOutliers,
+    registerObservedNode,
+    registerIssueNode,
+  }: CategoryHandlerContext,
+  config: QueryPerformanceCategoryConfig
+): Promise<HealthCategorySummary> {
+  const p95WarningMs = thresholds?.query_p95_warning_ms ?? 1000;
+  const p95CriticalMs = thresholds?.query_p95_critical_ms ?? 3000;
+  const timeFilter = buildLogTimeFilter(window, 15);
+  const lookbackMinutes = timeFilter.windowMinutes;
+  const data = await queryJsonCompact(
+    `
+SELECT
+  FQDN() AS host_name,
+  quantileExactIf(0.95)(query_duration_ms, type = 'QueryFinish') AS p95_ms,
+  quantileExactIf(0.99)(query_duration_ms, type = 'QueryFinish') AS p99_ms,
+  countIf(type = 'QueryFinish') AS finished_queries,
+  countIf(type IN ('ExceptionBeforeStart', 'ExceptionWhileProcessing')) AS failed_queries
+FROM {clusterAllReplicas:system.query_log}
+WHERE ${timeFilter.whereClause}
+  AND (${config.queryKindPredicate})
+GROUP BY host_name`,
+    connection
+  );
+  const rows = data.data || [];
+
+  let maxP95Ms = 0;
+  let maxP99Ms = 0;
+  let totalFinished = 0;
+  let totalFailed = 0;
+  let nodesWithQueryData = 0;
+  const outliers: Outlier[] = [];
+
+  for (const row of rows) {
+    const [hostName, p95Ms, p99Ms, finishedQueries, failedQueries] = row as (
+      | string
+      | number
+      | null
+    )[];
+    const nodeName = String(hostName || "");
+    registerObservedNode(nodeName);
+    const nodeP95 = Number(p95Ms) || 0;
+    const nodeP99 = Number(p99Ms) || 0;
+    const nodeFinished = Number(finishedQueries) || 0;
+    const nodeFailed = Number(failedQueries) || 0;
+
+    if (nodeFinished > 0 || nodeFailed > 0) nodesWithQueryData += 1;
+    maxP95Ms = Math.max(maxP95Ms, nodeP95);
+    maxP99Ms = Math.max(maxP99Ms, nodeP99);
+    totalFinished += nodeFinished;
+    totalFailed += nodeFailed;
+
+    const hasIssue = nodeP95 >= p95WarningMs || nodeFailed > 0;
+    if (hasIssue) {
+      registerIssueNode(nodeName);
+      const severity: StatusSeverity =
+        nodeP95 >= p95CriticalMs || nodeFailed > 100 ? "CRITICAL" : "WARNING";
+      outliers.push({
+        node: nodeName,
+        details: `${severity} ${config.categoryLabel} performance on ${nodeName}`,
+        metrics: {
+          p95_query_duration_ms: Number(nodeP95.toFixed(2)),
+          p99_query_duration_ms: Number(nodeP99.toFixed(2)),
+          queries_per_minute: Number(((nodeFinished + nodeFailed) / lookbackMinutes).toFixed(2)),
+          failed_queries: nodeFailed,
+        },
+      });
+    }
+  }
+
+  const totalQpm = (totalFinished + totalFailed) / lookbackMinutes;
+  const status: StatusSeverity =
+    maxP95Ms >= p95CriticalMs || totalFailed > 500
+      ? "CRITICAL"
+      : maxP95Ms >= p95WarningMs || totalFailed > 0
+        ? "WARNING"
+        : "OK";
+
+  return {
+    status,
+    issues:
+      status === "OK"
+        ? []
+        : [
+            `${config.categoryLabel} performance degraded over ${timeFilter.windowLabel}: max p95 ${maxP95Ms.toFixed(2)}ms, failed queries ${totalFailed}.`,
+          ],
+    metrics: {
+      max_p95_query_duration_ms: Number(maxP95Ms.toFixed(2)),
+      max_p99_query_duration_ms: Number(maxP99Ms.toFixed(2)),
+      queries_per_minute: Number(totalQpm.toFixed(2)),
+      failed_queries: totalFailed,
+      nodes_with_query_data: nodesWithQueryData,
+      window_minutes: lookbackMinutes,
+    },
+    outliers: limitOutliers(
+      outliers.sort(
+        (a, b) =>
+          (Number(b.metrics.p95_query_duration_ms) || 0) -
+          (Number(a.metrics.p95_query_duration_ms) || 0)
+      ),
+      maxOutliers
+    ),
+  };
+}
 
 const STATUS_CATEGORY_HANDLERS: Record<StatusCheckCategory, CategoryHandler> = {
   replication: async ({
@@ -285,22 +439,23 @@ FROM {clusterAllReplicas:system.disks}`,
     const data = await queryJsonCompact(
       `
 SELECT
-  FQDN() AS host_name,
-  metric,
-  value
-FROM {clusterAllReplicas:system.metrics}
-WHERE metric IN ('MemoryTracking', 'MaxMemoryUsage', 'MemoryOvercommitRatio')`,
+    FQDN() AS host,
+    (SELECT value FROM system.metrics WHERE metric = 'MemoryTracking') AS usedBytes,
+    (SELECT value FROM system.asynchronous_metrics WHERE metric = 'OSMemoryTotal') AS totalBytes
+FROM {clusterAllReplicas:system.one}
+`,
       connection
     );
     const rows = data.data || [];
     const metricsByNode = new Map<string, Record<string, number>>();
 
     for (const row of rows) {
-      const [hostName, metricName, value] = row as (string | number)[];
+      const [hostName, usedBytes, totalBytes] = row as (string | number)[];
       const nodeName = String(hostName || "");
       registerObservedNode(nodeName);
       const metricsMap = metricsByNode.get(nodeName) ?? {};
-      metricsMap[String(metricName)] = Number(value) || 0;
+      metricsMap["MemoryTracking"] = Number(usedBytes) || 0;
+      metricsMap["MaxMemoryUsage"] = Number(totalBytes) || 0;
       metricsByNode.set(nodeName, metricsMap);
     }
 
@@ -353,6 +508,104 @@ WHERE metric IN ('MemoryTracking', 'MaxMemoryUsage', 'MemoryOvercommitRatio')`,
         nodes_checked: metricsByNode.size,
       },
       outliers: limitOutliers(outliers, maxOutliers),
+    };
+  },
+
+  cpu: async ({
+    connection,
+    window,
+    thresholds,
+    maxOutliers,
+    registerObservedNode,
+    registerIssueNode,
+  }) => {
+    const cpuWarning = thresholds?.cpu_cores_used_warning ?? 4;
+    const cpuCritical = thresholds?.cpu_cores_used_critical ?? 8;
+    const timeFilter = buildLogTimeFilter(window, 15);
+    const lookbackMinutes = timeFilter.windowMinutes;
+    const data = await queryJsonCompact(
+      `
+SELECT
+  FQDN() AS host_name,
+  min(event_time) AS first_seen,
+  max(event_time) AS last_seen,
+  min(ProfileEvent_OSCPUVirtualTimeMicroseconds) AS min_cpu_us,
+  max(ProfileEvent_OSCPUVirtualTimeMicroseconds) AS max_cpu_us
+FROM {clusterAllReplicas:system.metric_log}
+WHERE ${timeFilter.whereClause}
+GROUP BY host_name`,
+      connection
+    );
+    const rows = data.data || [];
+
+    let maxCpuCoresUsed = 0;
+    let totalCpuCoresUsed = 0;
+    let nodesWithCpuData = 0;
+    const outliers: Outlier[] = [];
+
+    for (const row of rows) {
+      const [hostName, firstSeen, lastSeen, minCpuUs, maxCpuUs] = row as (string | number | null)[];
+      const nodeName = String(hostName || "");
+      registerObservedNode(nodeName);
+
+      const minValue = Number(minCpuUs) || 0;
+      const maxValue = Number(maxCpuUs) || 0;
+      const elapsedSeconds = Math.max(
+        (new Date(String(lastSeen || "")).getTime() - new Date(String(firstSeen || "")).getTime()) /
+          1000,
+        0
+      );
+      const cpuCoresUsed =
+        elapsedSeconds > 0 ? Math.max((maxValue - minValue) / 1_000_000 / elapsedSeconds, 0) : 0;
+
+      if (elapsedSeconds > 0) nodesWithCpuData += 1;
+      totalCpuCoresUsed += cpuCoresUsed;
+      maxCpuCoresUsed = Math.max(maxCpuCoresUsed, cpuCoresUsed);
+
+      if (cpuCoresUsed >= cpuWarning) {
+        registerIssueNode(nodeName);
+        const severity: StatusSeverity = cpuCoresUsed >= cpuCritical ? "CRITICAL" : "WARNING";
+        outliers.push({
+          node: nodeName,
+          details: `${severity} ClickHouse CPU activity on ${nodeName}`,
+          metrics: {
+            clickhouse_cpu_cores_used: Number(cpuCoresUsed.toFixed(2)),
+            window_minutes: lookbackMinutes,
+          },
+        });
+      }
+    }
+
+    const status: StatusSeverity =
+      maxCpuCoresUsed >= cpuCritical
+        ? "CRITICAL"
+        : maxCpuCoresUsed >= cpuWarning
+          ? "WARNING"
+          : "OK";
+
+    return {
+      status,
+      issues:
+        status === "OK"
+          ? []
+          : [
+              `ClickHouse CPU activity is elevated (max ${maxCpuCoresUsed.toFixed(2)} cores-used over ${timeFilter.windowLabel}). Thresholds: warning >= ${cpuWarning}, critical >= ${cpuCritical}.`,
+            ],
+      metrics: {
+        max_clickhouse_cpu_cores_used: Number(maxCpuCoresUsed.toFixed(2)),
+        avg_clickhouse_cpu_cores_used:
+          nodesWithCpuData > 0 ? Number((totalCpuCoresUsed / nodesWithCpuData).toFixed(2)) : null,
+        nodes_checked: rows.length,
+        window_minutes: lookbackMinutes,
+      },
+      outliers: limitOutliers(
+        outliers.sort(
+          (a, b) =>
+            (Number(b.metrics.clickhouse_cpu_cores_used) || 0) -
+            (Number(a.metrics.clickhouse_cpu_cores_used) || 0)
+        ),
+        maxOutliers
+      ),
     };
   },
 
@@ -682,6 +935,25 @@ GROUP BY host_name`,
       outliers: limitOutliers(outliers, maxOutliers),
     };
   },
+
+  select_queries: async (context) =>
+    collectQueryPerformanceCategory(context, {
+      categoryLabel: "SELECT",
+      queryKindPredicate: "query_kind = 'Select'",
+    }),
+
+  insert_queries: async (context) =>
+    collectQueryPerformanceCategory(context, {
+      categoryLabel: "INSERT",
+      queryKindPredicate: "query_kind = 'Insert'",
+    }),
+
+  ddl_queries: async (context) =>
+    collectQueryPerformanceCategory(context, {
+      categoryLabel: "DDL",
+      queryKindPredicate:
+        "query_kind IN ('Create', 'Alter', 'Drop', 'Rename', 'Truncate', 'Optimize')",
+    }),
 };
 
 export const getClusterStatusExecutor: ToolExecutor<
@@ -692,7 +964,20 @@ export const getClusterStatusExecutor: ToolExecutor<
   const checks: StatusCheckCategory[] =
     input.checks && input.checks.length > 0
       ? input.checks
-      : ["replication", "disk", "memory", "merges", "mutations", "parts", "errors", "connections"];
+      : [
+          "replication",
+          "disk",
+          "memory",
+          "cpu",
+          "merges",
+          "mutations",
+          "parts",
+          "errors",
+          "connections",
+          "select_queries",
+          "insert_queries",
+          "ddl_queries",
+        ];
 
   const maxOutliers = input.max_outliers ?? 10;
 
@@ -726,6 +1011,7 @@ export const getClusterStatusExecutor: ToolExecutor<
       try {
         categories[check] = await STATUS_CATEGORY_HANDLERS[check]({
           connection,
+          window: input.window,
           thresholds: input.thresholds,
           maxOutliers,
           registerObservedNode,

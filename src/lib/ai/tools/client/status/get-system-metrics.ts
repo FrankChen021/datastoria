@@ -5,12 +5,14 @@ export type HistoricalMetricType =
   | "replication"
   | "disk"
   | "memory"
+  | "cpu"
   | "merges"
   | "mutations"
   | "parts"
   | "errors"
   | "connections"
-  | "query_latency";
+  | "query_latency"
+  | "query_performance";
 
 export type GetSystemMetricsInput = {
   metric_type: HistoricalMetricType;
@@ -79,6 +81,11 @@ const METRIC_DEFINITIONS: Record<HistoricalMetricType, MetricDefinition> = {
     message:
       "Memory usage trend derived from system.metric_log (CurrentMetric_MemoryTracking). Use summary.trend to see overall direction.",
   },
+  cpu: {
+    innerMetricExpression: "sum(ProfileEvent_OSCPUVirtualTimeMicroseconds) / 1000000",
+    message:
+      "CPU activity trend derived from system.metric_log (ProfileEvent_OSCPUVirtualTimeMicroseconds). This is a ClickHouse CPU-time activity signal (cores-used approximation), not host CPU percent.",
+  },
   merges: {
     innerMetricExpression: "max(CurrentMetric_Merge)",
     message: "Merge pressure trend derived from system.metric_log (CurrentMetric_Merge).",
@@ -108,6 +115,12 @@ const METRIC_DEFINITIONS: Record<HistoricalMetricType, MetricDefinition> = {
       "if(sum(ProfileEvent_Query) = 0, 0, (sum(ProfileEvent_QueryTimeMicroseconds) / sum(ProfileEvent_Query)) / 1000)",
     message:
       "Query latency trend derived from system.metric_log (avg query time from ProfileEvent_QueryTimeMicroseconds / ProfileEvent_Query, in milliseconds).",
+  },
+  query_performance: {
+    innerMetricExpression:
+      "if(sum(ProfileEvent_Query) = 0, 0, (sum(ProfileEvent_QueryTimeMicroseconds) / sum(ProfileEvent_Query)) / 1000)",
+    message:
+      "Query performance trend derived from system.metric_log (avg query latency proxy from ProfileEvent_QueryTimeMicroseconds / ProfileEvent_Query, in milliseconds).",
   },
 };
 

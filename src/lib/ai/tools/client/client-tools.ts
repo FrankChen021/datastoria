@@ -280,11 +280,15 @@ export const ClientTools = {
             "replication",
             "disk",
             "memory",
+            "cpu",
             "merges",
             "mutations",
             "parts",
             "errors",
             "connections",
+            "select_queries",
+            "insert_queries",
+            "ddl_queries",
           ])
         )
         .optional()
@@ -305,6 +309,18 @@ export const ClientTools = {
             .number()
             .optional()
             .describe("Disk usage critical threshold as percentage (default: 90)."),
+          cpu_cores_used_warning: z
+            .number()
+            .optional()
+            .describe(
+              "ClickHouse CPU activity warning threshold in cores-used (delta-rate proxy over recent 15m, default: 4)."
+            ),
+          cpu_cores_used_critical: z
+            .number()
+            .optional()
+            .describe(
+              "ClickHouse CPU activity critical threshold in cores-used (delta-rate proxy over recent 15m, default: 8)."
+            ),
           replication_lag_warning_seconds: z
             .number()
             .optional()
@@ -321,6 +337,16 @@ export const ClientTools = {
             .number()
             .optional()
             .describe("Per-table part count critical threshold (default: 1000)."),
+          query_p95_warning_ms: z
+            .number()
+            .optional()
+            .describe("Query performance warning threshold for p95 latency in ms (default: 1000)."),
+          query_p95_critical_ms: z
+            .number()
+            .optional()
+            .describe(
+              "Query performance critical threshold for p95 latency in ms (default: 3000)."
+            ),
         })
         .optional()
         .describe("Optional override thresholds used to classify WARNING vs CRITICAL."),
@@ -335,12 +361,14 @@ export const ClientTools = {
               "replication",
               "disk",
               "memory",
+              "cpu",
               "merges",
               "mutations",
               "parts",
               "errors",
               "connections",
               "query_latency",
+              "query_performance",
             ])
             .optional()
             .describe(
@@ -402,12 +430,14 @@ export const ClientTools = {
             "replication",
             "disk",
             "memory",
+            "cpu",
             "merges",
             "mutations",
             "parts",
             "errors",
             "connections",
             "query_latency",
+            "query_performance",
           ]),
           time_window: z.number().optional(),
           time_range: z
@@ -478,6 +508,46 @@ export const ClientTools = {
         })
         .optional()
         .describe("Absolute time range. If provided, takes precedence over time_window."),
+      thresholds: z
+        .object({
+          high_query_latency: z
+            .object({
+              avg_read_rows_gte: z.number().optional(),
+              avg_read_bytes_gte: z.number().optional(),
+              p99_latency_ms_gte: z.number().optional(),
+              active_merges_gt: z.number().optional(),
+              max_merge_elapsed_seconds_gt: z.number().optional(),
+              p95_latency_ms_gte: z.number().optional(),
+              memory_used_percent_gte: z.number().optional(),
+              avg_query_memory_bytes_gte: z.number().optional(),
+            })
+            .optional(),
+          high_part_count: z
+            .object({
+              inserts_per_minute_gt: z.number().optional(),
+              avg_rows_per_insert_lt: z.number().optional(),
+              total_active_parts_gt: z.number().optional(),
+              active_merges_gt: z.number().optional(),
+              max_merge_elapsed_seconds_gt: z.number().optional(),
+              distinct_partitions_gt: z.number().optional(),
+              partition_to_parts_ratio_gt: z.number().optional(),
+              max_parts_per_partition_gt: z.number().optional(),
+              related_symptom_distinct_partitions_gte: z.number().optional(),
+              related_symptom_signal_strength_gte: z.number().optional(),
+            })
+            .optional(),
+          high_partition_count: z
+            .object({
+              partition_count_gt: z.number().optional(),
+              recent_partitions_gt: z.number().optional(),
+              partition_to_parts_ratio_gt: z.number().optional(),
+              avg_rows_per_insert_lt: z.number().optional(),
+              unbounded_growth_partition_count_gt: z.number().optional(),
+            })
+            .optional(),
+        })
+        .optional()
+        .describe("Optional RCA threshold overrides. Any omitted field uses built-in defaults."),
       status_context: z
         .object({
           generated_at: z
@@ -540,6 +610,41 @@ export const ClientTools = {
           source: z.string(),
           description: z.string(),
           metrics: z.record(z.union([z.number(), z.string(), z.null()])),
+          partition_key_columns: z
+            .array(
+              z.object({
+                name: z.string(),
+                data_type: z.string(),
+                sample_value: z.union([z.number(), z.string(), z.null()]),
+                sample_values: z.array(z.union([z.number(), z.string(), z.null()])).optional(),
+              })
+            )
+            .optional(),
+          scope_summary: z
+            .object({
+              level: z.enum(["cluster", "node", "table"]),
+              aggregation_semantics: z.enum(["additive", "ratio", "quantile", "inventory"]),
+              cluster_aggregation: z.string().optional(),
+            })
+            .optional(),
+          top_nodes: z
+            .array(
+              z.object({
+                node: z.string(),
+                metrics: z.record(z.union([z.number(), z.string(), z.null()])),
+              })
+            )
+            .optional(),
+          nodes_over_threshold: z
+            .array(
+              z.object({
+                node: z.string(),
+                metric: z.string(),
+                value: z.number(),
+                threshold: z.number(),
+              })
+            )
+            .optional(),
         })
       ),
       candidates: z.array(

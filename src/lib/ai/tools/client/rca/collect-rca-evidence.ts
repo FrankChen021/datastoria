@@ -3,6 +3,7 @@ import type { ToolExecutor, ToolProgressCallback } from "../client-tool-types";
 import {
   buildTimeFilter,
   isStatusContextReusable,
+  resolveRcaThresholds,
   resolveScope,
   runScenarioEvidence,
   type CanonicalSymptom,
@@ -13,16 +14,15 @@ import {
   type SymptomContext,
   type SymptomHandler,
 } from "./collect-rca-evidence-common";
-import { collectUnknownEvidence } from "./collect-rca-evidence-default";
-import { HIGH_PART_COUNT_SCENARIO } from "./collect-rca-evidence-high-part";
-import { HIGH_PARTITION_COUNT_SCENARIO } from "./collect-rca-evidence-high-partition";
+import { handleHighPartCount } from "./collect-rca-evidence-high-part";
+import { handleHighPartitionCount } from "./collect-rca-evidence-high-partition";
 import { HIGH_QUERY_LATENCY_SCENARIO } from "./collect-rca-evidence-high-query-latency";
+import { collectUnknownEvidence } from "./collect-rca-evidence-unknown";
 
 const SYMPTOM_HANDLERS: Partial<Record<CanonicalSymptom, SymptomHandler>> = {
   high_query_latency: async (context) => runScenarioEvidence(context, HIGH_QUERY_LATENCY_SCENARIO),
-  high_part_count: async (context) => runScenarioEvidence(context, HIGH_PART_COUNT_SCENARIO),
-  high_partition_count: async (context) =>
-    runScenarioEvidence(context, HIGH_PARTITION_COUNT_SCENARIO),
+  high_part_count: handleHighPartCount,
+  high_partition_count: handleHighPartitionCount,
   unknown: collectUnknownEvidence,
 };
 
@@ -70,6 +70,7 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
       scope: resolvedScope,
       target: input.target,
       symptomText: input.symptom_text,
+      thresholds: resolveRcaThresholds(input.thresholds),
       timeFilter: filter,
       timeWindowMinutes: minutes,
       gaps,
