@@ -26,4 +26,9 @@ export class StringUtils {
     }
     return true;
   }
+
+  public static indexOfIgnoreCase(text: string, search: string): number {
+    if (!search) return -1;
+    return text.toLowerCase().indexOf(search.toLowerCase());
+  }
 }

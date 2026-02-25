@@ -32,6 +32,7 @@ const PROVIDER_LINKS: Record<string, string> = {
   OpenRouter: "https://openrouter.ai/settings/keys",
   Groq: "https://console.groq.com/keys",
   Cerebras: "https://cloud.cerebras.ai/platform",
+  Nebius: "https://tokenfactory.nebius.com/",
 };
 
 export function ModelsEdit() {

@@ -1,6 +1,79 @@
 import { format as formatSQL } from "sql-formatter";
 
+export interface ResolveExecutionSqlInput {
+  selectedText: string;
+  text: string;
+  cursorRow: number;
+  cursorColumn: number;
+}
+
+export type SqlStatementSplitter = "semicolon" | "newline" | "custom";
+export interface SqlCustomSplitterOptions {
+  value: string;
+  isRegex: boolean;
+}
+
 export class SqlUtils {
+  /**
+   * Resolve which SQL should run from editor context.
+   * - If text is selected, run selected text.
+   * - Otherwise run current cursor line.
+   */
+  public static resolveExecutionSql(input: ResolveExecutionSqlInput): string {
+    const selected = input.selectedText.trim();
+    if (selected.length > 0) {
+      return selected;
+    }
+
+    const allText = input.text;
+    if (allText.trim().length === 0) {
+      return "";
+    }
+
+    const lines = allText.split("\n");
+    if (lines.length === 0) {
+      return "";
+    }
+
+    const row = Math.max(0, Math.min(input.cursorRow, lines.length - 1));
+    return (lines[row] || "").trim();
+  }
+
+  /**
+   * Split SQL script text into executable statements.
+   *
+   * Strategy:
+   * - `semicolon`: semicolon-aware split (ignores semicolons inside quotes/comments).
+   * - `newline`: split by non-empty lines.
+   *
+   * Examples:
+   * - splitSqlStatements("SELECT 1; SELECT 2;", "semicolon") -> ["SELECT 1;", "SELECT 2;"]
+   * - splitSqlStatements("SELECT 1\nSELECT 2", "newline") -> ["SELECT 1", "SELECT 2"]
+   */
+  public static splitSqlStatements(
+    text: string,
+    splitter: SqlStatementSplitter = "semicolon",
+    customSplitter?: SqlCustomSplitterOptions
+  ): string[] {
+    text = text.trim();
+    if (text.length === 0) {
+      return [];
+    }
+
+    if (splitter === "newline") {
+      return text
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+    }
+
+    if (splitter === "custom") {
+      return SqlUtils.splitByCustom(text, customSplitter);
+    }
+
+    return SqlUtils.splitBySemicolon(text);
+  }
+
   /**
    * Format SQL query for pretty-printing using sql-formatter.
    */
@@ -143,5 +216,137 @@ export class SqlUtils {
     }
 
     return result;
+  }
+
+  private static splitBySemicolon(sql: string): string[] {
+    const statements: string[] = [];
+    let statementStart = 0;
+
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+    let inBacktick = false;
+    let inLineComment = false;
+    let inBlockComment = false;
+
+    const pushStatement = (start: number, end: number) => {
+      const part = sql.slice(start, end).trim();
+      if (part.length > 0) {
+        statements.push(part);
+      }
+    };
+
+    // Single-pass scanner for statement boundaries while tracking SQL lexical states.
+    for (let i = 0; i < sql.length; i++) {
+      const ch = sql[i];
+      const next = i + 1 < sql.length ? sql[i + 1] : "";
+
+      if (inLineComment) {
+        if (ch === "\n") {
+          inLineComment = false;
+        }
+        continue;
+      }
+
+      if (inBlockComment) {
+        if (ch === "*" && next === "/") {
+          inBlockComment = false;
+          i++;
+        }
+        continue;
+      }
+
+      if (inSingleQuote) {
+        if (ch === "'" && next === "'") {
+          i++;
+          continue;
+        }
+        if (ch === "'") {
+          inSingleQuote = false;
+        }
+        continue;
+      }
+
+      if (inDoubleQuote) {
+        if (ch === '"' && next === '"') {
+          i++;
+          continue;
+        }
+        if (ch === '"') {
+          inDoubleQuote = false;
+        }
+        continue;
+      }
+
+      if (inBacktick) {
+        if (ch === "`" && next === "`") {
+          i++;
+          continue;
+        }
+        if (ch === "`") {
+          inBacktick = false;
+        }
+        continue;
+      }
+
+      if (ch === "-" && next === "-") {
+        inLineComment = true;
+        i++;
+        continue;
+      }
+
+      if (ch === "/" && next === "*") {
+        inBlockComment = true;
+        i++;
+        continue;
+      }
+
+      if (ch === "'") {
+        inSingleQuote = true;
+        continue;
+      }
+
+      if (ch === '"') {
+        inDoubleQuote = true;
+        continue;
+      }
+
+      if (ch === "`") {
+        inBacktick = true;
+        continue;
+      }
+
+      if (ch === ";") {
+        pushStatement(statementStart, i);
+        statementStart = i + 1;
+      }
+    }
+
+    pushStatement(statementStart, sql.length);
+    return statements;
+  }
+
+  private static splitByCustom(sql: string, customSplitter?: SqlCustomSplitterOptions): string[] {
+    const splitterValue = customSplitter?.value ?? "";
+    if (splitterValue.trim().length === 0) {
+      return [sql];
+    }
+
+    if (splitterValue === ";") {
+      return SqlUtils.splitBySemicolon(sql);
+    }
+
+    try {
+      const pattern = customSplitter?.isRegex
+        ? new RegExp(splitterValue)
+        : new RegExp(splitterValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+
+      return sql
+        .split(pattern)
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0);
+    } catch {
+      // Invalid custom regex should not break flow; keep as single statement.
+      return [sql];
+    }
   }
 }

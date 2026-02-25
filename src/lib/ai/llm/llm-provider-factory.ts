@@ -3,11 +3,12 @@ import { createCerebras } from "@ai-sdk/cerebras";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createGitHubCopilotOpenAICompatible } from "@opeoginni/github-copilot-openai-compatible";
 import type { LanguageModel } from "ai";
 import { mockModel } from "./models.mock";
-import { PROVIDER_GITHUB_COPILOT } from "./provider-ids";
+import { PROVIDER_GITHUB_COPILOT, PROVIDER_NEBIUS } from "./provider-ids";
 
 /**
  * Check if mock mode is enabled
@@ -69,6 +70,12 @@ export const CREATORS: Record<string, ModelCreator> = {
       },
     })(modelId);
   },
+  [PROVIDER_NEBIUS]: (modelId, apiKey) =>
+    createOpenAICompatible({
+      name: "nebius",
+      apiKey,
+      baseURL: "https://api.tokenfactory.nebius.com/v1/",
+    })(modelId),
 };
 
 /**
@@ -250,6 +257,59 @@ export const MODELS: ModelProps[] = [
     autoSelectable: true,
     description: "Cerebras's latest model with extreme intelligence and reliability.",
   },
+
+  // Nebius models
+  // https://studio.nebius.ai/
+  {
+    provider: PROVIDER_NEBIUS,
+    modelId: "deepseek-ai/DeepSeek-V3-0324",
+    free: false,
+    autoSelectable: true,
+    description: "DeepSeek V3, powerful open-source model with strong reasoning.",
+  },
+  {
+    provider: PROVIDER_NEBIUS,
+    modelId: "deepseek-ai/DeepSeek-R1-0528",
+    free: false,
+    autoSelectable: true,
+    description: "DeepSeek R1, advanced reasoning model with chain-of-thought.",
+  },
+  {
+    provider: PROVIDER_NEBIUS,
+    modelId: "Qwen/Qwen3-235B-A22B",
+    free: false,
+    autoSelectable: true,
+    description: "Qwen 3 235B, largest Qwen model for complex tasks.",
+  },
+  {
+    provider: PROVIDER_NEBIUS,
+    modelId: "Qwen/Qwen3-Next-80B-A3B-Thinking",
+    free: false,
+    autoSelectable: true,
+    description: "Qwen3-Next-80B-A3B-Thinking, efficient reasoning model.",
+  },
+  {
+    provider: PROVIDER_NEBIUS,
+    modelId: "zai-org/GLM-4.7-FP8",
+    free: false,
+    autoSelectable: true,
+    description:
+      "Flagship GLM model with strong multilingual reasoning, long context, and robust tool use.",
+  },
+  {
+    provider: PROVIDER_NEBIUS,
+    modelId: "moonshotai/Kimi-K2.5",
+    free: false,
+    autoSelectable: true,
+    description: "Kimi-K2.5, 15 trillion mixed visual and text tokens atop Kimi-K2-Base",
+  },
+  {
+    provider: PROVIDER_NEBIUS,
+    modelId: "openai/gpt-oss-120b",
+    free: false,
+    autoSelectable: true,
+    description: "GPT-OSS 120B, open-source GPT model with strong general capabilities.",
+  },
 ];
 
 /**
@@ -282,7 +342,7 @@ export class LanguageModelProviderFactory {
    * @throws Error if no API key is configured
    */
   static autoSelectModel(): { provider: string; modelId: string; apiKey: string } {
-    // Priority order: OpenAI > Google > Anthropic > OpenRouter > Groq
+    // Priority order: OpenAI > Google > Anthropic > OpenRouter > Groq > Cerebras > Nebius
     const providerConfigs = [
       { provider: "OpenAI", apiKey: process.env.OPENAI_API_KEY },
       { provider: "Google", apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY },
@@ -290,6 +350,7 @@ export class LanguageModelProviderFactory {
       { provider: "OpenRouter", apiKey: process.env.OPENROUTER_API_KEY },
       { provider: "Groq", apiKey: process.env.GROQ_API_KEY },
       { provider: "Cerebras", apiKey: process.env.CEREBRAS_API_KEY },
+      { provider: PROVIDER_NEBIUS, apiKey: process.env.NEBIUS_API_KEY },
     ];
 
     // Find the first provider with an available API key

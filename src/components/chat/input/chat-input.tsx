@@ -87,27 +87,56 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const tableSuggestions = React.useMemo((): ChatInputSuggestionItem[] => {
       if (!connection?.metadata?.tableNames) return [];
       return Array.from(connection.metadata.tableNames.values()).map((tableInfo) => {
-        const name = `${tableInfo.database}.${tableInfo.table}`;
+        const database = tableInfo.database || "";
+        const table = tableInfo.table || "";
+        const engine = tableInfo.engine || "";
+
+        const description = (
+          <div className="space-y-3 text-xs">
+            <div>
+              <div className="text-muted-foreground mb-0.5">Database</div>
+              <div className="text-foreground whitespace-pre-wrap break-all">{database || "-"}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground mb-0.5">Table</div>
+              <div className="text-foreground whitespace-pre-wrap break-all">{table}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground mb-0.5">Engine</div>
+              <div className="text-foreground whitespace-pre-wrap break-all">{engine || "-"}</div>
+            </div>
+            {tableInfo.comment ? (
+              <div>
+                <div className="text-muted-foreground mb-0.5">Comment</div>
+                <div className="text-foreground whitespace-pre-wrap break-all">
+                  {tableInfo.comment}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        );
+
         return {
-          name,
+          name: table,
           type: "table",
-          description: tableInfo.comment,
-          search: name.toLowerCase(),
-          badge: tableInfo.engine || undefined,
-        } as ChatInputSuggestionItem;
+          description,
+          search: table,
+          group: database || "Global",
+        } satisfies ChatInputSuggestionItem;
       });
     }, [connection?.metadata?.tableNames]);
 
     const handleSelectTable = React.useCallback(
-      (tableName: string) => {
+      (group: string, tableName: string) => {
+        const fullName = `${group}.${tableName}`;
         const beforeMention = input.substring(0, suggestionStartPos);
         const afterMention = input.substring(textareaRef.current?.selectionStart || input.length);
-        const newText = beforeMention + `@${tableName} ` + afterMention;
+        const newText = beforeMention + `@${fullName} ` + afterMention;
         setInput(newText);
         suggestionRef.current?.close();
 
         setTimeout(() => {
-          const newCursorPos = suggestionStartPos + tableName.length + 2;
+          const newCursorPos = suggestionStartPos + fullName.length + 2;
           if (textareaRef.current) {
             textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
             textareaRef.current.focus();
@@ -208,7 +237,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             onChange={handleInputChange}
             placeholder={`Press Enter to send, ${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"} + Enter for new line. Use @ to mention tables.`}
             aria-label="Chat input. Press Enter to send, use Cmd/Ctrl + Enter for new line. Use @ to mention tables."
-            className="w-full min-h-[44px] max-h-[200px] resize-none border-0 bg-transparent py-3 pl-3 pr-10 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 overflow-y-auto"
+            className="w-full min-h-[80px] max-h-[200px] resize-none border-0 bg-transparent py-3 pl-3 pr-10 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 overflow-y-auto"
             disabled={isRunning}
             onKeyDown={handleKeyDown}
           />

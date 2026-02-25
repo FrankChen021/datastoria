@@ -37,9 +37,43 @@ You can execute only a portion of your query:
 3. **Results**: Only the selected portion is executed
 
 This is useful for:
+
 - Testing individual parts of complex queries
 - Debugging specific query sections
 - Running queries incrementally
+
+### Executing multiple SQL statements
+
+DataStoria supports running SQL in batch mode with explicit confirmation.
+
+#### Batch entry points
+
+- **Run Batch SQLs** (from the run dropdown): Opens the batch confirmation dialog.
+- Batch source uses:
+  - **Selected text** if text is selected in the editor
+  - otherwise **full editor text**
+
+#### Splitter options
+
+In the confirmation dialog, SQL is split into statements using one of these splitter modes:
+
+- **Semicolon (`;`)**: SQL-aware splitting (ignores semicolons inside strings/comments)
+- **Newline**: Splits by non-empty lines
+- **Custom**: User-defined delimiter with optional **RE** (regular expression) mode
+
+You can review the split results in a table before execution and choose which statements to run.
+
+#### Failure mode
+
+Before execution, choose how batch failures are handled:
+
+- **Abort on first failure**: stop the batch immediately when a statement fails
+- **Continue on failure**: continue running remaining statements
+
+#### Single-SQL vs batch behavior
+
+- **Run Selected Text / Run Current Line** (`Ctrl+Enter` / `Command+Enter`) executes as a single SQL.
+- **Run Batch SQLs** always opens confirmation and runs as a batch after split + selection confirmation.
 
 ## Viewing Results
 
@@ -51,7 +85,7 @@ DataStoria by default uses ClickHouse's PrettyCompactMonoBlock format, but you c
 
 - **PrettyCompactMonoBlock**: Formatted text table with row numbers
 - **Best for**: Human-readable results, small to medium datasets
-- **Features**: 
+- **Features**:
   - Row numbers
   - Formatted numbers and dates
   - Scrollable table
@@ -125,7 +159,6 @@ For each query, you can view:
 - **Memory Used**: Memory consumption during execution
 - **Query ID**: ClickHouse query ID for server-side tracking
 
-
 ## Limitations
 
 - **Result Size**: Very large result sets may impact browser performance
@@ -138,4 +171,3 @@ For each query, you can view:
 - **[Query Explain](./query-explain.md)** — Understand query execution plans
 - **[Error Diagnostics](./error-diagnostics.md)** — Learn how to diagnose and fix errors
 - **[Query Log Inspector](./query-log-inspector.md)** — Analyze query performance and history
-
