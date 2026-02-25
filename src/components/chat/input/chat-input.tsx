@@ -87,14 +87,51 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const tableSuggestions = React.useMemo((): ChatInputSuggestionItem[] => {
       if (!connection?.metadata?.tableNames) return [];
       return Array.from(connection.metadata.tableNames.values()).map((tableInfo) => {
-        const name = `${tableInfo.database}.${tableInfo.table}`;
+        const database = tableInfo.database || "";
+        const table = tableInfo.table || "";
+        const engine = tableInfo.engine || "";
+        const name = `${database}.${table}`;
+
+        const search = `${name} ${database} ${table} ${engine} ${tableInfo.comment || ""}`.toLowerCase();
+
+        const description = (
+          <div className="space-y-3 text-xs font-mono">
+            <div>
+              <div className="text-muted-foreground mb-0.5">Database</div>
+              <div className="text-foreground whitespace-pre-wrap break-all">
+                {database || "-"}
+              </div>
+            </div>
+            <div>
+              <div className="text-muted-foreground mb-0.5">Table</div>
+              <div className="text-foreground whitespace-pre-wrap break-all">{name}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground mb-0.5">Engine</div>
+              <div className="text-foreground whitespace-pre-wrap break-all">
+                {engine || "-"}
+              </div>
+            </div>
+            {tableInfo.comment ? (
+              <div>
+                <div className="text-muted-foreground mb-0.5">Comment</div>
+                <div className="text-foreground whitespace-pre-wrap break-all">
+                  {tableInfo.comment}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        );
+
         return {
           name,
           type: "table",
-          description: tableInfo.comment,
-          search: name.toLowerCase(),
-          badge: tableInfo.engine || undefined,
-        } as ChatInputSuggestionItem;
+          description,
+          search,
+          badge: engine || undefined,
+          group: database || "Global",
+          tableName: table || name,
+        } satisfies ChatInputSuggestionItem;
       });
     }, [connection?.metadata?.tableNames]);
 

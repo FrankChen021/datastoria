@@ -16,9 +16,11 @@ import * as React from "react";
 export interface ChatInputSuggestionItem {
   name: string;
   type: string;
-  description: string;
+  description: React.ReactNode;
   search: string;
   badge?: string;
+  group: string;
+  tableName: string;
 }
 
 export interface ChatInputSuggestionsType {
@@ -44,9 +46,24 @@ export const ChatInputSuggestions = React.memo(
       const [searchQuery, setSearchQuery] = React.useState("");
       const activeItemRef = React.useRef<HTMLDivElement>(null);
 
-      const filteredSuggestions = React.useMemo(() => {
+      const { flatSuggestions, groupedSuggestions } = React.useMemo(() => {
         const lowerQuery = searchQuery.toLowerCase();
-        return allSuggestions.filter((t) => t.search.includes(lowerQuery)).slice(0, 100);
+        const filtered = allSuggestions.filter((t) => t.search.includes(lowerQuery)).slice(0, 100);
+
+        const flatSuggestions: (ChatInputSuggestionItem & { globalIndex: number })[] = [];
+        const groupedSuggestions: Record<string, (ChatInputSuggestionItem & { globalIndex: number })[]> = {};
+
+        let globalIndex = 0;
+        for (const table of filtered) {
+          const group = table.group || "Global";
+          if (!groupedSuggestions[group]) groupedSuggestions[group] = [];
+          const item = { ...table, globalIndex };
+          flatSuggestions.push(item);
+          groupedSuggestions[group].push(item);
+          globalIndex++;
+        }
+
+        return { flatSuggestions, groupedSuggestions };
       }, [allSuggestions, searchQuery]);
 
       React.useImperativeHandle(ref, () => ({
@@ -58,7 +75,7 @@ export const ChatInputSuggestions = React.memo(
         close: () => setOpen(false),
         isOpen: () => open,
         getSelectedIndex: () => activeIndex,
-        getSuggestions: () => filteredSuggestions,
+        getSuggestions: () => flatSuggestions,
         handleKeyDown: (e: React.KeyboardEvent) => {
           if (!open) return false;
 
@@ -67,23 +84,23 @@ export const ChatInputSuggestions = React.memo(
             return true;
           }
 
-          if (filteredSuggestions.length > 0) {
+          if (flatSuggestions.length > 0) {
             if (e.key === "ArrowDown") {
-              setActiveIndex((prev) => (prev + 1) % filteredSuggestions.length);
+              setActiveIndex((prev) => (prev + 1) % flatSuggestions.length);
               e.preventDefault();
               e.stopPropagation();
               return true;
             }
             if (e.key === "ArrowUp") {
               setActiveIndex(
-                (prev) => (prev - 1 + filteredSuggestions.length) % filteredSuggestions.length
+                (prev) => (prev - 1 + flatSuggestions.length) % flatSuggestions.length
               );
               e.preventDefault();
               e.stopPropagation();
               return true;
             }
             if (e.key === "PageDown") {
-              setActiveIndex((prev) => Math.min(prev + 8, filteredSuggestions.length - 1));
+              setActiveIndex((prev) => Math.min(prev + 8, flatSuggestions.length - 1));
               e.preventDefault();
               e.stopPropagation();
               return true;
@@ -95,7 +112,7 @@ export const ChatInputSuggestions = React.memo(
               return true;
             }
             if (e.key === "Enter" && !e.shiftKey) {
-              onSelect(filteredSuggestions[activeIndex].name);
+              onSelect(flatSuggestions[activeIndex].name);
               return true;
             }
           }
@@ -120,7 +137,7 @@ export const ChatInputSuggestions = React.memo(
         [onSelect]
       );
 
-      const description = filteredSuggestions[activeIndex]?.description;
+      const description = flatSuggestions[activeIndex]?.description;
 
       return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -143,44 +160,54 @@ export const ChatInputSuggestions = React.memo(
               <div
                 data-panel="left"
                 className={cn(
-                  "flex flex-col border shadow-md w-[350px] bg-popover overflow-x-auto rounded-sm",
+                  "flex flex-col border shadow-md w-[350px] bg-popover rounded-sm",
                   description && "rounded-r-none"
                 )}
               >
                 <Command
                   className="flex-1 rounded-none border-0 shadow-none bg-transparent"
-                  value={filteredSuggestions[activeIndex]?.name}
+                  value={flatSuggestions[activeIndex]?.name}
                   shouldFilter={false}
                 >
-                  <CommandList className="flex-1 overflow-y-auto overflow-x-auto">
+                  <CommandList className="flex-1 overflow-y-auto py-2">
                     <CommandEmpty>No items found</CommandEmpty>
-                    {filteredSuggestions.length > 0 && (
-                      <CommandGroup heading="Tables" className="min-w-fit">
-                        {filteredSuggestions.map((table, index) => (
-                          <CommandItem
-                            key={table.name}
-                            value={table.name}
-                            onSelect={() => handleSelect(table.name)}
-                            onMouseEnter={() => setActiveIndex(index)}
-                            className={cn(
-                              "py-1 flex items-center gap-2 cursor-pointer hover:bg-accent hover:text-accent-foreground min-w-fit",
-                              index === activeIndex && "bg-accent text-accent-foreground"
-                            )}
-                            ref={index === activeIndex ? activeItemRef : null}
-                          >
-                            <span>{TextHighlighter.highlight(table.name, searchQuery)}</span>
-                            {table.badge && (
-                              <Badge
-                                variant="outline"
-                                className="text-muted-foreground text-[10px] rounded-none px-1 py-0 border-0"
+                    {flatSuggestions.length > 0 &&
+                      Object.entries(groupedSuggestions).map(([group, tables]) => (
+                        <CommandGroup
+                          key={group}
+                          heading={group}
+                          className="py-0 [&_[cmdk-group-heading]]:py-1"
+                        >
+                          {tables.map((table) => {
+                            const isSelected = table.globalIndex === activeIndex;
+                            return (
+                              <CommandItem
+                                key={table.name}
+                                value={table.name}
+                                onSelect={() => handleSelect(table.name)}
+                                onMouseEnter={() => setActiveIndex(table.globalIndex)}
+                                className={cn(
+                                  "py-1 pl-6 flex w-full items-center gap-2 cursor-pointer hover:bg-accent hover:text-accent-foreground",
+                                  isSelected && "bg-accent text-accent-foreground"
+                                )}
+                                ref={isSelected ? activeItemRef : null}
                               >
-                                {table.badge}
-                              </Badge>
-                            )}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    )}
+                                <span className="flex-1 min-w-0 truncate">
+                                  {TextHighlighter.highlight(table.tableName, searchQuery)}
+                                </span>
+                                {table.badge && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-muted-foreground text-[10px] rounded-none px-1 py-0 border-0"
+                                  >
+                                    {table.badge}
+                                  </Badge>
+                                )}
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      ))}
                   </CommandList>
                 </Command>
               </div>
@@ -188,9 +215,9 @@ export const ChatInputSuggestions = React.memo(
               {description && (
                 <div
                   data-panel="right"
-                  className="w-[350px] overflow-y-auto p-2 bg-popover border border-l-0 shadow-md rounded-md rounded-l-none"
+                  className="w-[350px] overflow-y-auto overflow-x-hidden p-2 bg-popover border border-l-0 shadow-md rounded-md rounded-l-none"
                 >
-                  <div className="text-sm text-foreground">{description}</div>
+                  {description}
                 </div>
               )}
             </div>
