@@ -90,9 +90,6 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         const database = tableInfo.database || "";
         const table = tableInfo.table || "";
         const engine = tableInfo.engine || "";
-        const name = `${database}.${table}`;
-
-        const search = `${name} ${database} ${table} ${engine} ${tableInfo.comment || ""}`.toLowerCase();
 
         const description = (
           <div className="space-y-3 text-xs">
@@ -104,7 +101,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             </div>
             <div>
               <div className="text-muted-foreground mb-0.5">Table</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">{name}</div>
+              <div className="text-foreground whitespace-pre-wrap break-all">{table}</div>
             </div>
             <div>
               <div className="text-muted-foreground mb-0.5">Engine</div>
@@ -124,13 +121,11 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         );
 
         return {
-          name,
+          name: table,
           type: "table",
           description,
-          search,
-          badge: engine || undefined,
+          search: table,
           group: database || "Global",
-          tableName: table || name,
         } satisfies ChatInputSuggestionItem;
       });
     }, [connection?.metadata?.tableNames]);

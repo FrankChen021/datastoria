@@ -20,7 +20,6 @@ export interface ChatInputSuggestionItem {
   search: string;
   badge?: string;
   group: string;
-  tableName: string;
 }
 
 export interface ChatInputSuggestionsType {
