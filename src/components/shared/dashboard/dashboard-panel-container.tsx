@@ -564,6 +564,9 @@ const DashboardPanelContainer = forwardRef<
                                   }`}
                                 />
                                 <h3 className="text-md font-semibold">{group.title}</h3>
+                                <span className="text-xs text-muted-foreground">
+                                  &nbsp;({group.charts.length} panels)
+                                </span>
                               </div>
                             </div>
 
