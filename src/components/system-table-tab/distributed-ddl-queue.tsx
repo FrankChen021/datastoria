@@ -609,6 +609,7 @@ const ddlQueueDashboard: Dashboard = {
         sql: `
 SELECT 
     toStartOfInterval(query_create_time, INTERVAL {rounding:UInt32} SECOND)::INT as t,
+    host,
     count() AS query_count
 FROM system.distributed_ddl_queue
 WHERE
