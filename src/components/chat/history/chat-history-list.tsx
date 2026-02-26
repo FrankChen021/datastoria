@@ -114,7 +114,7 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
             <span
               className={`text-[11px] truncate ${isSelected ? "font-semibold" : "font-medium"}`}
             >
-              {TextHighlighter.highlight(item.title!, searchQuery)}
+              {TextHighlighter.highlight(item.title ?? "New Conversation", searchQuery)}
             </span>
           )}
         </div>
