@@ -1,5 +1,41 @@
 [
   {
+    "id": "2782c3e",
+    "date": "2026-02-26T14:03:20.199Z",
+    "notes": [
+      {
+        "text": "Show panel count in dashboard group heading",
+        "pr": 67,
+        "type": "feature",
+        "merged_at": "2026-02-26T12:16:29Z"
+      },
+      {
+        "text": "Add cluster health network and system dashboards",
+        "pr": 71,
+        "type": "feature",
+        "merged_at": "2026-02-26T13:40:52Z"
+      },
+      {
+        "text": "Fix crash when openning the history list",
+        "pr": 66,
+        "type": "fix",
+        "merged_at": "2026-02-26T12:15:45Z"
+      },
+      {
+        "text": "Fix wrong filter applied in distributed DDL queue view",
+        "pr": 68,
+        "type": "fix",
+        "merged_at": "2026-02-26T12:18:13Z"
+      },
+      {
+        "text": "Fix for \"useQueryExecutor must be used within a QueryExecutionProvide…",
+        "pr": 70,
+        "type": "fix",
+        "merged_at": "2026-02-26T13:55:04Z"
+      }
+    ]
+  },
+  {
     "id": "0947e25",
     "date": "2026-02-25T15:59:48.961Z",
     "notes": [
