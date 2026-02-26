@@ -450,3 +450,11 @@ export function useQueryExecutor() {
   }
   return context;
 }
+
+/**
+ * Optional version of useQueryExecutor that returns null when used outside QueryExecutionProvider.
+ * Use this when the component can work in both contexts (e.g., QueryResponseView in chat vs query tab).
+ */
+export function useQueryExecutorOptional() {
+  return useContext(QueryExecutionContext);
+}
