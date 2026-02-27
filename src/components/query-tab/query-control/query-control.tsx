@@ -59,7 +59,7 @@ export function QueryControl({ onOpenHistory }: { onOpenHistory: () => void }) {
       if (rawSQL.length === 0) {
         return;
       }
-      const viewType = type === "plan-indexes" || type === "plan-actions" ? "plan" : type;
+      const viewType = type === "plan" ? "plan" : type;
       executeQuery(explainSQL, rawSQL, { view: viewType });
     },
     [selectedText, text, cursorRow, cursorColumn, executeQuery]
@@ -139,11 +139,8 @@ export function QueryControl({ onOpenHistory }: { onOpenHistory: () => void }) {
             <DropdownMenuItem onClick={() => handleExplain("syntax")}>
               Explain Syntax
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExplain("plan-indexes")}>
-              Explain Plan (indexes)
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExplain("plan-actions")}>
-              Explain Plan (actions)
+            <DropdownMenuItem onClick={() => handleExplain("plan")}>
+              Explain Plan
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleExplain("pipeline")}>
               Explain Pipeline

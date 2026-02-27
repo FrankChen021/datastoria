@@ -111,10 +111,8 @@ export class SqlUtils {
     let explainSQL: string;
     if (type === "pipeline") {
       explainSQL = `EXPLAIN pipeline graph = 1\n${rawSQL}`;
-    } else if (type === "plan-indexes") {
-      explainSQL = `EXPLAIN plan indexes = 1\n${rawSQL}`;
-    } else if (type === "plan-actions") {
-      explainSQL = `EXPLAIN plan actions = 1\n${rawSQL}`;
+    } else if (type === "plan") {
+      explainSQL = `EXPLAIN plan json = 1, indexes = 1, actions = 1\n${rawSQL}`;
     } else {
       explainSQL = `EXPLAIN ${type}\n${rawSQL}`;
     }

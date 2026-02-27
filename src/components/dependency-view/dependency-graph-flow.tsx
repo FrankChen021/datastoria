@@ -36,6 +36,7 @@ interface DependencyGraphFlowProps {
   style?: React.CSSProperties;
   database: string; // Database name for unique ID generation
   highlightedTableId?: string; // Optional: ID of table to highlight (for table-specific views)
+  fullscreenTargetRef?: React.RefObject<HTMLElement | null>;
 }
 
 // Custom node component for table nodes
@@ -410,6 +411,7 @@ const DependencyGraphFlowInner = ({
   style,
   database,
   highlightedTableId,
+  fullscreenTargetRef,
 }: DependencyGraphFlowProps) => {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -787,7 +789,7 @@ const DependencyGraphFlowInner = ({
           onFocusFirstMatch={handleFocusFirstMatch}
           onNextMatch={handleNextMatch}
           onPreviousMatch={handlePreviousMatch}
-          containerRef={containerRef}
+          containerRef={fullscreenTargetRef ?? containerRef}
           onZoomIn={() => zoomIn()}
           onZoomOut={() => zoomOut()}
           onFitView={() => fitView({ padding: 0.2 })}

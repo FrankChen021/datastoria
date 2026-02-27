@@ -7,8 +7,7 @@ The Query Explain feature helps you understand how ClickHouse executes your quer
 Query Explain provides multiple ways to understand query execution:
 
 - **EXPLAIN SYNTAX**: Displays the result of syntax checking
-- **EXPLAIN PLAN (Indexes)**: Shows the query execution plan with index usage
-- **EXPLAIN PLAN (Actions)**: Shows the logical execution plan with optimization information
+- **EXPLAIN PLAN**: Shows the unified execution plan with graph, tree, index, and action details
 - **EXPLAIN PIPELINE**: Visualizes the execution pipeline
 - **EXPLAIN AST**: Displays the abstract syntax tree
 - **EXPLAIN ESTIMATE**: Provides simplified statistics about data to be read
@@ -68,45 +67,49 @@ This feature is useful for:
 
 For more detailed information, refer to the [ClickHouse official documentation](https://clickhouse.com/docs/en/sql-reference/statements/explain#explain-syntax) on this feature.
 
-## EXPLAIN PLAN (Indexes)
+## EXPLAIN PLAN
 
-The `EXPLAIN PLAN (Indexes)` feature sends an `EXPLAIN PLAN indexes=1` statement to ClickHouse to analyze how your query leverages:
+The `EXPLAIN PLAN` feature sends the following statement to ClickHouse:
 
-- **Primary Keys**: How the primary key is used for filtering
-- **Partitions**: Whether partition pruning is applied
-- **Projections**: If projections are utilized
-- **Secondary Indexes**: How secondary indexes are accessed
+```sql
+EXPLAIN PLAN json=1, indexes=1, actions=1
+```
+
+This unified plan response combines the information that previously lived in separate indexes and actions views. It helps you analyze:
+
+- **Primary Keys and Indexes**: How the primary key and other indexes affect part and granule selection
+- **Read Scope**: How many parts and granules ClickHouse will read
+- **Execution Flow**: The logical operators ClickHouse will execute, from read to aggregation, projection, sorting, and more
+- **Expression Details**: Inputs, outputs, aliases, and action steps used by expression nodes
+- **Aggregation Details**: Keys, aggregate functions, and merge behavior
+- **Raw Plan Data**: The exact JSON plan for debugging and supportability
 
 This is a powerful tool for mastering query optimization and writing highly efficient SQL statements.
 
-![EXPLAIN PLAN indexes view showing primary key usage, partition pruning, projections, and secondary index analysis](./img/explain-index.jpg)
+### Plan Views
+
+The unified renderer provides three complementary ways to inspect the same plan:
+
+- **Graph**: A React Flow diagram that shows the operator tree, scan metrics, and index summaries
+- **Text**: A structured tree view that makes it easy to read the plan top-to-bottom while keeping the same node-level details
+- **Raw JSON**: A formatted JSON view of the original `EXPLAIN PLAN` payload
+
+Click any node in the graph or text view to open a detail pane with:
+
+- **Overview**: Node type, description, keys, and source information
+- **Read Stats**: Parts, granules, read type, and selected vs. initial counts
+- **Indexes**: Index type, condition, selected parts, and selected granules
+- **Expression**: Inputs, outputs, positions, and actions
+- **Aggregation**: Aggregate names, functions, arguments, and merge flags
 
 ### Key Insights
 
 - **Index Usage**: Verify that indexes are being used effectively
 - **Partition Pruning**: Check if unnecessary partitions are being skipped
 - **Optimization Opportunities**: Identify areas where indexes could improve performance
+- **Execution Flow**: Understand how ClickHouse transforms the query from storage reads up through final projection
 
 For more information, refer to the [ClickHouse official documentation](https://clickhouse.com/docs/en/sql-reference/statements/explain#explain-plan) on this statement.
-
-## EXPLAIN PLAN (Actions)
-
-The `EXPLAIN PLAN (Actions)` shows the logical execution plan with detailed information about query optimization, including:
-
-- **Read Order**: Whether data is read in a specific order
-- **Filter Pushdown**: How filters are applied during execution
-- **Join Strategies**: The join algorithms and order used
-- **Aggregation Methods**: How aggregations are performed
-- **Sort Operations**: Sorting strategies and locations
-
-![EXPLAIN PLAN actions displaying logical execution plan with filter pushdown, join strategies, and aggregation methods](./img/explain_actions.jpg)
-
-### Understanding the Output
-
-This view helps you understand:
-- **Execution Flow**: The logical steps ClickHouse will take
-- **Optimization Decisions**: How ClickHouse optimizes your query
-- **Performance Characteristics**: What operations might be expensive
 
 ## EXPLAIN PIPELINE
 
@@ -128,7 +131,7 @@ The graphical representation makes it easier to:
 
 ## EXPLAIN ESTIMATE
 
-The `EXPLAIN ESTIMATE` can be seen as a simplified view of `EXPLAIN PLAN indexes=1`. It provides a concise summary of what your query will read:
+The `EXPLAIN ESTIMATE` can be seen as a simplified view of `EXPLAIN PLAN`. It provides a concise summary of what your query will read:
 
 - **Data Parts**: Number of data parts to be read
 - **Rows**: Estimated number of rows to be processed
@@ -147,13 +150,13 @@ This simplified view is useful for:
 
 ### Limitations
 
-Since it doesn't provide the total number of parts and rows for comparison, the results may sometimes be less insightful than the full `EXPLAIN PLAN (Indexes)` output. Use it as a quick reference, but refer to the detailed plan for comprehensive analysis.
+Since it doesn't provide the full operator tree, node-level actions, or detailed index breakdowns, the results may sometimes be less insightful than the full `EXPLAIN PLAN` output. Use it as a quick reference, but refer to the detailed plan for comprehensive analysis.
 
 ## Best Practices
 
 ### Regular Analysis
 
-1. **Explain Before Optimizing**: Always explain queries (especially `EXPLAIN PLAN (Indexes)`) before optimizing
+1. **Explain Before Optimizing**: Always explain queries (especially `EXPLAIN PLAN`) before optimizing
 2. **Compare Plans**: Compare plans before and after changes
 3. **Monitor Changes**: Track how plan changes affect performance
 4. **Document Patterns**: Document common plan patterns
@@ -185,4 +188,3 @@ Since it doesn't provide the total number of parts and rows for comparison, the 
 
 - **[Query Optimization](../02-ai-features/query-optimization.md)** — Use AI to optimize your queries
 - **[Query Log Inspector](./query-log-inspector.md)** — Analyze actual query performance
-

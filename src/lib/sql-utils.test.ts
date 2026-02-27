@@ -79,17 +79,13 @@ describe("SqlUtils.toExplainSQL", () => {
     expect(explainSQL).toBe("EXPLAIN pipeline graph = 1\nSELECT 1");
   });
 
-  it("builds EXPLAIN plan indexes = 1", () => {
+  it("builds EXPLAIN plan json = 1, indexes = 1, actions = 1", () => {
     const sql = "SELECT * FROM system.tables";
-    const { explainSQL, rawSQL } = SqlUtils.toExplainSQL("plan-indexes", sql);
+    const { explainSQL, rawSQL } = SqlUtils.toExplainSQL("plan", sql);
     expect(rawSQL).toBe("SELECT * FROM system.tables");
-    expect(explainSQL).toBe("EXPLAIN plan indexes = 1\nSELECT * FROM system.tables");
-  });
-
-  it("builds EXPLAIN plan actions = 1", () => {
-    const sql = "SELECT 1";
-    const { explainSQL } = SqlUtils.toExplainSQL("plan-actions", sql);
-    expect(explainSQL).toBe("EXPLAIN plan actions = 1\nSELECT 1");
+    expect(explainSQL).toBe(
+      "EXPLAIN plan json = 1, indexes = 1, actions = 1\nSELECT * FROM system.tables"
+    );
   });
 
   it("builds generic EXPLAIN <type> for ast, syntax, estimate", () => {

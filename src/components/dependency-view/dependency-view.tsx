@@ -23,6 +23,7 @@ const DependencyViewComponent = ({ database, table }: DependencyViewProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const hasExecutedRef = useRef(false);
   const cancelledRef = useRef(false);
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null);
 
   const [showTableNode, setShowTableNode] = useState<DependencyGraphNode | undefined>(undefined);
 
@@ -247,55 +248,58 @@ FROM system.tables
   }, []);
 
   return (
-    <PanelGroup direction="horizontal" className="h-full w-full">
-      {/* The parent does not have 'relative', the relative is defined in the dependency-tab */}
-      <FloatingProgressBar show={isLoading} />
-      {nodes.size > 0 && (
-        <>
-          {/* Left Panel: Dependency View */}
-          <Panel
-            defaultSize={showTableNode ? 60 : 100}
-            minSize={showTableNode ? 30 : 0}
-            className="bg-background"
-          >
-            <DependencyGraphFlow
-              nodes={nodes}
-              edges={edges}
-              onNodeClick={onNodeClick}
-              style={{ width: "100%", height: "100%" }}
-              database={database}
-              highlightedTableId={table ? `${database}.${table}` : undefined}
-            />
-          </Panel>
-
-          {/* Splitter */}
-          {showTableNode && (
-            <PanelResizeHandle className="w-[0px] bg-border hover:bg-border/80 transition-colors cursor-col-resize" />
-          )}
-
-          {/* Right Panel: Selected Table View */}
-          {showTableNode && (
+    <div ref={fullscreenContainerRef} className="h-full w-full">
+      <PanelGroup direction="horizontal" className="h-full w-full">
+        {/* The parent does not have 'relative', the relative is defined in the dependency-tab */}
+        <FloatingProgressBar show={isLoading} />
+        {nodes.size > 0 && (
+          <>
+            {/* Left Panel: Dependency View */}
             <Panel
-              defaultSize={40}
-              minSize={5}
-              maxSize={70}
-              className="bg-background shadow-lg flex flex-col border-l border-t rounded-sm rounded-r-none"
+              defaultSize={showTableNode ? 60 : 100}
+              minSize={showTableNode ? 30 : 0}
+              className="bg-background"
             >
-              <TablePanel tableNode={showTableNode} onClose={handleCloseTableNode} />
+              <DependencyGraphFlow
+                nodes={nodes}
+                edges={edges}
+                onNodeClick={onNodeClick}
+                style={{ width: "100%", height: "100%" }}
+                database={database}
+                highlightedTableId={table ? `${database}.${table}` : undefined}
+                fullscreenTargetRef={fullscreenContainerRef}
+              />
             </Panel>
-          )}
-        </>
-      )}
-      {!isLoading && nodes.size === 0 && (
-        <div className="h-full w-full flex items-center justify-center">
-          <div className="text-sm text-muted-foreground">
-            {table
-              ? `Table ${database}.${table} has no dependencies.`
-              : `Tables under this database have no dependencies.`}
+
+            {/* Splitter */}
+            {showTableNode && (
+              <PanelResizeHandle className="w-[0px] bg-border hover:bg-border/80 transition-colors cursor-col-resize" />
+            )}
+
+            {/* Right Panel: Selected Table View */}
+            {showTableNode && (
+              <Panel
+                defaultSize={40}
+                minSize={5}
+                maxSize={70}
+                className="bg-background shadow-lg flex flex-col border-l border-t rounded-sm rounded-r-none"
+              >
+                <TablePanel tableNode={showTableNode} onClose={handleCloseTableNode} />
+              </Panel>
+            )}
+          </>
+        )}
+        {!isLoading && nodes.size === 0 && (
+          <div className="h-full w-full flex items-center justify-center">
+            <div className="text-sm text-muted-foreground">
+              {table
+                ? `Table ${database}.${table} has no dependencies.`
+                : `Tables under this database have no dependencies.`}
+            </div>
           </div>
-        </div>
-      )}
-    </PanelGroup>
+        )}
+      </PanelGroup>
+    </div>
   );
 };
 

@@ -123,6 +123,16 @@ export function QueryResponseView({
     );
   }
 
+  if (view === "plan") {
+    return (
+      <ExplainQueryResponseView
+        queryRequest={queryRequest}
+        queryResponse={queryResponse}
+        error={error}
+      />
+    );
+  }
+
   // For all other views, use the standard Result + Response Headers tab structure
   return (
     <Tabs value={selectedTab} onValueChange={setSelectedTab}>
@@ -192,8 +202,6 @@ export function QueryResponseView({
           <div className="relative">
             {view === "table" ? (
               <QueryResponseTableView queryResponse={queryResponse} />
-            ) : view === "plan" ? (
-              <ExplainQueryResponseView queryRequest={queryRequest} queryResponse={queryResponse} />
             ) : view === "syntax" ? (
               <ExplainSyntaxResponseView
                 queryRequest={queryRequest}

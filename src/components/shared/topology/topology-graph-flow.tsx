@@ -12,9 +12,10 @@ import {
   type Node,
   type NodeTypes,
 } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
-import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { Maximize, Maximize2, Minimize, ZoomIn, ZoomOut } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface TopologyGraphFlowProps {
   initialNodes: Node[];
@@ -33,7 +34,7 @@ interface TopologyGraphFlowProps {
   graphId?: string;
   nodeWidth?: number;
   nodeHeight?: number;
-  rankdir?: "LR" | "TB";
+  rankdir?: "LR" | "TB" | "RL" | "BT";
   nodesep?: number;
   ranksep?: number;
   fallbackNodeXStep?: number;
@@ -41,6 +42,7 @@ interface TopologyGraphFlowProps {
   hideHandles?: boolean;
   showFloatingControls?: boolean;
   enableAutoFit?: boolean;
+  fullscreenTargetRef?: React.RefObject<HTMLElement | null>;
 }
 
 const TopologyGraphFlowInner = ({
@@ -64,10 +66,12 @@ const TopologyGraphFlowInner = ({
   hideHandles = false,
   showFloatingControls = true,
   enableAutoFit = true,
+  fullscreenTargetRef,
 }: TopologyGraphFlowProps) => {
   const { fitView, zoomIn, zoomOut } = useReactFlow();
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(initialNodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const layoutedGraphRef = useRef<string>("");
   const hasFittedViewRef = useRef<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -102,13 +106,22 @@ const TopologyGraphFlowInner = ({
 
       return nodes.map((node) => {
         const positionedNode = graph.node(node.id);
+        const isVertical = rankdir === "TB" || rankdir === "BT";
         if (!positionedNode) {
           return node;
         }
         return {
           ...node,
-          targetPosition: Position.Left,
-          sourcePosition: Position.Right,
+          targetPosition: isVertical
+            ? Position.Top
+            : rankdir === "RL"
+              ? Position.Right
+              : Position.Left,
+          sourcePosition: isVertical
+            ? Position.Bottom
+            : rankdir === "RL"
+              ? Position.Left
+              : Position.Right,
           position: {
             x: positionedNode.x - nodeWidth / 2,
             y: positionedNode.y - nodeHeight / 2,
@@ -136,18 +149,20 @@ const TopologyGraphFlowInner = ({
       initialEdges
         .map((edge) => `${edge.source}->${edge.target}`)
         .sort()
-        .join(",");
+        .join(",") +
+      `|${rankdir}|${nodeWidth}|${nodeHeight}|${nodesep}|${ranksep}`;
 
     const isSameGraph = graphSignature === layoutedGraphRef.current;
     if (!isSameGraph) {
+      const isVertical = rankdir === "TB" || rankdir === "BT";
       const nextNodes =
         initialEdges.length > 0
           ? getLayoutedNodes(initialNodes, initialEdges)
           : initialNodes.map((node, index) => ({
               ...node,
               position: { x: index * fallbackNodeXStep, y: fallbackNodeY },
-              targetPosition: Position.Left,
-              sourcePosition: Position.Right,
+              targetPosition: isVertical ? Position.Top : Position.Left,
+              sourcePosition: isVertical ? Position.Bottom : Position.Right,
             }));
 
       setFlowNodes(nextNodes);
@@ -173,6 +188,11 @@ const TopologyGraphFlowInner = ({
     getLayoutedNodes,
     initialEdges,
     initialNodes,
+    nodeHeight,
+    nodesep,
+    nodeWidth,
+    rankdir,
+    ranksep,
     setFlowEdges,
     setFlowNodes,
   ]);
@@ -233,6 +253,36 @@ const TopologyGraphFlowInner = ({
       fitView: () => fitView({ padding: 0.2 }),
     });
   }, [fitView, onControlsReady, zoomIn, zoomOut]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(
+        document.fullscreenElement === (fullscreenTargetRef?.current ?? containerRef.current)
+      );
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, [fullscreenTargetRef]);
+
+  const handleFullscreenToggle = useCallback(async () => {
+    const container = fullscreenTargetRef?.current ?? containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    try {
+      if (document.fullscreenElement === container) {
+        await document.exitFullscreen();
+      } else {
+        await container.requestFullscreen();
+      }
+    } catch {
+      // Ignore fullscreen failures from unsupported environments or denied requests.
+    }
+  }, [fullscreenTargetRef]);
 
   const styleText = useMemo(() => {
     if (!hideHandles) {
@@ -295,6 +345,15 @@ const TopologyGraphFlowInner = ({
             title="Fit View"
           >
             <Maximize2 className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => void handleFullscreenToggle()}
+            className="h-7 w-7 bg-background/90 backdrop-blur-sm"
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          >
+            {isFullscreen ? <Minimize className="h-3 w-3" /> : <Maximize className="h-3 w-3" />}
           </Button>
         </div>
       )}
