@@ -516,12 +516,15 @@ SELECT * FROM (
             value: column,
             meta: type,
             score: 100,
-            docHTML: comment === "" ? "" : QuerySuggestionManager.createDescriptionHTML(
-              column,
-              comment,
-              "column",
-              `type: ${type}`
-            ),
+            docHTML:
+              comment === ""
+                ? ""
+                : QuerySuggestionManager.createDescriptionHTML(
+                    column,
+                    comment,
+                    "column",
+                    `type: ${type}`
+                  ),
           });
         });
       })
