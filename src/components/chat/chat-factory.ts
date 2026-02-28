@@ -1,14 +1,17 @@
 import { getRuntimeConfig } from "@/components/runtime-config-provider";
 import { AgentConfigurationManager } from "@/components/settings/agent/agent-manager";
 import { ModelManager } from "@/components/settings/models/model-manager";
+import { uiMessageToText } from "@/lib/ai/agent/plan/planning-prompt-builder";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import type { AppUIMessage, Message, MessageMetadata } from "@/lib/ai/chat-types";
+import { MemoryService } from "@/lib/ai/memory/memory-service";
 import type { StageStatus, ToolProgressCallback } from "@/lib/ai/tools/client/client-tool-types";
 import { ClientToolExecutors } from "@/lib/ai/tools/client/client-tools";
 import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { BasePath } from "@/lib/base-path";
 import { Connection, type QueryResponse } from "@/lib/connection/connection";
+import { StorageManager } from "@/lib/storage/storage-provider-manager";
 import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { v7 as uuidv7 } from "uuid";
@@ -383,6 +386,37 @@ export class ChatFactory {
         }) => {
           // Get current model config dynamically if not provided in options
           const currentModel = modelConfig || ChatFactory.getCurrentModelConfig();
+          const builtContext = ChatContext.build();
+          const userId = StorageManager.getInstance().getCurrentUserId();
+          const configuration = AgentConfigurationManager.getConfiguration();
+
+          if (
+            configuration.memoryEnabled !== false &&
+            configuration.memoryStorageMode !== "remote"
+          ) {
+            await MemoryService.flushMessages({
+              userId,
+              messages: messages as any,
+              connectionId: connection.connectionId,
+              databaseId: builtContext?.database,
+            });
+          }
+
+          const lastUserMessage = [...messages]
+            .reverse()
+            .find((message) => message.role === "user");
+          const queryText = lastUserMessage ? uiMessageToText(lastUserMessage as any) : "";
+          const memoryPrompt =
+            configuration.memoryEnabled !== false &&
+            configuration.memoryStorageMode !== "remote" &&
+            queryText.trim()
+              ? await MemoryService.retrieveForPrompt({
+                  userId,
+                  connectionId: connection.connectionId,
+                  databaseId: builtContext?.database,
+                  queryText,
+                })
+              : { memoryBlock: "", warnings: [], recordIds: [] };
 
           await options.onPrepareSendMessagesRequest?.({
             sessionId,
@@ -431,11 +465,12 @@ export class ChatFactory {
               trigger,
               messageId,
               agentContext: {
-                pruneValidateSql: AgentConfigurationManager.getConfiguration().pruneValidateSql,
+                pruneValidateSql: configuration.pruneValidateSql,
               },
               generateTitle: options.generateTitle,
               ...(requestContext && { context: requestContext }),
               ...(currentModel && { model: currentModel }),
+              ...(memoryPrompt.memoryBlock && { memoryBlock: memoryPrompt.memoryBlock }),
             },
             headers,
             credentials,

@@ -317,10 +317,12 @@ export async function streamVisualization({
   messages,
   modelConfig,
   context,
+  memoryBlock,
 }: {
   messages: ModelMessage[];
   modelConfig: InputModel;
   context?: ServerDatabaseContext;
+  memoryBlock?: string;
 }) {
   const model = LanguageModelProviderFactory.createModel(
     modelConfig.provider,
@@ -329,6 +331,10 @@ export async function streamVisualization({
   );
 
   const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
+
+  const memorySection = memoryBlock?.trim()
+    ? `\n\n## Persisted Memory\nUse these durable user preferences and prior notes when choosing presentation style:\n${memoryBlock}`
+    : "";
 
   const systemPrompt = `SYSTEM: ClickHouse Visualization Sub-Agent (Expert)
 You are an expert at creating data visualizations for ClickHouse data.
@@ -391,7 +397,7 @@ You are an expert at creating data visualizations for ClickHouse data.
 **OUTPUT REQUIREMENTS:**
 - Output a short summary of the generated SQL in markdown format
 - DO NOT output a summary of the chart panel configuration - only summarize the SQL query
-`;
+${memorySection}`;
 
   return streamText({
     model,

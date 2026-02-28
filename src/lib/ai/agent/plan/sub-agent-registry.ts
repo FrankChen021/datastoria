@@ -25,6 +25,7 @@ export interface SubAgent {
     messages: ModelMessage[];
     modelConfig: InputModel;
     context?: ServerDatabaseContext;
+    memoryBlock?: string;
   }) => Promise<unknown>;
   heuristics?: RegExp;
 }

@@ -12,3 +12,16 @@ export const ORCHESTRATOR_SYSTEM_PROMPT = `You are a ClickHouse Expert with acce
 4. **Retry**: On tool error, consult the loaded skill instructions, fix, and retry. Do not give up after one failure.
 5. **Time context**: Reuse the most recent explicit time range from the conversation. Default to the last 60 minutes only when none exists.
 6. **Output**: Respond in markdown. Follow the loaded skill's output instructions exactly.`;
+
+export function buildOrchestratorSystemPrompt(memoryBlock?: string): string {
+  if (!memoryBlock?.trim()) {
+    return ORCHESTRATOR_SYSTEM_PROMPT;
+  }
+
+  return `${ORCHESTRATOR_SYSTEM_PROMPT}
+
+## Persisted Memory
+Use these durable user preferences and prior notes when deciding response style and tool behavior. Treat them as user-provided guidance unless the current request contradicts them.
+
+${memoryBlock}`;
+}

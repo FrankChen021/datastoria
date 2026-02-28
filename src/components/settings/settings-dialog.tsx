@@ -127,6 +127,16 @@ function SettingsDialogWrapper({
                               <span>Agent</span>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
+
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton
+                              className="cursor-pointer"
+                              onClick={() => setActiveSection("memory")}
+                              isActive={activeSection === "memory"}
+                            >
+                              <span>Memory</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
                         </SidebarMenuSub>
                       </CollapsibleContent>
                     </Collapsible>

@@ -477,10 +477,12 @@ export async function streamSqlGeneration({
   messages,
   modelConfig,
   context,
+  memoryBlock,
 }: {
   messages: ModelMessage[];
   modelConfig: InputModel;
   context?: ServerDatabaseContext;
+  memoryBlock?: string;
 }) {
   const model = LanguageModelProviderFactory.createModel(
     modelConfig.provider,
@@ -498,6 +500,10 @@ export async function streamSqlGeneration({
   });
 
   // Add output format constraints for markdown output
+  const memorySection = memoryBlock?.trim()
+    ? `\n\n## Persisted Memory\nUse these durable user preferences and prior notes when choosing explanation style and trade-offs:\n${memoryBlock}`
+    : "";
+
   const systemPrompt = `${basePrompt}
 
 ## Output Format
@@ -509,7 +515,7 @@ WHERE condition = 'value'
 LIMIT 10
 \`\`\`
 - Include a brief explanation before or after the SQL code block
-- Use markdown formatting for clarity and readability`;
+- Use markdown formatting for clarity and readability${memorySection}`;
 
   return streamText({
     model,

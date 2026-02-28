@@ -1,6 +1,6 @@
 import { getAuthenticatedUserEmail } from "@/auth";
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
-import { ORCHESTRATOR_SYSTEM_PROMPT } from "@/lib/ai/agent/orchestrator-prompt";
+import { buildOrchestratorSystemPrompt } from "@/lib/ai/agent/orchestrator-prompt";
 import {
   SessionTitleGenerator,
   type SessionTitleGenerationResponse,
@@ -48,6 +48,7 @@ interface ChatV2Request {
   model?: { provider: string; modelId: string; apiKey?: string };
   generateTitle?: boolean;
   agentContext?: AgentContext;
+  memoryBlock?: string;
 }
 
 const TITLE_WAIT_MS = 3000;
@@ -209,6 +210,7 @@ export async function POST(req: Request) {
     let context: ServerDatabaseContext;
     let modelConfig: { provider: string; modelId: string; apiKey: string };
     let agentContext: AgentContext | undefined;
+    let memoryBlock: string | undefined;
     let generateTitle = true;
     let originalMessages: UIMessage[];
     let messageId: string;
@@ -247,6 +249,7 @@ export async function POST(req: Request) {
       }
 
       agentContext = apiRequest.agentContext;
+      memoryBlock = undefined;
       generateTitle = !apiRequest.continuation && apiRequest.generateTitle !== false;
       messageId = apiRequest.continuation ? apiRequest.message.id : uuidv7();
 
@@ -338,6 +341,7 @@ export async function POST(req: Request) {
       }
 
       agentContext = apiRequest.agentContext;
+      memoryBlock = apiRequest.memoryBlock;
       generateTitle = apiRequest.generateTitle !== false;
       originalMessages = expandCommand(apiRequest.messages ?? []);
       messageId = getMessageIdFromMessages(apiRequest.messages);
@@ -359,7 +363,7 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model,
-      system: ORCHESTRATOR_SYSTEM_PROMPT,
+      system: buildOrchestratorSystemPrompt(memoryBlock),
       messages: modelMessages,
       tools: {
         [SERVER_TOOL_NAMES.SKILL]: ServerTools.skill,

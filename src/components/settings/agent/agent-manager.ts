@@ -2,6 +2,7 @@ import type { LocalStorage } from "@/lib/storage/local-storage-provider";
 import { StorageManager } from "@/lib/storage/storage-provider-manager";
 
 export type AgentMode = "v2" | "legacy";
+export type MemoryStorageMode = "local" | "remote";
 
 const STORAGE_KEY = "settings:ai:agent";
 
@@ -19,6 +20,10 @@ export type AgentConfiguration = {
   autoExplainClickHouseErrors?: boolean;
   /** ClickHouse error codes that should never auto-trigger inline explanation. */
   autoExplainBlacklist?: string[];
+  memoryEnabled?: boolean;
+  memoryStorageMode?: MemoryStorageMode;
+  autoSavePreferences?: boolean;
+  autoSaveFindings?: boolean;
 };
 
 export class AgentConfigurationManager {
@@ -37,6 +42,10 @@ export class AgentConfigurationManager {
           pruneValidateSql: true,
           autoExplainClickHouseErrors: true,
           autoExplainBlacklist: DEFAULT_AUTO_EXPLAIN_BLACKLIST,
+          memoryEnabled: true,
+          memoryStorageMode: "local",
+          autoSavePreferences: false,
+          autoSaveFindings: false,
         };
       });
     }

@@ -16,16 +16,22 @@ export async function createGeneralAgent({
   messages,
   modelConfig,
   context,
+  memoryBlock,
 }: {
   messages: ModelMessage[];
   modelConfig: InputModel;
   context?: ServerDatabaseContext;
+  memoryBlock?: string;
 }) {
   const model = LanguageModelProviderFactory.createModel(
     modelConfig.provider,
     modelConfig.modelId,
     modelConfig.apiKey
   );
+
+  const memorySection = memoryBlock?.trim()
+    ? `\n\n## Persisted Memory\nUse these durable user preferences and prior notes when responding:\n${memoryBlock}`
+    : "";
 
   const systemPrompt = `You are a helpful ClickHouse Assistant.
 Your goal is to answer questions about ClickHouse, help with greetings, or explain what you can do.
@@ -89,7 +95,7 @@ Guidelines:
 - If a user mentions a table (e.g., @table_name), call 'explore_schema' to see its structure before answering.
 - For complex SQL generation (new analytics) or optimization, the orchestrator might route those to specialized agents, but you are the primary entry point for general questions.
 - Respond in a professional, helpful tone. Use markdown for formatting.
-`;
+${memorySection}`;
 
   return streamText({
     model,

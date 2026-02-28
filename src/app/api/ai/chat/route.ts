@@ -29,6 +29,7 @@ interface ChatRequest {
     modelId: string;
     apiKey?: string;
   };
+  memoryBlock?: string;
 }
 
 /**
@@ -207,6 +208,7 @@ export async function POST(req: Request) {
             messages: modelMessages,
             modelConfig,
             context,
+            memoryBlock: apiRequest.memoryBlock,
           });
 
           // Request usage: only when continuing an assistant (messageId in request); else 0 for new message

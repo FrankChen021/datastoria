@@ -25,6 +25,10 @@ class StorageProviderManager {
     return this.currentInstance;
   }
 
+  getCurrentUserId(): string {
+    return this.currentUserId;
+  }
+
   /**
    * Set the current app storage by user id. Called by AppStorageProvider when session is ready.
    * Notifies subscribers when the effective user changes (login/logout).

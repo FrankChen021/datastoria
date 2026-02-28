@@ -1,10 +1,18 @@
 "use client";
 
 import { AppLogo } from "@/components/app-logo";
+import {
+  MemoryEditorDialog,
+  type MemoryEditorValue,
+} from "@/components/chat/memory/memory-editor-dialog";
+import { MemorySuggestionBanner } from "@/components/chat/memory/memory-suggestion-banner";
 import { useConnection } from "@/components/connection/connection-context";
+import { AgentConfigurationManager } from "@/components/settings/agent/agent-manager";
 import type { AppUIMessage } from "@/lib/ai/chat-types";
+import { MemoryService } from "@/lib/ai/memory/memory-service";
+import type { MemoryCandidate } from "@/lib/ai/memory/memory-types";
 import "@/lib/number-utils"; // Ensure formatTimeDiff is available
-
+import { StorageManager } from "@/lib/storage/storage-provider-manager";
 import { useChat, type Chat } from "@ai-sdk/react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
@@ -95,6 +103,8 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   const chatInputRef = useRef<ChatInputHandle | null>(null);
 
   const [promptInput, setPromptInput] = useState<string | undefined>(externalInput);
+  const [suggestedMemory, setSuggestedMemory] = useState<MemoryCandidate | null>(null);
+  const [memoryEditorOpen, setMemoryEditorOpen] = useState(false);
 
   // Update promptInput when externalInput changes
   useEffect(() => {
@@ -136,6 +146,30 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         tables: [...(availableTables || []), ...(mentionedTables || [])],
         clickHouseUser: connection?.metadata.internalUser,
       }));
+      const memoryConfig = AgentConfigurationManager.getConfiguration();
+      const userId = StorageManager.getInstance().getCurrentUserId();
+      if (memoryConfig.memoryEnabled !== false && memoryConfig.memoryStorageMode !== "remote") {
+        const candidates = await MemoryService.suggestPreferenceCandidates({
+          userId,
+          text,
+          scope: {
+            userId,
+            scopeType: "user",
+            connectionId: connection?.connectionId,
+            databaseId: currentDatabase,
+          },
+          sourceChatId: chat.id,
+        });
+
+        if ((memoryConfig.autoSavePreferences ?? false) && candidates.length > 0) {
+          await MemoryService.persistCandidates(
+            userId,
+            candidates.map((candidate) => ({ ...candidate, writeMode: "auto" }))
+          );
+        } else if (candidates.length > 0) {
+          setSuggestedMemory(candidates[0]);
+        }
+      }
 
       sendMessage({
         id: messageId,
@@ -246,7 +280,50 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
           onNewChat={onNewChat}
           externalInput={promptInput}
         />
+        <MemorySuggestionBanner
+          candidate={suggestedMemory}
+          onAccept={async () => {
+            if (!suggestedMemory) return;
+            const userId = StorageManager.getInstance().getCurrentUserId();
+            await MemoryService.persistCandidates(userId, [suggestedMemory]);
+            setSuggestedMemory(null);
+          }}
+          onDismiss={() => setSuggestedMemory(null)}
+          onEdit={() => setMemoryEditorOpen(true)}
+        />
       </div>
+      <MemoryEditorDialog
+        open={memoryEditorOpen}
+        onOpenChange={setMemoryEditorOpen}
+        record={
+          suggestedMemory
+            ? {
+                title: suggestedMemory.title,
+                content: suggestedMemory.content,
+                tags: suggestedMemory.tags ?? [],
+                pinned: suggestedMemory.pinned ?? false,
+                pinPriority: suggestedMemory.pinPriority,
+              }
+            : null
+        }
+        onSave={async (value: MemoryEditorValue) => {
+          const candidate = suggestedMemory;
+          if (!candidate) return;
+          const userId = StorageManager.getInstance().getCurrentUserId();
+          await MemoryService.persistCandidates(userId, [
+            {
+              ...candidate,
+              title: value.title,
+              content: value.content,
+              tags: value.tags,
+              pinned: value.pinned,
+              pinPriority: value.pinPriority,
+              writeMode: "manual",
+            },
+          ]);
+          setSuggestedMemory(null);
+        }}
+      />
     </ChatActionProvider>
   );
 });

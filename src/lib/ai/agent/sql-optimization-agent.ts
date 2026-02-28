@@ -13,10 +13,12 @@ export async function streamSqlOptimization({
   messages,
   modelConfig,
   context: _context,
+  memoryBlock,
 }: {
   messages: ModelMessage[];
   modelConfig: InputModel;
   context?: ServerDatabaseContext;
+  memoryBlock?: string;
 }) {
   const model = LanguageModelProviderFactory.createModel(
     modelConfig.provider,
@@ -25,6 +27,10 @@ export async function streamSqlOptimization({
   );
 
   const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
+
+  const memorySection = memoryBlock?.trim()
+    ? `\n\n## Persisted Memory\nUse these durable user preferences and prior notes when presenting trade-offs and remediation style:\n${memoryBlock}`
+    : "";
 
   const systemPrompt = `SYSTEM: ClickHouse SQL Optimization Sub-Agent (Evidence-Driven)
 
@@ -176,7 +182,7 @@ Example:
 
 ## ✅ Validation
 [Results from validate_sql tool for proposed changes]
-`;
+${memorySection}`;
 
   return streamText({
     model,

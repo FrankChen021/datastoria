@@ -1,10 +1,18 @@
 import { AgentEdit } from "@/components/settings/agent/agent-edit";
+import { MemorySettingsEdit } from "@/components/settings/agent/memory-settings";
 import { ModelsEdit } from "@/components/settings/models/models-edit";
 import { QueryContextEdit } from "@/components/settings/query-context/query-context-edit";
 import { SkillsEdit } from "@/components/settings/skills/skills-edit";
 import { UiEdit } from "@/components/settings/ui/ui-edit";
 
 export type SettingsSection = "query-context" | "ui" | "models" | "agent" | "skills";
+export type SettingsSection =
+  | "query-context"
+  | "ui"
+  | "models"
+  | "agent"
+  | "skills"
+  | "memory";
 
 export interface SettingsPageConfig {
   title: string;
@@ -37,5 +45,10 @@ export const SETTINGS_REGISTRY: Record<SettingsSection, SettingsPageConfig> = {
     title: "Skills",
     description: "Bundled AI skills available to the V2 agent",
     component: SkillsEdit,
+  },
+  memory: {
+    title: "Memory",
+    description: "Manage durable AI memories and preference storage",
+    component: MemorySettingsEdit,
   },
 };

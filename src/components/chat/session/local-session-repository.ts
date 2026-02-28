@@ -1,4 +1,5 @@
 import type { Chat, Message } from "@/lib/ai/chat-types";
+import { MemoryService } from "@/lib/ai/memory/memory-service";
 import type { LocalStorage } from "@/lib/storage/local-storage-provider";
 import { StorageManager } from "@/lib/storage/storage-provider-manager";
 import type { SessionRepository } from "./session-repository";
@@ -67,6 +68,17 @@ export class LocalSessionRepository implements SessionRepository {
         return 0;
       }
 
+      await MemoryService.flushMessages({
+        userId: StorageManager.getInstance().getCurrentUserId(),
+        messages: messagesToDelete.map((message) => ({
+          id: message.id,
+          role: message.role,
+          parts: message.parts as any,
+        })) as any,
+        connectionId: (await this.getChat(chatId))?.databaseId,
+      });
+
+      // Get messages object from storage
       const messagesMap = this.getMessagesForChat(chatId);
 
       for (const message of messagesToDelete) {
