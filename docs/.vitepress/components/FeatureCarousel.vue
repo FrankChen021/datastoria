@@ -85,7 +85,6 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useData } from 'vitepress'
 
 interface CarouselItem {
   title: string
@@ -102,17 +101,13 @@ const props = defineProps<{
 
 const currentIndex = ref(0)
 const isLightboxOpen = ref(false)
-const { site } = useData()
 
-const resolvedItems = computed(() => {
-  const base = site.value.base.replace(/\/$/, '')
-  return props.items.map((item) => ({
+const resolvedItems = computed(() =>
+  props.items.map((item) => ({
     ...item,
-    src: item.src.startsWith('http') ? item.src : `${base}${item.src}`,
-    href: item.href ? (item.href.startsWith('http') ? item.href : `${base}${item.href}`) : undefined,
     kind: item.kind ?? 'image',
   }))
-})
+)
 
 const currentItem = computed(() => resolvedItems.value[currentIndex.value])
 
