@@ -1,0 +1,37 @@
+/**
+ * DiskSkillProvider: wraps SkillManager to serve built-in skills from the filesystem.
+ *
+ * Phase 1 implementation. Sets source = "built-in" for all returned items.
+ */
+import { SkillManager } from "./skill-manager";
+import type { SkillProvider, SkillDetailResponse } from "./skill-provider";
+import type { SkillCatalogItem } from "./skill-manager";
+
+export class DiskSkillProvider implements SkillProvider {
+  async listSkills(): Promise<SkillCatalogItem[]> {
+    return SkillManager.listSkillCatalog();
+  }
+
+  async getSkillDetail(id: string): Promise<SkillDetailResponse | null> {
+    const catalog = SkillManager.listSkillCatalog();
+    const item = catalog.find((s) => s.id === id);
+    if (!item) return null;
+
+    const content = SkillManager.getSkillRaw(id);
+    if (content === null) return null;
+
+    const resourcePaths = SkillManager.listSkillResources(id);
+
+    return {
+      ...item,
+      content,
+      resourcePaths,
+    };
+  }
+
+  async getSkillResource(id: string, resourcePath: string): Promise<string | null> {
+    // Reuse the existing SkillManager.getSkillResource but look up by id.
+    // SkillManager supports lookup by both dirName (id) and frontmatter name.
+    return SkillManager.getSkillResource(id, resourcePath);
+  }
+}
