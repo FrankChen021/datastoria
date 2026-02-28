@@ -67,57 +67,68 @@ features:
 
 ---
 
+<script setup>
+import clusterDashboardImg from './manual/05-monitoring-dashboards/img/dashboard-cluster-status.jpg'
+import dependencyViewImg from './manual/04-cluster-management/img/dependency-view-database.jpg'
+import nodeDashboardImg from './manual/05-monitoring-dashboards/img/dashboard-node-status.jpg'
+import queryAnalysisImg from './manual/03-query-experience/img/query-log-inspector-timeline.jpg'
+import systemTableIntrospectionImg from './manual/04-cluster-management/img/system-query-log-1.jpg'
+import visualizationImg from './manual/02-ai-features/img/visualization-example-4.jpg'
+
+const carouselItems = [
+  {
+    title: 'Overview Demo',
+    description: 'A quick walkthrough of the core AI-native workflow across querying, visualization, and diagnostics.',
+    src: '/demo.webm',
+    alt: 'DataStoria demo showing natural-language queries, intelligent visualizations, and cluster management',
+    href: '/manual/01-getting-started/introduction',
+    kind: 'video',
+  },
+  {
+    title: 'Intelligent Visualization',
+    description: 'Generate SQL and chart specifications together so the browser can render charts directly from ClickHouse results.',
+    src: visualizationImg,
+    alt: 'DataStoria AI-generated visualization for ClickHouse metrics',
+    href: '/manual/02-ai-features/intelligent-visualization',
+  },
+  {
+    title: 'Query Analysis',
+    description: 'Inspect execution behavior with rich query views, timelines, and topology-based analysis for production troubleshooting.',
+    src: queryAnalysisImg,
+    alt: 'DataStoria query log inspector timeline view',
+    href: '/manual/03-query-experience/query-log-inspector',
+  },
+  {
+    title: 'Dependency View',
+    description: 'Visualize upstream and downstream relationships across tables, materialized views, and other database objects.',
+    src: dependencyViewImg,
+    alt: 'DataStoria dependency view showing database object relationships',
+    href: '/manual/04-cluster-management/dependency-view',
+  },
+  {
+    title: 'System Table Introspection',
+    description: 'Explore ClickHouse system tables with dedicated views for query logs, part logs, process lists, ZooKeeper state, and other operational datasets.',
+    src: systemTableIntrospectionImg,
+    alt: 'DataStoria system table introspection view with charts and operational details',
+    href: '/manual/04-cluster-management/system-log-introspection',
+  },
+  {
+    title: 'Node Dashboard',
+    description: 'Open prebuilt dashboards for node-level metrics to investigate performance and health quickly.',
+    src: nodeDashboardImg,
+    alt: 'DataStoria node dashboard with ClickHouse node metrics',
+    href: '/manual/05-monitoring-dashboards/node-dashboard',
+  },
+  {
+    title: 'Cluster Dashboard',
+    description: 'Monitor cluster-wide metrics with dedicated dashboards for multi-node health and performance.',
+    src: clusterDashboardImg,
+    alt: 'DataStoria cluster dashboard with ClickHouse cluster metrics',
+    href: '/manual/05-monitoring-dashboards/cluster-dashboard',
+  },
+]
+</script>
+
 <FeatureCarousel
-  :items="[
-    {
-      title: 'Overview Demo',
-      description: 'A quick walkthrough of the core AI-native workflow across querying, visualization, and diagnostics.',
-      src: '/demo.webm',
-      alt: 'DataStoria demo showing natural-language queries, intelligent visualizations, and cluster management',
-      href: '/manual/01-getting-started/introduction',
-      kind: 'video'
-    },
-    {
-      title: 'Intelligent Visualization',
-      description: 'Generate SQL and chart specifications together so the browser can render charts directly from ClickHouse results.',
-      src: '/manual/02-ai-features/img/visualization-example-4.jpg',
-      alt: 'DataStoria AI-generated visualization for ClickHouse metrics',
-      href: '/manual/02-ai-features/intelligent-visualization'
-    },
-    {
-      title: 'Query Analysis',
-      description: 'Inspect execution behavior with rich query views, timelines, and topology-based analysis for production troubleshooting.',
-      src: '/manual/03-query-experience/img/query-log-inspector-timeline.jpg',
-      alt: 'DataStoria query log inspector timeline view',
-      href: '/manual/03-query-experience/query-log-inspector'
-    },
-    {
-      title: 'Dependency View',
-      description: 'Visualize upstream and downstream relationships across tables, materialized views, and other database objects.',
-      src: '/manual/04-cluster-management/img/dependency-view-database.jpg',
-      alt: 'DataStoria dependency view showing database object relationships',
-      href: '/manual/04-cluster-management/dependency-view'
-    },
-    {
-      title: 'System Table Introspection',
-      description: 'Explore ClickHouse system tables with dedicated views for query logs, part logs, process lists, ZooKeeper state, and other operational datasets.',
-      src: '/manual/04-cluster-management/img/system-query-log-1.jpg',
-      alt: 'DataStoria system table introspection view with charts and operational details',
-      href: '/manual/04-cluster-management/system-log-introspection'
-    },
-    {
-      title: 'Node Dashboard',
-      description: 'Open prebuilt dashboards for node-level metrics to investigate performance and health quickly.',
-      src: '/manual/05-monitoring-dashboards/img/dashboard-node-status.jpg',
-      alt: 'DataStoria node dashboard with ClickHouse node metrics',
-      href: '/manual/05-monitoring-dashboards/node-dashboard'
-    },
-    {
-      title: 'Cluster Dashboard',
-      description: 'Monitor cluster-wide metrics with dedicated dashboards for multi-node health and performance.',
-      src: '/manual/05-monitoring-dashboards/img/dashboard-cluster-status.jpg',
-      alt: 'DataStoria cluster dashboard with ClickHouse cluster metrics',
-      href: '/manual/05-monitoring-dashboards/cluster-dashboard'
-    }
-  ]"
+  :items="carouselItems"
 />
