@@ -308,7 +308,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
               Built-in
             </Badge>
             {detail.version && (
-              <Badge variant="outline" className="text-xs px-1.5 py-0 font-mono shrink-0">
+              <Badge variant="secondary" className="text-xs px-1.5 py-0 shrink-0">
                 v{detail.version}
               </Badge>
             )}
@@ -429,11 +429,6 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
               </div>
             </ScrollArea>
 
-            <div className="flex-shrink-0 px-3 py-1.5 border-t">
-              <p className="text-xs text-muted-foreground">
-                This skill is loaded by the V2 agent on demand.
-              </p>
-            </div>
           </div>
         </div>
       ) : null}

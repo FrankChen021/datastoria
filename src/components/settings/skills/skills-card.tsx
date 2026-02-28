@@ -17,7 +17,7 @@ export function SkillsCard({ skill, onClick }: SkillsCardProps) {
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm font-semibold leading-snug">{skill.name}</CardTitle>
+          <CardTitle className="text-base font-semibold leading-snug">{skill.name}</CardTitle>
           <div className="flex items-center gap-1 shrink-0">
             {skill.source === "built-in" && (
               <Badge variant="secondary" className="text-xs px-1.5 py-0">
@@ -25,7 +25,7 @@ export function SkillsCard({ skill, onClick }: SkillsCardProps) {
               </Badge>
             )}
             {skill.version && (
-              <Badge variant="outline" className="text-xs px-1.5 py-0 font-mono">
+              <Badge variant="secondary" className="text-xs px-1.5 py-0">
                 v{skill.version}
               </Badge>
             )}

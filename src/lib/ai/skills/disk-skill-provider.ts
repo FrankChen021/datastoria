@@ -3,9 +3,8 @@
  *
  * Phase 1 implementation. Sets source = "built-in" for all returned items.
  */
-import { SkillManager } from "./skill-manager";
-import type { SkillProvider, SkillDetailResponse } from "./skill-provider";
-import type { SkillCatalogItem } from "./skill-manager";
+import { SkillManager, type SkillCatalogItem } from "./skill-manager";
+import type { SkillDetailResponse, SkillProvider } from "./skill-provider";
 
 export class DiskSkillProvider implements SkillProvider {
   async listSkills(): Promise<SkillCatalogItem[]> {

@@ -4,8 +4,8 @@
  * Returns compact catalog metadata for all skills (no full SKILL.md content).
  * Phase 1: only built-in skills from disk.
  */
-import { CompositeSkillProvider } from "@/lib/ai/skills/skill-provider";
 import { DiskSkillProvider } from "@/lib/ai/skills/disk-skill-provider";
+import { CompositeSkillProvider } from "@/lib/ai/skills/skill-provider";
 import { NextResponse } from "next/server";
 
 // Force Node.js runtime (SkillManager uses fs)

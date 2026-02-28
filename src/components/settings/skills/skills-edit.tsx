@@ -32,20 +32,15 @@ export function SkillsEdit() {
   }, []);
 
   if (selectedSkillId) {
-    return (
-      <SkillsDetailView
-        skillId={selectedSkillId}
-        onBack={() => setSelectedSkillId(null)}
-      />
-    );
+    return <SkillsDetailView skillId={selectedSkillId} onBack={() => setSelectedSkillId(null)} />;
   }
 
   return (
     <div className="h-full flex flex-col">
       <div className="px-4 py-3">
         <p className="text-xs text-muted-foreground">
-          Bundled skills available to the V2 agent. Skills are loaded on demand during
-          conversations to improve SQL generation, optimization, and ClickHouse-specific guidance.
+          Bundled skills available to the V2 agent. Skills are loaded on demand during conversations
+          to improve SQL generation, optimization, and ClickHouse-specific guidance.
         </p>
       </div>
 
@@ -71,11 +66,7 @@ export function SkillsEdit() {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {skills.map((skill) => (
-              <SkillsCard
-                key={skill.id}
-                skill={skill}
-                onClick={(s) => setSelectedSkillId(s.id)}
-              />
+              <SkillsCard key={skill.id} skill={skill} onClick={(s) => setSelectedSkillId(s.id)} />
             ))}
           </div>
         )}

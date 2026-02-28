@@ -405,7 +405,10 @@ export class SkillManager {
         const relPath = prefix ? `${prefix}/${entry.name}` : entry.name;
         if (entry.isDirectory()) {
           walk(path.join(dir, entry.name), relPath);
-        } else if (entry.isFile() && !(prefix === "" && entry.name === SkillManager.SKILL_FILENAME)) {
+        } else if (
+          entry.isFile() &&
+          !(prefix === "" && entry.name === SkillManager.SKILL_FILENAME)
+        ) {
           results.push(relPath);
         }
       }
