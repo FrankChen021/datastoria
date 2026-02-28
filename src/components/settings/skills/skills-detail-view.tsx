@@ -7,8 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SkillDetailResponse } from "@/lib/ai/skills/skill-provider";
 import matter from "gray-matter";
-import { ArrowLeft, ChevronRight, File, Folder } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowLeft, ChevronRight, File, FileText, Folder, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -64,7 +64,14 @@ function buildDirTree(paths: string[]): DirNode[] {
   return root.children;
 }
 
-function DirNodeRow({ node, depth = 0 }: { node: DirNode; depth?: number }) {
+interface DirNodeRowProps {
+  node: DirNode;
+  depth?: number;
+  selectedPath: string | null;
+  onFileClick: (path: string) => void;
+}
+
+function DirNodeRow({ node, depth = 0, selectedPath, onFileClick }: DirNodeRowProps) {
   const [expanded, setExpanded] = useState(true);
 
   if (node.isDir) {
@@ -83,20 +90,30 @@ function DirNodeRow({ node, depth = 0 }: { node: DirNode; depth?: number }) {
         </button>
         {expanded &&
           node.children.map((child) => (
-            <DirNodeRow key={child.path} node={child} depth={depth + 1} />
+            <DirNodeRow
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              selectedPath={selectedPath}
+              onFileClick={onFileClick}
+            />
           ))}
       </div>
     );
   }
 
+  const isSelected = selectedPath === node.path;
   return (
-    <div
-      className="flex items-center gap-1 py-0.5 hover:bg-accent/40 rounded px-1"
+    <button
+      className={`flex items-center gap-1 w-full text-left py-0.5 rounded px-1 transition-colors ${
+        isSelected ? "bg-accent text-accent-foreground" : "hover:bg-accent/40"
+      }`}
       style={{ paddingLeft: `${depth * 14 + 4 + 16}px` }}
+      onClick={() => onFileClick(node.path)}
     >
-      <File className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-      <span className="text-xs truncate text-muted-foreground">{node.name}</span>
-    </div>
+      <File className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <span className="text-xs truncate">{node.name}</span>
+    </button>
   );
 }
 
@@ -105,7 +122,8 @@ function DirNodeRow({ node, depth = 0 }: { node: DirNode; depth?: number }) {
 // ---------------------------------------------------------------------------
 
 function SkillMarkdownRenderer({ raw }: { raw: string }) {
-  const { content } = matter(raw);
+  // Strip frontmatter only if the content begins with ---
+  const { content } = raw.trimStart().startsWith("---") ? matter(raw) : { content: raw };
 
   return (
     <ReactMarkdown
@@ -114,12 +132,8 @@ function SkillMarkdownRenderer({ raw }: { raw: string }) {
         h1: ({ children }) => (
           <h1 className="text-lg font-bold mt-4 mb-2 first:mt-0">{children}</h1>
         ),
-        h2: ({ children }) => (
-          <h2 className="text-base font-semibold mt-3 mb-1.5">{children}</h2>
-        ),
-        h3: ({ children }) => (
-          <h3 className="text-sm font-semibold mt-2.5 mb-1">{children}</h3>
-        ),
+        h2: ({ children }) => <h2 className="text-base font-semibold mt-3 mb-1.5">{children}</h2>,
+        h3: ({ children }) => <h3 className="text-sm font-semibold mt-2.5 mb-1">{children}</h3>,
         p: ({ children }) => <p className="text-sm mb-2 leading-relaxed">{children}</p>,
         ul: ({ children }) => (
           <ul className="text-sm list-disc ml-4 mb-2 space-y-0.5">{children}</ul>
@@ -138,10 +152,7 @@ function SkillMarkdownRenderer({ raw }: { raw: string }) {
             );
           }
           return (
-            <code
-              className="bg-muted rounded px-1 py-0.5 text-xs font-mono"
-              {...props}
-            >
+            <code className="bg-muted rounded px-1 py-0.5 text-xs font-mono" {...props}>
               {children}
             </code>
           );
@@ -161,9 +172,7 @@ function SkillMarkdownRenderer({ raw }: { raw: string }) {
             {children}
           </th>
         ),
-        td: ({ children }) => (
-          <td className="border border-border px-2 py-1">{children}</td>
-        ),
+        td: ({ children }) => <td className="border border-border px-2 py-1">{children}</td>,
         hr: () => <hr className="my-3 border-border" />,
       }}
     >
@@ -180,12 +189,27 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
   const [detail, setDetail] = useState<SkillDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Left panel: null = SKILL.md, string = resource path
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [resourceContent, setResourceContent] = useState<string | null>(null);
+  const [resourceLoading, setResourceLoading] = useState(false);
+  const [resourceError, setResourceError] = useState<string | null>(null);
+
   const [renderMode, setRenderMode] = useState<"rendered" | "raw">("rendered");
 
+  // Drag-to-resize
+  const [leftWidthPct, setLeftWidthPct] = useState(60);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef(false);
+
+  // Load skill detail
   useEffect(() => {
     setLoading(true);
     setError(null);
     setDetail(null);
+    setSelectedFile(null);
+    setResourceContent(null);
 
     fetch(`/api/ai/skills/${encodeURIComponent(skillId)}`)
       .then((res) => {
@@ -202,6 +226,70 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
       });
   }, [skillId]);
 
+  // Load a resource file when a tree node is clicked
+  const handleFileClick = useCallback(
+    (resourcePath: string) => {
+      setSelectedFile(resourcePath);
+      setResourceContent(null);
+      setResourceError(null);
+      setResourceLoading(true);
+      setRenderMode("rendered");
+
+      fetch(
+        `/api/ai/skills/${encodeURIComponent(skillId)}/resource?path=${encodeURIComponent(resourcePath)}`
+      )
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json() as Promise<{ content: string }>;
+        })
+        .then(({ content }) => {
+          setResourceContent(content);
+          setResourceLoading(false);
+        })
+        .catch((err: unknown) => {
+          setResourceError(err instanceof Error ? err.message : "Failed to load file");
+          setResourceLoading(false);
+        });
+    },
+    [skillId]
+  );
+
+  // Click SKILL.md → go back to main content
+  const handleSkillMdClick = useCallback(() => {
+    setSelectedFile(null);
+    setResourceContent(null);
+    setResourceError(null);
+    setRenderMode("rendered");
+  }, []);
+
+  // Drag handle
+  const handleSplitterMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    draggingRef.current = true;
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!draggingRef.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const newPct = ((ev.clientX - rect.left) / rect.width) * 100;
+      setLeftWidthPct(Math.min(80, Math.max(20, newPct)));
+    };
+
+    const onMouseUp = () => {
+      draggingRef.current = false;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }, []);
+
+  // Derived display state
+  const isMarkdownFile =
+    selectedFile === null || selectedFile.endsWith(".md") || selectedFile.endsWith(".MD");
+  const displayedFilename = selectedFile === null ? "SKILL.md" : selectedFile.split("/").pop()!;
+  const currentContent =
+    selectedFile === null ? (detail?.content ?? "") : (resourceContent ?? "");
   const dirTree = detail ? buildDirTree(detail.resourcePaths) : [];
 
   return (
@@ -243,65 +331,104 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
           <p className="text-sm text-destructive">{error}</p>
         </div>
       ) : detail ? (
-        <div className="flex-1 flex overflow-hidden min-h-0">
-          {/* Left panel — SKILL.md content */}
-          <div className="flex flex-col border-r overflow-hidden" style={{ flex: "0 0 60%" }}>
-            {/* Panel header with toggle */}
-            <div className="flex-shrink-0 px-3 py-1.5 border-b flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">SKILL.md</span>
-              <ToggleGroup
-                type="single"
-                value={renderMode}
-                onValueChange={(v) => v && setRenderMode(v as "rendered" | "raw")}
-                size="sm"
-                variant="outline"
-              >
-                <ToggleGroupItem value="rendered" className="text-xs h-6 px-2">
-                  Rendered
-                </ToggleGroupItem>
-                <ToggleGroupItem value="raw" className="text-xs h-6 px-2">
-                  Raw
-                </ToggleGroupItem>
-              </ToggleGroup>
+        <div ref={containerRef} className="flex-1 flex overflow-hidden min-h-0 select-none">
+          {/* ── Left panel — file content ── */}
+          <div
+            className="flex flex-col overflow-hidden"
+            style={{ width: `${leftWidthPct}%`, minWidth: 0 }}
+          >
+            <div className="flex-shrink-0 px-3 py-1.5 border-b flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-xs font-medium text-muted-foreground truncate">
+                  {displayedFilename}
+                </span>
+                {resourceLoading && (
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
+                )}
+              </div>
+              {isMarkdownFile && (
+                <ToggleGroup
+                  type="single"
+                  value={renderMode}
+                  onValueChange={(v) => v && setRenderMode(v as "rendered" | "raw")}
+                  size="sm"
+                  variant="outline"
+                >
+                  <ToggleGroupItem value="rendered" className="text-xs h-6 px-2">
+                    Rendered
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="raw" className="text-xs h-6 px-2">
+                    Raw
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              )}
             </div>
 
-            {/* Content */}
             <ScrollArea className="flex-1">
               <div className="px-4 py-3">
-                {renderMode === "rendered" ? (
-                  <SkillMarkdownRenderer raw={detail.content} />
+                {resourceLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-5/6" />
+                    <Skeleton className="h-3 w-4/6" />
+                  </div>
+                ) : resourceError ? (
+                  <p className="text-sm text-destructive">{resourceError}</p>
+                ) : isMarkdownFile && renderMode === "rendered" ? (
+                  <SkillMarkdownRenderer raw={currentContent} />
                 ) : (
                   <pre className="text-xs font-mono whitespace-pre-wrap break-words leading-relaxed">
-                    {detail.content}
+                    {currentContent}
                   </pre>
                 )}
               </div>
             </ScrollArea>
           </div>
 
-          {/* Right panel — Directory tree */}
-          <div className="flex flex-col overflow-hidden" style={{ flex: "0 0 40%" }}>
+          {/* ── Drag handle ── */}
+          <div
+            className="flex-shrink-0 w-1 bg-border hover:bg-primary/40 active:bg-primary/60 cursor-col-resize transition-colors"
+            onMouseDown={handleSplitterMouseDown}
+          />
+
+          {/* ── Right panel — directory tree ── */}
+          <div className="flex flex-col overflow-hidden" style={{ flex: 1, minWidth: 0 }}>
             <div className="flex-shrink-0 px-3 py-1.5 border-b">
               <span className="text-xs font-medium text-muted-foreground">Files</span>
             </div>
 
             <ScrollArea className="flex-1">
               <div className="px-2 py-2">
-                {/* Always show SKILL.md as the root entry */}
-                <div className="flex items-center gap-1 py-0.5 px-1 mb-0.5">
-                  <File className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                {/* SKILL.md root entry */}
+                <button
+                  className={`flex items-center gap-1 w-full text-left py-0.5 rounded px-1 transition-colors ${
+                    selectedFile === null
+                      ? "bg-accent text-accent-foreground"
+                      : "hover:bg-accent/40"
+                  }`}
+                  onClick={handleSkillMdClick}
+                >
+                  <File className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <span className="text-xs font-medium">SKILL.md</span>
-                </div>
+                </button>
 
                 {dirTree.length === 0 ? (
-                  <p className="text-xs text-muted-foreground px-1 mt-1">No additional files</p>
+                  <p className="text-xs text-muted-foreground px-1 mt-2">No additional files</p>
                 ) : (
-                  dirTree.map((node) => <DirNodeRow key={node.path} node={node} depth={0} />)
+                  dirTree.map((node) => (
+                    <DirNodeRow
+                      key={node.path}
+                      node={node}
+                      depth={0}
+                      selectedPath={selectedFile}
+                      onFileClick={handleFileClick}
+                    />
+                  ))
                 )}
               </div>
             </ScrollArea>
 
-            {/* Footer note */}
             <div className="flex-shrink-0 px-3 py-1.5 border-t">
               <p className="text-xs text-muted-foreground">
                 This skill is loaded by the V2 agent on demand.
