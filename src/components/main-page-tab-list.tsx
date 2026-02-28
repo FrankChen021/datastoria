@@ -125,21 +125,21 @@ function EmptyTabPlaceholderComponent() {
 
       {/* Action Buttons - VSCode style */}
       <div className="flex flex-col items-start gap-1">
-        <EmptyStateButton icon={Terminal} onClick={openQueryTab}>
-          Write SQLs
+        <EmptyStateButton icon={Sparkles} onClick={() => setDisplayMode("tabWidth")}>
+          Work with AI
         </EmptyStateButton>
 
-        <EmptyStateButton icon={Sparkles} onClick={() => setDisplayMode("tabWidth")}>
-          Chat with AI
+        <EmptyStateButton icon={Terminal} onClick={openQueryTab}>
+          Query Data with SQL
         </EmptyStateButton>
 
         <EmptyStateButton icon={Monitor} onClick={openNodeTab}>
-          Node Status
+          Node Dashboard
         </EmptyStateButton>
 
         {isClusterMode && (
           <EmptyStateButton icon={Network} onClick={openClusterTab}>
-            Cluster Status
+            Cluster Dashboard
           </EmptyStateButton>
         )}
 

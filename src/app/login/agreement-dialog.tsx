@@ -17,7 +17,7 @@ By accessing or using DataStoria, you agree to be bound by these Terms of Servic
 If you **DO NOT** agree, please **DO NOT** use the service.
 
 ## 2. Description of Service
-DataStoria is an AI-powered ClickHouse database management console. We provide tools for database introspection, query execution, and data visualization.
+DataStoria is an AI-native ClickHouse console. We provide tools for database introspection, query execution, data visualization, and cluster diagnostics.
 
 ## 3. User Responsibilities
 - You are responsible for maintaining the security of your account and any credentials used to connect to your databases.

@@ -53,7 +53,7 @@ Please create and add the following image files to this directory:
 The Open Graph image is the most important for social sharing. It should include:
 
 1. **DataStoria branding/logo**
-2. **Tagline**: "AI-Powered ClickHouse Management Console"
+2. **Tagline**: "AI-native ClickHouse Console"
 3. **Key features** (optional): Natural Language Queries, Query Optimization, Cluster Management
 4. **Visual elements**: Consider including a screenshot or graphic representation
 5. **Color scheme**: Match your brand colors (blue theme: #3b82f6)
@@ -78,7 +78,7 @@ The Open Graph image is the most important for social sharing. It should include
 convert -size 1200x630 xc:'#3b82f6' \
   -font Arial-Bold -pointsize 72 -fill white \
   -gravity center -annotate +0-100 'DataStoria' \
-  -pointsize 36 -annotate +0+50 'AI-Powered ClickHouse Console' \
+  -pointsize 36 -annotate +0+50 'AI-native ClickHouse Console' \
   og-image.png
 ```
 

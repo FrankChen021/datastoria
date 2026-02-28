@@ -52,9 +52,7 @@ function LoginFormContent({ enabledProviders }: { enabledProviders: EnabledProvi
             <AppLogo width={64} height={64} />
             <CardTitle>DataStoria</CardTitle>
           </div>
-          <CardDescription className="text-base">
-            AI-powered ClickHouse management console
-          </CardDescription>
+          <CardDescription className="text-base">AI-native ClickHouse console</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           {error && (

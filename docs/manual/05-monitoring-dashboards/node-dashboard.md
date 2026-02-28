@@ -22,7 +22,7 @@ The Node Dashboard is a pre-configured monitoring view that requires no setup. I
 
 ## Opening the Node Dashboard
 
-1. **Select a Node**: Click the host name node in schema tree or the 'Node Status' from the dashboard icon on the sidebar
+1. **Select a Node**: Click the host name node in schema tree or the 'Node Dashboard' item from the dashboard icon on the sidebar
 2. **View Dashboard**: The node dashboard displays automatically
 
 ## Dashboard Overview

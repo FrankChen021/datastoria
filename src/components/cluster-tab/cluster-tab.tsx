@@ -2264,7 +2264,7 @@ export const ClusterTab = memo(() => {
         filter: {},
         charts: [
           {
-            title: "Cluster Status",
+            title: "Cluster Dashboard",
             collapsed: false,
             charts: clusterStatusDashboard,
           } as DashboardGroup,

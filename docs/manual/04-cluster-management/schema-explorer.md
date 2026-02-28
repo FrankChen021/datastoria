@@ -95,10 +95,10 @@ Right-click on any node to access context menu options.
 
 ## Actions and Shortcuts
 
-### Open Node Status Tab
+### Open Node Dashboard Tab
 
 - **Method**: Click host name
-- **Shows**: The node status dashboard in a tab
+- **Shows**: The node dashboard in a tab
 
 
 ### Open Database Tab
@@ -135,4 +135,3 @@ Right-click on any node to access context menu options.
 - **[Natural Language Queries](../02-ai-features/natural-language-sql.md)** — Ask questions about your data
 - **[Cluster Dashboard](../05-monitoring-dashboards/cluster-dashboard.md)** — Monitor cluster-wide metrics
 - **[Node Dashboard](../05-monitoring-dashboards/node-dashboard.md)** — Monitor individual node performance
-
