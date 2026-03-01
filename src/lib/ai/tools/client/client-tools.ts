@@ -420,7 +420,7 @@ export const ClientTools = {
         healthy_nodes: z.number(),
         nodes_with_issues: z.number(),
       }),
-      categories: z.record(z.any()),
+      categories: z.record(z.string(), z.any()),
       window: z
         .object({
           success: z.boolean(),
