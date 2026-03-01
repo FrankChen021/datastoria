@@ -65,7 +65,9 @@ Always use one of these two formats:
    Table rules:
    - Include all categories returned by `collect_cluster_status` in stable order.
    - Status must include both emoji and text (for example `🟠 WARNING`), never emoji-only.
-   - In `Key Metrics`, if a category has multiple metrics, render each metric as a bullet item in the cell (use `<br/> ...` style line breaks in markdown tables).
+   - Markdown table cells do not reliably support line breaks in this UI. Do not try to render multi-line bullets in a cell.
+   - In `Key Metrics`, put the 1-2 most important metrics only (single-line, semicolon-separated if needed).
+   - Put additional metrics in `Notes` as compact key/value items (single-line).
    - Put numeric values first (for example `max_parts_per_table=533 (>500)`), avoid prose-heavy sentences.
    - Always wrap database/table identifiers in backticks (for example `` `db.table` `` or `` `db` ``) in all table cells.
    - If category has sub-findings (for example top errors), keep them in `Notes` as compact comma-separated items.

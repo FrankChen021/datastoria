@@ -750,51 +750,176 @@ GROUP BY host_name`,
     registerObservedNode,
     registerIssueNode,
   }) => {
-    const partsWarning = thresholds?.parts_warning ?? 500;
-    const partsCritical = thresholds?.parts_critical ?? 1000;
-    const data = await queryJsonCompact(
+    const settingsSource =
+      thresholds?.parts_warning !== undefined || thresholds?.parts_critical !== undefined
+        ? "threshold_overrides"
+        : "static_fallback";
+    const settingsInfo: {
+      source: "threshold_overrides" | "merge_tree_settings" | "static_fallback";
+      parts_to_delay_insert?: number;
+      parts_to_throw_insert?: number;
+      max_avg_part_size_for_too_many_parts?: number;
+    } = { source: settingsSource };
+
+    if (settingsInfo.source !== "threshold_overrides") {
+      try {
+        const settingsData = await queryJsonCompact(
+          `
+SELECT
+  name,
+  toFloat64OrNull(value) AS value
+FROM system.merge_tree_settings
+WHERE name IN (
+  'parts_to_delay_insert',
+  'parts_to_throw_insert',
+  'max_avg_part_size_for_too_many_parts'
+)`,
+          connection
+        );
+        for (const row of settingsData.data || []) {
+          const [name, value] = row as (string | number | null)[];
+          const n = Number(value);
+          if (!Number.isFinite(n) || n <= 0) continue;
+          if (name === "parts_to_delay_insert") settingsInfo.parts_to_delay_insert = n;
+          if (name === "parts_to_throw_insert") settingsInfo.parts_to_throw_insert = n;
+          if (name === "max_avg_part_size_for_too_many_parts") {
+            settingsInfo.max_avg_part_size_for_too_many_parts = n;
+          }
+        }
+        if (settingsInfo.parts_to_delay_insert || settingsInfo.parts_to_throw_insert) {
+          settingsInfo.source = "merge_tree_settings";
+        }
+      } catch {
+        // `system.merge_tree_settings` may be unavailable on some versions.
+      }
+    }
+
+    const partsWarning = thresholds?.parts_warning ?? settingsInfo.parts_to_delay_insert ?? 500;
+    const partsCritical = thresholds?.parts_critical ?? settingsInfo.parts_to_throw_insert ?? 1000;
+
+    const aggregateData = await queryJsonCompact(
       `
 SELECT
-  FQDN() AS host_name,
+  max(active_parts) AS max_parts_per_table,
+  max(max_parts_per_partition) AS max_parts_per_partition,
+  max(avg_active_part_size_bytes) AS max_avg_active_part_size_bytes,
+  count() AS tables_checked
+FROM (
+  SELECT
+    FQDN() AS host_name,
+    database,
+    table,
+    sum(partition_active_parts) AS active_parts,
+    max(partition_active_parts) AS max_parts_per_partition,
+    if(sum(partition_active_parts) = 0, 0, sum(partition_active_bytes) / sum(partition_active_parts)) AS avg_active_part_size_bytes
+  FROM (
+    SELECT
+      FQDN() AS host_name,
+      database,
+      table,
+      partition,
+      count() AS partition_active_parts,
+      sum(bytes_on_disk) AS partition_active_bytes
+    FROM {clusterAllReplicas:system.parts}
+    WHERE active
+    GROUP BY host_name, database, table, partition
+  )
+  GROUP BY host_name, database, table
+)`,
+      connection
+    );
+    const aggregateRow =
+      ((aggregateData.data || [])[0] as (string | number | null)[] | undefined) ?? [];
+    const worstParts = Number(aggregateRow[0]) || 0;
+    const worstPartsPerPartition = Number(aggregateRow[1]) || 0;
+    const maxAvgPartSizeBytes = Number(aggregateRow[2]) || 0;
+    const tablesChecked = Number(aggregateRow[3]) || 0;
+
+    const outlierData = await queryJsonCompact(
+      `
+SELECT
+  host_name,
   database,
   table,
-  sum(active) AS active_parts
-FROM {clusterAllReplicas:system.parts}
-GROUP BY host_name, database, table
-ORDER BY active_parts DESC
+  active_parts,
+  max_parts_per_partition,
+  avg_active_part_size_bytes
+FROM (
+  SELECT
+    host_name,
+    database,
+    table,
+    sum(partition_active_parts) AS active_parts,
+    max(partition_active_parts) AS max_parts_per_partition,
+    if(sum(partition_active_parts) = 0, 0, sum(partition_active_bytes) / sum(partition_active_parts)) AS avg_active_part_size_bytes
+  FROM (
+    SELECT
+      FQDN() AS host_name,
+      database,
+      table,
+      partition,
+      count() AS partition_active_parts,
+      sum(bytes_on_disk) AS partition_active_bytes
+    FROM {clusterAllReplicas:system.parts}
+    WHERE active
+    GROUP BY host_name, database, table, partition
+  )
+  GROUP BY host_name, database, table
+)
+ORDER BY max_parts_per_partition DESC, active_parts DESC
 LIMIT 500`,
       connection
     );
-    const rows = data.data || [];
-
-    let worstParts = 0;
+    const rows = outlierData.data || [];
     const outliers: Outlier[] = [];
 
     for (const row of rows) {
-      const [hostName, databaseName, tableName, parts] = row as (string | number)[];
+      const [
+        hostName,
+        databaseName,
+        tableName,
+        parts,
+        maxPartsInPartition,
+        avgActivePartSizeBytes,
+      ] = row as (string | number | null)[];
       const nodeName = String(hostName || "");
       registerObservedNode(nodeName);
       const partCount = Number(parts) || 0;
-      if (partCount > worstParts) worstParts = partCount;
+      const maxPartitionParts = Number(maxPartsInPartition) || 0;
+      const avgPartSize = Number(avgActivePartSizeBytes) || 0;
 
-      if (partCount >= partsWarning) {
+      if (maxPartitionParts >= partsWarning) {
         registerIssueNode(nodeName);
-        const severity: StatusSeverity = partCount >= partsCritical ? "CRITICAL" : "WARNING";
+        const avgPartSizeMitigates =
+          (settingsInfo.max_avg_part_size_for_too_many_parts ?? 0) > 0 &&
+          avgPartSize >= (settingsInfo.max_avg_part_size_for_too_many_parts ?? 0);
+        let severity: StatusSeverity = maxPartitionParts >= partsCritical ? "CRITICAL" : "WARNING";
+        if (severity === "CRITICAL" && avgPartSizeMitigates) {
+          severity = "WARNING";
+        }
+
         outliers.push({
           node: `${nodeName}:${databaseName}.${tableName}`,
-          details: `${severity} part count for ${databaseName}.${tableName} on ${nodeName}`,
+          details: `${severity} parts pressure for ${databaseName}.${tableName} on ${nodeName}`,
           metrics: {
             host_name: nodeName,
             database: String(databaseName || ""),
             table: String(tableName || ""),
             parts: partCount,
+            max_parts_per_partition: maxPartitionParts,
+            avg_active_part_size_bytes: Number(avgPartSize.toFixed(2)),
+            avg_part_size_mitigates_too_many_parts: avgPartSizeMitigates ? 1 : 0,
           },
         });
       }
     }
 
     const status: StatusSeverity =
-      worstParts >= partsCritical ? "CRITICAL" : worstParts >= partsWarning ? "WARNING" : "OK";
+      worstPartsPerPartition >= partsCritical
+        ? "CRITICAL"
+        : worstPartsPerPartition >= partsWarning
+          ? "WARNING"
+          : "OK";
 
     return {
       status,
@@ -802,11 +927,18 @@ LIMIT 500`,
         status === "OK"
           ? []
           : [
-              `Highest part count per table is ${worstParts}. Thresholds: warning >= ${partsWarning}, critical >= ${partsCritical}.`,
+              `Highest max-parts-per-partition is ${worstPartsPerPartition}. Thresholds (${settingsInfo.source}): warning >= ${partsWarning}, critical >= ${partsCritical}.`,
             ],
       metrics: {
         max_parts_per_table: worstParts,
-        tables_checked: rows.length,
+        max_parts_per_partition: worstPartsPerPartition,
+        parts_warning_threshold: partsWarning,
+        parts_critical_threshold: partsCritical,
+        threshold_source: settingsInfo.source,
+        max_avg_part_size_for_too_many_parts:
+          settingsInfo.max_avg_part_size_for_too_many_parts ?? null,
+        max_avg_active_part_size_bytes: Number(maxAvgPartSizeBytes.toFixed(2)),
+        tables_checked: tablesChecked,
       },
       outliers: limitOutliers(outliers, maxOutliers),
     };

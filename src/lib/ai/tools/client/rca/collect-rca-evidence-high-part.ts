@@ -29,26 +29,9 @@ export type HighPartCountContext = SymptomContext & {
 
 const HIGH_PART_COUNT_QUERIES: QuerySpec<HighPartCountContext>[] = [
   {
-    id: "parts_replica_totals",
-    progressStage: "rca high_part_count: parts_replica_totals",
-    progressWeight: 40,
-    sqlTemplate: `
-SELECT
-  count() AS total_active_parts
-FROM {clusterAllReplicas:system.parts}
-WHERE active AND {partsTableFilterExpression}`,
-    toObservation: (row, _ctx) => ({
-      source: "system.parts",
-      description: "Replica-inclusive active part count for target table",
-      metrics: {
-        total_active_parts: asNumber(row?.[0]),
-      },
-    }),
-  },
-  {
     id: "parts_logical_partition_stats",
     progressStage: "rca high_part_count: parts_logical_partition_stats",
-    progressWeight: 43,
+    progressWeight: 40,
     sqlTemplate: `
 SELECT
   uniqExact(partition) AS distinct_partitions,
@@ -101,6 +84,33 @@ FROM (
         max_node_partition_to_parts_ratio: Number(asNumber(row?.[0]).toFixed(4)),
         avg_node_partition_to_parts_ratio: Number(asNumber(row?.[1]).toFixed(4)),
         top_ratio_node: String(row?.[2] ?? ""),
+      },
+    }),
+  },
+  {
+    id: "parts_node_totals",
+    progressStage: "rca high_part_count: parts_node_totals",
+    progressWeight: 44,
+    sqlTemplate: `
+SELECT
+  max(node_active_parts) AS max_active_parts_per_node,
+  avg(node_active_parts) AS avg_active_parts_per_node,
+  ifNull(argMax(host_name, node_active_parts), '') AS top_parts_node
+FROM (
+  SELECT
+    FQDN() AS host_name,
+    count() AS node_active_parts
+  FROM {clusterAllReplicas:system.parts}
+  WHERE active AND {partsTableFilterExpression}
+  GROUP BY host_name
+)`,
+    toObservation: (row, _ctx) => ({
+      source: "system.parts",
+      description: "Per-node active part totals (replica-inclusive, hotspot-oriented)",
+      metrics: {
+        max_active_parts_per_node: asNumber(row?.[0]),
+        avg_active_parts_per_node: Number(asNumber(row?.[1]).toFixed(2)),
+        top_parts_node: String(row?.[2] ?? ""),
       },
     }),
   },
@@ -176,19 +186,21 @@ WHERE database = '{resolvedTargetDatabase}'
 ];
 
 function getHighPartCounts(results: QueryResults): {
-  replicaTotalActiveParts: number;
   distinctPartitions: number;
   maxPartsPerPartition: number;
+  maxActivePartsPerNode: number;
+  avgActivePartsPerNode: number;
   maxNodePartitionToPartsRatio: number;
   avgNodePartitionToPartsRatio: number;
 } {
-  const replicaTotals = results["parts_replica_totals"];
   const logicalStats = results["parts_logical_partition_stats"];
   const nodeRatio = results["parts_node_partition_ratio"];
+  const nodeTotals = results["parts_node_totals"];
   return {
-    replicaTotalActiveParts: asNumber(replicaTotals?.metrics["total_active_parts"]),
     distinctPartitions: asNumber(logicalStats?.metrics["distinct_partitions"]),
     maxPartsPerPartition: asNumber(logicalStats?.metrics["max_parts_per_partition"]),
+    maxActivePartsPerNode: asNumber(nodeTotals?.metrics["max_active_parts_per_node"]),
+    avgActivePartsPerNode: asNumber(nodeTotals?.metrics["avg_active_parts_per_node"]),
     maxNodePartitionToPartsRatio: asNumber(nodeRatio?.metrics["max_node_partition_to_parts_ratio"]),
     avgNodePartitionToPartsRatio: asNumber(nodeRatio?.metrics["avg_node_partition_to_parts_ratio"]),
   };
@@ -217,10 +229,10 @@ function buildHighPartCountRules(thresholds: RcaThresholds): RuleSpec[] {
           },
         },
         {
-          description: `total active parts > ${t.total_active_parts_gt}`,
+          description: `max active parts per node > ${t.total_active_parts_gt}`,
           required: true,
           match: (r) => {
-            const v = getHighPartCounts(r).replicaTotalActiveParts;
+            const v = getHighPartCounts(r).maxActivePartsPerNode;
             return { matched: v > t.total_active_parts_gt, actual: v };
           },
         },
@@ -244,10 +256,10 @@ function buildHighPartCountRules(thresholds: RcaThresholds): RuleSpec[] {
           },
         },
         {
-          description: `total active parts > ${t.total_active_parts_gt}`,
+          description: `max active parts per node > ${t.total_active_parts_gt}`,
           required: true,
           match: (r) => {
-            const v = getHighPartCounts(r).replicaTotalActiveParts;
+            const v = getHighPartCounts(r).maxActivePartsPerNode;
             return { matched: v > t.total_active_parts_gt, actual: v };
           },
         },
@@ -300,10 +312,10 @@ function buildHighPartCountRules(thresholds: RcaThresholds): RuleSpec[] {
           },
         },
         {
-          description: `total active parts > ${t.total_active_parts_gt}`,
+          description: `max active parts per node > ${t.total_active_parts_gt}`,
           required: true,
           match: (r) => {
-            const v = getHighPartCounts(r).replicaTotalActiveParts;
+            const v = getHighPartCounts(r).maxActivePartsPerNode;
             return { matched: v > t.total_active_parts_gt, actual: v };
           },
         },
