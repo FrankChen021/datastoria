@@ -10,8 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SkillDetailResponse } from "@/lib/ai/skills/skill-provider";
 import matter from "gray-matter";
-import { ArrowLeft, ChevronRight, File, FileText, Folder, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, ChevronRight, File, FileText, Folder } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import remarkGfm from "remark-gfm";
@@ -213,33 +213,54 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
   const [resourceError, setResourceError] = useState<string | null>(null);
 
   const [renderMode, setRenderMode] = useState<"rendered" | "raw">("rendered");
+  const detailRequestIdRef = useRef(0);
+  const resourceRequestIdRef = useRef(0);
+  const resourceAbortControllerRef = useRef<AbortController | null>(null);
 
   // Load skill detail
   useEffect(() => {
+    const requestId = ++detailRequestIdRef.current;
+    const controller = new AbortController();
+
     setLoading(true);
     setError(null);
     setDetail(null);
     setSelectedFile(null);
     setResourceContent(null);
+    setResourceError(null);
+    setResourceLoading(false);
+    resourceAbortControllerRef.current?.abort();
+    resourceAbortControllerRef.current = null;
 
-    fetch(`/api/ai/skills/${encodeURIComponent(skillId)}`)
+    fetch(`/api/ai/skills/${encodeURIComponent(skillId)}`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<SkillDetailResponse>;
       })
       .then((data) => {
+        if (detailRequestIdRef.current !== requestId) return;
         setDetail(data);
         setLoading(false);
       })
       .catch((err: unknown) => {
+        if (controller.signal.aborted || detailRequestIdRef.current !== requestId) return;
         setError(err instanceof Error ? err.message : "Failed to load skill");
         setLoading(false);
       });
+
+    return () => {
+      controller.abort();
+    };
   }, [skillId]);
 
   // Load a resource file when a tree node is clicked
   const handleFileClick = useCallback(
     (resourcePath: string) => {
+      const requestId = ++resourceRequestIdRef.current;
+      resourceAbortControllerRef.current?.abort();
+      const controller = new AbortController();
+      resourceAbortControllerRef.current = controller;
+
       setSelectedFile(resourcePath);
       setResourceContent(null);
       setResourceError(null);
@@ -247,17 +268,20 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
       setRenderMode("rendered");
 
       fetch(
-        `/api/ai/skills/${encodeURIComponent(skillId)}/resource?path=${encodeURIComponent(resourcePath)}`
+        `/api/ai/skills/${encodeURIComponent(skillId)}/resource?path=${encodeURIComponent(resourcePath)}`,
+        { signal: controller.signal }
       )
         .then((res) => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.json() as Promise<{ content: string }>;
         })
         .then(({ content }) => {
+          if (resourceRequestIdRef.current !== requestId) return;
           setResourceContent(content);
           setResourceLoading(false);
         })
         .catch((err: unknown) => {
+          if (controller.signal.aborted || resourceRequestIdRef.current !== requestId) return;
           setResourceError(err instanceof Error ? err.message : "Failed to load file");
           setResourceLoading(false);
         });
@@ -267,9 +291,13 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
 
   // Click SKILL.md → go back to main content
   const handleSkillMdClick = useCallback(() => {
+    resourceRequestIdRef.current += 1;
+    resourceAbortControllerRef.current?.abort();
+    resourceAbortControllerRef.current = null;
     setSelectedFile(null);
     setResourceContent(null);
     setResourceError(null);
+    setResourceLoading(false);
     setRenderMode("rendered");
   }, []);
 

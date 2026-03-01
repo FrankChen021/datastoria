@@ -58,7 +58,7 @@ export class CompositeSkillProvider implements SkillProvider {
   async getSkillResource(id: string, resourcePath: string): Promise<string | null> {
     for (const provider of this.providers) {
       const result = await provider.getSkillResource(id, resourcePath);
-      if (result) return result;
+      if (result !== null) return result;
     }
     return null;
   }
