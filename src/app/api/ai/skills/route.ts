@@ -16,7 +16,7 @@ const skillProvider = new CompositeSkillProvider([new DiskSkillProvider()]);
 
 export async function GET() {
   try {
-    const skills = await skillProvider.listSkills();
+    const skills = await skillProvider.listSkills((s) => s.provider !== "System");
     return NextResponse.json(skills);
   } catch (err) {
     console.error("[/api/ai/skills] Failed to list skills", err);

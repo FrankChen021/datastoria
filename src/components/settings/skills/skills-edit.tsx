@@ -36,41 +36,32 @@ export function SkillsEdit() {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="px-4 py-3">
-        <p className="text-xs text-muted-foreground">
-          Bundled skills available to the V2 agent. Skills are loaded on demand during conversations
-          to improve SQL generation, optimization, and ClickHouse-specific guidance.
-        </p>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
-        {loading ? (
-          <div className="grid grid-cols-2 gap-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-lg border p-3 space-y-2">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-5/6" />
-              </div>
-            ))}
-          </div>
-        ) : error ? (
-          <div className="flex items-center justify-center h-32">
-            <p className="text-sm text-destructive">{error}</p>
-          </div>
-        ) : skills.length === 0 ? (
-          <div className="flex items-center justify-center h-32">
-            <p className="text-sm text-muted-foreground">No skills found.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {skills.map((skill) => (
-              <SkillsCard key={skill.id} skill={skill} onClick={(s) => setSelectedSkillId(s.id)} />
-            ))}
-          </div>
-        )}
-      </div>
+    <div className="h-full flex flex-col overflow-y-auto px-4 py-4">
+      {loading ? (
+        <div className="grid grid-cols-2 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-lg border p-3 space-y-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-5/6" />
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <div className="flex items-center justify-center h-32">
+          <p className="text-sm text-destructive">{error}</p>
+        </div>
+      ) : skills.length === 0 ? (
+        <div className="flex items-center justify-center h-32">
+          <p className="text-sm text-muted-foreground">No skills found.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {skills.map((skill) => (
+            <SkillsCard key={skill.id} skill={skill} onClick={(s) => setSelectedSkillId(s.id)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

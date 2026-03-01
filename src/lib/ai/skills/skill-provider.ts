@@ -26,7 +26,7 @@ export interface SkillDetailResponse extends SkillCatalogItem {
 
 export interface SkillProvider {
   /** Return catalog metadata for all skills from this source. */
-  listSkills(): Promise<SkillCatalogItem[]>;
+  listSkills(filter?: (skill: SkillCatalogItem) => boolean): Promise<SkillCatalogItem[]>;
 
   /** Return full detail for a single skill by id, or null if not found. */
   getSkillDetail(id: string): Promise<SkillDetailResponse | null>;
@@ -42,8 +42,8 @@ export interface SkillProvider {
 export class CompositeSkillProvider implements SkillProvider {
   constructor(private readonly providers: SkillProvider[]) {}
 
-  async listSkills(): Promise<SkillCatalogItem[]> {
-    const results = await Promise.all(this.providers.map((p) => p.listSkills()));
+  async listSkills(filter?: (skill: SkillCatalogItem) => boolean): Promise<SkillCatalogItem[]> {
+    const results = await Promise.all(this.providers.map((p) => p.listSkills(filter)));
     return results.flat().sort((a, b) => a.name.localeCompare(b.name));
   }
 

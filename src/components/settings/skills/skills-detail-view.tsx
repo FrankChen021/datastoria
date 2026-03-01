@@ -1,6 +1,7 @@
 "use client";
 
 import { MessageMarkdownSql } from "@/components/chat/message/message-markdown-sql";
+import FloatingProgressBar from "@/components/shared/floating-progress-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -279,7 +280,9 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
   const dirTree = detail ? buildDirTree(detail.resourcePaths) : [];
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col relative">
+      <FloatingProgressBar show={loading || resourceLoading} />
+
       {/* Header */}
       <div className="flex-shrink-0 px-4 py-2 border-b flex items-center gap-2">
         <Button variant="ghost" size="icon" onClick={onBack} className="h-7 w-7">
@@ -320,15 +323,12 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
         <PanelGroup direction="horizontal" className="flex-1 overflow-hidden min-h-0">
           {/* ── Left panel — file content ── */}
           <Panel defaultSize={70} minSize={20} className="flex flex-col overflow-hidden">
-            <div className="flex-shrink-0 px-3 py-1.5 border-b flex items-center justify-between gap-2">
+            <div className="flex-shrink-0 px-4 py-1.5 border-b flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <span className="text-xs font-medium text-muted-foreground truncate">
                   {displayedFilename}
                 </span>
-                {resourceLoading && (
-                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
-                )}
               </div>
               {isMarkdownFile && (
                 <ToggleGroup

@@ -7,8 +7,9 @@ import { SkillManager, type SkillCatalogItem } from "./skill-manager";
 import type { SkillDetailResponse, SkillProvider } from "./skill-provider";
 
 export class DiskSkillProvider implements SkillProvider {
-  async listSkills(): Promise<SkillCatalogItem[]> {
-    return SkillManager.listSkillCatalog();
+  async listSkills(filter?: (skill: SkillCatalogItem) => boolean): Promise<SkillCatalogItem[]> {
+    const catalog = SkillManager.listSkillCatalog();
+    return filter ? catalog.filter(filter) : catalog;
   }
 
   async getSkillDetail(id: string): Promise<SkillDetailResponse | null> {
