@@ -2,6 +2,7 @@
 
 import { MessageMarkdownSql } from "@/components/chat/message/message-markdown-sql";
 import FloatingProgressBar from "@/components/shared/floating-progress-bar";
+import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -275,6 +276,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
   // Derived display state
   const isMarkdownFile =
     selectedFile === null || selectedFile.endsWith(".md") || selectedFile.endsWith(".MD");
+  const isJsonFile = selectedFile?.endsWith(".json") || selectedFile?.endsWith(".JSON");
   const displayedFilename = selectedFile === null ? "SKILL.md" : selectedFile.split("/").pop()!;
   const currentContent = selectedFile === null ? (detail?.content ?? "") : (resourceContent ?? "");
   const dirTree = detail ? buildDirTree(detail.resourcePaths) : [];
@@ -330,22 +332,21 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
                   {displayedFilename}
                 </span>
               </div>
-              {isMarkdownFile && (
-                <ToggleGroup
-                  type="single"
-                  value={renderMode}
-                  onValueChange={(v) => v && setRenderMode(v as "rendered" | "raw")}
-                  size="sm"
-                  variant="outline"
-                >
-                  <ToggleGroupItem value="rendered" className="text-xs h-6 px-2">
-                    Rendered
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="raw" className="text-xs h-6 px-2">
-                    Raw
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              )}
+              <ToggleGroup
+                type="single"
+                value={renderMode}
+                onValueChange={(v) => v && setRenderMode(v as "rendered" | "raw")}
+                size="sm"
+                variant="outline"
+                className={isMarkdownFile ? undefined : "invisible pointer-events-none"}
+              >
+                <ToggleGroupItem value="rendered" className="text-xs h-6 px-2">
+                  Rendered
+                </ToggleGroupItem>
+                <ToggleGroupItem value="raw" className="text-xs h-6 px-2">
+                  Raw
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
 
             <ScrollArea className="flex-1">
@@ -358,6 +359,19 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
                   </div>
                 ) : resourceError ? (
                   <p className="text-sm text-destructive">{resourceError}</p>
+                ) : isJsonFile ? (
+                  <ThemedSyntaxHighlighter
+                    language="json"
+                    customStyle={{
+                      margin: 0,
+                      padding: 0,
+                      fontSize: "0.75rem",
+                      background: "transparent",
+                    }}
+                    showLineNumbers={false}
+                  >
+                    {currentContent}
+                  </ThemedSyntaxHighlighter>
                 ) : isMarkdownFile && renderMode === "rendered" ? (
                   <SkillMarkdownRenderer raw={currentContent} />
                 ) : (
