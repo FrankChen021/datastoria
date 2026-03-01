@@ -111,8 +111,6 @@ export async function POST(req: Request) {
   try {
     const userEmail = getAuthenticatedUserEmail(req);
 
-    console.log("userEmail", userEmail);
-
     let apiRequest: ChatV2Request;
     try {
       const text = await req.text();

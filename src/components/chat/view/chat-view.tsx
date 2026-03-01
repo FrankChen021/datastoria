@@ -27,6 +27,10 @@ const GREETINGS = [
 
 export const DEFAULT_CHAT_QUESTIONS: Question[] = [
   {
+    text: "What's the status of current cluster",
+    autoRun: true,
+  },
+  {
     text: "Help me optimize a query",
     autoRun: true,
   },
