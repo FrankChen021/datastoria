@@ -1,18 +1,16 @@
 # system.query_log Reference
 
-Use this reference for operational query inspection on `system.query_log` (slowest queries, top resource-heavy patterns, user/database scoped workload).
+Use only for `system.query_log` analysis: slow/failed queries, heavy patterns, and user/database workload.
 
-## SQL Construction
+## Required Rules
 
-Always use the macro source:
+- Source must be:
 
 ```sql
 FROM {clusterAllReplicas:system.query_log}
 ```
 
-The execution tool resolves this macro automatically. Never hard-code `clusterAllReplicas(...)` or bare `system.query_log`.
-
-Use time filters on both `event_date` and `event_time`:
+- Always bound time with both columns:
 
 ```sql
 WHERE event_date >= toDate('{from}')
@@ -21,9 +19,12 @@ WHERE event_date >= toDate('{from}')
   AND event_time <= toDateTime('{to}')
 ```
 
-Use `type = 'QueryFinish'` and `is_initial_query = 1` by default for user-facing workload analysis unless user asks otherwise.
+- Default filters: `type = 'QueryFinish'` and `is_initial_query = 1`.
+- `ProfileEvents` shape must be checked first:
+  - Map form: `ProfileEvents['Name']`
+  - Flattened form: `ProfileEvent_Name`
 
-## Predicate Patterns
+## Common Predicates
 
 - SELECT only: `query_kind = 'Select'`
 - Non-SELECT: `query_kind != 'Select'`
@@ -31,30 +32,25 @@ Use `type = 'QueryFinish'` and `is_initial_query = 1` by default for user-facing
 - Database scoped: `has(databases, 'db_name')`
 - Text search: `positionCaseInsensitive(query, 'keyword') > 0`
 
-## Result Patterns
+## Result Formats
 
-- Raw executions:
-  - Include `query_id`, `user`, optional `FQDN() AS host`, `event_time`, `query_duration_ms`, `read_rows`, `memory_usage`, `query`.
-- Pattern aggregates:
-  - Group by `normalized_query_hash`.
-  - Include `count()`, `max(event_time)`, and representative SQL like `any(substring(query, 1, 240))`.
-  - Add objective metrics: `avg(query_duration_ms)`, `sum(read_rows)`, `sum(read_bytes)`, `sum(ProfileEvents['OSCPUVirtualTimeMicroseconds'])`.
+- Raw executions: include `query_id`, `user`, `event_time`, `query_duration_ms`, `read_rows`, `memory_usage`, `query`; order by target metric, then `event_time DESC`.
+- Pattern aggregates: group by `normalized_query_hash`; include `count()`, `max(event_time)`, `any(substring(query, 1, 240))`, `avg(query_duration_ms)`, `sum(read_rows)`, `sum(read_bytes)`, `sum(ProfileEvents['OSCPUVirtualTimeMicroseconds'])`; order by the primary ranking metric.
 
 ## Resource Metrics
 
-- CPU time: `ProfileEvents['OSCPUVirtualTimeMicroseconds']`
-- CPU wait: `ProfileEvents['OSCPUWaitMicroseconds']`
-- Memory: `memory_usage`
-- Rows read: `read_rows`
-- Bytes read: `read_bytes`
-- Disk read: `ProfileEvents['OSReadBytes']`
-- Disk write: `ProfileEvents['OSWriteBytes']`
-- Network egress: `result_bytes`
+| Metric | Expression |
+|---|---|
+| CPU time | `ProfileEvents['OSCPUVirtualTimeMicroseconds']` |
+| CPU wait | `ProfileEvents['OSCPUWaitMicroseconds']` |
+| Memory | `memory_usage` |
+| Rows read | `read_rows` |
+| Bytes read | `read_bytes` |
+| Disk read | `ProfileEvents['OSReadBytes']` |
+| Disk write | `ProfileEvents['OSWriteBytes']` |
+| Network egress | `result_bytes` |
 
-For "CPU-heavy" queries, use `ProfileEvents['OSCPUVirtualTimeMicroseconds']` as primary sort/aggregate metric.
+## Output
 
-## Execution & Output
-
-- Use `execute_sql`.
-- Default `LIMIT 50` unless user specifies otherwise.
-- Summarize in markdown table with top patterns and one sample SQL preview per pattern.
+- Use clear aliases: `sum_cpu_us`, `avg_duration_ms`, `sum_read_bytes`, `failed_queries`.
+- Return a markdown table with top patterns and one sample SQL per pattern.
