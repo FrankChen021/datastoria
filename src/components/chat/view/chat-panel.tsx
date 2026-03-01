@@ -104,15 +104,17 @@ const ChatHeader = React.memo(
           >
             <Plus className="!h-3.5 !w-3.5" />
           </Button>
-          <OpenHistoryButton
-            className="h-6 w-6"
-            iconClassName="!h-3.5 !w-3.5"
-            disabled={isRunning}
-            currentChatId={currentChatId}
-            onNewChat={onNewChat}
-            onSelectChat={onSelectChat}
-            onClearCurrentChat={onClearCurrentChat}
-          />
+          {isMobile && (
+            <OpenHistoryButton
+              className="h-6 w-6"
+              iconClassName="!h-3.5 !w-3.5"
+              disabled={isRunning}
+              currentChatId={currentChatId}
+              onNewChat={onNewChat}
+              onSelectChat={onSelectChat}
+              onClearCurrentChat={onClearCurrentChat}
+            />
+          )}
           {!isMobile && toggleDisplayMode && (
             <Button
               variant="ghost"
@@ -168,6 +170,11 @@ export function ChatPanel({
     initialInput,
     clearInitialInput,
     displayMode,
+    currentChatId,
+    setCurrentChatId,
+    selectedChatId,
+    clearSelectedChatId,
+    newChatRequestNonce,
     toggleDisplayMode,
   } = useChatPanel();
   const [chat, setChat] = useState<Chat<AppUIMessage> | null>(null);
@@ -177,6 +184,7 @@ export function ChatPanel({
   const [isChatViewReady, setIsChatViewReady] = useState(false);
   const previousChatIdRef = useRef<string | null>(null);
   const processedPendingCommandRef = useRef<string | null>(null);
+  const processedNewChatRequestRef = useRef(0);
   const isInitializedRef = useRef(false);
   const { connection } = useConnection();
 
@@ -273,6 +281,13 @@ export function ChatPanel({
     loadChat(newChatId);
   }, [pendingCommand?.forceNewChat, pendingCommand?.timestamp, connection, chat, loadChat]);
 
+  useEffect(() => {
+    if (!chat || !selectedChatId || selectedChatId === chat.id) return;
+
+    void loadChat(selectedChatId);
+    clearSelectedChatId();
+  }, [chat, selectedChatId, loadChat, clearSelectedChatId]);
+
   // Update context builder when props change
   useEffect(() => {
     ChatContext.setBuilder(() => ({
@@ -318,6 +333,13 @@ export function ChatPanel({
     await loadChat(newChatId);
   }, [chat, connection?.connectionId, loadChat]);
 
+  useEffect(() => {
+    if (!chat || newChatRequestNonce === processedNewChatRequestRef.current) return;
+
+    processedNewChatRequestRef.current = newChatRequestNonce;
+    void handleNewChat();
+  }, [chat, handleNewChat, newChatRequestNonce]);
+
   // Handle sending pending messages
   useEffect(() => {
     if (!pendingCommand?.text || !isChatViewReady || !chatViewRef.current) return;
@@ -350,6 +372,18 @@ export function ChatPanel({
       chat.messages = [];
     }
   }, [chat]);
+
+  useEffect(() => {
+    if (!chat) return;
+
+    setCurrentChatId(chat.id);
+
+    return () => {
+      if (currentChatId === chat.id) {
+        setCurrentChatId(null);
+      }
+    };
+  }, [chat, currentChatId, setCurrentChatId]);
 
   const handleToggleDisplayMode = useCallback(() => {
     toggleDisplayMode();

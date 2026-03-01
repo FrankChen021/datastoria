@@ -1,6 +1,9 @@
+import { ChatHistoryList } from "@/components/chat/history/chat-history-list";
+import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Book, Database } from "lucide-react";
+import { Book, Database, MessagesSquare } from "lucide-react";
+import { useState } from "react";
 import { SnippetListView } from "../query-tab/snippet/snippet-list-view";
 import type { SchemaLoadResult } from "../schema-tree/schema-tree-loader";
 
@@ -9,8 +12,20 @@ interface SidebarPanelProps {
 }
 
 export function SidebarPanel({ initialSchemaData }: SidebarPanelProps) {
+  const { currentChatId, requestNewChat, selectChat, setDisplayMode } = useChatPanel();
+  const [activeTab, setActiveTab] = useState("database");
+
   return (
-    <Tabs defaultValue="database" className="w-full h-full flex flex-col">
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => {
+        setActiveTab(value);
+        if (value === "history") {
+          setDisplayMode("tabWidth");
+        }
+      }}
+      className="w-full h-full flex flex-col"
+    >
       <TabsList className="w-full justify-start rounded-none border-b bg-muted/40 p-0 h-9 shrink-0">
         <TabsTrigger
           value="database"
@@ -26,12 +41,27 @@ export function SidebarPanel({ initialSchemaData }: SidebarPanelProps) {
           <Book className="h-4 w-4 mr-2" />
           Snippets
         </TabsTrigger>
+        <TabsTrigger
+          value="history"
+          className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-full px-2"
+        >
+          <MessagesSquare className="h-4 w-4 mr-2" />
+          History
+        </TabsTrigger>
       </TabsList>
       <TabsContent value="database" className="flex-1 overflow-hidden mt-0 min-h-0">
         <SchemaTreeView initialSchemaData={initialSchemaData} />
       </TabsContent>
       <TabsContent value="snippets" className="flex-1 overflow-hidden mt-0 min-h-0">
         <SnippetListView />
+      </TabsContent>
+      <TabsContent value="history" className="flex-1 overflow-hidden mt-0 min-h-0">
+        <ChatHistoryList
+          currentChatId={currentChatId ?? ""}
+          onNewChat={requestNewChat}
+          onSelectChat={selectChat}
+          className="h-full"
+        />
       </TabsContent>
     </Tabs>
   );

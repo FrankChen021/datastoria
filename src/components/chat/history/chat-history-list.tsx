@@ -149,9 +149,10 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
 interface ChatHistoryListProps {
   currentChatId: string;
   onNewChat: () => void;
-  onClose: () => void;
+  onClose?: () => void;
   onSelectChat?: (id: string) => void;
   onClearCurrentChat?: () => void;
+  className?: string;
 }
 
 const getGroupLabel = (dateInput: Date | string) => {
@@ -231,10 +232,14 @@ const ClearAllButton: React.FC<{ onClearAll: () => void }> = ({ onClearAll }) =>
 };
 
 export const ChatHistoryList = React.memo<ChatHistoryListProps>(
-  ({ currentChatId, onNewChat, onClose, onSelectChat, onClearCurrentChat }) => {
+  ({ currentChatId, onNewChat, onClose, onSelectChat, onClearCurrentChat, className }) => {
     const { connection } = useConnection();
     const [history, setHistory] = React.useState<Chat[]>([]);
     const [selectedChatId, setSelectedChatId] = React.useState(currentChatId);
+
+    React.useEffect(() => {
+      setSelectedChatId(currentChatId);
+    }, [currentChatId]);
 
     const fetchHistory = React.useCallback(async () => {
       const connectionId = connection?.connectionId;
@@ -307,7 +312,7 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
     }, [history, searchQuery]);
 
     return (
-      <div className="flex flex-col h-[300px]">
+      <div className={cn("flex flex-col h-[300px]", className)}>
         <Command
           className="rounded-sm border-0"
           value={selectedChatId}
@@ -342,7 +347,7 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
                       if (item.chatId !== currentChatId) {
                         onSelectChat?.(item.chatId);
                       }
-                      onClose();
+                      onClose?.();
                     }}
                   />
                 ))}
