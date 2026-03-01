@@ -1,5 +1,53 @@
 [
   {
+    "id": "e611011",
+    "date": "2026-03-01T16:31:27.749Z",
+    "notes": [
+      {
+        "text": "Bump the npm_and_yarn group across 1 directory with 9 updates",
+        "pr": 76,
+        "type": "feature",
+        "merged_at": "2026-02-27T13:22:26Z"
+      },
+      {
+        "text": "Improve sidebar text visibility and Dashboard expandable style on mobile",
+        "pr": 80,
+        "type": "feature",
+        "merged_at": "2026-02-28T03:51:44Z"
+      },
+      {
+        "text": "Support to view skills and skill catalog improvements",
+        "pr": 84,
+        "type": "feature",
+        "merged_at": "2026-03-01T12:54:56Z"
+      },
+      {
+        "text": "Support cluster healthy advisor",
+        "pr": 37,
+        "type": "feature",
+        "merged_at": "2026-03-01T16:15:58Z"
+      },
+      {
+        "text": "improve query suggestion manager",
+        "pr": 77,
+        "type": "fix",
+        "merged_at": "2026-02-27T13:48:30Z"
+      },
+      {
+        "text": "upgrade mermaid to >=8.13.8 to fix CVE-2021-43861 (XSS)",
+        "pr": 78,
+        "type": "fix",
+        "merged_at": "2026-02-27T13:56:26Z"
+      },
+      {
+        "text": "upgrade esbuild to >=0.25.0 (GHSA-67mh-4wv8-2f99)",
+        "pr": 79,
+        "type": "fix",
+        "merged_at": "2026-02-27T15:04:23Z"
+      }
+    ]
+  },
+  {
     "id": "2782c3e",
     "date": "2026-02-26T14:03:20.199Z",
     "notes": [
