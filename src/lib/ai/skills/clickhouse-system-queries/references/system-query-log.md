@@ -19,7 +19,7 @@ WHERE event_date >= toDate('{from}')
   AND event_time <= toDateTime('{to}')
 ```
 
-- Default filters: `type = 'QueryFinish'` and `is_initial_query = 1`.
+- Default filters: `type = 'QueryFinish'`, `is_initial_query = 1`, and `query_kind = 'Select'` unless the user specifies otherwise.
 - `ProfileEvents` shape must be checked first:
   - Map form: `ProfileEvents['Name']`
   - Flattened form: `ProfileEvent_Name`
