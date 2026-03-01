@@ -1,17 +1,19 @@
 ---
-name: optimization
-description: Optimize slow queries and analyze SQL performance. Use when the user mentions optimize, slow, latency, performance, cpu, memory, or duration.
+name: sql-optimization
+description: Optimize slow queries, analyze SQL performance, and collect evidence for expensive workloads.
+metadata:
+  author: System
 ---
 
 # SQL Optimization Skill
 
-Use this skill when the user asks to optimize slow queries or analyze SQL performance. Workflow is evidence-driven: collect evidence with tools, then recommend based on evidence only.
+Workflow is evidence-driven: collect evidence with tools, then recommend based on evidence only.
 
 ## Pre-flight Check
 
-1. **HAS SQL**: Conversation contains a SQL query → Go to WORKFLOW step 2 (Collect Evidence).
-2. **HAS QUERY_ID**: Conversation contains query_id → Go to WORKFLOW step 2 (Call `collect_sql_optimization_evidence` immediately).
-3. **DISCOVERY REQUEST**: User asks to optimize the slowest/heaviest queries but does not provide SQL/query_id → Go to WORKFLOW step 1 (Discovery).
+1. **HAS SQL**: Conversation contains a SQL query -> Go to WORKFLOW step 2 (Collect Evidence).
+2. **HAS QUERY_ID**: Conversation contains query_id -> Go to WORKFLOW step 2 (Call `collect_sql_optimization_evidence` immediately).
+3. **DISCOVERY REQUEST**: User asks to optimize the slowest/heaviest queries but does not provide SQL/query_id -> Go to WORKFLOW step 1 (Discovery).
 4. **NEITHER**: Output ONLY a concise 1-sentence request for the SQL query or query_id (e.g. "Please provide the SQL query or query_id you'd like to optimize."). Do NOT ask for any other details (like version, table sizes, etc.). Then include the following UI trigger block in the response (must be present and unchanged; place it at the end of the reply):
 
 ```user_actions
@@ -35,7 +37,7 @@ Use this skill when the user asks to optimize slow queries or analyze SQL perfor
 2. **Collect Evidence**: Call `collect_sql_optimization_evidence` with query_id (preferred) or sql (and same time params if coming from discovery).
 3. **Analyze**: Review evidence for optimization opportunities.
 4. **Recommendations**: Rank by Impact/Risk/Effort. Prefer low-risk query rewrites first.
-5. **Validate**: Use `validate_sql` for any proposed SQL changes. Add inline comments (-- comment) to highlight key changes.
+5. **Validate**: Use `validate_sql` for any proposed SQL changes. Add inline comments (`-- comment`) to highlight key changes.
 
 ## Table Schema Evidence
 

@@ -466,7 +466,8 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
             <CardTitle>DataStoria</CardTitle>
           </div>
           <CardDescription className="text-base text-muted-foreground">
-            AI-powered ClickHouse management console with visualization and insights
+            AI-native ClickHouse console for query generation, optimization, visualization, and
+            cluster diagnostics
           </CardDescription>
         </CardHeader>
         {/* px-14 makes it alignt to above description */}

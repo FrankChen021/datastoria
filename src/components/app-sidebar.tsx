@@ -259,9 +259,9 @@ function SystemTableIntrospectionSidebarMenuItem() {
 
 function DashboardSidebarMenuItem() {
   const { connection } = useConnection();
-  const { state } = useSidebar();
+  const { state, isMobile } = useSidebar();
   const isClusterMode = connection?.cluster && connection.cluster.length > 0;
-  const isExpanded = state === "expanded";
+  const isExpanded = state === "expanded" || isMobile;
 
   const openNodeTab = () => {
     TabManager.openTab({
@@ -281,24 +281,31 @@ function DashboardSidebarMenuItem() {
 
   if (isClusterMode && isExpanded) {
     return (
-      <SidebarMenuItem>
-        <SidebarMenuButton size="default" tooltip="Dashboard">
-          <ChartLine className="h-5 w-5" />
-          <span>Dashboard</span>
-        </SidebarMenuButton>
-        <SidebarMenuSub>
-          <SidebarMenuSubItem>
-            <SidebarMenuSubButton asChild onClick={openNodeTab}>
-              <button type="button">Node Status</button>
-            </SidebarMenuSubButton>
-          </SidebarMenuSubItem>
-          <SidebarMenuSubItem>
-            <SidebarMenuSubButton asChild onClick={openClusterTab}>
-              <button type="button">Cluster Status</button>
-            </SidebarMenuSubButton>
-          </SidebarMenuSubItem>
-        </SidebarMenuSub>
-      </SidebarMenuItem>
+      <Collapsible defaultOpen={false} className="group/collapsible">
+        <SidebarMenuItem>
+          <CollapsibleTrigger asChild>
+            <SidebarMenuButton size="default" tooltip="Dashboard">
+              <ChartLine className="h-5 w-5" />
+              <span>Dashboard</span>
+              <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+            </SidebarMenuButton>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <SidebarMenuSub>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton asChild onClick={openNodeTab}>
+                  <button type="button">Node Dashboard</button>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton asChild onClick={openClusterTab}>
+                  <button type="button">Cluster Dashboard</button>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            </SidebarMenuSub>
+          </CollapsibleContent>
+        </SidebarMenuItem>
+      </Collapsible>
     );
   }
 
@@ -317,7 +324,7 @@ function DashboardSidebarMenuItem() {
               }}
             >
               <Monitor className="h-4 w-4" />
-              Node Status
+              Node Dashboard
             </button>
             <button
               className="w-full flex items-center gap-2 text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
@@ -327,7 +334,7 @@ function DashboardSidebarMenuItem() {
               }}
             >
               <Network className="h-4 w-4" />
-              Cluster Status
+              Cluster Dashboard
             </button>
           </div>
         )}
@@ -380,22 +387,7 @@ export function AppSidebar() {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     tooltip={{
-                      children: "Query",
-                      className:
-                        "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
-                    }}
-                    size="default"
-                    onClick={() => TabManager.activateQueryTab()}
-                  >
-                    <Terminal className="h-5 w-5" />
-                    <span>Query</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip={{
-                      children: "Chat with AI",
+                      children: "Work with AI",
                       className:
                         "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
                     }}
@@ -403,7 +395,22 @@ export function AppSidebar() {
                     onClick={openChatPanel}
                   >
                     <Sparkles className="h-5 w-5" />
-                    <span>AI Assistant</span>
+                    <span>Work with AI</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip={{
+                      children: "Query Data with SQL",
+                      className:
+                        "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
+                    }}
+                    size="default"
+                    onClick={() => TabManager.activateQueryTab()}
+                  >
+                    <Terminal className="h-5 w-5" />
+                    <span>Query Data with SQL</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 

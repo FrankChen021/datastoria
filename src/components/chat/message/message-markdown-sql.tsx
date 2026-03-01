@@ -19,6 +19,7 @@ import { Button } from "../../ui/button";
 interface MessageMarkdownSqlProps {
   code: string;
   language?: string;
+  className?: string;
   customStyle?: React.CSSProperties;
   showExecuteButton?: boolean;
   showLineNumbers?: boolean;
@@ -28,6 +29,7 @@ interface MessageMarkdownSqlProps {
 export const MessageMarkdownSql = memo(function MessageMarkdownSql({
   code,
   language = "sql",
+  className,
   customStyle,
   showExecuteButton = false,
   showLineNumbers,
@@ -107,7 +109,7 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
   };
 
   return (
-    <div className="flex flex-col">
+    <div className={cn("flex flex-col", className)}>
       <div
         className="relative rounded-none my-1 overflow-hidden group"
         onMouseEnter={() => setIsHovered(true)}

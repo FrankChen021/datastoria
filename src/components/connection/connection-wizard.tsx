@@ -45,7 +45,8 @@ export function ConnectionWizard() {
                 <CardTitle>DataStoria</CardTitle>
               </div>
               <CardDescription className="text-base">
-                AI-powered ClickHouse management console with visualization and insights
+                AI-native ClickHouse console for query generation, optimization, visualization, and
+                cluster diagnostics
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 px-4 sm:px-6">

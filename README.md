@@ -1,6 +1,6 @@
 # DataStoria
 
-A modern, AI-powered ClickHouse management console that transforms how you interact with your data and manage your clusters.
+An AI-native ClickHouse console for query generation, evidence-based optimization, intelligent visualization, and cluster diagnostics.
 
 ![AI-Powered Features in Action](./docs/public/demo.webp)
 
@@ -8,12 +8,13 @@ A modern, AI-powered ClickHouse management console that transforms how you inter
 
 ## 🚀 Key Features
 
-### 🤖 AI-Powered Intelligence
+### 🤖 AI Features
 - **[Natural Language Data Exploration](https://docs.datastoria.app/manual/02-ai-features/natural-language-sql)** — Describe your data needs in plain English and receive optimized ClickHouse queries instantly.
-- **[Smart Query Optimization](https://docs.datastoria.app/manual/02-ai-features/query-optimization)** — AI analyzes your queries based on evidence and provides actionable performance improvements.
-- **[Intelligent Visualization](https://docs.datastoria.app/manual/02-ai-features/intelligent-visualization)** — Generate stunning visualizations like time series, pie charts, and data tables with simple prompts.
+- **[Smart Query Optimization](https://docs.datastoria.app/manual/02-ai-features/query-optimization)** — AI inspects schema, validates SQL, collects evidence, and recommends concrete ClickHouse performance improvements.
+- **[Intelligent Visualization](https://docs.datastoria.app/manual/02-ai-features/intelligent-visualization)** — Ask for a chart in plain language and DataStoria generates both the SQL and the visualization spec for time series, bar, pie, and table views.
 - **[Agent SKILLs Supported](https://docs.datastoria.app/manual/02-ai-features/skills)** — Skill-based agent architecture that saves tokens across multi-turn conversations; apply the [Official ClickHouse Agent Skills](https://github.com/ClickHouse/agent-skills) to your ClickHouse
-- **[Multiple Model Providers](https://docs.datastoria.app/manual/02-ai-features/ai-model-configuration)** — Use OpenAI, Anthropic Claude, Google Gemini, GitHub Copilot, OpenRouter, and more.
+- **[Multiple Model Providers](https://docs.datastoria.app/manual/02-ai-features/ai-model-configuration)** — Use OpenAI, Anthropic Claude, Google Gemini, GitHub Copilot, OpenRouter, Groq, Cerebras, Nebius and more.
+- **[GitHub Copilot Integration](https://docs.datastoria.app/manual/02-ai-features/github-copilot)** — Sign in with GitHub device flow and use your existing Copilot subscription for chat, query assistance, and other AI-powered workflows.
 
 
 ### ⚡ Powerful Query Experience
@@ -33,6 +34,7 @@ A modern, AI-powered ClickHouse management console that transforms how you inter
 - **[100% Local Execution](https://docs.datastoria.app/manual/06-security-privacy/privacy-features)** — All SQL queries run directly from your browser to your ClickHouse server, ensuring complete privacy.
 - **[No Data Collection](https://docs.datastoria.app/manual/06-security-privacy/privacy-features)** — Your credentials and query results never leave your machine.
 - **[Bring Your Own API Key](https://docs.datastoria.app/manual/02-ai-features/ai-model-configuration)** — Use your own LLM API keys for AI features, keeping your data under your control.
+- **Browser-Side Visualization Rendering** — For AI-generated visualizations, the model produces SQL and chart specs while your browser fetches and renders the data locally.
 
 ---
 
@@ -107,4 +109,4 @@ This project is licensed under the **Apache License 2.0**. See the [LICENSE](./L
 
 ---
 
-Elevate your ClickHouse experience with **DataStoria** — where data meets intelligence.
+DataStoria is an AI-native ClickHouse console for modern query, visualization, and diagnostics workflows.

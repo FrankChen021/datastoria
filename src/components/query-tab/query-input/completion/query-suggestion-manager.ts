@@ -222,14 +222,14 @@ export class QuerySuggestionManager {
           caption: `${connection.cluster}`,
           value: `${connection.cluster}`,
           meta: "cluster",
-          score: -10,
+          score: 10,
         });
 
         this.miscCompletion.push({
           caption: `ON CLUSTER ${connection.cluster}`,
           value: `ON CLUSTER ${connection.cluster}`,
           meta: "cluster",
-          score: -10,
+          score: 10,
         });
       }
 
@@ -249,7 +249,8 @@ export class QuerySuggestionManager {
           caption: dbName,
           value: dbName,
           meta: "database",
-          score: -30,
+          // High score to make sure database completions are shown before table items
+          score: 110,
           docHTML: QuerySuggestionManager.createDescriptionHTML(
             dbName,
             dbInfo.comment || "",
@@ -443,7 +444,7 @@ SELECT * FROM (
       const tablesByDatabase = new Map<string, CompletionItem[]>();
 
       for (const [qualifiedName, tableInfo] of connection.metadata.tableNames) {
-        const { database, table, comment } = tableInfo;
+        const { database, table, comment, engine } = tableInfo;
 
         // Add to database-specific table completion
         if (!tablesByDatabase.has(database)) {
@@ -454,7 +455,7 @@ SELECT * FROM (
         tablesByDatabase.get(database)?.push({
           caption: table,
           value: table,
-          meta: "table",
+          meta: engine || "table",
           score: 100,
           docHTML: docHTML,
         });
@@ -463,7 +464,7 @@ SELECT * FROM (
         qualifiedTableCompletions.push({
           caption: qualifiedName,
           value: qualifiedName,
-          meta: "table",
+          meta: engine || "table",
           score: 100,
           docHTML: docHTML,
         });
@@ -513,14 +514,17 @@ SELECT * FROM (
           completions?.push({
             caption: column,
             value: column,
-            meta: "column",
+            meta: type,
             score: 100,
-            docHTML: QuerySuggestionManager.createDescriptionHTML(
-              column,
-              comment,
-              "column",
-              `type: ${type}`
-            ),
+            docHTML:
+              comment === ""
+                ? ""
+                : QuerySuggestionManager.createDescriptionHTML(
+                    column,
+                    comment,
+                    "column",
+                    `type: ${type}`
+                  ),
           });
         });
       })

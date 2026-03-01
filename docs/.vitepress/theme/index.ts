@@ -4,6 +4,7 @@ import { useRoute } from 'vitepress'
 import imageViewer from 'vitepress-plugin-image-viewer'
 import vImageViewer from 'vitepress-plugin-image-viewer/lib/vImageViewer.vue'
 import DefaultTheme from 'vitepress/theme'
+import FeatureCarousel from '../components/FeatureCarousel.vue'
 import Video from '../components/Video.vue'
 import './custom.css'
 
@@ -14,6 +15,7 @@ export default {
     app.component('vImageViewer', vImageViewer)
     // Register video component
     app.component('Video', Video)
+    app.component('FeatureCarousel', FeatureCarousel)
     
     // Add accessibility enhancements
     if (typeof window !== 'undefined') {
@@ -113,6 +115,10 @@ export default {
       const addImageIndicators = () => {
         const images = document.querySelectorAll('.vp-doc img:not([data-wrapped])')
         images.forEach((img) => {
+          if ((img as HTMLElement).closest('.feature-carousel')) {
+            return
+          }
+
           // Skip if already wrapped
           if ((img as HTMLElement).closest('.image-wrapper')) {
             return

@@ -9,6 +9,30 @@ export interface SkillMetadata {
   description: string;
 }
 
+export type SkillSource = "built-in" | "user";
+export type SkillStatus = "available" | "disabled" | "invalid";
+
+export interface SkillCatalogItem {
+  /** Stable identifier derived from the leaf folder name. */
+  id: string;
+  /** Human-readable name from frontmatter `name` field. */
+  name: string;
+  /** One-line description from frontmatter `description` field. */
+  description: string;
+  /** Origin of the skill. Always "built-in" in phase 1. */
+  source: SkillSource;
+  /** Runtime status. Always "available" in phase 1. */
+  status: SkillStatus;
+  /** Optional version string from metadata frontmatter. */
+  version?: string;
+  /** Optional author/provider from metadata frontmatter. */
+  provider?: string;
+  /** Short summary paragraph extracted from the SKILL.md body. */
+  summary?: string;
+  /** Whether this skill has sub-resources (rules/*.md, AGENTS.md, etc.). */
+  hasResources?: boolean;
+}
+
 type SkillCache = {
   list: SkillMetadata[];
   /**
@@ -22,6 +46,16 @@ type SkillCache = {
    * Used for resolving additional resources like AGENTS.md and rules/*.md per skill.
    */
   extensions: Map<string, string>;
+  /**
+   * Catalog metadata for the Skills UI.
+   * Sorted by name for stable ordering.
+   */
+  catalog: SkillCatalogItem[];
+  /**
+   * Key: stable id (leaf folder name).
+   * Value: raw SKILL.md content (including frontmatter) for the detail endpoint.
+   */
+  rawContent: Map<string, string>;
 };
 
 export class SkillManager {
@@ -127,6 +161,8 @@ export class SkillManager {
     const list: SkillMetadata[] = [];
     const content = new Map<string, string>();
     const roots = new Map<string, string>();
+    const catalog: SkillCatalogItem[] = [];
+    const rawContent = new Map<string, string>();
 
     for (const skillFile of skillFiles) {
       const raw = SkillManager.readSkillFile(skillFile);
@@ -153,13 +189,30 @@ export class SkillManager {
         roots.set(dirName, skillDir);
       }
 
+      // Build catalog item
+      const metadataBlock = (data.metadata ?? {}) as Record<string, unknown>;
+      const catalogItem: SkillCatalogItem = {
+        id: dirName,
+        name: metaName,
+        description: typeof data.description === "string" ? data.description : "",
+        source: "built-in",
+        status: "available",
+        version: typeof metadataBlock.version === "string" ? metadataBlock.version : undefined,
+        provider: typeof metadataBlock.author === "string" ? metadataBlock.author : undefined,
+        summary: SkillManager.extractSummary(parsed.content),
+        hasResources: SkillManager.skillDirHasResources(path.dirname(skillFile)),
+      };
+      catalog.push(catalogItem);
+      rawContent.set(dirName, raw);
+
       console.info(`[SkillManager] Loaded skill [${meta.name}] at location ${skillFile}`);
     }
 
     // This makes sure the list at the model side has a stable and predictable order
     list.sort((a, b) => a.name.localeCompare(b.name));
+    catalog.sort((a, b) => a.name.localeCompare(b.name));
 
-    return { list, system: content, extensions: roots };
+    return { list, system: content, extensions: roots, catalog, rawContent };
   }
 
   private static getCache(): SkillCache {
@@ -261,5 +314,107 @@ export class SkillManager {
   /** Clear in-memory cache (useful for tests or dev tooling). */
   public static clearCache(): void {
     SkillManager.cache = null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Catalog helpers (used by SkillProvider layer and Skills UI)
+  // ---------------------------------------------------------------------------
+
+  /** Extract a short summary from the first non-heading paragraph of a SKILL.md body. */
+  private static extractSummary(body: string): string | undefined {
+    const lines = body.split("\n");
+    const paragraphLines: string[] = [];
+    let inParagraph = false;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("#")) {
+        // If we already collected lines, stop
+        if (inParagraph && paragraphLines.length > 0) break;
+        continue;
+      }
+      if (trimmed === "") {
+        if (inParagraph && paragraphLines.length > 0) break;
+        continue;
+      }
+      // Non-empty, non-heading line
+      inParagraph = true;
+      paragraphLines.push(trimmed);
+    }
+
+    if (paragraphLines.length === 0) return undefined;
+    const full = paragraphLines.join(" ");
+    return full.length > 200 ? full.slice(0, 197) + "..." : full;
+  }
+
+  /** Return true if the skill directory contains additional resource files (excluding SKILL.md). */
+  private static skillDirHasResources(skillDirPath: string): boolean {
+    try {
+      const entries = fs.readdirSync(skillDirPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.name === SkillManager.SKILL_FILENAME) continue;
+        if (entry.name.startsWith(".")) continue;
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  }
+
+  /** Return catalog metadata for all bundled skills. */
+  public static listSkillCatalog(): SkillCatalogItem[] {
+    return SkillManager.getCache().catalog;
+  }
+
+  /**
+   * Return raw SKILL.md content (including frontmatter) for a skill by its stable id.
+   * Used by the detail endpoint — raw content is returned so the frontend toggle can
+   * show both rendered and raw views.
+   */
+  public static getSkillRaw(id: string): string | null {
+    const trimmed = id.trim();
+    if (!SkillManager.isSafeRelativePath(trimmed)) return null;
+    return SkillManager.getCache().rawContent.get(trimmed) ?? null;
+  }
+
+  /**
+   * Return relative paths of all files in the skill directory, excluding SKILL.md itself.
+   * Used by the detail endpoint to populate the directory tree in the right panel.
+   */
+  public static listSkillResources(id: string): string[] {
+    const trimmed = id.trim();
+    if (!SkillManager.isSafeRelativePath(trimmed)) return [];
+
+    const cache = SkillManager.getCache();
+    const skillDir = cache.extensions.get(trimmed);
+    if (!skillDir) return [];
+
+    const baseDir = path.join(SkillManager.getSkillsRootDir(), skillDir);
+    const results: string[] = [];
+
+    const walk = (dir: string, prefix: string) => {
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        if (entry.name.startsWith(".")) continue;
+        const relPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.isDirectory()) {
+          walk(path.join(dir, entry.name), relPath);
+        } else if (
+          entry.isFile() &&
+          !(prefix === "" && entry.name === SkillManager.SKILL_FILENAME)
+        ) {
+          results.push(relPath);
+        }
+      }
+    };
+
+    walk(baseDir, "");
+    return results.sort();
   }
 }

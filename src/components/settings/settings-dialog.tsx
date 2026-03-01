@@ -115,6 +115,16 @@ function SettingsDialogWrapper({
                           <SidebarMenuSubItem>
                             <SidebarMenuSubButton
                               className="cursor-pointer"
+                              onClick={() => setActiveSection("skills")}
+                              isActive={activeSection === "skills"}
+                            >
+                              <span>Skills</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton
+                              className="cursor-pointer"
                               onClick={() => setActiveSection("models")}
                               isActive={activeSection === "models"}
                             >

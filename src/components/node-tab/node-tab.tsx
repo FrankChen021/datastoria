@@ -21,7 +21,7 @@ export const NodeTab = memo((_props: NodeTabProps) => {
     filter: {},
     charts: [
       {
-        title: "Node Status",
+        title: "Node Dashboard",
         collapsed: false,
         charts: nodeOverviewDashboard,
       } as DashboardGroup,

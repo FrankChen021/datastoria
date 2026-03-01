@@ -1,5 +1,5 @@
 /* Image clickable indicators - Make it clear images are interactive */
-.vp-doc img {
+.vp-doc img:not(.feature-carousel__media) {
   cursor: zoom-in;
   transition: all 0.2s ease;
   position: relative;
@@ -7,7 +7,7 @@
 }
 
 /* Hover effects to indicate interactivity */
-.vp-doc img:hover {
+.vp-doc img:not(.feature-carousel__media):hover {
   opacity: 0.9;
   transform: scale(1.02);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -171,7 +171,7 @@ select:focus-visible,
     scroll-behavior: auto !important;
   }
   
-  .vp-doc img:hover {
+  .vp-doc img:not(.feature-carousel__media):hover {
     transform: none !important;
   }
 }

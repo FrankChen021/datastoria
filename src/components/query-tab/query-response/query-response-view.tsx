@@ -2,7 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { FileText, Loader2, Table } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useQueryExecutor } from "../query-execution/query-executor";
+import { useQueryExecutorOptional } from "../query-execution/query-executor";
 import type {
   QueryErrorDisplay,
   QueryRequestViewModel,
@@ -39,13 +39,14 @@ export function QueryResponseView({
 }: QueryResponseViewProps) {
   const [selectedTab, setSelectedTab] = useState("result");
   const [displayMode, setDisplayMode] = useState<DisplayMode>("text");
-  const { fetchTableData, sqlMessages } = useQueryExecutor();
+  const queryExecutor = useQueryExecutorOptional();
 
-  // Find loading state for this query
+  // Find loading state for this query (only available inside QueryExecutionProvider)
   const isLoadingTableData = useMemo(() => {
-    const message = sqlMessages.find((m) => m.id === queryRequest.queryId);
+    if (!queryExecutor) return false;
+    const message = queryExecutor.sqlMessages.find((m) => m.id === queryRequest.queryId);
     return message?.isLoadingTableData ?? false;
-  }, [sqlMessages, queryRequest.queryId]);
+  }, [queryExecutor, queryRequest.queryId]);
 
   // Memoize error object creation
   const error: QueryErrorDisplay | undefined = useMemo(
@@ -71,12 +72,13 @@ export function QueryResponseView({
       setDisplayMode(newMode);
 
       // Fetch table data if switching to table view and not already cached
-      if (newMode === "table" && !queryResponse.tableData && !isLoadingTableData) {
-        fetchTableData(queryRequest.queryId, queryRequest.sql);
+      // Only available when inside QueryExecutionProvider
+      if (newMode === "table" && !queryResponse.tableData && !isLoadingTableData && queryExecutor) {
+        queryExecutor.fetchTableData(queryRequest.queryId, queryRequest.sql);
       }
     },
     [
-      fetchTableData,
+      queryExecutor,
       queryRequest.queryId,
       queryRequest.sql,
       queryResponse.tableData,

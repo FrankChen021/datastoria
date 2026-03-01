@@ -24,8 +24,8 @@ You MUST call this FIRST when a task requires domain expertise (e.g., visualizat
 
 Usage:
   - Pass skill name(s) in the 'names' array.
-  - Example: { "names": ["optimization"] }
-  - Example: { "names": ["optimization", "visualization"] }
+  - Example: { "names": ["sql-optimization"] }
+  - Example: { "names": ["sql-optimization", "visualization"] }
 
 After loading a manual, if it tells you to "read rules/...md" or other reference files, use the separate 'skill_resource' tool to load them. Do NOT call this tool again for the same skill.
 

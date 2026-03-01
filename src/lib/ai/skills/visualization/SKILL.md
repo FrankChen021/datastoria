@@ -1,13 +1,11 @@
 ---
 name: visualization
 description: Rules for charts and visualization. Use when the user asks for charts, graphs, plots, or visual representations (line, bar, pie, timeseries).
+metadata:
+  author: System
 ---
 
-# Visualization Skill
-
-When the user asks for charts, graphs, or visual representations, follow this workflow and rules.
-
-## WORKFLOW (MANDATORY ORDER)
+# WORKFLOW (MANDATORY ORDER)
 
 **a) Generate or obtain SQL:**
 - **CHECK CONTEXT FIRST**: If valid SQL exists in the context (explicitly provided by the user or from a previous message), **USE IT DIRECTLY** and skip to step (b).
@@ -28,9 +26,9 @@ When the user asks for charts, graphs, or visual representations, follow this wo
 **d) Execution:**
 - **PROHIBITED**: Do **NOT** call `execute_sql`. The chart component in the client will automatically execute the query found in the `chart-spec`. Calling it here wastes tokens and causes duplicate execution.
 
-## CHART TYPE RULES
+# CHART TYPE RULES
 
-### STEP 1: CHECK USER'S EXPLICIT CHART REQUEST (HIGHEST PRIORITY)
+## STEP 1: CHECK USER'S EXPLICIT CHART REQUEST (HIGHEST PRIORITY)
 
 If user question contains ANY of these keywords, use the corresponding chart type:
 - **"line chart"** → type: "line" (MANDATORY)
@@ -39,24 +37,24 @@ If user question contains ANY of these keywords, use the corresponding chart typ
 - **"timeseries"** or **"time series"** → type: "line" (MANDATORY)
 - **"trend"** → type: "line" (MANDATORY)
 
-### STEP 2: ANALYZE SQL (Only if no explicit chart request in Step 1)
+## STEP 2: ANALYZE SQL (Only if no explicit chart request in Step 1)
 
 - **"line"** - Time-based data with trends (DateTime/Date + GROUP BY time dimension; "over time", "by day/month/hour").
 - **"bar"** - Categorical comparisons (GROUP BY categories; "compare", "by category").
 - **"pie"** - Categorical distribution, proportions (single categorical dimension; "distribution", "breakdown", "proportion"; 2 columns: category + numeric value; best for 3-15 categories).
 - **"table"** - Raw data listing (LAST RESORT): user asks for "table" or "list" with NO chart keywords; no numeric aggregations.
 
-## CRITICAL RULES
+# CRITICAL RULES
 
 - When legendOption.placement is "bottom" or "right", you MUST include a "values" array: base ["min", "max"]; add "sum"/"count" if SQL uses SUM/COUNT; add "avg" if SQL uses AVG.
 - **Line/Bar**: Use "bottom" for GROUP BY with non-time dimensions, "none" for single metric.
 - **Pie**: legendOption.placement "right"|"bottom"|"inside" (no "none"); omit legendOption.values; use labelOption (show, format) and valueFormat as needed.
 
-## OUTPUT FORMAT (include in your response as a `chart-spec` code block)
+# OUTPUT FORMAT (include in your response as a `chart-spec` code block)
 
 Put the full chart spec in a markdown code block with language **chart-spec**. The JSON **must** include `datasource.sql` (the validated SQL). The client parses this block to render the chart.
 
-### Line/Bar Chart example:
+## Line/Bar Chart example:
 ```chart-spec
 {
   "type": "line",
@@ -67,7 +65,7 @@ Put the full chart spec in a markdown code block with language **chart-spec**. T
 }
 ```
 
-### Pie Chart example:
+## Pie Chart example:
 ```chart-spec
 {
   "type": "pie",

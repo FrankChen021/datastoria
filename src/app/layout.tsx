@@ -4,11 +4,11 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://datastoria.app"),
   title: {
-    default: "DataStoria - AI-Powered ClickHouse Management Console",
+    default: "DataStoria - AI-native ClickHouse Console",
     template: "%s | DataStoria",
   },
   description:
-    "Modern ClickHouse management console with AI-powered natural language queries, intelligent optimization, and advanced cluster management. Transform how you interact with ClickHouse databases.",
+    "AI-native ClickHouse console for query generation, optimization, visualization, and cluster diagnostics.",
   keywords: [
     "ClickHouse",
     "database management",
@@ -47,15 +47,15 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "/",
     siteName: "DataStoria",
-    title: "DataStoria - AI-Powered ClickHouse Management Console",
+    title: "DataStoria - AI-native ClickHouse Console",
     description:
-      "Modern ClickHouse management console with AI-powered natural language queries, intelligent optimization, and advanced cluster management.",
+      "AI-native ClickHouse console for query generation, optimization, visualization, and cluster diagnostics.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "DataStoria - AI-Powered ClickHouse Management Console",
+        alt: "DataStoria - AI-native ClickHouse Console",
       },
     ],
   },
@@ -63,9 +63,9 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@datastoria",
     creator: "@datastoria",
-    title: "DataStoria - AI-Powered ClickHouse Management Console",
+    title: "DataStoria - AI-native ClickHouse Console",
     description:
-      "Modern ClickHouse management console with AI-powered natural language queries and intelligent optimization.",
+      "AI-native ClickHouse console for query generation, optimization, visualization, and cluster diagnostics.",
     images: ["/og-image.png"],
   },
   alternates: {
@@ -88,7 +88,7 @@ export default function RootLayout({
     applicationCategory: "DatabaseApplication",
     operatingSystem: "Web Browser",
     description:
-      "AI-powered ClickHouse management console with natural language queries, intelligent optimization, and advanced cluster management capabilities.",
+      "AI-native ClickHouse console for query generation, optimization, visualization, and cluster diagnostics.",
     url: "https://datastoria.app",
     author: {
       "@type": "Organization",

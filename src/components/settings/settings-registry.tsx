@@ -1,8 +1,9 @@
 import { AgentEdit } from "@/components/settings/agent/agent-edit";
 import { ModelsEdit } from "@/components/settings/models/models-edit";
 import { QueryContextEdit } from "@/components/settings/query-context/query-context-edit";
+import { SkillsEdit } from "@/components/settings/skills/skills-edit";
 
-export type SettingsSection = "query-context" | "models" | "agent";
+export type SettingsSection = "query-context" | "models" | "agent" | "skills";
 
 export interface SettingsPageConfig {
   title: string;
@@ -25,5 +26,10 @@ export const SETTINGS_REGISTRY: Record<SettingsSection, SettingsPageConfig> = {
     title: "Agent",
     description: "Configure agent behavior",
     component: AgentEdit,
+  },
+  skills: {
+    title: "Skills",
+    description: "Bundled AI skills available to the V2 agent",
+    component: SkillsEdit,
   },
 };
