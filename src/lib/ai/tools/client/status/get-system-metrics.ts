@@ -65,6 +65,10 @@ type MetricDefinition = {
   message: string;
 };
 
+function escapeSqlLiteral(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("'", "\\'");
+}
+
 const METRIC_DEFINITIONS: Record<HistoricalMetricType, MetricDefinition> = {
   replication: {
     innerMetricExpression: "sum(ProfileEvent_ReplicatedPartFailedFetches)",
@@ -133,8 +137,10 @@ function buildTimeFilterClause(
   range?: { from: string; to: string };
 } {
   if (time_range?.from && time_range?.to) {
+    const from = escapeSqlLiteral(time_range.from);
+    const to = escapeSqlLiteral(time_range.to);
     return {
-      whereClause: `event_date >= toDate('${time_range.from}') AND event_date <= toDate('${time_range.to}') AND event_time >= toDateTime('${time_range.from}') AND event_time <= toDateTime('${time_range.to}')`,
+      whereClause: `event_date >= toDate('${from}') AND event_date <= toDate('${to}') AND event_time >= toDateTime('${from}') AND event_time <= toDateTime('${to}')`,
       range: time_range,
     };
   }
