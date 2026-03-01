@@ -72,8 +72,6 @@ Settings
 
 The main content area shows a compact 2×2 card grid of all bundled skills. Each card displays: skill name, one-line description, `Built-in` source badge, and optional version badge.
 
-![Skills List View — Settings → AI → Skills showing the 4 bundled skills as cards](skills-ui-assets/skills-list-view.png)
-
 ### Skill Detail View (Split Panel)
 
 When a skill card is clicked, the detail view fills the main content area with a split-panel layout:
@@ -82,8 +80,6 @@ When a skill card is clicked, the detail view fills the main content area with a
 - **Right panel (~40%)** — Directory layout showing the skill's sub-directory tree (files and folders)
 
 The header shows the skill name, `Built-in` badge, version badge, and provider attribution when available.
-
-![Skill Detail View for clickhouse-best-practices — split panel with SKILL.md content and directory tree](skills-ui-assets/skills-detail-view.png)
 
 ### SKILL.md Render Toggle
 
