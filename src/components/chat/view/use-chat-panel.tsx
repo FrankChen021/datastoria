@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState } from "react";
 
 export type ChatPanelDisplayMode = "hidden" | "panel" | "tabWidth" | "fullscreen";
+export type SidebarTab = "database" | "snippets" | "history";
 
 interface ChatPanelContextType {
   displayMode: ChatPanelDisplayMode;
@@ -17,6 +18,8 @@ interface ChatPanelContextType {
   clearSelectedChatId: () => void;
   requestNewChat: () => void;
   newChatRequestNonce: number;
+  activeSidebarTab: SidebarTab;
+  setActiveSidebarTab: (tab: SidebarTab) => void;
   postMessage: (text: string, options?: { forceNewChat?: boolean }) => void;
   pendingCommand: { text: string; timestamp: number; forceNewChat?: boolean } | null;
   consumeCommand: () => void;
@@ -54,6 +57,10 @@ const ChatPanelContext = createContext<ChatPanelContextType>({
     // Default implementation
   },
   newChatRequestNonce: 0,
+  activeSidebarTab: "database",
+  setActiveSidebarTab: () => {
+    // Default implementation
+  },
   postMessage: () => {
     // Default implementation
   },
@@ -76,6 +83,7 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [newChatRequestNonce, setNewChatRequestNonce] = useState(0);
+  const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>("database");
   const [pendingCommand, setPendingCommand] = useState<{
     text: string;
     timestamp: number;
@@ -110,6 +118,7 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
 
   const selectChat = (chatId: string) => {
     setSelectedChatId(chatId);
+    setActiveSidebarTab("history");
     setDisplayMode("tabWidth");
   };
 
@@ -120,6 +129,7 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
   const requestNewChat = () => {
     setSelectedChatId(null);
     setNewChatRequestNonce((prev) => prev + 1);
+    setActiveSidebarTab("history");
     setDisplayMode("tabWidth");
   };
 
@@ -156,6 +166,8 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
         clearSelectedChatId,
         requestNewChat,
         newChatRequestNonce,
+        activeSidebarTab,
+        setActiveSidebarTab,
         postMessage,
         pendingCommand,
         consumeCommand,

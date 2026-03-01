@@ -3,7 +3,6 @@ import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Book, Database, MessagesSquare } from "lucide-react";
-import { useState } from "react";
 import { SnippetListView } from "../query-tab/snippet/snippet-list-view";
 import type { SchemaLoadResult } from "../schema-tree/schema-tree-loader";
 
@@ -12,14 +11,20 @@ interface SidebarPanelProps {
 }
 
 export function SidebarPanel({ initialSchemaData }: SidebarPanelProps) {
-  const { currentChatId, requestNewChat, selectChat, setDisplayMode } = useChatPanel();
-  const [activeTab, setActiveTab] = useState("database");
+  const {
+    currentChatId,
+    requestNewChat,
+    selectChat,
+    setDisplayMode,
+    activeSidebarTab,
+    setActiveSidebarTab,
+  } = useChatPanel();
 
   return (
     <Tabs
-      value={activeTab}
+      value={activeSidebarTab}
       onValueChange={(value) => {
-        setActiveTab(value);
+        setActiveSidebarTab(value as "database" | "snippets" | "history");
         if (value === "history") {
           setDisplayMode("tabWidth");
         }
