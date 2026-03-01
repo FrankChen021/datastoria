@@ -16,8 +16,6 @@ import { executeSqlExecutor } from "./execute-sql";
 import { exploreSchemaExecutor } from "./explore-schema";
 import { findExpensiveQueriesExecutor } from "./find-expensive-queries";
 import { getTablesExecutor } from "./get-tables";
-import { collectRcaEvidenceExecutor } from "./rca/collect-rca-evidence";
-import { type RcaEvidenceInput, type RcaEvidenceOutput } from "./rca/collect-rca-evidence-common";
 import {
   getClusterStatusExecutor,
   type GetClusterStatusInput,
@@ -467,224 +465,6 @@ export const ClientTools = {
       error: z.string().optional(),
     }) as z.ZodType<GetClusterStatusOutput>,
   }),
-  collect_rca_evidence: tool({
-    description:
-      "Collect root-cause analysis evidence for a cluster symptom. This tool returns observations, ranked cause candidates, possible actions, evidence gaps, and optional related symptoms. It is an evidence collector only; final conclusions must be produced by the cluster-diagnostics skill.",
-    inputSchema: z.object({
-      symptom: z.enum([
-        "high_query_latency",
-        "high_part_count",
-        "high_partition_count",
-        "replication_lag",
-        "merge_backlog",
-        "mutation_backlog",
-        "unknown",
-      ]),
-      scope: z.enum(["cluster", "node", "table", "query_pattern"]).optional(),
-      target: z
-        .object({
-          database: z.string().optional(),
-          table: z.string().optional(),
-          node: z.string().optional(),
-          query_hash: z.string().optional(),
-        })
-        .optional(),
-      symptom_text: z
-        .string()
-        .optional()
-        .describe("Required when symptom is 'unknown'. Natural language symptom phrase."),
-      time_window: z
-        .number()
-        .min(5)
-        .max(7 * 24 * 60)
-        .optional()
-        .describe(
-          "Relative lookback window in minutes from now (5-10080). Use this OR time_range, not both."
-        ),
-      time_range: z
-        .object({
-          from: z.string().describe("Start datetime (ISO 8601 format)."),
-          to: z.string().describe("End datetime (ISO 8601 format)."),
-        })
-        .optional()
-        .describe("Absolute time range. If provided, takes precedence over time_window."),
-      thresholds: z
-        .object({
-          high_query_latency: z
-            .object({
-              avg_read_rows_gte: z.number().optional(),
-              avg_read_bytes_gte: z.number().optional(),
-              p99_latency_ms_gte: z.number().optional(),
-              active_merges_gt: z.number().optional(),
-              max_merge_elapsed_seconds_gt: z.number().optional(),
-              p95_latency_ms_gte: z.number().optional(),
-              memory_used_percent_gte: z.number().optional(),
-              avg_query_memory_bytes_gte: z.number().optional(),
-            })
-            .optional(),
-          high_part_count: z
-            .object({
-              inserts_per_minute_gt: z.number().optional(),
-              avg_rows_per_insert_lt: z.number().optional(),
-              total_active_parts_gt: z.number().optional(),
-              active_merges_gt: z.number().optional(),
-              max_merge_elapsed_seconds_gt: z.number().optional(),
-              distinct_partitions_gt: z.number().optional(),
-              partition_to_parts_ratio_gt: z.number().optional(),
-              max_parts_per_partition_gt: z.number().optional(),
-              related_symptom_distinct_partitions_gte: z.number().optional(),
-              related_symptom_signal_strength_gte: z.number().optional(),
-            })
-            .optional(),
-          high_partition_count: z
-            .object({
-              partition_count_gt: z.number().optional(),
-              recent_partitions_gt: z.number().optional(),
-              partition_to_parts_ratio_gt: z.number().optional(),
-              avg_rows_per_insert_lt: z.number().optional(),
-              unbounded_growth_partition_count_gt: z.number().optional(),
-            })
-            .optional(),
-        })
-        .optional()
-        .describe("Optional RCA threshold overrides. Any omitted field uses built-in defaults."),
-      status_context: z
-        .object({
-          generated_at: z
-            .string()
-            .describe("ISO 8601 timestamp from collect_cluster_status output."),
-          status_analysis_mode: z.enum(["snapshot", "windowed"]),
-          scope: z.enum(["single_node", "cluster"]),
-          window: z
-            .object({
-              time_window: z.number().optional(),
-              time_range: z
-                .object({
-                  from: z.string(),
-                  to: z.string(),
-                })
-                .optional(),
-            })
-            .optional(),
-          categories: z.record(z.any()).optional(),
-        })
-        .optional()
-        .describe("Optional prior status output to reduce redundant probes."),
-    }) as z.ZodType<RcaEvidenceInput>,
-    outputSchema: z.object({
-      schema_version: z.literal(1),
-      success: z.boolean(),
-      symptom: z.enum([
-        "high_query_latency",
-        "high_part_count",
-        "high_partition_count",
-        "replication_lag",
-        "merge_backlog",
-        "mutation_backlog",
-        "unknown",
-      ]),
-      scope: z.enum(["cluster", "node", "table", "query_pattern"]),
-      target: z
-        .object({
-          database: z.string().optional(),
-          table: z.string().optional(),
-          node: z.string().optional(),
-          query_hash: z.string().optional(),
-        })
-        .optional(),
-      related_symptoms: z
-        .array(
-          z.enum([
-            "high_query_latency",
-            "high_part_count",
-            "high_partition_count",
-            "replication_lag",
-            "merge_backlog",
-            "mutation_backlog",
-            "unknown",
-          ])
-        )
-        .optional(),
-      observations: z.array(
-        z.object({
-          source: z.string(),
-          description: z.string(),
-          metrics: z.record(z.union([z.number(), z.string(), z.null()])),
-          partition_key_columns: z
-            .array(
-              z.object({
-                name: z.string(),
-                data_type: z.string(),
-                sample_value: z.union([z.number(), z.string(), z.null()]),
-                sample_values: z.array(z.union([z.number(), z.string(), z.null()])).optional(),
-              })
-            )
-            .optional(),
-          scope_summary: z
-            .object({
-              level: z.enum(["cluster", "node", "table"]),
-              aggregation_semantics: z.enum(["additive", "ratio", "quantile", "inventory"]),
-              cluster_aggregation: z.string().optional(),
-            })
-            .optional(),
-          top_nodes: z
-            .array(
-              z.object({
-                node: z.string(),
-                metrics: z.record(z.union([z.number(), z.string(), z.null()])),
-              })
-            )
-            .optional(),
-          nodes_over_threshold: z
-            .array(
-              z.object({
-                node: z.string(),
-                metric: z.string(),
-                value: z.number(),
-                threshold: z.number(),
-              })
-            )
-            .optional(),
-        })
-      ),
-      candidates: z.array(
-        z.object({
-          cause: z.string(),
-          signal_strength: z.number(),
-          indicators_matched: z.number(),
-          indicators_checked: z.number(),
-          evidence_for: z.array(z.string()),
-          evidence_against: z.array(z.string()),
-          next_checks: z.array(z.string()),
-        })
-      ),
-      excluded_candidates: z
-        .array(
-          z.object({
-            cause: z.string(),
-            missing_required: z.array(z.string()),
-            evidence_against: z.array(z.string()),
-          })
-        )
-        .optional(),
-      possible_actions: z.array(
-        z.object({
-          title: z.string(),
-          command: z.string().optional(),
-          risk: z.enum(["low", "medium", "high"]),
-          tied_to: z.string(),
-        })
-      ),
-      gaps: z.array(
-        z.object({
-          description: z.string(),
-          reason: z.string(),
-        })
-      ),
-      generated_at: z.string(),
-      error: z.string().optional(),
-    }) as z.ZodType<RcaEvidenceOutput>,
-  }),
 };
 
 /**
@@ -700,7 +480,6 @@ export const CLIENT_TOOL_NAMES = {
   // DEPRECATED: Keep for backward compatibility (v1 and historical tool-call messages).
   FIND_EXPENSIVE_QUERIES: "find_expensive_queries",
   COLLECT_CLUSTER_STATUS: "collect_cluster_status",
-  COLLECT_RCA_EVIDENCE: "collect_rca_evidence",
 } as const;
 
 export function convertToAppUIMessage(message: UIMessage): AppUIMessage {
@@ -723,5 +502,4 @@ export const ClientToolExecutors: {
   collect_sql_optimization_evidence: collectSqlOptimizationEvidenceExecutor,
   find_expensive_queries: findExpensiveQueriesExecutor,
   collect_cluster_status: getClusterStatusExecutor,
-  collect_rca_evidence: collectRcaEvidenceExecutor,
 };
