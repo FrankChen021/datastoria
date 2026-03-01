@@ -13,10 +13,7 @@ export const dynamic = "force-dynamic";
 
 const skillProvider = new CompositeSkillProvider([new DiskSkillProvider()]);
 
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const resourcePath = searchParams.get("path");

@@ -1,5 +1,6 @@
 "use client";
 
+import { MessageMarkdownSql } from "@/components/chat/message/message-markdown-sql";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,8 +9,9 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SkillDetailResponse } from "@/lib/ai/skills/skill-provider";
 import matter from "gray-matter";
 import { ArrowLeft, ChevronRight, File, FileText, Folder, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import remarkGfm from "remark-gfm";
 
 interface SkillsDetailViewProps {
@@ -143,6 +145,18 @@ function SkillMarkdownRenderer({ raw }: { raw: string }) {
         ),
         li: ({ children }) => <li className="leading-relaxed">{children}</li>,
         code: ({ className, children, ...props }) => {
+          if (className === "language-sql") {
+            return (
+              <MessageMarkdownSql
+                className="pb-2"
+                code={String(children).replace(/\n$/, "")}
+                language="sql"
+                showExecuteButton={false}
+                showLineNumbers={false}
+                expandable={false}
+              />
+            );
+          }
           const isBlock = className?.includes("language-");
           if (isBlock) {
             return (
@@ -197,11 +211,6 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
   const [resourceError, setResourceError] = useState<string | null>(null);
 
   const [renderMode, setRenderMode] = useState<"rendered" | "raw">("rendered");
-
-  // Drag-to-resize
-  const [leftWidthPct, setLeftWidthPct] = useState(60);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const draggingRef = useRef(false);
 
   // Load skill detail
   useEffect(() => {
@@ -262,34 +271,11 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
     setRenderMode("rendered");
   }, []);
 
-  // Drag handle
-  const handleSplitterMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    draggingRef.current = true;
-
-    const onMouseMove = (ev: MouseEvent) => {
-      if (!draggingRef.current || !containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const newPct = ((ev.clientX - rect.left) / rect.width) * 100;
-      setLeftWidthPct(Math.min(80, Math.max(20, newPct)));
-    };
-
-    const onMouseUp = () => {
-      draggingRef.current = false;
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  }, []);
-
   // Derived display state
   const isMarkdownFile =
     selectedFile === null || selectedFile.endsWith(".md") || selectedFile.endsWith(".MD");
   const displayedFilename = selectedFile === null ? "SKILL.md" : selectedFile.split("/").pop()!;
-  const currentContent =
-    selectedFile === null ? (detail?.content ?? "") : (resourceContent ?? "");
+  const currentContent = selectedFile === null ? (detail?.content ?? "") : (resourceContent ?? "");
   const dirTree = detail ? buildDirTree(detail.resourcePaths) : [];
 
   return (
@@ -331,12 +317,9 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
           <p className="text-sm text-destructive">{error}</p>
         </div>
       ) : detail ? (
-        <div ref={containerRef} className="flex-1 flex overflow-hidden min-h-0 select-none">
+        <PanelGroup direction="horizontal" className="flex-1 overflow-hidden min-h-0">
           {/* ── Left panel — file content ── */}
-          <div
-            className="flex flex-col overflow-hidden"
-            style={{ width: `${leftWidthPct}%`, minWidth: 0 }}
-          >
+          <Panel defaultSize={60} minSize={20} className="flex flex-col overflow-hidden">
             <div className="flex-shrink-0 px-3 py-1.5 border-b flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -384,16 +367,12 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
                 )}
               </div>
             </ScrollArea>
-          </div>
+          </Panel>
 
-          {/* ── Drag handle ── */}
-          <div
-            className="flex-shrink-0 w-1 bg-border hover:bg-primary/40 active:bg-primary/60 cursor-col-resize transition-colors"
-            onMouseDown={handleSplitterMouseDown}
-          />
+          <PanelResizeHandle className="w-0.5 bg-border hover:bg-primary/40 active:bg-primary/60 cursor-col-resize transition-colors" />
 
           {/* ── Right panel — directory tree ── */}
-          <div className="flex flex-col overflow-hidden" style={{ flex: 1, minWidth: 0 }}>
+          <Panel defaultSize={40} minSize={20} className="flex flex-col overflow-hidden">
             <div className="flex-shrink-0 px-3 py-1.5 border-b">
               <span className="text-xs font-medium text-muted-foreground">Files</span>
             </div>
@@ -428,9 +407,8 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
                 )}
               </div>
             </ScrollArea>
-
-          </div>
-        </div>
+          </Panel>
+        </PanelGroup>
       ) : null}
     </div>
   );

@@ -1,6 +1,8 @@
 ---
 name: optimization
 description: Optimize slow queries, analyze SQL performance, find expensive queries. Use when the user mentions slow queries, optimize, performance, cpu, memory, duration.
+metadata:
+  author: System
 ---
 
 # SQL Optimization Skill

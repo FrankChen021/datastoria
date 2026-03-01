@@ -1,6 +1,8 @@
 ---
 name: sql-expert
 description: Expert system for generating, validating, and optimizing ClickHouse SQL. Use this when the user needs data, queries, or analysis.
+metadata:
+  author: System
 ---
 
 # SQL Expert Skill
