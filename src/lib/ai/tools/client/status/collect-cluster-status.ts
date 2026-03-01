@@ -236,8 +236,8 @@ GROUP BY host_name`,
       status === "OK"
         ? []
         : [
-          `${config.categoryLabel} performance degraded over ${timeFilter.windowLabel}: max p95 ${maxP95Ms.toFixed(2)}ms, failed queries ${totalFailed}.`,
-        ],
+            `${config.categoryLabel} performance degraded over ${timeFilter.windowLabel}: max p95 ${maxP95Ms.toFixed(2)}ms, failed queries ${totalFailed}.`,
+          ],
     metrics: {
       max_p95_query_duration_ms: Number(maxP95Ms.toFixed(2)),
       max_p99_query_duration_ms: Number(maxP99Ms.toFixed(2)),
@@ -353,8 +353,8 @@ FROM {clusterAllReplicas:system.replicas}`,
         status === "OK"
           ? []
           : [
-            `Found ${laggedReplicas} replicas with lag or issues. Max replication lag: ${maxLag}s.`,
-          ],
+              `Found ${laggedReplicas} replicas with lag or issues. Max replication lag: ${maxLag}s.`,
+            ],
       metrics: {
         max_replication_lag_seconds: maxLag,
         replicas_with_issues: laggedReplicas,
@@ -425,8 +425,8 @@ FROM {clusterAllReplicas:system.disks}`,
         status === "OK"
           ? []
           : [
-            `Maximum disk usage is ${maxUsedPercent.toFixed(2)}%. Thresholds: warning >= ${diskWarning}%, critical >= ${diskCritical}%.`,
-          ],
+              `Maximum disk usage is ${maxUsedPercent.toFixed(2)}%. Thresholds: warning >= ${diskWarning}%, critical >= ${diskCritical}%.`,
+            ],
       metrics: {
         max_disk_used_percent: maxUsedPercent,
         disks_checked: rows.length,
@@ -501,8 +501,8 @@ FROM {clusterAllReplicas:system.one}
         status === "OK"
           ? []
           : [
-            `Worst memory usage is ${hasKnownMemoryPercent ? worstMemoryUsedPercent.toFixed(2) : "unknown"}% of configured MaxMemoryUsage.`,
-          ],
+              `Worst memory usage is ${hasKnownMemoryPercent ? worstMemoryUsedPercent.toFixed(2) : "unknown"}% of configured MaxMemoryUsage.`,
+            ],
       metrics: {
         max_memory_used_percent: hasKnownMemoryPercent ? worstMemoryUsedPercent : null,
         nodes_checked: metricsByNode.size,
@@ -552,7 +552,7 @@ GROUP BY host_name`,
       const maxValue = Number(maxCpuUs) || 0;
       const elapsedSeconds = Math.max(
         (new Date(String(lastSeen || "")).getTime() - new Date(String(firstSeen || "")).getTime()) /
-        1000,
+          1000,
         0
       );
       const cpuCoresUsed =
@@ -589,8 +589,8 @@ GROUP BY host_name`,
         status === "OK"
           ? []
           : [
-            `ClickHouse CPU activity is elevated (max ${maxCpuCoresUsed.toFixed(2)} cores-used over ${timeFilter.windowLabel}). Thresholds: warning >= ${cpuWarning}, critical >= ${cpuCritical}.`,
-          ],
+              `ClickHouse CPU activity is elevated (max ${maxCpuCoresUsed.toFixed(2)} cores-used over ${timeFilter.windowLabel}). Thresholds: warning >= ${cpuWarning}, critical >= ${cpuCritical}.`,
+            ],
       metrics: {
         max_clickhouse_cpu_cores_used: Number(maxCpuCoresUsed.toFixed(2)),
         avg_clickhouse_cpu_cores_used:
@@ -664,8 +664,8 @@ GROUP BY host_name`,
         status === "OK"
           ? []
           : [
-            `There are ${activeMerges} active merges. Longest running merge has been running for ${maxElapsed} seconds.`,
-          ],
+              `There are ${activeMerges} active merges. Longest running merge has been running for ${maxElapsed} seconds.`,
+            ],
       metrics: {
         active_merges: activeMerges,
         max_merge_elapsed_seconds: maxElapsed,
@@ -733,8 +733,8 @@ GROUP BY host_name`,
         status === "OK"
           ? []
           : [
-            `There are ${pendingMutations} pending mutations. Longest pending mutation has been running for ${maxPendingSeconds} seconds.`,
-          ],
+              `There are ${pendingMutations} pending mutations. Longest pending mutation has been running for ${maxPendingSeconds} seconds.`,
+            ],
       metrics: {
         pending_mutations: pendingMutations,
         max_pending_seconds: maxPendingSeconds,
@@ -927,8 +927,8 @@ LIMIT 500`,
         status === "OK"
           ? []
           : [
-            `Highest max-parts-per-partition is ${worstPartsPerPartition}. Thresholds (${settingsInfo.source}): warning >= ${partsWarning}, critical >= ${partsCritical}.`,
-          ],
+              `Highest max-parts-per-partition is ${worstPartsPerPartition}. Thresholds (${settingsInfo.source}): warning >= ${partsWarning}, critical >= ${partsCritical}.`,
+            ],
       metrics: {
         max_parts_per_table: worstParts,
         max_parts_per_partition: worstPartsPerPartition,
@@ -1057,8 +1057,8 @@ GROUP BY host_name`,
         status === "OK"
           ? []
           : [
-            `High number of active queries: ${activeQueries}. Active users: ${activeUsers}, remote addresses: ${remoteAddresses}.`,
-          ],
+              `High number of active queries: ${activeQueries}. Active users: ${activeUsers}, remote addresses: ${remoteAddresses}.`,
+            ],
       metrics: {
         active_queries: activeQueries,
         active_users: activeUsers,
@@ -1097,24 +1097,24 @@ export const getClusterStatusExecutor: ToolExecutor<
     input.checks && input.checks.length > 0
       ? input.checks
       : [
-        // resources
-        "cpu",
-        "memory",
-        "disk",
-        // queries
-        "select_queries",
-        "insert_queries",
-        "ddl_queries",
-        // merge & replication
-        "merges",
-        "replication",
-        "mutations",
-        // parts
-        "parts",
-        // others
-        "errors",
-        "connections",
-      ];
+          // resources
+          "cpu",
+          "memory",
+          "disk",
+          // queries
+          "select_queries",
+          "insert_queries",
+          "ddl_queries",
+          // merge & replication
+          "merges",
+          "replication",
+          "mutations",
+          // parts
+          "parts",
+          // others
+          "errors",
+          "connections",
+        ];
 
   const maxOutliers = input.max_outliers ?? 10;
 
@@ -1183,14 +1183,14 @@ export const getClusterStatusExecutor: ToolExecutor<
     const windowResult =
       analysisMode === "windowed"
         ? await getSystemMetrics(
-          {
-            metric_type: input.window?.metric_type ?? "errors",
-            time_window: input.window?.time_window,
-            time_range: input.window?.time_range,
-            granularity_minutes: input.window?.granularity_minutes,
-          },
-          connection
-        )
+            {
+              metric_type: input.window?.metric_type ?? "errors",
+              time_window: input.window?.time_window,
+              time_range: input.window?.time_range,
+              granularity_minutes: input.window?.granularity_minutes,
+            },
+            connection
+          )
         : undefined;
     if (analysisMode === "windowed") {
       progressCallback?.(
