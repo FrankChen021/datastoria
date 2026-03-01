@@ -16,6 +16,13 @@ Relationship to `sql-expert`:
 - `sql-expert` handles general SQL generation and user/business tables.
 - This skill handles system-table operational patterns and routing to table-specific references.
 
+## System Metrics and ProfileEvents
+
+- For metric-style columns in system tables, first confirm the actual column shape from schema/reference before writing predicates.
+- If `ProfileEvents` is a `Map`, access entries as `ProfileEvents['Name']`.
+- If the table exposes flattened columns, use `ProfileEvent_Name`.
+- Apply the same rule to other metric maps or flattened event columns: use the representation that exists in the target table, not the one you assume.
+
 ## Workflow
 
 1. Resolve target system table and intent.

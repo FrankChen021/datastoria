@@ -23,12 +23,7 @@ metadata:
 - **Enums**: Use exact string literals for Enum columns.
 - **Safety**: ALWAYS use `LIMIT` for data exploration queries.
 
-# 3. ProfileEvents & Metrics (Syntax Rules)
-- If `ProfileEvents` is a Map, use `ProfileEvents['Name']`.
-- If flattened, use `ProfileEvent_Name`.
-- Verify existence in schema first.
-
-# 4. Optimization Rules (Best Practices)
+# 3. Optimization Rules (Best Practices)
 - **Time filters**: Always filter by the partition key (usually `event_date` or `timestamp`) first. Use **bounded time windows** (e.g., last 24h, 7 days) unless the user asks for all history.
 - **Primary Keys (CRITICAL)**: ClickHouse indexes are sparse. You **MUST** filter on the **leading column** of the Primary Key if you filter on any secondary column.
   - *Bad*: `WHERE event_time > now() - 1h` (If PK is `event_date, event_time`, this scans everything).
@@ -36,7 +31,7 @@ metadata:
 - **Approximation**: Use `uniq()` instead of `uniqExact()` unless precision is explicitly requested.
 - **Joins**: Put the **smaller table on the RIGHT**. Use `GLOBAL IN` only for distributed queries.
 
-# 5. Execution Workflow
+# 4. Execution Workflow
 1. **Generate**: Create the SQL following the rules above.
 2. **Validate (MANDATORY)**: Call `validate_sql(sql)`.
    - *If invalid*: Read the error, fix the SQL, and retry (max 3 attempts).
