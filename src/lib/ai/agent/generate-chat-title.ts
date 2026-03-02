@@ -13,20 +13,8 @@ export type GenerateChatTitleResult = {
   usage?: LanguageModelUsage;
 };
 
-export type GenerateChatTitleOptions = {
-  /** Max time to wait for the title (ms). When exceeded, returns undefined. */
-  timeoutMs?: number;
-};
-
 const TITLE_MAX_LENGTH = 64;
-
-/**
- * System prompt for generating a short conversation title.
- * Mentions "json" so providers (e.g. OpenAI) that require it for response_format json_object accept the request.
- */
-export const CHAT_TITLE_SYSTEM_PROMPT = `You are a title generator for chat sessions.
-Given the user's message, reply in JSON with a "title" field: a very short conversation title (2–5 words, max ${TITLE_MAX_LENGTH} characters).
-No quotes, punctuation, or explanation in the title value.`;
+const TITLE_INPUT_MAX_LENGTH = 300;
 
 const TitleOutputSchema = z.object({
   title: z.string().max(TITLE_MAX_LENGTH).describe("Short conversation title (2-5 words)"),
@@ -40,17 +28,24 @@ const TitleOutputSchema = z.object({
  */
 export async function generateChatTitle(
   messages: UIMessage[],
-  modelConfig: InputModel,
-  options?: GenerateChatTitleOptions
+  modelConfig: InputModel
 ): Promise<GenerateChatTitleResult | undefined> {
-  const userCount = messages.filter((m) => m.role === "user").length;
-  const assistantCount = messages.filter((m) => m.role === "assistant").length;
-  if (userCount !== 1 || assistantCount !== 0) return undefined;
+  // Find and check current request is the the user request which should only contain one user message
+  let firstUserMessage: UIMessage | undefined;
+  for (const m of messages) {
+    if (m.role === "user") {
+      if (firstUserMessage) return undefined;
+      firstUserMessage = m;
+    } else if (m.role === "assistant") {
+      return undefined;
+    }
+  }
+  if (!firstUserMessage) return undefined;
 
-  const firstUser = messages.find((m) => m.role === "user");
-  if (!firstUser) return undefined;
-  const trimmed = uiMessageToText(firstUser).trim();
-  if (!trimmed) return undefined;
+  // Extract the user message text and limit the length
+  const messageText = uiMessageToText(firstUserMessage).trim();
+  if (!messageText) return undefined;
+  const titleInput = messageText.slice(0, TITLE_INPUT_MAX_LENGTH);
 
   const run = async (): Promise<GenerateChatTitleResult | undefined> => {
     try {
@@ -65,8 +60,11 @@ export async function generateChatTitle(
 
       const { output, usage } = await generateText({
         model,
-        system: CHAT_TITLE_SYSTEM_PROMPT,
-        prompt: trimmed,
+        system: `You generate short chat session titles.
+Return JSON with exactly one field: "title".
+The title must be 3 to 7 words and at most ${TITLE_MAX_LENGTH} characters.
+Use plain words only. Do not include quotes, punctuation, emojis, or explanations.`,
+        prompt: titleInput,
         output: Output.object({
           schema: TitleOutputSchema,
         }),
@@ -82,13 +80,5 @@ export async function generateChatTitle(
       return undefined;
     }
   };
-
-  const timeoutMs = options?.timeoutMs;
-  if (timeoutMs != null && timeoutMs > 0) {
-    return Promise.race([
-      run(),
-      new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), timeoutMs)),
-    ]);
-  }
   return run();
 }

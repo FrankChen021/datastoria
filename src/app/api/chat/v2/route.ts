@@ -250,51 +250,51 @@ export async function POST(req: Request) {
         }
       },
     });
-    const streamWithDeferredTitle =
-      titlePromise === undefined
-        ? responseStream
-        : responseStream.pipeThrough(
-            new TransformStream({
-              async transform(chunk, controller) {
-                if (chunk.type !== "finish") {
-                  controller.enqueue(chunk);
-                  return;
-                }
-
-                const titleResult = await Promise.race([
-                  titlePromise,
-                  new Promise<undefined>((resolve) =>
-                    setTimeout(() => resolve(undefined), TITLE_WAIT_MS)
-                  ),
-                ]);
-
-                const metadata = ((chunk as { messageMetadata?: MessageMetadata }).messageMetadata ??
-                  {}) as MessageMetadata;
-                const titleText = titleResult?.title?.trim();
-                const titleMetadata =
-                  titleText && titleResult?.usage
-                    ? {
-                        title: {
-                          text: titleText,
-                          usage: titleResult.usage,
-                        },
-                      }
-                    : {};
-
-                controller.enqueue({
-                  ...chunk,
-                  messageMetadata: {
-                    ...metadata,
-                    usage: sumTokenUsage([metadata.usage, titleResult?.usage]),
-                    ...titleMetadata,
-                  } satisfies MessageMetadata,
-                });
-              },
-            })
-          );
 
     return createUIMessageStreamResponse({
-      stream: streamWithDeferredTitle,
+      stream: responseStream.pipeThrough(
+        new TransformStream({
+          async transform(chunk, controller) {
+            if (chunk.type !== "finish") {
+              controller.enqueue(chunk);
+              return;
+            }
+            if (titlePromise === undefined) {
+              controller.enqueue(chunk);
+              return;
+            }
+
+            const titleResult = await Promise.race([
+              titlePromise,
+              new Promise<undefined>((resolve) =>
+                setTimeout(() => resolve(undefined), TITLE_WAIT_MS)
+              ),
+            ]);
+
+            const metadata = ((chunk as { messageMetadata?: MessageMetadata }).messageMetadata ??
+              {}) as MessageMetadata;
+            const titleText = titleResult?.title?.trim();
+            const titleMetadata =
+              titleText && titleResult?.usage
+                ? {
+                    title: {
+                      text: titleText,
+                      usage: titleResult.usage,
+                    },
+                  }
+                : {};
+
+            controller.enqueue({
+              ...chunk,
+              messageMetadata: {
+                ...metadata,
+                usage: sumTokenUsage([metadata.usage, titleResult?.usage]),
+                ...titleMetadata,
+              } satisfies MessageMetadata,
+            });
+          },
+        })
+      ),
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache",
