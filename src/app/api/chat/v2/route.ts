@@ -264,12 +264,17 @@ export async function POST(req: Request) {
               return;
             }
 
+            let timeoutId: ReturnType<typeof setTimeout> | undefined;
             const titleResult = await Promise.race([
               titlePromise,
-              new Promise<undefined>((resolve) =>
-                setTimeout(() => resolve(undefined), TITLE_WAIT_MS)
-              ),
-            ]);
+              new Promise<undefined>((resolve) => {
+                timeoutId = setTimeout(() => resolve(undefined), TITLE_WAIT_MS);
+              }),
+            ]).finally(() => {
+              if (timeoutId !== undefined) {
+                clearTimeout(timeoutId);
+              }
+            });
 
             const metadata = ((chunk as { messageMetadata?: MessageMetadata }).messageMetadata ??
               {}) as MessageMetadata;
