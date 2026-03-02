@@ -23,7 +23,6 @@ interface ChatHeaderProps {
   onNewChat: () => void;
   currentChatId: string;
   onSelectChat?: (id: string) => void;
-  onClearCurrentChat?: () => void;
   toggleDisplayMode?: () => void;
   displayMode?: ChatPanelDisplayMode;
   initialTitle?: string;
@@ -64,7 +63,6 @@ const ChatHeader = React.memo(
     onNewChat,
     currentChatId,
     onSelectChat,
-    onClearCurrentChat,
     toggleDisplayMode,
     displayMode = "panel",
     initialTitle,
@@ -112,7 +110,6 @@ const ChatHeader = React.memo(
               currentChatId={currentChatId}
               onNewChat={onNewChat}
               onSelectChat={onSelectChat}
-              onClearCurrentChat={onClearCurrentChat}
             />
           )}
           {!isMobile && toggleDisplayMode && (
@@ -309,6 +306,15 @@ export function ChatPanel({
     }
   }, [initialInput, chat, clearInitialInput]);
 
+  const createFreshChat = useCallback(async () => {
+    if (!connection?.connectionId) return;
+
+    const newChatId = uuidv7();
+    previousChatIdRef.current = chat?.id || null;
+    setChatTitle("New Chat");
+    await loadChat(newChatId);
+  }, [chat, connection?.connectionId, loadChat]);
+
   // Handle new chat creation (from user action)
   const handleNewChat = useCallback(async () => {
     if (!connection?.connectionId) return;
@@ -326,19 +332,15 @@ export function ChatPanel({
       }
     }
 
-    // Create new chat
-    const newChatId = uuidv7();
-    previousChatIdRef.current = chat?.id || null;
-    setChatTitle("New Chat");
-    await loadChat(newChatId);
-  }, [chat, connection?.connectionId, loadChat]);
+    await createFreshChat();
+  }, [chat, connection?.connectionId, createFreshChat]);
 
   useEffect(() => {
     if (!chat || newChatRequestNonce === processedNewChatRequestRef.current) return;
 
     processedNewChatRequestRef.current = newChatRequestNonce;
-    void handleNewChat();
-  }, [chat, handleNewChat, newChatRequestNonce]);
+    void createFreshChat();
+  }, [chat, createFreshChat, newChatRequestNonce]);
 
   // Handle sending pending messages
   useEffect(() => {
@@ -366,12 +368,6 @@ export function ChatPanel({
     },
     [loadChat]
   );
-
-  const handleClearCurrentChat = useCallback(() => {
-    if (chat) {
-      chat.messages = [];
-    }
-  }, [chat]);
 
   useEffect(() => {
     if (!chat) return;
@@ -410,7 +406,6 @@ export function ChatPanel({
           onNewChat={handleNewChat}
           onSelectChat={handleSelectChat}
           currentChatId={chat.id}
-          onClearCurrentChat={handleClearCurrentChat}
           toggleDisplayMode={handleToggleDisplayMode}
           displayMode={displayMode}
           initialTitle={chatTitle}
