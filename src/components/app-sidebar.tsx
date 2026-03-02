@@ -363,7 +363,7 @@ function DashboardSidebarMenuItem() {
 export function AppSidebar() {
   const { isConnectionAvailable, pendingConfig } = useConnection();
   const { data: session } = useSession();
-  const { open: openChatPanel } = useChatPanel();
+  const { open: openChatPanel, setActiveSidebarTab } = useChatPanel();
 
   // Show connection selector if connection is available OR if there's a pending config (failed initialization)
   // This allows users to switch connections even after a failure
@@ -392,7 +392,10 @@ export function AppSidebar() {
                         "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
                     }}
                     size="default"
-                    onClick={openChatPanel}
+                    onClick={() => {
+                      setActiveSidebarTab("history");
+                      openChatPanel();
+                    }}
                   >
                     <Sparkles className="h-5 w-5" />
                     <span>Work with AI</span>

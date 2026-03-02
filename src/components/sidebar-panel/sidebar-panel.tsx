@@ -11,23 +11,14 @@ interface SidebarPanelProps {
 }
 
 export function SidebarPanel({ initialSchemaData }: SidebarPanelProps) {
-  const {
-    currentChatId,
-    requestNewChat,
-    selectChat,
-    setDisplayMode,
-    activeSidebarTab,
-    setActiveSidebarTab,
-  } = useChatPanel();
+  const { currentChatId, requestNewChat, selectChat, activeSidebarTab, setActiveSidebarTab } =
+    useChatPanel();
 
   return (
     <Tabs
       value={activeSidebarTab}
       onValueChange={(value) => {
         setActiveSidebarTab(value as "database" | "snippets" | "history");
-        if (value === "history") {
-          setDisplayMode("tabWidth");
-        }
       }}
       className="w-full h-full flex flex-col"
     >
