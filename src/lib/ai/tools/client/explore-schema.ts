@@ -1,11 +1,23 @@
 import type { JSONCompactFormatResponse } from "@/lib/connection/connection";
 import { escapeSqlString, type ToolExecutor } from "./client-tool-types";
 
+const MAX_COLUMNS_WITHOUT_FILTER = 100;
+
 export type TableSchemaInput = {
-  database: string;
+  /** Fully qualified 'database.table' name */
   table: string;
   columns?: string[];
 };
+
+function parseTableName(qualified: string): { database: string; table: string } {
+  const dot = qualified.indexOf(".");
+  if (dot <= 0 || dot === qualified.length - 1) {
+    throw new Error(
+      `Invalid explore_schema table '${qualified}'. Use fully qualified 'database.table' format.`
+    );
+  }
+  return { database: qualified.slice(0, dot), table: qualified.slice(dot + 1) };
+}
 
 // NOTE: the input MUST be a JSON object instead of JSON array like the output
 // This is a constraint from the LLM provider
@@ -21,6 +33,9 @@ export type TableSchemaOutput = {
   partitionBy: string;
   engine: string;
   sortingKey: string;
+  totalColumns: number;
+  truncated: boolean;
+  guidance?: string;
 };
 export type ExploreSchemaOutput = Array<TableSchemaOutput>;
 
@@ -34,32 +49,71 @@ export const exploreSchemaExecutor: ToolExecutor<ExploreSchemaInput, ExploreSche
   // Build SQL query to get columns for multiple tables
   // Handle per-table column filtering
   //
-  const columnFilters: string[] = [];
-  for (const { table: tableName, database, columns } of tables) {
-    let condition = `(database = '${escapeSqlString(database)}' AND table = '${escapeSqlString(tableName)}'`;
+  const filteredColumnFilters: string[] = [];
+  const unfilteredTableFilters: string[] = [];
+  const requestedColumnMap = new Map<string, boolean>();
 
-    // Add column filter if specific columns are requested for this table
-    if (columns && columns.length > 0) {
-      const columnList = columns.map((c) => `'${escapeSqlString(c)}'`).join(", ");
-      condition += ` AND name IN (${columnList})`;
+  for (const { table: qualified, columns } of tables) {
+    const { database, table: tableName } = parseTableName(qualified);
+    const key = `${database}.${tableName}`;
+    const hasRequestedColumns = Boolean(columns && columns.length > 0);
+    requestedColumnMap.set(key, hasRequestedColumns);
+
+    if (hasRequestedColumns) {
+      const columnList = columns!.map((c) => `'${escapeSqlString(c)}'`).join(", ");
+      filteredColumnFilters.push(
+        `(database = '${escapeSqlString(database)}' AND table = '${escapeSqlString(tableName)}' AND name IN (${columnList}))`
+      );
+    } else {
+      unfilteredTableFilters.push(
+        `(database = '${escapeSqlString(database)}' AND table = '${escapeSqlString(tableName)}')`
+      );
     }
-
-    condition += ")";
-    columnFilters.push(condition);
   }
 
-  // Query for columns
-  const columnsSql = `
-SELECT 
-    database, table, name, type
-FROM system.columns 
-WHERE 
-${columnFilters.join(" OR ")}
-ORDER BY database, table`;
+  const columnsQueryParts: string[] = [];
+  if (filteredColumnFilters.length > 0) {
+    columnsQueryParts.push(`
+SELECT
+    database,
+    table,
+    name,
+    type,
+    CAST(count() OVER (PARTITION BY database, table) AS UInt32) AS total_columns
+FROM system.columns
+WHERE ${filteredColumnFilters.join(" OR ")}`);
+  }
+
+  if (unfilteredTableFilters.length > 0) {
+    columnsQueryParts.push(`
+SELECT
+    database,
+    table,
+    name,
+    type,
+    total_columns
+FROM
+(
+    SELECT
+        database,
+        table,
+        name,
+        type,
+        row_number() OVER (PARTITION BY database, table ORDER BY position, name) AS row_num,
+        CAST(count() OVER (PARTITION BY database, table) AS UInt32) AS total_columns
+    FROM system.columns
+    WHERE ${unfilteredTableFilters.join(" OR ")}
+)
+WHERE row_num <= ${MAX_COLUMNS_WITHOUT_FILTER}`);
+  }
+
+  const columnsSql = `${columnsQueryParts.join("\nUNION ALL\n")}
+ORDER BY database, table, name`;
 
   // Build query for table metadata (engine, sorting_key, primary_key, partition_key)
   const tableFilters: string[] = [];
-  for (const { table: tableName, database } of tables) {
+  for (const { table: qualified } of tables) {
+    const { database, table: tableName } = parseTableName(qualified);
     tableFilters.push(
       `(database = '${escapeSqlString(database)}' AND name = '${escapeSqlString(tableName)}')`
     );
@@ -135,11 +189,14 @@ ${tableFilters.join(" OR ")}`;
       const table = String(rowArray[1] || "");
       const name = String(rowArray[2] || "");
       const type = String(rowArray[3] || "");
+      const totalColumns = Number(rowArray[4] || 0);
 
       const key = `${database}.${table}`;
 
       if (!schemaByTable.has(key)) {
         const meta = metaMap.get(key);
+        const hasRequestedColumns = requestedColumnMap.get(key) ?? false;
+        const truncated = !hasRequestedColumns && totalColumns > MAX_COLUMNS_WITHOUT_FILTER;
         schemaByTable.set(key, {
           database,
           table,
@@ -148,6 +205,11 @@ ${tableFilters.join(" OR ")}`;
           partitionBy: meta?.partition_key ?? "",
           engine: meta?.engine ?? "",
           sortingKey: meta?.sorting_key ?? "",
+          totalColumns,
+          truncated,
+          guidance: truncated
+            ? `Schema truncated for wide table. Retry explore_schema with a narrow columns list. Returned ${MAX_COLUMNS_WITHOUT_FILTER} of ${totalColumns} columns.`
+            : undefined,
         });
       }
 
