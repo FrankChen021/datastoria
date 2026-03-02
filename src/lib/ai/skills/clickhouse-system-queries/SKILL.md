@@ -21,6 +21,8 @@ Relationship to `sql-expert`:
 ## System Metrics and ProfileEvents
 
 - For metric-style columns in system tables, first confirm the actual column shape from schema/reference before writing predicates.
+- If the user already named an exact metric or event identifier, your first `explore_schema` call MUST pass that identifier in the `columns` list instead of loading the full table schema.
+- Treat exact flattened metric names such as `ProfileEvent_DistributedConnectionFailTry` as candidate columns unless the schema shows the table stores them in a map instead.
 - If `ProfileEvents` is a `Map`, access entries as `ProfileEvents['Name']`.
 - If the table exposes flattened columns, use `ProfileEvent_Name`.
 - Apply the same rule to other metric maps or flattened event columns: use the representation that exists in the target table, not the one you assume.

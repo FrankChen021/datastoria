@@ -11,8 +11,9 @@ metadata:
 
 # 1. Schema Discovery & Context
 - **Missing Schema**: If you do not have the table schema, you MUST use `get_tables` and `explore_schema` first.
-  - *Optimization*: Use `columns` or `column_pattern` arguments in `explore_schema` to find specific fields without loading thousands of columns.
-- **Missing Columns**: `explore_schema` limits output. If you don't see the column you expect, you **MUST** retry `explore_schema` using `column_pattern` to search for it specifically.
+  - *Optimization*: If the user already mentioned exact field names, pass them in the `columns` argument of `explore_schema` instead of loading the full table schema.
+- **Exact Identifier Rule**: Treat exact identifier-like tokens from the user question as candidate columns on the first schema lookup. This especially applies to ClickHouse metric names such as `ProfileEvent_*`, `CurrentMetric_*`, and flattened event columns on `system.*` tables.
+- **Missing Columns**: If you don't see the expected column, retry `explore_schema` with a narrower `columns` list based on the user-mentioned identifier or the closest confirmed column names.
 - **Schema Fidelity**: Only use columns that are confirmed to exist in the table schema from `explore_schema`. Do not assume standard columns exist if they are not in the tool output.
 - **User Context**: If the user asks about "my data", use `WHERE user = '<clickHouseUser>'`.
 - **System Tables**: For queries on `system.*` tables (e.g., `system.query_log`, `system.parts`, `system.merges`), defer to the `clickhouse-system-queries` skill - it contains table-specific patterns, predicates, and resource metrics that this skill does not cover.
