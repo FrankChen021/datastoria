@@ -45,6 +45,40 @@ export const exploreSchemaExecutor: ToolExecutor<ExploreSchemaInput, ExploreSche
 ) => {
   const { tables } = input;
 
+  const normalizedTables = new Map<
+    string,
+    { database: string; table: string; includeAllColumns: boolean; columns: Set<string> }
+  >();
+
+  for (const { table: qualified, columns } of tables) {
+    const { database, table: tableName } = parseTableName(qualified);
+    const key = `${database}.${tableName}`;
+    const existing = normalizedTables.get(key);
+    const hasRequestedColumns = Boolean(columns && columns.length > 0);
+
+    if (!existing) {
+      normalizedTables.set(key, {
+        database,
+        table: tableName,
+        includeAllColumns: !hasRequestedColumns,
+        columns: new Set(columns ?? []),
+      });
+      continue;
+    }
+
+    if (!hasRequestedColumns) {
+      existing.includeAllColumns = true;
+      existing.columns.clear();
+      continue;
+    }
+
+    if (!existing.includeAllColumns) {
+      for (const column of columns ?? []) {
+        existing.columns.add(column);
+      }
+    }
+  }
+
   //
   // Build SQL query to get columns for multiple tables
   // Handle per-table column filtering
@@ -53,14 +87,13 @@ export const exploreSchemaExecutor: ToolExecutor<ExploreSchemaInput, ExploreSche
   const unfilteredTableFilters: string[] = [];
   const requestedColumnMap = new Map<string, boolean>();
 
-  for (const { table: qualified, columns } of tables) {
-    const { database, table: tableName } = parseTableName(qualified);
+  for (const { database, table: tableName, includeAllColumns, columns } of normalizedTables.values()) {
     const key = `${database}.${tableName}`;
-    const hasRequestedColumns = Boolean(columns && columns.length > 0);
+    const hasRequestedColumns = !includeAllColumns;
     requestedColumnMap.set(key, hasRequestedColumns);
 
     if (hasRequestedColumns) {
-      const columnList = columns!.map((c) => `'${escapeSqlString(c)}'`).join(", ");
+      const columnList = Array.from(columns).map((c) => `'${escapeSqlString(c)}'`).join(", ");
       filteredColumnFilters.push(
         `(database = '${escapeSqlString(database)}' AND table = '${escapeSqlString(tableName)}' AND name IN (${columnList}))`
       );
@@ -112,8 +145,7 @@ ORDER BY database, table, name`;
 
   // Build query for table metadata (engine, sorting_key, primary_key, partition_key)
   const tableFilters: string[] = [];
-  for (const { table: qualified } of tables) {
-    const { database, table: tableName } = parseTableName(qualified);
+  for (const { database, table: tableName } of normalizedTables.values()) {
     tableFilters.push(
       `(database = '${escapeSqlString(database)}' AND name = '${escapeSqlString(tableName)}')`
     );

@@ -107,6 +107,8 @@ function buildSqlGenerationPrompt({
     partitionBy?: string;
     engine?: string;
     sortingKey?: string;
+    totalColumns?: number;
+    truncated?: boolean;
   }): TableSchemaOutput => ({
     database: table.database,
     table: table.table,
@@ -115,6 +117,8 @@ function buildSqlGenerationPrompt({
     partitionBy: table.partitionBy ?? "",
     engine: table.engine ?? "",
     sortingKey: table.sortingKey ?? "",
+    totalColumns: table.totalColumns ?? table.columns.length,
+    truncated: table.truncated ?? false,
   });
 
   // Build schema context from schemaHints (for backward compatibility) or context
@@ -320,6 +324,8 @@ export function createGenerateSqlTool(inputModel: InputModel, context?: ServerDa
         partitionBy: table.partitionBy ?? "",
         engine: table.engine ?? "",
         sortingKey: table.sortingKey ?? "",
+        totalColumns: table.columns.length,
+        truncated: false,
       }));
 
       const result = isMockMode

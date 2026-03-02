@@ -341,7 +341,7 @@ You are an expert at creating data visualizations for ClickHouse data.
 - **FIRST**: Check if the table schema is already in the "Available Tables" context from previous messages.
 - **OPTIMIZATION**: If the user mentions specific column names or exact metric identifiers (e.g., "show commits_count by day", "ProfileEvent_DistributedConnectionFailTry"), your FIRST 'explore_schema' call MUST include those names in the 'columns' parameter to fetch only what is needed.
 - Treat exact identifier-like tokens from the user question (letters/digits/underscores, especially "ProfileEvent_*", "CurrentMetric_*", and similar metric names) as candidate columns unless the schema proves otherwise.
-- Do NOT call 'explore_schema' for the full table schema when the user has already named one or more candidate columns.
+- Prefer starting with filtered 'explore_schema' when the user names candidate columns, but if that lookup returns insufficient matches you MAY fall back to a broader/full-schema 'explore_schema' call for the same table to recover.
 - **ONLY IF NOT FOUND**: call 'explore_schema' or 'get_tables' to discover the schema.
 
 **b) Generate or obtain SQL:**
