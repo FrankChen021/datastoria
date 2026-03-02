@@ -644,7 +644,7 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
                   height: `${rowHeight}px`,
                   transform: `translateY(${virtualRow.start}px)`,
                   paddingLeft: `${depth * 20 + 8 + 8}px`,
-                  paddingRight: "0.5rem",
+                  paddingRight: "0.875rem",
                   minHeight: `${rowHeight}px`,
                   zIndex: 1,
                 }}
