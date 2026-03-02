@@ -1,4 +1,4 @@
-import { ChatHistoryList } from "@/components/chat/history/chat-history-list";
+import { ChatSessionList } from "@/components/chat/session/chat-session-list";
 import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { SchemaTreeView } from "@/components/schema-tree/schema-tree-view";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,12 +52,14 @@ export function SidebarPanel({ initialSchemaData }: SidebarPanelProps) {
         <SnippetListView />
       </TabsContent>
       <TabsContent value="history" className="flex-1 overflow-hidden mt-0 min-h-0">
-        <ChatHistoryList
-          currentChatId={currentChatId ?? ""}
-          onNewChat={requestNewChat}
-          onSelectChat={selectChat}
-          className="h-full"
-        />
+        {activeSidebarTab === "history" && (
+          <ChatSessionList
+            currentChatId={currentChatId ?? ""}
+            onNewChat={requestNewChat}
+            onSelectChat={selectChat}
+            className="h-full"
+          />
+        )}
       </TabsContent>
     </Tabs>
   );

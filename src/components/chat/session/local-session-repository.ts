@@ -1,16 +1,15 @@
 import type { Chat, Message } from "@/lib/ai/chat-types";
+import type { SessionRepository } from "@/lib/ai/session/session-repository";
 import type { LocalStorage } from "@/lib/storage/local-storage-provider";
 import { StorageManager } from "@/lib/storage/storage-provider-manager";
-import { chatActionStorage } from "./chat-action-storage";
-import type { ChatStorage } from "./chat-storage";
 
 /**
- * LocalStorage-based implementation of ChatStorage for simplicity
+ * LocalStorage-based implementation of SessionRepository for simplicity
  *
  * Note: localStorage has a quota limit (typically 5-10 MB per origin).
  * This implementation includes automatic cleanup of old chats when quota is exceeded.
  */
-export class ChatStorageLocal implements ChatStorage {
+export class LocalSessionRepository implements SessionRepository {
   private get chatsStorage(): LocalStorage {
     return StorageManager.getInstance()
       .getStorageProvider()
@@ -33,7 +32,7 @@ export class ChatStorageLocal implements ChatStorage {
    */
   private async removeOldestChats(count: number = 5, excludeChatId?: string): Promise<number> {
     try {
-      const chats = await this.getCharts();
+      const chats = await this.getSessions();
       if (chats.length === 0) {
         return 0;
       }
@@ -57,7 +56,6 @@ export class ChatStorageLocal implements ChatStorage {
 
       // Delete all target chats from the object in batch
       for (const chat of chatsToDelete) {
-        chatActionStorage.clearHiddenActionsForChat(chat.chatId);
         delete allChats[chat.chatId];
         // Clear messages for each chat
         this.messagesStorage.removeChild(chat.chatId);
@@ -150,7 +148,7 @@ export class ChatStorageLocal implements ChatStorage {
           console.warn("localStorage quota exceeded, cleaning up old data...");
 
           // Check how many chats we have
-          const allChats = await this.getCharts();
+          const allChats = await this.getSessions();
           const remainingChats = currentChatIdToExclude
             ? allChats.filter((chat) => chat.chatId !== currentChatIdToExclude)
             : allChats;
@@ -253,8 +251,8 @@ export class ChatStorageLocal implements ChatStorage {
     );
   }
 
-  // Chat operations
-  async getChat(id: string): Promise<Chat | null> {
+  // Session operations
+  async getSession(id: string): Promise<Chat | null> {
     const chats = this.chatsStorage.getAsJSON<Record<string, Chat>>(() => ({}));
     const chat = chats[id];
 
@@ -268,18 +266,17 @@ export class ChatStorageLocal implements ChatStorage {
     };
   }
 
-  async saveChat(chat: Chat): Promise<void> {
+  async saveSession(session: Chat): Promise<void> {
     const chats = this.chatsStorage.getAsJSON<Record<string, Chat>>(() => ({}));
 
-    chats[chat.chatId] = {
-      ...chat,
-      updatedAt: new Date(),
+    chats[session.chatId] = {
+      ...session,
     };
 
-    await this.safeSave(null, () => this.chatsStorage.setJSON(chats), chat.chatId);
+    await this.safeSave(null, () => this.chatsStorage.setJSON(chats), session.chatId);
   }
 
-  async updateChatTitle(id: string, title: string): Promise<void> {
+  async updateSessionTitle(id: string, title: string): Promise<void> {
     const chats = this.chatsStorage.getAsJSON<Record<string, Chat>>(() => ({}));
     if (chats[id]) {
       chats[id] = {
@@ -291,9 +288,7 @@ export class ChatStorageLocal implements ChatStorage {
     }
   }
 
-  async deleteChat(id: string): Promise<void> {
-    chatActionStorage.clearHiddenActionsForChat(id);
-
+  async deleteSession(id: string): Promise<void> {
     // Delete chat
     const chats = this.chatsStorage.getAsJSON<Record<string, Chat>>(() => ({}));
     delete chats[id];
@@ -304,7 +299,7 @@ export class ChatStorageLocal implements ChatStorage {
     await this.clearMessages(id);
   }
 
-  async getCharts(): Promise<Chat[]> {
+  private async getSessions(): Promise<Chat[]> {
     const chats = this.chatsStorage.getAsJSON<Record<string, Chat>>(() => ({}));
 
     return Object.values(chats)
@@ -316,19 +311,9 @@ export class ChatStorageLocal implements ChatStorage {
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 
-  async getLatestChatId(): Promise<string | undefined> {
-    const chats = await this.getCharts();
-    return chats[0]?.chatId;
-  }
-
-  async getChatsForConnection(connectionId: string): Promise<Chat[]> {
-    const allChats = await this.getCharts();
+  async getSessionsForConnection(connectionId: string): Promise<Chat[]> {
+    const allChats = await this.getSessions();
     return allChats.filter((chat) => chat.databaseId === connectionId);
-  }
-
-  async getLatestChatIdForConnection(connectionId: string): Promise<Chat | undefined> {
-    const chats = await this.getChatsForConnection(connectionId);
-    return chats.length > 0 ? chats[0] : undefined;
   }
 
   // Message operations
@@ -380,9 +365,9 @@ export class ChatStorageLocal implements ChatStorage {
     messagesMap[message.id] = messageToSave;
     await this.saveMessagesForChat(chatId, messagesMap);
 
-    const chat = await this.getChat(chatId);
-    if (chat) {
-      await this.saveChat({ ...chat, updatedAt: new Date() });
+    const session = await this.getSession(chatId);
+    if (session) {
+      await this.saveSession({ ...session, updatedAt: new Date() });
     }
   }
 
@@ -420,68 +405,15 @@ export class ChatStorageLocal implements ChatStorage {
 
     await this.saveMessagesForChat(chatId, messagesMap);
 
-    const chat = await this.getChat(chatId);
-    if (chat) {
-      await this.saveChat({ ...chat, updatedAt: new Date() });
+    const session = await this.getSession(chatId);
+    if (session) {
+      await this.saveSession({ ...session, updatedAt: new Date() });
     }
   }
 
-  async deleteMessage(id: string): Promise<void> {
-    // We need to find which chat this message belongs to
-    // Since we don't have chatId, we need to search through all chats
-    const chats = await this.getCharts();
-
-    for (const chat of chats) {
-      const messagesMap = this.getMessagesForChat(chat.chatId);
-      if (id in messagesMap) {
-        // O(1) delete using object property deletion
-        delete messagesMap[id];
-        if (Object.keys(messagesMap).length === 0) {
-          // Remove the key if no messages left
-          this.messagesStorage.removeChild(chat.chatId);
-        } else {
-          await this.saveMessagesForChat(chat.chatId, messagesMap);
-        }
-        return;
-      }
-    }
-  }
-
-  async clearMessages(chatId: string): Promise<void> {
+  private async clearMessages(chatId: string): Promise<void> {
     this.messagesStorage.removeChild(chatId);
-    chatActionStorage.clearHiddenActionsForChat(chatId);
-  }
-
-  async clearAll(): Promise<void> {
-    // Remove chats
-    this.chatsStorage.remove();
-
-    // Remove all per-chat message keys
-    this.messagesStorage.clear();
-
-    chatActionStorage.clearAllHiddenActions();
-  }
-
-  async clearAllForConnection(connectionId: string): Promise<void> {
-    // Get all chats for this connection
-    const chatsForConnection = await this.getChatsForConnection(connectionId);
-
-    if (chatsForConnection.length === 0) {
-      return;
-    }
-
-    // Get all chats from storage
-    const allChats = this.chatsStorage.getAsJSON<Record<string, Chat>>(() => ({}));
-
-    // Remove chats for this connection in batch
-    for (const chat of chatsForConnection) {
-      chatActionStorage.clearHiddenActionsForChat(chat.chatId);
-      delete allChats[chat.chatId];
-      // Remove messages for this chat
-      this.messagesStorage.removeChild(chat.chatId);
-    }
-
-    // Save updated chats in one operation
-    await this.safeSave(null, () => this.chatsStorage.setJSON(allChats));
   }
 }
+
+export const sessionRepository: SessionRepository = new LocalSessionRepository();

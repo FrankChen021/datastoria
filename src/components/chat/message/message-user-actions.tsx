@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Fragment, memo, useEffect, useMemo, useState } from "react";
 import { useChatAction } from "../chat-action-context";
-import { chatActionStorage } from "../storage/chat-action-storage";
+import { chatActionStorage } from "../session/chat-action-storage";
 
 /** Payload passed to onAction when a user triggers a quick action. */
 export type UserActionInput = {

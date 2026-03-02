@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Clock } from "lucide-react";
 import * as React from "react";
-import { ChatHistoryList } from "./chat-history-list";
+import { ChatSessionList } from "./chat-session-list";
 
 interface OpenHistoryButtonProps {
   disabled?: boolean;
@@ -18,7 +18,7 @@ interface OpenHistoryButtonProps {
   align?: "center" | "end" | "start";
 }
 
-export const OpenHistoryButton: React.FC<OpenHistoryButtonProps> = ({
+export const OpenSessionListButton: React.FC<OpenHistoryButtonProps> = ({
   disabled = false,
   currentChatId,
   onNewChat,
@@ -45,7 +45,7 @@ export const OpenHistoryButton: React.FC<OpenHistoryButtonProps> = ({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align={align} sideOffset={5}>
-        <ChatHistoryList
+        <ChatSessionList
           currentChatId={currentChatId}
           onNewChat={() => {
             (requestNewChat ?? onNewChat)();

@@ -1,7 +1,11 @@
 "use client";
 
 import { ChatUIContext } from "@/components/chat/chat-ui-context";
-import { chatStorage } from "@/components/chat/storage/chat-storage";
+import {
+  SessionManager,
+  useSessions,
+  type ManagedSession,
+} from "@/components/chat/session/session-manager";
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,9 +31,11 @@ import { cn } from "@/lib/utils";
 import {
   EllipsisVertical,
   FolderClosed,
+  Loader2,
   MessageSquareText,
   Pencil,
   Plus,
+  RotateCw,
   Search,
   Trash2,
   X,
@@ -52,7 +58,7 @@ type HistoryNodeData =
     }
   | {
       kind: "chat";
-      chat: Chat;
+      chat: ManagedSession;
     };
 
 type RenameState = {
@@ -70,7 +76,7 @@ type DeleteState = {
 const chatNodeId = (chatId: string) => `chat:${chatId}`;
 const groupNodeId = (label: string) => `group:${label}`;
 
-const getChatTitle = (chat: Chat) => chat.title || "New Conversation";
+const getChatTitle = (chat: Pick<Chat, "title">) => chat.title || "New Conversation";
 
 const getGroupLabel = (dateInput: Date | string) => {
   const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
@@ -130,12 +136,12 @@ function HistoryNodeMenu({
 }
 
 function buildHistoryTree(
-  history: Chat[],
-  onRenameChat: (chat: Chat) => void,
-  onDeleteChat: (chat: Chat) => void,
-  onDeleteGroup: (label: string, chats: Chat[]) => void
+  history: ManagedSession[],
+  onRenameChat: (chat: ManagedSession) => void,
+  onDeleteChat: (chat: ManagedSession) => void,
+  onDeleteGroup: (label: string, chats: ManagedSession[]) => void
 ): TreeDataItem[] {
-  const groups: Array<{ label: string; chats: Chat[] }> = [];
+  const groups: Array<{ label: string; chats: ManagedSession[] }> = [];
   const groupIndex = new Map<string, number>();
 
   for (const chat of history) {
@@ -175,6 +181,8 @@ function buildHistoryTree(
       id: chatNodeId(chat.chatId),
       labelContent: getChatTitle(chat),
       search: getChatTitle(chat).toLowerCase(),
+      icon: chat.running ? Loader2 : MessageSquareText,
+      iconClassName: chat.running ? "animate-spin" : undefined,
       type: "leaf",
       data: {
         kind: "chat",
@@ -201,40 +209,42 @@ function buildHistoryTree(
   }));
 }
 
-export const ChatHistoryList = React.memo<ChatHistoryListProps>(
+export const ChatSessionList = React.memo<ChatHistoryListProps>(
   ({ currentChatId, onNewChat, onClose, onSelectChat, className }) => {
     const { connection } = useConnection();
-    const [history, setHistory] = React.useState<Chat[]>([]);
+    const history = useSessions(connection?.connectionId);
     const [search, setSearch] = React.useState("");
     const [renameState, setRenameState] = React.useState<RenameState>(null);
     const [deleteState, setDeleteState] = React.useState<DeleteState>(null);
+    const [isRefreshing, setIsRefreshing] = React.useState(false);
 
-    const fetchHistory = React.useCallback(async () => {
-      const connectionId = connection?.connectionId;
-      if (!connectionId) {
-        setHistory([]);
+    const refreshSessions = React.useCallback(async () => {
+      if (!connection?.connectionId) {
         return;
       }
 
-      const chats = await chatStorage.getChatsForConnection(connectionId);
-      setHistory(chats);
+      setIsRefreshing(true);
+      try {
+        await SessionManager.loadSessions(connection.connectionId);
+      } finally {
+        setIsRefreshing(false);
+      }
     }, [connection?.connectionId]);
 
     React.useEffect(() => {
-      void fetchHistory();
-    }, [fetchHistory, currentChatId]);
+      void refreshSessions();
+    }, [refreshSessions, currentChatId]);
 
     const handleDeleteChats = React.useCallback(
       async (chatIds: string[]) => {
-        await Promise.all(chatIds.map((chatId) => chatStorage.deleteChat(chatId)));
-        await fetchHistory();
+        await SessionManager.deleteSessions(connection?.connectionId, chatIds);
 
         if (currentChatId && chatIds.includes(currentChatId)) {
           onNewChat();
           onClose?.();
         }
       },
-      [currentChatId, fetchHistory, onClose, onNewChat]
+      [connection?.connectionId, currentChatId, onClose, onNewChat]
     );
 
     const handleRenameSubmit = React.useCallback(async () => {
@@ -247,15 +257,14 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
         return;
       }
 
-      await chatStorage.updateChatTitle(renameState.chatId, nextTitle);
-      await fetchHistory();
+      await SessionManager.renameSession(connection?.connectionId, renameState.chatId, nextTitle);
 
       if (renameState.chatId === currentChatId) {
         ChatUIContext.updateTitle(nextTitle);
       }
 
       setRenameState(null);
-    }, [currentChatId, fetchHistory, renameState]);
+    }, [connection?.connectionId, currentChatId, renameState]);
 
     const treeData = React.useMemo(
       () =>
@@ -301,13 +310,13 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
               placeholder="Search conversations"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={cn("pl-8 rounded-none border-none flex-1 h-9", search ? "pr-16" : "pr-8")}
+              className={cn("pl-8 rounded-none border-none flex-1 h-9", search ? "pr-24" : "pr-16")}
             />
             {search && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute right-8 h-6 w-6 shrink-0"
+                className="absolute right-16 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
                 onClick={() => setSearch("")}
                 title="Clear search"
               >
@@ -317,7 +326,17 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
             <Button
               variant="ghost"
               size="sm"
-              className="absolute right-1 h-6 w-6 shrink-0"
+              className="absolute right-9 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+              onClick={() => void refreshSessions()}
+              title="Refresh sessions"
+              disabled={isRefreshing}
+            >
+              <RotateCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
               onClick={onNewChat}
               title="New session"
             >

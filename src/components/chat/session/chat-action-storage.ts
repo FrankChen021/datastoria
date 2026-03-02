@@ -42,6 +42,12 @@ export class ChatActionStorage {
     this.storage.removeChild(chatId);
   }
 
+  public clearHiddenActionsForChats(chatIds: string[]): void {
+    for (const chatId of chatIds) {
+      this.clearHiddenActionsForChat(chatId);
+    }
+  }
+
   public clearAllHiddenActions(): void {
     this.storage.clear();
   }

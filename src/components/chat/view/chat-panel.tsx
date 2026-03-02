@@ -2,7 +2,7 @@
 
 import { ChatFactory } from "@/components/chat/chat-factory";
 import { ChatUIContext } from "@/components/chat/chat-ui-context";
-import { chatStorage } from "@/components/chat/storage/chat-storage";
+import { SessionManager } from "@/components/chat/session/session-manager";
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -13,7 +13,7 @@ import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { ChatContext } from "../chat-context";
-import { OpenHistoryButton } from "../history/open-history-button";
+import { OpenSessionListButton } from "../session/open-session-list-button";
 import { SqlExecutionProvider } from "../sql-execution-context";
 import { ChatView, DEFAULT_CHAT_QUESTIONS, type ChatViewHandle } from "./chat-view";
 import { useChatPanel, type ChatPanelDisplayMode } from "./use-chat-panel";
@@ -103,7 +103,7 @@ const ChatHeader = React.memo(
             <Plus className="!h-3.5 !w-3.5" />
           </Button>
           {isMobile && (
-            <OpenHistoryButton
+            <OpenSessionListButton
               className="h-6 w-6"
               iconClassName="!h-3.5 !w-3.5"
               disabled={isRunning}
@@ -182,12 +182,15 @@ export function ChatPanel({
   const previousChatIdRef = useRef<string | null>(null);
   const processedPendingCommandRef = useRef<string | null>(null);
   const processedNewChatRequestRef = useRef(0);
+  const trackedRunningChatIdRef = useRef<string | null>(null);
   const isInitializedRef = useRef(false);
   const { connection } = useConnection();
 
+  const createDraftChatId = useCallback(() => uuidv7(), []);
+
   const loadChat = useCallback(
     async (chatIdToLoad: string): Promise<void> => {
-      const chatData = await chatStorage.getChat(chatIdToLoad);
+      const chatData = await SessionManager.getSession(chatIdToLoad);
       if (chatData) {
         setChatTitle(chatData.title);
       } else {
@@ -220,47 +223,48 @@ export function ChatPanel({
       const currentPendingCommand = pendingCommand;
       let idToLoad: string | undefined;
 
-      // Check if initialInput has a specific chatId
-      if (initialInput?.chatId) {
+      // Explicit session selection should win when opening a hidden panel.
+      if (selectedChatId) {
+        idToLoad = selectedChatId;
+      } else if (initialInput?.chatId) {
+        // Check if initialInput has a specific chatId
         idToLoad = initialInput.chatId;
       } else if (currentPendingCommand?.forceNewChat) {
-        // If explicitly forcing new chat, create a new chat
-        idToLoad = uuidv7();
+        idToLoad = createDraftChatId();
         previousChatIdRef.current = null;
         setChatTitle("New Chat");
         // Mark this command as processed to prevent duplicate handling
         const commandKey = `${currentPendingCommand.timestamp}-${currentPendingCommand.forceNewChat}`;
         processedPendingCommandRef.current = commandKey;
       } else if (currentPendingCommand?.text) {
-        // If there's a pending command (but not forcing new chat), still need to load a chat
-        // Load the latest chat or create new one
-        //const latestChat = await chatStorage.getLatestChatIdForConnection(connectionId);
-        //if (latestChat) {
-        //  idToLoad = latestChat.chatId;
-        //} else {
-        idToLoad = uuidv7();
-        //}
+        // If there's a pending command (but not forcing new chat), create a fresh session.
+        idToLoad = createDraftChatId();
       } else {
-        // Load the latest chat
-        //const latestChat = await chatStorage.getLatestChatIdForConnection(connectionId);
-        //if (latestChat) {
-        //  idToLoad = latestChat.chatId;
-        //} else {
-        // Create a new one
-        idToLoad = uuidv7();
+        // Default to a fresh session when opening chat without an existing selection.
+        idToLoad = createDraftChatId();
         setChatTitle("New Chat");
-        //}
       }
 
       if (idToLoad) {
         await loadChat(idToLoad);
+        if (selectedChatId === idToLoad) {
+          clearSelectedChatId();
+        }
         isInitializedRef.current = true;
       }
     };
 
     initializeChat();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connection?.connectionId, initialInput?.chatId, chat, loadChat]);
+  }, [
+    connection?.connectionId,
+    createDraftChatId,
+    initialInput?.chatId,
+    chat,
+    loadChat,
+    selectedChatId,
+    clearSelectedChatId,
+  ]);
 
   // Handle pending command when chat already exists (panel was already open)
   useEffect(() => {
@@ -270,13 +274,21 @@ export function ChatPanel({
     const commandKey = `${pendingCommand.timestamp}-${pendingCommand.forceNewChat}`;
     if (processedPendingCommandRef.current === commandKey) return;
 
-    // Create new chat
-    const newChatId = uuidv7();
-    previousChatIdRef.current = chat.id;
-    processedPendingCommandRef.current = commandKey;
-    setChatTitle("New Chat");
-    loadChat(newChatId);
-  }, [pendingCommand?.forceNewChat, pendingCommand?.timestamp, connection, chat, loadChat]);
+    void (async () => {
+      const chatId = createDraftChatId();
+      previousChatIdRef.current = chat.id;
+      processedPendingCommandRef.current = commandKey;
+      setChatTitle("New Chat");
+      await loadChat(chatId);
+    })();
+  }, [
+    pendingCommand?.forceNewChat,
+    pendingCommand?.timestamp,
+    connection,
+    chat,
+    createDraftChatId,
+    loadChat,
+  ]);
 
   useEffect(() => {
     if (!chat || !selectedChatId || selectedChatId === chat.id) return;
@@ -309,31 +321,18 @@ export function ChatPanel({
   const createFreshChat = useCallback(async () => {
     if (!connection?.connectionId) return;
 
-    const newChatId = uuidv7();
+    const chatId = createDraftChatId();
     previousChatIdRef.current = chat?.id || null;
     setChatTitle("New Chat");
-    await loadChat(newChatId);
-  }, [chat, connection?.connectionId, loadChat]);
+    await loadChat(chatId);
+  }, [chat, connection?.connectionId, createDraftChatId, loadChat]);
 
   // Handle new chat creation (from user action)
   const handleNewChat = useCallback(async () => {
     if (!connection?.connectionId) return;
 
-    // Check if current chat is empty
-    if (chat) {
-      const messages = await chatStorage.getMessages(chat.id);
-      if (messages.length === 0) {
-        // Just update timestamp for empty chat
-        const existingChat = await chatStorage.getChat(chat.id);
-        if (existingChat) {
-          await chatStorage.saveChat({ ...existingChat, updatedAt: new Date() });
-        }
-        return;
-      }
-    }
-
     await createFreshChat();
-  }, [chat, connection?.connectionId, createFreshChat]);
+  }, [connection?.connectionId, createFreshChat]);
 
   useEffect(() => {
     if (!chat || newChatRequestNonce === processedNewChatRequestRef.current) return;
@@ -380,6 +379,25 @@ export function ChatPanel({
       }
     };
   }, [chat, currentChatId, setCurrentChatId]);
+
+  useEffect(() => {
+    if (!connection?.connectionId) {
+      return;
+    }
+
+    const trackedChatId = trackedRunningChatIdRef.current;
+    if (trackedChatId && trackedChatId !== chat?.id) {
+      SessionManager.markRunning(connection.connectionId, trackedChatId, false);
+    }
+
+    if (!chat?.id) {
+      trackedRunningChatIdRef.current = null;
+      return;
+    }
+
+    trackedRunningChatIdRef.current = chat.id;
+    SessionManager.markRunning(connection.connectionId, chat.id, isRunning);
+  }, [chat?.id, connection?.connectionId, isRunning]);
 
   const handleToggleDisplayMode = useCallback(() => {
     toggleDisplayMode();

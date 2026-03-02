@@ -18,6 +18,7 @@ interface TreeDataItem {
   labelContent: React.ReactNode;
   search: string;
   icon?: LucideIcon;
+  iconClassName?: string;
   children?: TreeDataItem[];
 
   // Attached data
@@ -682,7 +683,15 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
                 )}
 
                 {/* Icon */}
-                {Icon && <Icon className="h-4 w-4 shrink-0 mr-2 text-accent-foreground/50" aria-hidden="true" />}
+                {Icon && (
+                  <Icon
+                    className={cn(
+                      "h-4 w-4 shrink-0 mr-2 text-accent-foreground/50",
+                      node.iconClassName
+                    )}
+                    aria-hidden="true"
+                  />
+                )}
 
                 {/* Text, tag and child count */}
                 <span className="flex items-center justify-between flex-grow min-w-0">
@@ -700,7 +709,10 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
                       node.tagTooltip
                     )}
                     {showChildCount && hasChildren && (
-                      <Badge variant="secondary" className="py-0 ml-1 rounded-sm px-1 font-normal whitespace-nowrap">
+                      <Badge
+                        variant="secondary"
+                        className="py-0 ml-1 rounded-sm px-1 font-normal text-[10px] whitespace-nowrap"
+                      >
                         {childCount}
                       </Badge>
                     )}

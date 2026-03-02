@@ -2,7 +2,6 @@ import { AgentConfigurationManager } from "@/components/settings/agent/agent-man
 import { ModelManager } from "@/components/settings/models/model-manager";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import type { AppUIMessage, Message, MessageMetadata } from "@/lib/ai/chat-types";
-import { MODELS } from "@/lib/ai/llm/llm-provider-factory";
 import type { StageStatus, ToolProgressCallback } from "@/lib/ai/tools/client/client-tool-types";
 import { CLIENT_TOOL_NAMES, ClientToolExecutors } from "@/lib/ai/tools/client/client-tools";
 import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
@@ -13,11 +12,11 @@ import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } fro
 import { v7 as uuidv7 } from "uuid";
 import { ChatContext } from "./chat-context";
 import { ChatUIContext } from "./chat-ui-context";
-import { chatStorage } from "./storage/chat-storage";
+import { SessionManager } from "./session/session-manager";
 
 /**
  * Create a progress callback for tool execution
- * Updates the progress store with stage information
+ * Updates the progress store with stage informationÒ
  */
 function createToolProgressCallback(
   toolCallId: string,
@@ -87,7 +86,7 @@ export class ChatFactory {
     useToolProgressStore.getState().clearAllProgress();
 
     // Load existing messages from storage to restore chat history
-    const historicalMessages = skipStorage ? [] : await chatStorage.getMessages(chatId);
+    const historicalMessages = skipStorage ? [] : await SessionManager.getMessages(chatId);
 
     // Create Chat instance
     const chat = new Chat<AppUIMessage>({
@@ -141,27 +140,8 @@ export class ChatFactory {
               });
 
             if (userMessagesToSave.length > 0) {
-              await chatStorage.saveMessages(chatId, userMessagesToSave);
-
-              let chatData = await chatStorage.getChat(chatId);
-
-              if (!chatData) {
-                const now = new Date();
-                let title: string | undefined;
-
-                chatData = {
-                  chatId: chatId,
-                  databaseId: connection.connectionId,
-                  title,
-                  createdAt: now,
-                  updatedAt: now,
-                };
-              }
-
-              await chatStorage.saveChat({
-                ...chatData,
-                updatedAt: new Date(),
-              });
+              await SessionManager.saveMessages(chatId, userMessagesToSave);
+              await SessionManager.touchSessionById(chatId, connection.connectionId);
             }
           }
 
@@ -263,21 +243,11 @@ export class ChatFactory {
               updatedAt: now,
             };
 
-            await chatStorage.saveMessage(chatId, messageToSave);
-            let chat = await chatStorage.getChat(chatId);
-            if (!chat) {
-              const now = new Date();
-              chat = {
-                chatId: chatId,
-                databaseId: connection.connectionId,
-                createdAt: now,
-                updatedAt: now,
-              };
-            }
-
+            await SessionManager.saveMessage(chatId, messageToSave);
+            let title: string | undefined;
             if (message.metadata?.title && typeof message.metadata.title.text === "string") {
-              chat.title = message.metadata.title.text;
-              ChatUIContext.updateTitle(message.metadata.title.text);
+              title = message.metadata.title.text;
+              ChatUIContext.updateTitle(title);
             } else if (
               message.role === "assistant" &&
               message.parts.length > 1 &&
@@ -286,20 +256,12 @@ export class ChatFactory {
             ) {
               const output = message.parts[0].output as PlanToolOutput;
               if (output.title) {
-                chat.title = output.title;
-                ChatUIContext.updateTitle(output.title);
+                title = output.title;
+                ChatUIContext.updateTitle(title);
               }
             }
 
-            // Always update the chat's updatedAt timestamp when a message is saved.
-            // This ensures:
-            // 1. The chat appears at the top of the history list (sorted by updatedAt)
-            // 2. The "last updated" time displayed in the UI is accurate
-            // 3. Chats are correctly grouped by time periods (Today, Yesterday, etc.)
-            await chatStorage.saveChat({
-              ...chat,
-              updatedAt: new Date(),
-            });
+            await SessionManager.touchSessionById(chatId, connection.connectionId, title);
           },
     });
 
