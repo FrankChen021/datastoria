@@ -34,8 +34,7 @@ export type ValidateSqlToolOutput = {
 
 export const ClientTools = {
   explore_schema: tool({
-    description:
-      `Explore table schemas: columns, engine, sorting/primary/partition keys. Supports multiple tables per call.
+    description: `Explore table schemas: columns, engine, sorting/primary/partition keys. Supports multiple tables per call.
 - Use fully qualified 'database.table' format (e.g., 'system.metric_log').
 - If the user names specific columns or metrics, pass them in 'columns' to skip fetching the full schema.
 - If output has 'truncated: true', retry with a narrower 'columns' list.`,
@@ -43,9 +42,7 @@ export const ClientTools = {
       tables: z
         .array(
           z.object({
-            table: z
-              .string()
-              .describe("'database.table' format, e.g. 'system.metric_log'."),
+            table: z.string().describe("'database.table' format, e.g. 'system.metric_log'."),
             columns: z
               .array(z.string())
               .optional()
@@ -70,7 +67,9 @@ export const ClientTools = {
         primaryKey: z.string(),
         partitionBy: z.string(),
         totalColumns: z.number(),
-        truncated: z.boolean().describe("True if schema was capped; retry with a narrower 'columns' list."),
+        truncated: z
+          .boolean()
+          .describe("True if schema was capped; retry with a narrower 'columns' list."),
         guidance: z.string().optional().describe("Retry hint when truncated."),
       })
     ),
@@ -83,10 +82,7 @@ export const ClientTools = {
         .string()
         .optional()
         .describe("SQL LIKE pattern for table name (e.g., '%user%', 'fact_%')."),
-      database: z
-        .string()
-        .optional()
-        .describe("Filter by database; omit to search all."),
+      database: z.string().optional().describe("Filter by database; omit to search all."),
       engine: z
         .string()
         .optional()
@@ -95,11 +91,7 @@ export const ClientTools = {
         .string()
         .optional()
         .describe("SQL LIKE pattern for partition key (e.g., '%date%', '%toYYYYMM%')."),
-      limit: z
-        .number()
-        .optional()
-        .default(100)
-        .describe("Max tables to return (default: 100)."),
+      limit: z.number().optional().default(100).describe("Max tables to return (default: 100)."),
     }),
     outputSchema: z.array(
       z.object({
@@ -111,8 +103,7 @@ export const ClientTools = {
     ),
   }),
   execute_sql: tool({
-    description:
-      "Execute a SQL query on the ClickHouse database and return results.",
+    description: "Execute a SQL query on the ClickHouse database and return results.",
     inputSchema: z.object({
       sql: z.string(),
     }),
@@ -140,10 +131,7 @@ export const ClientTools = {
       "Gather optimization evidence (query logs, EXPLAIN plans, schemas, statistics) for a SQL query or query_id.",
     inputSchema: z.object({
       sql: z.string().optional().describe("SQL text to analyze (preferred if available)."),
-      query_id: z
-        .string()
-        .optional()
-        .describe("ClickHouse query_id to retrieve logs for."),
+      query_id: z.string().optional().describe("ClickHouse query_id to retrieve logs for."),
       goal: z
         .enum(["latency", "memory", "bytes", "dashboard", "other"])
         .optional()
@@ -183,12 +171,7 @@ export const ClientTools = {
       metric: z
         .enum(["cpu", "memory", "disk", "duration"])
         .describe("Sort by: cpu, memory, disk, or duration."),
-      limit: z
-        .number()
-        .min(1)
-        .max(10)
-        .default(3)
-        .describe("Queries to return (1-10, default: 3)."),
+      limit: z.number().min(1).max(10).default(3).describe("Queries to return (1-10, default: 3)."),
       time_window: z
         .number()
         .min(5)
@@ -268,21 +251,39 @@ export const ClientTools = {
         .object({
           disk_warning: z.number().optional().describe("Disk warning % (default: 80)."),
           disk_critical: z.number().optional().describe("Disk critical % (default: 90)."),
-          cpu_cores_used_warning: z.number().optional().describe("CPU warning in cores-used (default: 4)."),
-          cpu_cores_used_critical: z.number().optional().describe("CPU critical in cores-used (default: 8)."),
-          replication_lag_warning_seconds: z.number().optional().describe("Replication lag warning in seconds (default: 60)."),
-          replication_lag_critical_seconds: z.number().optional().describe("Replication lag critical in seconds (default: 300)."),
+          cpu_cores_used_warning: z
+            .number()
+            .optional()
+            .describe("CPU warning in cores-used (default: 4)."),
+          cpu_cores_used_critical: z
+            .number()
+            .optional()
+            .describe("CPU critical in cores-used (default: 8)."),
+          replication_lag_warning_seconds: z
+            .number()
+            .optional()
+            .describe("Replication lag warning in seconds (default: 60)."),
+          replication_lag_critical_seconds: z
+            .number()
+            .optional()
+            .describe("Replication lag critical in seconds (default: 300)."),
           parts_warning: z.number().optional().describe("Parts warning per table (default: 500)."),
-          parts_critical: z.number().optional().describe("Parts critical per table (default: 1000)."),
-          query_p95_warning_ms: z.number().optional().describe("p95 latency warning in ms (default: 1000)."),
-          query_p95_critical_ms: z.number().optional().describe("p95 latency critical in ms (default: 3000)."),
+          parts_critical: z
+            .number()
+            .optional()
+            .describe("Parts critical per table (default: 1000)."),
+          query_p95_warning_ms: z
+            .number()
+            .optional()
+            .describe("p95 latency warning in ms (default: 1000)."),
+          query_p95_critical_ms: z
+            .number()
+            .optional()
+            .describe("p95 latency critical in ms (default: 3000)."),
         })
         .optional()
         .describe("Override thresholds for WARNING/CRITICAL classification."),
-      max_outliers: z
-        .number()
-        .optional()
-        .describe("Max outliers per category (default: 10)."),
+      max_outliers: z.number().optional().describe("Max outliers per category (default: 10)."),
       window: z
         .object({
           metric_type: z

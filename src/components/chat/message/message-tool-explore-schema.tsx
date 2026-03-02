@@ -68,22 +68,22 @@ export const MessageToolExploreSchema = memo(function MessageToolExploreSchema({
           <div className="mt-2 text-[10px] text-muted-foreground">output:</div>
           <div className="border rounded-md overflow-hidden bg-background ml-[0.5rem]">
             <div className="max-h-[300px] overflow-auto">
-                {output.map((table, tableIdx: number) => (
-                  <div key={tableIdx} className="mb-2 last:mb-0">
-                    <div className="bg-muted/50 px-2 py-1 text-[10px] font-bold border-b">
-                      {table.database}.{table.table} (
-                      {table.truncated
-                        ? `${table.columns?.length || 0} of ${table.totalColumns} columns`
-                        : `${table.totalColumns} columns`}
-                      )
+              {output.map((table, tableIdx: number) => (
+                <div key={tableIdx} className="mb-2 last:mb-0">
+                  <div className="bg-muted/50 px-2 py-1 text-[10px] font-bold border-b">
+                    {table.database}.{table.table} (
+                    {table.truncated
+                      ? `${table.columns?.length || 0} of ${table.totalColumns} columns`
+                      : `${table.totalColumns} columns`}
+                    )
+                  </div>
+                  {table.truncated && table.guidance && (
+                    <div className="bg-amber-50 text-amber-900 px-2 py-1.5 border-b text-[10px]">
+                      {table.guidance}
                     </div>
-                    {table.truncated && table.guidance && (
-                      <div className="bg-amber-50 text-amber-900 px-2 py-1.5 border-b text-[10px]">
-                        {table.guidance}
-                      </div>
-                    )}
-                    {(table.primaryKey || table.partitionBy) && (
-                      <div className="bg-muted/30 px-2 py-1.5 border-b text-[10px] space-y-0.5">
+                  )}
+                  {(table.primaryKey || table.partitionBy) && (
+                    <div className="bg-muted/30 px-2 py-1.5 border-b text-[10px] space-y-0.5">
                       {table.primaryKey && (
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-muted-foreground">Primary Key:</span>
