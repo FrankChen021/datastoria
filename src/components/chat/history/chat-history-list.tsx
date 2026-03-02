@@ -19,17 +19,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tree, type TreeDataItem } from "@/components/ui/tree";
 import type { Chat } from "@/lib/ai/chat-types";
 import "@/lib/number-utils";
 import { searchTree } from "@/lib/tree-search";
 import { cn } from "@/lib/utils";
-import * as PopoverPrimitive from "@radix-ui/react-popover";
 import {
-  AlertCircle,
   EllipsisVertical,
-  Eraser,
   FolderClosed,
   MessageSquareText,
   Pencil,
@@ -89,68 +85,6 @@ const getGroupLabel = (dateInput: Date | string) => {
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7) return `${diffDays}d ago`;
   return "Earlier";
-};
-
-const ClearAllButton: React.FC<{ onClearAll: () => void }> = ({ onClearAll }) => {
-  const [open, setOpen] = React.useState(false);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-xs h-7 text-muted-foreground hover:text-destructive gap-2"
-        >
-          <Eraser className="h-3 w-3" />
-          Clear All
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="p-0 overflow-hidden z-[10000] w-72"
-        side="left"
-        align="end"
-        alignOffset={-12}
-      >
-        <PopoverPrimitive.Arrow className="fill-[var(--border)]" width={12} height={8} />
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
-            <div className="font-semibold text-sm">Confirmation</div>
-          </div>
-          <div className="pl-6">
-            <div className="text-xs mb-3 text-muted-foreground">
-              Are you sure to clear all chat history for the current connection? This action cannot
-              be reverted.
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 text-[11px]"
-                onClick={() => setOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                className="h-7 px-2 text-[11px]"
-                onClick={() => {
-                  onClearAll();
-                  setOpen(false);
-                }}
-              >
-                Clear
-              </Button>
-            </div>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
 };
 
 function HistoryNodeMenu({
@@ -303,18 +237,6 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
       [currentChatId, fetchHistory, onClose, onNewChat]
     );
 
-    const handleClearAll = React.useCallback(async () => {
-      const connectionId = connection?.connectionId;
-      if (!connectionId) {
-        return;
-      }
-
-      await chatStorage.clearAllForConnection(connectionId);
-      setHistory([]);
-      onNewChat();
-      onClose?.();
-    }, [connection?.connectionId, onClose, onNewChat]);
-
     const handleRenameSubmit = React.useCallback(async () => {
       if (!renameState) {
         return;
@@ -379,19 +301,28 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
               placeholder="Search conversations"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={cn("pl-8 pr-8 rounded-none border-none flex-1 h-9")}
+              className={cn("pl-8 rounded-none border-none flex-1 h-9", search ? "pr-16" : "pr-8")}
             />
             {search && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute right-1 h-6 w-6 shrink-0"
+                className="absolute right-8 h-6 w-6 shrink-0"
                 onClick={() => setSearch("")}
                 title="Clear search"
               >
                 <X className="h-4 w-4" />
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-1 h-6 w-6 shrink-0"
+              onClick={onNewChat}
+              title="New session"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
 
           <div className="flex-1 min-h-0 overflow-hidden">
@@ -424,19 +355,6 @@ export const ChatHistoryList = React.memo<ChatHistoryListProps>(
                 No conversations found.
               </div>
             )}
-          </div>
-
-          <div className="p-1 border-t flex items-center justify-between gap-2 bg-muted/30 shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs h-7 flex-1 justify-start gap-2"
-              onClick={onNewChat}
-            >
-              <Plus className="h-3 w-3" />
-              New Conversation
-            </Button>
-            <ClearAllButton onClearAll={handleClearAll} />
           </div>
         </div>
 
