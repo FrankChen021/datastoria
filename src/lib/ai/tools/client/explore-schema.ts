@@ -87,13 +87,20 @@ export const exploreSchemaExecutor: ToolExecutor<ExploreSchemaInput, ExploreSche
   const unfilteredTableFilters: string[] = [];
   const requestedColumnMap = new Map<string, boolean>();
 
-  for (const { database, table: tableName, includeAllColumns, columns } of normalizedTables.values()) {
+  for (const {
+    database,
+    table: tableName,
+    includeAllColumns,
+    columns,
+  } of normalizedTables.values()) {
     const key = `${database}.${tableName}`;
     const hasRequestedColumns = !includeAllColumns;
     requestedColumnMap.set(key, hasRequestedColumns);
 
     if (hasRequestedColumns) {
-      const columnList = Array.from(columns).map((c) => `'${escapeSqlString(c)}'`).join(", ");
+      const columnList = Array.from(columns)
+        .map((c) => `'${escapeSqlString(c)}'`)
+        .join(", ");
       filteredColumnFilters.push(
         `(database = '${escapeSqlString(database)}' AND table = '${escapeSqlString(tableName)}' AND name IN (${columnList}))`
       );
