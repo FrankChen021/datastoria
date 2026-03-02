@@ -631,7 +631,7 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
               <div
                 data-index={virtualRow.index}
                 className={cn(
-                  "relative flex items-center py-1 cursor-pointer transition-colors",
+                  "group/tree relative flex items-center py-1 cursor-pointer transition-colors",
                   !isSelected && "hover:bg-accent hover:text-accent-foreground",
                   isSelected &&
                   "bg-accent text-accent-foreground border-l-2 border-l-accent-foreground/50 dark:border-0"

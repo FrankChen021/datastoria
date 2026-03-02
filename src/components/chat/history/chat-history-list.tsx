@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import {
   AlertCircle,
-  Ellipsis,
+  EllipsisVertical,
   Eraser,
   FolderClosed,
   MessageSquareText,
@@ -169,11 +169,11 @@ function HistoryNodeMenu({
         <Button
           variant="ghost"
           size="icon"
-          className="h-5 w-5 text-muted-foreground"
+          className="h-5 w-5 text-muted-foreground opacity-0 transition-opacity group-hover/tree:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <Ellipsis className="h-3.5 w-3.5" />
+          <EllipsisVertical className="h-3.5 w-3.5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
@@ -246,7 +246,6 @@ function buildHistoryTree(
         kind: "chat",
         chat,
       } satisfies HistoryNodeData,
-      labelTooltip: getChatTitle(chat),
       tag: () => (
         <HistoryNodeMenu
           actions={[

@@ -51,7 +51,7 @@ export function SidebarPanel({ initialSchemaData }: SidebarPanelProps) {
           className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-full px-2"
         >
           <MessagesSquare className="h-4 w-4 mr-2" />
-          History
+          Sessions
         </TabsTrigger>
       </TabsList>
       <TabsContent value="database" className="flex-1 overflow-hidden mt-0 min-h-0">
