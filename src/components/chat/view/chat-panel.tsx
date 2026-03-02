@@ -181,7 +181,7 @@ export function ChatPanel({
   const [isChatViewReady, setIsChatViewReady] = useState(false);
   const previousChatIdRef = useRef<string | null>(null);
   const processedPendingCommandRef = useRef<string | null>(null);
-  const processedNewChatRequestRef = useRef(0);
+  const processedNewChatRequestRef = useRef(newChatRequestNonce);
   const trackedRunningChatIdRef = useRef<string | null>(null);
   const isInitializedRef = useRef(false);
   const { connection } = useConnection();
