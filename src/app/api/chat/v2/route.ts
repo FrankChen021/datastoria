@@ -10,7 +10,14 @@ import { ClientTools } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { ServerTools } from "@/lib/ai/tools/server/server-tools";
 import { APICallError } from "@ai-sdk/provider";
-import { convertToModelMessages, RetryError, stepCountIs, streamText, type UIMessage } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  RetryError,
+  stepCountIs,
+  streamText,
+  type UIMessage,
+} from "ai";
 import { v7 as uuidv7 } from "uuid";
 
 export const dynamic = "force-dynamic";
@@ -189,9 +196,7 @@ export async function POST(req: Request) {
 
     const titlePromise =
       apiRequest.generateTitle !== false
-        ? generateChatTitle(originalMessages, modelConfig, {
-            timeoutMs: TITLE_WAIT_MS,
-          })
+        ? generateChatTitle(originalMessages, modelConfig)
         : undefined;
 
     const modelMessages = await convertToModelMessages(
@@ -218,9 +223,7 @@ export async function POST(req: Request) {
       temperature,
     });
 
-    const titleResult = titlePromise !== undefined ? await titlePromise : undefined;
-
-    const response = result.toUIMessageStreamResponse({
+    const responseStream = result.toUIMessageStream({
       originalMessages: originalMessages as UIMessage[],
       generateMessageId: () => messageId,
       messageMetadata: ({
@@ -234,13 +237,9 @@ export async function POST(req: Request) {
         );
 
         // Accumulate token usage on this message id
-        const usage = sumTokenUsage([requestUsage, responseUsage, titleResult?.usage]);
+        const usage = sumTokenUsage([requestUsage, responseUsage]);
         return {
           usage,
-          title: titleResult?.title?.trim() && {
-            text: titleResult.title.trim(),
-            usage: titleResult.usage,
-          },
         } as MessageMetadata;
       },
       onError: (error: unknown) => {
@@ -250,14 +249,58 @@ export async function POST(req: Request) {
           return "Sorry, I encountered an error. Please try again.";
         }
       },
+    });
+    const streamWithDeferredTitle =
+      titlePromise === undefined
+        ? responseStream
+        : responseStream.pipeThrough(
+            new TransformStream({
+              async transform(chunk, controller) {
+                if (chunk.type !== "finish") {
+                  controller.enqueue(chunk);
+                  return;
+                }
+
+                const titleResult = await Promise.race([
+                  titlePromise,
+                  new Promise<undefined>((resolve) =>
+                    setTimeout(() => resolve(undefined), TITLE_WAIT_MS)
+                  ),
+                ]);
+
+                const metadata = ((chunk as { messageMetadata?: MessageMetadata }).messageMetadata ??
+                  {}) as MessageMetadata;
+                const titleText = titleResult?.title?.trim();
+                const titleMetadata =
+                  titleText && titleResult?.usage
+                    ? {
+                        title: {
+                          text: titleText,
+                          usage: titleResult.usage,
+                        },
+                      }
+                    : {};
+
+                controller.enqueue({
+                  ...chunk,
+                  messageMetadata: {
+                    ...metadata,
+                    usage: sumTokenUsage([metadata.usage, titleResult?.usage]),
+                    ...titleMetadata,
+                  } satisfies MessageMetadata,
+                });
+              },
+            })
+          );
+
+    return createUIMessageStreamResponse({
+      stream: streamWithDeferredTitle,
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
       },
     });
-
-    return response;
   } catch (error) {
     return new Response(
       JSON.stringify({
