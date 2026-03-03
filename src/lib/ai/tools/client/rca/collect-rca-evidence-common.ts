@@ -1,4 +1,4 @@
-import { QueryError, type JSONCompactFormatResponse } from "@/lib/connection/connection";
+import { QueryError } from "@/lib/connection/connection";
 import {
   escapeSqlString,
   type ToolExecutor,
@@ -128,7 +128,6 @@ export type Observation = {
   partition_key_columns?: Array<{
     name: string;
     data_type: string;
-    sample_value: string | number | null;
     sample_values?: Array<string | number | null>;
   }>;
   scope_summary?: {
@@ -199,20 +198,10 @@ type IndicatorResult = {
   blocker?: boolean;
 };
 
-type CandidateRule = {
+export type CauseEvaluation = {
   cause: string;
   indicators: IndicatorResult[];
   next_check_hints?: string[];
-};
-
-export type QueryResults = Record<string, Observation>;
-
-export type QuerySpec<Ctx> = {
-  id: string;
-  progressStage: string;
-  progressWeight: number;
-  sqlTemplate: string;
-  toObservation: (row: (string | number | null)[] | undefined, ctx: Ctx) => Observation;
 };
 
 type TemplateContext = SymptomContext & {
@@ -256,19 +245,6 @@ type IndicatorMatchResult = {
   actual: string | number;
 };
 
-type IndicatorMatcher = (results: QueryResults) => IndicatorMatchResult;
-
-export type RuleSpec = {
-  cause: string;
-  next_check_hints?: string[];
-  indicators: Array<{
-    description: string;
-    match: IndicatorMatcher;
-    required?: boolean;
-    blocker?: boolean;
-  }>;
-};
-
 export type TimeFilter = {
   whereClause: string;
 };
@@ -285,7 +261,7 @@ export type SymptomContext = {
   progressCallback?: ToolProgressCallback;
 };
 
-export type SymptomResult = {
+export type SymptomEvidence = {
   observations: Observation[];
   candidates: CauseCandidate[];
   excluded_candidates?: ExcludedCandidate[];
@@ -294,32 +270,7 @@ export type SymptomResult = {
   related_symptoms?: CanonicalSymptom[];
 };
 
-export type SymptomHandler = (context: SymptomContext) => Promise<SymptomResult>;
-type ScenarioResult = {
-  target?: Target;
-  related_symptoms?: CanonicalSymptom[];
-};
-
-export type ScenarioSpec<Ctx extends SymptomContext = SymptomContext> = {
-  queries: QuerySpec<Ctx>[];
-  rules: RuleSpec[] | ((context: Ctx) => RuleSpec[]);
-  possible_actions: PossibleAction[];
-  prepareContext?: (context: SymptomContext) => Promise<Ctx>;
-  finalizeResult?: (input: {
-    context: Ctx;
-    results: QueryResults;
-    candidates: CauseCandidate[];
-  }) => ScenarioResult;
-};
-
-export async function queryJsonCompact(
-  connection: Parameters<ToolExecutor<RcaEvidenceInput, RcaEvidenceOutput>>[1],
-  sql: string
-): Promise<JSONCompactFormatResponse> {
-  const { response } = connection.query(sql, { default_format: "JSONCompact" });
-  const apiResponse = await response;
-  return apiResponse.data.json<JSONCompactFormatResponse>();
-}
+export type SymptomEvidenceCollector = (context: SymptomContext) => Promise<SymptomEvidence>;
 
 function escapeSqlLiteral(value: string): string {
   return value.replaceAll("\\", "\\\\").replaceAll("'", "\\'");
@@ -351,13 +302,11 @@ export async function enrichPartitionKeyColumns(
   );
   if (!partitionObservation) return;
 
-  await runProbe(context, stage, progress, async () => {
+  await runQuery(context, stage, progress, async () => {
     const database = escapeSqlLiteral(target.database!);
     const table = escapeSqlLiteral(target.table!);
 
-    const columnsData = await queryJsonCompact(
-      context.connection,
-      `
+    const columnsData = await context.connection.queryJsonCompact(`
 SELECT name, type
 FROM system.columns
 WHERE database = '${database}'
@@ -375,9 +324,7 @@ ORDER BY position`
     }));
 
     const selectList = columns.map((col) => quoteIdentifier(col.name)).join(", ");
-    const sampleData = await queryJsonCompact(
-      context.connection,
-      `
+    const sampleData = await context.connection.queryJsonCompact(`
 SELECT ${selectList}
 FROM ${quoteIdentifier(target.database!)}.${quoteIdentifier(target.table!)}
 LIMIT 3`
@@ -387,7 +334,6 @@ LIMIT 3`
     partitionObservation.partition_key_columns = columns.map((col, idx) => ({
       name: col.name,
       data_type: col.data_type,
-      sample_value: truncateSampleValue(sampleRows[0]?.[idx]),
       sample_values: sampleRows.slice(0, 3).map((row) => truncateSampleValue(row[idx])),
     }));
   });
@@ -401,7 +347,7 @@ function stringifyError(error: unknown): string {
   return String(error);
 }
 
-export async function runProbe<T>(
+export async function runQuery<T>(
   context: SymptomContext,
   stage: string,
   progress: number,
@@ -495,7 +441,7 @@ function normalizeTargetTable(target: Target | undefined): Target | undefined {
   return normalized;
 }
 
-export function scoreCandidate(rule: CandidateRule): CauseCandidate {
+export function scoreCandidate(rule: CauseEvaluation): CauseCandidate {
   const matched = rule.indicators.filter((item) => item.matched).length;
   const total = rule.indicators.length;
   const rawRatio = total > 0 ? matched / total : 0;
@@ -534,55 +480,50 @@ export function scoreCandidate(rule: CandidateRule): CauseCandidate {
   };
 }
 
-export async function runQueries<Ctx extends SymptomContext>(
-  ctx: Ctx,
-  specs: QuerySpec<Ctx>[]
-): Promise<QueryResults> {
-  const entries = await Promise.all(
-    specs.map(async (spec) => {
-      const sql = substituteTemplate(spec.sqlTemplate, ctx as TemplateContext);
-      const data = await runProbe(ctx, spec.progressStage, spec.progressWeight, () =>
-        queryJsonCompact(ctx.connection, sql)
-      );
-      const row = data.data?.[0] as (string | number | null)[] | undefined;
-      const observation = spec.toObservation(row, ctx);
-      return [spec.id, observation] as const;
-    })
-  );
-  return Object.fromEntries(entries);
+export async function collectObservation<Ctx extends SymptomContext>(input: {
+  context: Ctx;
+  stage: string;
+  progress: number;
+  sqlTemplate: string;
+  toObservation: (row: (string | number | null)[] | undefined, ctx: Ctx) => Observation;
+}): Promise<Observation> {
+  const { context, stage, progress, sqlTemplate, toObservation } = input;
+  const sql = substituteTemplate(sqlTemplate, context as TemplateContext);
+  const data = await runQuery(context, stage, progress, () => context.connection.queryJsonCompact(sql));
+  const row = data.data?.[0] as (string | number | null)[] | undefined;
+  return toObservation(row, context);
 }
 
-export function evaluateRules(ruleSpecs: RuleSpec[], results: QueryResults): CandidateRule[] {
-  return ruleSpecs.map((spec) => ({
-    cause: spec.cause,
-    indicators: spec.indicators.map((ind) => {
-      const { matched, actual } = ind.match(results);
-      return {
-        matched,
-        description: `${ind.description} (actual ${actual})`,
-        required: ind.required,
-        blocker: ind.blocker,
-      };
-    }),
-    next_check_hints: spec.next_check_hints,
-  }));
+export function evaluateCandidate(input: {
+  cause: string;
+  next_check_hints?: string[];
+  indicators: Array<{
+    description: string;
+    evaluation: IndicatorMatchResult;
+    required?: boolean;
+    blocker?: boolean;
+  }>;
+}): CauseEvaluation {
+  return {
+    cause: input.cause,
+    next_check_hints: input.next_check_hints,
+    indicators: input.indicators.map((indicator) => ({
+      matched: indicator.evaluation.matched,
+      description: `${indicator.description} (actual ${indicator.evaluation.actual})`,
+      required: indicator.required,
+      blocker: indicator.blocker,
+    })),
+  };
 }
 
-export async function runScenarioEvidence<Ctx extends SymptomContext = SymptomContext>(
-  context: SymptomContext,
-  scenario: ScenarioSpec<Ctx>
-): Promise<SymptomResult> {
-  const scenarioContext = scenario.prepareContext
-    ? await scenario.prepareContext(context)
-    : (context as Ctx);
-  const results = await runQueries(scenarioContext, scenario.queries);
-  const rules =
-    typeof scenario.rules === "function" ? scenario.rules(scenarioContext) : scenario.rules;
-  const candidateRules = evaluateRules(rules, results);
-  const includedRules = candidateRules.filter((rule) =>
+export function scoreCauseEvaluations(evaluations: CauseEvaluation[]): {
+  candidates: CauseCandidate[];
+  excludedCandidates: ExcludedCandidate[];
+} {
+  const includedRules = evaluations.filter((rule) =>
     rule.indicators.filter((ind) => ind.required).every((ind) => ind.matched)
   );
-  const excludedCandidates: ExcludedCandidate[] = candidateRules
+  const excludedCandidates: ExcludedCandidate[] = evaluations
     .filter((rule) => rule.indicators.some((ind) => ind.required && !ind.matched))
     .map((rule) => {
       const scored = scoreCandidate(rule);
@@ -597,22 +538,7 @@ export async function runScenarioEvidence<Ctx extends SymptomContext = SymptomCo
   const candidates = includedRules
     .map(scoreCandidate)
     .sort((a, b) => b.signal_strength - a.signal_strength);
-  const customResult = scenario.finalizeResult
-    ? scenario.finalizeResult({
-        context: scenarioContext,
-        results,
-        candidates,
-      })
-    : {};
-
-  return {
-    observations: Object.values(results),
-    candidates,
-    excluded_candidates: excludedCandidates,
-    possible_actions: scenario.possible_actions,
-    target: customResult.target,
-    related_symptoms: customResult.related_symptoms,
-  };
+  return { candidates, excludedCandidates };
 }
 
 export async function discoverTargetTableByParts(
@@ -628,9 +554,7 @@ export async function discoverTargetTableByParts(
     whereClause += ` AND FQDN() = '${escapeSqlString(target.node)}'`;
   }
 
-  const data = await queryJsonCompact(
-    connection,
-    `
+  const data = await connection.queryJsonCompact(`
 SELECT
   ifNull(any(database), '') AS database,
   ifNull(any(table), '') AS table,

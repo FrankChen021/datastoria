@@ -1,10 +1,9 @@
 import {
   asNumber,
-  queryJsonCompact,
   type CauseCandidate,
   type PossibleAction,
   type SymptomContext,
-  type SymptomResult,
+  type SymptomEvidence,
 } from "./collect-rca-evidence-common";
 
 function mapSymptomTextToDimensions(symptomText: string): string[] {
@@ -23,14 +22,12 @@ function mapSymptomTextToDimensions(symptomText: string): string[] {
   return Array.from(dimensions);
 }
 
-export async function collectUnknownEvidence(context: SymptomContext): Promise<SymptomResult> {
+export async function collectUnknownEvidence(context: SymptomContext): Promise<SymptomEvidence> {
   const dimensions = mapSymptomTextToDimensions(context.symptomText || "");
-  const observations: SymptomResult["observations"] = [];
+  const observations: SymptomEvidence["observations"] = [];
 
   if (dimensions.includes("workload") || dimensions.includes("latency")) {
-    const processes = await queryJsonCompact(
-      context.connection,
-      `
+    const processes = await context.connection.queryJsonCompact(`
 SELECT
   count() AS active_queries,
   max(now() - query_start_time) AS max_running_seconds
@@ -48,9 +45,7 @@ FROM {clusterAllReplicas:system.processes}`
   }
 
   if (dimensions.includes("errors")) {
-    const errors = await queryJsonCompact(
-      context.connection,
-      `
+    const errors = await context.connection.queryJsonCompact(`
 SELECT
   sum(value) AS error_count
 FROM {clusterAllReplicas:system.errors}`
@@ -66,9 +61,7 @@ FROM {clusterAllReplicas:system.errors}`
   }
 
   if (dimensions.includes("storage") || dimensions.includes("ingestion")) {
-    const parts = await queryJsonCompact(
-      context.connection,
-      `
+    const parts = await context.connection.queryJsonCompact(`
 SELECT
   count() AS active_parts,
   uniqExact(concat(database, '.', table)) AS tables_with_parts

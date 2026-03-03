@@ -5,22 +5,21 @@ import {
   isStatusContextReusable,
   resolveRcaThresholds,
   resolveScope,
-  runScenarioEvidence,
   type CanonicalSymptom,
   type EvidenceGap,
   type RcaEvidenceInput,
   type RcaEvidenceOutput,
   type Scope,
   type SymptomContext,
-  type SymptomHandler,
+  type SymptomEvidenceCollector,
 } from "./collect-rca-evidence-common";
+import { handleHighQueryLatency } from "./collect-rca-evidence-high-query-latency";
 import { handleHighPartCount } from "./collect-rca-evidence-high-part";
 import { handleHighPartitionCount } from "./collect-rca-evidence-high-partition";
-import { HIGH_QUERY_LATENCY_SCENARIO } from "./collect-rca-evidence-high-query-latency";
 import { collectUnknownEvidence } from "./collect-rca-evidence-unknown";
 
-const SYMPTOM_HANDLERS: Partial<Record<CanonicalSymptom, SymptomHandler>> = {
-  high_query_latency: async (context) => runScenarioEvidence(context, HIGH_QUERY_LATENCY_SCENARIO),
+const SYMPTOM_HANDLERS: Partial<Record<CanonicalSymptom, SymptomEvidenceCollector>> = {
+  high_query_latency: handleHighQueryLatency,
   high_part_count: handleHighPartCount,
   high_partition_count: handleHighPartitionCount,
   unknown: collectUnknownEvidence,
@@ -103,7 +102,7 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
       };
     }
 
-    const result = await (handler as SymptomHandler)(context);
+    const result = await (handler as SymptomEvidenceCollector)(context);
 
     progressCallback?.("collect rca evidence", 90, "success");
 

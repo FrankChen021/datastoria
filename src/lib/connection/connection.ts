@@ -412,6 +412,15 @@ export class Connection {
     return { response, abortController };
   }
 
+  /**
+   * Execute a query with JSONCompact format and return parsed response.
+   */
+  public async queryJsonCompact(sql: string): Promise<JSONCompactFormatResponse> {
+    const { response } = this.query(sql, { default_format: "JSONCompact" });
+    const apiResponse = await response;
+    return apiResponse.data.json<JSONCompactFormatResponse>();
+  }
+
   public queryOnNode(
     sql: string,
     params?: Record<string, unknown>,

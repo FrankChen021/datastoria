@@ -676,7 +676,6 @@ export const ClientTools = {
               z.object({
                 name: z.string(),
                 data_type: z.string(),
-                sample_value: z.union([z.number(), z.string(), z.null()]),
                 sample_values: z.array(z.union([z.number(), z.string(), z.null()])).optional(),
               })
             )
