@@ -31,8 +31,7 @@ export async function collectUnknownEvidence(context: SymptomContext): Promise<S
 SELECT
   count() AS active_queries,
   max(now() - query_start_time) AS max_running_seconds
-FROM {clusterAllReplicas:system.processes}`
-    );
+FROM {clusterAllReplicas:system.processes}`);
     const row = processes.data?.[0] as (number | null)[] | undefined;
     observations.push({
       source: "system.processes",
@@ -48,8 +47,7 @@ FROM {clusterAllReplicas:system.processes}`
     const errors = await context.connection.queryJsonCompact(`
 SELECT
   sum(value) AS error_count
-FROM {clusterAllReplicas:system.errors}`
-    );
+FROM {clusterAllReplicas:system.errors}`);
     const row = errors.data?.[0] as (number | null)[] | undefined;
     observations.push({
       source: "system.errors",
@@ -66,8 +64,7 @@ SELECT
   count() AS active_parts,
   uniqExact(concat(database, '.', table)) AS tables_with_parts
 FROM {clusterAllReplicas:system.parts}
-WHERE active`
-    );
+WHERE active`);
     const row = parts.data?.[0] as (number | null)[] | undefined;
     observations.push({
       source: "system.parts",

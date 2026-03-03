@@ -1,9 +1,9 @@
-import { QueryError } from "@/lib/connection/connection";
 import {
-  escapeSqlString,
-  type ToolExecutor,
-  type ToolProgressCallback,
-} from "../client-tool-types";
+  QueryError,
+  type Connection,
+  type JSONCompactFormatResponse,
+} from "@/lib/connection/connection";
+import { escapeSqlString, type ToolProgressCallback } from "../client-tool-types";
 import type { HealthCategorySummary } from "../status/collect-cluster-status";
 
 export type CanonicalSymptom =
@@ -249,8 +249,32 @@ export type TimeFilter = {
   whereClause: string;
 };
 
+export type RcaQueryConnection = {
+  queryJsonCompact(sql: string): Promise<JSONCompactFormatResponse>;
+};
+
+export function createCachedRcaConnection(connection: Connection): RcaQueryConnection {
+  const queryCache = new Map<string, Promise<JSONCompactFormatResponse>>();
+
+  return {
+    queryJsonCompact(sql: string): Promise<JSONCompactFormatResponse> {
+      const cached = queryCache.get(sql);
+      if (cached) {
+        return cached;
+      }
+
+      const request = connection.queryJsonCompact(sql).catch((error) => {
+        queryCache.delete(sql);
+        throw error;
+      });
+      queryCache.set(sql, request);
+      return request;
+    },
+  };
+}
+
 export type SymptomContext = {
-  connection: Parameters<ToolExecutor<RcaEvidenceInput, RcaEvidenceOutput>>[1];
+  connection: RcaQueryConnection;
   scope: Scope;
   target?: Target;
   symptomText?: string;
@@ -312,8 +336,7 @@ FROM system.columns
 WHERE database = '${database}'
   AND table = '${table}'
   AND is_in_partition_key = 1
-ORDER BY position`
-    );
+ORDER BY position`);
 
     const columnRows = (columnsData.data ?? []) as (string | number | null)[][];
     if (columnRows.length === 0) return;
@@ -327,8 +350,7 @@ ORDER BY position`
     const sampleData = await context.connection.queryJsonCompact(`
 SELECT ${selectList}
 FROM ${quoteIdentifier(target.database!)}.${quoteIdentifier(target.table!)}
-LIMIT 3`
-    );
+LIMIT 3`);
     const sampleRows = (sampleData.data ?? []) as (string | number | null)[][];
 
     partitionObservation.partition_key_columns = columns.map((col, idx) => ({
@@ -489,7 +511,9 @@ export async function collectObservation<Ctx extends SymptomContext>(input: {
 }): Promise<Observation> {
   const { context, stage, progress, sqlTemplate, toObservation } = input;
   const sql = substituteTemplate(sqlTemplate, context as TemplateContext);
-  const data = await runQuery(context, stage, progress, () => context.connection.queryJsonCompact(sql));
+  const data = await runQuery(context, stage, progress, () =>
+    context.connection.queryJsonCompact(sql)
+  );
   const row = data.data?.[0] as (string | number | null)[] | undefined;
   return toObservation(row, context);
 }
@@ -542,7 +566,7 @@ export function scoreCauseEvaluations(evaluations: CauseEvaluation[]): {
 }
 
 export async function discoverTargetTableByParts(
-  connection: Parameters<ToolExecutor<RcaEvidenceInput, RcaEvidenceOutput>>[1],
+  connection: RcaQueryConnection,
   scope: Scope,
   target: Target | undefined
 ): Promise<Target | undefined> {
@@ -570,8 +594,7 @@ FROM (
   GROUP BY host_name, database, table
 )
 ORDER BY parts DESC
-LIMIT 1`
-  );
+LIMIT 1`);
 
   const row = data.data?.[0] as (string | number | null)[] | undefined;
   if (!row) return normalizedTarget;

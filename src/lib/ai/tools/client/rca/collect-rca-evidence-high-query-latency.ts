@@ -4,9 +4,9 @@ import {
   collectObservation,
   evaluateCandidate,
   scoreCauseEvaluations,
+  type CauseEvaluation,
   type Observation,
   type PossibleAction,
-  type RcaThresholds,
   type SymptomContext,
   type SymptomEvidence,
   type SymptomEvidenceCollector,
@@ -16,10 +16,9 @@ type HighQueryLatencyContext = SymptomContext & {
   scopePredicate: string;
 };
 
-type HighQueryLatencyEvidence = {
-  queryLog: Observation;
-  merges: Observation;
-  metrics: Observation;
+type HypothesisAnalysis = {
+  observations: Observation[];
+  evaluation: CauseEvaluation;
 };
 
 const HIGH_QUERY_LATENCY_ACTIONS: PossibleAction[] = [
@@ -40,10 +39,8 @@ const HIGH_QUERY_LATENCY_ACTIONS: PossibleAction[] = [
   },
 ];
 
-async function collectHighQueryLatencyEvidence(
-  context: HighQueryLatencyContext
-): Promise<HighQueryLatencyEvidence> {
-  const queryLog = await collectObservation({
+async function collectQueryLog(context: HighQueryLatencyContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_query_latency: query_log",
     progress: 40,
@@ -77,8 +74,10 @@ WHERE {timeFilterExpression}
       },
     }),
   });
+}
 
-  const merges = await collectObservation({
+async function collectMerges(context: HighQueryLatencyContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_query_latency: merges",
     progress: 45,
@@ -101,8 +100,10 @@ FROM {clusterAllReplicas:system.merges}`,
       },
     }),
   });
+}
 
-  const metrics = await collectObservation({
+async function collectMemoryMetrics(context: HighQueryLatencyContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_query_latency: metrics",
     progress: 50,
@@ -158,17 +159,15 @@ FROM (
       };
     },
   });
-
-  return { queryLog, merges, metrics };
 }
 
-function evaluateHighQueryLatencyCandidates(
-  evidence: HighQueryLatencyEvidence,
-  thresholds: RcaThresholds
-) {
-  const t = thresholds.high_query_latency;
-  return [
-    evaluateCandidate({
+async function analyzeFullScan(context: HighQueryLatencyContext): Promise<HypothesisAnalysis> {
+  const queryLog = await collectQueryLog(context);
+  const t = context.thresholds.high_query_latency;
+
+  return {
+    observations: [queryLog],
+    evaluation: evaluateCandidate({
       cause: "full_scan",
       next_check_hints: [
         "inspect query plan for high-latency hashes and verify predicate selectivity",
@@ -177,29 +176,37 @@ function evaluateHighQueryLatencyCandidates(
         {
           description: `avg read rows >= ${t.avg_read_rows_gte}`,
           evaluation: {
-            matched: asNumber(evidence.queryLog.metrics["avg_read_rows"]) >= t.avg_read_rows_gte,
-            actual: asNumber(evidence.queryLog.metrics["avg_read_rows"]).toFixed(2),
+            matched: asNumber(queryLog.metrics["avg_read_rows"]) >= t.avg_read_rows_gte,
+            actual: asNumber(queryLog.metrics["avg_read_rows"]).toFixed(2),
           },
         },
         {
           description: `avg read bytes >= ${t.avg_read_bytes_gte}`,
           evaluation: {
-            matched:
-              asNumber(evidence.queryLog.metrics["avg_read_bytes"]) >= t.avg_read_bytes_gte,
-            actual: asNumber(evidence.queryLog.metrics["avg_read_bytes"]).toFixed(2),
+            matched: asNumber(queryLog.metrics["avg_read_bytes"]) >= t.avg_read_bytes_gte,
+            actual: asNumber(queryLog.metrics["avg_read_bytes"]).toFixed(2),
           },
         },
         {
           description: `p99 latency >= ${t.p99_latency_ms_gte}ms`,
           required: true,
           evaluation: {
-            matched: asNumber(evidence.queryLog.metrics["p99_ms"]) >= t.p99_latency_ms_gte,
-            actual: `${asNumber(evidence.queryLog.metrics["p99_ms"]).toFixed(2)}ms`,
+            matched: asNumber(queryLog.metrics["p99_ms"]) >= t.p99_latency_ms_gte,
+            actual: `${asNumber(queryLog.metrics["p99_ms"]).toFixed(2)}ms`,
           },
         },
       ],
     }),
-    evaluateCandidate({
+  };
+}
+
+async function analyzeMergePressure(context: HighQueryLatencyContext): Promise<HypothesisAnalysis> {
+  const [queryLog, merges] = await Promise.all([collectQueryLog(context), collectMerges(context)]);
+  const t = context.thresholds.high_query_latency;
+
+  return {
+    observations: [queryLog, merges],
+    evaluation: evaluateCandidate({
       cause: "merge_pressure",
       next_check_hints: ["check part churn and merge scheduler pressure on top tables"],
       indicators: [
@@ -207,29 +214,41 @@ function evaluateHighQueryLatencyCandidates(
           description: `active merges > ${t.active_merges_gt}`,
           required: true,
           evaluation: {
-            matched: asNumber(evidence.merges.metrics["active_merges"]) > t.active_merges_gt,
-            actual: asNumber(evidence.merges.metrics["active_merges"]),
+            matched: asNumber(merges.metrics["active_merges"]) > t.active_merges_gt,
+            actual: asNumber(merges.metrics["active_merges"]),
           },
         },
         {
           description: `max merge elapsed > ${t.max_merge_elapsed_seconds_gt}s`,
           evaluation: {
             matched:
-              asNumber(evidence.merges.metrics["max_merge_elapsed_seconds"]) >
+              asNumber(merges.metrics["max_merge_elapsed_seconds"]) >
               t.max_merge_elapsed_seconds_gt,
-            actual: `${asNumber(evidence.merges.metrics["max_merge_elapsed_seconds"]).toFixed(2)}s`,
+            actual: `${asNumber(merges.metrics["max_merge_elapsed_seconds"]).toFixed(2)}s`,
           },
         },
         {
           description: `p95 latency >= ${t.p95_latency_ms_gte}ms`,
           evaluation: {
-            matched: asNumber(evidence.queryLog.metrics["p95_ms"]) >= t.p95_latency_ms_gte,
-            actual: `${asNumber(evidence.queryLog.metrics["p95_ms"]).toFixed(2)}ms`,
+            matched: asNumber(queryLog.metrics["p95_ms"]) >= t.p95_latency_ms_gte,
+            actual: `${asNumber(queryLog.metrics["p95_ms"]).toFixed(2)}ms`,
           },
         },
       ],
     }),
-    evaluateCandidate({
+  };
+}
+
+async function analyzeMemoryPressure(context: HighQueryLatencyContext): Promise<HypothesisAnalysis> {
+  const [queryLog, metrics] = await Promise.all([
+    collectQueryLog(context),
+    collectMemoryMetrics(context),
+  ]);
+  const t = context.thresholds.high_query_latency;
+
+  return {
+    observations: [queryLog, metrics],
+    evaluation: evaluateCandidate({
       cause: "memory_pressure",
       indicators: [
         {
@@ -237,30 +256,39 @@ function evaluateHighQueryLatencyCandidates(
           required: true,
           evaluation: {
             matched:
-              asNumber(evidence.metrics.metrics["memory_used_percent_max"]) >=
-              t.memory_used_percent_gte,
-            actual: `${asNumber(evidence.metrics.metrics["memory_used_percent_max"]).toFixed(2)}%`,
+              asNumber(metrics.metrics["memory_used_percent_max"]) >= t.memory_used_percent_gte,
+            actual: `${asNumber(metrics.metrics["memory_used_percent_max"]).toFixed(2)}%`,
           },
         },
         {
           description: `avg query memory >= ${t.avg_query_memory_bytes_gte}`,
           evaluation: {
             matched:
-              asNumber(evidence.queryLog.metrics["avg_memory_bytes"]) >=
-              t.avg_query_memory_bytes_gte,
-            actual: asNumber(evidence.queryLog.metrics["avg_memory_bytes"]).toFixed(2),
+              asNumber(queryLog.metrics["avg_memory_bytes"]) >= t.avg_query_memory_bytes_gte,
+            actual: asNumber(queryLog.metrics["avg_memory_bytes"]).toFixed(2),
           },
         },
         {
           description: `p99 latency >= ${t.p99_latency_ms_gte}ms`,
           evaluation: {
-            matched: asNumber(evidence.queryLog.metrics["p99_ms"]) >= t.p99_latency_ms_gte,
-            actual: `${asNumber(evidence.queryLog.metrics["p99_ms"]).toFixed(2)}ms`,
+            matched: asNumber(queryLog.metrics["p99_ms"]) >= t.p99_latency_ms_gte,
+            actual: `${asNumber(queryLog.metrics["p99_ms"]).toFixed(2)}ms`,
           },
         },
       ],
     }),
-  ];
+  };
+}
+
+function dedupeObservations(observations: Observation[]): Observation[] {
+  const byKey = new Map<string, Observation>();
+  for (const observation of observations) {
+    const key = `${observation.source}::${observation.description}`;
+    if (!byKey.has(key)) {
+      byKey.set(key, observation);
+    }
+  }
+  return [...byKey.values()];
 }
 
 export const handleHighQueryLatency: SymptomEvidenceCollector = async (
@@ -270,14 +298,20 @@ export const handleHighQueryLatency: SymptomEvidenceCollector = async (
     ...baseContext,
     scopePredicate: buildQueryLogPredicate(baseContext.scope, baseContext.target),
   };
-  const evidence = await collectHighQueryLatencyEvidence(context);
+  const analyses = await Promise.all([
+    analyzeFullScan(context),
+    analyzeMergePressure(context),
+    analyzeMemoryPressure(context),
+  ]);
   const { candidates, excludedCandidates } = scoreCauseEvaluations(
-    evaluateHighQueryLatencyCandidates(evidence, context.thresholds)
+    analyses.map((analysis) => analysis.evaluation)
   );
-  const sampleQueryHash = String(evidence.queryLog.metrics["sample_query_hash"] ?? "");
+  const observations = dedupeObservations(analyses.flatMap((analysis) => analysis.observations));
+  const queryLog = await collectQueryLog(context);
+  const sampleQueryHash = String(queryLog.metrics["sample_query_hash"] ?? "");
 
   return {
-    observations: [evidence.queryLog, evidence.merges, evidence.metrics],
+    observations,
     candidates,
     excluded_candidates: excludedCandidates,
     possible_actions: HIGH_QUERY_LATENCY_ACTIONS,

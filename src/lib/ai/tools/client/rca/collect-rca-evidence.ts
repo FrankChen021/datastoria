@@ -2,28 +2,19 @@ import { QueryError } from "@/lib/connection/connection";
 import type { ToolExecutor, ToolProgressCallback } from "../client-tool-types";
 import {
   buildTimeFilter,
+  createCachedRcaConnection,
   isStatusContextReusable,
   resolveRcaThresholds,
   resolveScope,
-  type CanonicalSymptom,
   type EvidenceGap,
   type RcaEvidenceInput,
   type RcaEvidenceOutput,
   type Scope,
   type SymptomContext,
-  type SymptomEvidenceCollector,
 } from "./collect-rca-evidence-common";
-import { handleHighQueryLatency } from "./collect-rca-evidence-high-query-latency";
-import { handleHighPartCount } from "./collect-rca-evidence-high-part";
-import { handleHighPartitionCount } from "./collect-rca-evidence-high-partition";
-import { collectUnknownEvidence } from "./collect-rca-evidence-unknown";
+import { createDefaultRcaEvidenceProvider } from "./collect-rca-evidence-provider";
 
-const SYMPTOM_HANDLERS: Partial<Record<CanonicalSymptom, SymptomEvidenceCollector>> = {
-  high_query_latency: handleHighQueryLatency,
-  high_part_count: handleHighPartCount,
-  high_partition_count: handleHighPartitionCount,
-  unknown: collectUnknownEvidence,
-};
+const RCA_EVIDENCE_PROVIDER = createDefaultRcaEvidenceProvider();
 
 export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvidenceOutput> = async (
   input,
@@ -65,7 +56,7 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
     }
 
     const context: SymptomContext = {
-      connection,
+      connection: createCachedRcaConnection(connection),
       scope: resolvedScope,
       target: input.target,
       symptomText: input.symptom_text,
@@ -78,8 +69,8 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
 
     progressCallback?.("collect rca evidence", 30, "started");
 
-    const handler = SYMPTOM_HANDLERS[input.symptom];
-    if (!handler) {
+    const result = await RCA_EVIDENCE_PROVIDER.collect(input.symptom, context);
+    if (!result) {
       gaps.push({
         description: "symptom handler unavailable",
         reason: `symptom '${input.symptom}' is not implemented in Phase 1`,
@@ -101,8 +92,6 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
         error: `symptom '${input.symptom}' is not implemented in Phase 1`,
       };
     }
-
-    const result = await (handler as SymptomEvidenceCollector)(context);
 
     progressCallback?.("collect rca evidence", 90, "success");
 

@@ -8,9 +8,9 @@ import {
   evaluateCandidate,
   runQuery,
   scoreCauseEvaluations,
+  type CauseEvaluation,
   type Observation,
   type PossibleAction,
-  type RcaThresholds,
   type SymptomContext,
   type SymptomEvidence,
   type SymptomEvidenceCollector,
@@ -23,13 +23,9 @@ type HighPartitionCountContext = SymptomContext & {
   queryLogTablePredicate: string;
 };
 
-type HighPartitionCountEvidence = {
-  replicaTotals: Observation;
-  logicalStats: Observation;
-  nodeRatio: Observation;
-  partitionGrowth: Observation;
-  tableMeta: Observation;
-  insertPattern: Observation;
+type HypothesisAnalysis = {
+  observations: Observation[];
+  evaluation: CauseEvaluation;
 };
 
 const HIGH_PARTITION_COUNT_ACTIONS: PossibleAction[] = [
@@ -57,7 +53,8 @@ async function prepareHighPartitionCountContext(
     baseContext,
     "rca high_partition_count: target_table",
     35,
-    async () => discoverTargetTableByParts(baseContext.connection, baseContext.scope, baseContext.target)
+    async () =>
+      discoverTargetTableByParts(baseContext.connection, baseContext.scope, baseContext.target)
   );
 
   return {
@@ -68,28 +65,8 @@ async function prepareHighPartitionCountContext(
   };
 }
 
-async function collectHighPartitionCountEvidence(
-  context: HighPartitionCountContext
-): Promise<HighPartitionCountEvidence> {
-  const replicaTotals = await collectObservation({
-    context,
-    stage: "rca high_partition_count: partition_replica_totals",
-    progress: 40,
-    sqlTemplate: `
-SELECT
-  count() AS replica_active_parts
-FROM {clusterAllReplicas:system.parts}
-WHERE active AND {partsTableFilterExpression}`,
-    toObservation: (row) => ({
-      source: "system.parts",
-      description: "Replica-inclusive active part count for target table",
-      metrics: {
-        replica_active_parts: asNumber(row?.[0]),
-      },
-    }),
-  });
-
-  const logicalStats = await collectObservation({
+async function collectLogicalStats(context: HighPartitionCountContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_partition_count: partition_logical_stats",
     progress: 43,
@@ -116,8 +93,10 @@ FROM (
       },
     }),
   });
+}
 
-  const nodeRatio = await collectObservation({
+async function collectNodeRatio(context: HighPartitionCountContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_partition_count: partition_node_ratio",
     progress: 44,
@@ -151,8 +130,10 @@ FROM (
       },
     }),
   });
+}
 
-  const partitionGrowth = await collectObservation({
+async function collectPartitionGrowth(context: HighPartitionCountContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_partition_count: partition_growth",
     progress: 45,
@@ -171,8 +152,10 @@ WHERE active
       },
     }),
   });
+}
 
-  const tableMeta = await collectObservation({
+async function collectTableMeta(context: HighPartitionCountContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_partition_count: table_meta",
     progress: 50,
@@ -192,8 +175,10 @@ WHERE database = '{resolvedTargetDatabase}'
       },
     }),
   });
+}
 
-  const insertPattern = await collectObservation({
+async function collectInsertPattern(context: HighPartitionCountContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_partition_count: insert_pattern",
     progress: 55,
@@ -215,41 +200,41 @@ WHERE {timeFilterExpression}
       },
     }),
   });
-
-  return {
-    replicaTotals,
-    logicalStats,
-    nodeRatio,
-    partitionGrowth,
-    tableMeta,
-    insertPattern,
-  };
 }
 
-function getHighPartitionCounts(evidence: HighPartitionCountEvidence) {
+function getHighPartitionCounts(input: {
+  replicaTotals?: Observation;
+  logicalStats?: Observation;
+  nodeRatio?: Observation;
+}) {
   return {
-    partitionCount: asNumber(evidence.logicalStats.metrics["partition_count"]),
-    logicalActiveParts: asNumber(evidence.logicalStats.metrics["active_parts"]),
-    maxPartsPerPartition: asNumber(evidence.logicalStats.metrics["max_parts_per_partition"]),
-    replicaActiveParts: asNumber(evidence.replicaTotals.metrics["replica_active_parts"]),
+    partitionCount: asNumber(input.logicalStats?.metrics["partition_count"]),
+    logicalActiveParts: asNumber(input.logicalStats?.metrics["active_parts"]),
+    maxPartsPerPartition: asNumber(input.logicalStats?.metrics["max_parts_per_partition"]),
+    replicaActiveParts: asNumber(input.replicaTotals?.metrics["replica_active_parts"]),
     maxNodePartitionToPartsRatio: asNumber(
-      evidence.nodeRatio.metrics["max_node_partition_to_parts_ratio"]
+      input.nodeRatio?.metrics["max_node_partition_to_parts_ratio"]
     ),
     avgNodePartitionToPartsRatio: asNumber(
-      evidence.nodeRatio.metrics["avg_node_partition_to_parts_ratio"]
+      input.nodeRatio?.metrics["avg_node_partition_to_parts_ratio"]
     ),
   };
 }
 
-function evaluateHighPartitionCountCandidates(
-  evidence: HighPartitionCountEvidence,
-  thresholds: RcaThresholds
-) {
-  const t = thresholds.high_partition_count;
-  const counts = getHighPartitionCounts(evidence);
+async function analyzePartitionKeyTooGranular(
+  context: HighPartitionCountContext
+): Promise<HypothesisAnalysis> {
+  const [logicalStats, partitionGrowth, tableMeta] = await Promise.all([
+    collectLogicalStats(context),
+    collectPartitionGrowth(context),
+    collectTableMeta(context),
+  ]);
+  const counts = getHighPartitionCounts({ logicalStats });
+  const t = context.thresholds.high_partition_count;
 
-  return [
-    evaluateCandidate({
+  return {
+    observations: [logicalStats, partitionGrowth, tableMeta],
+    evaluation: evaluateCandidate({
       cause: "partition_key_too_granular",
       indicators: [
         {
@@ -263,22 +248,39 @@ function evaluateHighPartitionCountCandidates(
         {
           description: "partition key expression appears granular",
           evaluation: {
-            matched: /toDate\(|toStartOfHour|toYYYYMMDD|toYYYYMMDDhh|cityHash|user_id|trace_id/i.test(
-              String(evidence.tableMeta.metrics["partition_key"] ?? "")
-            ),
-            actual: String(evidence.tableMeta.metrics["partition_key"] ?? "") || "none",
+            matched:
+              /toDate\(|toStartOfHour|toYYYYMMDD|toYYYYMMDDhh|cityHash|user_id|trace_id/i.test(
+                String(tableMeta.metrics["partition_key"] ?? "")
+              ),
+            actual: String(tableMeta.metrics["partition_key"] ?? "") || "none",
           },
         },
         {
           description: `recent partitions > ${t.recent_partitions_gt} in window`,
           evaluation: {
-            matched: asNumber(evidence.partitionGrowth.metrics["recent_partitions"]) > t.recent_partitions_gt,
-            actual: asNumber(evidence.partitionGrowth.metrics["recent_partitions"]),
+            matched: asNumber(partitionGrowth.metrics["recent_partitions"]) > t.recent_partitions_gt,
+            actual: asNumber(partitionGrowth.metrics["recent_partitions"]),
           },
         },
       ],
     }),
-    evaluateCandidate({
+  };
+}
+
+async function analyzeHighCardinalityPartitionKey(
+  context: HighPartitionCountContext
+): Promise<HypothesisAnalysis> {
+  const [logicalStats, nodeRatio, insertPattern] = await Promise.all([
+    collectLogicalStats(context),
+    collectNodeRatio(context),
+    collectInsertPattern(context),
+  ]);
+  const counts = getHighPartitionCounts({ logicalStats, nodeRatio });
+  const t = context.thresholds.high_partition_count;
+
+  return {
+    observations: [logicalStats, nodeRatio, insertPattern],
+    evaluation: evaluateCandidate({
       cause: "high_cardinality_partition_key",
       indicators: [
         {
@@ -301,15 +303,30 @@ function evaluateHighPartitionCountCandidates(
           description: `avg rows per insert < ${t.avg_rows_per_insert_lt}`,
           evaluation: {
             matched:
-              asNumber(evidence.insertPattern.metrics["avg_rows_per_insert"]) > 0 &&
-              asNumber(evidence.insertPattern.metrics["avg_rows_per_insert"]) <
-                t.avg_rows_per_insert_lt,
-            actual: asNumber(evidence.insertPattern.metrics["avg_rows_per_insert"]).toFixed(2),
+              asNumber(insertPattern.metrics["avg_rows_per_insert"]) > 0 &&
+              asNumber(insertPattern.metrics["avg_rows_per_insert"]) < t.avg_rows_per_insert_lt,
+            actual: asNumber(insertPattern.metrics["avg_rows_per_insert"]).toFixed(2),
           },
         },
       ],
     }),
-    evaluateCandidate({
+  };
+}
+
+async function analyzeUnboundedPartitionGrowth(
+  context: HighPartitionCountContext
+): Promise<HypothesisAnalysis> {
+  const [partitionGrowth, logicalStats, tableMeta] = await Promise.all([
+    collectPartitionGrowth(context),
+    collectLogicalStats(context),
+    collectTableMeta(context),
+  ]);
+  const counts = getHighPartitionCounts({ logicalStats });
+  const t = context.thresholds.high_partition_count;
+
+  return {
+    observations: [partitionGrowth, logicalStats, tableMeta],
+    evaluation: evaluateCandidate({
       cause: "unbounded_partition_growth",
       next_check_hints: ["review partition lifecycle policy and retention granularity"],
       indicators: [
@@ -317,8 +334,8 @@ function evaluateHighPartitionCountCandidates(
           description: `recent partitions > ${t.recent_partitions_gt} in window`,
           required: true,
           evaluation: {
-            matched: asNumber(evidence.partitionGrowth.metrics["recent_partitions"]) > t.recent_partitions_gt,
-            actual: asNumber(evidence.partitionGrowth.metrics["recent_partitions"]),
+            matched: asNumber(partitionGrowth.metrics["recent_partitions"]) > t.recent_partitions_gt,
+            actual: asNumber(partitionGrowth.metrics["recent_partitions"]),
           },
         },
         {
@@ -331,32 +348,39 @@ function evaluateHighPartitionCountCandidates(
         {
           description: "engine is MergeTree family",
           evaluation: {
-            matched: /MergeTree/i.test(String(evidence.tableMeta.metrics["engine"] ?? "unknown")),
-            actual: String(evidence.tableMeta.metrics["engine"] ?? "unknown"),
+            matched: /MergeTree/i.test(String(tableMeta.metrics["engine"] ?? "unknown")),
+            actual: String(tableMeta.metrics["engine"] ?? "unknown"),
           },
         },
       ],
     }),
-  ];
+  };
+}
+
+function dedupeObservations(observations: Observation[]): Observation[] {
+  const byKey = new Map<string, Observation>();
+  for (const observation of observations) {
+    const key = `${observation.source}::${observation.description}`;
+    if (!byKey.has(key)) {
+      byKey.set(key, observation);
+    }
+  }
+  return [...byKey.values()];
 }
 
 export const handleHighPartitionCount: SymptomEvidenceCollector = async (
   baseContext
 ): Promise<SymptomEvidence> => {
   const context = await prepareHighPartitionCountContext(baseContext);
-  const evidence = await collectHighPartitionCountEvidence(context);
+  const analyses = await Promise.all([
+    analyzePartitionKeyTooGranular(context),
+    analyzeHighCardinalityPartitionKey(context),
+    analyzeUnboundedPartitionGrowth(context),
+  ]);
   const { candidates, excludedCandidates } = scoreCauseEvaluations(
-    evaluateHighPartitionCountCandidates(evidence, context.thresholds)
+    analyses.map((analysis) => analysis.evaluation)
   );
-
-  const observations = [
-    evidence.replicaTotals,
-    evidence.logicalStats,
-    evidence.nodeRatio,
-    evidence.partitionGrowth,
-    evidence.tableMeta,
-    evidence.insertPattern,
-  ];
+  const observations = dedupeObservations(analyses.flatMap((analysis) => analysis.observations));
 
   await enrichPartitionKeyColumns(
     context,

@@ -126,8 +126,7 @@ function buildLogTimeFilter(
         `event_date >= toDate('${from}') AND event_date <= toDate('${to}') ` +
         `AND event_time >= toDateTime('${from}') AND event_time <= toDateTime('${to}')`,
       windowMinutes:
-        window.time_window ??
-        resolveLookbackMinutesFromRange(window.time_range, defaultMinutes),
+        window.time_window ?? resolveLookbackMinutesFromRange(window.time_range, defaultMinutes),
       windowLabel: `${window.time_range.from} to ${window.time_range.to}`,
     };
   }

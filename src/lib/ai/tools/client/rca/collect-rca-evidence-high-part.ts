@@ -11,9 +11,9 @@ import {
   scoreCauseEvaluations,
   type CanonicalSymptom,
   type CauseCandidate,
+  type CauseEvaluation,
   type Observation,
   type PossibleAction,
-  type RcaThresholds,
   type SymptomContext,
   type SymptomEvidence,
   type SymptomEvidenceCollector,
@@ -27,13 +27,9 @@ type HighPartCountContext = SymptomContext & {
   nodePredicate: string;
 };
 
-type HighPartCountEvidence = {
-  logicalPartitionStats: Observation;
-  nodePartitionRatio: Observation;
-  nodeTotals: Observation;
-  merges: Observation;
-  insertPattern: Observation;
-  tableMeta: Observation;
+type HypothesisAnalysis = {
+  observations: Observation[];
+  evaluation: CauseEvaluation;
 };
 
 const HIGH_PART_COUNT_ACTIONS: PossibleAction[] = [
@@ -61,7 +57,8 @@ async function prepareHighPartCountContext(
     baseContext,
     "rca high_part_count: target_table",
     35,
-    async () => discoverTargetTableByParts(baseContext.connection, baseContext.scope, baseContext.target)
+    async () =>
+      discoverTargetTableByParts(baseContext.connection, baseContext.scope, baseContext.target)
   );
 
   return {
@@ -73,10 +70,8 @@ async function prepareHighPartCountContext(
   };
 }
 
-async function collectHighPartCountEvidence(
-  context: HighPartCountContext
-): Promise<HighPartCountEvidence> {
-  const logicalPartitionStats = await collectObservation({
+async function collectLogicalPartitionStats(context: HighPartCountContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_part_count: parts_logical_partition_stats",
     progress: 40,
@@ -101,8 +96,10 @@ FROM (
       },
     }),
   });
+}
 
-  const nodePartitionRatio = await collectObservation({
+async function collectNodePartitionRatio(context: HighPartCountContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_part_count: parts_node_partition_ratio",
     progress: 44,
@@ -136,8 +133,10 @@ FROM (
       },
     }),
   });
+}
 
-  const nodeTotals = await collectObservation({
+async function collectNodeTotals(context: HighPartCountContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_part_count: parts_node_totals",
     progress: 44,
@@ -164,8 +163,10 @@ FROM (
       },
     }),
   });
+}
 
-  const merges = await collectObservation({
+async function collectMerges(context: HighPartCountContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_part_count: merges",
     progress: 45,
@@ -185,8 +186,10 @@ WHERE {nodeFilterExpression}
       },
     }),
   });
+}
 
-  const insertPattern = await collectObservation({
+async function collectInsertPattern(context: HighPartCountContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_part_count: insert_pattern",
     progress: 50,
@@ -215,8 +218,10 @@ WHERE {timeFilterExpression}
       };
     },
   });
+}
 
-  const tableMeta = await collectObservation({
+async function collectTableMeta(context: HighPartCountContext): Promise<Observation> {
+  return collectObservation({
     context,
     stage: "rca high_part_count: table_meta",
     progress: 55,
@@ -236,41 +241,40 @@ WHERE database = '{resolvedTargetDatabase}'
       },
     }),
   });
-
-  return {
-    logicalPartitionStats,
-    nodePartitionRatio,
-    nodeTotals,
-    merges,
-    insertPattern,
-    tableMeta,
-  };
 }
 
-function getHighPartCounts(evidence: HighPartCountEvidence) {
+function getHighPartCounts(input: {
+  logicalPartitionStats?: Observation;
+  nodePartitionRatio?: Observation;
+  nodeTotals?: Observation;
+}) {
   return {
-    distinctPartitions: asNumber(evidence.logicalPartitionStats.metrics["distinct_partitions"]),
-    maxPartsPerPartition: asNumber(evidence.logicalPartitionStats.metrics["max_parts_per_partition"]),
-    maxActivePartsPerNode: asNumber(evidence.nodeTotals.metrics["max_active_parts_per_node"]),
-    avgActivePartsPerNode: asNumber(evidence.nodeTotals.metrics["avg_active_parts_per_node"]),
+    distinctPartitions: asNumber(input.logicalPartitionStats?.metrics["distinct_partitions"]),
+    maxPartsPerPartition: asNumber(input.logicalPartitionStats?.metrics["max_parts_per_partition"]),
+    maxActivePartsPerNode: asNumber(input.nodeTotals?.metrics["max_active_parts_per_node"]),
+    avgActivePartsPerNode: asNumber(input.nodeTotals?.metrics["avg_active_parts_per_node"]),
     maxNodePartitionToPartsRatio: asNumber(
-      evidence.nodePartitionRatio.metrics["max_node_partition_to_parts_ratio"]
+      input.nodePartitionRatio?.metrics["max_node_partition_to_parts_ratio"]
     ),
     avgNodePartitionToPartsRatio: asNumber(
-      evidence.nodePartitionRatio.metrics["avg_node_partition_to_parts_ratio"]
+      input.nodePartitionRatio?.metrics["avg_node_partition_to_parts_ratio"]
     ),
   };
 }
 
-function evaluateHighPartCountCandidates(
-  evidence: HighPartCountEvidence,
-  thresholds: RcaThresholds
-) {
-  const t = thresholds.high_part_count;
-  const counts = getHighPartCounts(evidence);
+async function analyzeInsertTooFrequent(
+  context: HighPartCountContext
+): Promise<HypothesisAnalysis> {
+  const [insertPattern, nodeTotals] = await Promise.all([
+    collectInsertPattern(context),
+    collectNodeTotals(context),
+  ]);
+  const counts = getHighPartCounts({ nodeTotals });
+  const t = context.thresholds.high_part_count;
 
-  return [
-    evaluateCandidate({
+  return {
+    observations: [insertPattern, nodeTotals],
+    evaluation: evaluateCandidate({
       cause: "insert_too_frequent",
       next_check_hints: ["increase insert batch size and reduce insert frequency"],
       indicators: [
@@ -278,17 +282,18 @@ function evaluateHighPartCountCandidates(
           description: `inserts per minute > ${t.inserts_per_minute_gt}`,
           required: true,
           evaluation: {
-            matched: asNumber(evidence.insertPattern.metrics["inserts_per_minute"]) > t.inserts_per_minute_gt,
-            actual: asNumber(evidence.insertPattern.metrics["inserts_per_minute"]).toFixed(2),
+            matched:
+              asNumber(insertPattern.metrics["inserts_per_minute"]) > t.inserts_per_minute_gt,
+            actual: asNumber(insertPattern.metrics["inserts_per_minute"]).toFixed(2),
           },
         },
         {
           description: `avg rows per insert < ${t.avg_rows_per_insert_lt}`,
           evaluation: {
             matched:
-              asNumber(evidence.insertPattern.metrics["avg_rows_per_insert"]) > 0 &&
-              asNumber(evidence.insertPattern.metrics["avg_rows_per_insert"]) < t.avg_rows_per_insert_lt,
-            actual: asNumber(evidence.insertPattern.metrics["avg_rows_per_insert"]).toFixed(2),
+              asNumber(insertPattern.metrics["avg_rows_per_insert"]) > 0 &&
+              asNumber(insertPattern.metrics["avg_rows_per_insert"]) < t.avg_rows_per_insert_lt,
+            actual: asNumber(insertPattern.metrics["avg_rows_per_insert"]).toFixed(2),
           },
         },
         {
@@ -301,23 +306,36 @@ function evaluateHighPartCountCandidates(
         },
       ],
     }),
-    evaluateCandidate({
+  };
+}
+
+async function analyzeMergeBacklog(context: HighPartCountContext): Promise<HypothesisAnalysis> {
+  const [merges, nodeTotals] = await Promise.all([
+    collectMerges(context),
+    collectNodeTotals(context),
+  ]);
+  const counts = getHighPartCounts({ nodeTotals });
+  const t = context.thresholds.high_part_count;
+
+  return {
+    observations: [merges, nodeTotals],
+    evaluation: evaluateCandidate({
       cause: "merge_backlog",
       indicators: [
         {
           description: `active merges > ${t.active_merges_gt}`,
           evaluation: {
-            matched: asNumber(evidence.merges.metrics["active_merges"]) > t.active_merges_gt,
-            actual: asNumber(evidence.merges.metrics["active_merges"]),
+            matched: asNumber(merges.metrics["active_merges"]) > t.active_merges_gt,
+            actual: asNumber(merges.metrics["active_merges"]),
           },
         },
         {
           description: `max merge elapsed > ${t.max_merge_elapsed_seconds_gt}s`,
           evaluation: {
             matched:
-              asNumber(evidence.merges.metrics["max_merge_elapsed_seconds"]) >
+              asNumber(merges.metrics["max_merge_elapsed_seconds"]) >
               t.max_merge_elapsed_seconds_gt,
-            actual: `${asNumber(evidence.merges.metrics["max_merge_elapsed_seconds"]).toFixed(2)}s`,
+            actual: `${asNumber(merges.metrics["max_merge_elapsed_seconds"]).toFixed(2)}s`,
           },
         },
         {
@@ -330,7 +348,23 @@ function evaluateHighPartCountCandidates(
         },
       ],
     }),
-    evaluateCandidate({
+  };
+}
+
+async function analyzePartitionGranularityPressure(
+  context: HighPartCountContext
+): Promise<HypothesisAnalysis> {
+  const [logicalPartitionStats, nodePartitionRatio, tableMeta] = await Promise.all([
+    collectLogicalPartitionStats(context),
+    collectNodePartitionRatio(context),
+    collectTableMeta(context),
+  ]);
+  const counts = getHighPartCounts({ logicalPartitionStats, nodePartitionRatio });
+  const t = context.thresholds.high_part_count;
+
+  return {
+    observations: [logicalPartitionStats, nodePartitionRatio, tableMeta],
+    evaluation: evaluateCandidate({
       cause: "partition_granularity_pressure",
       next_check_hints: [
         "run collect_rca_evidence with symptom=high_partition_count for partition-key RCA",
@@ -354,13 +388,29 @@ function evaluateHighPartCountCandidates(
         {
           description: "partition key is configured",
           evaluation: {
-            matched: String(evidence.tableMeta.metrics["partition_key"] ?? "").length > 0,
-            actual: String(evidence.tableMeta.metrics["partition_key"] ?? "") || "none",
+            matched: String(tableMeta.metrics["partition_key"] ?? "").length > 0,
+            actual: String(tableMeta.metrics["partition_key"] ?? "") || "none",
           },
         },
       ],
     }),
-    evaluateCandidate({
+  };
+}
+
+async function analyzeWrongEngineSettings(
+  context: HighPartCountContext
+): Promise<HypothesisAnalysis> {
+  const [logicalPartitionStats, nodeTotals, tableMeta] = await Promise.all([
+    collectLogicalPartitionStats(context),
+    collectNodeTotals(context),
+    collectTableMeta(context),
+  ]);
+  const counts = getHighPartCounts({ logicalPartitionStats, nodeTotals });
+  const t = context.thresholds.high_part_count;
+
+  return {
+    observations: [logicalPartitionStats, nodeTotals, tableMeta],
+    evaluation: evaluateCandidate({
       cause: "wrong_engine_settings",
       next_check_hints: ["review merge-tree table settings and per-table insert patterns"],
       indicators: [
@@ -368,8 +418,8 @@ function evaluateHighPartCountCandidates(
           description: "engine is MergeTree family",
           blocker: true,
           evaluation: {
-            matched: /MergeTree/i.test(String(evidence.tableMeta.metrics["engine"] ?? "unknown")),
-            actual: String(evidence.tableMeta.metrics["engine"] ?? "unknown"),
+            matched: /MergeTree/i.test(String(tableMeta.metrics["engine"] ?? "unknown")),
+            actual: String(tableMeta.metrics["engine"] ?? "unknown"),
           },
         },
         {
@@ -390,17 +440,21 @@ function evaluateHighPartCountCandidates(
         },
       ],
     }),
-  ];
+  };
 }
 
-function computeHighPartCountRelatedSymptoms(
-  evidence: HighPartCountEvidence,
-  candidates: CauseCandidate[],
-  thresholds: RcaThresholds
-): CanonicalSymptom[] {
-  const t = thresholds.high_part_count;
-  const counts = getHighPartCounts(evidence);
-  const partitionPressureCandidate = candidates.find(
+function computeHighPartCountRelatedSymptoms(input: {
+  logicalPartitionStats: Observation;
+  nodePartitionRatio: Observation;
+  candidates: CauseCandidate[];
+  context: HighPartCountContext;
+}): CanonicalSymptom[] {
+  const counts = getHighPartCounts({
+    logicalPartitionStats: input.logicalPartitionStats,
+    nodePartitionRatio: input.nodePartitionRatio,
+  });
+  const t = input.context.thresholds.high_part_count;
+  const partitionPressureCandidate = input.candidates.find(
     (candidate) => candidate.cause === "partition_granularity_pressure"
   );
 
@@ -414,24 +468,32 @@ function computeHighPartCountRelatedSymptoms(
   return [];
 }
 
+function dedupeObservations(observations: Observation[]): Observation[] {
+  const byKey = new Map<string, Observation>();
+  for (const observation of observations) {
+    const key = `${observation.source}::${observation.description}`;
+    if (!byKey.has(key)) {
+      byKey.set(key, observation);
+    }
+  }
+  return [...byKey.values()];
+}
+
 export const handleHighPartCount: SymptomEvidenceCollector = async (
   baseContext
 ): Promise<SymptomEvidence> => {
   const context = await prepareHighPartCountContext(baseContext);
-  const evidence = await collectHighPartCountEvidence(context);
+  const analyses = await Promise.all([
+    analyzeInsertTooFrequent(context),
+    analyzeMergeBacklog(context),
+    analyzePartitionGranularityPressure(context),
+    analyzeWrongEngineSettings(context),
+  ]);
   const { candidates, excludedCandidates } = scoreCauseEvaluations(
-    evaluateHighPartCountCandidates(evidence, context.thresholds)
+    analyses.map((analysis) => analysis.evaluation)
   );
 
-  const observations = [
-    evidence.logicalPartitionStats,
-    evidence.nodePartitionRatio,
-    evidence.nodeTotals,
-    evidence.merges,
-    evidence.insertPattern,
-    evidence.tableMeta,
-  ];
-
+  const observations = dedupeObservations(analyses.flatMap((analysis) => analysis.observations));
   await enrichPartitionKeyColumns(
     context,
     context.resolvedTarget ?? context.target,
@@ -439,6 +501,10 @@ export const handleHighPartCount: SymptomEvidenceCollector = async (
     "rca high_part_count: partition_key_columns",
     60
   );
+  const [logicalPartitionStats, nodePartitionRatio] = await Promise.all([
+    collectLogicalPartitionStats(context),
+    collectNodePartitionRatio(context),
+  ]);
 
   return {
     observations,
@@ -446,10 +512,11 @@ export const handleHighPartCount: SymptomEvidenceCollector = async (
     excluded_candidates: excludedCandidates,
     possible_actions: HIGH_PART_COUNT_ACTIONS,
     target: context.resolvedTarget,
-    related_symptoms: computeHighPartCountRelatedSymptoms(
-      evidence,
+    related_symptoms: computeHighPartCountRelatedSymptoms({
+      logicalPartitionStats,
+      nodePartitionRatio,
       candidates,
-      context.thresholds
-    ),
+      context,
+    }),
   };
 };
