@@ -294,6 +294,21 @@ export type SymptomEvidence = {
   related_symptoms?: CanonicalSymptom[];
 };
 
+export type RcaContextExtension = {
+  name: string;
+  resolve(input: {
+    symptom: CanonicalSymptom;
+    context: SymptomContext;
+    evidence: SymptomEvidence;
+  }): Promise<{
+    available: boolean;
+    source: "none" | "extension";
+    observations?: Observation[];
+    possible_actions?: PossibleAction[];
+    related_symptoms?: CanonicalSymptom[];
+  }>;
+};
+
 export type SymptomEvidenceCollector = (context: SymptomContext) => Promise<SymptomEvidence>;
 
 function escapeSqlLiteral(value: string): string {

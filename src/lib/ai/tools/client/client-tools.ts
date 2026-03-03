@@ -15,8 +15,8 @@ import {
 import { executeSqlExecutor } from "./execute-sql";
 import { exploreSchemaExecutor } from "./explore-schema";
 import { getTablesExecutor } from "./get-tables";
-import { collectRcaEvidenceExecutor } from "./rca/collect-rca-evidence";
-import { type RcaEvidenceInput, type RcaEvidenceOutput } from "./rca/collect-rca-evidence-common";
+import { type RcaEvidenceInput, type RcaEvidenceOutput } from "./rca/evidence-collector-common";
+import { collectRcaEvidenceExecutor } from "./rca/tool-collect-rca-evidence";
 import {
   searchQueryLogExecutor,
   type SearchQueryLogInput,
@@ -627,7 +627,7 @@ export const ClientTools = {
                 .optional(),
             })
             .optional(),
-          categories: z.record(z.any()).optional(),
+          categories: z.record(z.string(), z.any()).optional(),
         })
         .optional()
         .describe("Optional prior status output to reduce redundant probes."),
@@ -670,7 +670,7 @@ export const ClientTools = {
         z.object({
           source: z.string(),
           description: z.string(),
-          metrics: z.record(z.union([z.number(), z.string(), z.null()])),
+          metrics: z.record(z.string(), z.union([z.number(), z.string(), z.null()])),
           partition_key_columns: z
             .array(
               z.object({
@@ -691,7 +691,7 @@ export const ClientTools = {
             .array(
               z.object({
                 node: z.string(),
-                metrics: z.record(z.union([z.number(), z.string(), z.null()])),
+                metrics: z.record(z.string(), z.union([z.number(), z.string(), z.null()])),
               })
             )
             .optional(),

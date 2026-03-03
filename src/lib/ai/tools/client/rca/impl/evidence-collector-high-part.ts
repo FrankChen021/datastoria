@@ -18,7 +18,7 @@ import {
   type SymptomEvidence,
   type SymptomEvidenceCollector,
   type Target,
-} from "./collect-rca-evidence-common";
+} from "../evidence-collector-common";
 
 type HighPartCountContext = SymptomContext & {
   resolvedTarget: Target | undefined;

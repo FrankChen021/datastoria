@@ -10,7 +10,7 @@ import {
   type SymptomContext,
   type SymptomEvidence,
   type SymptomEvidenceCollector,
-} from "./collect-rca-evidence-common";
+} from "../evidence-collector-common";
 
 type HighQueryLatencyContext = SymptomContext & {
   scopePredicate: string;

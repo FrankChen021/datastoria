@@ -4,7 +4,7 @@ import {
   type PossibleAction,
   type SymptomContext,
   type SymptomEvidence,
-} from "./collect-rca-evidence-common";
+} from "../evidence-collector-common";
 
 function mapSymptomTextToDimensions(symptomText: string): string[] {
   const lower = symptomText.toLowerCase();
