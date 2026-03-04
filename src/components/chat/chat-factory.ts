@@ -3,7 +3,7 @@ import { ModelManager } from "@/components/settings/models/model-manager";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import type { AppUIMessage, Message, MessageMetadata } from "@/lib/ai/chat-types";
 import type { StageStatus, ToolProgressCallback } from "@/lib/ai/tools/client/client-tool-types";
-import { CLIENT_TOOL_NAMES, ClientToolExecutors } from "@/lib/ai/tools/client/client-tools";
+import { ClientToolExecutors } from "@/lib/ai/tools/client/client-tools";
 import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { Connection } from "@/lib/connection/connection";
@@ -13,6 +13,8 @@ import { v7 as uuidv7 } from "uuid";
 import { ChatContext } from "./chat-context";
 import { ChatUIContext } from "./chat-ui-context";
 import { SessionManager } from "./session/session-manager";
+
+type ClientToolName = keyof typeof ClientToolExecutors;
 
 /**
  * Create a progress callback for tool execution
@@ -123,7 +125,6 @@ export class ChatFactory {
                 return msg.role === "user";
               })
               .map((msg) => {
-                const mAny = msg as any;
                 const metadataCreatedAt =
                   typeof msg.metadata?.createdAt === "number"
                     ? new Date(msg.metadata.createdAt)
@@ -138,7 +139,7 @@ export class ChatFactory {
                   id: msg.id,
                   chatId: chatId,
                   role: msg.role,
-                  parts: msg.parts || [{ type: "text", text: mAny.content || "" }],
+                  parts: msg.parts ?? [],
                   metadata: msg.metadata,
                   createdAt,
                   updatedAt,
@@ -194,17 +195,14 @@ export class ChatFactory {
         if (!(toolName in ClientToolExecutors)) {
           console.error(`Unknown tool: ${toolName}`);
           chat.addToolOutput({
-            tool: toolName as
-              | typeof CLIENT_TOOL_NAMES.EXPLORE_SCHEMA
-              | typeof CLIENT_TOOL_NAMES.GET_TABLES
-              | typeof CLIENT_TOOL_NAMES.EXECUTE_SQL,
+            tool: toolName as never,
             toolCallId,
-            output: { error: `Unknown tool: ${toolName}` } as any,
+            output: { error: `Unknown tool: ${toolName}` } as never,
           });
           return;
         }
 
-        const executor = ClientToolExecutors[toolName as keyof typeof ClientToolExecutors];
+        const executor = ClientToolExecutors[toolName as ClientToolName];
 
         try {
           // Create progress callback for all tools (tools that don't use it will simply ignore it)
@@ -214,21 +212,21 @@ export class ChatFactory {
             useToolProgressStore.getState()
           );
 
-          const output = await executor(input as any, connection, progressCallback);
+          const output = await executor(input as never, connection, progressCallback);
           chat.addToolOutput({
-            tool: toolName as any,
+            tool: toolName as never,
             toolCallId,
-            output,
+            output: output as never,
           });
         } catch (error) {
           console.error(`Error executing tool ${toolName}:`, error);
 
           chat.addToolOutput({
-            tool: toolName as any,
+            tool: toolName as never,
             toolCallId,
             output: {
               error: error instanceof Error ? error.message : "Unknown error occurred",
-            },
+            } as never,
           });
         }
       },
@@ -243,7 +241,7 @@ export class ChatFactory {
             const messageToSave: Message = {
               id: message.id,
               role: message.role,
-              parts: message.parts as any,
+              parts: message.parts as Message["parts"],
               metadata: message.metadata as MessageMetadata,
               createdAt: now,
               updatedAt: now,
