@@ -7,6 +7,7 @@ import { CLIENT_TOOL_NAMES, ClientToolExecutors } from "@/lib/ai/tools/client/cl
 import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { Connection } from "@/lib/connection/connection";
+import type { QueryResponse } from "@/lib/connection/connection";
 import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { v7 as uuidv7 } from "uuid";
@@ -35,6 +36,75 @@ function createToolProgressCallback(
 }
 
 export class ChatFactory {
+  private static readonly clientToolAbortControllers = new Map<string, Set<AbortController>>();
+
+  private static trackAbortController(chatId: string, abortController: AbortController): void {
+    const controllers = this.clientToolAbortControllers.get(chatId) ?? new Set<AbortController>();
+    controllers.add(abortController);
+    this.clientToolAbortControllers.set(chatId, controllers);
+
+    abortController.signal.addEventListener(
+      "abort",
+      () => {
+        const currentControllers = this.clientToolAbortControllers.get(chatId);
+        currentControllers?.delete(abortController);
+        if (currentControllers && currentControllers.size === 0) {
+          this.clientToolAbortControllers.delete(chatId);
+        }
+      },
+      { once: true }
+    );
+  }
+
+  private static untrackAbortController(chatId: string, abortController: AbortController): void {
+    const controllers = this.clientToolAbortControllers.get(chatId);
+    controllers?.delete(abortController);
+    if (controllers && controllers.size === 0) {
+      this.clientToolAbortControllers.delete(chatId);
+    }
+  }
+
+  private static createClientToolConnection(chatId: string, connection: Connection): Connection {
+    return new Proxy(connection, {
+      get(target, prop, receiver) {
+        if (prop !== "query" && prop !== "queryOnNode" && prop !== "queryRawResponse") {
+          return Reflect.get(target, prop, receiver);
+        }
+
+        const original = Reflect.get(target, prop, receiver);
+        if (typeof original !== "function") {
+          return original;
+        }
+
+        return (...args: unknown[]) => {
+          const result = original.apply(target, args) as {
+            response: Promise<QueryResponse> | Promise<Response>;
+            abortController: AbortController;
+          };
+
+          ChatFactory.trackAbortController(chatId, result.abortController);
+          void result.response.finally(() => {
+            ChatFactory.untrackAbortController(chatId, result.abortController);
+          });
+
+          return result;
+        };
+      },
+    });
+  }
+
+  static stopClientTools(chatId: string): void {
+    const controllers = this.clientToolAbortControllers.get(chatId);
+    if (!controllers) {
+      return;
+    }
+
+    for (const controller of [...controllers]) {
+      controller.abort();
+    }
+    this.clientToolAbortControllers.delete(chatId);
+  }
+
   /**
    * Get the current model configuration based on user settings
    */
@@ -81,6 +151,7 @@ export class ChatFactory {
     const skipStorage = options.skipStorage ?? false;
     const modelConfig = options.model;
     const connection = options.connection;
+    const clientToolConnection = ChatFactory.createClientToolConnection(chatId, connection);
 
     // Clear all progress when a new session starts
     useToolProgressStore.getState().clearAllProgress();
@@ -208,7 +279,7 @@ export class ChatFactory {
             useToolProgressStore.getState()
           );
 
-          const output = await executor(input as any, connection, progressCallback);
+          const output = await executor(input as any, clientToolConnection, progressCallback);
           chat.addToolOutput({
             tool: toolName as any,
             toolCallId,

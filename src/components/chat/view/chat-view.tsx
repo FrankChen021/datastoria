@@ -9,6 +9,7 @@ import { useChat, type Chat } from "@ai-sdk/react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ChatActionProvider } from "../chat-action-context";
 import { ChatContext } from "../chat-context";
+import { ChatFactory } from "../chat-factory";
 import { ChatInput, type ChatInputHandle } from "../input/chat-input";
 import { getTableContextByMentions } from "../input/mention-utils";
 import { ChatMessageList } from "../message/chat-message-list";
@@ -185,6 +186,11 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     [handleSubmit]
   );
 
+  const handleStop = useCallback(() => {
+    ChatFactory.stopClientTools(chat.id);
+    stop();
+  }, [chat.id, stop]);
+
   return (
     <ChatActionProvider onAction={handleUserAction} chatId={chat.id}>
       <div className="flex flex-col h-full bg-background overflow-hidden relative">
@@ -223,7 +229,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         <ChatInput
           ref={chatInputRef}
           onSubmit={handleSubmit}
-          onStop={stop}
+          onStop={handleStop}
           isRunning={isRunning}
           hasMessages={messages.length > 0}
           tokenUsage={tokenUsage}
