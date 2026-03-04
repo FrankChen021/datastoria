@@ -6,8 +6,7 @@ import type { StageStatus, ToolProgressCallback } from "@/lib/ai/tools/client/cl
 import { CLIENT_TOOL_NAMES, ClientToolExecutors } from "@/lib/ai/tools/client/client-tools";
 import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
-import { Connection } from "@/lib/connection/connection";
-import type { QueryResponse } from "@/lib/connection/connection";
+import { Connection, type QueryResponse } from "@/lib/connection/connection";
 import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { v7 as uuidv7 } from "uuid";
