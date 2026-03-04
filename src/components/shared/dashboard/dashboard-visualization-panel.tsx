@@ -745,7 +745,8 @@ export const DashboardVisualizationPanel = forwardRef<
     refreshParameterRef.current = normalizeRefreshOptions({
       ...refreshParameterRef.current,
       timeSpan: props.initialTimeSpan ?? refreshParameterRef.current?.timeSpan,
-      filterExpression: props.initialFilterExpression ?? refreshParameterRef.current?.filterExpression,
+      filterExpression:
+        props.initialFilterExpression ?? refreshParameterRef.current?.filterExpression,
     });
   }, [props.initialTimeSpan, props.initialFilterExpression]);
 

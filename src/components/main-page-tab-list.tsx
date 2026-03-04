@@ -88,11 +88,15 @@ const MainPageTabPanel = memo(function MainPageTabPanel({
       </div>
     );
   } else if (tab.type === "query-log") {
-    content = <QueryLogInspectorTab initialQueryId={tab.queryId} initialEventDate={tab.eventDate} />;
+    content = (
+      <QueryLogInspectorTab initialQueryId={tab.queryId} initialEventDate={tab.eventDate} />
+    );
   } else if (tab.type === "span-log") {
     content = <SpanLogInspectorTab initialTraceId={tab.traceId} initialEventDate={tab.eventDate} />;
   } else if (tab.type === "custom-dashboard") {
-    content = <CustomDashboardTab dashboardId={tab.dashboardId} dashboardName={tab.dashboardName} />;
+    content = (
+      <CustomDashboardTab dashboardId={tab.dashboardId} dashboardName={tab.dashboardName} />
+    );
   }
 
   return (

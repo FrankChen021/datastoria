@@ -2,6 +2,10 @@
  * @vitest-environment jsdom
  */
 
+import { ChatPanelProvider } from "@/components/chat/view/use-chat-panel";
+import { ConnectionContext } from "@/components/connection/connection-context";
+import { MainPageTabList } from "@/components/main-page-tab-list";
+import { TabManager } from "@/components/tab-manager";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -51,11 +55,6 @@ vi.mock("@/components/query-log-inspector/query-log-inspector-tab", () => ({
     return <div data-testid={`query-log-${key}`}>{key}</div>;
   },
 }));
-
-import { ChatPanelProvider } from "@/components/chat/view/use-chat-panel";
-import { ConnectionContext } from "@/components/connection/connection-context";
-import { MainPageTabList } from "@/components/main-page-tab-list";
-import { TabManager } from "@/components/tab-manager";
 
 function getConnectionContextValue() {
   return {

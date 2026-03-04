@@ -5,6 +5,7 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DashboardSection } from "../dashboard-section";
 
 let containerWidth = 320;
 let panelMounts = 0;
@@ -34,23 +35,20 @@ vi.mock("../dashboard-section-header", () => ({
 }));
 
 vi.mock("../dashboard-visualization-panel", () => ({
-  DashboardVisualizationPanel: React.forwardRef(function DashboardVisualizationPanelMock(
-    _props,
-    ref
-  ) {
-    React.useEffect(() => {
-      panelMounts += 1;
-      return () => {
-        panelUnmounts += 1;
-      };
-    }, []);
+  DashboardVisualizationPanel: React.forwardRef(
+    function DashboardVisualizationPanelMock(_props, ref) {
+      React.useEffect(() => {
+        panelMounts += 1;
+        return () => {
+          panelUnmounts += 1;
+        };
+      }, []);
 
-    React.useImperativeHandle(ref, () => null);
-    return <div>panel</div>;
-  }),
+      React.useImperativeHandle(ref, () => null);
+      return <div>panel</div>;
+    }
+  ),
 }));
-
-import { DashboardSection } from "../dashboard-section";
 
 const baseProps = {
   dashboardId: "node-overview",
