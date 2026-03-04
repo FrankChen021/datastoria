@@ -132,9 +132,7 @@ export function SectionHeader({
         ) : (
           <div className="flex items-center gap-1 min-w-0">
             <span className="text-sm font-medium truncate">{title}</span>
-            <span className="text-xs text-muted-foreground shrink-0">
-              ({panelCount} panels)
-            </span>
+            <span className="text-xs text-muted-foreground shrink-0">({panelCount} panels)</span>
           </div>
         )}
       </button>
