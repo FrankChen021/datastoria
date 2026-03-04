@@ -308,6 +308,7 @@ export function DashboardSection({
       {showHeader && (
         <SectionHeader
           title={sectionTitle}
+          panelCount={panels.length}
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggleCollapse}
           showEditControls={showEditControls}

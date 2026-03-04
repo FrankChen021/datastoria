@@ -9,6 +9,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export interface SectionHeaderProps {
   /** Section title */
   title: string;
+  /** Number of panels in the section */
+  panelCount: number;
   /** Whether the section is collapsed */
   isCollapsed: boolean;
   /** Callback when collapse state changes */
@@ -29,6 +31,7 @@ export interface SectionHeaderProps {
  */
 export function SectionHeader({
   title,
+  panelCount,
   isCollapsed,
   onToggleCollapse,
   showEditControls = false,
@@ -127,7 +130,12 @@ export function SectionHeader({
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className="text-sm font-medium truncate">{title}</span>
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="text-sm font-medium truncate">{title}</span>
+            <span className="text-xs text-muted-foreground shrink-0">
+              ({panelCount} panels)
+            </span>
+          </div>
         )}
       </button>
 

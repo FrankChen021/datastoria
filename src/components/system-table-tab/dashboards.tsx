@@ -312,7 +312,7 @@ export const Dashboards = memo(({ database, table }: DashboardsProps) => {
   }
 
   return (
-    <div className="flex flex-col px-2" style={{ height: "calc(100vh - 49px)" }}>
+    <div className="flex flex-col" style={{ height: "calc(100vh - 49px)" }}>
       <DashboardPage
         dashboardId="system-dashboards"
         panels={dashboard}
