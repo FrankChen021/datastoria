@@ -1,4 +1,4 @@
-import type { ChatUIMessage } from "@/app/api/chat/route";
+import type { ChatUIMessage } from "@/app/api/ai/chat/route";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import { intentFromKey, type Intent } from "@/lib/ai/agent/plan/sub-agent-registry";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";

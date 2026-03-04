@@ -108,7 +108,7 @@ function extractErrorMessage(error: unknown): string {
 const TITLE_WAIT_MS = 3000;
 
 /**
- * POST /api/chat/v2
+ * POST /api/ai/chat/v2
  *
  * Skill-based orchestrator: single agent with skill tool + validate_sql +
  * execute_sql + explore_schema + get_tables + optimization tools.

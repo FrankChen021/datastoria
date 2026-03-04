@@ -99,7 +99,7 @@ export class ChatFactory {
       transport: new DefaultChatTransport({
         fetch: async (input, init) => {
           const mode = AgentConfigurationManager.getConfiguration().mode;
-          const endpoint = mode === "v2" ? "/api/chat/v2" : "/api/chat";
+          const endpoint = mode === "v2" ? "/api/ai/chat/v2" : "/api/ai/chat";
           return fetch(endpoint, init);
         },
 

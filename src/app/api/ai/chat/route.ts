@@ -118,7 +118,7 @@ function extractErrorMessage(error: unknown): string {
 }
 
 /**
- * POST /api/chat
+ * POST /api/ai/chat
  *
  * This endpoint implements a Two-Step Dispatcher Pattern:
  * 1. Intent Routing (Call 1): Identifies the user's goal (SQL gen, optimization, viz, etc.)
