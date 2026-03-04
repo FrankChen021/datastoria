@@ -60,18 +60,16 @@ const DashboardListComponent = ({ onClose, connection }: DashboardListProps) => 
     [onClose]
   );
 
-  const handleDeleteClick = useCallback((id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setDeletingId(id);
-  }, []);
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (deletingId) {
-      storage.delete(deletingId);
+  const handleDeleteConfirm = useCallback(
+    (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      TabManager.closeTab(`custom-dashboard:${id}`);
+      storage.delete(id);
       setDeletingId(null);
       refreshList();
-    }
-  }, [deletingId, storage, refreshList]);
+    },
+    [storage, refreshList]
+  );
 
   const isClusterMode = connection?.cluster && connection.cluster.length > 0;
 
@@ -166,7 +164,10 @@ const DashboardListComponent = ({ onClose, connection }: DashboardListProps) => 
             trigger={
               <button
                 className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity shrink-0"
-                onClick={(e) => handleDeleteClick(db.id, e)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeletingId(db.id);
+                }}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -182,10 +183,23 @@ const DashboardListComponent = ({ onClose, connection }: DashboardListProps) => 
               Are you sure to delete this dashboard? This action cannot be reverted.
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setDeletingId(null)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeletingId(null);
+                }}
+              >
                 Cancel
               </Button>
-              <Button type="button" variant="destructive" size="sm" onClick={handleDeleteConfirm}>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={(e) => handleDeleteConfirm(db.id, e)}
+              >
                 Delete
               </Button>
             </div>

@@ -202,6 +202,7 @@ export function DashboardSection({
 }: DashboardSectionProps) {
   const { width, mounted, containerRef } = useContainerWidth();
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastVisibleWidthRef = useRef(0);
 
   // Subscribe to layout reset signals from the provider
   const layoutContext = useDashboardLayoutOptional();
@@ -288,20 +289,13 @@ export function DashboardSection({
   // Don't render header for ungrouped section if there's only ungrouped panels
   const showHeader = group !== null;
 
-  console.log(
-    "[DashboardSection] Render - sectionIndex:",
-    sectionIndex,
-    "isCollapsed:",
-    isCollapsed,
-    "panels.length:",
-    panels.length,
-    "showHeader:",
-    showHeader,
-    "mounted:",
-    mounted,
-    "width:",
-    width
-  );
+  useEffect(() => {
+    if (width > 0) {
+      lastVisibleWidthRef.current = width;
+    }
+  }, [width]);
+
+  const effectiveWidth = width > 0 ? width : lastVisibleWidthRef.current;
 
   return (
     <div className="w-full">
@@ -324,11 +318,11 @@ export function DashboardSection({
           className="w-full"
           style={isCollapsed ? { height: 0, overflow: "hidden", visibility: "hidden" } : undefined}
         >
-          {mounted && width > 0 && (
+          {mounted && effectiveWidth > 0 && (
             <ResponsiveGridLayout
               key={`grid-${sectionIndex}`}
               className="layout"
-              width={width}
+              width={effectiveWidth}
               layouts={layouts}
               breakpoints={breakpoints}
               cols={cols}
