@@ -6,9 +6,10 @@ import { SessionManager } from "@/components/chat/session/session-manager";
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
-import type { AppUIMessage } from "@/lib/ai/chat-types";
+import type { AppUIMessage, Message } from "@/lib/ai/chat-types";
 import type { Chat } from "@ai-sdk/react";
-import { Loader2, Maximize2, Minimize2, Plus, Square, X } from "lucide-react";
+import { Download, Loader2, Maximize2, Minimize2, Plus, Square, X } from "lucide-react";
+import { useSession } from "next-auth/react";
 import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
@@ -21,12 +22,62 @@ import { useChatPanel, type ChatPanelDisplayMode } from "./use-chat-panel";
 interface ChatHeaderProps {
   onClose?: () => void;
   onNewChat: () => void;
+  onExport?: () => void;
   currentChatId: string;
   onSelectChat?: (id: string) => void;
   toggleDisplayMode?: () => void;
   displayMode?: ChatPanelDisplayMode;
   initialTitle?: string;
   isRunning?: boolean;
+}
+
+function sanitizeFileName(input: string): string {
+  return Array.from(input)
+    .map((char) => {
+      const code = char.charCodeAt(0);
+      if (code <= 0x1f || '<>:"/\\|?*'.includes(char)) {
+        return "_";
+      }
+      return char;
+    })
+    .join("")
+    .trim();
+}
+
+function collectExportText(message: Pick<Message, "parts">): string {
+  return message.parts
+    .filter(
+      (
+        part
+      ): part is {
+        type: "text";
+        text: string;
+      } => part.type === "text" && typeof part.text === "string"
+    )
+    .map((part) => part.text.trim())
+    .filter((text) => text.length > 0)
+    .join("\n\n");
+}
+
+function buildSessionMarkdown(title: string, messages: Message[], userLabel: string): string {
+  const lines: string[] = [new Date().toLocaleString(), title, ""];
+
+  for (const message of messages) {
+    if (message.role !== "user" && message.role !== "assistant") {
+      continue;
+    }
+
+    const content = collectExportText(message);
+    if (!content) {
+      continue;
+    }
+
+    lines.push(message.role === "user" ? `# ${userLabel}` : "# Assistant");
+    lines.push(content);
+    lines.push("");
+  }
+
+  return lines.join("\n").trimEnd() + "\n";
 }
 
 function getDisplayModeButtonInfo(displayMode: ChatPanelDisplayMode): {
@@ -61,6 +112,7 @@ const ChatHeader = React.memo(
   ({
     onClose,
     onNewChat,
+    onExport,
     currentChatId,
     onSelectChat,
     toggleDisplayMode,
@@ -101,6 +153,16 @@ const ChatHeader = React.memo(
             title="New Session"
           >
             <Plus className="!h-3.5 !w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={onExport}
+            disabled={isRunning}
+            title="Export session as Markdown"
+          >
+            <Download className="!h-3.5 !w-3.5" />
           </Button>
           {isMobile && (
             <OpenSessionListButton
@@ -185,6 +247,7 @@ export function ChatPanel({
   const trackedRunningChatIdRef = useRef<string | null>(null);
   const isInitializedRef = useRef(false);
   const { connection } = useConnection();
+  const { data: authSession } = useSession();
 
   const createDraftChatId = useCallback(() => uuidv7(), []);
 
@@ -334,6 +397,28 @@ export function ChatPanel({
     await createFreshChat();
   }, [connection?.connectionId, createFreshChat]);
 
+  const handleExportSession = useCallback(async () => {
+    if (!chat?.id) {
+      return;
+    }
+
+    const storedSession = await SessionManager.getSession(chat.id);
+    const storedMessages = await SessionManager.getMessages(chat.id);
+    const title = (chatTitle || "New Chat").trim() || "New Chat";
+    const userLabel = authSession?.user?.email?.trim() || "You";
+    const markdown = buildSessionMarkdown(title, storedMessages, userLabel);
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    const timestamp = (storedSession?.createdAt ?? new Date()).toISOString().replace(/[:.]/g, "-");
+    anchor.href = url;
+    anchor.download = `${sanitizeFileName(title) || "chat-session"}-${timestamp}.md`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }, [authSession?.user?.email, chat?.id, chatTitle]);
+
   useEffect(() => {
     if (!chat || newChatRequestNonce === processedNewChatRequestRef.current) return;
 
@@ -422,6 +507,7 @@ export function ChatPanel({
         <ChatHeader
           onClose={onClose}
           onNewChat={handleNewChat}
+          onExport={handleExportSession}
           onSelectChat={handleSelectChat}
           currentChatId={chat.id}
           toggleDisplayMode={handleToggleDisplayMode}

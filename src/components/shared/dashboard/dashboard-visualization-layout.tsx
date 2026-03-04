@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { ChevronRight, EllipsisVertical, RotateCw } from "lucide-react";
+import { EllipsisVertical, RotateCw } from "lucide-react";
 import React, { useState } from "react";
 import type { TitleOption } from "./dashboard-model";
 import type { TimeSpan } from "./timespan-selector";

@@ -4,6 +4,7 @@ import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button
 import { cn } from "@/lib/utils";
 import { memo, useEffect, useMemo, useRef } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
+import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
 import { MessageMarkdownSql } from "./message-markdown-sql";
@@ -226,7 +227,11 @@ export const MessageMarkdown = memo(function MessageMarkdown({
 
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none text-sm relative">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
+        components={components}
+      >
         {text}
       </ReactMarkdown>
     </div>

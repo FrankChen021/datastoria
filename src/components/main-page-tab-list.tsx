@@ -52,6 +52,64 @@ interface MainPageTabListProps {
   selectedConnection: Connection | null;
 }
 
+const MainPageTabPanel = memo(function MainPageTabPanel({
+  tab,
+  isActive,
+}: {
+  tab: TabInfo;
+  isActive: boolean;
+}) {
+  let content: React.ReactNode = null;
+
+  if (tab.type === "query") {
+    content = (
+      <QueryTab
+        initialQuery={tab.initialQuery}
+        initialMode={tab.initialMode}
+        initialExecute={tab.initialExecute}
+        active={isActive}
+      />
+    );
+  } else if (tab.type === "node") {
+    content = <NodeTab host={tab.host} />;
+  } else if (tab.type === "cluster") {
+    content = <ClusterTab />;
+  } else if (tab.type === "database") {
+    content = <DatabaseTab database={tab.database} />;
+  } else if (tab.type === "table") {
+    content = <TableTab database={tab.database} table={tab.table} engine={tab.engine} />;
+  } else if (tab.type === "system-table") {
+    const EntryComponent = SYSTEM_TABLE_REGISTRY.get(tab.tableName)?.component;
+    content = EntryComponent ? (
+      <EntryComponent database="system" table={tab.tableName} />
+    ) : (
+      <div className="p-4 text-muted-foreground">
+        Introspection component not found for {tab.tableName}
+      </div>
+    );
+  } else if (tab.type === "query-log") {
+    content = (
+      <QueryLogInspectorTab initialQueryId={tab.queryId} initialEventDate={tab.eventDate} />
+    );
+  } else if (tab.type === "span-log") {
+    content = <SpanLogInspectorTab initialTraceId={tab.traceId} initialEventDate={tab.eventDate} />;
+  } else if (tab.type === "custom-dashboard") {
+    content = (
+      <CustomDashboardTab dashboardId={tab.dashboardId} dashboardName={tab.dashboardName} />
+    );
+  }
+
+  return (
+    <div
+      className={`h-full ${isActive ? "block" : "hidden"}`}
+      role="tabpanel"
+      aria-hidden={!isActive}
+    >
+      {content}
+    </div>
+  );
+});
+
 // VSCode-style button component for the empty state
 function EmptyStateButton({
   icon: Icon,
@@ -643,133 +701,6 @@ export const MainPageTabList = memo(function MainPageTabList({
       );
   }, [sortedTabs]);
 
-  // Memoize tab content to prevent unnecessary re-renders
-  const tabContent = useMemo(() => {
-    return sortedTabs.map((tab) => {
-      if (tab.type === "query") {
-        return (
-          <div
-            key={tab.id}
-            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-            role="tabpanel"
-            aria-hidden={activeTab !== tab.id}
-          >
-            <QueryTab
-              initialQuery={tab.initialQuery}
-              initialMode={tab.initialMode}
-              initialExecute={tab.initialExecute}
-              active={activeTab === tab.id}
-            />
-          </div>
-        );
-      }
-      if (tab.type === "node") {
-        return (
-          <div
-            key={tab.id}
-            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-            role="tabpanel"
-            aria-hidden={activeTab !== tab.id}
-          >
-            <NodeTab host={tab.host} />
-          </div>
-        );
-      }
-      if (tab.type === "cluster") {
-        return (
-          <div
-            key={tab.id}
-            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-            role="tabpanel"
-            aria-hidden={activeTab !== tab.id}
-          >
-            <ClusterTab />
-          </div>
-        );
-      }
-      if (tab.type === "database") {
-        return (
-          <div
-            key={tab.id}
-            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-            role="tabpanel"
-            aria-hidden={activeTab !== tab.id}
-          >
-            <DatabaseTab database={tab.database} />
-          </div>
-        );
-      }
-      if (tab.type === "table") {
-        return (
-          <div
-            key={tab.id}
-            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-            role="tabpanel"
-            aria-hidden={activeTab !== tab.id}
-          >
-            <TableTab database={tab.database} table={tab.table} engine={tab.engine} />
-          </div>
-        );
-      }
-      if (tab.type === "system-table") {
-        const EntryComponent = SYSTEM_TABLE_REGISTRY.get(tab.tableName)?.component;
-        return (
-          <div
-            key={tab.id}
-            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-            role="tabpanel"
-            aria-hidden={activeTab !== tab.id}
-          >
-            {EntryComponent ? (
-              <EntryComponent database="system" table={tab.tableName} />
-            ) : (
-              <div className="p-4 text-muted-foreground">
-                Introspection component not found for {tab.tableName}
-              </div>
-            )}
-          </div>
-        );
-      }
-      if (tab.type === "query-log") {
-        return (
-          <div
-            key={tab.id}
-            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-            role="tabpanel"
-            aria-hidden={activeTab !== tab.id}
-          >
-            <QueryLogInspectorTab initialQueryId={tab.queryId} initialEventDate={tab.eventDate} />
-          </div>
-        );
-      }
-      if (tab.type === "span-log") {
-        return (
-          <div
-            key={tab.id}
-            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-            role="tabpanel"
-            aria-hidden={activeTab !== tab.id}
-          >
-            <SpanLogInspectorTab initialTraceId={tab.traceId} initialEventDate={tab.eventDate} />
-          </div>
-        );
-      }
-      if (tab.type === "custom-dashboard") {
-        return (
-          <div
-            key={tab.id}
-            className={`h-full ${activeTab === tab.id ? "block" : "hidden"}`}
-            role="tabpanel"
-            aria-hidden={activeTab !== tab.id}
-          >
-            <CustomDashboardTab dashboardId={tab.dashboardId} dashboardName={tab.dashboardName} />
-          </div>
-        );
-      }
-      return null;
-    });
-  }, [sortedTabs, activeTab]);
-
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full w-full flex flex-col">
       {tabs.length > 0 && (
@@ -890,7 +821,9 @@ export const MainPageTabList = memo(function MainPageTabList({
         {tabs.length === 0 && displayMode === "hidden" && <EmptyTabPlaceholderComponent />}
 
         {/* All Tabs - Always mounted */}
-        {tabContent}
+        {sortedTabs.map((tab) => (
+          <MainPageTabPanel key={tab.id} tab={tab} isActive={activeTab === tab.id} />
+        ))}
       </div>
     </Tabs>
   );

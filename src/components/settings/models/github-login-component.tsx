@@ -15,6 +15,32 @@ interface GitHubLoginComponentProps {
   onCancel: () => void;
 }
 
+async function getResponseErrorMessage(
+  response: Response,
+  fallbackMessage: string
+): Promise<string> {
+  const statusPrefix = `HTTP ${response.status}`;
+  const contentType = response.headers.get("content-type") || "";
+
+  try {
+    if (contentType.includes("application/json")) {
+      const payload = (await response.json()) as {
+        error?: string;
+        message?: string;
+        details?: string;
+      };
+
+      const message = payload.error || payload.message || payload.details || fallbackMessage;
+      return `${statusPrefix}: ${message}`;
+    }
+
+    const text = await response.text();
+    return `${statusPrefix}: ${text || fallbackMessage}`;
+  } catch {
+    return `${statusPrefix}: ${fallbackMessage}`;
+  }
+}
+
 export function GitHubLoginComponent({ onSuccess, onCancel }: GitHubLoginComponentProps) {
   const [authData, setAuthData] = useState<{
     device_code: string;
@@ -40,9 +66,11 @@ export function GitHubLoginComponent({ onSuccess, onCancel }: GitHubLoginCompone
     setAuthError(null);
     setAuthData(null); // Reset auth data on retry
     try {
-      const res = await fetch("/api/auth/github/device/code", { method: "POST" });
+      const res = await fetch("/api/api/github/auth/device/code", { method: "POST" });
       if (!res.ok) {
-        throw new Error("Failed to initiate login. Please try again.");
+        throw new Error(
+          await getResponseErrorMessage(res, "Failed to initiate login. Please try again.")
+        );
       }
       const data = await res.json();
       setAuthData(data);
@@ -53,7 +81,7 @@ export function GitHubLoginComponent({ onSuccess, onCancel }: GitHubLoginCompone
         if (!isLoggingInRef.current) return;
 
         try {
-          const tokenRes = await fetch("/api/auth/github/device/token", {
+          const tokenRes = await fetch("/api/api/github/auth/device/token", {
             method: "POST",
             body: JSON.stringify({ device_code: data.device_code }),
           });

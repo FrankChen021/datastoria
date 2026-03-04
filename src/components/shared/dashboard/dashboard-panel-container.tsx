@@ -393,14 +393,6 @@ const DashboardPanelContainer = forwardRef<
             {sections.map((section) => {
               // Use local state for collapse only (no persistence)
               const isCollapsed = sectionCollapseStates.get(section.sectionIndex) ?? false;
-              console.log(
-                "[Container] Rendering section:",
-                section.sectionIndex,
-                "isCollapsed:",
-                isCollapsed,
-                "stateMap:",
-                Array.from(sectionCollapseStates.entries())
-              );
 
               return (
                 <DashboardSection

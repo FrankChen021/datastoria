@@ -59,7 +59,7 @@ const getCopilotMultiplier = (model: GitHubModel) => {
 
 async function fetchCopilotModels(token: string): Promise<ModelProps[]> {
   try {
-    const response = await fetch("/api/github/models", {
+    const response = await fetch("/api/ai/github/models", {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -153,7 +153,7 @@ export function useModelConfig() {
    * Return type of CopilotRefreshResponse
    */
   const refreshCopilotToken = useCallback(async (refreshToken: string) => {
-    const response = await fetch("/api/auth/github/refresh", {
+    const response = await fetch("/api/api/github/auth/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: refreshToken }),

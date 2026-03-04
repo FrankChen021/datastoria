@@ -18,7 +18,6 @@ type AbortableQueryResult<TResponse extends QueryResponse | Response> = {
   response: Promise<TResponse>;
   abortController: AbortController;
 };
-
 type ClientToolName = keyof typeof ClientToolExecutors;
 
 /**
@@ -171,7 +170,7 @@ export class ChatFactory {
       transport: new DefaultChatTransport({
         fetch: async (input, init) => {
           const mode = AgentConfigurationManager.getConfiguration().mode;
-          const endpoint = mode === "v2" ? "/api/chat/v2" : "/api/chat";
+          const endpoint = mode === "v2" ? "/api/ai/chat/v2" : "/api/ai/chat";
           return fetch(endpoint, init);
         },
 
@@ -195,9 +194,15 @@ export class ChatFactory {
                 return msg.role === "user";
               })
               .map((msg) => {
-                // Use current local time for createdAt (only used for display, not sorting)
-                // Messages are sorted by UUIDv7 message ID, which maintains chronological order
-                const now = new Date();
+                const metadataCreatedAt =
+                  typeof msg.metadata?.createdAt === "number"
+                    ? new Date(msg.metadata.createdAt)
+                    : undefined;
+                const createdAt =
+                  metadataCreatedAt && !Number.isNaN(metadataCreatedAt.getTime())
+                    ? metadataCreatedAt
+                    : new Date();
+                const updatedAt = new Date();
 
                 return {
                   id: msg.id,
@@ -205,8 +210,8 @@ export class ChatFactory {
                   role: msg.role,
                   parts: msg.parts ?? [],
                   metadata: msg.metadata,
-                  createdAt: now,
-                  updatedAt: now,
+                  createdAt,
+                  updatedAt,
                 } as Message;
               });
 

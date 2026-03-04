@@ -225,7 +225,7 @@ SELECT
 FROM (
   SELECT
     event_time,
-    FQDN() AS host_name,
+    hostName() AS host_name,
     ${metricDefinition.innerMetricExpression} AS metric_value
   FROM {clusterAllReplicas:system.metric_log}
   WHERE ${timeInfo.whereClause}

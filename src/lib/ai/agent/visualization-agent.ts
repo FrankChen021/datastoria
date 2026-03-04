@@ -93,7 +93,7 @@ export type VisualizationAgentOutput = z.infer<typeof visualizationAgentComplete
 /**
  * Server-side tool: Visualization Planning (LLM-based).
  * Calls the visualization agent to determine appropriate visualization.
- * Use in the planning-subagent flow (/api/chat).
+ * Use in the planning-subagent flow (/api/ai/chat).
  */
 export function createGenerateVisualizationTool(inputModel: InputModel) {
   return tool({

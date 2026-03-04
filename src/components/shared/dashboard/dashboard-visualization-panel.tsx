@@ -109,6 +109,28 @@ const normalizeVisualizationError = (message: string) => {
   return message;
 };
 
+export function normalizeRefreshOptions(
+  options: RefreshOptions | undefined
+): RefreshOptions | undefined {
+  if (!options) {
+    return options;
+  }
+
+  return {
+    ...options,
+    filterExpression: options.filterExpression ?? "1=1",
+  };
+}
+
+export function areRefreshOptionsEqual(
+  left: RefreshOptions | undefined,
+  right: RefreshOptions | undefined
+): boolean {
+  return (
+    JSON.stringify(normalizeRefreshOptions(left)) === JSON.stringify(normalizeRefreshOptions(right))
+  );
+}
+
 interface DashboardVisualizationPanelProps {
   descriptor: PanelDescriptor;
   initialTimeSpan?: TimeSpan;
@@ -185,7 +207,7 @@ export const DashboardVisualizationPanel = forwardRef<
   const skeletonStartTimeRef = useRef<number | null>(null);
 
   // Wrapper around setIsCollapsed that also calls the callback (from useRefreshable)
-  const setIsCollapsed = useCallback(
+  const _setIsCollapsed = useCallback(
     (collapsed: boolean) => {
       setIsCollapsedInternal(collapsed);
       onCollapsedChange?.(collapsed);
@@ -447,17 +469,18 @@ export const DashboardVisualizationPanel = forwardRef<
   // Public refresh method (from useRefreshable, modified to check visualization ref)
   const refresh = useCallback(
     (param: RefreshOptions) => {
+      const normalizedParam = normalizeRefreshOptions(param) ?? param;
+
       // Check if the parameters have actually changed
       if (
-        !param.forceRefresh &&
-        lastRefreshParamRefFromHook.current &&
-        JSON.stringify(lastRefreshParamRefFromHook.current) === JSON.stringify(param)
+        !normalizedParam.forceRefresh &&
+        areRefreshOptionsEqual(lastRefreshParamRefFromHook.current, normalizedParam)
       ) {
         return;
       }
 
       // Store the parameter for potential deferred execution
-      refreshParameterRef.current = param;
+      refreshParameterRef.current = normalizedParam;
 
       // Re-check visibility at the time of refresh
       const isCurrentlyVisible = isComponentInView();
@@ -465,8 +488,8 @@ export const DashboardVisualizationPanel = forwardRef<
 
       // Only refresh if NOT collapsed AND in viewport
       if (shouldRefreshNow) {
-        refreshInternal(param);
-        lastRefreshParamRefFromHook.current = param;
+        refreshInternal(normalizedParam);
+        lastRefreshParamRefFromHook.current = normalizedParam;
         setNeedRefresh(false);
       } else {
         // Mark that refresh is needed when component becomes visible/expanded
@@ -492,7 +515,7 @@ export const DashboardVisualizationPanel = forwardRef<
 
   // Table-specific handlers
   const handleSortChange = useCallback(
-    (column: string, direction: "asc" | "desc" | null) => {
+    (_column: string, _direction: "asc" | "desc" | null) => {
       if (typedDescriptor.type !== "table") return;
 
       const tableDescriptor = typedDescriptor as TableDescriptor;
@@ -637,14 +660,6 @@ export const DashboardVisualizationPanel = forwardRef<
     handleDeleteThisPanel,
   ]);
 
-  // Render error state
-  const renderError = () => (
-    <div className="flex h-full w-full flex-col items-center justify-center p-1 text-sm text-destructive gap-1">
-      <AskAIButton sql={executedSql} errorMessage={error} hideAfterClick={false} />
-      <div className="text-center overflow-auto w-full max-h-full custom-scrollbar">{error}</div>
-    </div>
-  );
-
   // Track first load state (when data is empty and loading)
   const isFirstLoad = data.length === 0 && isLoading && !error;
 
@@ -709,14 +724,15 @@ export const DashboardVisualizationPanel = forwardRef<
     initialRefreshDoneRef.current = true;
 
     // Use props directly to ensure we get the current values
-    const params: RefreshOptions = {
+    const params = normalizeRefreshOptions({
       timeSpan: props.initialTimeSpan,
       filterExpression: props.initialFilterExpression ?? "1=1",
-    };
+    }) ?? { timeSpan: props.initialTimeSpan, filterExpression: "1=1" };
 
     // Trigger refresh with params
     refresh(params);
   }, [
+    initialLoading,
     isVisualizationMounted,
     props.initialTimeSpan,
     props.initialFilterExpression,
@@ -726,11 +742,12 @@ export const DashboardVisualizationPanel = forwardRef<
 
   // Keep refresh parameters in sync with props
   useEffect(() => {
-    refreshParameterRef.current = {
+    refreshParameterRef.current = normalizeRefreshOptions({
       ...refreshParameterRef.current,
-      timeSpan: props.initialTimeSpan,
-      filterExpression: props.initialFilterExpression,
-    };
+      timeSpan: props.initialTimeSpan ?? refreshParameterRef.current?.timeSpan,
+      filterExpression:
+        props.initialFilterExpression ?? refreshParameterRef.current?.filterExpression,
+    });
   }, [props.initialTimeSpan, props.initialFilterExpression]);
 
   // Handle collapsed state changes - refresh when expanded if needed (from useRefreshable)
@@ -738,10 +755,7 @@ export const DashboardVisualizationPanel = forwardRef<
     if (!isCollapsed && needRefresh && shouldRefresh()) {
       const currentParam = refreshParameterRef.current;
       if (currentParam) {
-        if (
-          lastRefreshParamRefFromHook.current &&
-          JSON.stringify(lastRefreshParamRefFromHook.current) === JSON.stringify(currentParam)
-        ) {
+        if (areRefreshOptionsEqual(lastRefreshParamRefFromHook.current, currentParam)) {
           setNeedRefresh(false);
         } else {
           refreshInternal(currentParam);
@@ -765,10 +779,7 @@ export const DashboardVisualizationPanel = forwardRef<
 
         const currentParam = refreshParameterRef.current;
         if (currentParam) {
-          if (
-            lastRefreshParamRefFromHook.current &&
-            JSON.stringify(lastRefreshParamRefFromHook.current) === JSON.stringify(currentParam)
-          ) {
+          if (areRefreshOptionsEqual(lastRefreshParamRefFromHook.current, currentParam)) {
             setNeedRefresh(false);
           } else {
             refreshInternal(currentParam);
