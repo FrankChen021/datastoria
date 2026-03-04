@@ -124,9 +124,15 @@ export class ChatFactory {
               })
               .map((msg) => {
                 const mAny = msg as any;
-                // Use current local time for createdAt (only used for display, not sorting)
-                // Messages are sorted by UUIDv7 message ID, which maintains chronological order
-                const now = new Date();
+                const metadataCreatedAt =
+                  typeof msg.metadata?.createdAt === "number"
+                    ? new Date(msg.metadata.createdAt)
+                    : undefined;
+                const createdAt =
+                  metadataCreatedAt && !Number.isNaN(metadataCreatedAt.getTime())
+                    ? metadataCreatedAt
+                    : new Date();
+                const updatedAt = new Date();
 
                 return {
                   id: msg.id,
@@ -134,8 +140,8 @@ export class ChatFactory {
                   role: msg.role,
                   parts: msg.parts || [{ type: "text", text: mAny.content || "" }],
                   metadata: msg.metadata,
-                  createdAt: now,
-                  updatedAt: now,
+                  createdAt,
+                  updatedAt,
                 } as Message;
               });
 

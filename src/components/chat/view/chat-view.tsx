@@ -7,6 +7,7 @@ import "@/lib/number-utils"; // Ensure formatTimeDiff is available
 
 import { useChat, type Chat } from "@ai-sdk/react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { v7 as uuidv7 } from "uuid";
 import { ChatActionProvider } from "../chat-action-context";
 import { ChatContext } from "../chat-context";
 import { ChatInput, type ChatInputHandle } from "../input/chat-input";
@@ -124,6 +125,8 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
 
       // Enrich context with mentioned tables
       const mentionedTables = getTableContextByMentions(text, connection!);
+      const createdAt = Date.now();
+      const messageId = uuidv7();
 
       // Update context builder to include mentioned tables
       ChatContext.setBuilder(() => ({
@@ -133,7 +136,14 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         clickHouseUser: connection?.metadata.internalUser,
       }));
 
-      sendMessage({ text });
+      sendMessage({
+        id: messageId,
+        role: "user",
+        parts: [{ type: "text", text }],
+        metadata: {
+          createdAt,
+        },
+      });
     },
     [chat, sendMessage, connection, currentQuery, currentDatabase, availableTables]
   );

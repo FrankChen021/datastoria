@@ -44,6 +44,8 @@ export type MessagePart = TextPart | ToolCallPart | ToolResultPart;
 export type MessageMetadata = {
   planner?: PlannerMetadata;
   usage?: LanguageModelUsage;
+  /** Client-captured submit time for stable user-message display. */
+  createdAt?: number;
   /** LLM-generated chat title (v2 skill-based chat). */
   title?: {
     text: string;

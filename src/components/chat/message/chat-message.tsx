@@ -200,6 +200,24 @@ interface ChatMessageProps {
   isLast?: boolean; // Whether this is the last message in a sequence
   isRunning?: boolean;
 }
+
+function resolveMessageTimestamp(message: AppUIMessage): number | undefined {
+  if (message.createdAt) {
+    const createdAt = new Date(message.createdAt).getTime();
+    if (!Number.isNaN(createdAt)) {
+      return createdAt;
+    }
+  }
+
+  if (typeof message.metadata?.createdAt === "number") {
+    const metadataCreatedAt = new Date(message.metadata.createdAt).getTime();
+    if (!Number.isNaN(metadataCreatedAt)) {
+      return metadataCreatedAt;
+    }
+  }
+
+  return undefined;
+}
 /**
  * Render a single message with session styling and visualization
  */
@@ -210,7 +228,7 @@ export const ChatMessage = memo(function ChatMessage({
   isRunning = true,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
-  const timestamp = message.createdAt ? new Date(message.createdAt).getTime() : Date.now();
+  const timestamp = resolveMessageTimestamp(message);
   const parts = message.parts || [];
   const error = (message as { error?: Error }).error;
 
