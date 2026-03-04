@@ -97,6 +97,23 @@ function escapeSqlLiteral(value: string): string {
   return value.replaceAll("\\", "\\\\").replaceAll("'", "\\'");
 }
 
+function resolveLookbackMinutesFromRange(
+  timeRange: NonNullable<GetClusterStatusInput["window"]>["time_range"] | undefined,
+  fallbackMinutes: number
+): number {
+  if (!timeRange?.from || !timeRange?.to) {
+    return fallbackMinutes;
+  }
+
+  const fromMs = Date.parse(timeRange.from);
+  const toMs = Date.parse(timeRange.to);
+  if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs) {
+    return fallbackMinutes;
+  }
+
+  return Math.max(1, Math.ceil((toMs - fromMs) / 60_000));
+}
+
 function buildLogTimeFilter(
   window: GetClusterStatusInput["window"] | undefined,
   defaultMinutes = 15
@@ -108,7 +125,8 @@ function buildLogTimeFilter(
       whereClause:
         `event_date >= toDate('${from}') AND event_date <= toDate('${to}') ` +
         `AND event_time >= toDateTime('${from}') AND event_time <= toDateTime('${to}')`,
-      windowMinutes: window.time_window ?? defaultMinutes,
+      windowMinutes:
+        window.time_window ?? resolveLookbackMinutesFromRange(window.time_range, defaultMinutes),
       windowLabel: `${window.time_range.from} to ${window.time_range.to}`,
     };
   }
@@ -165,7 +183,7 @@ async function collectQueryPerformanceCategory(
   const data = await queryJsonCompact(
     `
 SELECT
-  FQDN() AS host_name,
+  hostName() AS host_name,
   quantileExactIf(0.95)(query_duration_ms, type = 'QueryFinish') AS p95_ms,
   quantileExactIf(0.99)(query_duration_ms, type = 'QueryFinish') AS p99_ms,
   countIf(type = 'QueryFinish') AS finished_queries,
@@ -191,7 +209,7 @@ GROUP BY host_name`,
       | number
       | null
     )[];
-    const nodeName = String(hostName || "");
+    const nodeName = String(hostName || "").trim();
     registerObservedNode(nodeName);
     const nodeP95 = Number(p95Ms) || 0;
     const nodeP99 = Number(p99Ms) || 0;
@@ -270,7 +288,7 @@ const STATUS_CATEGORY_HANDLERS: Record<StatusCheckCategory, CategoryHandler> = {
     const data = await queryJsonCompact(
       `
 SELECT
-  FQDN() AS host_name,
+  hostName() AS host_name,
   ifNull(database, '') AS database,
   ifNull(table, '') AS table,
   ifNull(is_readonly, 0) AS is_readonly,
@@ -299,7 +317,7 @@ FROM {clusterAllReplicas:system.replicas}`,
         lagSeconds,
       ] = row as (string | number)[];
 
-      const nodeName = String(hostName || "");
+      const nodeName = String(hostName || "").trim();
       registerObservedNode(nodeName);
 
       const lag = Number(lagSeconds) || 0;
@@ -375,7 +393,7 @@ FROM {clusterAllReplicas:system.replicas}`,
     const data = await queryJsonCompact(
       `
 SELECT
-  FQDN() AS host_name,
+  hostName() AS host_name,
   name,
   path,
   free_space,
@@ -391,7 +409,7 @@ FROM {clusterAllReplicas:system.disks}`,
 
     for (const row of rows) {
       const [hostName, name, path, freeSpace, totalSpace, usedPercent] = row as (string | number)[];
-      const nodeName = String(hostName || "");
+      const nodeName = String(hostName || "").trim();
       registerObservedNode(nodeName);
       const used = Number(usedPercent) || 0;
       if (used > maxUsedPercent) maxUsedPercent = used;
@@ -439,7 +457,7 @@ FROM {clusterAllReplicas:system.disks}`,
     const data = await queryJsonCompact(
       `
 SELECT
-    FQDN() AS host,
+    hostName() AS host,
     (SELECT value FROM system.metrics WHERE metric = 'MemoryTracking') AS usedBytes,
     (SELECT value FROM system.asynchronous_metrics WHERE metric = 'OSMemoryTotal') AS totalBytes
 FROM {clusterAllReplicas:system.one}
@@ -451,7 +469,7 @@ FROM {clusterAllReplicas:system.one}
 
     for (const row of rows) {
       const [hostName, usedBytes, totalBytes] = row as (string | number)[];
-      const nodeName = String(hostName || "");
+      const nodeName = String(hostName || "").trim();
       registerObservedNode(nodeName);
       const metricsMap = metricsByNode.get(nodeName) ?? {};
       metricsMap["MemoryTracking"] = Number(usedBytes) || 0;
@@ -526,7 +544,7 @@ FROM {clusterAllReplicas:system.one}
     const data = await queryJsonCompact(
       `
 SELECT
-  FQDN() AS host_name,
+  hostName() AS host_name,
   min(event_time) AS first_seen,
   max(event_time) AS last_seen,
   min(ProfileEvent_OSCPUVirtualTimeMicroseconds) AS min_cpu_us,
@@ -545,7 +563,7 @@ GROUP BY host_name`,
 
     for (const row of rows) {
       const [hostName, firstSeen, lastSeen, minCpuUs, maxCpuUs] = row as (string | number | null)[];
-      const nodeName = String(hostName || "");
+      const nodeName = String(hostName || "").trim();
       registerObservedNode(nodeName);
 
       const minValue = Number(minCpuUs) || 0;
@@ -613,7 +631,7 @@ GROUP BY host_name`,
     const data = await queryJsonCompact(
       `
 SELECT
-  FQDN() AS host_name,
+  hostName() AS host_name,
   count() AS active_merges,
   max(elapsed) AS max_elapsed_seconds
 FROM {clusterAllReplicas:system.merges}
@@ -622,21 +640,30 @@ GROUP BY host_name`,
     );
     const rows = data.data || [];
 
-    let activeMerges = 0;
+    let maxActiveMerges = 0;
+    let totalActiveMerges = 0;
+    let nodesWithActiveMerges = 0;
+    let nodesWithLongRunningMerges = 0;
     let maxElapsed = 0;
     const outliers: Outlier[] = [];
 
     for (const row of rows) {
       const [hostName, nodeActiveMerges, nodeMaxElapsed] = row as (string | number | null)[];
-      const nodeName = String(hostName || "");
+      const nodeName = String(hostName || "").trim();
       registerObservedNode(nodeName);
       const nodeMerges = Number(nodeActiveMerges) || 0;
       const nodeElapsed = Number(nodeMaxElapsed) || 0;
-      activeMerges += nodeMerges;
+      totalActiveMerges += nodeMerges;
+      maxActiveMerges = Math.max(maxActiveMerges, nodeMerges);
       maxElapsed = Math.max(maxElapsed, nodeElapsed);
+
+      if (nodeMerges > 0) {
+        nodesWithActiveMerges += 1;
+      }
 
       if (nodeMerges > 0 && nodeElapsed > 600) {
         registerIssueNode(nodeName);
+        nodesWithLongRunningMerges += 1;
         const severity: StatusSeverity = nodeElapsed > 3600 ? "CRITICAL" : "WARNING";
         outliers.push({
           node: nodeName,
@@ -650,7 +677,7 @@ GROUP BY host_name`,
     }
 
     const status: StatusSeverity =
-      activeMerges === 0
+      nodesWithActiveMerges === 0
         ? "OK"
         : maxElapsed > 3600
           ? "CRITICAL"
@@ -664,10 +691,16 @@ GROUP BY host_name`,
         status === "OK"
           ? []
           : [
-              `There are ${activeMerges} active merges. Longest running merge has been running for ${maxElapsed} seconds.`,
+              `Longest running merge has been running for ${maxElapsed} seconds. ${nodesWithLongRunningMerges} nodes have long-running merges; max active merges on a node is ${maxActiveMerges}.`,
             ],
       metrics: {
-        active_merges: activeMerges,
+        max_node_active_merges: maxActiveMerges,
+        avg_active_merges_per_active_node:
+          nodesWithActiveMerges > 0
+            ? Number((totalActiveMerges / nodesWithActiveMerges).toFixed(2))
+            : null,
+        nodes_with_active_merges: nodesWithActiveMerges,
+        nodes_with_long_running_merges: nodesWithLongRunningMerges,
         max_merge_elapsed_seconds: maxElapsed,
       },
       outliers: limitOutliers(outliers, maxOutliers),
@@ -678,7 +711,7 @@ GROUP BY host_name`,
     const data = await queryJsonCompact(
       `
 SELECT
-  FQDN() AS host_name,
+  hostName() AS host_name,
   countIf(is_done = 0) AS pending_mutations,
   maxIf(now() - create_time, is_done = 0) AS max_pending_seconds
 FROM {clusterAllReplicas:system.mutations}
@@ -697,7 +730,7 @@ GROUP BY host_name`,
         | number
         | null
       )[];
-      const nodeName = String(hostName || "");
+      const nodeName = String(hostName || "").trim();
       registerObservedNode(nodeName);
       const nodePending = Number(nodePendingMutations) || 0;
       const nodePendingMax = Number(nodeMaxPendingSeconds) || 0;
@@ -800,40 +833,113 @@ WHERE name IN (
     const aggregateData = await queryJsonCompact(
       `
 SELECT
-  max(active_parts) AS max_parts_per_table,
-  max(max_parts_per_partition) AS max_parts_per_partition,
-  max(avg_active_part_size_bytes) AS max_avg_active_part_size_bytes,
-  count() AS tables_checked
+  summary.max_parts_per_table,
+  worst_total.host_name,
+  worst_total.database,
+  worst_total.table,
+  summary.max_parts_per_partition,
+  worst_partition.host_name,
+  worst_partition.database,
+  worst_partition.table,
+  summary.max_avg_active_part_size_bytes,
+  summary.tables_checked
 FROM (
   SELECT
-    FQDN() AS host_name,
-    database,
-    table,
-    sum(partition_active_parts) AS active_parts,
-    max(partition_active_parts) AS max_parts_per_partition,
-    if(sum(partition_active_parts) = 0, 0, sum(partition_active_bytes) / sum(partition_active_parts)) AS avg_active_part_size_bytes
+    max(active_parts) AS max_parts_per_table,
+    max(max_parts_per_partition) AS max_parts_per_partition,
+    max(avg_active_part_size_bytes) AS max_avg_active_part_size_bytes,
+    count() AS tables_checked
   FROM (
     SELECT
-      FQDN() AS host_name,
+      host_name,
       database,
       table,
-      partition,
-      count() AS partition_active_parts,
-      sum(bytes_on_disk) AS partition_active_bytes
-    FROM {clusterAllReplicas:system.parts}
-    WHERE active
-    GROUP BY host_name, database, table, partition
+      sum(partition_active_parts) AS active_parts,
+      max(partition_active_parts) AS max_parts_per_partition,
+      if(sum(partition_active_parts) = 0, 0, sum(partition_active_bytes) / sum(partition_active_parts)) AS avg_active_part_size_bytes
+    FROM (
+      SELECT
+        hostName() AS host_name,
+        database,
+        table,
+        partition,
+        count() AS partition_active_parts,
+        sum(bytes_on_disk) AS partition_active_bytes
+      FROM {clusterAllReplicas:system.parts}
+      WHERE active
+      GROUP BY host_name, database, table, partition
+    )
+    GROUP BY host_name, database, table
   )
-  GROUP BY host_name, database, table
-)`,
+) AS summary
+CROSS JOIN (
+  SELECT
+    host_name,
+    database,
+    table
+  FROM (
+    SELECT
+      host_name,
+      database,
+      table,
+      sum(partition_active_parts) AS active_parts
+    FROM (
+      SELECT
+        hostName() AS host_name,
+        database,
+        table,
+        partition,
+        count() AS partition_active_parts
+      FROM {clusterAllReplicas:system.parts}
+      WHERE active
+      GROUP BY host_name, database, table, partition
+    )
+    GROUP BY host_name, database, table
+    ORDER BY active_parts DESC, host_name, database, table
+    LIMIT 1
+  )
+) AS worst_total
+CROSS JOIN (
+  SELECT
+    host_name,
+    database,
+    table
+  FROM (
+    SELECT
+      host_name,
+      database,
+      table,
+      max(partition_active_parts) AS max_parts_per_partition
+    FROM (
+      SELECT
+        hostName() AS host_name,
+        database,
+        table,
+        partition,
+        count() AS partition_active_parts
+      FROM {clusterAllReplicas:system.parts}
+      WHERE active
+      GROUP BY host_name, database, table, partition
+    )
+    GROUP BY host_name, database, table
+    ORDER BY max_parts_per_partition DESC, host_name, database, table
+    LIMIT 1
+  )
+) AS worst_partition`,
       connection
     );
     const aggregateRow =
       ((aggregateData.data || [])[0] as (string | number | null)[] | undefined) ?? [];
     const worstParts = Number(aggregateRow[0]) || 0;
-    const worstPartsPerPartition = Number(aggregateRow[1]) || 0;
-    const maxAvgPartSizeBytes = Number(aggregateRow[2]) || 0;
-    const tablesChecked = Number(aggregateRow[3]) || 0;
+    const worstPartsHost = String(aggregateRow[1] ?? "");
+    const worstPartsDatabase = String(aggregateRow[2] ?? "");
+    const worstPartsTable = String(aggregateRow[3] ?? "");
+    const worstPartsPerPartition = Number(aggregateRow[4]) || 0;
+    const worstPartitionHost = String(aggregateRow[5] ?? "");
+    const worstPartitionDatabase = String(aggregateRow[6] ?? "");
+    const worstPartitionTable = String(aggregateRow[7] ?? "");
+    const maxAvgPartSizeBytes = Number(aggregateRow[8]) || 0;
+    const tablesChecked = Number(aggregateRow[9]) || 0;
 
     const outlierData = await queryJsonCompact(
       `
@@ -854,7 +960,7 @@ FROM (
     if(sum(partition_active_parts) = 0, 0, sum(partition_active_bytes) / sum(partition_active_parts)) AS avg_active_part_size_bytes
   FROM (
     SELECT
-      FQDN() AS host_name,
+      hostName() AS host_name,
       database,
       table,
       partition,
@@ -882,19 +988,25 @@ LIMIT 500`,
         maxPartsInPartition,
         avgActivePartSizeBytes,
       ] = row as (string | number | null)[];
-      const nodeName = String(hostName || "");
+      const nodeName = String(hostName || "").trim();
       registerObservedNode(nodeName);
       const partCount = Number(parts) || 0;
       const maxPartitionParts = Number(maxPartsInPartition) || 0;
       const avgPartSize = Number(avgActivePartSizeBytes) || 0;
 
-      if (maxPartitionParts >= partsWarning) {
+      const exceedsTableWarning = partCount >= partsWarning;
+      const exceedsPartitionWarning = maxPartitionParts >= partsWarning;
+
+      if (exceedsTableWarning || exceedsPartitionWarning) {
         registerIssueNode(nodeName);
         const avgPartSizeMitigates =
           (settingsInfo.max_avg_part_size_for_too_many_parts ?? 0) > 0 &&
           avgPartSize >= (settingsInfo.max_avg_part_size_for_too_many_parts ?? 0);
-        let severity: StatusSeverity = maxPartitionParts >= partsCritical ? "CRITICAL" : "WARNING";
-        if (severity === "CRITICAL" && avgPartSizeMitigates) {
+        const criticalByTable = partCount >= partsCritical;
+        const criticalByPartition = maxPartitionParts >= partsCritical;
+        let severity: StatusSeverity =
+          criticalByTable || criticalByPartition ? "CRITICAL" : "WARNING";
+        if (severity === "CRITICAL" && !criticalByTable && avgPartSizeMitigates) {
           severity = "WARNING";
         }
 
@@ -908,6 +1020,8 @@ LIMIT 500`,
             parts: partCount,
             max_parts_per_partition: maxPartitionParts,
             avg_active_part_size_bytes: Number(avgPartSize.toFixed(2)),
+            over_table_parts_threshold: exceedsTableWarning ? 1 : 0,
+            over_partition_parts_threshold: exceedsPartitionWarning ? 1 : 0,
             avg_part_size_mitigates_too_many_parts: avgPartSizeMitigates ? 1 : 0,
           },
         });
@@ -915,11 +1029,34 @@ LIMIT 500`,
     }
 
     const status: StatusSeverity =
-      worstPartsPerPartition >= partsCritical
+      worstParts >= partsCritical || worstPartsPerPartition >= partsCritical
         ? "CRITICAL"
-        : worstPartsPerPartition >= partsWarning
+        : worstParts >= partsWarning || worstPartsPerPartition >= partsWarning
           ? "WARNING"
           : "OK";
+
+    if (
+      outliers.length === 0 &&
+      status !== "OK" &&
+      worstPartsHost &&
+      worstPartsDatabase &&
+      worstPartsTable
+    ) {
+      outliers.push({
+        node: `${worstPartsHost}:${worstPartsDatabase}.${worstPartsTable}`,
+        details: `${status} parts pressure for ${worstPartsDatabase}.${worstPartsTable} on ${worstPartsHost}`,
+        metrics: {
+          host_name: worstPartsHost,
+          database: worstPartsDatabase,
+          table: worstPartsTable,
+          parts: worstParts,
+          max_parts_per_partition: worstPartsPerPartition,
+          avg_active_part_size_bytes: Number(maxAvgPartSizeBytes.toFixed(2)),
+          over_table_parts_threshold: worstParts >= partsWarning ? 1 : 0,
+          over_partition_parts_threshold: worstPartsPerPartition >= partsWarning ? 1 : 0,
+        },
+      });
+    }
 
     return {
       status,
@@ -927,11 +1064,17 @@ LIMIT 500`,
         status === "OK"
           ? []
           : [
-              `Highest max-parts-per-partition is ${worstPartsPerPartition}. Thresholds (${settingsInfo.source}): warning >= ${partsWarning}, critical >= ${partsCritical}.`,
+              `Highest parts-per-table is ${worstParts} on ${worstPartsHost}:${worstPartsDatabase}.${worstPartsTable}; highest max-parts-per-partition is ${worstPartsPerPartition} on ${worstPartitionHost}:${worstPartitionDatabase}.${worstPartitionTable}. Thresholds (${settingsInfo.source}): warning >= ${partsWarning}, critical >= ${partsCritical}.`,
             ],
       metrics: {
         max_parts_per_table: worstParts,
+        max_parts_host_name: worstPartsHost,
+        max_parts_database: worstPartsDatabase,
+        max_parts_table: worstPartsTable,
         max_parts_per_partition: worstPartsPerPartition,
+        max_partition_parts_host_name: worstPartitionHost,
+        max_partition_parts_database: worstPartitionDatabase,
+        max_partition_parts_table: worstPartitionTable,
         parts_warning_threshold: partsWarning,
         parts_critical_threshold: partsCritical,
         threshold_source: settingsInfo.source,
@@ -948,7 +1091,7 @@ LIMIT 500`,
     const data = await queryJsonCompact(
       `
 SELECT
-  FQDN() AS host_name,
+  hostName() AS host_name,
   name,
   last_error_time,
   value
@@ -964,7 +1107,7 @@ LIMIT 50`,
 
     for (const row of rows) {
       const [hostName, name, lastErrorTime, value] = row as (string | number)[];
-      const nodeName = String(hostName || "");
+      const nodeName = String(hostName || "").trim();
       registerObservedNode(nodeName);
       const count = Number(value) || 0;
       totalErrors += count;
@@ -1001,7 +1144,7 @@ LIMIT 50`,
     const data = await queryJsonCompact(
       `
 SELECT
-  FQDN() AS host_name,
+  hostName() AS host_name,
   count() AS active_queries,
   uniqExact(user) AS active_users,
   uniqExact(address) AS remote_addresses
@@ -1022,7 +1165,7 @@ GROUP BY host_name`,
         | string
         | number
       )[];
-      const nodeName = String(hostName || "");
+      const nodeName = String(hostName || "").trim();
       registerObservedNode(nodeName);
       const nodeQueries = Number(nodeActiveQueries) || 0;
       const nodeUsers = Number(nodeActiveUsers) || 0;
