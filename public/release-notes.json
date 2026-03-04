@@ -1,5 +1,35 @@
 [
   {
+    "id": "6e1760c",
+    "date": "2026-03-04T02:20:35.545Z",
+    "notes": [
+      {
+        "text": "Improve explore_schema prompting and cap wide schemas",
+        "pr": 86,
+        "type": "feature",
+        "merged_at": "2026-03-02T12:12:08Z"
+      },
+      {
+        "text": "Refine sidebar sessions panel",
+        "pr": 88,
+        "type": "feature",
+        "merged_at": "2026-03-02T12:12:36Z"
+      },
+      {
+        "text": "Feature/customisable dashboard experimental",
+        "pr": 85,
+        "type": "feature",
+        "merged_at": "2026-03-04T02:13:33Z"
+      },
+      {
+        "text": "Fix chat v2 title timing",
+        "pr": 87,
+        "type": "fix",
+        "merged_at": "2026-03-02T12:12:21Z"
+      }
+    ]
+  },
+  {
     "id": "e611011",
     "date": "2026-03-01T16:31:27.749Z",
     "notes": [
