@@ -95,3 +95,5 @@ Before finishing, verify:
 ## Commit Rules
 - Only commit what you change
 - Before creating a PR at GitHub, list all changed files on the branch and wait for user confirmation.
+- PR creation is blocked until the agent shows `Changed files vs master` for each branch.
+- The agent must receive explicit user approval after showing those file lists before running any `gh pr create` command.
