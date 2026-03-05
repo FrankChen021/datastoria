@@ -1,5 +1,59 @@
 [
   {
+    "id": "a21fb42",
+    "date": "2026-03-05T02:21:49.346Z",
+    "notes": [
+      {
+        "text": "Relocate backend API routes",
+        "pr": 90,
+        "type": "feature",
+        "merged_at": "2026-03-04T11:12:45Z"
+      },
+      {
+        "text": "Stabilize chat message timestamps",
+        "pr": 95,
+        "type": "feature",
+        "merged_at": "2026-03-04T11:15:13Z"
+      },
+      {
+        "text": "Support br tags in chat markdown",
+        "pr": 94,
+        "type": "feature",
+        "merged_at": "2026-03-04T11:15:26Z"
+      },
+      {
+        "text": "Add chat session markdown export",
+        "pr": 92,
+        "type": "feature",
+        "merged_at": "2026-03-04T11:15:51Z"
+      },
+      {
+        "text": "Improve cluster status diagnostics",
+        "pr": 93,
+        "type": "feature",
+        "merged_at": "2026-03-04T11:17:11Z"
+      },
+      {
+        "text": "Stop local client tools when chat is stopped",
+        "pr": 96,
+        "type": "feature",
+        "merged_at": "2026-03-04T12:46:28Z"
+      },
+      {
+        "text": "override serialize-javascript to 7.0.3",
+        "pr": 91,
+        "type": "fix",
+        "merged_at": "2026-03-04T11:13:01Z"
+      },
+      {
+        "text": "Fix tab remounts and dashboard delete flow",
+        "pr": 97,
+        "type": "fix",
+        "merged_at": "2026-03-04T11:17:26Z"
+      }
+    ]
+  },
+  {
     "id": "6e1760c",
     "date": "2026-03-04T02:20:35.545Z",
     "notes": [
