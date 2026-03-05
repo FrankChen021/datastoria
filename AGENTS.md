@@ -98,3 +98,6 @@ Before finishing, verify:
 - Before listing changed files, run `git fetch origin master`.
 - PR creation is blocked until the agent shows `Changed files vs origin/master` for each branch.
 - The agent must receive explicit user approval after showing those file lists before running any `gh pr create` command.
+- Before pushing a branch, run `git fetch origin master`.
+- Push is blocked until the agent shows `Changed files vs origin/master` for each branch being pushed.
+- The agent must receive explicit user approval after showing those file lists before running any `git push` command.
