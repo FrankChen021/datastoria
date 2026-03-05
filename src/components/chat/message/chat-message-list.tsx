@@ -73,7 +73,7 @@ export const ChatMessageList = React.memo(
               isLoading={isRunning && index === messages.length - 1 && message.role === "assistant"}
               isFirst={index === 0}
               isLast={index === messages.length - 1}
-              isRunning={isRunning}
+              isRunning={isRunning && index === messages.length - 1}
             />
           ))}
 

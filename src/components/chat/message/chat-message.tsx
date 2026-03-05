@@ -25,6 +25,8 @@ import { MessageToolSkill } from "./message-tool-skill";
 import { MessageToolValidateSql } from "./message-tool-validate-sql";
 import { MessageUser } from "./message-user";
 
+const MESSAGE_MARKDOWN_STYLE = { fontSize: "0.9rem", lineHeight: "1.6" } as const;
+
 /**
  * Display token usage information per message.
  * Uses LanguageModelUsage (non-deprecated fields).
@@ -116,7 +118,7 @@ const ChatMessagePart = memo(
       return (
         <MessageMarkdown
           text={part.text}
-          customStyle={{ fontSize: "0.9rem", lineHeight: "1.6" }}
+          customStyle={MESSAGE_MARKDOWN_STYLE}
           messageId={messageId}
         />
       );
@@ -175,19 +177,26 @@ const ChatMessagePart = memo(
     // Custom comparison: only re-render if the part actually changed
     if (prevProps.messageId !== nextProps.messageId) return false;
     if (prevProps.isUser !== nextProps.isUser) return false;
-    if (prevProps.isRunning !== nextProps.isRunning) return false;
     if (prevProps.part === nextProps.part) return true;
+
+    // Text and reasoning parts do not depend on isRunning.
+    if (prevProps.part.type === "text" && nextProps.part.type === "text") {
+      return (
+        (prevProps.part as { text: string }).text === (nextProps.part as { text: string }).text
+      );
+    }
+    if (prevProps.part.type === "reasoning" && nextProps.part.type === "reasoning") {
+      return prevProps.part.text === nextProps.part.text;
+    }
+
+    // Tool parts can change rendering while running, so include isRunning in comparison.
+    if (prevProps.isRunning !== nextProps.isRunning) return false;
+
     // For tool parts, compare by toolCallId and state
     const prevPart = prevProps.part as ToolPart;
     const nextPart = nextProps.part as ToolPart;
     if (prevPart.toolCallId && nextPart.toolCallId) {
       return prevPart.toolCallId === nextPart.toolCallId && prevPart.state === nextPart.state;
-    }
-    // For text parts, compare by text content
-    if (prevPart.type === "text" && nextPart.type === "text") {
-      return (
-        (prevProps.part as { text: string }).text === (nextProps.part as { text: string }).text
-      );
     }
     return false;
   }
