@@ -431,14 +431,13 @@ export function ChatPanel({
         return;
       }
 
+      // Title change events are global and not chat-scoped, so avoid persisting here.
+      // Persistence remains in chat-scoped flows (for example onFinish/session rename).
       setChatTitle(nextTitle);
-      if (connection?.connectionId) {
-        void SessionManager.touchSessionById(chat.id, connection.connectionId, nextTitle);
-      }
     });
 
     return unsubscribe;
-  }, [chat?.id, connection?.connectionId]);
+  }, [chat?.id]);
 
   useEffect(() => {
     if (!chat || newChatRequestNonce === processedNewChatRequestRef.current) return;
