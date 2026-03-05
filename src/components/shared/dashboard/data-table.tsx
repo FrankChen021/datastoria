@@ -885,16 +885,7 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
   };
 
   const renderNoData = () => {
-    if (error || shouldShowSkeleton || processedData.length > 0) return null;
-    const colSpan =
-      visibleColumns.length + (enableIndexColumn ? 1 : 0) + (enableShowRowDetail ? 1 : 0);
-    return (
-      <TableRow>
-        <TableCell colSpan={colSpan} className="text-center text-muted-foreground p-8">
-          <div className="flex items-center justify-center h-[72px]">No data found</div>
-        </TableCell>
-      </TableRow>
-    );
+    return null;
   };
 
   const renderPaginationLoadingRow = () => {
@@ -1013,6 +1004,7 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
 
   const cellPaddingClass = enableCompactMode ? "!py-0.5" : "!p-2";
   const compactHeaderHeightClass = enableCompactMode ? "h-[33px]" : "";
+  const isNoData = !error && !shouldShowSkeleton && processedData.length === 0;
 
   return (
     <div className={cn("relative w-full h-full", className)}>
@@ -1085,6 +1077,11 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
           </TableBody>
         </table>
       </div>
+      {isNoData && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center pt-10 text-muted-foreground">
+          No data found
+        </div>
+      )}
     </div>
   );
 });

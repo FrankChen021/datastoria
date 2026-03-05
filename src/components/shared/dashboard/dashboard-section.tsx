@@ -344,20 +344,19 @@ export function DashboardSection({
                   panelCollapseStates.get(globalIndex) ?? panel.collapsed ?? false;
 
                 return (
-                  <div key={`panel-${localIndex}`} className="h-full">
-                    <div className={cn("w-full h-full", isPanelCollapsed && "h-auto")}>
-                      <DashboardVisualizationPanel
-                        descriptor={panel}
-                        initialTimeSpan={initialTimeSpan}
-                        initialFilterExpression={initialFilterExpression}
-                        initialLoading={initialLoading}
-                        ref={(el) => onSubComponentUpdated(el, globalIndex)}
-                        onCollapsedChange={(collapsed) =>
-                          onPanelCollapsedChange(globalIndex, collapsed)
-                        }
-                        onChartSelection={onChartSelection}
-                      />
-                    </div>
+                  <div key={`panel-${localIndex}`} className="w-full h-full">
+                    <DashboardVisualizationPanel
+                      className="w-full h-full"
+                      descriptor={panel}
+                      initialTimeSpan={initialTimeSpan}
+                      initialFilterExpression={initialFilterExpression}
+                      initialLoading={initialLoading}
+                      ref={(el) => onSubComponentUpdated(el, globalIndex)}
+                      onCollapsedChange={(collapsed) =>
+                        onPanelCollapsedChange(globalIndex, collapsed)
+                      }
+                      onChartSelection={onChartSelection}
+                    />
                   </div>
                 );
               })}
