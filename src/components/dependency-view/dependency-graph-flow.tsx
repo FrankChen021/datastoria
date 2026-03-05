@@ -25,7 +25,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
 import { Maximize, Maximize2, Minimize, Search, X, ZoomIn, ZoomOut } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { DependencyGraphNode } from "./dependency-builder";
 
 interface DependencyGraphFlowProps {
@@ -144,6 +144,8 @@ function CustomEdge({ id, sourceX, sourceY, targetX, targetY, data, markerEnd }:
 
 // Dedicated panel component to minimize re-renders
 interface GraphControlPanelProps {
+  showSearch: boolean;
+  onSearchVisibilityChange: (show: boolean) => void;
   searchQuery: string;
   onSearchChange: (value: string) => void;
   onClearSearch: () => void;
@@ -159,6 +161,8 @@ interface GraphControlPanelProps {
 }
 
 const GraphControlPanel = ({
+  showSearch,
+  onSearchVisibilityChange,
   searchQuery,
   onSearchChange,
   onClearSearch,
@@ -172,7 +176,6 @@ const GraphControlPanel = ({
   onZoomOut,
   onFitView,
 }: GraphControlPanelProps) => {
-  const [showSearch, setShowSearch] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -215,12 +218,13 @@ const GraphControlPanel = ({
   }, []);
 
   const handleSearchClick = useCallback(() => {
-    setShowSearch((prev) => !prev);
-    if (!showSearch) {
-      // Clear search when closing
+    if (showSearch) {
       onClearSearch();
+      onSearchVisibilityChange(false);
+    } else {
+      onSearchVisibilityChange(true);
     }
-  }, [showSearch, onClearSearch]);
+  }, [showSearch, onClearSearch, onSearchVisibilityChange]);
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,9 +237,9 @@ const GraphControlPanel = ({
     onClearSearch();
     // Only close search panel if there's no query
     if (!searchQuery.trim()) {
-      setShowSearch(false);
+      onSearchVisibilityChange(false);
     }
-  }, [onClearSearch, searchQuery]);
+  }, [onClearSearch, onSearchVisibilityChange, searchQuery]);
 
   return (
     <TooltipProvider>
@@ -300,7 +304,7 @@ const GraphControlPanel = ({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{showSearch ? "Hide search" : "Show search"}</p>
+                  <p>{showSearch ? "Hide search (Ctrl/Cmd+F)" : "Show search (Ctrl/Cmd+F)"}</p>
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -407,7 +411,9 @@ const DependencyGraphFlowInner = ({
   database,
   highlightedTableId,
 }: DependencyGraphFlowProps) => {
+  const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const { fitView, getNode, zoomIn, zoomOut } = useReactFlow();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -520,12 +526,11 @@ const DependencyGraphFlowInner = ({
       position: { x: 0, y: 0 }, // Will be calculated by layout
       data: {
         node,
-        searchQuery: searchQuery.trim() || undefined,
         isHighlighted: highlightedTableId === node.id,
       },
       draggable: true,
     }));
-  }, [nodes, searchQuery, highlightedTableId]);
+  }, [nodes, highlightedTableId]);
 
   // Use React Flow's built-in state hooks
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(initialNodes);
@@ -575,11 +580,11 @@ const DependencyGraphFlowInner = ({
 
   // Filter nodes based on search query (only match table name)
   const matchingNodeIds = useMemo(() => {
-    if (!searchQuery.trim()) {
+    if (!deferredSearchQuery.trim()) {
       return new Set<string>();
     }
 
-    const query = searchQuery.toLowerCase().trim();
+    const query = deferredSearchQuery.toLowerCase().trim();
     const matches = new Set<string>();
 
     nodes.forEach((node, nodeId) => {
@@ -590,7 +595,7 @@ const DependencyGraphFlowInner = ({
     });
 
     return matches;
-  }, [searchQuery, nodes]);
+  }, [deferredSearchQuery, nodes]);
 
   // Update node selection state and ensure search query is in data
   const flowNodesWithSelection = useMemo(() => {
@@ -599,11 +604,11 @@ const DependencyGraphFlowInner = ({
       selected: selectedNodeId === node.id,
       data: {
         ...node.data,
-        searchQuery: searchQuery.trim() || undefined,
+        searchQuery: deferredSearchQuery.trim() || undefined,
         isHighlighted: highlightedTableId === node.id,
       },
     }));
-  }, [flowNodes, selectedNodeId, searchQuery, highlightedTableId]);
+  }, [flowNodes, selectedNodeId, deferredSearchQuery, highlightedTableId]);
 
   // Node and edge types configuration
   const nodeTypes: NodeTypes = useMemo(
@@ -635,8 +640,50 @@ const DependencyGraphFlowInner = ({
     setSelectedNodeId(null);
   }, []);
 
+  const handleSearchVisibilityChange = useCallback(
+    (show: boolean) => {
+      setShowSearch(show);
+      if (!show) {
+        setSearchQuery("");
+        setSelectedNodeId(null);
+      }
+    },
+    [setShowSearch]
+  );
+
   const handleSearchChange = useCallback((value: string) => {
     setSearchQuery(value);
+  }, []);
+
+  // Toggle search panel with Ctrl+F / Cmd+F when this graph is visible.
+  useEffect(() => {
+    const isGraphVisible = () => {
+      const container = containerRef.current;
+      if (!container) return false;
+      if (container.closest('[aria-hidden="true"]')) return false;
+      if (container.offsetParent === null && !document.fullscreenElement) return false;
+      return true;
+    };
+
+    const onGlobalFindShortcut = (event: KeyboardEvent) => {
+      const isFindShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f";
+      if (!isFindShortcut || !isGraphVisible()) return;
+
+      event.preventDefault();
+      setShowSearch((prev) => {
+        const nextShow = !prev;
+        if (!nextShow) {
+          setSearchQuery("");
+          setSelectedNodeId(null);
+        }
+        return nextShow;
+      });
+    };
+
+    window.addEventListener("keydown", onGlobalFindShortcut);
+    return () => {
+      window.removeEventListener("keydown", onGlobalFindShortcut);
+    };
   }, []);
 
   const handleFocusFirstMatch = useCallback(() => {
@@ -730,6 +777,8 @@ const DependencyGraphFlowInner = ({
         panOnDrag={true}
       >
         <GraphControlPanel
+          showSearch={showSearch}
+          onSearchVisibilityChange={handleSearchVisibilityChange}
           searchQuery={searchQuery}
           onSearchChange={handleSearchChange}
           onClearSearch={handleClearSearch}
