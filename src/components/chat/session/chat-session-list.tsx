@@ -76,7 +76,7 @@ type DeleteState = {
 const chatNodeId = (chatId: string) => `chat:${chatId}`;
 const groupNodeId = (label: string) => `group:${label}`;
 
-const getChatTitle = (chat: Pick<Chat, "title">) => chat.title || "New Conversation";
+const getChatTitle = (chat: Pick<Chat, "title">) => chat.title || "New Chat";
 
 const getGroupLabel = (dateInput: Date | string) => {
   const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
@@ -307,7 +307,7 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
           <div className="relative border-b-2 flex items-center h-9">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search conversations"
+              placeholder="Search chats"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className={cn("pl-8 rounded-none border-none flex-1 h-9", search ? "pr-24" : "pr-16")}
@@ -328,7 +328,7 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
               size="sm"
               className="absolute right-9 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
               onClick={() => void refreshSessions()}
-              title="Refresh sessions"
+              title="Refresh chats"
               disabled={isRefreshing}
             >
               <RotateCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
@@ -338,7 +338,7 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
               size="sm"
               className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
               onClick={onNewChat}
-              title="New session"
+              title="New chat"
             >
               <Plus className="h-4 w-4" />
             </Button>
@@ -371,7 +371,7 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
               />
             ) : (
               <div className="h-full flex items-center justify-center px-4 text-sm text-muted-foreground">
-                No conversations found.
+                No chats found.
               </div>
             )}
           </div>
