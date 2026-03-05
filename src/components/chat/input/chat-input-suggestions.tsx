@@ -149,7 +149,7 @@ export const ChatInputSuggestions = React.memo(
               e.stopPropagation();
               return true;
             }
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
               onSelect(flatSuggestions[activeIndex].group, flatSuggestions[activeIndex].name);
               return true;
             }

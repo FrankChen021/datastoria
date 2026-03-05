@@ -186,24 +186,11 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         return;
       }
 
-      // Send on Enter
-      if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+      // Send on Cmd/Ctrl + Enter
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         handleSubmit();
-      }
-
-      // New line on Cmd/Ctrl + Enter
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-        const start = e.currentTarget.selectionStart;
-        const end = e.currentTarget.selectionEnd;
-        const value = e.currentTarget.value;
-        setInput(value.substring(0, start) + "\n" + value.substring(end));
-        // Re-position cursor after state update
-        setTimeout(() => {
-          if (textareaRef.current) {
-            textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + 1;
-          }
-        }, 0);
+        return;
       }
     };
 
@@ -235,8 +222,8 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             ref={textareaRef}
             value={input}
             onChange={handleInputChange}
-            placeholder={`Press Enter to send, ${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"} + Enter for new line. Use @ to mention tables.`}
-            aria-label="Chat input. Press Enter to send, use Cmd/Ctrl + Enter for new line. Use @ to mention tables."
+            placeholder={`Press Enter for new line, ${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"} + Enter to send. Use @ to mention tables.`}
+            aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables."
             className="w-full min-h-[80px] max-h-[200px] resize-none border-0 bg-transparent py-3 pl-3 pr-10 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 overflow-y-auto"
             disabled={isRunning}
             onKeyDown={handleKeyDown}
@@ -251,7 +238,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                       size="sm"
                       variant="ghost"
                       className="h-6 gap-1 px-2 text-xs"
-                      title="Start New Conversation"
+                      title="Start New Chat"
                       onClick={handleNewChat}
                     >
                       <MessageSquarePlus className="h-3 w-3" />
@@ -278,6 +265,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                 disabled={!input.trim()}
                 size="icon"
                 className="h-6 w-6 rounded-md shadow-sm"
+                title={`Send (${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"}+Enter)`}
               >
                 <Send className="h-3.5 w-3.5" />
               </Button>
