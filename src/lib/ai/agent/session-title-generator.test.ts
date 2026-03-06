@@ -11,9 +11,9 @@ function createModel(provider: string, modelId: string): InputModel {
 }
 
 describe("SessionTitleGenerator.resolveTitleModel", () => {
-  it("uses gpt-5-nano for OpenAI title generation", () => {
+  it("uses gpt-5-mini for OpenAI title generation", () => {
     expect(SessionTitleGenerator.resolveModel(createModel("OpenAI", "gpt-5"))).toEqual(
-      createModel("OpenAI", "gpt-5-nano")
+      createModel("OpenAI", "gpt-5-mini")
     );
   });
 
