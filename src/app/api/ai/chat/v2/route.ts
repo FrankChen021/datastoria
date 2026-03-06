@@ -1,7 +1,7 @@
 import { getAuthenticatedUserEmail } from "@/auth";
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
-import { generateChatTitle } from "@/lib/ai/agent/generate-chat-title";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "@/lib/ai/agent/orchestrator-prompt";
+import { SessionTitleGenerator } from "@/lib/ai/agent/session-title-generator";
 import type { AgentContext, MessageMetadata } from "@/lib/ai/chat-types";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import { MessagePruner } from "@/lib/ai/message-pruner";
@@ -196,7 +196,7 @@ export async function POST(req: Request) {
 
     const titlePromise =
       apiRequest.generateTitle !== false
-        ? generateChatTitle(originalMessages, modelConfig)
+        ? SessionTitleGenerator.generate(originalMessages, modelConfig)
         : undefined;
 
     const modelMessages = await convertToModelMessages(
@@ -265,16 +265,28 @@ export async function POST(req: Request) {
             }
 
             let timeoutId: ReturnType<typeof setTimeout> | undefined;
+            let didTitleGenerationTimeout = false;
             const titleResult = await Promise.race([
               titlePromise,
               new Promise<undefined>((resolve) => {
-                timeoutId = setTimeout(() => resolve(undefined), TITLE_WAIT_MS);
+                timeoutId = setTimeout(() => {
+                  didTitleGenerationTimeout = true;
+                  resolve(undefined);
+                }, TITLE_WAIT_MS);
               }),
             ]).finally(() => {
               if (timeoutId !== undefined) {
                 clearTimeout(timeoutId);
               }
             });
+
+            if (didTitleGenerationTimeout) {
+              console.warn("Chat title generation timed out", {
+                timeoutMs: TITLE_WAIT_MS,
+                provider: modelConfig.provider,
+                modelId: modelConfig.modelId,
+              });
+            }
 
             const metadata = ((chunk as { messageMetadata?: MessageMetadata }).messageMetadata ??
               {}) as MessageMetadata;
