@@ -149,7 +149,7 @@ export type Observation = {
 
 export type CauseCandidate = {
   cause: string;
-  signal_strength: number;
+  support_score: number;
   indicators_matched: number;
   indicators_checked: number;
   evidence_for: string[];
@@ -409,10 +409,11 @@ export function asNumber(value: unknown): number {
 export function buildNodePredicate(
   scope: Scope,
   target: Target | undefined,
-  expr = "FQDN()"
+  expr = "hostName()"
 ): string {
   if (scope === "node" && target?.node) {
-    return `${expr} = '${escapeSqlString(target.node)}'`;
+    const node = escapeSqlString(target.node);
+    return `${expr} = '${node}'`;
   }
   return "1 = 1";
 }
@@ -431,7 +432,7 @@ export function buildQueryLogPredicate(scope: Scope, target: Target | undefined)
     return `has(tables, '${table}')`;
   }
   if (scope === "node" && target.node) {
-    return buildNodePredicate(scope, target, "FQDN()");
+    return buildNodePredicate(scope, target, "hostName()");
   }
   return "1 = 1";
 }
@@ -501,7 +502,7 @@ export function scoreCandidate(rule: CauseEvaluation): CauseCandidate {
 
   return {
     cause: rule.cause,
-    signal_strength: Number(signalStrength.toFixed(2)),
+    support_score: Number(signalStrength.toFixed(2)),
     indicators_matched: matched,
     indicators_checked: total,
     evidence_for: rule.indicators
@@ -576,7 +577,7 @@ export function scoreCauseEvaluations(evaluations: CauseEvaluation[]): {
     });
   const candidates = includedRules
     .map(scoreCandidate)
-    .sort((a, b) => b.signal_strength - a.signal_strength);
+    .sort((a, b) => b.support_score - a.support_score);
   return { candidates, excludedCandidates };
 }
 
@@ -590,7 +591,7 @@ export async function discoverTargetTableByParts(
 
   let whereClause = "active";
   if (scope === "node" && target?.node) {
-    whereClause += ` AND FQDN() = '${escapeSqlString(target.node)}'`;
+    whereClause += ` AND ${buildNodePredicate(scope, target, "hostName()")}`;
   }
 
   const data = await connection.queryJsonCompact(`
@@ -600,7 +601,7 @@ SELECT
   max(parts) AS parts
 FROM (
   SELECT
-    FQDN() AS host_name,
+    hostName() AS host_name,
     database,
     table,
     count() AS parts

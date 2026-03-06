@@ -14,10 +14,7 @@ import { handleHighQueryLatency } from "./impl/evidence-collector-high-query-lat
 import { collectUnknownEvidence } from "./impl/evidence-collector-unknown";
 
 export type RcaEvidenceProvider = {
-  collect(
-    symptom: CanonicalSymptom,
-    context: SymptomContext
-  ): Promise<SymptomEvidence | undefined>;
+  collect(symptom: CanonicalSymptom, context: SymptomContext): Promise<SymptomEvidence | undefined>;
 };
 
 export type RcaContextPayload = {
@@ -28,12 +25,13 @@ export type RcaContextPayload = {
   related_symptoms?: CanonicalSymptom[];
 };
 
-const DETERMINISTIC_SYMPTOM_HANDLERS: Partial<Record<CanonicalSymptom, SymptomEvidenceCollector>> = {
-  high_query_latency: handleHighQueryLatency,
-  high_part_count: handleHighPartCount,
-  high_partition_count: handleHighPartitionCount,
-  unknown: collectUnknownEvidence,
-};
+const DETERMINISTIC_SYMPTOM_HANDLERS: Partial<Record<CanonicalSymptom, SymptomEvidenceCollector>> =
+  {
+    high_query_latency: handleHighQueryLatency,
+    high_part_count: handleHighPartCount,
+    high_partition_count: handleHighPartitionCount,
+    unknown: collectUnknownEvidence,
+  };
 
 function createDeterministicRcaEvidenceProvider(): RcaEvidenceProvider {
   return {
@@ -96,9 +94,9 @@ export function createRcaEvidenceProvider(): RcaEvidenceProvider {
   const extension = getRcaContextExtension();
   return extension
     ? attachContextExtension({
-      baseProvider,
-      extension,
-    })
+        baseProvider,
+        extension,
+      })
     : baseProvider;
 }
 

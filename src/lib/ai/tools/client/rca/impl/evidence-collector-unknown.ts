@@ -79,7 +79,7 @@ WHERE active`);
   const candidates: CauseCandidate[] = [
     {
       cause: "insufficient_specific_signal",
-      signal_strength: 0.25,
+      support_score: 0.25,
       indicators_matched: 1,
       indicators_checked: 4,
       evidence_for: ["generic probes detected broad pressure signals"],

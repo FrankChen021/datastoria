@@ -710,7 +710,7 @@ export const ClientTools = {
       candidates: z.array(
         z.object({
           cause: z.string(),
-          signal_strength: z.number(),
+          support_score: z.number(),
           indicators_matched: z.number(),
           indicators_checked: z.number(),
           evidence_for: z.array(z.string()),

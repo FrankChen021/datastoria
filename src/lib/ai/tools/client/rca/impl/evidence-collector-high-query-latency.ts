@@ -113,7 +113,7 @@ SELECT
   ifNull(argMax(host, memory_used_percent), '') AS max_memory_node
 FROM (
   SELECT
-    FQDN() AS host,
+    hostName() AS host,
     (SELECT value FROM system.metrics WHERE metric = 'MemoryTracking') AS usedBytes,
     (SELECT value FROM system.asynchronous_metrics WHERE metric = 'OSMemoryTotal') AS totalBytes,
     ifNull(usedBytes / nullIf(totalBytes, 0) * 100, 0) AS memory_used_percent
@@ -239,7 +239,9 @@ async function analyzeMergePressure(context: HighQueryLatencyContext): Promise<H
   };
 }
 
-async function analyzeMemoryPressure(context: HighQueryLatencyContext): Promise<HypothesisAnalysis> {
+async function analyzeMemoryPressure(
+  context: HighQueryLatencyContext
+): Promise<HypothesisAnalysis> {
   const [queryLog, metrics] = await Promise.all([
     collectQueryLog(context),
     collectMemoryMetrics(context),
@@ -263,8 +265,7 @@ async function analyzeMemoryPressure(context: HighQueryLatencyContext): Promise<
         {
           description: `avg query memory >= ${t.avg_query_memory_bytes_gte}`,
           evaluation: {
-            matched:
-              asNumber(queryLog.metrics["avg_memory_bytes"]) >= t.avg_query_memory_bytes_gte,
+            matched: asNumber(queryLog.metrics["avg_memory_bytes"]) >= t.avg_query_memory_bytes_gte,
             actual: asNumber(queryLog.metrics["avg_memory_bytes"]).toFixed(2),
           },
         },

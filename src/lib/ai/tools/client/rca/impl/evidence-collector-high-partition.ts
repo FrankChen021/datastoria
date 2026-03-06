@@ -111,7 +111,7 @@ FROM (
     if(sum(logical_parts_per_partition) = 0, 0, uniqExact(partition) / sum(logical_parts_per_partition)) AS node_partition_to_parts_ratio
   FROM (
     SELECT
-      FQDN() AS host_name,
+      hostName() AS host_name,
       partition,
       uniqExact(name) AS logical_parts_per_partition
     FROM {clusterAllReplicas:system.parts}
@@ -258,7 +258,8 @@ async function analyzePartitionKeyTooGranular(
         {
           description: `recent partitions > ${t.recent_partitions_gt} in window`,
           evaluation: {
-            matched: asNumber(partitionGrowth.metrics["recent_partitions"]) > t.recent_partitions_gt,
+            matched:
+              asNumber(partitionGrowth.metrics["recent_partitions"]) > t.recent_partitions_gt,
             actual: asNumber(partitionGrowth.metrics["recent_partitions"]),
           },
         },
@@ -334,7 +335,8 @@ async function analyzeUnboundedPartitionGrowth(
           description: `recent partitions > ${t.recent_partitions_gt} in window`,
           required: true,
           evaluation: {
-            matched: asNumber(partitionGrowth.metrics["recent_partitions"]) > t.recent_partitions_gt,
+            matched:
+              asNumber(partitionGrowth.metrics["recent_partitions"]) > t.recent_partitions_gt,
             actual: asNumber(partitionGrowth.metrics["recent_partitions"]),
           },
         },

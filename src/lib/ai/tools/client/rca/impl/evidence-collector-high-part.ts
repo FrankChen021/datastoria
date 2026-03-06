@@ -66,7 +66,7 @@ async function prepareHighPartCountContext(
     resolvedTarget,
     partsTablePredicate: buildPartsTablePredicate(resolvedTarget),
     queryLogTablePredicate: buildQueryLogPredicate("table", resolvedTarget),
-    nodePredicate: buildNodePredicate(baseContext.scope, resolvedTarget, "FQDN()"),
+    nodePredicate: buildNodePredicate(baseContext.scope, resolvedTarget, "hostName()"),
   };
 }
 
@@ -114,7 +114,7 @@ FROM (
     if(sum(logical_parts_per_partition) = 0, 0, uniqExact(partition) / sum(logical_parts_per_partition)) AS node_partition_to_parts_ratio
   FROM (
     SELECT
-      FQDN() AS host_name,
+      hostName() AS host_name,
       partition,
       uniqExact(name) AS logical_parts_per_partition
     FROM {clusterAllReplicas:system.parts}
@@ -147,7 +147,7 @@ SELECT
   ifNull(argMax(host_name, node_active_parts), '') AS top_parts_node
 FROM (
   SELECT
-    FQDN() AS host_name,
+    hostName() AS host_name,
     count() AS node_active_parts
   FROM {clusterAllReplicas:system.parts}
   WHERE active AND {partsTableFilterExpression}
@@ -460,7 +460,7 @@ function computeHighPartCountRelatedSymptoms(input: {
 
   if (
     counts.distinctPartitions >= t.related_symptom_distinct_partitions_gte ||
-    (partitionPressureCandidate?.signal_strength ?? 0) >= t.related_symptom_signal_strength_gte
+    (partitionPressureCandidate?.support_score ?? 0) >= t.related_symptom_signal_strength_gte
   ) {
     return ["high_partition_count"];
   }

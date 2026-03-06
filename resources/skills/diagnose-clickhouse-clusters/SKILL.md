@@ -16,7 +16,7 @@ description: Diagnose ClickHouse cluster health and provide concrete remediation
 
 1. Determine whether the user asks for status only, or root cause ("why", "root cause", "reason", "caused by", "explain").
 2. For RCA questions, pick one supported canonical symptom key based on user wording and worst-severity status findings.
-3. Explain from tool output only: top candidates, signal strength, gaps, and prioritized actions.
+3. Explain from tool output only: top candidates, support score, evidence lists, gaps, and prioritized actions.
 
 # Severity Thresholds (Guidance)
 
@@ -63,11 +63,11 @@ Use one of these two formats:
 Use compact structure only:
 
 1. **RCA Verdict**: one sentence, max 30 words.
-2. **Top Candidates**: markdown table with max 3 rows: `cause | signal_strength | why`.
-3. **Key Evidence**: max 3 bullets, each bullet must include at least one metric/value from tool output.
-   When `excluded_candidates` is non-empty, include at least one bullet explaining why a plausible cause was excluded.
-4. **Possible Actions**: max 3 numbered items, sorted by impact.
-5. **Gaps / Next Checks**: max 2 bullets.
+2. **Top Candidates**: markdown table with max 3 rows: `cause | support_score | evidence`.
+   In `evidence`, render up to 3 `evidence_for` items prefixed with `✓` and up to 2 `evidence_against` items prefixed with `✗`, separated by `<br/>`.
+   When `excluded_candidates` is non-empty, include at least one excluded reason as a `✗` item for the most relevant row.
+3. **Possible Actions**: max 3 numbered items, sorted by impact.
+4. **Gaps / Next Checks**: max 2 bullets.
 
 RCA brevity limits:
 
@@ -82,7 +82,7 @@ RCA brevity limits:
 - For RCA questions, MUST call `collect_rca_evidence` after status check.
 - Do NOT state root causes without RCA evidence output.
 - If `gaps[]` is non-empty, explicitly state what evidence is missing.
-- If all candidates have `signal_strength < 0.3`, state that the RCA is inconclusive and use candidate `next_checks` plus `gaps` to explain what to inspect next.
+- If all candidates have `support_score < 0.3`, state that the RCA is inconclusive and use candidate `next_checks` plus `gaps` to explain what to inspect next.
 - If best candidate is weak (`0.30-0.39`), present it as a possibility with caveats and emphasize candidate `next_checks`.
 - If `collect_rca_evidence.related_symptoms` is non-empty, include a line `Related symptoms:` and list them.
 - If `related_symptoms` contains `high_partition_count`, explicitly state that partition explosion may be a contributing factor and suggest running RCA with `symptom=high_partition_count`.
