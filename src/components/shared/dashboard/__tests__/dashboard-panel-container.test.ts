@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { requiresLegacySectionLayoutInvalidation } from "../dashboard-panel-container";
 import type { DashboardGroup, PanelDescriptor } from "../dashboard-model";
+import { requiresLegacySectionLayoutInvalidation } from "../dashboard-panel-container";
 
 function panel(title: string): PanelDescriptor {
   return {
@@ -31,8 +31,8 @@ describe("requiresLegacySectionLayoutInvalidation", () => {
 
   it("returns true when ungrouped panels appear before a group", () => {
     expect(requiresLegacySectionLayoutInvalidation([panel("p1"), group("g1")])).toBe(true);
-    expect(
-      requiresLegacySectionLayoutInvalidation([group("g1"), panel("p1"), group("g2")])
-    ).toBe(true);
+    expect(requiresLegacySectionLayoutInvalidation([group("g1"), panel("p1"), group("g2")])).toBe(
+      true
+    );
   });
 });

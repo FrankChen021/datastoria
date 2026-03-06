@@ -12,9 +12,9 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { invalidateLegacySectionLayoutKeys } from "./dashboard-layout-storage";
 import type { Dashboard, DashboardGroup, PanelDescriptor } from "./dashboard-model";
 import { DashboardSection } from "./dashboard-section";
-import { invalidateLegacySectionLayoutKeys } from "./dashboard-layout-storage";
 import type {
   DashboardVisualizationComponent,
   RefreshOptions,
