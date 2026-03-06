@@ -68,27 +68,27 @@ const TokenUsageDisplay = memo(function TokenUsageDisplay({
         <span className="">
           <NumberFlow value={input} />
         </span>
+        {cacheRead > 0 && (
+          <>
+            <span>(Cached:</span>
+            <span className="">
+              <NumberFlow value={cacheRead} />
+            </span>
+            <span>)</span>
+          </>
+        )}
 
         <span className="font-medium">; Output Tokens:</span>
         <span className="">
           <NumberFlow value={output} />
         </span>
-
         {reasoning > 0 && (
           <>
-            <span className="font-medium">; Reasoning Tokens:</span>
+            <span>(Reasoning:</span>
             <span className="">
               <NumberFlow value={reasoning} />
             </span>
-          </>
-        )}
-
-        {cacheRead > 0 && (
-          <>
-            <span className="font-medium">; Cached Input Tokens:</span>
-            <span className="">
-              <NumberFlow value={cacheRead} />
-            </span>
+            <span>)</span>
           </>
         )}
       </div>

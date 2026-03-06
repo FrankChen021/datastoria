@@ -62,7 +62,7 @@ export function ChatTokenStatus({ usage }: ChatTokenStatusProps) {
               </span>
             </div>
             {(usage.outputTokenDetails?.reasoningTokens ?? 0) > 0 && (
-              <div className="flex justify-between">
+              <div className="flex justify-between pl-3">
                 <span>Reasoning Tokens:</span>
                 <span className="font-medium text-foreground">
                   <NumberFlow value={usage.outputTokenDetails?.reasoningTokens ?? 0} />
