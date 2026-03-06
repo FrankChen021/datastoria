@@ -18,7 +18,9 @@ interface ChatMessageListProps {
 const AUTO_SCROLL_THRESHOLD_PX = 16;
 
 function isNearBottom(element: HTMLDivElement) {
-  return element.scrollHeight - element.scrollTop - element.clientHeight <= AUTO_SCROLL_THRESHOLD_PX;
+  return (
+    element.scrollHeight - element.scrollTop - element.clientHeight <= AUTO_SCROLL_THRESHOLD_PX
+  );
 }
 
 export const ChatMessageList = React.memo(
