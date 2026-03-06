@@ -120,6 +120,25 @@ function isDashboardGroup(item: unknown): item is DashboardGroup {
   );
 }
 
+export function requiresLegacySectionLayoutInvalidation(
+  charts: (PanelDescriptor | DashboardGroup)[]
+): boolean {
+  let hasUngroupedPanels = false;
+
+  for (const item of charts) {
+    if (isDashboardGroup(item)) {
+      if (hasUngroupedPanels) {
+        return true;
+      }
+      continue;
+    }
+
+    hasUngroupedPanels = true;
+  }
+
+  return false;
+}
+
 // Helper function to flatten all charts (including charts in groups)
 function getAllCharts(charts: (PanelDescriptor | DashboardGroup)[]): PanelDescriptor[] {
   const allCharts: PanelDescriptor[] = [];
@@ -428,9 +447,17 @@ const DashboardPanelContainer = forwardRef<
       return getAutoDashboardId(dashboard);
     }, [dashboardId, dashboard]);
 
+    const shouldInvalidateLegacySectionLayouts = useMemo(
+      () => requiresLegacySectionLayoutInvalidation(panels),
+      [panels]
+    );
+
     useEffect(() => {
+      if (!shouldInvalidateLegacySectionLayouts) {
+        return;
+      }
       invalidateLegacySectionLayoutKeys(effectiveDashboardId);
-    }, [effectiveDashboardId]);
+    }, [effectiveDashboardId, shouldInvalidateLegacySectionLayouts]);
 
     return (
       <DashboardRefreshContext.Provider value={contextValue}>
