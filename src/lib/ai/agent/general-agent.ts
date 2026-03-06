@@ -1,4 +1,4 @@
-import { streamText } from "ai";
+import { streamText, type ModelMessage } from "ai";
 import { LanguageModelProviderFactory } from "../llm/llm-provider-factory";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "../tools/server/server-tool-names";
@@ -17,7 +17,7 @@ export async function createGeneralAgent({
   modelConfig,
   context,
 }: {
-  messages: any[];
+  messages: ModelMessage[];
   modelConfig: InputModel;
   context?: ServerDatabaseContext;
 }) {
@@ -37,7 +37,7 @@ Capabilities:
 2. Explain ClickHouse concepts (MergeTree, Materialized Views, etc.) in the abstract.
 3. Discover table schemas using 'get_tables' with filters and 'explore_schema'.
 4. Perform Data Retrieval and analyze table state/metadata.
-5. Find expensive or top-consuming queries using 'find_expensive_queries'.
+5. Search and rank query_log entries using 'search_query_log'.
 6. Handle greetings and general conversation.
 
 **Schema Discovery Workflow (REQUIRED)**:
@@ -75,9 +75,13 @@ e) **Final Answer**: Present the results to the user in a clear markdown format.
 
 **Performance Analysis Workflow**:
 If the user asks for "top queries", "slowest queries", or "most expensive queries" (by CPU, memory, etc.):
-a) Use 'find_expensive_queries' with the specified metric (cpu, memory, disk, duration) and time window.
+a) Prefer 'search_query_log' with mode='patterns', the requested metric, time window/range, and any explicit user filters.
 b) Default to 'time_window=60' (1 hour) if not specified, but respect user input (e.g. "past 3 hours" -> time_window=180).
 c) Present the results clearly in a table or list.
+
+If the user asks for a chart, trend, time series, or grouping like "by hour/day/week" from system.query_log:
+a) Do NOT use 'search_query_log'.
+b) Load the appropriate skills and generate SQL for the visualization flow instead.
 
 Guidelines:
 - Extract keywords from user queries to build name_pattern filters
@@ -102,7 +106,7 @@ Guidelines:
       [SERVER_TOOL_NAMES.GENERATE_SQL]: createGenerateSqlTool(modelConfig, context),
       validate_sql: clientTools.validate_sql,
       execute_sql: clientTools.execute_sql,
-      find_expensive_queries: clientTools.find_expensive_queries,
+      search_query_log: clientTools.search_query_log,
     },
   });
 }

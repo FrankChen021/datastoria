@@ -14,6 +14,7 @@ metadata:
   - **Action**: Check if `sql-expert` skill is loaded.
     - If **NOT loaded**: Call the `skill` tool with `['sql-expert']` IMMEDIATELY. Do not proceed to generate SQL until the skill is loaded.
     - If **ALREADY loaded**: Generate the SQL strictly following the rules in the `sql-expert` skill (including Schema Discovery, Schema Fidelity, ProfileEvents handling, and Performance Optimization).
+- **For `system.query_log` visualization requests**: Do NOT call `search_query_log`. Load the `clickhouse-system-queries` skill, then load `references/system-query-log.md` via `skill_resource`, generate the SQL, and validate it.
 
 **b) VALIDATION (MANDATORY):**
 - **ALWAYS call `validate_sql` with the SQL before including the chart spec in your response.**

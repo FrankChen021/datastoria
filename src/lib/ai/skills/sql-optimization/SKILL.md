@@ -22,7 +22,9 @@ Workflow is evidence-driven: collect evidence with tools, then recommend based o
 
 ## Discovery
 
-- When candidates need to be found from `system.query_log` (slowest, most expensive, user-scoped, etc.), load the `clickhouse-system-queries` skill and follow its reference for `system.query_log`. Do NOT write ad-hoc SQL against `system.query_log` from this skill.
+- Prefer `search_query_log` for discovery from `system.query_log` (slowest, most expensive, user-scoped, database-scoped, text-scoped, etc.).
+- If `search_query_log` cannot express the request, then load the `clickhouse-system-queries` skill, immediately call `skill_resource` for `references/system-query-log.md`, and follow that reference strictly.
+- Do NOT write ad-hoc SQL against `system.query_log` from this skill when `search_query_log` can satisfy the request.
 - Extract `query_id` from the discovery results for the next step (evidence collection).
 
 ## Time Filtering
@@ -31,9 +33,16 @@ Workflow is evidence-driven: collect evidence with tools, then recommend based o
 - `time_range`: Absolute range `{ from: "ISO date", to: "ISO date" }`.
 - When calling `collect_sql_optimization_evidence` after discovery, you MUST pass the same time_window or time_range used in discovery.
 
+## Mode Selection
+
+- Default `collect_sql_optimization_evidence` to light mode for the first pass.
+- Prefer omitting the `mode` argument entirely unless full detail is required.
+- Use `mode: "full"` only when the user explicitly asks for detailed/raw evidence or the light pass is insufficient.
+- Do not choose `full` just because the request says "optimize", "analyze", or "investigate".
+
 ## Workflow
 
-1. **Discovery (if needed)**: Load `clickhouse-system-queries` skill and use its `system.query_log` reference to find candidates. Extract `query_id` from the results.
+1. **Discovery (if needed)**: Prefer `search_query_log` to find candidates. If the request exceeds the tool's schema, then load `clickhouse-system-queries`, load `references/system-query-log.md` via `skill_resource`, and use that reference. Extract `query_id` from the results.
 2. **Collect Evidence**: Call `collect_sql_optimization_evidence` with query_id (preferred) or sql (and same time params if coming from discovery).
 3. **Analyze**: Review evidence for optimization opportunities.
 4. **Recommendations**: Rank by Impact/Risk/Effort. Prefer low-risk query rewrites first.
@@ -42,6 +51,7 @@ Workflow is evidence-driven: collect evidence with tools, then recommend based o
 ## Table Schema Evidence
 
 - Use table_schema fields: columns, engine, partition_key, primary_key, sorting_key, secondary_indexes.
+- When `optimization_target` is present, treat it as the real local-table schema behind a `Distributed` table and base key/index recommendations on it.
 - Suggest secondary indexes only when evidence shows frequent WHERE filters on selective columns and the index type fits the predicate.
   - Use `minmax` for range predicates on sorted columns.
   - Use `set` for low-cardinality equality filters.

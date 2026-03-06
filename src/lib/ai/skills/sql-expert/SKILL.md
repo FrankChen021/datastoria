@@ -16,7 +16,7 @@ metadata:
 - **Missing Columns**: If you don't see the expected column, retry `explore_schema` with a narrower `columns` list based on the user-mentioned identifier or the closest confirmed column names.
 - **Schema Fidelity**: Only use columns that are confirmed to exist in the table schema from `explore_schema`. Do not assume standard columns exist if they are not in the tool output.
 - **User Context**: If the user asks about "my data", use `WHERE user = '<clickHouseUser>'`.
-- **System Tables**: For queries on `system.*` tables (e.g., `system.query_log`, `system.parts`, `system.merges`), defer to the `clickhouse-system-queries` skill - it contains table-specific patterns, predicates, and resource metrics that this skill does not cover.
+- **System Tables**: For queries on `system.*` tables (e.g., `system.query_log`, `system.parts`, `system.merges`), defer to the `clickhouse-system-queries` skill - it contains table-specific patterns, predicates, and resource metrics that this skill does not cover. For `system.query_log`, do not generate SQL until `references/system-query-log.md` has been loaded via `skill_resource`, and do not call `search_query_log` for chart/time-series requests.
 
 # 2. Syntax Rules (The Grammar)
 - **Tables**: ALWAYS use fully qualified names (e.g., `database.table`).

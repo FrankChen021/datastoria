@@ -158,10 +158,8 @@ const ChatMessagePart = memo(
       return <MessageToolGetTables part={part} isRunning={isRunning} />;
     } else if (toolName === CLIENT_TOOL_NAMES.COLLECT_SQL_OPTIMIZATION_EVIDENCE) {
       return <MessageToolCollectSqlOptimizationEvidence part={part} isRunning={isRunning} />;
-    } else if (toolName === CLIENT_TOOL_NAMES.FIND_EXPENSIVE_QUERIES) {
-      return (
-        <MessageToolGeneral toolName={"Find Expensive Queries"} part={part} isRunning={isRunning} />
-      );
+    } else if (toolName === CLIENT_TOOL_NAMES.SEARCH_QUERY_LOG) {
+      return <MessageToolGeneral toolName={"Search Query Log"} part={part} isRunning={isRunning} />;
     } else if (toolName === CLIENT_TOOL_NAMES.COLLECT_CLUSTER_STATUS) {
       return (
         <MessageToolGeneral toolName={"Collect Cluster Status"} part={part} isRunning={isRunning} />
