@@ -249,7 +249,7 @@ SELECT
 FROM {clusterAllReplicas:system.query_log}
 WHERE initial_query_id = '{initialQueryId}'
 AND event_date >= toDate({from:String}) 
-AND event_date >= toDate({to:String})
+AND event_date <= toDate({to:String})
 AND event_time >= {from:String} 
 AND event_time < {to:String}
 AND type <> 'QueryStart'
