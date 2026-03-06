@@ -9,6 +9,7 @@ import {
   clearSectionLayout,
   loadDashboardLayout,
   loadSectionLayout,
+  invalidateLegacySectionLayoutKeys,
   saveDashboardLayout,
   saveSectionLayout,
   STORAGE_KEY_PREFIX,
@@ -173,6 +174,30 @@ describe("dashboard-layout-storage", () => {
         expect(loadSectionLayout("my-dash", 2)).toBeNull();
         // Other dashboard should not be affected
         expect(loadSectionLayout("other-dash", 0)).toEqual(sampleLayouts);
+      });
+    });
+
+    describe("invalidateLegacySectionLayoutKeys", () => {
+      it("clears existing section layouts once and records migration", () => {
+        saveSectionLayout("legacy-dash", 0, sampleLayouts);
+        saveSectionLayout("legacy-dash", 1, sampleLayouts);
+
+        invalidateLegacySectionLayoutKeys("legacy-dash");
+
+        expect(loadSectionLayout("legacy-dash", 0)).toBeNull();
+        expect(loadSectionLayout("legacy-dash", 1)).toBeNull();
+        expect(
+          localStorage.getItem(`${STORAGE_KEY_PREFIX}section-order-migrated:legacy-dash`)
+        ).toBe("1");
+      });
+
+      it("does not clear section layouts after migration is marked complete", () => {
+        localStorage.setItem(`${STORAGE_KEY_PREFIX}section-order-migrated:legacy-dash`, "1");
+        saveSectionLayout("legacy-dash", 0, sampleLayouts);
+
+        invalidateLegacySectionLayoutKeys("legacy-dash");
+
+        expect(loadSectionLayout("legacy-dash", 0)).toEqual(sampleLayouts);
       });
     });
   });

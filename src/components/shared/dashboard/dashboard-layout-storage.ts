@@ -2,6 +2,7 @@ import type { ResponsiveLayouts } from "react-grid-layout";
 
 export const STORAGE_KEY_PREFIX = "dashboard-layout:";
 const CURRENT_VERSION = 1;
+const SECTION_ORDER_MIGRATION_KEY_PREFIX = `${STORAGE_KEY_PREFIX}section-order-migrated:`;
 
 export interface SavedLayout {
   version: number;
@@ -78,6 +79,21 @@ export function clearAllSectionLayouts(dashboardId: string): void {
   }
 
   keysToRemove.forEach((key) => localStorage.removeItem(key));
+}
+
+/**
+ * Invalidates legacy section-index keys for dashboards whose section ordering changed.
+ *
+ * This migration is idempotent and only runs once per dashboard.
+ */
+export function invalidateLegacySectionLayoutKeys(dashboardId: string): void {
+  const migrationKey = `${SECTION_ORDER_MIGRATION_KEY_PREFIX}${dashboardId}`;
+  if (localStorage.getItem(migrationKey) === "1") {
+    return;
+  }
+
+  clearAllSectionLayouts(dashboardId);
+  localStorage.setItem(migrationKey, "1");
 }
 
 // Legacy functions for backwards compatibility (single-grid dashboards)

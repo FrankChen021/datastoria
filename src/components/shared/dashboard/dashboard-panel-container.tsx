@@ -14,6 +14,7 @@ import React, {
 } from "react";
 import type { Dashboard, DashboardGroup, PanelDescriptor } from "./dashboard-model";
 import { DashboardSection } from "./dashboard-section";
+import { invalidateLegacySectionLayoutKeys } from "./dashboard-layout-storage";
 import type {
   DashboardVisualizationComponent,
   RefreshOptions,
@@ -426,6 +427,10 @@ const DashboardPanelContainer = forwardRef<
       }
       return getAutoDashboardId(dashboard);
     }, [dashboardId, dashboard]);
+
+    useEffect(() => {
+      invalidateLegacySectionLayoutKeys(effectiveDashboardId);
+    }, [effectiveDashboardId]);
 
     return (
       <DashboardRefreshContext.Provider value={contextValue}>
