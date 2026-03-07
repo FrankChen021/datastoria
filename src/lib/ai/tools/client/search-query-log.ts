@@ -139,13 +139,23 @@ const METRIC_CONFIG: Record<SearchQueryLogMetric, MetricConfig> = {
 const queryLogColumnsCache = new WeakMap<Connection, Set<string>>();
 const queryLogColumnsPromiseCache = new WeakMap<Connection, Promise<Set<string>>>();
 
+function isDateOnly(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
 function toTimeFilter(
   time_window?: number,
   time_range?: { from: string; to: string }
 ): TimeFilterInfo {
   if (time_range?.from && time_range?.to) {
+    const fromExpr = `toDateTime('${time_range.from}')`;
+    const toExpr = isDateOnly(time_range.to)
+      ? `toDateTime('${time_range.to}') + INTERVAL 1 DAY`
+      : `toDateTime('${time_range.to}')`;
+    const toOperator = isDateOnly(time_range.to) ? "<" : "<=";
+
     return {
-      filter: `event_date >= toDate('${time_range.from}') AND event_date <= toDate('${time_range.to}') AND event_time >= toDateTime('${time_range.from}') AND event_time <= toDateTime('${time_range.to}')`,
+      filter: `event_date >= toDate('${time_range.from}') AND event_date <= toDate('${time_range.to}') AND event_time >= ${fromExpr} AND event_time ${toOperator} ${toExpr}`,
       range: time_range,
     };
   }

@@ -97,6 +97,19 @@ describe("search_query_log helpers", () => {
     expect(result.sql).toContain("ORDER BY event_time DESC");
   });
 
+  it("treats date-only time_range.to as an inclusive day bound", () => {
+    const result = buildSearchQueryLogSql(
+      {
+        mode: "patterns",
+        time_range: { from: "2025-01-01", to: "2025-01-01" },
+      },
+      new Set(["query_duration_ms"])
+    );
+
+    expect(result.sql).toContain("event_time >= toDateTime('2025-01-01')");
+    expect(result.sql).toContain("event_time < toDateTime('2025-01-01') + INTERVAL 1 DAY");
+  });
+
   it("caches query_log columns inside the tool", async () => {
     const query = vi.fn((sql: string) => {
       if (sql.includes("FROM system.columns")) {
