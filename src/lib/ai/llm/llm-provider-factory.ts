@@ -7,6 +7,11 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createGitHubCopilotOpenAICompatible } from "@opeoginni/github-copilot-openai-compatible";
 import type { LanguageModel } from "ai";
+import {
+  PRIVATE_CREATORS,
+  PRIVATE_MODELS,
+  PRIVATE_PROVIDER_CONFIGS,
+} from "./llm-provider-factory-private";
 import { mockModel } from "./models.mock";
 import { PROVIDER_GITHUB_COPILOT, PROVIDER_NEBIUS } from "./provider-ids";
 
@@ -34,6 +39,7 @@ export interface ModelProps {
  * Value: creator function that takes modelId and apiKey and returns a LanguageModel
  */
 export const CREATORS: Record<string, ModelCreator> = {
+  ...PRIVATE_CREATORS,
   OpenAI: (modelId, apiKey) =>
     createOpenAI({
       apiKey,
@@ -83,6 +89,7 @@ export const CREATORS: Record<string, ModelCreator> = {
  * Each model includes provider, modelId, and metadata (free, autoSelectable)
  */
 export const MODELS: ModelProps[] = [
+  ...PRIVATE_MODELS,
   // OpenAI models
   // https://platform.openai.com/chat/edit
   {
@@ -344,6 +351,7 @@ export class LanguageModelProviderFactory {
   static autoSelectModel(): { provider: string; modelId: string; apiKey: string } {
     // Priority order: OpenAI > Google > Anthropic > OpenRouter > Groq > Cerebras > Nebius
     const providerConfigs = [
+      ...PRIVATE_PROVIDER_CONFIGS,
       { provider: "OpenAI", apiKey: process.env.OPENAI_API_KEY },
       { provider: "Google", apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY },
       { provider: "Anthropic", apiKey: process.env.ANTHROPIC_API_KEY },

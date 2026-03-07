@@ -27,6 +27,7 @@ Primary areas:
 - Always work on a git worktree for any fix/features
 - Before editing, inspect nearby files to match the local style, naming, and data flow.
 - When behavior changes, update or add tests where practical instead of relying on explanation alone.
+- After code changes, run `npm run format`.
 - After code changes, run the narrowest relevant validation first, then broaden only if needed.
 - Mention any validation you could not run and any assumptions that remain unverified.
 
@@ -72,6 +73,7 @@ Prefer targeted checks when possible, but do not invent alternate toolchains if 
 
 ## Testing Guidance
 
+- After code changes, run `npm run format`.
 - Minimum preferred validation for TypeScript code changes: `npm run typecheck`.
 - For lint-sensitive edits, run `npm run lint`.
 - For behavior changes with test coverage, run `npm run test` or the narrowest Vitest target available.
@@ -98,6 +100,7 @@ Before finishing, verify:
 - Before listing changed files, run `git fetch origin master`.
 - PR creation is blocked until the agent shows `Changed files vs origin/master` for each branch.
 - The agent must receive explicit user approval after showing those file lists before running any `gh pr create` command.
+- Before pushing a branch from a worktree, run `npm run build`.
 - Before pushing a branch, run `git fetch origin master`.
 - Push is blocked until the agent shows `Changed files vs origin/master` for each branch being pushed.
 - The agent must receive explicit user approval after showing those file lists before running any `git push` command.

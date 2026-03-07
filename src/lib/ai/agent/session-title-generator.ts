@@ -3,6 +3,7 @@ import type { InputModel } from "@/lib/ai/agent/plan/sub-agent-registry";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import { generateText, Output, type LanguageModelUsage, type UIMessage } from "ai";
 import { z } from "zod";
+import { PrivateSessionTitleGenerator } from "./session-title-generator-private";
 
 export type SessionTitleGenerationResponse = {
   title?: string;
@@ -22,7 +23,7 @@ export class SessionTitleGenerator {
       case "Google":
         return { ...modelConfig, modelId: "gemini-2.5-flash" };
       default:
-        return modelConfig;
+        return PrivateSessionTitleGenerator.resolveModel(modelConfig);
     }
   }
 
