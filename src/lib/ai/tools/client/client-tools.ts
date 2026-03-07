@@ -259,7 +259,7 @@ export const ClientTools = {
     outputSchema: z.object({
       success: z.boolean(),
       mode: z.enum(["patterns", "executions"]),
-      metric: z.string().optional(),
+      metric: z.enum(["cpu", "memory", "disk", "duration", "read_rows", "read_bytes"]).optional(),
       metric_aggregation: z.enum(["sum", "avg", "max"]).optional(),
       time_window: z.number().optional(),
       time_range: z
