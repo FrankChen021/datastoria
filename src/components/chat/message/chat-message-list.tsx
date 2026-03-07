@@ -15,9 +15,21 @@ interface ChatMessageListProps {
   error: Error | null;
 }
 
+const AUTO_SCROLL_THRESHOLD_PX = 16;
+
+function isNearBottom(element: HTMLDivElement) {
+  return (
+    element.scrollHeight - element.scrollTop - element.clientHeight <= AUTO_SCROLL_THRESHOLD_PX
+  );
+}
+
 export const ChatMessageList = React.memo(
   ({ messages, isRunning, error }: ChatMessageListProps) => {
-    const prevMessagesLengthRef = React.useRef(messages.length);
+    const prevLastMessageKeyRef = React.useRef(
+      messages.length > 0 ? `${messages.length}:${messages[messages.length - 1].id}` : undefined
+    );
+    const shouldAutoScrollRef = React.useRef(true);
+    const lastScrollTopRef = React.useRef(0);
     const scrollContainerRef = React.useRef<HTMLDivElement>(null);
     const scrollPlaceholderRef = React.useRef<HTMLDivElement>(null);
 
@@ -32,38 +44,56 @@ export const ChatMessageList = React.memo(
             // Fallback to direct scroll if placeholder not available
             scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
           }
+
+          if (scrollContainerRef.current) {
+            lastScrollTopRef.current = scrollContainerRef.current.scrollTop;
+          }
         });
       });
     }, 20);
 
-    // Auto scroll when messages, isRunning state, or error change
+    const handleScroll = React.useCallback(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      const currentScrollTop = container.scrollTop;
+      const scrollingUp = currentScrollTop < lastScrollTopRef.current;
+      lastScrollTopRef.current = currentScrollTop;
+
+      if (!isRunning || !shouldAutoScrollRef.current) return;
+
+      if (scrollingUp && !isNearBottom(container)) {
+        shouldAutoScrollRef.current = false;
+      }
+    }, [isRunning]);
+
+    // Auto scroll when messages, streaming state, or error change
     React.useEffect(() => {
       if (messages.length === 0) return;
       const container = scrollContainerRef.current;
       if (!container) return;
 
-      const messagesLengthChanged = messages.length !== prevMessagesLengthRef.current;
-      prevMessagesLengthRef.current = messages.length;
+      lastScrollTopRef.current = container.scrollTop;
 
-      if (messagesLengthChanged) {
-        // When a new message comes(user request or received response), always scroll down
-      } else {
-        // Check if user is at bottom (within 100px threshold)
-        const { scrollTop, scrollHeight, clientHeight } = container;
-        const isAtBottom = scrollHeight - scrollTop - clientHeight <= 100;
-        if (!isAtBottom) {
-          return;
-        }
+      const lastMessageKey = `${messages.length}:${messages[messages.length - 1].id}`;
+      const isNewMessage = lastMessageKey !== prevLastMessageKeyRef.current;
+      prevLastMessageKeyRef.current = lastMessageKey;
+
+      if (isNewMessage) {
+        shouldAutoScrollRef.current = true;
       }
 
+      if (!shouldAutoScrollRef.current) return;
+
       scrollToBottom();
-    }, [messages, isRunning, scrollToBottom]);
+    }, [messages, isRunning, error, scrollToBottom]);
 
     return (
       <div
         ref={scrollContainerRef}
         className="h-full w-full overflow-auto"
         style={{ scrollBehavior: "smooth" }}
+        onScroll={handleScroll}
       >
         <div className="flex flex-col">
           {messages.map((message, index) => (
