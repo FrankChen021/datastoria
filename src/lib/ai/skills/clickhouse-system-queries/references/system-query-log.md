@@ -2,6 +2,8 @@
 
 Use only for `system.query_log` analysis: slow/failed queries, heavy patterns, and user/database workload.
 
+Do not use `search_query_log` when the user needs SQL for visualization or time-bucketed aggregation such as counts by hour/day/week, trends over time, or histogram-style grouping. In those cases, write SQL from this reference directly and then validate it.
+
 ## Required Rules
 
 - Source must be:

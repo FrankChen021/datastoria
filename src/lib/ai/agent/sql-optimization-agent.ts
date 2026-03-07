@@ -1,4 +1,4 @@
-import { streamText } from "ai";
+import { streamText, type ModelMessage } from "ai";
 import { LanguageModelProviderFactory } from "../llm/llm-provider-factory";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
 import type { ServerDatabaseContext } from "./common-types";
@@ -12,9 +12,9 @@ import type { InputModel } from "./plan/sub-agent-registry";
 export async function streamSqlOptimization({
   messages,
   modelConfig,
-  context,
+  context: _context,
 }: {
-  messages: any[];
+  messages: ModelMessage[];
   modelConfig: InputModel;
   context?: ServerDatabaseContext;
 }) {
@@ -55,13 +55,17 @@ Keyword to metric mapping:
 - slow, duration, time, latency, longest → metric: "duration"
 - disk, I/O, read bytes, storage → metric: "disk"
 
-**DISCOVERY LIMITATIONS**:
-The 'find_expensive_queries' tool ONLY supports: cpu, memory, disk, duration metrics.
-It CANNOT filter by: user, database, table name, query pattern, or other custom criteria.
-If user requests unsupported filters → Explain the limitation and ask them to provide a query_id directly or use supported metrics.
+**DISCOVERY TOOLING**:
+Prefer 'search_query_log' for discovery. It supports:
+- ranking modes: patterns or individual executions
+- metrics: cpu, memory, disk, duration, read_rows, read_bytes
+- validated predicates for user, database, table, query text, errors, and core resource columns
+
+**SYSTEM.QUERY_LOG REFERENCE REQUIREMENT**:
+If discovery or analysis requires direct SQL against \`system.query_log\`, you MUST first load the \`clickhouse-system-queries\` skill and then load \`references/system-query-log.md\` via \`skill_resource\`. Do not write ad-hoc \`system.query_log\` SQL before that reference is in context.
 
 **TIME FILTERING**:
-Both 'find_expensive_queries' and 'collect_sql_optimization_evidence' support two time parameters:
+Both 'search_query_log' and 'collect_sql_optimization_evidence' support two time parameters:
 - 'time_window': Relative time in minutes from now (e.g., 60 = last 60 minutes)
 - 'time_range': Absolute date range with 'from' and 'to' in ISO 8601 format (e.g., { from: "2025-01-01", to: "2025-02-01" })
 
@@ -70,12 +74,19 @@ Use 'time_range' for: "between 2025-01-01 and 2025-02-01", "on January 15th", "f
 
 If both provided, 'time_range' takes precedence. Default: 60 minutes.
 
+**MODE SELECTION**:
+For collect_sql_optimization_evidence, default to mode="light" for the initial pass.
+- In most optimization requests, omit the mode argument entirely and let it default to light.
+- Use mode="full" only when the user explicitly asks for detailed/raw evidence, or when a light pass is insufficient and you need full ProfileEvents, settings, or raw pipeline/index text.
+- Do NOT use mode="full" just because the request says "optimize" or "analyze".
+
 **WORKFLOW**:
-1. **Discovery (if needed)**: Use 'find_expensive_queries' tool, then proceed with top result(s)
+1. **Discovery (if needed)**: Use 'search_query_log' tool, then proceed with top result(s)
 2. **Collect Evidence**: Use 'collect_sql_optimization_evidence' tool to gather:
-   - Query execution metrics (query_log)
-   - Execution plans (EXPLAIN)
-   - Table schemas and statistics (includes primary_key, sorting_key, partition_key, secondary_indexes)
+   - Query execution metrics (query_log core metrics plus resource_summary; full ProfileEvents only in full mode)
+   - Index/pruning analysis from EXPLAIN
+   - Execution pipeline summary when the query shape warrants it
+   - Table schemas and statistics (includes primary_key, sorting_key, partition_key, secondary_indexes, and local optimization targets for Distributed tables)
    - Relevant settings
 3. **Analyze Evidence**: Review collected data for optimization opportunities
 4. **Provide Recommendations**: Output ranked recommendations based on evidence
@@ -89,6 +100,7 @@ The 'table_schema' field contains for each table:
 - primary_key: Primary key columns
 - sorting_key: ORDER BY columns
 - secondary_indexes: Array of INDEX definitions (e.g., "INDEX idx_user user_id TYPE bloom_filter GRANULARITY 1")
+- optimization_target: Present for Distributed tables; use this local table schema for index/key analysis
 
 Use secondary_indexes to:
 - Check if existing indexes could help the query but aren't being used
@@ -96,7 +108,7 @@ Use secondary_indexes to:
 
 **RULES**:
 1) **FIRST**: Check input scenario. Discovery request OR specific target (SQL/query_id) must exist.
-2) For discovery: only cpu/memory/disk/duration metrics supported. Other filters → ask for query_id.
+2) For discovery, prefer 'search_query_log' with validated predicates instead of generating system.query_log SQL.
 3) After discovery, analyze TOP 1 query unless user specifies otherwise.
 4) Do NOT make recommendations based on assumptions. If evidence is missing, collect it using tools.
 5) Base recommendations ONLY on evidence; DO NOT infer goal from SQL or assume table structures.
@@ -107,9 +119,10 @@ Use secondary_indexes to:
 10) **CRITICAL - No Evidence Handling**: If tools return NO meaningful evidence, output ONLY a brief 3-5 sentence message explaining what's missing.
 
 **TOOL USAGE**:
-- Use 'find_expensive_queries' when user asks to find heavy queries by metric (cpu/memory/disk/duration)
+- Use 'search_query_log' when user asks to find or filter query_log entries, including "top expensive queries" requests
 - Use 'collect_sql_optimization_evidence' when you have a specific query_id or SQL text
-  - **CRITICAL**: When calling after 'find_expensive_queries', you MUST pass the same time parameters:
+  - Default to light mode; omit mode unless full detail is actually required
+  - **CRITICAL**: When calling after discovery, you MUST pass the same time parameters:
     - If discovery used time_window=180, you MUST include time_window=180
     - If discovery used time_range={ from: "2025-01-01", to: "2025-02-01" }, you MUST include the same time_range
   - Failing to pass time parameters will cause slow or failed query_log lookups
@@ -170,8 +183,8 @@ Example:
     messages: [{ role: "system", content: systemPrompt }, ...messages],
     tools: {
       collect_sql_optimization_evidence: clientTools.collect_sql_optimization_evidence,
+      search_query_log: clientTools.search_query_log,
       validate_sql: clientTools.validate_sql,
-      find_expensive_queries: clientTools.find_expensive_queries,
     },
     temperature,
   });

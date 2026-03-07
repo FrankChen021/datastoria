@@ -35,10 +35,13 @@ Relationship to `sql-expert`:
    - If no prior explicit time context exists, default to the last 60 minutes.
 
 2. Load the matching reference and follow it strictly.
-   - `system.query_log` -> `references/system-query-log.md`
+   - For `system.query_log`, you MUST call `skill_resource` to load `references/system-query-log.md` before writing, validating, or executing any SQL against `system.query_log`.
    - For unsupported system tables, use `sql-expert` for safe fallback SQL generation.
 
 3. Execute with `execute_sql`.
+   - For `system.query_log`, use `search_query_log` only for standard ranked searches and filtered lookups that return raw executions or grouped patterns.
+   - If the user wants visualization, time-bucketed aggregation, trends, histograms, or SQL grouped by hour/day/week/month, do NOT use `search_query_log`; generate SQL from `references/system-query-log.md` instead.
+   - Use `execute_sql` only when the request cannot be expressed by `search_query_log`, or when the task explicitly needs SQL output for visualization/chart rendering.
    - Default to `LIMIT 50` unless the user specifies otherwise.
    - Keep predicates aligned with intent and table semantics.
 
@@ -48,4 +51,6 @@ Relationship to `sql-expert`:
 
 - Always apply time bounds for log-like system tables.
 - Always use the table-specific reference when available.
+- Never generate `system.query_log` SQL until `references/system-query-log.md` is loaded in the current turn.
+- Never use `search_query_log` for chart-oriented `system.query_log` requests.
 - Never omit `LIMIT` in exploratory queries.

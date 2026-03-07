@@ -14,8 +14,12 @@ import {
 } from "./collect-sql-optimization-evidence";
 import { executeSqlExecutor } from "./execute-sql";
 import { exploreSchemaExecutor } from "./explore-schema";
-import { findExpensiveQueriesExecutor } from "./find-expensive-queries";
 import { getTablesExecutor } from "./get-tables";
+import {
+  searchQueryLogExecutor,
+  type SearchQueryLogInput,
+  type SearchQueryLogOutput,
+} from "./search-query-log";
 import {
   getClusterStatusExecutor,
   type GetClusterStatusInput,
@@ -128,7 +132,7 @@ export const ClientTools = {
   }),
   collect_sql_optimization_evidence: tool({
     description:
-      "Gather optimization evidence (query logs, EXPLAIN plans, schemas, statistics) for a SQL query or query_id.",
+      "Gather optimization evidence (query logs, EXPLAIN plans, schemas, statistics) for a SQL query or query_id. Default to light mode unless raw ProfileEvents, extra settings, or full pipeline text are explicitly needed.",
     inputSchema: z.object({
       sql: z.string().optional().describe("SQL text to analyze (preferred if available)."),
       query_id: z.string().optional().describe("ClickHouse query_id to retrieve logs for."),
@@ -139,7 +143,9 @@ export const ClientTools = {
       mode: z
         .enum(["light", "full"])
         .default("light")
-        .describe("light: minimal safe evidence; full: includes more stats/settings."),
+        .describe(
+          "Default to light. Use full only when the user explicitly asks for detailed/raw evidence or the light pass is insufficient."
+        ),
       time_window: z
         .number()
         .min(5)
@@ -162,22 +168,33 @@ export const ClientTools = {
     }),
     outputSchema: z.custom<EvidenceContext>(),
   }),
-  // DEPRECATED: Keep for backward compatibility (v1 and historical prompts).
-  // Prefer execute_sql with direct system.query_log SQL for new query-log workflows.
-  find_expensive_queries: tool({
+  search_query_log: tool({
     description:
-      "DEPRECATED: use execute_sql with direct system.query_log SQL instead. Finds top queries by resource metric (cpu, memory, disk, duration), grouped by normalized_query_hash.",
+      "Search system.query_log with validated filters for ranked discovery, pattern lookup, and filtered execution search. Do NOT use this for visualization, time-bucketed aggregations, trends, or chart-oriented queries such as by hour/day/week; generate SQL for those instead.",
     inputSchema: z.object({
+      mode: z
+        .enum(["patterns", "executions"])
+        .default("patterns")
+        .describe(
+          "patterns: group by normalized_query_hash; executions: return individual query executions."
+        ),
       metric: z
-        .enum(["cpu", "memory", "disk", "duration"])
-        .describe("Sort by: cpu, memory, disk, or duration."),
-      limit: z.number().min(1).max(10).default(3).describe("Queries to return (1-10, default: 3)."),
+        .enum(["cpu", "memory", "disk", "duration", "read_rows", "read_bytes"])
+        .optional()
+        .describe(
+          "Optional ranking metric. If omitted, defaults to execution_count/event_time ordering."
+        ),
+      metric_aggregation: z
+        .enum(["sum", "avg", "max"])
+        .default("sum")
+        .describe("Aggregation used for metric_value in patterns mode."),
+      limit: z.number().min(1).max(100).default(10).describe("Rows or patterns to return."),
       time_window: z
         .number()
         .min(5)
-        .max(1440)
+        .max(10080)
         .optional()
-        .describe("Lookback in minutes (5-1440). Use this OR time_range, not both."),
+        .describe("Lookback in minutes. Use this OR time_range, not both."),
       time_range: z
         .object({
           from: z.string().describe("ISO 8601 start (e.g., '2025-01-01')."),
@@ -185,12 +202,65 @@ export const ClientTools = {
         })
         .optional()
         .describe("Absolute time range. Use this OR time_window, not both."),
-    }),
+      predicates: z
+        .array(
+          z.object({
+            field: z.enum([
+              "user",
+              "query_kind",
+              "query",
+              "query_id",
+              "normalized_query_hash",
+              "database",
+              "table",
+              "type",
+              "is_initial_query",
+              "has_error",
+              "exception",
+              "query_duration_ms",
+              "read_rows",
+              "read_bytes",
+              "memory_usage",
+              "result_rows",
+            ]),
+            op: z.enum([
+              "eq",
+              "neq",
+              "in",
+              "not_in",
+              "contains_ci",
+              "not_contains_ci",
+              "has",
+              "not_has",
+              "gt",
+              "gte",
+              "lt",
+              "lte",
+              "is_null",
+              "not_null",
+            ]),
+            value: z
+              .union([
+                z.string(),
+                z.number(),
+                z.boolean(),
+                z.array(z.string()),
+                z.array(z.number()),
+                z.array(z.boolean()),
+              ])
+              .optional(),
+          })
+        )
+        .optional()
+        .describe(
+          "Validated query_log predicates. Defaults still apply unless you override type/query_kind/is_initial_query."
+        ),
+    }) satisfies z.ZodType<SearchQueryLogInput>,
     outputSchema: z.object({
       success: z.boolean(),
-      message: z.string().optional(),
-      metric: z.string(),
-      metric_label: z.string(),
+      mode: z.enum(["patterns", "executions"]),
+      metric: z.string().optional(),
+      metric_aggregation: z.enum(["sum", "avg", "max"]).optional(),
       time_window: z.number().optional(),
       time_range: z
         .object({
@@ -198,23 +268,12 @@ export const ClientTools = {
           to: z.string(),
         })
         .optional(),
-      queries: z.array(
-        z.object({
-          rank: z.number(),
-          normalized_query_hash: z.string(),
-          query_id: z.string(),
-          user: z.string(),
-          sql_preview: z.string(),
-          metric_value: z.number(),
-          duration_ms: z.number(),
-          memory_bytes: z.number(),
-          read_rows: z.number(),
-          read_bytes: z.number(),
-          last_execution_time: z.string(),
-          execution_count: z.number(),
-        })
-      ),
-    }),
+      defaults_applied: z.array(z.string()),
+      filters_applied: z.array(z.string()),
+      rowCount: z.number(),
+      rows: z.array(z.record(z.string(), z.any())),
+      message: z.string().optional(),
+    }) satisfies z.ZodType<SearchQueryLogOutput>,
   }),
   collect_cluster_status: tool({
     description:
@@ -393,8 +452,7 @@ export const CLIENT_TOOL_NAMES = {
   EXECUTE_SQL: "execute_sql",
   VALIDATE_SQL: "validate_sql",
   COLLECT_SQL_OPTIMIZATION_EVIDENCE: "collect_sql_optimization_evidence",
-  // DEPRECATED: Keep for backward compatibility (v1 and historical tool-call messages).
-  FIND_EXPENSIVE_QUERIES: "find_expensive_queries",
+  SEARCH_QUERY_LOG: "search_query_log",
   COLLECT_CLUSTER_STATUS: "collect_cluster_status",
 } as const;
 
@@ -416,6 +474,6 @@ export const ClientToolExecutors: {
   execute_sql: executeSqlExecutor,
   validate_sql: validateSqlExecutor,
   collect_sql_optimization_evidence: collectSqlOptimizationEvidenceExecutor,
-  find_expensive_queries: findExpensiveQueriesExecutor,
+  search_query_log: searchQueryLogExecutor,
   collect_cluster_status: getClusterStatusExecutor,
 };

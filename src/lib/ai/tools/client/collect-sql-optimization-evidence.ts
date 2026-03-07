@@ -2,6 +2,70 @@ import { QueryError, type Connection } from "@/lib/connection/connection";
 import { SqlUtils } from "@/lib/sql-utils";
 import { escapeSqlString, type ToolExecutor, type ToolProgressCallback } from "./client-tool-types";
 
+type CollectMode = "light" | "full";
+
+type TableStatsEvidence = {
+  rows?: number;
+  bytes?: number;
+  parts?: number;
+  partitions?: number;
+};
+
+type TableStructureEvidence = {
+  columns: Array<[string, string]>;
+  engine?: string;
+  partition_key?: string | null;
+  primary_key?: string | null;
+  sorting_key?: string | null;
+  secondary_indexes?: string[];
+};
+
+type OptimizationTargetEvidence = TableStructureEvidence & {
+  database: string;
+  table: string;
+  cluster?: string;
+  stats?: TableStatsEvidence;
+};
+
+type QueryLogResourceSummary = Record<string, number>;
+
+type ExplainPruningMetric = {
+  selected: number;
+  total: number;
+  ratio: number;
+};
+
+type ExplainIndexDetail = {
+  name: string;
+  keys: string[];
+  index_name?: string;
+  description?: string;
+  condition?: string;
+  parts?: ExplainPruningMetric;
+  granules?: ExplainPruningMetric;
+  search_algorithm?: string;
+};
+
+type ExplainIndexEvidence = {
+  table?: string;
+  indexes: ExplainIndexDetail[];
+  summary: string[];
+  raw_text?: string;
+};
+
+type ExplainPipelineEvidence = {
+  max_parallelism?: number;
+  operators: string[];
+  summary: string[];
+  raw_text?: string;
+};
+
+type DistributedTableTarget = {
+  cluster?: string;
+  database: string;
+  table: string;
+};
+
 /**
  * Evidence payload structure returned by collect_sql_optimization_evidence tool.
  */
@@ -21,26 +85,13 @@ export interface EvidenceContext {
   tables?: Array<{ database: string; table: string; engine: string }>;
   table_schema?: Record<
     string,
-    {
-      columns: Array<[string, string]>;
-      engine?: string;
-      partition_key?: string | null;
-      primary_key?: string | null;
-      sorting_key?: string | null;
-      secondary_indexes?: string[];
+    TableStructureEvidence & {
+      optimization_target?: OptimizationTargetEvidence;
     }
   >;
-  table_stats?: Record<
-    string,
-    {
-      rows?: number;
-      bytes?: number;
-      parts?: number;
-      partitions?: number;
-    }
-  >;
-  explain_index?: string;
-  explain_pipeline?: string;
+  table_stats?: Record<string, TableStatsEvidence>;
+  explain_index?: ExplainIndexEvidence;
+  explain_pipeline?: ExplainPipelineEvidence;
   query_log?: {
     duration_ms?: number;
     read_rows?: number;
@@ -48,6 +99,7 @@ export interface EvidenceContext {
     memory_usage?: number;
     result_rows?: number;
     exception?: string | null;
+    resource_summary?: QueryLogResourceSummary;
     profile_events?: Record<string, number>;
   };
   settings?: Record<string, string | number>;
@@ -66,11 +118,11 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-type CollectSqlOptimizationEvidenceInput = {
+export type CollectSqlOptimizationEvidenceInput = {
   sql?: string;
   query_id?: string;
   goal?: "latency" | "memory" | "bytes" | "dashboard" | "other";
-  mode?: "light" | "full";
+  mode?: CollectMode;
   time_window?: number;
   time_range?: {
     from: string;
@@ -106,6 +158,21 @@ type TableStats = {
   partitions: number;
 };
 
+const IMPORTANT_PROFILE_EVENTS = new Set([
+  "OSCPUVirtualTimeMicroseconds",
+  "OSCPUWaitMicroseconds",
+  "OSReadBytes",
+  "OSWriteBytes",
+  "NetworkSendBytes",
+  "NetworkReceiveBytes",
+  "SelectedMarks",
+  "SelectedRows",
+  "MarkCacheHits",
+  "MarkCacheMisses",
+  "DiskReadElapsedMicroseconds",
+  "DiskWriteElapsedMicroseconds",
+]);
+
 /**
  * Extract INDEX expressions from CREATE TABLE query
  * @param createTableQuery - The CREATE TABLE query string
@@ -124,9 +191,6 @@ function extractSecondaryIndexes(createTableQuery: string | null): string[] {
     return [];
   }
 
-  // Match INDEX definitions in CREATE TABLE query
-  // Pattern: INDEX name expression TYPE type[(params)] [GRANULARITY n]
-  // The expression can be a column name, function call, or tuple like (col1, col2)
   const indexRegex = /INDEX \w+ .+? TYPE .+? GRANULARITY \d+/gi;
 
   const indexes: string[] = [];
@@ -136,6 +200,292 @@ function extractSecondaryIndexes(createTableQuery: string | null): string[] {
   }
 
   return indexes;
+}
+
+function buildTableKey(database: string, table: string): string {
+  return `${database}.${table}`;
+}
+
+function dedupeTableNames(tableNames: TableName[]): TableName[] {
+  const seen = new Set<string>();
+  return tableNames.filter(({ database, table }) => {
+    const key = buildTableKey(database, table);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function toStatsEvidence(stats?: TableStats): TableStatsEvidence | undefined {
+  if (!stats) {
+    return undefined;
+  }
+
+  return {
+    rows: stats.rows,
+    bytes: stats.bytes,
+    parts: stats.parts,
+    partitions: stats.partitions,
+  };
+}
+
+function tryParseMetric(value: string): ExplainPruningMetric | undefined {
+  const match = value.match(/(\d+)\s*\/\s*(\d+)/);
+  if (!match) {
+    return undefined;
+  }
+
+  const selected = Number(match[1]);
+  const total = Number(match[2]);
+  if (!Number.isFinite(selected) || !Number.isFinite(total) || total <= 0) {
+    return undefined;
+  }
+
+  return {
+    selected,
+    total,
+    ratio: selected / total,
+  };
+}
+
+function formatPercent(ratio: number): string {
+  return `${(ratio * 100).toFixed(ratio < 0.1 ? 1 : 0)}%`;
+}
+
+function formatPruningMetric(label: string, metric?: ExplainPruningMetric): string | undefined {
+  if (!metric) {
+    return undefined;
+  }
+
+  return `${label} ${metric.selected}/${metric.total} (${formatPercent(metric.ratio)} scanned)`;
+}
+
+export function buildQueryLogResourceSummary(
+  profileEvents?: Record<string, number>
+): QueryLogResourceSummary | undefined {
+  if (!profileEvents) {
+    return undefined;
+  }
+
+  const summary: QueryLogResourceSummary = {};
+  for (const eventName of IMPORTANT_PROFILE_EVENTS) {
+    const value = profileEvents[eventName];
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+      summary[eventName] = value;
+    }
+  }
+
+  return Object.keys(summary).length > 0 ? summary : undefined;
+}
+
+function shouldFlagSpill(profileEvents?: Record<string, number>): boolean {
+  if (!profileEvents) {
+    return false;
+  }
+
+  return Object.entries(profileEvents).some(([key, value]) => /external/i.test(key) && value > 0);
+}
+
+function stripWrappingQuotes(value: string): string {
+  return value.trim().replace(/^['"`]|['"`]$/g, "");
+}
+
+export function parseDistributedTableTarget(
+  createTableQuery: string | null
+): DistributedTableTarget | undefined {
+  if (!createTableQuery) {
+    return undefined;
+  }
+
+  const match = createTableQuery.match(
+    /Distributed\s*\(\s*(?:'([^']+)'|"([^"]+)"|([^,\s]+))\s*,\s*(?:'([^']+)'|"([^"]+)"|([^,\s]+))\s*,\s*(?:'([^']+)'|"([^"]+)"|([^,\s)]+))/i
+  );
+
+  if (!match) {
+    return undefined;
+  }
+
+  const cluster = stripWrappingQuotes(match[1] ?? match[2] ?? match[3] ?? "");
+  const database = stripWrappingQuotes(match[4] ?? match[5] ?? match[6] ?? "");
+  const table = stripWrappingQuotes(match[7] ?? match[8] ?? match[9] ?? "");
+
+  if (!database || !table) {
+    return undefined;
+  }
+
+  return {
+    cluster: cluster || undefined,
+    database,
+    table,
+  };
+}
+
+export function parseExplainIndexText(
+  explainText: string,
+  mode: CollectMode = "light"
+): ExplainIndexEvidence {
+  const lines = explainText
+    .split("\n")
+    .map((line) => line.replace(/\r$/, ""))
+    .filter((line) => line.trim().length > 0);
+
+  const table =
+    lines.map((line) => line.trim().match(/^ReadFromMergeTree\s+\((.+)\)$/)).find(Boolean)?.[1] ??
+    undefined;
+
+  const indexesStart = lines.findIndex((line) => line.trim() === "Indexes:");
+  if (indexesStart === -1) {
+    return {
+      table,
+      indexes: [],
+      summary: table ? [`Read from ${table}`] : ["No index pruning details were returned."],
+      raw_text: mode === "full" ? explainText : undefined,
+    };
+  }
+
+  const indexes: ExplainIndexDetail[] = [];
+  let currentIndex: ExplainIndexDetail | undefined;
+  let readingKeys = false;
+
+  for (const rawLine of lines.slice(indexesStart + 1)) {
+    const line = rawLine.trim();
+    if (!line) {
+      continue;
+    }
+
+    if (line === "Keys:") {
+      readingKeys = true;
+      continue;
+    }
+
+    const attributeMatch = line.match(
+      /^(Name|Description|Condition|Parts|Granules|Search Algorithm):\s*(.+)$/
+    );
+    if (attributeMatch && currentIndex) {
+      readingKeys = false;
+      const [, attribute, value] = attributeMatch;
+      if (attribute === "Name") {
+        currentIndex.index_name = value;
+      } else if (attribute === "Description") {
+        currentIndex.description = value;
+      } else if (attribute === "Condition") {
+        currentIndex.condition = value;
+      } else if (attribute === "Parts") {
+        currentIndex.parts = tryParseMetric(value);
+      } else if (attribute === "Granules") {
+        currentIndex.granules = tryParseMetric(value);
+      } else if (attribute === "Search Algorithm") {
+        currentIndex.search_algorithm = value;
+      }
+      continue;
+    }
+
+    if (readingKeys && currentIndex) {
+      currentIndex.keys.push(line);
+      continue;
+    }
+
+    if (/^[A-Za-z][A-Za-z0-9_]*$/.test(line)) {
+      readingKeys = false;
+      currentIndex = {
+        name: line,
+        keys: [],
+      };
+      indexes.push(currentIndex);
+      continue;
+    }
+  }
+
+  const summary = indexes.map((index) => {
+    const segments = [
+      index.description ? `description ${index.description}` : undefined,
+      index.keys.length > 0 ? `keys ${index.keys.join(", ")}` : undefined,
+      formatPruningMetric("parts", index.parts),
+      formatPruningMetric("granules", index.granules),
+      index.search_algorithm ? `algorithm ${index.search_algorithm}` : undefined,
+    ].filter(Boolean);
+
+    const label = index.index_name ? `${index.name} (${index.index_name})` : index.name;
+    return `${label}: ${segments.join("; ")}`;
+  });
+
+  if (table) {
+    summary.unshift(`Read from ${table}`);
+  }
+
+  return {
+    table,
+    indexes,
+    summary: summary.length > 0 ? summary : ["No index pruning details were returned."],
+    raw_text: mode === "full" ? explainText : undefined,
+  };
+}
+
+function normalizePipelineOperator(line: string): string {
+  return line
+    .trim()
+    .replace(/\s+[x×]\s+\d+.*$/i, "")
+    .replace(/\s+\d+\s+→\s+\d+.*$/u, "")
+    .trim();
+}
+
+export function shouldCollectExplainPipeline(sql: string, mode: CollectMode): boolean {
+  if (mode === "full") {
+    return true;
+  }
+
+  return /\b(JOIN|GROUP\s+BY|ORDER\s+BY|DISTINCT|UNION|FINAL|OVER)\b/i.test(sql);
+}
+
+export function parseExplainPipelineText(
+  explainText: string,
+  mode: CollectMode = "light"
+): ExplainPipelineEvidence {
+  const lines = explainText
+    .split("\n")
+    .map((line) => line.replace(/\r$/, "").trim())
+    .filter(Boolean);
+
+  let maxParallelism = 0;
+  const operators = Array.from(
+    new Set(
+      lines
+        .map(normalizePipelineOperator)
+        .filter((line) => line.length > 0 && !line.startsWith("("))
+    )
+  );
+
+  for (const line of lines) {
+    for (const match of line.matchAll(/[x×]\s*(\d+)/gi)) {
+      maxParallelism = Math.max(maxParallelism, Number(match[1]));
+    }
+  }
+
+  const summary: string[] = [];
+  if (maxParallelism > 0) {
+    summary.push(`Pipeline fan-out reaches ${maxParallelism} parallel streams.`);
+  }
+  if (operators.some((operator) => operator.includes("MergeTreeSelect"))) {
+    summary.push("Reads originate from MergeTree scan processors.");
+  }
+  if (operators.some((operator) => /MergingSorted|MergeSorting|PartialSorting/i.test(operator))) {
+    summary.push("Sorting stages are present in the execution pipeline.");
+  }
+  if (operators.some((operator) => /Aggregating|Aggregated/i.test(operator))) {
+    summary.push("Aggregation stages are present in the execution pipeline.");
+  }
+  if (operators.some((operator) => /Join/i.test(operator))) {
+    summary.push("Join stages are present in the execution pipeline.");
+  }
+
+  return {
+    max_parallelism: maxParallelism > 0 ? maxParallelism : undefined,
+    operators,
+    summary: summary.length > 0 ? summary : ["Pipeline shape was collected for reference."],
+    raw_text: mode === "full" ? explainText : undefined,
+  };
 }
 
 /**
@@ -165,6 +515,7 @@ async function collectQueryLog(
   context: EvidenceContext,
   connection: Connection,
   progressCallback?: ToolProgressCallback,
+  mode: CollectMode = "light",
   time_window?: number,
   time_range?: { from: string; to: string }
 ): Promise<{ score: number; sql?: string }> {
@@ -172,7 +523,6 @@ async function collectQueryLog(
   progressCallback?.(stageId, 10, "started");
   try {
     const isCluster = connection.cluster!.length > 0;
-    // Build time filter clause for faster query_log lookups
     const timeFilter = buildQueryLogTimeFilter(time_window, time_range);
     const { response } = connection.query(
       `
@@ -187,7 +537,7 @@ SELECT
   query,
   tables
 FROM ${isCluster ? `clusterAllReplicas("${connection.cluster}", system.query_log)` : "system.query_log"}
-WHERE 
+WHERE
 query_id = '${escapeSqlString(queryId)}'
 ${timeFilter}
 ORDER BY event_time DESC
@@ -202,12 +552,10 @@ SETTINGS max_execution_time = 0
     if (responseData?.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
       const row = responseData.data[0] as unknown[];
 
-      // Parse ProfileEvents (Map type from ClickHouse)
       let profileEvents: Record<string, number> | undefined;
       const profileEventsRaw = row[6];
       if (profileEventsRaw != null) {
         if (typeof profileEventsRaw === "object" && !Array.isArray(profileEventsRaw)) {
-          // If it's already an object, convert values to numbers
           profileEvents = {};
           for (const [key, value] of Object.entries(profileEventsRaw)) {
             const numValue = Number(value);
@@ -216,7 +564,6 @@ SETTINGS max_execution_time = 0
             }
           }
         } else if (Array.isArray(profileEventsRaw)) {
-          // If it's an array of [key, value] pairs
           profileEvents = {};
           for (const pair of profileEventsRaw) {
             if (Array.isArray(pair) && pair.length >= 2) {
@@ -230,11 +577,9 @@ SETTINGS max_execution_time = 0
         }
       }
 
-      // Extract SQL text from query_log (row[7]) and tables array (row[8])
       let sqlFromLog = row[7] ? String(row[7]) : undefined;
       const tables = row[8] as string[] | undefined;
 
-      // Qualify table names in SQL if tables array is available
       if (sqlFromLog && tables && tables.length > 0) {
         sqlFromLog = SqlUtils.qualifyTableNames(sqlFromLog, tables);
       }
@@ -246,21 +591,23 @@ SETTINGS max_execution_time = 0
         memory_usage: Number(row[3]) || undefined,
         result_rows: Number(row[4]) || undefined,
         exception: row[5] ? String(row[5]) : null,
-        profile_events: profileEvents,
+        resource_summary: buildQueryLogResourceSummary(profileEvents),
+        profile_events: mode === "full" ? profileEvents : undefined,
       };
       context.symptoms = {
         latency_ms: context.query_log.duration_ms,
         read_rows: context.query_log.read_rows,
         read_bytes: context.query_log.read_bytes,
         peak_memory_bytes: context.query_log.memory_usage,
+        spilled: shouldFlagSpill(profileEvents),
         errors: context.query_log.exception,
       };
       progressCallback?.(stageId, 10, "success");
-      return { score: 3, sql: sqlFromLog }; // Return SQL for further analysis
-    } else {
-      progressCallback?.(stageId, 10, "failed", "query_log: not found");
-      return { score: 0 };
+      return { score: 3, sql: sqlFromLog };
     }
+
+    progressCallback?.(stageId, 10, "failed", "query_log: not found");
+    return { score: 0 };
   } catch (error) {
     console.error("Error fetching query log:", error);
     progressCallback?.("Collecting query log...", 10, "failed", getErrorMessage(error));
@@ -275,7 +622,8 @@ async function collectExplainIndex(
   sql: string,
   context: EvidenceContext,
   connection: Connection,
-  progressCallback?: ToolProgressCallback
+  progressCallback?: ToolProgressCallback,
+  mode: CollectMode = "light"
 ): Promise<number> {
   const stageId = "explain indexes";
   progressCallback?.(stageId, 30, "started");
@@ -284,9 +632,9 @@ async function collectExplainIndex(
       default_format: "TabSeparatedRaw",
     });
     const planApiResponse = await planResponse;
-    context.explain_index = planApiResponse.data.text();
+    context.explain_index = parseExplainIndexText(planApiResponse.data.text(), mode);
     progressCallback?.(stageId, 30, "success");
-    return 2; // Evidence score contribution
+    return 2;
   } catch (error) {
     console.error("Error running EXPLAIN PLAN:", error);
     progressCallback?.(stageId, 30, "failed", getErrorMessage(error));
@@ -301,7 +649,8 @@ async function collectExplainPipeline(
   sql: string,
   context: EvidenceContext,
   connection: Connection,
-  progressCallback?: ToolProgressCallback
+  progressCallback?: ToolProgressCallback,
+  mode: CollectMode = "light"
 ): Promise<number> {
   const stageId = "explain pipeline";
   progressCallback?.(stageId, 40, "started");
@@ -310,9 +659,9 @@ async function collectExplainPipeline(
       default_format: "TabSeparatedRaw",
     });
     const pipelineApiResponse = await pipelineResponse;
-    context.explain_pipeline = pipelineApiResponse.data.text();
+    context.explain_pipeline = parseExplainPipelineText(pipelineApiResponse.data.text(), mode);
     progressCallback?.(stageId, 40, "success");
-    return 2; // Evidence score contribution
+    return 2;
   } catch (error) {
     console.error("Error running EXPLAIN PIPELINE:", error);
     progressCallback?.(stageId, 40, "failed", getErrorMessage(error));
@@ -340,11 +689,6 @@ async function parseTableNames(
     const astApiResponse = await astResponse;
     const astText = astApiResponse.data.text();
 
-    // Example lines:
-    // - TableIdentifier system.databases (qualified)
-    // - TableIdentifier mytable (unqualified)
-    // - TableIdentifier log.1995-log
-    // the identifier is complicated, just capture all characters after the keyword
     const tableIdRegex = /TableIdentifier\s+(\S+)/g;
     const seenTables = new Set<string>();
     let match: RegExpExecArray | null;
@@ -354,16 +698,13 @@ async function parseTableNames(
       const dotIndex = fullName.indexOf(".");
       const database = dotIndex > 0 ? fullName.slice(0, dotIndex) : "default";
       const table = dotIndex > 0 ? fullName.slice(dotIndex + 1) : fullName;
-      const key = `${database}.${table}`;
+      const key = buildTableKey(database, table);
       if (!seenTables.has(key)) {
         seenTables.add(key);
         tableNames.push({ database, table });
       }
     }
 
-    // Extract column identifiers (leading with 'Identifier ')
-    // Example: "Identifier user_id", "Identifier created_at"
-    // The SQL query to system.columns will naturally filter out non-existent columns
     const columnIdRegex = /Identifier\s+(\S+)/g;
     while ((match = columnIdRegex.exec(astText)) !== null) {
       const columnName = match[1]!;
@@ -385,7 +726,6 @@ async function parseTableNames(
  * Build WHERE clause for batched table queries
  */
 function buildTableWhereClause(tableNames: TableName[]): string {
-  // Group tables by database for efficient WHERE clauses
   const tablesByDatabase = new Map<string, string[]>();
   for (const { database, table } of tableNames) {
     if (!tablesByDatabase.has(database)) {
@@ -394,11 +734,9 @@ function buildTableWhereClause(tableNames: TableName[]): string {
     tablesByDatabase.get(database)!.push(table);
   }
 
-  // Build WHERE conditions like:
-  // (database = 'db1' AND table IN ('t1','t2')) OR (database = 'db2' AND table IN ('t3'))
   const conditions: string[] = [];
   for (const [database, tables] of tablesByDatabase.entries()) {
-    const tableList = tables.map((t) => `'${escapeSqlString(t)}'`).join(", ");
+    const tableList = tables.map((table) => `'${escapeSqlString(table)}'`).join(", ");
     conditions.push(`(database = '${escapeSqlString(database)}' AND table IN (${tableList}))`);
   }
 
@@ -441,8 +779,7 @@ WHERE ${whereClause}`,
         const primaryKey = rowArray[4] != null ? String(rowArray[4]) : null;
         const sortingKey = rowArray[5] != null ? String(rowArray[5]) : null;
         const createTableQuery = rowArray[6] != null ? String(rowArray[6]) : null;
-        const key = `${database}.${table}`;
-        metaByTable.set(key, {
+        metaByTable.set(buildTableKey(database, table), {
           engine,
           partition_key: partitionKey,
           primary_key: primaryKey,
@@ -475,11 +812,10 @@ async function fetchTableColumns(
   const columnsByTable = new Map<string, Array<[string, string]>>();
 
   try {
-    // Build column name filter if referenced columns are provided
     let columnNameFilter = "";
     if (referencedColumns && referencedColumns.size > 0) {
       const columnList = Array.from(referencedColumns)
-        .map((col) => `'${escapeSqlString(col)}'`)
+        .map((column) => `'${escapeSqlString(column)}'`)
         .join(", ");
       columnNameFilter = ` AND name IN (${columnList})`;
     }
@@ -504,7 +840,7 @@ ORDER BY database, table, position`,
         const table = String(rowArray[1] || "");
         const name = String(rowArray[2] || "");
         const type = String(rowArray[3] || "");
-        const key = `${database}.${table}`;
+        const key = buildTableKey(database, table);
         if (!columnsByTable.has(key)) {
           columnsByTable.set(key, []);
         }
@@ -535,7 +871,7 @@ async function fetchTableStats(
   try {
     const { response } = connection.query(
       `
-SELECT 
+SELECT
   database,
   table,
   sum(rows) as total_rows,
@@ -560,12 +896,11 @@ GROUP BY database, table`,
         const bytes = Number(rowArray[3]) || 0;
         const parts = Number(rowArray[4]) || 0;
         const partitions = Number(rowArray[5]) || 0;
-        const tableId = `${database}.${table}`;
-        statsByTable.set(tableId, {
-          rows: rows,
-          bytes: bytes,
-          parts: parts,
-          partitions: partitions,
+        statsByTable.set(buildTableKey(database, table), {
+          rows,
+          bytes,
+          parts,
+          partitions,
         });
       }
     }
@@ -590,25 +925,62 @@ async function collectTableSchemas(
   progressCallback?: ToolProgressCallback,
   referencedColumns?: Set<string>
 ): Promise<number> {
-  if (tableNames.length === 0) {
+  const requestedTables = dedupeTableNames(tableNames);
+  if (requestedTables.length === 0) {
     return 0;
   }
+
   context.table_schema = {};
   context.table_stats = {};
 
-  const whereClause = buildTableWhereClause(tableNames);
+  const initialWhereClause = buildTableWhereClause(requestedTables);
+  const metaByTable = await fetchTableMetadata(initialWhereClause, connection, progressCallback);
+  const optimizationTargets = new Map<string, DistributedTableTarget>();
 
-  // Fetch all table data in parallel
-  const [metaByTable, columnsByTable, statsByTable] = await Promise.all([
-    fetchTableMetadata(whereClause, connection, progressCallback),
+  const additionalTables = dedupeTableNames(
+    requestedTables.flatMap(({ database, table }) => {
+      const meta = metaByTable.get(buildTableKey(database, table));
+      if (meta?.engine !== "Distributed") {
+        return [];
+      }
+
+      const target = parseDistributedTableTarget(meta.create_table_query);
+      if (!target) {
+        return [];
+      }
+
+      optimizationTargets.set(buildTableKey(database, table), target);
+      return [{ database: target.database, table: target.table }];
+    })
+  );
+
+  if (additionalTables.length > 0) {
+    const targetMeta = await fetchTableMetadata(
+      buildTableWhereClause(additionalTables),
+      connection,
+      progressCallback
+    );
+    for (const [key, value] of targetMeta.entries()) {
+      metaByTable.set(key, value);
+    }
+  }
+
+  const allTables = dedupeTableNames([...requestedTables, ...additionalTables]);
+  const whereClause = buildTableWhereClause(allTables);
+  const [columnsByTable, statsByTable] = await Promise.all([
     fetchTableColumns(whereClause, connection, progressCallback, referencedColumns),
     fetchTableStats(whereClause, connection, progressCallback),
   ]);
 
-  // Assemble table metadata, DDL, and stats into context
   let score = 0;
-  for (const { database, table } of tableNames) {
-    const key = `${database}.${table}`;
+  context.tables = requestedTables.map(({ database, table }) => ({
+    database,
+    table,
+    engine: metaByTable.get(buildTableKey(database, table))?.engine ?? "Unknown",
+  }));
+
+  for (const { database, table } of requestedTables) {
+    const key = buildTableKey(database, table);
     const tableId = `\`${database}\`.\`${table}\``;
 
     const meta = metaByTable.get(key);
@@ -617,12 +989,10 @@ async function collectTableSchemas(
     const primaryKey = meta?.primary_key ?? null;
     const sortingKey = meta?.sorting_key ?? null;
     const secondaryIndexes = extractSecondaryIndexes(meta?.create_table_query ?? null);
-
     const columns = columnsByTable.get(key) ?? [];
     const stats = statsByTable.get(key);
 
-    // DDL-like structured info
-    context.table_schema![tableId] = {
+    context.table_schema[tableId] = {
       columns,
       engine,
       partition_key: partitionKey,
@@ -631,18 +1001,31 @@ async function collectTableSchemas(
       secondary_indexes: secondaryIndexes,
     };
 
-    // Stats, if available
-    if (stats) {
-      context.table_stats![tableId] = {
-        rows: stats.rows,
-        bytes: stats.bytes,
-        parts: stats.parts,
-        partitions: stats.partitions,
+    const optimizationTarget = optimizationTargets.get(key);
+    if (optimizationTarget) {
+      const targetKey = buildTableKey(optimizationTarget.database, optimizationTarget.table);
+      const targetMeta = metaByTable.get(targetKey);
+      const targetStats = statsByTable.get(targetKey);
+
+      context.table_schema[tableId].optimization_target = {
+        database: optimizationTarget.database,
+        table: optimizationTarget.table,
+        cluster: optimizationTarget.cluster,
+        columns: columnsByTable.get(targetKey) ?? [],
+        engine: targetMeta?.engine ?? "Unknown",
+        partition_key: targetMeta?.partition_key ?? null,
+        primary_key: targetMeta?.primary_key ?? null,
+        sorting_key: targetMeta?.sorting_key ?? null,
+        secondary_indexes: extractSecondaryIndexes(targetMeta?.create_table_query ?? null),
+        stats: toStatsEvidence(targetStats),
       };
     }
 
-    // Increase evidence score if we have at least columns or stats
-    if (columns.length > 0 || stats) {
+    if (stats) {
+      context.table_stats[tableId] = toStatsEvidence(stats)!;
+    }
+
+    if (columns.length > 0 || stats || context.table_schema[tableId].optimization_target != null) {
       score += 1;
     }
   }
@@ -679,12 +1062,11 @@ WHERE name IN ('max_threads', 'max_memory_usage', 'max_bytes_before_external_gro
         const rowArray = row as unknown[];
         const name = String(rowArray[0] || "");
         const value = String(rowArray[1] || "");
-        // Try to parse as number, fallback to string
         const numValue = Number(value);
         context.settings[name] = isNaN(numValue) ? value : numValue;
       }
       progressCallback?.(stageId, 80, "success");
-      return 1; // Evidence score contribution
+      return 1;
     }
   } catch (error) {
     console.error("Error fetching settings:", error);
@@ -701,12 +1083,11 @@ export const collectSqlOptimizationEvidenceExecutor: ToolExecutor<
   CollectSqlOptimizationEvidenceInput,
   EvidenceContext
 > = async (input, connection, progressCallback) => {
-  const { sql: inputSql, query_id, goal, mode: _mode = "light", time_window, time_range } = input;
+  const { sql: inputSql, query_id, goal, mode = "light", time_window, time_range } = input;
   const context: EvidenceContext = {
     goal: goal || "latency",
   };
 
-  // Track SQL - may come from input or be retrieved from query_log
   let sql = inputSql;
 
   if (sql) {
@@ -717,41 +1098,49 @@ export const collectSqlOptimizationEvidenceExecutor: ToolExecutor<
   }
 
   try {
-    // Step 1: Collect query log if query_id is provided
-    // This also retrieves SQL text if not provided in input
     if (query_id) {
       const queryLogResult = await collectQueryLog(
         query_id,
         context,
         connection,
         progressCallback,
+        mode,
         time_window,
         time_range
       );
 
-      // If SQL was not provided but found in query_log, use it for further analysis
       if (!sql && queryLogResult.sql) {
         sql = queryLogResult.sql;
         context.sql = sql;
       }
     }
 
-    // Collect remaining evidence in parallel
     const parallelTasks: Promise<number>[] = [];
 
-    // Step 2: Run EXPLAIN if SQL is available (from input or query_log)
     if (sql) {
-      parallelTasks.push(collectExplainIndex(sql, context, connection, progressCallback));
-      parallelTasks.push(collectExplainPipeline(sql, context, connection, progressCallback));
+      parallelTasks.push(collectExplainIndex(sql, context, connection, progressCallback, mode));
+      if (shouldCollectExplainPipeline(sql, mode)) {
+        parallelTasks.push(
+          collectExplainPipeline(sql, context, connection, progressCallback, mode)
+        );
+      } else {
+        progressCallback?.(
+          "explain pipeline",
+          40,
+          "skipped",
+          "Only collected in full mode or for complex query shapes"
+        );
+      }
     }
 
-    parallelTasks.push(collectSettings(context, connection, progressCallback));
+    if (mode === "full") {
+      parallelTasks.push(collectSettings(context, connection, progressCallback));
+    } else {
+      progressCallback?.("fetch settings", 80, "skipped", "Only collected in full mode");
+    }
 
-    // Wait for all parallel tasks to complete
     await Promise.all(parallelTasks);
 
-    // Step 3: Parse table names and referenced columns from SQL using EXPLAIN AST
-    // Step 4: Fetch table DDL and stats
     if (sql) {
       const { tableNames, referencedColumns } = await parseTableNames(
         sql,
@@ -772,7 +1161,6 @@ export const collectSqlOptimizationEvidenceExecutor: ToolExecutor<
     return context;
   } catch (error) {
     console.error("Error in collect_sql_optimization_evidence:", error);
-    // Signal error - progressCallback will handle setting status to "error"
     progressCallback?.("Error", 0, "failed", getErrorMessage(error));
     return context;
   }
