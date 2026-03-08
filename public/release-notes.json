@@ -1,5 +1,89 @@
 [
   {
+    "id": "9ab7aa6",
+    "date": "2026-03-08T04:44:43.800Z",
+    "notes": [
+      {
+        "text": "Improve dependency graph search UX and shortcut",
+        "pr": 99,
+        "type": "feature",
+        "merged_at": "2026-03-05T11:05:11Z"
+      },
+      {
+        "text": "Update chat labels and sidebar tab header scrolling",
+        "pr": 100,
+        "type": "feature",
+        "merged_at": "2026-03-05T11:05:20Z"
+      },
+      {
+        "text": "Change chat submit shortcut to Cmd/Ctrl+Enter",
+        "pr": 98,
+        "type": "feature",
+        "merged_at": "2026-03-05T11:05:31Z"
+      },
+      {
+        "text": "Enforce PR file-list confirmation rule in AGENTS",
+        "pr": 101,
+        "type": "feature",
+        "merged_at": "2026-03-05T11:32:08Z"
+      },
+      {
+        "text": "Refine chat token usage display",
+        "pr": 105,
+        "type": "feature",
+        "merged_at": "2026-03-06T11:03:22Z"
+      },
+      {
+        "text": "Use cheaper model for chat title generation",
+        "pr": 106,
+        "type": "feature",
+        "merged_at": "2026-03-06T11:27:07Z"
+      },
+      {
+        "text": "Improve chat auto-follow scroll behavior",
+        "pr": 110,
+        "type": "feature",
+        "merged_at": "2026-03-07T01:58:44Z"
+      },
+      {
+        "text": "Use tool to search query log",
+        "pr": 109,
+        "type": "feature",
+        "merged_at": "2026-03-07T02:13:57Z"
+      },
+      {
+        "text": "Separate private provider customization",
+        "pr": 111,
+        "type": "feature",
+        "merged_at": "2026-03-07T11:45:29Z"
+      },
+      {
+        "text": "Fix historical chart markdown rerender on new chat turns",
+        "pr": 102,
+        "type": "fix",
+        "merged_at": "2026-03-05T14:55:40Z"
+      },
+      {
+        "text": "Fix chat export filename to use actual title with timestamp prefix",
+        "pr": 103,
+        "type": "fix",
+        "merged_at": "2026-03-05T15:38:21Z"
+      },
+      {
+        "text": "Fix dashboard metadata panel ordering and empty-table height rendering",
+        "pr": 104,
+        "type": "fix",
+        "merged_at": "2026-03-06T02:04:43Z"
+      },
+      {
+        "text": "Fix query log inspector end date filter",
+        "pr": 108,
+        "type": "fix",
+        "merged_at": "2026-03-07T01:51:45Z"
+      }
+    ]
+  },
+  {
     "id": "a21fb42",
     "date": "2026-03-05T02:21:49.346Z",
     "notes": [
