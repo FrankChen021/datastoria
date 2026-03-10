@@ -112,6 +112,7 @@ If your query executes but is slow:
 
 ## Next Steps
 
+- **[Slash Commands](./slash-commands.md)** — Trigger AI workflows directly from the chat input using `/explain_error_code` and other commands
 - **[Natural Language Data Exploration](./natural-language-sql.md)** — Generate queries from scratch
 - **[Query Optimization](./query-optimization.md)** — Optimize working queries
 - **[Error Diagnostics](../03-query-experience/error-diagnostics.md)** — Learn more about understanding errors

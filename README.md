@@ -1,39 +1,44 @@
 # DataStoria
 
-An AI-native ClickHouse console for query generation, evidence-based optimization, intelligent visualization, and cluster diagnostics.
+The AI-native ClickHouse console for your cluster diagnostics, query generation, evidence-based optimization, intelligent visualization.
 
-![AI-Powered Features in Action](./docs/public/demo.webp)
+
+### Demo videos
+
+- [**Intelligent Visualization**](./docs/public/visualization-demo.webm) — Generate SQL and chart specs from plain language; browser renders from ClickHouse.
+- [**Find and Optimize Slow Query**](./docs/public/slow-query-optimization.webm) — Identify slow queries and get AI-powered, evidence-based optimization suggestions.
+- [**Cluster Metrics Dashboard**](./docs/public/dashboard.webm) — Walkthrough of the AI-native workflow: querying, visualization, and diagnostics.
 
 ---
 
 ## 🚀 Key Features
 
 ### 🤖 AI Features
-- **[Natural Language Data Exploration](https://docs.datastoria.app/manual/02-ai-features/natural-language-sql)** — Describe your data needs in plain English and receive optimized ClickHouse queries instantly.
-- **[Smart Query Optimization](https://docs.datastoria.app/manual/02-ai-features/query-optimization)** — AI inspects schema, validates SQL, collects evidence, and recommends concrete ClickHouse performance improvements.
-- **[Intelligent Visualization](https://docs.datastoria.app/manual/02-ai-features/intelligent-visualization)** — Ask for a chart in plain language and DataStoria generates both the SQL and the visualization spec for time series, bar, pie, and table views.
-- **[Agent SKILLs Supported](https://docs.datastoria.app/manual/02-ai-features/skills)** — Skill-based agent architecture that saves tokens across multi-turn conversations; apply the [Official ClickHouse Agent Skills](https://github.com/ClickHouse/agent-skills) to your ClickHouse
-- **[Multiple Model Providers](https://docs.datastoria.app/manual/02-ai-features/ai-model-configuration)** — Use OpenAI, Anthropic Claude, Google Gemini, GitHub Copilot, OpenRouter, Groq, Cerebras, Nebius and more.
-- **[GitHub Copilot Integration](https://docs.datastoria.app/manual/02-ai-features/github-copilot)** — Sign in with GitHub device flow and use your existing Copilot subscription for chat, query assistance, and other AI-powered workflows.
+- **Natural Language Data Exploration** — Describe your data needs in plain English and receive optimized ClickHouse queries instantly.
+- **Smart Query Optimization** — AI inspects schema, validates SQL, collects evidence, and recommends concrete ClickHouse performance improvements.
+- **Intelligent Visualization** — Ask for a chart in plain language and DataStoria generates both the SQL and the visualization spec for time series, bar, pie, and table views.
+- **Agent SKILLs Supported** — Skill-based agent architecture that saves tokens across multi-turn conversations; apply the [Official ClickHouse Agent Skills](https://github.com/ClickHouse/agent-skills) to your ClickHouse
+- **Multiple Model Providers** — Use OpenAI, Anthropic Claude, Google Gemini, GitHub Copilot, OpenRouter, Groq, Cerebras, Nebius and more.
+- **GitHub Copilot Integration** — Sign in with GitHub device flow and use your existing Copilot subscription for chat, query assistance, and other AI-powered workflows.
 
 
 ### ⚡ Powerful Query Experience
-- **[Advanced SQL Editor](https://docs.datastoria.app/manual/03-query-experience/sql-editor)** — Enjoy syntax highlighting, auto-completion, and query formatting for a seamless coding experience.
-- **[Smart Error Diagnostics](https://docs.datastoria.app/manual/03-query-experience/error-diagnostics)** — Pinpoint syntax errors instantly with precise line and column highlighting, and get AI-powered fix suggestions with one click.
-- **[System Log Inspector](https://docs.datastoria.app/manual/04-cluster-management/system-log-introspection)** — Dive deep into query execution with timeline views, topology graphs, and performance analysis as well as Materialized Views, ZooKeeper states.
-- **[One-Click Explain](https://docs.datastoria.app/manual/03-query-experience/query-explain)** — Instantly understand query execution plans with visual AST and pipeline views.
-- **[Dependency Graph](https://docs.datastoria.app/manual/04-cluster-management/dependency-view)** — Visualize table relationships and trace data flows through Materialized Views, Distributed tables, and external systems.
+- **Advanced SQL Editor** — Enjoy syntax highlighting, auto-completion, and query formatting for a seamless coding experience.
+- **Smart Error Diagnostics** — Pinpoint syntax errors instantly with precise line and column highlighting, and get AI-powered fix suggestions with one click.
+- **System Log Inspector** — Dive deep into query execution with timeline views, topology graphs, and performance analysis as well as Materialized Views, ZooKeeper states.
+- **One-Click Explain** — Instantly understand query execution plans with visual AST and pipeline views.
+- **Dependency Graph** — Visualize table relationships and trace data flows through Materialized Views, Distributed tables, and external systems.
 
 ### 📊 Cluster Monitoring & Management
-- **[Multi-Cluster Support](https://docs.datastoria.app/manual/01-getting-started/introduction)** — Manage multiple ClickHouse clusters effortlessly from a single interface.
-- **[Multi-Node Dashboard](https://docs.datastoria.app/manual/05-monitoring-dashboards/node-dashboard#dashboard-overview)** — Monitor all nodes with real-time metrics, merge operations, and replication status.
-- **[Cluster wide Dashboards](https://docs.datastoria.app/manual/05-monitoring-dashboards/cluster-dashboard#cluster-dashboard-overview)** — Access pre-configured panels for query performance, ZooKeeper status, and more.
-- **[Schema Explorer](https://docs.datastoria.app/manual/04-cluster-management/schema-explorer#examples)** — Navigate databases, tables, and columns with an intuitive tree view.
+- **Multi-Cluster Support** — Manage multiple ClickHouse clusters effortlessly from a single interface.
+- **Multi-Node Dashboard** — Monitor all nodes with real-time metrics, merge operations, and replication status.
+- **Cluster wide Dashboards** — Access pre-configured panels for query performance, ZooKeeper status, and more.
+- **Schema Explorer** — Navigate databases, tables, and columns with an intuitive tree view.
 
 ### 🔒 Privacy & Security
-- **[100% Local Execution](https://docs.datastoria.app/manual/06-security-privacy/privacy-features)** — All SQL queries run directly from your browser to your ClickHouse server, ensuring complete privacy.
-- **[No Data Collection](https://docs.datastoria.app/manual/06-security-privacy/privacy-features)** — Your credentials and query results never leave your machine.
-- **[Bring Your Own API Key](https://docs.datastoria.app/manual/02-ai-features/ai-model-configuration)** — Use your own LLM API keys for AI features, keeping your data under your control.
+- **100% Local Execution** — All SQL queries run directly from your browser to your ClickHouse server, ensuring complete privacy.
+- **No Data Collection** — Your credentials and query results never leave your machine.
+- **Bring Your Own API Key** — Use your own LLM API keys for AI features, keeping your data under your control.
 - **Browser-Side Visualization Rendering** — For AI-generated visualizations, the model produces SQL and chart specs while your browser fetches and renders the data locally.
 
 ---

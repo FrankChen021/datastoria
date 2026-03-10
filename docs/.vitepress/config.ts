@@ -82,7 +82,7 @@ export default defineConfig({
       },
       softwareVersion: '1.0',
       releaseNotes: 'https://docs.datastoria.app/manual/',
-      screenshot: 'https://docs.datastoria.app/demo.webm',
+      screenshot: 'https://docs.datastoria.app/dashboard.webm',
       featureList: [
         'Natural Language to SQL conversion',
         'AI-powered query optimization',
@@ -415,6 +415,7 @@ export default defineConfig({
             { text: 'Query Optimization', link: '/manual/02-ai-features/query-optimization' },
             { text: 'Intelligent Visualization', link: '/manual/02-ai-features/intelligent-visualization' },
             { text: 'Ask AI for Help', link: '/manual/02-ai-features/ask-ai-for-help' },
+            { text: 'Slash Commands', link: '/manual/02-ai-features/slash-commands' },
             { text: 'Agent Skills', link: '/manual/02-ai-features/skills' },
             { text: 'GitHub Copilot Integration', link: '/manual/02-ai-features/github-copilot' },
           ]
