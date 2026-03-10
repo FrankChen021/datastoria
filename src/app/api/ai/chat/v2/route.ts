@@ -3,6 +3,7 @@ import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "@/lib/ai/agent/orchestrator-prompt";
 import { SessionTitleGenerator } from "@/lib/ai/agent/session-title-generator";
 import type { AgentContext, MessageMetadata } from "@/lib/ai/chat-types";
+import { CommandManager } from "@/lib/ai/commands/command-manager";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import { MessagePruner } from "@/lib/ai/message-pruner";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
@@ -108,6 +109,34 @@ function extractErrorMessage(error: unknown): string {
 const TITLE_WAIT_MS = 3000;
 
 /**
+ * Expand the last user message if it starts with a slash command.
+ * Returns a new array — originalMessages is not mutated.
+ * Unknown commands pass through unchanged.
+ */
+function expandCommand(messages: UIMessage[]): UIMessage[] {
+  let lastUserIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") {
+      lastUserIdx = i;
+      break;
+    }
+  }
+  if (lastUserIdx === -1) return messages;
+
+  const lastUser = messages[lastUserIdx];
+  const textPart = lastUser.parts?.find((p) => p.type === "text");
+  if (!textPart || textPart.type !== "text") return messages;
+
+  const expanded = CommandManager.expand(textPart.text);
+  if (!expanded) return messages;
+
+  const newParts = lastUser.parts.map((p) => (p.type === "text" ? { ...p, text: expanded } : p));
+  const result = [...messages];
+  result[lastUserIdx] = { ...lastUser, parts: newParts };
+  return result;
+}
+
+/**
  * POST /api/ai/chat/v2
  *
  * Skill-based orchestrator: single agent with skill tool + validate_sql +
@@ -172,14 +201,15 @@ export async function POST(req: Request) {
     );
     const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
 
-    const originalMessages = apiRequest.messages ?? [];
+    // Expand slash commands for the model only — originalMessages keeps the raw user text
+    // so the client's chat history shows /command as typed, not the expanded template.
+    const originalMessages = expandCommand(apiRequest.messages ?? []);
 
     // Request usage: only when continuing an assistant (messageId in request); else undefined for new message
     const messageId = getMessageIdFromMessages(apiRequest.messages);
-    const msgs = originalMessages;
     let continuedAssistant: UIMessage | undefined;
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      const m = msgs[i];
+    for (let i = originalMessages.length - 1; i >= 0; i--) {
+      const m = originalMessages[i];
       if (m.role === "assistant" && m.id === messageId) {
         continuedAssistant = m;
         break;

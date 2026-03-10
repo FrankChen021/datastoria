@@ -132,7 +132,12 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
         )}
         {detailMessage && detailMessage.length > 0 && sql && sql.length > 0 && (
           <div className="mt-3">
-            <AskAIButton sql={sql} errorMessage={detailMessage} hideAfterClick={true} />
+            <AskAIButton
+              errorMessage={detailMessage}
+              errorCode={clickHouseErrorCode}
+              sql={sql}
+              hideAfterClick={true}
+            />
           </div>
         )}
       </AlertDescription>

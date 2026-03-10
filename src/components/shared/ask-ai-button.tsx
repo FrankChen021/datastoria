@@ -4,15 +4,17 @@ import { memo, useState } from "react";
 import { useChatPanel } from "../chat/view/use-chat-panel";
 
 interface AskAIButtonProps {
-  sql?: string;
   errorMessage: string;
+  errorCode?: string | number;
+  sql?: string;
   className?: string;
   hideAfterClick?: boolean;
 }
 
 export const AskAIButton = memo(function AskAIButton({
-  sql,
   errorMessage,
+  errorCode,
+  sql,
   className,
   hideAfterClick = true,
 }: AskAIButtonProps) {
@@ -20,26 +22,15 @@ export const AskAIButton = memo(function AskAIButton({
   const [isClicked, setIsClicked] = useState(false);
 
   const handleAskAI = () => {
-    // Build the message with SQL and error details
-    const message = `I got an error when executing this SQL query. Please explain what went wrong in short and provide a fix.
+    const parts: string[] = [];
+    if (errorCode !== undefined) parts.push(`error code: ${errorCode}`);
+    parts.push(`error message: ${errorMessage}`);
+    if (sql) parts.push("sql:\n```sql\n" + sql + "\n```");
 
-${
-  sql
-    ? `### SQL
-\`\`\`sql
-${sql}
-\`\`\`
+    const message = `/explain_error_code ${parts.join("\n\n")}`;
 
-`
-    : ""
-}### Error Message
-${errorMessage}
-`;
-
-    // Post message to the global chat panel
     postMessage(message, { forceNewChat: true });
 
-    // Hide the button after clicking if hideAfterClick is true
     if (hideAfterClick) {
       setIsClicked(true);
     }

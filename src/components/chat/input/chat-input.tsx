@@ -3,10 +3,12 @@
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import type { CommandDetail } from "@/lib/ai/commands/command-manager";
 import type { LanguageModelUsage } from "ai";
 import { MessageSquarePlus, Send, Square } from "lucide-react";
 import * as React from "react";
 import { ChatTokenStatus } from "../message/chat-token-status";
+import { ChatInputCommands, type ChatInputCommandsType } from "./chat-input-commands";
 import {
   ChatInputSuggestions,
   type ChatInputSuggestionItem,
@@ -36,11 +38,17 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
   ) => {
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     const suggestionRef = React.useRef<ChatInputSuggestionsType>(null);
+    const commandRef = React.useRef<ChatInputCommandsType>(null);
     const [input, setInput] = React.useState("");
     const prevExternalInputRef = React.useRef<string | undefined>(undefined);
 
     // Mention state
     const [suggestionStartPos, setSuggestionStartPos] = React.useState(0);
+
+    // Command state
+    const [commands, setCommands] = React.useState<CommandDetail[]>([]);
+    const commandsFetchedRef = React.useRef(false);
+
     const { connection } = useConnection();
 
     // Handle external input (e.g., from prompt clicks)
@@ -146,45 +154,98 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       [input, suggestionStartPos]
     );
 
+    const handleSelectCommand = React.useCallback(
+      (command: CommandDetail) => {
+        // Replace the /name portion with /name + space, keeping any args already typed
+        const match = /^\/[a-z][a-z0-9_]*/.exec(input);
+        const argsStart = match ? match[0].length : input.length;
+        const existingArgs = input.slice(argsStart);
+        const newText = `/${command.name}${existingArgs || " "}`;
+        setInput(newText);
+        commandRef.current?.close();
+
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.setSelectionRange(newText.length, newText.length);
+            textareaRef.current.focus();
+          }
+        }, 0);
+      },
+      [input]
+    );
+
+    const fetchCommands = React.useCallback(async () => {
+      if (commandsFetchedRef.current) return;
+      commandsFetchedRef.current = true;
+      try {
+        const res = await fetch("/api/ai/commands");
+        if (res.ok) {
+          const data = (await res.json()) as CommandDetail[];
+          setCommands(data);
+        }
+      } catch {
+        // non-fatal: slash commands just won't appear
+      }
+    }, []);
+
     /**
-     * Check '@' input and show suggestions
+     * Check '@' input for table suggestions and '/' at start for slash commands.
      */
-    const handleInputChange = React.useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const text = e.target.value;
-      const cursorPos = e.target.selectionStart;
-      setInput(text);
+    const handleInputChange = React.useCallback(
+      (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const text = e.target.value;
+        const cursorPos = e.target.selectionStart;
+        setInput(text);
 
-      const textBeforeCursor = text.substring(0, cursorPos);
-      const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+        const textBeforeCursor = text.substring(0, cursorPos);
 
-      if (lastAtIndex !== -1) {
-        const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-        // Check if there are spaces between @ and cursor
-        if (!textAfterAt.includes(" ") && !textAfterAt.includes("\n")) {
-          suggestionRef.current?.open(textAfterAt);
-          setSuggestionStartPos(lastAtIndex);
+        // Slash command: only trigger when / is the very first character
+        if (text.startsWith("/")) {
+          const afterSlash = textBeforeCursor.substring(1);
+          // While the user is still typing the command name (no space yet), keep popover open
+          if (!afterSlash.includes(" ") && !afterSlash.includes("\n")) {
+            void fetchCommands();
+            commandRef.current?.open(afterSlash);
+            suggestionRef.current?.close();
+            return;
+          }
+          // Space typed — command name is locked in, close popover
+          commandRef.current?.close();
+          suggestionRef.current?.close();
           return;
         }
-      }
-      suggestionRef.current?.close();
-    }, []);
+
+        commandRef.current?.close();
+
+        // Table mention
+        const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+        if (lastAtIndex !== -1) {
+          const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+          if (!textAfterAt.includes(" ") && !textAfterAt.includes("\n")) {
+            suggestionRef.current?.open(textAfterAt);
+            setSuggestionStartPos(lastAtIndex);
+            return;
+          }
+        }
+        suggestionRef.current?.close();
+      },
+      [fetchCommands]
+    );
 
     const handleSubmit = React.useCallback(() => {
       const message = input.trim();
       if (!message) return;
       onSubmit(message);
       setInput("");
-      // Reset textarea height after submit
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
     }, [input, onSubmit]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      // Delegate navigation and selection to mention popover
-      if (suggestionRef.current?.handleKeyDown(e)) {
-        return;
-      }
+      // Delegate to command popover first, then mention popover
+      if (commandRef.current?.handleKeyDown(e)) return;
+      if (suggestionRef.current?.handleKeyDown(e)) return;
 
       // Send on Cmd/Ctrl + Enter
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -218,12 +279,19 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             onInteractOutside={(target) => target !== textareaRef.current}
           />
 
+          <ChatInputCommands
+            ref={commandRef}
+            commands={commands}
+            onSelect={handleSelectCommand}
+            onInteractOutside={(target) => target !== textareaRef.current}
+          />
+
           <Textarea
             ref={textareaRef}
             value={input}
             onChange={handleInputChange}
-            placeholder={`Press Enter for new line, ${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"} + Enter to send. Use @ to mention tables.`}
-            aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables."
+            placeholder={`Press Enter for new line, ${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"} + Enter to send. Use @ to mention tables, / for commands.`}
+            aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables, / for commands."
             className="w-full min-h-[80px] max-h-[200px] resize-none border-0 bg-transparent py-3 pl-3 pr-10 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 overflow-y-auto"
             disabled={isRunning}
             onKeyDown={handleKeyDown}
