@@ -84,6 +84,7 @@ Prefer targeted checks when possible, but do not invent alternate toolchains if 
 
 - Keep README and docs aligned with actual scripts, paths, and product behavior.
 - Do not document features as complete unless the code path exists and is wired into the product.
+- **Docs media (demos, animations):** Use **WebP** for all demo or animated assets under `docs/` (e.g. `docs/public/`). Prefer animated WebP for short clips so they render with markdown image syntax (`![alt](url)`) on GitHub and in the docs. Do not add new demos as .mp4, .webm, or .gif; use .webp only.
 
 ## Change Review Checklist
 

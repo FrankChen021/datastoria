@@ -5,9 +5,17 @@ The AI-native ClickHouse console for your cluster diagnostics, query generation,
 
 ### Demo videos
 
-- [**Intelligent Visualization**](./docs/public/visualization-demo.webm) — Generate SQL and chart specs from plain language; browser renders from ClickHouse.
-- [**Find and Optimize Slow Query**](./docs/public/slow-query-optimization.webm) — Identify slow queries and get AI-powered, evidence-based optimization suggestions.
-- [**Cluster Metrics Dashboard**](./docs/public/dashboard.webm) — Walkthrough of the AI-native workflow: querying, visualization, and diagnostics.
+**Intelligent Visualization** — Generate SQL and chart specs from plain language; browser renders from ClickHouse.
+
+![Intelligent Visualization](./docs/public/visualization-demo.webp)
+
+**Find and Optimize Slow Query** — Identify slow queries and get AI-powered, evidence-based optimization suggestions.
+
+![Find and Optimize Slow Query](./docs/public/slow-query-optimization.webp)
+
+**Cluster Metrics Dashboard** — Walkthrough of the dashboards and introspection of ClickHouse system tables.
+
+![Cluster Metrics Dashboard](./docs/public/dashboard.webp)
 
 ---
 
