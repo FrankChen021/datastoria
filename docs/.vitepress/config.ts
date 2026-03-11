@@ -82,7 +82,7 @@ export default defineConfig({
       },
       softwareVersion: '1.0',
       releaseNotes: 'https://docs.datastoria.app/manual/',
-      screenshot: 'https://docs.datastoria.app/dashboard.webp',
+      screenshot: 'https://s3.datastoria.app/dashboard.webp',
       featureList: [
         'Natural Language to SQL conversion',
         'AI-powered query optimization',

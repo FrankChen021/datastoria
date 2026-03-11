@@ -75,25 +75,26 @@ import nodeDashboardImg from './manual/05-monitoring-dashboards/img/dashboard-no
 import queryAnalysisImg from './manual/03-query-experience/img/query-log-inspector-timeline.jpg'
 import systemTableIntrospectionImg from './manual/04-cluster-management/img/system-query-log-1.jpg'
 
+const DEMO_BASE = 'https://s3.datastoria.app'
 const carouselItems = [
   {
     title: 'Intelligent Visualization',
     description: 'Generate SQL and chart specifications together so the browser can render charts directly from ClickHouse results.',
-    src: withBase('/visualization-demo.webp'),
+    src: `${DEMO_BASE}/visualization-demo.webp`,
     alt: 'DataStoria AI-generated visualization for ClickHouse metrics',
     href: withBase('/manual/02-ai-features/intelligent-visualization'),
   },
   {
     title: 'Find and Optimize Slow Query',
     description: 'Identify slow queries and get AI-powered, evidence-based optimization suggestions for ClickHouse.',
-    src: withBase('/slow-query-optimization.webp'),
+    src: `${DEMO_BASE}/slow-query-optimization.webp`,
     alt: 'DataStoria find and optimize slow query workflow',
     href: withBase('/manual/02-ai-features/query-optimization'),
   },
   {
     title: 'Cluster Metrics Dashboard',
     description: 'A quick walkthrough of the core AI-native workflow across querying, visualization, and diagnostics.',
-    src: withBase('/dashboard.webp'),
+    src: `${DEMO_BASE}/dashboard.webp`,
     alt: 'DataStoria demo showing natural-language queries, intelligent visualizations, and cluster management',
     href: withBase('/manual/01-getting-started/introduction'),
   },
