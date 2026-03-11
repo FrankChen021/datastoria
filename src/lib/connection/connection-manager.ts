@@ -84,8 +84,8 @@ export class ConnectionManager {
     }
 
     let hasLegacyMerge = false;
-    const legacyConnections = loadFromLegacyStorage();
-    for (const legacyConnection of legacyConnections) {
+    const legacyStorage = loadFromLegacyStorage();
+    for (const legacyConnection of legacyStorage.connections) {
       if (this.connectionMap.has(legacyConnection.name)) {
         continue;
       }
@@ -97,6 +97,13 @@ export class ConnectionManager {
     this.connectionArray.sort((a, c) => a.name.localeCompare(c.name));
     if (hasLegacyMerge) {
       connectionStorage.setJSON(this.connectionArray);
+    }
+    if (
+      legacyStorage.selectedConnectionName !== null &&
+      connectionStorage.getChildAsString("selected") === null &&
+      this.connectionMap.has(legacyStorage.selectedConnectionName)
+    ) {
+      connectionStorage.setChildAsString("selected", legacyStorage.selectedConnectionName);
     }
   }
 

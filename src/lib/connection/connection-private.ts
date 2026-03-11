@@ -4,6 +4,14 @@ export function getAuthUser(user: string, _password?: string, _cluster?: string)
   return user;
 }
 
-export function loadFromLegacyStorage(): ConnectionConfig[] {
-  return [];
+export interface LegacyStorageData {
+  connections: ConnectionConfig[];
+  selectedConnectionName: string | null;
+}
+
+export function loadFromLegacyStorage(): LegacyStorageData {
+  return {
+    connections: [],
+    selectedConnectionName: null,
+  };
 }
