@@ -3,19 +3,10 @@
 The AI-native ClickHouse console for your cluster diagnostics, query generation, evidence-based optimization, intelligent visualization.
 
 
-### Demo videos
+## Demo
+![▶ Watch demo](https://s3.datastoria.app/visualization-demo.webp)
 
-**Intelligent Visualization** — Generate SQL and chart specs from plain language; browser renders from ClickHouse.
-
-![Intelligent Visualization](https://s3.datastoria.app/visualization-demo.webp)
-
-**Find and Optimize Slow Query** — Identify slow queries and get AI-powered, evidence-based optimization suggestions.
-
-![Find and Optimize Slow Query](https://s3.datastoria.app/slow-query-optimization.webp)
-
-**Cluster Metrics Dashboard** — Walkthrough of the dashboards and introspection of ClickHouse system tables.
-
-![Cluster Metrics Dashboard](https://s3.datastoria.app/dashboard.webp)
+📖 More demo/screenshots at [docs.datastoria.app](https://docs.datastoria.app)
 
 ---
 
