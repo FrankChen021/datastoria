@@ -1,17 +1,18 @@
+import { HighlightableCommandItem } from "@/components/shared/cmdk/cmdk-extension";
 import { Dialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { FieldDescription } from "@/components/ui/field-description";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Connection, QueryError } from "@/lib/connection/connection";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
@@ -19,7 +20,15 @@ import { ConnectionManager } from "@/lib/connection/connection-manager";
 import { cn } from "@/lib/utils";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import axios from "axios";
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  CheckCircle2,
+  ChevronsUpDown,
+  Eye,
+  EyeOff,
+  Loader2,
+} from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -115,6 +124,7 @@ export function ConnectionEditComponent({
   const [isShowPassword, setShowPassword] = useState(false);
   const [isLoadingTemplates, setLoadingTemplates] = useState(false);
   const [loadingTemplateError, setLoadingTemplateError] = useState<QueryError | undefined>();
+  const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
   const [testStatus, setTestStatus] = useState<TestStatus>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -123,14 +133,11 @@ export function ConnectionEditComponent({
   const [isNameManuallyEdited, setIsNameManuallyEdited] = useState(false);
 
   useEffect(() => {
-    if (!isAddMode || !hasProvider) return;
+    if (!hasProvider) return;
 
     setLoadingTemplates(true);
 
-    const templateUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.NEXT_PUBLIC_CONSOLE_CONNECTION_PROVIDER_ENDPOINT_DEV
-        : process.env.NEXT_PUBLIC_CONSOLE_CONNECTION_PROVIDER_ENDPOINT_PRD;
+    const templateUrl = "/api/connections/templates";
 
     const apiController = new AbortController();
     axios
@@ -177,7 +184,7 @@ export function ConnectionEditComponent({
     return () => {
       apiController.abort();
     };
-  }, [hasProvider, isAddMode]);
+  }, [hasProvider]);
 
   const clearFieldErrors = useCallback(() => {
     setFieldErrors({});
@@ -398,35 +405,77 @@ export function ConnectionEditComponent({
     if (!hasProvider) return null;
 
     return (
-      <div className="space-y-2">
-        <FieldLabel>{isAddMode ? "Templates(Optional)" : "Connections"}</FieldLabel>
-        {isLoadingTemplates && <div>Loading...</div>}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <FieldLabel>{isAddMode ? "Connections" : "Connections"}</FieldLabel>
+          <FieldDescription className="text-xs text-muted-foreground"></FieldDescription>
+        </div>
         {!isLoadingTemplates && loadingTemplateError !== undefined && (
           <div className="text-sm text-destructive">{loadingTemplateError.message}</div>
         )}
+        {isLoadingTemplates && (
+          <Button variant="outline" className="w-full justify-start" disabled>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Loading templates...
+          </Button>
+        )}
         {!isLoadingTemplates && loadingTemplateError === undefined && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <Popover open={isTemplateSelectorOpen} onOpenChange={setIsTemplateSelectorOpen}>
+            <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-full justify-start"
+                role="combobox"
+                aria-expanded={isTemplateSelectorOpen}
+                className="w-full justify-between px-2.5 h-10"
                 disabled={showDeleteConfirm}
               >
-                {currentSelectedConnection
-                  ? currentSelectedConnection.name
-                  : "Select a template..."}
+                <span className="truncate">
+                  {currentSelectedConnection
+                    ? currentSelectedConnection.name
+                    : "Select a connection template..."}
+                </span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-full">
-              <DropdownMenuLabel>Templates</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {connectionTemplates.map((conn) => (
-                <DropdownMenuItem key={conn.name} onClick={() => handleTemplateSelect(conn)}>
-                  {conn.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 z-[10010]">
+              <Command
+                filter={(value: string, search: string) => {
+                  const query = search.trim().toLowerCase();
+                  if (query.length === 0) {
+                    return 1;
+                  }
+                  return value.toLowerCase().includes(query) ? 1 : 0;
+                }}
+              >
+                <CommandInput placeholder="Search templates..." className="h-9" />
+                <CommandList>
+                  <CommandEmpty>No template found.</CommandEmpty>
+                  {connectionTemplates.map((conn) => (
+                    <CommandItem
+                      key={conn.name}
+                      value={conn.name}
+                      onSelect={() => {
+                        handleTemplateSelect(conn);
+                        setIsTemplateSelectorOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          currentSelectedConnection?.name === conn.name
+                            ? "opacity-100"
+                            : "opacity-0"
+                        )}
+                      />
+                      <span className="truncate">
+                        <HighlightableCommandItem text={conn.name} />
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         )}
       </div>
     );
@@ -435,11 +484,49 @@ export function ConnectionEditComponent({
     isAddMode,
     isLoadingTemplates,
     loadingTemplateError,
+    isTemplateSelectorOpen,
     currentSelectedConnection,
     connectionTemplates,
     handleTemplateSelect,
     showDeleteConfirm,
   ]);
+
+  const renderUrlField = (
+    <Field className="space-y-1">
+      <div className="flex items-center gap-2">
+        <FieldLabel htmlFor="url">URL</FieldLabel>
+        <FieldDescription className="text-xs text-muted-foreground"></FieldDescription>
+      </div>
+      <Input
+        id="url"
+        autoFocus={!hasProvider}
+        placeholder="http(s)://"
+        value={url}
+        onChange={handleUrlChange}
+        className={cn("h-10 w-full", fieldErrors.url && "border-destructive")}
+      />
+      {fieldErrors.url && (
+        <FieldDescription className="text-destructive text-xs">{fieldErrors.url}</FieldDescription>
+      )}
+    </Field>
+  );
+
+  const renderClusterField = (
+    <Field className="space-y-1">
+      <div className="flex items-center gap-2">
+        <FieldLabel htmlFor="cluster">Cluster</FieldLabel>
+        <FieldDescription className="text-xs text-muted-foreground"></FieldDescription>
+      </div>
+      <Input
+        id="cluster"
+        value={cluster}
+        disabled={!editable}
+        onChange={handleClusterChange}
+        placeholder="Optional. The cluster name if the server is deployed as cluster."
+        className="h-10 w-full"
+      />
+    </Field>
+  );
 
   // Test handler that manages testing state
   const handleTestConnection = useCallback(async () => {
@@ -625,121 +712,92 @@ export function ConnectionEditComponent({
         handleSave();
       }}
     >
-      <FieldGroup className="space-y-4 sm:space-y-2">
-        {hasProvider && <Field>{renderConnectionSelector}</Field>}
+      {hasProvider ? (
+        <Tabs defaultValue="template" className="pt-2 w-full mb-4 sm:mb-4">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="template">From Template</TabsTrigger>
+            <TabsTrigger value="custom">Custom Connection</TabsTrigger>
+          </TabsList>
+          <TabsContent value="template" className="mt-0">
+            <FieldGroup className="space-y-5 sm:space-y-4">
+              <Field>{renderConnectionSelector}</Field>
+            </FieldGroup>
+          </TabsContent>
+          <TabsContent value="custom" className="mt-0">
+            <FieldGroup className="space-y-5 sm:space-y-4">{renderUrlField}</FieldGroup>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <FieldGroup className="space-y-5 sm:space-y-4 mb-5 sm:mb-4 pt-2">
+          {renderUrlField}
+        </FieldGroup>
+      )}
 
-        <Field className="grid grid-cols-1 gap-y-0.5 sm:grid-cols-[128px_1fr] sm:gap-x-2 sm:gap-y-0 sm:items-center">
-          <FieldLabel htmlFor="url" className="text-left sm:text-right">
-            URL
-          </FieldLabel>
-          <Input
-            id="url"
-            autoFocus
-            placeholder="http(s)://"
-            value={url}
-            onChange={handleUrlChange}
-            className={cn("min-h-11 w-full min-w-0", fieldErrors.url && "border-destructive")}
-          />
-          <div className="hidden sm:block" />
-          {fieldErrors.url ? (
-            <FieldDescription className="text-destructive text-xs sm:col-start-2">
-              {fieldErrors.url}
-            </FieldDescription>
-          ) : (
-            <FieldDescription className="text-xs sm:col-start-2">
-              Server HTTP(s) URL
-            </FieldDescription>
-          )}
-        </Field>
-
-        <Field className="grid grid-cols-1 gap-y-0.5 sm:grid-cols-[128px_1fr] sm:gap-x-2 sm:gap-y-0 sm:items-center">
-          <FieldLabel htmlFor="user" className="text-left sm:text-right">
-            User
-          </FieldLabel>
+      <FieldGroup className="space-y-5 sm:space-y-4">
+        <Field className="space-y-1">
+          <div className="flex items-center gap-2">
+            <FieldLabel htmlFor="user">User</FieldLabel>
+            <FieldDescription className="text-xs text-muted-foreground"></FieldDescription>
+          </div>
           <Input
             id="user"
             value={user}
             onChange={handleUserChange}
-            className={cn("min-h-11 w-full min-w-0", fieldErrors.user && "border-destructive")}
+            placeholder="The user name to connect to the server."
+            className={cn("h-10 w-full", fieldErrors.user && "border-destructive")}
           />
-          <div className="hidden sm:block" />
-          {fieldErrors.user ? (
-            <FieldDescription className="text-destructive text-xs sm:col-start-2">
+          {fieldErrors.user && (
+            <FieldDescription className="text-destructive text-xs">
               {fieldErrors.user}
             </FieldDescription>
-          ) : (
-            <FieldDescription className="text-xs sm:col-start-2">Server user name</FieldDescription>
           )}
         </Field>
 
-        <Field className="grid grid-cols-1 gap-y-0.5 sm:grid-cols-[128px_1fr] sm:gap-x-2 sm:gap-y-0 sm:items-center">
-          <FieldLabel htmlFor="password" className="text-left sm:text-right">
-            Password
-          </FieldLabel>
+        <Field className="space-y-1">
+          <div className="flex items-center gap-2">
+            <FieldLabel htmlFor="password">Password</FieldLabel>
+            <FieldDescription className="text-xs text-muted-foreground"></FieldDescription>
+          </div>
           <div className="relative w-full min-w-0">
             <Input
               id="password"
               type={isShowPassword ? "text" : "password"}
               value={password}
+              placeholder="The password to connect to the server. Leave blank if no password."
               onChange={handlePasswordChange}
-              className="min-h-11 w-full pr-10"
+              className="h-10 w-full pr-10"
               autoComplete="current-password"
             />
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent min-h-11"
+              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
               onClick={() => setShowPassword((prev) => !prev)}
               disabled={showDeleteConfirm}
             >
               {isShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
           </div>
-          <div className="hidden sm:block" />
-          <FieldDescription className="text-xs sm:col-start-2">
-            Optional. Leave blank if not needed.
-          </FieldDescription>
         </Field>
 
-        <Field className="grid grid-cols-1 gap-y-0.5 sm:grid-cols-[128px_1fr] sm:gap-x-2 sm:gap-y-0 sm:items-center">
-          <FieldLabel
-            htmlFor="cluster"
-            className={cn("text-left sm:text-right", !editable && "text-muted-foreground")}
-          >
-            Cluster (Optional)
-          </FieldLabel>
-          <Input
-            id="cluster"
-            value={cluster}
-            disabled={!editable}
-            onChange={handleClusterChange}
-            className="min-h-11 w-full min-w-0"
-          />
-          <div className="hidden sm:block" />
-          <FieldDescription className="text-xs sm:col-start-2">
-            ClickHouse Cluster name if the server is deployed as cluster
-          </FieldDescription>
-        </Field>
+        {renderClusterField}
 
-        <Field className="grid grid-cols-1 gap-y-0.5 sm:grid-cols-[128px_1fr] sm:gap-x-2 sm:gap-y-0 sm:items-center">
-          <FieldLabel htmlFor="name" className="text-left sm:text-right">
-            Connection Name
-          </FieldLabel>
+        <Field className="space-y-1">
+          <div className="flex items-center gap-2">
+            <FieldLabel htmlFor="name">Connection Name</FieldLabel>
+            <FieldDescription className="text-xs text-muted-foreground"></FieldDescription>
+          </div>
           <Input
             id="name"
             value={name}
             onChange={handleNameChange}
-            className={cn("min-h-11 w-full min-w-0", fieldErrors.name && "border-destructive")}
+            placeholder="Display name for this connection"
+            className={cn("h-10 w-full", fieldErrors.name && "border-destructive")}
           />
-          <div className="hidden sm:block" />
-          {fieldErrors.name ? (
-            <FieldDescription className="text-destructive text-xs sm:col-start-2">
+          {fieldErrors.name && (
+            <FieldDescription className="text-destructive text-xs">
               {fieldErrors.name}
-            </FieldDescription>
-          ) : (
-            <FieldDescription className="text-xs sm:col-start-2">
-              Display name for this connection
             </FieldDescription>
           )}
         </Field>
@@ -754,7 +812,7 @@ export function ConnectionEditComponent({
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full min-h-11 sm:w-auto"
+                    className="w-full sm:w-auto sm:shrink-0"
                     onClick={handleTestConnection}
                     disabled={isTesting || isSaving || showDeleteConfirm}
                   >
@@ -787,7 +845,7 @@ export function ConnectionEditComponent({
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full min-h-11 sm:w-auto"
+                      className="w-full sm:w-auto sm:shrink-0"
                       onClick={handleDeleteClick}
                       disabled={isTesting || isSaving}
                     >
@@ -830,7 +888,7 @@ export function ConnectionEditComponent({
               <Button
                 type="button"
                 variant="outline"
-                className="w-full min-h-11 sm:w-auto"
+                className="w-full sm:w-auto sm:shrink-0"
                 onClick={handleCancel}
                 disabled={isTesting || isSaving || showDeleteConfirm}
               >
@@ -838,7 +896,7 @@ export function ConnectionEditComponent({
               </Button>
               <Button
                 type="submit"
-                className="w-full min-h-11 sm:w-auto"
+                className="w-full sm:w-auto sm:shrink-0"
                 disabled={isTesting || isSaving || showDeleteConfirm}
               >
                 Save

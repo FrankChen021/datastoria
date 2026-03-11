@@ -1,5 +1,6 @@
 import { StorageManager } from "../storage/storage-provider-manager";
 import type { ConnectionConfig } from "./connection-config";
+import { loadFromLegacyStorage } from "./connection-private";
 
 export const ConnectionChangeType = {
   ADD: 0,
@@ -31,6 +32,7 @@ export class ConnectionManager {
   }
 
   private loadFromStorage(): void {
+    const connectionStorage = this.getConnectionStorage();
     let savedConnections: unknown[] = [];
     try {
       savedConnections = this.getConnectionStorage().getAsJSON<unknown[]>(() => []);
@@ -80,7 +82,22 @@ export class ConnectionManager {
       this.connectionArray.push(connection);
       this.connectionMap.set(connection.name, connection);
     }
+
+    let hasLegacyMerge = false;
+    const legacyConnections = loadFromLegacyStorage();
+    for (const legacyConnection of legacyConnections) {
+      if (this.connectionMap.has(legacyConnection.name)) {
+        continue;
+      }
+      this.connectionArray.push(legacyConnection);
+      this.connectionMap.set(legacyConnection.name, legacyConnection);
+      hasLegacyMerge = true;
+    }
+
     this.connectionArray.sort((a, c) => a.name.localeCompare(c.name));
+    if (hasLegacyMerge) {
+      connectionStorage.setJSON(this.connectionArray);
+    }
   }
 
   constructor() {

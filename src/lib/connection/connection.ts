@@ -1,6 +1,7 @@
 import type { DependencyTableInfo } from "@/components/dependency-view/dependency-types";
 import { QueryContextManager } from "@/components/settings/query-context/query-context-manager";
 import type { ConnectionConfig } from "./connection-config";
+import { getAuthUser } from "./connection-private";
 
 // Re-export ConnectionConfig for convenience
 export type { ConnectionConfig };
@@ -244,7 +245,8 @@ export class Connection {
     });
 
     // Build Basic Auth header
-    const basicAuth = btoa(`${this.user}:${this.password || ""}`);
+    const authUser = getAuthUser(this.user, this.password, this.cluster);
+    const basicAuth = btoa(`${authUser}:${this.password || ""}`);
     requestHeaders["Authorization"] = `Basic ${basicAuth}`;
 
     // Create abort controller for the caller to use
@@ -360,7 +362,8 @@ export class Connection {
       }
     });
 
-    const basicAuth = btoa(`${this.user}:${this.password || ""}`);
+    const authUser = getAuthUser(this.user, this.password, this.cluster);
+    const basicAuth = btoa(`${authUser}:${this.password || ""}`);
     requestHeaders["Authorization"] = `Basic ${basicAuth}`;
 
     const abortController = new AbortController();
