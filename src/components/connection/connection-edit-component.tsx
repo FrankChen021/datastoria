@@ -15,12 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { BasePath } from "@/lib/base-path";
 import { Connection, QueryError } from "@/lib/connection/connection";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
 import { cn } from "@/lib/utils";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
-import axios from "axios";
 import {
   AlertCircle,
   Check,
@@ -137,53 +137,56 @@ export function ConnectionEditComponent({
 
     setLoadingTemplates(true);
 
-    const templateUrl = "/api/connections/templates";
-
     const apiController = new AbortController();
-    axios
-      .get(templateUrl as string, {
-        signal: apiController.signal,
-      })
-      .then((response) => {
+    const templateUrl = BasePath.getURL("/api/connections/templates");
+
+    const load = async () => {
+      try {
+        const response = await fetch(templateUrl, { signal: apiController.signal });
+        if (!response.ok) {
+          const data = await response.json().catch(() => undefined);
+          setLoadingTemplateError(
+            new QueryError(
+              "Failed to load templates: " + response.statusText,
+              response.status,
+              Object.fromEntries(response.headers.entries()),
+              data
+            )
+          );
+          return;
+        }
         interface ConnectionTemplate {
           url: string;
           name: string;
           label?: string;
           isCluster?: boolean;
         }
-        const connectionTemplates = response.data as ConnectionTemplate[];
-
-        const newConnections: ConnectionConfig[] = connectionTemplates.map((conn) => {
-          return {
-            url: conn.url,
-            name: conn.label === undefined ? conn.name : conn.label,
-            user: "",
-            password: "",
-            cluster: conn.isCluster ? conn.name : "",
-            editable: false,
-          };
-        });
-
+        const raw = (await response.json()) as ConnectionTemplate[];
+        const newConnections: ConnectionConfig[] = raw.map((conn) => ({
+          url: conn.url,
+          name: conn.label === undefined ? conn.name : conn.label,
+          user: "",
+          password: "",
+          cluster: conn.isCluster ? conn.name : "",
+          editable: false,
+        }));
         setConnectionTemplates(newConnections);
         setLoadingTemplateError(undefined);
-      })
-      .catch((error) => {
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
         setLoadingTemplateError(
           new QueryError(
-            "Failed to loading templates: " + error.message,
-            error.response?.status,
-            error.response?.headers,
-            error.response?.data
+            "Failed to loading templates: " +
+              (error instanceof Error ? error.message : String(error))
           )
         );
-      })
-      .finally(() => {
+      } finally {
         setLoadingTemplates(false);
-      });
-
-    return () => {
-      apiController.abort();
+      }
     };
+
+    load();
+    return () => apiController.abort();
   }, [hasProvider]);
 
   const clearFieldErrors = useCallback(() => {
