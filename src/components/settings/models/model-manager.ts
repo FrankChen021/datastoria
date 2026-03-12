@@ -45,6 +45,7 @@ class ModelManager {
    * Dynamically registered models (e.g., from Copilot API)
    */
   private dynamicModels: ModelProps[] = [];
+  private systemModels: ModelProps[] = [];
 
   public static getInstance(): ModelManager {
     if (!ModelManager.instance) {
@@ -61,19 +62,32 @@ class ModelManager {
     this.notify();
   }
 
+  public setSystemModels(models: ModelProps[], notify = true): void {
+    const normalized = models.map((model) => ({
+      ...model,
+      source: "system" as const,
+    }));
+    const previous = JSON.stringify(this.systemModels);
+    const next = JSON.stringify(normalized);
+    if (previous === next) {
+      return;
+    }
+
+    this.systemModels = normalized;
+    if (notify) {
+      this.notify();
+    }
+  }
+
   /**
    * Get all registered models (static + dynamic)
    */
   public getAllModels(): ModelProps[] {
-    const all = [...MODELS, ...this.dynamicModels];
-    const seen = new Set<string>();
-    const filtered = all.filter((model) => {
-      const key = `${model.provider}:${model.modelId}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
+    const merged = new Map<string, { model: ModelProps; index: number }>();
+    [...this.systemModels, ...MODELS, ...this.dynamicModels].forEach((model, index) => {
+      merged.set(`${model.provider}:${model.modelId}`, { model, index });
     });
-    const indexed = filtered.map((model, index) => ({ model, index }));
+    const indexed = [...merged.values()];
     indexed.sort((a, b) => {
       const aIsCopilot = a.model.provider === PROVIDER_GITHUB_COPILOT;
       const bIsCopilot = b.model.provider === PROVIDER_GITHUB_COPILOT;
@@ -266,6 +280,10 @@ class ModelManager {
         (s) => s.modelId === model.modelId && s.provider === model.provider
       );
       if (setting ? setting.disabled : model.disabled) return false;
+
+      if (model.source === "system") {
+        return true;
+      }
 
       // Filter out models whose provider doesn't have an API key
       const providerSetting = providerSettings.find((p) => p.provider === model.provider);

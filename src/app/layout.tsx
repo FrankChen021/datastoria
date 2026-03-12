@@ -1,6 +1,7 @@
 import { getSession } from "@/auth";
 import { RuntimeConfigProvider } from "@/components/runtime-config-provider";
 import "@/index.css";
+import { getAvailableSystemModels } from "@/lib/ai/llm/llm-provider-factory";
 import { BasePath } from "@/lib/base-path";
 import type { Metadata } from "next";
 import { SessionProvider } from "next-auth/react";
@@ -193,6 +194,7 @@ export default async function RootLayout({
             value={{
               connectionProviderEnabled:
                 process.env.NEXT_PUBLIC_CONSOLE_CONNECTION_PROVIDER_ENABLED === "true",
+              systemModels: getAvailableSystemModels(),
             }}
           >
             {children}

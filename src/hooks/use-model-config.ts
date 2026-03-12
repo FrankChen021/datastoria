@@ -1,3 +1,4 @@
+import { useRuntimeConfig } from "@/components/runtime-config-provider";
 import {
   MODEL_CONFIG_UPDATED_EVENT,
   ModelManager,
@@ -94,6 +95,7 @@ async function fetchCopilotModels(token: string): Promise<ModelProps[]> {
           description: descriptionParts.join("") || m.name || m.id,
           supportedEndpoints: m.supported_endpoints,
           free: multiplier === 0,
+          source: "user" as const,
         };
       })
       .sort((a, b) => a.modelId.localeCompare(b.modelId));
@@ -105,14 +107,18 @@ async function fetchCopilotModels(token: string): Promise<ModelProps[]> {
 
 export function useModelConfig() {
   const manager = ModelManager.getInstance();
+  const { systemModels } = useRuntimeConfig();
 
-  const [config, setConfig] = useState(() => ({
-    allModels: manager.getAllModels(),
-    availableModels: manager.getAvailableModels(),
-    selectedModel: manager.getSelectedModel(),
-    modelSettings: manager.getModelSettings(),
-    providerSettings: manager.getProviderSettings(),
-  }));
+  const [config, setConfig] = useState(() => {
+    manager.setSystemModels(systemModels, false);
+    return {
+      allModels: manager.getAllModels(),
+      availableModels: manager.getAvailableModels(),
+      selectedModel: manager.getSelectedModel(),
+      modelSettings: manager.getModelSettings(),
+      providerSettings: manager.getProviderSettings(),
+    };
+  });
 
   const [isLoading, setIsLoading] = useState(false);
   const [copilotModelsLoaded, setCopilotModelsLoaded] = useState(false);
@@ -258,6 +264,10 @@ export function useModelConfig() {
       providerSettings: manager.getProviderSettings(),
     });
   }, [manager]);
+
+  useEffect(() => {
+    manager.setSystemModels(systemModels);
+  }, [manager, systemModels]);
 
   useEffect(() => {
     // Listen for manual updates via ModelManager methods in the current tab

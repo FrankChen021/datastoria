@@ -7,11 +7,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createGitHubCopilotOpenAICompatible } from "@opeoginni/github-copilot-openai-compatible";
 import type { LanguageModel } from "ai";
-import {
-  PRIVATE_CREATORS,
-  PRIVATE_MODELS,
-  PRIVATE_PROVIDER_CONFIGS,
-} from "./llm-provider-factory-private";
+import { PRIVATE_MODELS, PRIVATE_PROVIDERS } from "./llm-provider-factory-private";
 import { mockModel } from "./models.mock";
 import { PROVIDER_GITHUB_COPILOT, PROVIDER_NEBIUS } from "./provider-ids";
 
@@ -22,6 +18,13 @@ import { PROVIDER_GITHUB_COPILOT, PROVIDER_NEBIUS } from "./provider-ids";
 export const isMockMode = process.env.USE_MOCK_LLM === "true";
 
 type ModelCreator = (modelId: string, apiKey: string) => LanguageModel;
+type RequestedModelConfig = { provider: string; modelId: string; apiKey?: string };
+type ResolvedModelConfig = { provider: string; modelId: string; apiKey: string };
+export type ModelSource = "user" | "system";
+export interface ProviderDefinition {
+  create: ModelCreator;
+  systemApiKey?: string;
+}
 
 export interface ModelProps {
   provider: string;
@@ -31,65 +34,93 @@ export interface ModelProps {
   autoSelectable?: boolean;
   disabled?: boolean;
   supportedEndpoints?: string[];
+  source?: ModelSource;
 }
 
 /**
- * Provider creator functions map
+ * Provider definitions map
  * Key: provider name (e.g., "OpenAI", "Google", "Anthropic", "OpenRouter", "Groq")
- * Value: creator function that takes modelId and apiKey and returns a LanguageModel
+ * Value: model creator plus optional server-side environment variable name
  */
-export const CREATORS: Record<string, ModelCreator> = {
-  ...PRIVATE_CREATORS,
-  OpenAI: (modelId, apiKey) =>
-    createOpenAI({
-      apiKey,
-    })(modelId),
-  Google: (modelId, apiKey) =>
-    createGoogleGenerativeAI({
-      apiKey,
-    })(modelId),
-  Anthropic: (modelId, apiKey) =>
-    createAnthropic({
-      apiKey,
-    })(modelId),
-  OpenRouter: (modelId, apiKey) =>
-    createOpenRouter({
-      apiKey,
-    })(modelId),
-  Groq: (modelId, apiKey) =>
-    createGroq({
-      apiKey,
-    })(modelId),
-  Cerebras: (modelId, apiKey) =>
-    createCerebras({
-      apiKey,
-    })(modelId),
-  [PROVIDER_GITHUB_COPILOT]: (modelId, apiKey) => {
-    console.log(`${PROVIDER_GITHUB_COPILOT} modelId:`, modelId);
-    return createGitHubCopilotOpenAICompatible({
-      apiKey: apiKey,
-      headers: {
-        "Copilot-Integration-Id": "vscode-chat",
-        "User-Agent": "GitHubCopilotChat/0.26.7",
-        "Editor-Version": "vscode/1.104.1",
-        "Editor-Plugin-Version": "copilot-chat/0.26.7",
-      },
-    })(modelId);
+export const PROVIDERS: Record<string, ProviderDefinition> = {
+  ...PRIVATE_PROVIDERS,
+  OpenAI: {
+    create: (modelId, apiKey) =>
+      createOpenAI({
+        apiKey,
+      })(modelId),
+    systemApiKey: process.env.OPENAI_API_KEY,
   },
-  [PROVIDER_NEBIUS]: (modelId, apiKey) =>
-    createOpenAICompatible({
-      name: "nebius",
-      apiKey,
-      baseURL: "https://api.tokenfactory.nebius.com/v1/",
-    })(modelId),
+  Google: {
+    create: (modelId, apiKey) =>
+      createGoogleGenerativeAI({
+        apiKey,
+      })(modelId),
+    systemApiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  },
+  Anthropic: {
+    create: (modelId, apiKey) =>
+      createAnthropic({
+        apiKey,
+      })(modelId),
+    systemApiKey: process.env.ANTHROPIC_API_KEY,
+  },
+  OpenRouter: {
+    create: (modelId, apiKey) =>
+      createOpenRouter({
+        apiKey,
+      })(modelId),
+    systemApiKey: process.env.OPENROUTER_API_KEY,
+  },
+  Groq: {
+    create: (modelId, apiKey) =>
+      createGroq({
+        apiKey,
+      })(modelId),
+    systemApiKey: process.env.GROQ_API_KEY,
+  },
+  Cerebras: {
+    create: (modelId, apiKey) =>
+      createCerebras({
+        apiKey,
+      })(modelId),
+    systemApiKey: process.env.CEREBRAS_API_KEY,
+  },
+  [PROVIDER_GITHUB_COPILOT]: {
+    create: (modelId, apiKey) => {
+      console.log(`${PROVIDER_GITHUB_COPILOT} modelId:`, modelId);
+      return createGitHubCopilotOpenAICompatible({
+        apiKey: apiKey,
+        headers: {
+          "Copilot-Integration-Id": "vscode-chat",
+          "User-Agent": "GitHubCopilotChat/0.26.7",
+          "Editor-Version": "vscode/1.104.1",
+          "Editor-Plugin-Version": "copilot-chat/0.26.7",
+        },
+      })(modelId);
+    },
+  },
+  [PROVIDER_NEBIUS]: {
+    create: (modelId, apiKey) =>
+      createOpenAICompatible({
+        name: "nebius",
+        apiKey,
+        baseURL: "https://api.tokenfactory.nebius.com/v1/",
+      })(modelId),
+    systemApiKey: process.env.NEBIUS_API_KEY,
+  },
 };
 
 /**
  * Flattened array of all models with their properties
  * Each model includes provider, modelId, and metadata (free, autoSelectable)
  */
+export const SYSTEM_MODELS: ModelProps[] = PRIVATE_MODELS.map((model) => ({
+  ...model,
+  source: "system",
+}));
+
 export const MODELS: ModelProps[] = [
-  ...PRIVATE_MODELS,
   // OpenAI models
   // https://platform.openai.com/chat/edit
   {
@@ -98,6 +129,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     description: "Next-generation frontier model from OpenAI.",
+    source: "user",
   },
   {
     provider: "OpenAI",
@@ -105,42 +137,49 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     description: "Enhanced version of GPT-5 with improved reasoning capabilities.",
+    source: "user",
   },
   {
     provider: "OpenAI",
     modelId: "gpt-4.1",
     free: false,
     description: "Updated GPT-4 model with improved performance and accuracy.",
+    source: "user",
   },
   {
     provider: "OpenAI",
     modelId: "gpt-4o",
     free: false,
     description: "Omni model from OpenAI, designed for speed and multimodal interaction.",
+    source: "user",
   },
   {
     provider: "OpenAI",
     modelId: "gpt-4o-mini",
     free: false,
     description: "Lighter version of GPT-4o for faster, cost-effective tasks.",
+    source: "user",
   },
   {
     provider: "OpenAI",
     modelId: "gpt-4",
     free: false,
     description: "Robust high-capability model for complex reasoning and tasks.",
+    source: "user",
   },
   {
     provider: "OpenAI",
     modelId: "o1",
     free: false,
     description: "OpenAI's latest reasoning model, optimized for chain-of-thought.",
+    source: "user",
   },
   {
     provider: "OpenAI",
     modelId: "o3-mini",
     free: false,
     description: "Optimized version of OpenAI's reasoning models for fast responses.",
+    source: "user",
   },
 
   // Google models
@@ -151,6 +190,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     description: "Google's most capable model for complex tasks and multimodal inputs.",
+    source: "user",
   },
   {
     provider: "Google",
@@ -158,24 +198,28 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     description: "Fast and efficient model from Google for rapid interactions.",
+    source: "user",
   },
   {
     provider: "Google",
     modelId: "gemini-2.5-flash",
     free: false,
     description: "Google's flash model optimized for speed and large context windows.",
+    source: "user",
   },
   {
     provider: "Google",
     modelId: "gemini-2.5-pro",
     free: false,
     description: "Google's pro model with high intelligence and broad knowledge.",
+    source: "user",
   },
   {
     provider: "Google",
     modelId: "gemini-2.0-flash",
     free: false,
     description: "Legacy flash model from Google, efficient for simple tasks.",
+    source: "user",
   },
 
   // Anthropic models
@@ -186,12 +230,14 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     description: "Anthropic's most intelligent model for building agents and coding.",
+    source: "user",
   },
   {
     provider: "Anthropic",
     modelId: "claude-opus-4-5",
     free: false,
     description: "Anthropic's most powerful model for highly complex analysis.",
+    source: "user",
   },
   {
     provider: "Anthropic",
@@ -199,12 +245,14 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     description: "Anthropic's best combination of speed and intelligence.",
+    source: "user",
   },
   {
     provider: "Anthropic",
     modelId: "claude-haiku-4-5",
     free: false,
     description: "Anthropic's fastest model with near-frontier intelligence.",
+    source: "user",
   },
 
   // OpenRouter models
@@ -213,6 +261,7 @@ export const MODELS: ModelProps[] = [
     modelId: "x-ai/grok-code-fast-1",
     free: false,
     description: "Grok code model optimized for fast and accurate code generation.",
+    source: "user",
   },
   {
     provider: "OpenRouter",
@@ -220,6 +269,7 @@ export const MODELS: ModelProps[] = [
     free: true,
     autoSelectable: true,
     description: "Qwen 3 coder model, highly capable at writing and explaining SQL.",
+    source: "user",
   },
   {
     provider: "OpenRouter",
@@ -227,6 +277,7 @@ export const MODELS: ModelProps[] = [
     free: true,
     autoSelectable: true,
     description: "Open-source GPT model with large parameter count for general tasks.",
+    source: "user",
   },
   {
     provider: "OpenRouter",
@@ -234,6 +285,7 @@ export const MODELS: ModelProps[] = [
     free: true,
     autoSelectable: true,
     description: "Open-source GPT model with large parameter count for general tasks.",
+    source: "user",
   },
 
   // Groq models
@@ -244,6 +296,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     description: "Fast-inference open-source model running on Groq hardware.",
+    source: "user",
   },
   // qwen is DISABLE 'cause it internally does NOT handle tool call correctly
   {
@@ -253,6 +306,7 @@ export const MODELS: ModelProps[] = [
     disabled: true,
     autoSelectable: false,
     description: "High-performance Qwen 3 model, currently disabled due to tool call issues.",
+    source: "user",
   },
 
   // Cerebras models
@@ -263,6 +317,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     description: "Cerebras's latest model with extreme intelligence and reliability.",
+    source: "user",
   },
 
   // Nebius models
@@ -273,6 +328,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     description: "DeepSeek V3, powerful open-source model with strong reasoning.",
+    source: "user",
   },
   {
     provider: PROVIDER_NEBIUS,
@@ -280,6 +336,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     description: "DeepSeek R1, advanced reasoning model with chain-of-thought.",
+    source: "user",
   },
   {
     provider: PROVIDER_NEBIUS,
@@ -287,6 +344,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     description: "Qwen 3 235B, largest Qwen model for complex tasks.",
+    source: "user",
   },
   {
     provider: PROVIDER_NEBIUS,
@@ -294,6 +352,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     description: "Qwen3-Next-80B-A3B-Thinking, efficient reasoning model.",
+    source: "user",
   },
   {
     provider: PROVIDER_NEBIUS,
@@ -302,6 +361,7 @@ export const MODELS: ModelProps[] = [
     autoSelectable: true,
     description:
       "Flagship GLM model with strong multilingual reasoning, long context, and robust tool use.",
+    source: "user",
   },
   {
     provider: PROVIDER_NEBIUS,
@@ -309,6 +369,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     description: "Kimi-K2.5, 15 trillion mixed visual and text tokens atop Kimi-K2-Base",
+    source: "user",
   },
   {
     provider: PROVIDER_NEBIUS,
@@ -316,8 +377,50 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     description: "GPT-OSS 120B, open-source GPT model with strong general capabilities.",
+    source: "user",
   },
 ];
+
+function getSystemProviderApiKey(provider: string): string | undefined {
+  return PROVIDERS[provider]?.systemApiKey;
+}
+
+function getRegisteredModels(): ModelProps[] {
+  return [...SYSTEM_MODELS, ...MODELS];
+}
+
+export function getAvailableSystemModels(): ModelProps[] {
+  return SYSTEM_MODELS.filter(
+    (model) => getSystemProviderApiKey(model.provider) && model.autoSelectable !== true
+  );
+}
+
+export function resolveModelConfig(model?: RequestedModelConfig): ResolvedModelConfig {
+  if (!model?.provider || !model.modelId) {
+    return LanguageModelProviderFactory.autoSelectModel();
+  }
+
+  if (model.apiKey) {
+    return {
+      provider: model.provider,
+      modelId: model.modelId,
+      apiKey: model.apiKey,
+    };
+  }
+
+  const systemApiKey = getSystemProviderApiKey(model.provider);
+  if (systemApiKey) {
+    return {
+      provider: model.provider,
+      modelId: model.modelId,
+      apiKey: systemApiKey,
+    };
+  }
+
+  throw new Error(
+    `Invalid model config: provider ${model.provider} requires a client API key or system backing`
+  );
+}
 
 /**
  * Language Model Provider Factory
@@ -349,23 +452,24 @@ export class LanguageModelProviderFactory {
    * @throws Error if no API key is configured
    */
   static autoSelectModel(): { provider: string; modelId: string; apiKey: string } {
-    // Priority order: OpenAI > Google > Anthropic > OpenRouter > Groq > Cerebras > Nebius
-    const providerConfigs = [
-      ...PRIVATE_PROVIDER_CONFIGS,
-      { provider: "OpenAI", apiKey: process.env.OPENAI_API_KEY },
-      { provider: "Google", apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY },
-      { provider: "Anthropic", apiKey: process.env.ANTHROPIC_API_KEY },
-      { provider: "OpenRouter", apiKey: process.env.OPENROUTER_API_KEY },
-      { provider: "Groq", apiKey: process.env.GROQ_API_KEY },
-      { provider: "Cerebras", apiKey: process.env.CEREBRAS_API_KEY },
-      { provider: PROVIDER_NEBIUS, apiKey: process.env.NEBIUS_API_KEY },
+    // Priority order: private providers first, then the built-in providers below
+    const providerOrder = [
+      ...Object.keys(PRIVATE_PROVIDERS),
+      "OpenAI",
+      "Google",
+      "Anthropic",
+      "OpenRouter",
+      "Groq",
+      "Cerebras",
+      PROVIDER_NEBIUS,
     ];
 
     // Find the first provider with an available API key
-    for (const { provider, apiKey } of providerConfigs) {
+    for (const provider of providerOrder) {
+      const apiKey = getSystemProviderApiKey(provider);
       if (apiKey) {
         // Get all auto-selectable models for this provider
-        const autoSelectableModels = MODELS.filter((model) => {
+        const autoSelectableModels = getRegisteredModels().filter((model) => {
           if (model.provider !== provider || model.autoSelectable !== true) {
             return false;
           }
@@ -426,18 +530,20 @@ export class LanguageModelProviderFactory {
 
     // Look up model in the flattened models array
     if (provider !== PROVIDER_GITHUB_COPILOT && verifyModelId) {
-      const modelProps = MODELS.find((m) => m.provider === provider && m.modelId === modelId);
+      const modelProps = getRegisteredModels().find(
+        (m) => m.provider === provider && m.modelId === modelId
+      );
       if (!modelProps) {
         throw new Error(`Model ${modelId} is not supported for provider ${provider}`);
       }
     }
 
     // Get the creator function for this provider
-    const creator = CREATORS[provider];
-    if (!creator) {
+    const providerDefinition = PROVIDERS[provider];
+    if (!providerDefinition) {
       throw new Error(`Provider ${provider} is not supported`);
     }
 
-    return creator(modelId, apiKey);
+    return providerDefinition.create(modelId, apiKey);
   }
 }

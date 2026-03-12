@@ -4,7 +4,7 @@ import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
 import { PlanningAgent } from "@/lib/ai/agent/plan/planning-agent";
 import type { PlannerMetadata } from "@/lib/ai/agent/plan/planning-types";
 import type { MessageMetadata } from "@/lib/ai/chat-types";
-import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
+import { resolveModelConfig } from "@/lib/ai/llm/llm-provider-factory";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { SseStreamer } from "@/lib/sse-streamer";
@@ -27,7 +27,7 @@ interface ChatRequest {
   model?: {
     provider: string;
     modelId: string;
-    apiKey: string;
+    apiKey?: string;
   };
 }
 
@@ -168,28 +168,7 @@ export async function POST(req: Request) {
     // Use provided model config if available, otherwise auto-select
     let modelConfig: { provider: string; modelId: string; apiKey: string } | undefined;
     try {
-      if (apiRequest.model) {
-        // If modelConfig is provided, all 3 properties must be present
-        if (!apiRequest.model.provider || !apiRequest.model.modelId || !apiRequest.model.apiKey) {
-          return new Response(
-            "Invalid model config: provider, modelId, and apiKey are all required when model config is provided",
-            { status: 400 }
-          );
-        }
-        modelConfig = {
-          provider: apiRequest.model.provider,
-          modelId: apiRequest.model.modelId,
-          apiKey: apiRequest.model.apiKey,
-        };
-      } else {
-        // Auto-select a model if no model config is provided
-        const autoSelected = LanguageModelProviderFactory.autoSelectModel();
-        modelConfig = {
-          provider: autoSelected.provider,
-          modelId: autoSelected.modelId,
-          apiKey: autoSelected.apiKey,
-        };
-      }
+      modelConfig = resolveModelConfig(apiRequest.model);
     } catch (error) {
       return new Response(error instanceof Error ? error.message : String(error), { status: 500 });
     }

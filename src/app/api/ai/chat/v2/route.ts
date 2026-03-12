@@ -4,7 +4,10 @@ import { ORCHESTRATOR_SYSTEM_PROMPT } from "@/lib/ai/agent/orchestrator-prompt";
 import { SessionTitleGenerator } from "@/lib/ai/agent/session-title-generator";
 import type { AgentContext, MessageMetadata } from "@/lib/ai/chat-types";
 import { CommandManager } from "@/lib/ai/commands/command-manager";
-import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
+import {
+  LanguageModelProviderFactory,
+  resolveModelConfig,
+} from "@/lib/ai/llm/llm-provider-factory";
 import { MessagePruner } from "@/lib/ai/message-pruner";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { ClientTools } from "@/lib/ai/tools/client/client-tools";
@@ -30,7 +33,7 @@ export const runtime = "nodejs";
 interface ChatV2Request {
   messages?: UIMessage[];
   context?: ServerDatabaseContext;
-  model?: { provider: string; modelId: string; apiKey: string };
+  model?: { provider: string; modelId: string; apiKey?: string };
   /** Whether to request LLM-generated chat title for new conversations. Default true. */
   generateTitle?: boolean;
   agentContext?: AgentContext;
@@ -176,20 +179,7 @@ export async function POST(req: Request) {
 
     let modelConfig: { provider: string; modelId: string; apiKey: string };
     try {
-      if (apiRequest.model?.provider && apiRequest.model?.modelId && apiRequest.model?.apiKey) {
-        modelConfig = {
-          provider: apiRequest.model.provider,
-          modelId: apiRequest.model.modelId,
-          apiKey: apiRequest.model.apiKey,
-        };
-      } else {
-        const auto = LanguageModelProviderFactory.autoSelectModel();
-        modelConfig = {
-          provider: auto.provider,
-          modelId: auto.modelId,
-          apiKey: auto.apiKey,
-        };
-      }
+      modelConfig = resolveModelConfig(apiRequest.model);
     } catch (e) {
       return new Response(e instanceof Error ? e.message : "Unknown error", { status: 500 });
     }

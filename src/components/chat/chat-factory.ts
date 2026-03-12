@@ -110,7 +110,7 @@ export class ChatFactory {
    * Get the current model configuration based on user settings
    */
   private static getCurrentModelConfig():
-    | { provider: string; modelId: string; apiKey: string }
+    | { provider: string; modelId: string; apiKey?: string }
     | undefined {
     const modelManager = ModelManager.getInstance();
     const selectedModel = modelManager.getSelectedModel();
@@ -123,6 +123,13 @@ export class ChatFactory {
     }
 
     const { provider, modelId } = selectedModel;
+    const model = modelManager
+      .getAllModels()
+      .find((candidate) => candidate.provider === provider && candidate.modelId === modelId);
+    if (model?.source === "system") {
+      return { provider, modelId };
+    }
+
     const providerSettings = modelManager.getProviderSettings();
     const providerSetting = providerSettings.find((p) => p.provider === provider);
     if (!providerSetting?.apiKey) return undefined;
@@ -145,7 +152,7 @@ export class ChatFactory {
     model?: {
       provider: string;
       modelId: string;
-      apiKey: string;
+      apiKey?: string;
     };
   }): Promise<Chat<AppUIMessage>> {
     const chatId = options.id || uuidv7();

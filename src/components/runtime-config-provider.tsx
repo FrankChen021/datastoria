@@ -1,12 +1,19 @@
 "use client";
 
+import type { ModelProps } from "@/lib/ai/llm/llm-provider-factory";
 import { createContext, useContext, type ReactNode } from "react";
 
 export interface RuntimeConfig {
   connectionProviderEnabled: boolean;
+  systemModels: ModelProps[];
 }
 
-const RuntimeConfigContext = createContext<RuntimeConfig | null>(null);
+const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
+  connectionProviderEnabled: false,
+  systemModels: [],
+};
+
+const RuntimeConfigContext = createContext<RuntimeConfig>(DEFAULT_RUNTIME_CONFIG);
 
 export function RuntimeConfigProvider({
   children,
@@ -19,9 +26,5 @@ export function RuntimeConfigProvider({
 }
 
 export function useRuntimeConfig() {
-  const value = useContext(RuntimeConfigContext);
-  if (value === null) {
-    throw new Error("useRuntimeConfig must be used within RuntimeConfigProvider");
-  }
-  return value;
+  return useContext(RuntimeConfigContext);
 }

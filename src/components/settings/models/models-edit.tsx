@@ -47,6 +47,25 @@ export function ModelsEdit() {
   // Track which providers have visible API keys
   const [visibleApiKeys, setVisibleApiKeys] = useState<Set<string>>(new Set());
   const [clearConfirmProvider, setClearConfirmProvider] = useState<string | null>(null);
+  const providerSources = allModels.reduce(
+    (acc, model) => {
+      if (!acc[model.provider]) {
+        acc[model.provider] = {
+          hasSystemModels: false,
+          hasUserModels: false,
+        };
+      }
+
+      if (model.source === "system") {
+        acc[model.provider].hasSystemModels = true;
+      } else {
+        acc[model.provider].hasUserModels = true;
+      }
+
+      return acc;
+    },
+    {} as Record<string, { hasSystemModels: boolean; hasUserModels: boolean }>
+  );
 
   const handleModelDisabled = useCallback(
     (provider: string, modelId: string, disabled: boolean) => {
@@ -235,6 +254,9 @@ export function ModelsEdit() {
                   const providerSetting = providerSettings.find(
                     (p: ProviderSetting) => p.provider === provider
                   );
+                  const sourceInfo = providerSources[provider];
+                  const isSystemOnlyProvider =
+                    !!sourceInfo?.hasSystemModels && !sourceInfo.hasUserModels;
 
                   return (
                     <React.Fragment key={provider}>
@@ -255,9 +277,13 @@ export function ModelsEdit() {
                             <span className="text-xs text-muted-foreground">
                               {provider === PROVIDER_GITHUB_COPILOT && !providerSetting?.apiKey
                                 ? "(Login to view available models)"
-                                : `(${providerModels.length} ${
-                                    providerModels.length === 1 ? "model" : "models"
-                                  })`}
+                                : isSystemOnlyProvider
+                                  ? `(${providerModels.length} ${
+                                      providerModels.length === 1 ? "system model" : "system models"
+                                    })`
+                                  : `(${providerModels.length} ${
+                                      providerModels.length === 1 ? "model" : "models"
+                                    })`}
                             </span>
                           </button>
                         </TableCell>
@@ -341,92 +367,100 @@ export function ModelsEdit() {
                             )}
                             {provider !== PROVIDER_GITHUB_COPILOT && (
                               <div className="flex items-center gap-1 flex-1 ">
-                                <Input
-                                  type="text"
-                                  value={
-                                    providerSetting?.apiKey
-                                      ? visibleApiKeys.has(provider)
-                                        ? providerSetting.apiKey
-                                        : getMaskedApiKey(providerSetting.apiKey, false)
-                                      : ""
-                                  }
-                                  onChange={(e) => {
-                                    handleProviderApiKeyChange(provider, e.target.value);
-                                    // Auto-reveal when user starts typing
-                                    if (e.target.value && !visibleApiKeys.has(provider)) {
-                                      setVisibleApiKeys((prev) => new Set(prev).add(provider));
-                                    }
-                                  }}
-                                  onFocus={() => handleApiKeyFocus(provider)}
-                                  placeholder={`Enter ${provider} API key`}
-                                  className="w-full h-8 border-0 border-b border-muted-foreground/20 rounded-none pl-0 bg-transparent focus-visible:ring-0 pr-8"
-                                />
-                                {providerSetting?.apiKey && (
-                                  <div className="right-0 flex items-center gap-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleApiKeyVisibility(provider)}
-                                      className="text-muted-foreground hover:text-foreground transition-colors p-1"
-                                      title={
-                                        visibleApiKeys.has(provider)
-                                          ? "Hide API key"
-                                          : "Show API key"
-                                      }
-                                    >
-                                      {visibleApiKeys.has(provider) ? (
-                                        <EyeOff className="h-4 w-4" />
-                                      ) : (
-                                        <Eye className="h-4 w-4" />
-                                      )}
-                                    </button>
-                                    <StatusPopover
-                                      open={clearConfirmProvider === provider}
-                                      onOpenChange={(open) =>
-                                        setClearConfirmProvider(open ? provider : null)
-                                      }
-                                      trigger={
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          size="sm"
-                                          className="h-6 px-2 text-xs"
-                                        >
-                                          Clear
-                                        </Button>
-                                      }
-                                      side="left"
-                                      align="end"
-                                      sideOffset={4}
-                                      icon={
-                                        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
-                                      }
-                                      title="Clear API key"
-                                    >
-                                      <div className="text-xs mb-3">
-                                        Remove the saved API key for {provider}?
-                                      </div>
-                                      <div className="flex justify-end gap-2">
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          size="sm"
-                                          className="h-8 rounded-sm text-sm"
-                                          onClick={() => setClearConfirmProvider(null)}
-                                        >
-                                          Cancel
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          variant="destructive"
-                                          size="sm"
-                                          className="h-8 rounded-sm text-sm"
-                                          onClick={() => handleClearProviderKey(provider)}
-                                        >
-                                          Clear
-                                        </Button>
-                                      </div>
-                                    </StatusPopover>
+                                {isSystemOnlyProvider ? (
+                                  <div className="text-xs text-muted-foreground">
+                                    Provided by system configuration
                                   </div>
+                                ) : (
+                                  <>
+                                    <Input
+                                      type="text"
+                                      value={
+                                        providerSetting?.apiKey
+                                          ? visibleApiKeys.has(provider)
+                                            ? providerSetting.apiKey
+                                            : getMaskedApiKey(providerSetting.apiKey, false)
+                                          : ""
+                                      }
+                                      onChange={(e) => {
+                                        handleProviderApiKeyChange(provider, e.target.value);
+                                        // Auto-reveal when user starts typing
+                                        if (e.target.value && !visibleApiKeys.has(provider)) {
+                                          setVisibleApiKeys((prev) => new Set(prev).add(provider));
+                                        }
+                                      }}
+                                      onFocus={() => handleApiKeyFocus(provider)}
+                                      placeholder={`Enter ${provider} API key`}
+                                      className="w-full h-8 border-0 border-b border-muted-foreground/20 rounded-none pl-0 bg-transparent focus-visible:ring-0 pr-8"
+                                    />
+                                    {providerSetting?.apiKey && (
+                                      <div className="right-0 flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleApiKeyVisibility(provider)}
+                                          className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                                          title={
+                                            visibleApiKeys.has(provider)
+                                              ? "Hide API key"
+                                              : "Show API key"
+                                          }
+                                        >
+                                          {visibleApiKeys.has(provider) ? (
+                                            <EyeOff className="h-4 w-4" />
+                                          ) : (
+                                            <Eye className="h-4 w-4" />
+                                          )}
+                                        </button>
+                                        <StatusPopover
+                                          open={clearConfirmProvider === provider}
+                                          onOpenChange={(open) =>
+                                            setClearConfirmProvider(open ? provider : null)
+                                          }
+                                          trigger={
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-6 px-2 text-xs"
+                                            >
+                                              Clear
+                                            </Button>
+                                          }
+                                          side="left"
+                                          align="end"
+                                          sideOffset={4}
+                                          icon={
+                                            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
+                                          }
+                                          title="Clear API key"
+                                        >
+                                          <div className="text-xs mb-3">
+                                            Remove the saved API key for {provider}?
+                                          </div>
+                                          <div className="flex justify-end gap-2">
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-8 rounded-sm text-sm"
+                                              onClick={() => setClearConfirmProvider(null)}
+                                            >
+                                              Cancel
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              variant="destructive"
+                                              size="sm"
+                                              className="h-8 rounded-sm text-sm"
+                                              onClick={() => handleClearProviderKey(provider)}
+                                            >
+                                              Clear
+                                            </Button>
+                                          </div>
+                                        </StatusPopover>
+                                      </div>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             )}
