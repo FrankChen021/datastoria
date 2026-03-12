@@ -1,7 +1,9 @@
 # Build mode:
 # - BUILD_FROM_SOURCE=1 (default): build Next.js inside Docker (slower, but self-contained)
 # - BUILD_FROM_SOURCE=0: use prebuilt Next.js artifacts from the Docker build context (faster; ideal for CI)
+# Base path is applied at build time only (Next.js requirement). Pass e.g. --build-arg NEXT_PUBLIC_BASE_PATH=/v2
 ARG BUILD_FROM_SOURCE=1
+ARG NEXT_PUBLIC_BASE_PATH
 
 # Stage 1: Dependencies (source build only)
 FROM node:22.21-alpine3.21 AS deps
@@ -21,6 +23,8 @@ FROM node:22.21-alpine3.21 AS builder
 WORKDIR /app
 
 ARG BUILD_FROM_SOURCE=1
+ARG NEXT_PUBLIC_BASE_PATH
+ENV NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH}
 
 RUN npm install -g pnpm
 
@@ -45,6 +49,9 @@ RUN --mount=type=cache,target=/app/.next/cache sh -c 'if [ "$BUILD_FROM_SOURCE" 
 
 # Stage 3: Runner base (shared by both runners)
 FROM node:22.21-alpine3.21 AS runner-base
+ARG NEXT_PUBLIC_BASE_PATH
+ENV NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH}
+
 # Keep updated
 RUN apk update && apk upgrade --no-cache && apk add --no-cache curl
 
@@ -61,8 +68,9 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 EXPOSE 3000
 
+# When basePath is set (e.g. /v2), app is served only under that path; healthcheck must hit it
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:3000/ || exit 1
+    CMD sh -c 'curl -f "http://localhost:3000${NEXT_PUBLIC_BASE_PATH:-}/" || exit 1'
 
 CMD ["node", "server.js"]
 
