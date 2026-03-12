@@ -1,3 +1,4 @@
+import { BasePath } from "@/lib/base-path";
 import Image from "next/image";
 
 interface AppLogoProps {
@@ -9,7 +10,7 @@ interface AppLogoProps {
 export function AppLogo({ width = 64, height = 64, className }: AppLogoProps) {
   return (
     <Image
-      src="/logo.png"
+      src={BasePath.getURL("/logo.png")}
       alt="DataStoria"
       width={width}
       height={height}

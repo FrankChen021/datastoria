@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { UserProfileImage } from "@/components/user-profile-image";
+import { BasePath } from "@/lib/base-path";
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
 import {
   BookOpen,
@@ -612,7 +613,7 @@ function UserNavButton({
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="cursor-pointer"
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={() => signOut({ callbackUrl: BasePath.getURL("/login") })}
         >
           <LogOut className="mr-2 h-4 w-4" />
           Log out

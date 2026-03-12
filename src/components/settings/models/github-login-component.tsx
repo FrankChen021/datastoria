@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { BasePath } from "@/lib/base-path";
 import { cn } from "@/lib/utils";
 import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -66,7 +67,9 @@ export function GitHubLoginComponent({ onSuccess, onCancel }: GitHubLoginCompone
     setAuthError(null);
     setAuthData(null); // Reset auth data on retry
     try {
-      const res = await fetch("/api/api/github/auth/device/code", { method: "POST" });
+      const res = await fetch(BasePath.getURL("/api/api/github/auth/device/code"), {
+        method: "POST",
+      });
       if (!res.ok) {
         throw new Error(
           await getResponseErrorMessage(res, "Failed to initiate login. Please try again.")
@@ -81,7 +84,7 @@ export function GitHubLoginComponent({ onSuccess, onCancel }: GitHubLoginCompone
         if (!isLoggingInRef.current) return;
 
         try {
-          const tokenRes = await fetch("/api/api/github/auth/device/token", {
+          const tokenRes = await fetch(BasePath.getURL("/api/api/github/auth/device/token"), {
             method: "POST",
             body: JSON.stringify({ device_code: data.device_code }),
           });

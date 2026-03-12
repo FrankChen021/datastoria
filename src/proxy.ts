@@ -1,12 +1,20 @@
 import { allowAnonymousUser, auth, AUTH_HEADER_USER_EMAIL } from "@/auth";
+import { BasePath } from "@/lib/base-path";
 import type { Session } from "next-auth";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const basePath = BasePath.getBasePath();
+  const pathnameWithoutBasePath = BasePath.startsWithBasePath(pathname)
+    ? pathname.slice(basePath.length) || "/"
+    : pathname;
 
   // Allow access to login page and auth API routes without auth check
-  if (pathname.startsWith("/login") || pathname.startsWith("/api/auth")) {
+  if (
+    pathnameWithoutBasePath.startsWith("/login") ||
+    pathnameWithoutBasePath.startsWith("/api/auth")
+  ) {
     return NextResponse.next();
   }
 
@@ -17,7 +25,7 @@ export async function proxy(request: NextRequest) {
   // Require authentication
   const session = (await auth()) as Session;
   if (!session?.user) {
-    const loginUrl = new URL("/login", request.url);
+    const loginUrl = new URL(BasePath.getURL("/login"), request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }

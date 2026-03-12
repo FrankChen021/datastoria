@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SkillDetailResponse } from "@/lib/ai/skills/skill-provider";
+import { BasePath } from "@/lib/base-path";
 import matter from "gray-matter";
 import { ArrowLeft, ChevronRight, File, FileText, Folder } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -232,7 +233,9 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
     resourceAbortControllerRef.current?.abort();
     resourceAbortControllerRef.current = null;
 
-    fetch(`/api/ai/skills/${encodeURIComponent(skillId)}`, { signal: controller.signal })
+    fetch(BasePath.getURL(`/api/ai/skills/${encodeURIComponent(skillId)}`), {
+      signal: controller.signal,
+    })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<SkillDetailResponse>;
@@ -268,7 +271,9 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
       setRenderMode("rendered");
 
       fetch(
-        `/api/ai/skills/${encodeURIComponent(skillId)}/resource?path=${encodeURIComponent(resourcePath)}`,
+        BasePath.getURL(
+          `/api/ai/skills/${encodeURIComponent(skillId)}/resource?path=${encodeURIComponent(resourcePath)}`
+        ),
         { signal: controller.signal }
       )
         .then((res) => {

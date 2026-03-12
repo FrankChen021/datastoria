@@ -4,6 +4,7 @@ import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { CommandDetail } from "@/lib/ai/commands/command-manager";
+import { BasePath } from "@/lib/base-path";
 import type { LanguageModelUsage } from "ai";
 import { MessageSquarePlus, Send, Square } from "lucide-react";
 import * as React from "react";
@@ -178,7 +179,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       if (commandsFetchedRef.current) return;
       commandsFetchedRef.current = true;
       try {
-        const res = await fetch("/api/ai/commands");
+        const res = await fetch(BasePath.getURL("/api/ai/commands"));
         if (res.ok) {
           const data = (await res.json()) as CommandDetail[];
           setCommands(data);

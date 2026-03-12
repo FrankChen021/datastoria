@@ -1,3 +1,4 @@
+import { BasePath } from "@/lib/base-path";
 import type { AuthConfig } from "@auth/core";
 import { jwtVerify, SignJWT } from "jose";
 import NextAuth from "next-auth";
@@ -76,7 +77,7 @@ type NextAuthConfig = Omit<AuthConfig, "raw">;
 
 const authConfig: NextAuthConfig = {
   debug: false,
-  basePath: "/api/auth",
+  basePath: BasePath.getAuthBasePath(),
   providers: getAuthProviders(),
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
@@ -121,6 +122,9 @@ const authConfig: NextAuthConfig = {
   cookies: {
     sessionToken: {
       name: "clickhouse-console.session-token",
+      options: {
+        path: "/",
+      },
     },
   },
   callbacks: {
@@ -129,9 +133,20 @@ const authConfig: NextAuthConfig = {
       if (url.startsWith("/")) {
         return `${baseUrl}${url}`;
       }
-      if (new URL(url).origin === baseUrl) {
-        return url;
+
+      try {
+        const targetUrl = new URL(url);
+        const parsedBaseUrl = new URL(baseUrl);
+        if (targetUrl.origin === parsedBaseUrl.origin) {
+          if (!BasePath.startsWithBasePath(targetUrl.pathname)) {
+            targetUrl.pathname = BasePath.getURL(targetUrl.pathname);
+          }
+          return targetUrl.toString();
+        }
+      } catch {
+        // Fall through to baseUrl on invalid URL
       }
+
       return baseUrl;
     },
 

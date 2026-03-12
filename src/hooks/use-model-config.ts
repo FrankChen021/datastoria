@@ -4,6 +4,7 @@ import {
 } from "@/components/settings/models/model-manager";
 import type { ModelProps } from "@/lib/ai/llm/llm-provider-factory";
 import { PROVIDER_GITHUB_COPILOT } from "@/lib/ai/llm/provider-ids";
+import { BasePath } from "@/lib/base-path";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -59,7 +60,7 @@ const getCopilotMultiplier = (model: GitHubModel) => {
 
 async function fetchCopilotModels(token: string): Promise<ModelProps[]> {
   try {
-    const response = await fetch("/api/ai/github/models", {
+    const response = await fetch(BasePath.getURL("/api/ai/github/models"), {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -153,7 +154,7 @@ export function useModelConfig() {
    * Return type of CopilotRefreshResponse
    */
   const refreshCopilotToken = useCallback(async (refreshToken: string) => {
-    const response = await fetch("/api/api/github/auth/refresh", {
+    const response = await fetch(BasePath.getURL("/api/api/github/auth/refresh"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: refreshToken }),

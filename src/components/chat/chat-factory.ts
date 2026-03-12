@@ -6,6 +6,7 @@ import type { StageStatus, ToolProgressCallback } from "@/lib/ai/tools/client/cl
 import { ClientToolExecutors } from "@/lib/ai/tools/client/client-tools";
 import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
+import { BasePath } from "@/lib/base-path";
 import { Connection, type QueryResponse } from "@/lib/connection/connection";
 import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
@@ -170,7 +171,7 @@ export class ChatFactory {
       transport: new DefaultChatTransport({
         fetch: async (input, init) => {
           const mode = AgentConfigurationManager.getConfiguration().mode;
-          const endpoint = mode === "v2" ? "/api/ai/chat/v2" : "/api/ai/chat";
+          const endpoint = BasePath.getURL(mode === "v2" ? "/api/ai/chat/v2" : "/api/ai/chat");
           return fetch(endpoint, init);
         },
 

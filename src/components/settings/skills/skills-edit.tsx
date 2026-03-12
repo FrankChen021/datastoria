@@ -2,6 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SkillCatalogItem } from "@/lib/ai/skills/skill-manager";
+import { BasePath } from "@/lib/base-path";
 import { useEffect, useState } from "react";
 import { SkillsCard } from "./skills-card";
 import { SkillsDetailView } from "./skills-detail-view";
@@ -16,7 +17,7 @@ export function SkillsEdit() {
     setLoading(true);
     setError(null);
 
-    fetch("/api/ai/skills")
+    fetch(BasePath.getURL("/api/ai/skills"))
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<SkillCatalogItem[]>;
