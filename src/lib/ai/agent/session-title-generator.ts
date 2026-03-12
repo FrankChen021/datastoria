@@ -53,7 +53,11 @@ export class SessionTitleGenerator {
       const model = LanguageModelProviderFactory.createModel(
         titleModelConfig.provider,
         titleModelConfig.modelId,
-        titleModelConfig.apiKey
+        titleModelConfig.apiKey,
+        // For title generation, it may use some simpler models which are not included in the default provider list
+        // So we need to skip the verification of these models.
+        // It's the code maintainer to configure the models for title generation properly and correctly.
+        false
       );
 
       const temperature = LanguageModelProviderFactory.getDefaultTemperature(

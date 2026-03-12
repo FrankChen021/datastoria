@@ -409,7 +409,12 @@ export class LanguageModelProviderFactory {
    * @returns The created LanguageModel instance
    * @throws Error if provider, modelId, or apiKey are missing, or if the provider is not supported
    */
-  static createModel(provider: string, modelId: string, apiKey: string): LanguageModel {
+  static createModel(
+    provider: string,
+    modelId: string,
+    apiKey: string,
+    verifyModelId: boolean = true
+  ): LanguageModel {
     if (isMockMode) {
       console.log("🤖 Using MOCK LLM models (no API costs)");
       return mockModel;
@@ -420,7 +425,7 @@ export class LanguageModelProviderFactory {
     }
 
     // Look up model in the flattened models array
-    if (provider !== PROVIDER_GITHUB_COPILOT) {
+    if (provider !== PROVIDER_GITHUB_COPILOT && verifyModelId) {
       const modelProps = MODELS.find((m) => m.provider === provider && m.modelId === modelId);
       if (!modelProps) {
         throw new Error(`Model ${modelId} is not supported for provider ${provider}`);
