@@ -1,5 +1,11 @@
 import "@/index.css";
+import { auth, isAuthEnabled } from "@/auth";
+import { BasePath } from "@/lib/base-path";
 import type { Metadata } from "next";
+import { SessionProvider } from "next-auth/react";
+import type { ComponentProps } from "react";
+
+type SessionProviderSession = ComponentProps<typeof SessionProvider>["session"];
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://datastoria.app"),
@@ -76,11 +82,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = (isAuthEnabled() ? await auth() : null) as SessionProviderSession;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
@@ -173,7 +180,16 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <SessionProvider
+          session={session}
+          refetchOnWindowFocus={false}
+          refetchInterval={0}
+          basePath={BasePath.getAuthBasePath()}
+        >
+          {children}
+        </SessionProvider>
+      </body>
     </html>
   );
 }
