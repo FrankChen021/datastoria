@@ -1,3 +1,4 @@
+import { useRuntimeConfig } from "@/components/runtime-config-provider";
 import { HighlightableCommandItem } from "@/components/shared/cmdk/cmdk-extension";
 import { Dialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
@@ -92,8 +93,7 @@ export function ConnectionEditComponent({
   const [isTesting, setIsTesting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const isMobile = useIsMobile();
-
-  const hasProvider = process.env.NEXT_PUBLIC_CONSOLE_CONNECTION_PROVIDER_ENABLED === "true";
+  const { connectionProviderEnabled: hasProvider } = useRuntimeConfig();
 
   // View Model
   const [name, setName] = useState(connection ? connection.name : "");

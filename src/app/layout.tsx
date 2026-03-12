@@ -1,5 +1,6 @@
-import "@/index.css";
 import { auth, isAuthEnabled } from "@/auth";
+import { RuntimeConfigProvider } from "@/components/runtime-config-provider";
+import "@/index.css";
 import { BasePath } from "@/lib/base-path";
 import type { Metadata } from "next";
 import { SessionProvider } from "next-auth/react";
@@ -88,6 +89,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = (isAuthEnabled() ? await auth() : null) as SessionProviderSession;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
@@ -187,7 +189,14 @@ export default async function RootLayout({
           refetchInterval={0}
           basePath={BasePath.getAuthBasePath()}
         >
-          {children}
+          <RuntimeConfigProvider
+            value={{
+              connectionProviderEnabled:
+                process.env.NEXT_PUBLIC_CONSOLE_CONNECTION_PROVIDER_ENABLED === "true",
+            }}
+          >
+            {children}
+          </RuntimeConfigProvider>
         </SessionProvider>
       </body>
     </html>
