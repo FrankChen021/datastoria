@@ -4,6 +4,7 @@ import { Dialog } from "@/components/shared/use-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { BasePath } from "@/lib/base-path";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { cn } from "@/lib/utils";
 import { Bug, ChevronDown, ChevronRight, Rocket, Zap } from "lucide-react";
@@ -89,7 +90,7 @@ export function ReleaseNotesView() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/release-notes.json")
+    fetch(BasePath.getURL("/release-notes.json"))
       .then((res) => res.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : [data];

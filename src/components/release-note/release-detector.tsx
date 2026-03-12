@@ -1,5 +1,6 @@
 "use client";
 
+import { BasePath } from "@/lib/base-path";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 interface ReleaseDetectorContextType {
@@ -24,7 +25,7 @@ export function ReleaseDetectorProvider({ children }: { children: React.ReactNod
   useEffect(() => {
     const checkRelease = async (isInitial = false) => {
       try {
-        const res = await fetch("/release-notes.json", { cache: "no-store" });
+        const res = await fetch(BasePath.getURL("/release-notes.json"), { cache: "no-store" });
         if (res.status !== 200) {
           console.warn("Failed to check for new release: unexpected status", res.status);
           return;

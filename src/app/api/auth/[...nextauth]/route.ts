@@ -2,6 +2,19 @@ import { handlers, isAuthEnabled } from "@/auth";
 import { BasePath } from "@/lib/base-path";
 import { NextRequest, NextResponse } from "next/server";
 
+function getFirstForwardedValue(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const first = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .find(Boolean);
+
+  return first ?? null;
+}
+
 /**
  * Work around NextAuth callback URL handling when deployed under a base path
  * behind reverse proxies that set forwarded host/proto headers.
@@ -12,8 +25,8 @@ function rewriteRequestForBasePath(request: NextRequest): NextRequest {
     return request;
   }
 
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedHost = getFirstForwardedValue(request.headers.get("x-forwarded-host"));
+  const forwardedProto = getFirstForwardedValue(request.headers.get("x-forwarded-proto"));
   const protocol = forwardedProto
     ? forwardedProto.endsWith(":")
       ? forwardedProto
