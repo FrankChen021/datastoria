@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { v7 as uuid } from "uuid";
+import { queryHistoryManager } from "../query-history/query-history-manager";
 import type { QueryResponseViewModel, SQLMessage } from "../query-view-model";
 
 const MAX_MESSAGE_LIST_SIZE = 100;
@@ -39,19 +40,7 @@ interface QueryExecutionContextType {
 
 const QueryExecutionContext = createContext<QueryExecutionContextType | undefined>(undefined);
 
-export function QueryExecutionProvider({
-  children,
-  onQuerySuccess,
-}: {
-  children: ReactNode;
-  onQuerySuccess?: (payload: {
-    sql: string;
-    rawSQL: string;
-    timestamp: number;
-    connectionId: string;
-    connectionName: string;
-  }) => void;
-}) {
+export function QueryExecutionProvider({ children }: { children: ReactNode }) {
   const [sqlMessages, setSqlMessages] = useState<SQLMessage[]>([]);
   const { connection } = useConnection();
 
@@ -209,12 +198,10 @@ export function QueryExecutionProvider({
           )
         );
 
-        if ((view === undefined || view === "query") && onQuerySuccess && connection) {
-          onQuerySuccess({
-            sql: processedSQL,
+        if ((view === undefined || view === "query") && connection) {
+          queryHistoryManager.add({
             rawSQL: rawSQL || processedSQL,
             timestamp,
-            connectionId: connection.connectionId,
             connectionName: connection.name,
           });
         }
@@ -264,7 +251,7 @@ export function QueryExecutionProvider({
         return "failed";
       }
     },
-    [connection, onQuerySuccess]
+    [connection]
   );
 
   const executeQuery = useCallback(

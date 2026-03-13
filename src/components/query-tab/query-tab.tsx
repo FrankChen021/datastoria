@@ -7,7 +7,6 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { QueryControl } from "./query-control/query-control";
 import { QueryExecutionProvider, useQueryExecutor } from "./query-execution/query-executor";
 import { QueryHistorySheet } from "./query-history/query-history-sheet";
-import { QueryHistoryStorage } from "./query-history/query-history-storage";
 import type { QueryInputViewRef } from "./query-input/query-input-view";
 
 // Dynamically import QueryInputView to prevent SSR issues with ace editor
@@ -183,11 +182,7 @@ const QueryTabContent = ({
 };
 
 export const QueryTab = memo((props: QueryTabProps) => (
-  <QueryExecutionProvider
-    onQuerySuccess={(entry) => {
-      QueryHistoryStorage.add(entry);
-    }}
-  >
+  <QueryExecutionProvider>
     <QueryTabContent {...props} />
   </QueryExecutionProvider>
 ));

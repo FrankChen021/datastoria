@@ -27,12 +27,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  MAX_QUERY_HISTORY_SIZE,
-  QUERY_HISTORY_UPDATED_EVENT,
-  QueryHistoryStorage,
-  type QueryHistoryEntry,
-} from "./query-history-storage";
+import { MAX_QUERY_HISTORY_SIZE, queryHistoryManager } from "./query-history-manager";
+import type { QueryHistoryEntry } from "./query-history-storage";
 
 interface QueryHistorySheetProps {
   open: boolean;
@@ -48,17 +44,17 @@ export function QueryHistorySheet({ open, onOpenChange, onRun }: QueryHistoryShe
   const deferredSearchText = useDeferredValue(searchText.trim().toLowerCase());
 
   useEffect(() => {
-    setEntries(QueryHistoryStorage.list());
+    setEntries(queryHistoryManager.list());
   }, []);
 
   useEffect(() => {
     const syncHistory = () => {
-      setEntries(QueryHistoryStorage.list());
+      setEntries(queryHistoryManager.list());
     };
 
-    window.addEventListener(QUERY_HISTORY_UPDATED_EVENT, syncHistory);
+    queryHistoryManager.addListener(syncHistory);
     return () => {
-      window.removeEventListener(QUERY_HISTORY_UPDATED_EVENT, syncHistory);
+      queryHistoryManager.removeListener(syncHistory);
     };
   }, []);
 
@@ -68,7 +64,7 @@ export function QueryHistorySheet({ open, onOpenChange, onRun }: QueryHistoryShe
         return true;
       }
 
-      const haystack = entry.sql.toLowerCase();
+      const haystack = entry.rawSQL.toLowerCase();
       return haystack.includes(deferredSearchText);
     });
   }, [deferredSearchText, entries]);
@@ -164,7 +160,7 @@ export function QueryHistorySheet({ open, onOpenChange, onRun }: QueryHistoryShe
                 size="sm"
                 className="h-7"
                 onClick={() => {
-                  setEntries(QueryHistoryStorage.clear());
+                  setEntries(queryHistoryManager.clear());
                   setIsClearAllOpen(false);
                 }}
               >
@@ -209,7 +205,7 @@ export function QueryHistorySheet({ open, onOpenChange, onRun }: QueryHistoryShe
                       entry={entry}
                       index={virtualItem.index + 1}
                       searchText={deferredSearchText}
-                      onDelete={(id) => setEntries(QueryHistoryStorage.remove(id))}
+                      onDelete={(id) => setEntries(queryHistoryManager.remove(id))}
                       onRun={onRun}
                     />
                   </div>
@@ -224,7 +220,7 @@ export function QueryHistorySheet({ open, onOpenChange, onRun }: QueryHistoryShe
                   entry={entry}
                   index={index + 1}
                   searchText={deferredSearchText}
-                  onDelete={(id) => setEntries(QueryHistoryStorage.remove(id))}
+                  onDelete={(id) => setEntries(queryHistoryManager.remove(id))}
                   onRun={onRun}
                 />
               ))}
@@ -281,13 +277,13 @@ function QueryHistoryEntryCard({
             variant="ghost"
             size="icon"
             className="h-5 w-5"
-            onClick={() => onRun(entry.sql)}
+            onClick={() => onRun(entry.rawSQL)}
             title="Run SQL"
             aria-label="Run SQL"
           >
             <Play className="!h-3.5 !w-3.5" />
           </Button>
-          <HistorySheetCopyButton value={entry.sql} aria-label="Copy SQL" title="Copy SQL" />
+          <HistorySheetCopyButton value={entry.rawSQL} aria-label="Copy SQL" title="Copy SQL" />
           <StatusPopover
             open={isDeleteOpen}
             onOpenChange={(open) => {
@@ -364,7 +360,7 @@ function QueryHistoryEntryCard({
               padding: "12px",
             }}
           >
-            {entry.sql}
+            {entry.rawSQL}
           </ThemedSyntaxHighlighter>
         </div>
       </div>
