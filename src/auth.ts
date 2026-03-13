@@ -237,7 +237,7 @@ export const { handlers, auth, signIn, signOut } = isAuthEnabled()
 
 /**
  * Returns the current session for app/layout and middleware: next-auth when enabled,
- * or session built from forwarded headers when AUTH_VIA_FORWARDED_HEADERS is true.
+ * or session from forwarded headers when auth is disabled (e.g. behind ALB/proxy).
  * Call from server components or middleware (uses next/headers internally).
  */
 export async function getSession(): Promise<import("next-auth").Session | null> {
