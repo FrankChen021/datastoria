@@ -7,7 +7,11 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createGitHubCopilotOpenAICompatible } from "@opeoginni/github-copilot-openai-compatible";
 import type { LanguageModel } from "ai";
-import { PRIVATE_MODELS, PRIVATE_PROVIDERS } from "./llm-provider-factory-private";
+import {
+  PRIVATE_CREATORS,
+  PRIVATE_MODELS,
+  PRIVATE_PROVIDER_CONFIGS,
+} from "./llm-provider-factory-private";
 import { mockModel } from "./models.mock";
 import { PROVIDER_GITHUB_COPILOT, PROVIDER_NEBIUS } from "./provider-ids";
 
@@ -26,6 +30,19 @@ export interface ProviderDefinition {
   systemApiKey?: () => string | undefined;
 }
 
+const PRIVATE_PROVIDER_DEFINITIONS: Record<string, ProviderDefinition> = Object.fromEntries(
+  Object.entries(PRIVATE_CREATORS).map(([provider, create]) => {
+    const privateConfig = PRIVATE_PROVIDER_CONFIGS.find((config) => config.provider === provider);
+    return [
+      provider,
+      {
+        create,
+        systemApiKey: () => privateConfig?.apiKey,
+      },
+    ];
+  })
+);
+
 export interface ModelProps {
   provider: string;
   modelId: string;
@@ -43,7 +60,7 @@ export interface ModelProps {
  * Value: model creator plus optional server-side environment variable name
  */
 export const PROVIDERS: Record<string, ProviderDefinition> = {
-  ...PRIVATE_PROVIDERS,
+  ...PRIVATE_PROVIDER_DEFINITIONS,
   OpenAI: {
     create: (modelId, apiKey) =>
       createOpenAI({
@@ -455,7 +472,7 @@ export class LanguageModelProviderFactory {
   static autoSelectModel(): { provider: string; modelId: string; apiKey: string } {
     // Priority order: private providers first, then the built-in providers below
     const providerOrder = [
-      ...Object.keys(PRIVATE_PROVIDERS),
+      ...Object.keys(PRIVATE_PROVIDER_DEFINITIONS),
       "OpenAI",
       "Google",
       "Anthropic",
