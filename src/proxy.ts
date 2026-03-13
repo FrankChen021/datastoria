@@ -1,4 +1,4 @@
-import { allowAnonymousUser, auth, AUTH_HEADER_USER_EMAIL } from "@/auth";
+import { allowAnonymousUser, AUTH_HEADER_USER_EMAIL, getSession } from "@/auth";
 import { BasePath } from "@/lib/base-path";
 import type { Session } from "next-auth";
 import { NextResponse, type NextRequest } from "next/server";
@@ -22,8 +22,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Require authentication
-  const session = (await auth()) as Session;
+  const session = (await getSession()) as Session | null;
+
   if (!session?.user) {
     const loginUrl = new URL(BasePath.getURL("/login"), request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);

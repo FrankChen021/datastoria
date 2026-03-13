@@ -1,3 +1,4 @@
+import { getSessionPrivate } from "@/auth-private";
 import { BasePath } from "@/lib/base-path";
 import type { AuthConfig } from "@auth/core";
 import { jwtVerify, SignJWT } from "jose";
@@ -233,3 +234,13 @@ const disabledAuth: AuthResult = {
 export const { handlers, auth, signIn, signOut } = isAuthEnabled()
   ? nextAuthFn(authConfig)
   : disabledAuth;
+
+/**
+ * Returns the current session for app/layout and middleware: next-auth when enabled,
+ * or session built from forwarded headers when AUTH_VIA_FORWARDED_HEADERS is true.
+ * Call from server components or middleware (uses next/headers internally).
+ */
+export async function getSession(): Promise<import("next-auth").Session | null> {
+  if (isAuthEnabled()) return (await auth()) as import("next-auth").Session | null;
+  return getSessionPrivate();
+}

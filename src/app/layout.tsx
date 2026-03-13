@@ -1,4 +1,4 @@
-import { auth, isAuthEnabled } from "@/auth";
+import { getSession } from "@/auth";
 import { RuntimeConfigProvider } from "@/components/runtime-config-provider";
 import "@/index.css";
 import { BasePath } from "@/lib/base-path";
@@ -88,7 +88,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = (isAuthEnabled() ? await auth() : null) as SessionProviderSession;
+  const session = (await getSession()) as SessionProviderSession;
 
   const jsonLd = {
     "@context": "https://schema.org",
