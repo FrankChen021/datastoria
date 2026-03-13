@@ -6,10 +6,13 @@ import {
   vs as lightStyle,
 } from "react-syntax-highlighter/dist/cjs/styles/prism";
 
+const SEARCH_HIGHLIGHT_ATTR = "data-search-highlight";
+
 interface ThemedSyntaxHighlighterProps extends Omit<SyntaxHighlighterProps, "style"> {
   language?: string;
   children: string;
   customStyle?: React.CSSProperties;
+  highlightQuery?: string;
   /**
    * If true, the highlighter will collapse long content and show an expandable
    * control. Default: false.
@@ -29,6 +32,7 @@ export function ThemedSyntaxHighlighter({
   language = "sql",
   children,
   customStyle,
+  highlightQuery,
   expandable = false,
   collapseLines = 8,
   lineHeightPx = 20,
@@ -85,29 +89,50 @@ export function ThemedSyntaxHighlighter({
   const syntaxStyle = useMemo(() => {
     return currentDarkMode ? darkStyle : lightStyle;
   }, [currentDarkMode]);
-  // If not expandable, render as before
-  if (!expandable) {
-    return (
-      <SyntaxHighlighter
-        key={`${currentDarkMode ? "dark" : "light"}-${theme}`}
-        customStyle={{ background: "transparent", ...customStyle }}
-        language={language}
-        style={syntaxStyle}
-        {...props}
-      >
-        {children}
-      </SyntaxHighlighter>
-    );
-  }
-
-  // Expandable behavior: compute line count and collapse height
+  const highlightRootRef = useRef<HTMLDivElement | null>(null);
   const sql = children ?? "";
   const sqlLines = useMemo(() => String(sql).split(/\r\n|\r|\n/).length, [sql]);
   const isOverflowing = useMemo(() => sqlLines > collapseLines, [sqlLines, collapseLines]);
   const collapsedHeight = collapseLines * lineHeightPx;
-
   const [expanded, setExpanded] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const root = highlightRootRef.current;
+    if (!root) {
+      return;
+    }
+
+    clearSearchHighlights(root);
+
+    const query = highlightQuery?.trim();
+    if (!query) {
+      return;
+    }
+
+    applySearchHighlights(root, query, currentDarkMode);
+
+    return () => {
+      clearSearchHighlights(root);
+    };
+  }, [children, currentDarkMode, highlightQuery]);
+
+  // If not expandable, render as before
+  if (!expandable) {
+    return (
+      <div ref={highlightRootRef}>
+        <SyntaxHighlighter
+          key={`${currentDarkMode ? "dark" : "light"}-${theme}`}
+          customStyle={{ background: "transparent", ...customStyle }}
+          language={language}
+          style={syntaxStyle}
+          {...props}
+        >
+          {children}
+        </SyntaxHighlighter>
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: "relative" }}>
@@ -121,15 +146,17 @@ export function ThemedSyntaxHighlighter({
           transition: "max-height 220ms ease",
         }}
       >
-        <SyntaxHighlighter
-          key={`${currentDarkMode ? "dark" : "light"}-${theme}`}
-          customStyle={{ background: "transparent", ...customStyle }}
-          language={language}
-          style={syntaxStyle}
-          {...props}
-        >
-          {children}
-        </SyntaxHighlighter>
+        <div ref={highlightRootRef}>
+          <SyntaxHighlighter
+            key={`${currentDarkMode ? "dark" : "light"}-${theme}`}
+            customStyle={{ background: "transparent", ...customStyle }}
+            language={language}
+            style={syntaxStyle}
+            {...props}
+          >
+            {children}
+          </SyntaxHighlighter>
+        </div>
 
         {!expanded && isOverflowing && (
           <div
@@ -173,4 +200,114 @@ export function ThemedSyntaxHighlighter({
       )}
     </div>
   );
+}
+
+function applySearchHighlights(root: HTMLElement, query: string, isDark: boolean) {
+  const normalizedQuery = query.toLocaleLowerCase();
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (!(node instanceof Text) || node.nodeValue == null || node.nodeValue.length === 0) {
+        return NodeFilter.FILTER_REJECT;
+      }
+
+      const parentElement = node.parentElement;
+      if (!parentElement || parentElement.closest(`[${SEARCH_HIGHLIGHT_ATTR}]`)) {
+        return NodeFilter.FILTER_REJECT;
+      }
+
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+
+  const textNodes: Text[] = [];
+  let currentNode = walker.nextNode();
+  while (currentNode) {
+    textNodes.push(currentNode as Text);
+    currentNode = walker.nextNode();
+  }
+
+  const nodeRanges: Array<{ node: Text; start: number; end: number }> = [];
+  let cursor = 0;
+
+  for (const textNode of textNodes) {
+    const source = textNode.nodeValue ?? "";
+    nodeRanges.push({
+      node: textNode,
+      start: cursor,
+      end: cursor + source.length,
+    });
+    cursor += source.length;
+  }
+
+  const fullText = nodeRanges.map(({ node }) => node.nodeValue ?? "").join("");
+  const normalizedFullText = fullText.toLocaleLowerCase();
+  const matches: Array<{ start: number; end: number }> = [];
+
+  let searchFrom = 0;
+  while (searchFrom < normalizedFullText.length) {
+    const matchIndex = normalizedFullText.indexOf(normalizedQuery, searchFrom);
+    if (matchIndex === -1) {
+      break;
+    }
+
+    matches.push({
+      start: matchIndex,
+      end: matchIndex + query.length,
+    });
+    searchFrom = matchIndex + query.length;
+  }
+
+  for (let index = matches.length - 1; index >= 0; index--) {
+    const match = matches[index];
+    if (!match) {
+      continue;
+    }
+
+    for (let rangeIndex = nodeRanges.length - 1; rangeIndex >= 0; rangeIndex--) {
+      const range = nodeRanges[rangeIndex];
+      if (!range || match.end <= range.start || match.start >= range.end) {
+        continue;
+      }
+
+      const node = range.node;
+      const source = node.nodeValue ?? "";
+      const localStart = Math.max(0, match.start - range.start);
+      const localEnd = Math.min(source.length, match.end - range.start);
+
+      if (localStart >= localEnd) {
+        continue;
+      }
+
+      let targetNode = node;
+      if (localEnd < targetNode.length) {
+        targetNode.splitText(localEnd);
+      }
+      if (localStart > 0) {
+        targetNode = targetNode.splitText(localStart);
+      }
+
+      const mark = document.createElement("mark");
+      mark.setAttribute(SEARCH_HIGHLIGHT_ATTR, "true");
+      mark.style.backgroundColor = isDark ? "rgba(250, 204, 21, 0.28)" : "rgba(250, 204, 21, 0.42)";
+      mark.style.color = "inherit";
+      mark.style.padding = "0";
+      mark.style.borderRadius = "2px";
+      targetNode.parentNode?.replaceChild(mark, targetNode);
+      mark.appendChild(targetNode);
+    }
+  }
+}
+
+function clearSearchHighlights(root: HTMLElement) {
+  const highlights = root.querySelectorAll<HTMLElement>(`mark[${SEARCH_HIGHLIGHT_ATTR}]`);
+
+  for (const highlight of highlights) {
+    const parent = highlight.parentNode;
+    if (!parent) {
+      continue;
+    }
+
+    parent.replaceChild(document.createTextNode(highlight.textContent ?? ""), highlight);
+    parent.normalize();
+  }
 }

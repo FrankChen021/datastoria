@@ -6,6 +6,8 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { QueryControl } from "./query-control/query-control";
 import { QueryExecutionProvider, useQueryExecutor } from "./query-execution/query-executor";
+import { QueryHistorySheet } from "./query-history/query-history-sheet";
+import { QueryHistoryStorage } from "./query-history/query-history-storage";
 import type { QueryInputViewRef } from "./query-input/query-input-view";
 
 // Dynamically import QueryInputView to prevent SSR issues with ace editor
@@ -34,6 +36,7 @@ const QueryTabContent = ({
   const queryInputRef = useRef<QueryInputViewRef>(null);
   const { connection } = useConnection();
   const { executeQuery, isSqlExecuting } = useQueryExecutor();
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // Pending query state for handling mode switching
   const [pendingQueryInfo, setPendingQueryInfo] = useState<{
@@ -85,7 +88,6 @@ const QueryTabContent = ({
     return unsubscribe;
   }, [executeQuery]);
 
-  // Apply pending query when editor is ready
   useEffect(() => {
     if (pendingQueryInfo && queryInputRef.current) {
       // Use setTimeout to ensure the editor has loaded content from storage
@@ -137,35 +139,55 @@ const QueryTabContent = ({
     };
   }, [active]);
 
+  const handleRunHistoryQuery = useCallback(
+    (sql: string) => {
+      executeQuery(sql);
+      setIsHistoryOpen(false);
+    },
+    [executeQuery]
+  );
+
   return (
-    <PanelGroup direction="vertical" className="h-full">
-      {/* Top Panel: Query Response View */}
-      <Panel defaultSize={60} minSize={20} className="bg-background overflow-auto">
-        <QueryListView tabId={tabId} />
-      </Panel>
+    <>
+      <PanelGroup direction="vertical" className="h-full">
+        {/* Top Panel: Query Response View */}
+        <Panel defaultSize={60} minSize={20} className="bg-background overflow-auto">
+          <QueryListView tabId={tabId} />
+        </Panel>
 
-      <PanelResizeHandle className="h-0.5 bg-border hover:bg-border/80 transition-colors cursor-row-resize" />
+        <PanelResizeHandle className="h-0.5 bg-border hover:bg-border/80 transition-colors cursor-row-resize" />
 
-      {/* Bottom Panel: Query Input View with Control */}
-      <Panel defaultSize={40} minSize={20} className="bg-background flex flex-col">
-        <div className="flex-1 overflow-hidden">
-          <QueryInputView
-            ref={queryInputRef}
-            initialQuery={initialMode !== "none" ? initialQuery : undefined}
-            initialMode={initialMode === "none" ? "replace" : initialMode}
-            storageKey="sql:input"
-            language="dsql"
-            onRun={handleInputRun}
-          />
-        </div>
-        <QueryControl />
-      </Panel>
-    </PanelGroup>
+        {/* Bottom Panel: Query Input View with Control */}
+        <Panel defaultSize={40} minSize={20} className="bg-background flex flex-col">
+          <div className="flex-1 overflow-hidden">
+            <QueryInputView
+              ref={queryInputRef}
+              initialQuery={initialMode !== "none" ? initialQuery : undefined}
+              initialMode={initialMode === "none" ? "replace" : initialMode}
+              storageKey="sql:input"
+              language="dsql"
+              onRun={handleInputRun}
+            />
+          </div>
+          <QueryControl onOpenHistory={() => setIsHistoryOpen(true)} />
+        </Panel>
+      </PanelGroup>
+
+      <QueryHistorySheet
+        open={isHistoryOpen}
+        onOpenChange={setIsHistoryOpen}
+        onRun={handleRunHistoryQuery}
+      />
+    </>
   );
 };
 
 export const QueryTab = memo((props: QueryTabProps) => (
-  <QueryExecutionProvider>
+  <QueryExecutionProvider
+    onQuerySuccess={(entry) => {
+      QueryHistoryStorage.add(entry);
+    }}
+  >
     <QueryTabContent {...props} />
   </QueryExecutionProvider>
 ));

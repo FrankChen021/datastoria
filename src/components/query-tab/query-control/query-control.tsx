@@ -9,14 +9,14 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SqlUtils } from "@/lib/sql-utils";
-import { Bookmark, ChevronDown, Play } from "lucide-react";
+import { Bookmark, ChevronDown, History, Play } from "lucide-react";
 import { useCallback } from "react";
 import { useQueryExecutor } from "../query-execution/query-executor";
 import { useQueryInput } from "../query-input/use-query-input";
 import { openSaveSnippetDialog } from "../snippet/save-snippet-dialog";
 import { showMultipleStatementsConfirmDialog } from "./multiple-statements-confirm-dialog";
 
-export function QueryControl() {
+export function QueryControl({ onOpenHistory }: { onOpenHistory: () => void }) {
   const { isSqlExecuting, executeQuery, executeBatch } = useQueryExecutor();
   const { connection } = useConnection();
   const { selectedText, text, cursorRow, cursorColumn } = useQueryInput();
@@ -165,6 +165,18 @@ export function QueryControl() {
         >
           <Bookmark className="h-3 w-3" />
           Save
+        </Button>
+
+        <Separator orientation="vertical" className="h-4" />
+
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 gap-1 px-2 text-xs rounded-sm"
+          onClick={onOpenHistory}
+        >
+          <History className="h-3 w-3" />
+          History
         </Button>
       </div>
     </TooltipProvider>

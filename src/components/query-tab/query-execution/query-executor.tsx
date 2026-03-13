@@ -39,7 +39,19 @@ interface QueryExecutionContextType {
 
 const QueryExecutionContext = createContext<QueryExecutionContextType | undefined>(undefined);
 
-export function QueryExecutionProvider({ children }: { children: ReactNode }) {
+export function QueryExecutionProvider({
+  children,
+  onQuerySuccess,
+}: {
+  children: ReactNode;
+  onQuerySuccess?: (payload: {
+    sql: string;
+    rawSQL: string;
+    timestamp: number;
+    connectionId: string;
+    connectionName: string;
+  }) => void;
+}) {
   const [sqlMessages, setSqlMessages] = useState<SQLMessage[]>([]);
   const { connection } = useConnection();
 
@@ -197,6 +209,16 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
           )
         );
 
+        if ((view === undefined || view === "query") && onQuerySuccess && connection) {
+          onQuerySuccess({
+            sql: processedSQL,
+            rawSQL: rawSQL || processedSQL,
+            timestamp,
+            connectionId: connection.connectionId,
+            connectionName: connection.name,
+          });
+        }
+
         abortControllersRef.current.delete(queryId);
         return "success";
       } catch (error) {
@@ -242,7 +264,7 @@ export function QueryExecutionProvider({ children }: { children: ReactNode }) {
         return "failed";
       }
     },
-    [connection]
+    [connection, onQuerySuccess]
   );
 
   const executeQuery = useCallback(
