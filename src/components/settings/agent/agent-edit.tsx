@@ -15,16 +15,22 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { ChevronDown } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function AgentEdit() {
   const [configuration, setConfiguration] = useState<AgentConfiguration>(
     AgentConfigurationManager.getConfiguration()
   );
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dropdownContainer, setDropdownContainer] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     const currentMode = AgentConfigurationManager.getConfiguration();
     setConfiguration(currentMode);
+  }, []);
+
+  useEffect(() => {
+    setDropdownContainer(containerRef.current?.closest("[role='dialog']") as HTMLElement | null);
   }, []);
 
   const handleModeChange = (value: string) => {
@@ -40,7 +46,7 @@ export function AgentEdit() {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div ref={containerRef} className="h-full flex flex-col">
       <div className="px-4 py-2 grid gap-2">
         <div className="grid grid-cols-[200px_300px_1fr] gap-8 items-start">
           <div className="space-y-1 pt-2">
@@ -54,7 +60,7 @@ export function AgentEdit() {
                   <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[300px] z-[10000]">
+              <DropdownMenuContent container={dropdownContainer} className="w-[300px] z-[10000]">
                 <DropdownMenuRadioGroup value={configuration.mode} onValueChange={handleModeChange}>
                   <DropdownMenuRadioItem value="v2">V2 (Skill-based)</DropdownMenuRadioItem>
                   <DropdownMenuRadioItem value="legacy">

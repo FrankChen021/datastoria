@@ -20,6 +20,36 @@ type AbortableQueryResult<TResponse extends QueryResponse | Response> = {
   abortController: AbortController;
 };
 type ClientToolName = keyof typeof ClientToolExecutors;
+const PROVISIONAL_SESSION_TITLE_WORDS = 8;
+
+function extractTextFromMessage(
+  message: Pick<Message, "parts"> | Pick<AppUIMessage, "parts">
+): string {
+  return message.parts
+    .filter(
+      (
+        part
+      ): part is {
+        type: "text";
+        text: string;
+      } => part.type === "text" && typeof part.text === "string"
+    )
+    .map((part) => part.text.trim())
+    .filter((text) => text.length > 0)
+    .join(" ")
+    .trim();
+}
+
+function buildProvisionalSessionTitle(text: string): string | undefined {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return undefined;
+  }
+
+  const truncatedWords = words.slice(0, PROVISIONAL_SESSION_TITLE_WORDS);
+  const title = truncatedWords.join(" ").trim();
+  return title || undefined;
+}
 
 /**
  * Create a progress callback for tool execution
@@ -123,6 +153,16 @@ export class ChatFactory {
     }
 
     const { provider, modelId } = selectedModel;
+    const providerSettings = modelManager.getProviderSettings();
+    const providerSetting = providerSettings.find((p) => p.provider === provider);
+    if (providerSetting?.apiKey) {
+      return {
+        provider,
+        modelId,
+        apiKey: providerSetting.apiKey,
+      };
+    }
+
     const model = modelManager
       .getAllModels()
       .find((candidate) => candidate.provider === provider && candidate.modelId === modelId);
@@ -130,15 +170,7 @@ export class ChatFactory {
       return { provider, modelId };
     }
 
-    const providerSettings = modelManager.getProviderSettings();
-    const providerSetting = providerSettings.find((p) => p.provider === provider);
-    if (!providerSetting?.apiKey) return undefined;
-
-    return {
-      provider,
-      modelId,
-      apiKey: providerSetting.apiKey,
-    };
+    return undefined;
   }
 
   /**
@@ -224,8 +256,26 @@ export class ChatFactory {
               });
 
             if (userMessagesToSave.length > 0) {
+              let provisionalTitle: string | undefined;
+              if (
+                historicalMessages.length === 0 &&
+                messages.length === 1 &&
+                messages[0]?.role === "user"
+              ) {
+                provisionalTitle = buildProvisionalSessionTitle(
+                  extractTextFromMessage(messages[0])
+                );
+                if (provisionalTitle) {
+                  ChatUIContext.updateTitle(provisionalTitle);
+                }
+              }
+
               await SessionManager.saveMessages(chatId, userMessagesToSave);
-              await SessionManager.touchSessionById(chatId, connection.connectionId);
+              await SessionManager.touchSessionById(
+                chatId,
+                connection.connectionId,
+                provisionalTitle
+              );
             }
           }
 

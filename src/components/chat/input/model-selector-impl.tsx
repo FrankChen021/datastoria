@@ -36,6 +36,14 @@ function FreeBadge() {
   );
 }
 
+function SystemBadge() {
+  return (
+    <Badge className="rounded-sm bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-none hover:bg-blue-100 dark:hover:bg-blue-900/30 text-[9px]">
+      System
+    </Badge>
+  );
+}
+
 function ModelCommandItem({
   model,
   isSelected,
@@ -46,7 +54,7 @@ function ModelCommandItem({
     <CommandItem
       value={`${model.provider} ${model.modelId}`}
       onSelect={() => onSelect({ provider: model.provider, modelId: model.modelId })}
-      className="m-1 text-xs cursor-pointer py-1"
+      className="m-1 text-xs cursor-pointer py-0.5"
     >
       {showProvider ? (
         <div className="grid grid-cols-[16px_70px_1fr_auto] items-center gap-1 w-full text-[10px]">
@@ -57,15 +65,21 @@ function ModelCommandItem({
           <span className="truncate">
             <HighlightableCommandItem text={model.modelId} />
           </span>
-          {model.free ? <FreeBadge /> : null}
+          <div className="ml-auto flex items-center gap-1">
+            {model.source === "system" ? <SystemBadge /> : null}
+            {model.free ? <FreeBadge /> : null}
+          </div>
         </div>
       ) : (
-        <div className="flex items-center gap-2 w-full text-[10px]">
+        <div className="flex items-center gap-2 w-full text-[11px]">
           <Check className={cn("h-3 w-3 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
           <span className="truncate">
             <HighlightableCommandItem text={model.modelId} />
           </span>
-          {model.free ? <FreeBadge /> : null}
+          <div className="ml-auto flex items-center gap-1">
+            {model.source === "system" ? <SystemBadge /> : null}
+            {model.free ? <FreeBadge /> : null}
+          </div>
         </div>
       )}
     </CommandItem>

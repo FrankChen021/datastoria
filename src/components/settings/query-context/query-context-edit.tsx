@@ -369,6 +369,8 @@ export function QueryContextEdit() {
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const [isChanged, setIsChanged] = useState(false);
   const [initialSettings, setInitialSettings] = useState<SettingRow[]>([]);
+  const hoverCardContainer =
+    (tableScrollRef.current?.closest("[role='dialog']") as HTMLElement | null) ?? undefined;
 
   useEffect(() => {
     const context = QueryContextManager.getInstance().getStoredContext();
@@ -671,6 +673,7 @@ export function QueryContextEdit() {
                         </Button>
                       </HoverCardTrigger>
                       <HoverCardContent
+                        container={hoverCardContainer}
                         className="z-[10000] w-[280px] p-3 text-sm"
                         align="center"
                         side="bottom"

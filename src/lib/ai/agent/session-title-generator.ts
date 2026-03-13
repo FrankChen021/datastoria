@@ -49,7 +49,7 @@ export class SessionTitleGenerator {
     const titleInput = messageText.slice(0, TITLE_INPUT_MAX_LENGTH);
 
     try {
-      console.log("Generating chat title...");
+      console.log("Generating chat title by using model:", titleModelConfig.modelId);
       const model = LanguageModelProviderFactory.createModel(
         titleModelConfig.provider,
         titleModelConfig.modelId,

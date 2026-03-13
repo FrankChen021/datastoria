@@ -84,7 +84,7 @@ class ModelManager {
    */
   public getAllModels(): ModelProps[] {
     const merged = new Map<string, { model: ModelProps; index: number }>();
-    [...this.systemModels, ...MODELS, ...this.dynamicModels].forEach((model, index) => {
+    [...MODELS, ...this.systemModels, ...this.dynamicModels].forEach((model, index) => {
       merged.set(`${model.provider}:${model.modelId}`, { model, index });
     });
     const indexed = [...merged.values()];
@@ -274,22 +274,29 @@ class ModelManager {
     const modelSettings = this.getModelSettings();
     const providerSettings = this.getProviderSettings();
 
-    const userModels = this.getAllModels().filter((model) => {
+    const userModels = this.getAllModels().flatMap((model) => {
       // Filter out models that are disabled in settings
       const setting = modelSettings.find(
         (s) => s.modelId === model.modelId && s.provider === model.provider
       );
-      if (setting ? setting.disabled : model.disabled) return false;
+      if (setting ? setting.disabled : model.disabled) return [];
+
+      const providerSetting = providerSettings.find((p) => p.provider === model.provider);
 
       if (model.source === "system") {
-        return true;
+        const effectiveSource: ModelProps["source"] = providerSetting?.apiKey ? "user" : "system";
+        return [
+          {
+            ...model,
+            source: effectiveSource,
+          },
+        ];
       }
 
       // Filter out models whose provider doesn't have an API key
-      const providerSetting = providerSettings.find((p) => p.provider === model.provider);
-      if (!providerSetting?.apiKey) return false;
+      if (!providerSetting?.apiKey) return [];
 
-      return true;
+      return [model];
     });
 
     // Add the special 'Auto' model at the beginning only if auto-select is available

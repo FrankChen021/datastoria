@@ -10,6 +10,7 @@ import {
   Dialog as DialogUI,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { useEffect, useRef, useState } from "react";
 
 export interface DialogButton {
@@ -27,8 +28,10 @@ export interface DialogButton {
 export interface DialogProps {
   title?: string;
   description?: string;
+  visuallyHiddenTitle?: boolean;
   mainContent?: React.ReactNode;
   className?: string;
+  overlayClassName?: string;
   /**
    * Optional className for the dialog close (X) button. Use to adjust position (e.g. vertically center with first row).
    */
@@ -119,7 +122,7 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
         // We set it to 10001 to make sure it's on top of the settings dialog (z-[9999]).
         className={cn("flex flex-col gap-1 p-5 justify-between z-[10001]", dialogProps.className)}
         closeButtonClassName={dialogProps.closeButtonClassName}
-        overlayClassName="z-[10001]"
+        overlayClassName={cn("z-[10001]", dialogProps.overlayClassName)}
         disableBackdrop={dialogProps.disableBackdrop}
         onInteractOutside={handleInteractOutside}
         onEscapeKeyDown={(event) => {
@@ -131,7 +134,13 @@ const AlertDialogComponent = (dialogProps: InternalDialogProps) => {
       >
         {(dialogProps.title || dialogProps.description) && (
           <DialogHeader>
-            <DialogTitle>{dialogProps.title}</DialogTitle>
+            {dialogProps.visuallyHiddenTitle ? (
+              <VisuallyHidden asChild>
+                <DialogTitle>{dialogProps.title}</DialogTitle>
+              </VisuallyHidden>
+            ) : (
+              <DialogTitle>{dialogProps.title}</DialogTitle>
+            )}
             <DialogDescription>{dialogProps.description}</DialogDescription>
           </DialogHeader>
         )}

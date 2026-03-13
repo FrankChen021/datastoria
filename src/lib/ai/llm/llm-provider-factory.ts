@@ -23,7 +23,7 @@ type ResolvedModelConfig = { provider: string; modelId: string; apiKey: string }
 export type ModelSource = "user" | "system";
 export interface ProviderDefinition {
   create: ModelCreator;
-  systemApiKey?: string;
+  systemApiKey?: () => string | undefined;
 }
 
 export interface ModelProps {
@@ -49,42 +49,42 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
       createOpenAI({
         apiKey,
       })(modelId),
-    systemApiKey: process.env.OPENAI_API_KEY,
+    systemApiKey: () => process.env.OPENAI_API_KEY,
   },
   Google: {
     create: (modelId, apiKey) =>
       createGoogleGenerativeAI({
         apiKey,
       })(modelId),
-    systemApiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    systemApiKey: () => process.env.GOOGLE_GENERATIVE_AI_API_KEY,
   },
   Anthropic: {
     create: (modelId, apiKey) =>
       createAnthropic({
         apiKey,
       })(modelId),
-    systemApiKey: process.env.ANTHROPIC_API_KEY,
+    systemApiKey: () => process.env.ANTHROPIC_API_KEY,
   },
   OpenRouter: {
     create: (modelId, apiKey) =>
       createOpenRouter({
         apiKey,
       })(modelId),
-    systemApiKey: process.env.OPENROUTER_API_KEY,
+    systemApiKey: () => process.env.OPENROUTER_API_KEY,
   },
   Groq: {
     create: (modelId, apiKey) =>
       createGroq({
         apiKey,
       })(modelId),
-    systemApiKey: process.env.GROQ_API_KEY,
+    systemApiKey: () => process.env.GROQ_API_KEY,
   },
   Cerebras: {
     create: (modelId, apiKey) =>
       createCerebras({
         apiKey,
       })(modelId),
-    systemApiKey: process.env.CEREBRAS_API_KEY,
+    systemApiKey: () => process.env.CEREBRAS_API_KEY,
   },
   [PROVIDER_GITHUB_COPILOT]: {
     create: (modelId, apiKey) => {
@@ -107,20 +107,13 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         apiKey,
         baseURL: "https://api.tokenfactory.nebius.com/v1/",
       })(modelId),
-    systemApiKey: process.env.NEBIUS_API_KEY,
+    systemApiKey: () => process.env.NEBIUS_API_KEY,
   },
 };
 
-/**
- * Flattened array of all models with their properties
- * Each model includes provider, modelId, and metadata (free, autoSelectable)
- */
-export const SYSTEM_MODELS: ModelProps[] = PRIVATE_MODELS.map((model) => ({
-  ...model,
-  source: "system",
-}));
-
 export const MODELS: ModelProps[] = [
+  ...PRIVATE_MODELS,
+
   // OpenAI models
   // https://platform.openai.com/chat/edit
   {
@@ -382,12 +375,20 @@ export const MODELS: ModelProps[] = [
 ];
 
 function getSystemProviderApiKey(provider: string): string | undefined {
-  return PROVIDERS[provider]?.systemApiKey;
+  return PROVIDERS[provider]?.systemApiKey?.();
 }
 
-function getRegisteredModels(): ModelProps[] {
-  return [...SYSTEM_MODELS, ...MODELS];
-}
+/**
+ * Catalog models whose provider is backed by a server-side API key.
+ * These entries are projected as system models so the client can surface them
+ * without requiring local provider credentials.
+ */
+export const SYSTEM_MODELS: ModelProps[] = MODELS.filter((model) =>
+  Boolean(getSystemProviderApiKey(model.provider))
+).map((model) => ({
+  ...model,
+  source: "system",
+}));
 
 export function getAvailableSystemModels(): ModelProps[] {
   return SYSTEM_MODELS.filter(
@@ -469,7 +470,7 @@ export class LanguageModelProviderFactory {
       const apiKey = getSystemProviderApiKey(provider);
       if (apiKey) {
         // Get all auto-selectable models for this provider
-        const autoSelectableModels = getRegisteredModels().filter((model) => {
+        const autoSelectableModels = SYSTEM_MODELS.filter((model) => {
           if (model.provider !== provider || model.autoSelectable !== true) {
             return false;
           }
@@ -530,9 +531,7 @@ export class LanguageModelProviderFactory {
 
     // Look up model in the flattened models array
     if (provider !== PROVIDER_GITHUB_COPILOT && verifyModelId) {
-      const modelProps = getRegisteredModels().find(
-        (m) => m.provider === provider && m.modelId === modelId
-      );
+      const modelProps = MODELS.find((m) => m.provider === provider && m.modelId === modelId);
       if (!modelProps) {
         throw new Error(`Model ${modelId} is not supported for provider ${provider}`);
       }

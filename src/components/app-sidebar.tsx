@@ -30,10 +30,8 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Switch } from "@/components/ui/switch";
 import { UserProfileImage } from "@/components/user-profile-image";
 import { BasePath } from "@/lib/base-path";
-import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
 import {
   BookOpen,
   ChevronRight,
@@ -51,7 +49,6 @@ import { signOut, useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useState } from "react";
 import { DashboardList } from "./dashboard-tab/dashboard-list";
 import { showSettingsDialog } from "./settings/settings-dialog";
-import { useTheme } from "./shared/theme-provider";
 import { TabManager } from "./tab-manager";
 
 function HoverCardSidebarMenuItem({
@@ -377,122 +374,20 @@ export function AppSidebar() {
 }
 
 function SettingsSidebarMenuItem() {
-  const { theme, setTheme } = useTheme();
-  const { state, isMobile } = useSidebar();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const isDark = mounted
-    ? theme === "system"
-      ? window.document.documentElement.classList.contains("dark")
-      : theme === "dark"
-    : false;
-
-  const toggleTheme = (checked: boolean) => {
-    setTheme(checked ? "dark" : "light");
-  };
-
-  const isExpanded = state === "expanded" || isMobile;
-
-  if (isExpanded) {
-    return (
-      <Collapsible defaultOpen={false} className="group/collapsible">
-        <SidebarMenuItem>
-          <CollapsibleTrigger asChild>
-            <SidebarMenuButton size="default" tooltip="Settings">
-              <Settings className="h-5 w-5" />
-              <span>Settings</span>
-              <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-            </SidebarMenuButton>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <SidebarMenuSub>
-              <SidebarMenuSubItem>
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className="flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer [&>svg]:size-4 [&>svg]:shrink-0"
-                  onClick={() => toggleTheme(!isDark)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleTheme(!isDark);
-                    }
-                  }}
-                >
-                  {isDark ? <MoonIcon className="h-4 w-4" /> : <SunIcon className="h-4 w-4" />}
-                  <span className="text-sm">{isDark ? "Dark Mode" : "Light Mode"}</span>
-                  <Switch
-                    checked={isDark}
-                    onCheckedChange={toggleTheme}
-                    aria-label="Toggle dark mode"
-                    className="ml-auto h-4 w-8 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-4"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </div>
-              </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton asChild onClick={() => showSettingsDialog()}>
-                  <button type="button" className="flex items-center gap-2">
-                    <Settings className="h-4 w-4 shrink-0" />
-                    App Settings
-                  </button>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            </SidebarMenuSub>
-          </CollapsibleContent>
-        </SidebarMenuItem>
-      </Collapsible>
-    );
-  }
-
   return (
-    <HoverCardSidebarMenuItem
-      icon={<Settings className="h-5 w-5" />}
-      description="Settings"
-      content={(_isOpen, onClose) => (
-        <div className="space-y-2">
-          <div
-            role="button"
-            tabIndex={0}
-            className="w-full flex items-center justify-between px-2 py-1.5 rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
-            onClick={() => toggleTheme(!isDark)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                toggleTheme(!isDark);
-              }
-            }}
-          >
-            <div className="flex items-center gap-2 text-sm">
-              {isDark ? <MoonIcon className="h-4 w-4" /> : <SunIcon className="h-4 w-4" />}
-              <span>{isDark ? "Dark Mode" : "Light Mode"}</span>
-            </div>
-            <Switch
-              checked={isDark}
-              onCheckedChange={toggleTheme}
-              aria-label="Toggle dark mode"
-              className="h-4 w-8 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-4"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-          <button
-            className="w-full flex items-center gap-2 text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
-            onClick={() => {
-              showSettingsDialog();
-              onClose();
-            }}
-          >
-            <Settings className="h-4 w-4" />
-            App Settings
-          </button>
-        </div>
-      )}
-      contentClassName="w-48 p-2"
-    />
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        size="default"
+        tooltip={{
+          children: "Settings",
+          className: "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
+        }}
+        onClick={() => showSettingsDialog({ initialSection: "ui" })}
+      >
+        <Settings className="h-5 w-5" />
+        <span>Settings</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
 

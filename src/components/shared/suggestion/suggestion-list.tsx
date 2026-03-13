@@ -197,6 +197,8 @@ export const SuggestionList: React.FC<SuggestionListProps> = ({
   const inputRef = React.useRef<HTMLInputElement>(null);
   const rightPanelRef = React.useRef<HTMLDivElement>(null);
   const leftPanelRef = React.useRef<HTMLDivElement>(null);
+  const popoverContainer =
+    (inputRef.current?.closest("[role='dialog']") as HTMLElement | null) ?? undefined;
 
   // Find selected item based on selectedValue
   const selectedItem = React.useMemo(() => {
@@ -273,6 +275,7 @@ export const SuggestionList: React.FC<SuggestionListProps> = ({
         {!isOpen && <CommandList aria-hidden="true" className="hidden" />}
 
         <PopoverContent
+          container={popoverContainer}
           align="start"
           autoFocus={false}
           onInteractOutside={(e) => {
@@ -302,7 +305,7 @@ export const SuggestionList: React.FC<SuggestionListProps> = ({
               e.stopPropagation();
             }
           }}
-          className="p-0 w-auto flex items-start z-[10000] bg-transparent border-0"
+          className="p-0 w-auto flex items-start z-[10002] bg-transparent border-0"
         >
           <CommandList
             ref={leftPanelRef}

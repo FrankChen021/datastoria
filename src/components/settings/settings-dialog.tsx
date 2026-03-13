@@ -1,4 +1,4 @@
-import { ConnectionProvider } from "@/components/connection/connection-context";
+import { Dialog as SharedDialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/sidebar";
 import { ChevronRight, X } from "lucide-react";
 import React, { useCallback, useState } from "react";
-import ReactDOM from "react-dom/client";
 import { SETTINGS_REGISTRY, type SettingsSection } from "./settings-registry";
 
 export interface ShowSettingsDialogOptions {
@@ -37,27 +36,14 @@ function SettingsDialogWrapper({
     if (onCancel) {
       onCancel();
     }
+    SharedDialog.close();
   }, [onCancel]);
-
-  // Handle ESC key to close
-  React.useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        handleClose();
-      }
-    };
-
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [handleClose]);
 
   const activePage = SETTINGS_REGISTRY[activeSection];
   const ActiveComponent = activePage.component;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-background flex flex-col">
+    <div className="fixed inset-0 bg-background flex flex-col">
       <SidebarProvider>
         <div className="flex-1 overflow-hidden flex">
           {/* Inner Sidebar */}
@@ -66,13 +52,23 @@ function SettingsDialogWrapper({
               <SidebarGroup>
                 <SidebarGroupLabel>Settings</SidebarGroupLabel>
                 <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      className="justify-start"
+                      onClick={() => setActiveSection("ui")}
+                      isActive={activeSection === "ui"}
+                    >
+                      <span>UI</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
                   {/* SQL Section */}
                   <SidebarMenuItem>
                     <Collapsible defaultOpen className="group/collapsible">
                       <CollapsibleTrigger asChild>
                         <SidebarMenuButton>
-                          <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
                           <span>SQL</span>
+                          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
@@ -96,8 +92,8 @@ function SettingsDialogWrapper({
                     <Collapsible defaultOpen className="group/collapsible">
                       <CollapsibleTrigger asChild>
                         <SidebarMenuButton>
-                          <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
                           <span>AI</span>
+                          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
@@ -105,10 +101,10 @@ function SettingsDialogWrapper({
                           <SidebarMenuSubItem>
                             <SidebarMenuSubButton
                               className="cursor-pointer"
-                              onClick={() => setActiveSection("agent")}
-                              isActive={activeSection === "agent"}
+                              onClick={() => setActiveSection("models")}
+                              isActive={activeSection === "models"}
                             >
-                              <span>Agent</span>
+                              <span>Models</span>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
 
@@ -125,10 +121,10 @@ function SettingsDialogWrapper({
                           <SidebarMenuSubItem>
                             <SidebarMenuSubButton
                               className="cursor-pointer"
-                              onClick={() => setActiveSection("models")}
-                              isActive={activeSection === "models"}
+                              onClick={() => setActiveSection("agent")}
+                              isActive={activeSection === "agent"}
                             >
-                              <span>Models</span>
+                              <span>Agent</span>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
                         </SidebarMenuSub>
@@ -167,29 +163,14 @@ function SettingsDialogWrapper({
 export function showSettingsDialog(options: ShowSettingsDialogOptions = {}) {
   const { onCancel, initialSection } = options;
 
-  // Create a container div to mount the full-screen component
-  const container = document.createElement("div");
-  document.body.appendChild(container);
-
-  // Create React root
-  const root = ReactDOM.createRoot(container);
-
-  // Function to cleanup and close
-  const cleanup = () => {
-    if (container.parentNode) {
-      root.unmount();
-      document.body.removeChild(container);
-    }
-    if (onCancel) {
-      onCancel();
-    }
-  };
-
-  // Render the full-screen component. ConnectionProvider with createConnectionFromPending
-  // creates a connection from the last selected config so QueryContextEdit can use useConnection.
-  root.render(
-    <ConnectionProvider createConnectionFromPending>
-      <SettingsDialogWrapper onCancel={cleanup} initialSection={initialSection} />
-    </ConnectionProvider>
-  );
+  SharedDialog.showDialog({
+    title: "Settings",
+    visuallyHiddenTitle: true,
+    overlayClassName: "!z-[9990]",
+    className:
+      "!z-[9990] !inset-0 !left-0 !top-0 !h-screen !w-screen !max-h-screen !max-w-none !translate-x-0 !translate-y-0 rounded-none border-0 p-0 shadow-none duration-0 data-[state=open]:!animate-none data-[state=closed]:!animate-none",
+    closeButtonClassName: "hidden",
+    disableContentScroll: true,
+    mainContent: <SettingsDialogWrapper onCancel={onCancel} initialSection={initialSection} />,
+  });
 }
