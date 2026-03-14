@@ -1,13 +1,12 @@
-import { AgentConfigurationManager } from "@/components/settings/agent/agent-manager";
-import { AskAIButton } from "@/components/shared/ask-ai-button";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { parseErrorLocation, type ErrorLocation } from "@/lib/clickhouse/clickhouse-error-parser";
-import { AlertCircleIcon } from "lucide-react";
-import { memo, useMemo, useState } from "react";
+import { AlertCircleIcon, SparklesIcon } from "lucide-react";
+import { memo, useEffect, useMemo, useState } from "react";
 import type { QueryErrorDisplay } from "../query-view-model";
 import { QueryErrorAIExplanation } from "./query-error-ai-explanation";
-import { isAutoExplainClickHouseErrorBlacklisted } from "./query-error-auto-explain-config";
+import { shouldAutoExplain } from "./query-error-auto-explain-config";
 
 interface ErrorLocationViewProps {
   errorLocation: ErrorLocation;
@@ -70,6 +69,7 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
   sql,
 }: QueryResponseErrorViewProps) {
   const clickHouseErrorCode = error.exceptionCode;
+  const [isManualExplainRequested, setIsManualExplainRequested] = useState(false);
 
   // Memoize detailMessage computation
   const detailMessage = useMemo(() => {
@@ -102,15 +102,6 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
         : detailMessage,
     [shouldTruncateDetailMessage, showFullDetailMessage, detailMessage]
   );
-
-  const shouldAutoExplain = useMemo(() => {
-    const configuration = AgentConfigurationManager.getConfiguration();
-    return (
-      Boolean(configuration.autoExplainClickHouseErrors) &&
-      Boolean(clickHouseErrorCode) &&
-      !isAutoExplainClickHouseErrorBlacklisted(clickHouseErrorCode)
-    );
-  }, [clickHouseErrorCode]);
 
   return (
     <Alert variant="default" className="border-0 p-1">
@@ -146,7 +137,7 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
         )}
         {detailMessage && detailMessage.length > 0 && sql && sql.length > 0 && (
           <>
-            {shouldAutoExplain ? (
+            {shouldAutoExplain(clickHouseErrorCode) || isManualExplainRequested ? (
               <QueryErrorAIExplanation
                 queryId={queryId}
                 errorMessage={detailMessage}
@@ -155,12 +146,15 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
               />
             ) : (
               <div className="mt-3">
-                <AskAIButton
-                  errorMessage={detailMessage}
-                  errorCode={clickHouseErrorCode}
-                  sql={sql}
-                  hideAfterClick={true}
-                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsManualExplainRequested(true)}
+                  className="gap-2 rounded-sm text-primary bg-primary/10 hover:bg-primary/20 hover:text-primary border-primary/50 font-semibold animate-pulse"
+                >
+                  <SparklesIcon className="h-4 w-4" />
+                  Ask AI for Explanation
+                </Button>
               </div>
             )}
           </>

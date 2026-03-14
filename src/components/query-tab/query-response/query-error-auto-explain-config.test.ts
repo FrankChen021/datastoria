@@ -1,14 +1,35 @@
-import { describe, expect, it } from "vitest";
-import { isAutoExplainClickHouseErrorBlacklisted } from "./query-error-auto-explain-config";
+import { AgentConfigurationManager } from "@/components/settings/agent/agent-manager";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { shouldAutoExplain } from "./query-error-auto-explain-config";
 
-describe("isAutoExplainClickHouseErrorBlacklisted", () => {
-  it("matches blacklisted error codes after trimming", () => {
-    expect(isAutoExplainClickHouseErrorBlacklisted(" 194 ")).toBe(true);
-    expect(isAutoExplainClickHouseErrorBlacklisted(241)).toBe(true);
+vi.mock("@/components/settings/agent/agent-manager", () => ({
+  AgentConfigurationManager: {
+    getConfiguration: vi.fn(),
+  },
+}));
+
+describe("shouldAutoExplain", () => {
+  beforeEach(() => {
+    vi.mocked(AgentConfigurationManager.getConfiguration).mockReturnValue({
+      autoExplainClickHouseErrors: true,
+    });
   });
 
-  it("returns false for non-blacklisted or missing codes", () => {
-    expect(isAutoExplainClickHouseErrorBlacklisted("62")).toBe(false);
-    expect(isAutoExplainClickHouseErrorBlacklisted(undefined)).toBe(false);
+  it("returns false for blacklisted error codes (194, 241) after trimming", () => {
+    expect(shouldAutoExplain(" 194 ")).toBe(false);
+    expect(shouldAutoExplain(241)).toBe(false);
+  });
+
+  it("returns true for non-blacklisted code when auto-explain is on", () => {
+    expect(shouldAutoExplain("60")).toBe(true);
+  });
+
+  it("returns false for missing error code or when auto-explain is off", () => {
+    expect(shouldAutoExplain(undefined)).toBe(false);
+
+    vi.mocked(AgentConfigurationManager.getConfiguration).mockReturnValue({
+      autoExplainClickHouseErrors: false,
+    });
+    expect(shouldAutoExplain(62)).toBe(false);
   });
 });
