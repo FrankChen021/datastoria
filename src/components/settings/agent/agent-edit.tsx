@@ -113,12 +113,64 @@ function AddBlacklistDialogContent({
               <Button variant="outline" className="h-9" onClick={handleCancel}>
                 Cancel
               </Button>
-              <Button className="h-9" onClick={handleApply}>Add selected</Button>
+              <Button className="h-9" onClick={handleApply}>
+                Add selected
+              </Button>
             </div>
           </div>
         </Command>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function BlacklistCodesTable({
+  entries,
+  onRemove,
+}: {
+  entries: Array<[number | string, string]>;
+  onRemove: (errorCode: string) => void;
+}) {
+  // Native <table> so the scroll container wraps it directly; shared Table adds a div that breaks sticky header.
+  return (
+    <div className="max-h-[320px] overflow-auto rounded-md border [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-background [&_thead_th]:shadow-[0_1px_0_0_hsl(var(--border))]">
+      <table className="w-full caption-bottom text-sm">
+        <thead className="[&_tr]:border-b">
+          <tr className="border-b transition-colors">
+            <th className="h-9 w-24 px-4 py-0 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
+              Code
+            </th>
+            <th className="h-9 px-4 py-0 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
+              Name
+            </th>
+            <th className="h-9 w-20 px-4 py-1 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
+              Action
+            </th>
+          </tr>
+        </thead>
+        <tbody className="[&_tr:last-child]:border-0">
+          {entries.map(([code, name]) => {
+            const codeString = String(code);
+            return (
+              <tr key={codeString} className="h-9 border-b transition-colors hover:bg-muted/50">
+                <td className="px-4 py-1 font-mono align-middle">{codeString}</td>
+                <td className="px-4 py-1 align-middle">{name}</td>
+                <td className="px-4 py-1 text-right align-middle">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onRemove(codeString)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -317,50 +369,10 @@ export function AgentEdit() {
                 <TableRow className="hover:bg-transparent">
                   <TableCell className="px-0 pl-4 py-0" />
                   <TableCell colSpan={2} className="px-0 pr-2 pb-4 pt-0">
-                    {/* Native <table> is used so the scroll container directly wraps the table. The shared Table
-                        component wraps the table in an extra div with overflow-auto, which breaks position:sticky
-                        for the header. */}
-                    <div className="max-h-[320px] overflow-auto rounded-md border [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-background [&_thead_th]:shadow-[0_1px_0_0_hsl(var(--border))]">
-                      <table className="w-full caption-bottom text-sm">
-                        <thead className="[&_tr]:border-b">
-                          <tr className="border-b transition-colors">
-                            <th className="h-9 w-24 px-4 py-0 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
-                              Code
-                            </th>
-                            <th className="h-9 px-4 py-0 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
-                              Name
-                            </th>
-                            <th className="h-9 w-20 px-4 py-1 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
-                              Action
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="[&_tr:last-child]:border-0">
-                          {selectedErrorCodes.map(([code, name]) => {
-                            const codeString = String(code);
-                            return (
-                              <tr
-                                key={codeString}
-                                className="h-9 border-b transition-colors hover:bg-muted/50"
-                              >
-                                <td className="px-4 py-1 font-mono align-middle">{codeString}</td>
-                                <td className="px-4 py-1 align-middle">{name}</td>
-                                <td className="px-4 py-1 text-right align-middle">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleBlacklistToggle(codeString, false)}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                    <BlacklistCodesTable
+                      entries={selectedErrorCodes}
+                      onRemove={(codeString) => handleBlacklistToggle(codeString, false)}
+                    />
                   </TableCell>
                 </TableRow>
               )}
