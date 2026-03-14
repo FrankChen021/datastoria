@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { buildExplainErrorPrompt } from "@/lib/ai/explain-error-prompt";
 import { SparklesIcon } from "lucide-react";
 import { memo, useState } from "react";
 import { useChatPanel } from "../chat/view/use-chat-panel";
@@ -22,12 +23,11 @@ export const AskAIButton = memo(function AskAIButton({
   const [isClicked, setIsClicked] = useState(false);
 
   const handleAskAI = () => {
-    const parts: string[] = [];
-    if (errorCode !== undefined) parts.push(`error code: ${errorCode}`);
-    parts.push(`error message: ${errorMessage}`);
-    if (sql) parts.push("sql:\n```sql\n" + sql + "\n```");
-
-    const message = `/explain_error_code ${parts.join("\n\n")}`;
+    const message = buildExplainErrorPrompt({
+      errorMessage,
+      errorCode,
+      sql,
+    });
 
     postMessage(message, { forceNewChat: true });
 

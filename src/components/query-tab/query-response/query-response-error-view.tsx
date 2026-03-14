@@ -1,3 +1,4 @@
+import { AgentConfigurationManager } from "@/components/settings/agent/agent-manager";
 import { AskAIButton } from "@/components/shared/ask-ai-button";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -5,6 +6,8 @@ import { parseErrorLocation, type ErrorLocation } from "@/lib/clickhouse/clickho
 import { AlertCircleIcon } from "lucide-react";
 import { memo, useMemo, useState } from "react";
 import type { QueryErrorDisplay } from "../query-view-model";
+import { QueryErrorAIExplanation } from "./query-error-ai-explanation";
+import { isAutoExplainClickHouseErrorBlacklisted } from "./query-error-auto-explain-config";
 
 interface ErrorLocationViewProps {
   errorLocation: ErrorLocation;
@@ -31,7 +34,7 @@ const ErrorLocationView = memo(function ErrorLocationView({
   const startLineNumber = errorLocation.contextLines[0]?.lineNum ?? 1;
 
   return (
-    <div className="mb-3">
+    <div className="mb-3 text-destructive">
       <div className="my-2 font-medium">
         Error Context: Line {errorLocation.lineNumber}, Col {errorLocation.columnNumber}:
       </div>
@@ -98,16 +101,25 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
     [shouldTruncateDetailMessage, showFullDetailMessage, detailMessage]
   );
 
+  const shouldAutoExplain = useMemo(() => {
+    const configuration = AgentConfigurationManager.getConfiguration();
+    return (
+      Boolean(configuration.autoExplainClickHouseErrors) &&
+      Boolean(clickHouseErrorCode) &&
+      !isAutoExplainClickHouseErrorBlacklisted(clickHouseErrorCode)
+    );
+  }, [clickHouseErrorCode]);
+
   return (
-    <Alert variant="destructive" className="border-0 p-1 text-destructive">
-      <div className="flex items-center gap-2">
+    <Alert variant="default" className="border-0 p-1">
+      <div className="flex items-center gap-2 text-destructive">
         <AlertCircleIcon className="h-4 w-4" />
         <AlertTitle className="mb-0">{error.message}</AlertTitle>
       </div>
       <AlertDescription className="mt-2 gap-2">
         {errorLocation && <ErrorLocationView errorLocation={errorLocation} />}
         {detailMessage && detailMessage.length > 0 && (
-          <div className="whitespace-pre-wrap overflow-x-auto font-medium bg-muted/50 dark:bg-muted/30">
+          <div className="whitespace-pre-wrap overflow-x-auto font-medium bg-muted/50 dark:bg-muted/30 text-destructive">
             {displayDetailMessage}
             {shouldTruncateDetailMessage && !showFullDetailMessage && (
               <>
@@ -131,14 +143,24 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
           </div>
         )}
         {detailMessage && detailMessage.length > 0 && sql && sql.length > 0 && (
-          <div className="mt-3">
-            <AskAIButton
-              errorMessage={detailMessage}
-              errorCode={clickHouseErrorCode}
-              sql={sql}
-              hideAfterClick={true}
-            />
-          </div>
+          <>
+            {shouldAutoExplain ? (
+              <QueryErrorAIExplanation
+                errorMessage={detailMessage}
+                errorCode={clickHouseErrorCode}
+                sql={sql}
+              />
+            ) : (
+              <div className="mt-3">
+                <AskAIButton
+                  errorMessage={detailMessage}
+                  errorCode={clickHouseErrorCode}
+                  sql={sql}
+                  hideAfterClick={true}
+                />
+              </div>
+            )}
+          </>
         )}
       </AlertDescription>
     </Alert>

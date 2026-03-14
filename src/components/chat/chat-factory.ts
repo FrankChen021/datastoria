@@ -11,7 +11,7 @@ import { Connection, type QueryResponse } from "@/lib/connection/connection";
 import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { v7 as uuidv7 } from "uuid";
-import { ChatContext } from "./chat-context";
+import { ChatContext, type DatabaseContext } from "./chat-context";
 import { ChatUIContext } from "./chat-ui-context";
 import { SessionManager } from "./session/session-manager";
 
@@ -21,6 +21,35 @@ type AbortableQueryResult<TResponse extends QueryResponse | Response> = {
 };
 type ClientToolName = keyof typeof ClientToolExecutors;
 const PROVISIONAL_SESSION_TITLE_WORDS = 8;
+
+type ChatFactoryCreateOptions = {
+  id?: string;
+  connection: Connection;
+  apiEndpoint?: string;
+  context?: DatabaseContext;
+  model?: {
+    provider: string;
+    modelId: string;
+    apiKey?: string;
+  };
+};
+type PrepareSendMessagesRequestArgs = {
+  chatId: string;
+  connection: Connection;
+  historicalMessages: AppUIMessage[];
+  messages: AppUIMessage[];
+};
+type FinishMessageArgs = {
+  chatId: string;
+  connection: Connection;
+  message: AppUIMessage;
+};
+type CreateInternalOptions = ChatFactoryCreateOptions & {
+  initialMessages: AppUIMessage[];
+  generateTitle: boolean;
+  onPrepareSendMessagesRequest?: (args: PrepareSendMessagesRequestArgs) => Promise<void> | void;
+  onFinish?: (args: FinishMessageArgs) => Promise<void> | void;
+};
 
 function extractTextFromMessage(
   message: Pick<Message, "parts"> | Pick<AppUIMessage, "parts">
@@ -174,30 +203,123 @@ export class ChatFactory {
   }
 
   /**
-   * Create or retrieve a chat instance
+   * Create or retrieve a persisted chat instance
    */
-  static async create(options: {
-    id?: string;
-    connection: Connection;
-    skipStorage?: boolean;
-    apiEndpoint?: string;
-    model?: {
-      provider: string;
-      modelId: string;
-      apiKey?: string;
-    };
-  }): Promise<Chat<AppUIMessage>> {
+  static async create(options: ChatFactoryCreateOptions): Promise<Chat<AppUIMessage>> {
     const chatId = options.id || uuidv7();
-    const skipStorage = options.skipStorage ?? false;
+    const historicalMessages = await SessionManager.getMessages(chatId);
+
+    // A full chat session should start with a clean tool-progress timeline.
+    useToolProgressStore.getState().clearAllProgress();
+
+    return ChatFactory.createInternal({
+      ...options,
+      id: chatId,
+      initialMessages: historicalMessages.map((msg) => ({
+        id: msg.id,
+        role: msg.role,
+        parts: msg.parts,
+        createdAt: msg.createdAt,
+        updatedAt: msg.updatedAt,
+        metadata: msg.metadata,
+      })) as AppUIMessage[],
+      generateTitle: true,
+      onPrepareSendMessagesRequest: async ({ messages, connection, chatId, historicalMessages }) => {
+        const userMessagesToSave = messages
+          .filter((msg) => msg.role === "user")
+          .map((msg) => {
+            const metadataCreatedAt =
+              typeof msg.metadata?.createdAt === "number"
+                ? new Date(msg.metadata.createdAt)
+                : undefined;
+            const createdAt =
+              metadataCreatedAt && !Number.isNaN(metadataCreatedAt.getTime())
+                ? metadataCreatedAt
+                : new Date();
+            const updatedAt = new Date();
+
+            return {
+              id: msg.id,
+              chatId,
+              role: msg.role,
+              parts: msg.parts ?? [],
+              metadata: msg.metadata,
+              createdAt,
+              updatedAt,
+            } as Message;
+          });
+
+        if (userMessagesToSave.length === 0) {
+          return;
+        }
+
+        let provisionalTitle: string | undefined;
+        if (
+          historicalMessages.length === 0 &&
+          messages.length === 1 &&
+          messages[0]?.role === "user"
+        ) {
+          provisionalTitle = buildProvisionalSessionTitle(extractTextFromMessage(messages[0]));
+          if (provisionalTitle) {
+            ChatUIContext.updateTitle(provisionalTitle);
+          }
+        }
+
+        await SessionManager.saveMessages(chatId, userMessagesToSave);
+        await SessionManager.touchSessionById(chatId, connection.connectionId, provisionalTitle);
+      },
+      onFinish: async ({ message, connection, chatId }) => {
+        const now = new Date();
+
+        const messageToSave: Message = {
+          id: message.id,
+          role: message.role,
+          parts: message.parts as Message["parts"],
+          metadata: message.metadata as MessageMetadata,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        await SessionManager.saveMessage(chatId, messageToSave);
+        let title: string | undefined;
+        if (message.metadata?.title && typeof message.metadata.title.text === "string") {
+          title = message.metadata.title.text;
+          ChatUIContext.updateTitle(title);
+        } else if (
+          message.role === "assistant" &&
+          message.parts.length > 1 &&
+          message.parts[0].type === "dynamic-tool" &&
+          message.parts[0].toolName === SERVER_TOOL_NAMES.PLAN
+        ) {
+          const output = message.parts[0].output as PlanToolOutput;
+          if (output.title) {
+            title = output.title;
+            ChatUIContext.updateTitle(title);
+          }
+        }
+
+        await SessionManager.touchSessionById(chatId, connection.connectionId, title);
+      },
+    });
+  }
+
+  /**
+   * Create an ephemeral chat instance for one-off UI surfaces.
+   * Does not load history, persist messages, or request a generated title.
+   */
+  static async createEphemeral(options: ChatFactoryCreateOptions): Promise<Chat<AppUIMessage>> {
+    return ChatFactory.createInternal({
+      ...options,
+      initialMessages: [],
+      generateTitle: false,
+    });
+  }
+
+  private static async createInternal(options: CreateInternalOptions): Promise<Chat<AppUIMessage>> {
+    const chatId = options.id || uuidv7();
     const modelConfig = options.model;
     const connection = options.connection;
     const clientToolConnection = ChatFactory.createClientToolConnection(chatId, connection);
-
-    // Clear all progress when a new session starts
-    useToolProgressStore.getState().clearAllProgress();
-
-    // Load existing messages from storage to restore chat history
-    const historicalMessages = skipStorage ? [] : await SessionManager.getMessages(chatId);
 
     // Create Chat instance
     const chat = new Chat<AppUIMessage>({
@@ -208,7 +330,7 @@ export class ChatFactory {
       sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
 
       transport: new DefaultChatTransport({
-        fetch: async (input, init) => {
+        fetch: async (_input, init) => {
           const mode = AgentConfigurationManager.getConfiguration().mode;
           const endpoint = BasePath.getURL(mode === "v2" ? "/api/ai/chat/v2" : "/api/ai/chat");
           return fetch(endpoint, init);
@@ -225,59 +347,14 @@ export class ChatFactory {
           // Get current model config dynamically if not provided in options
           const currentModel = modelConfig || ChatFactory.getCurrentModelConfig();
 
-          // Save user messages that haven't been saved yet
-          if (!skipStorage) {
-            const userMessagesToSave = messages
-              .filter((msg) => {
-                // Only save user messages
-                // Assistant messages are saved via onFinish callback
-                return msg.role === "user";
-              })
-              .map((msg) => {
-                const metadataCreatedAt =
-                  typeof msg.metadata?.createdAt === "number"
-                    ? new Date(msg.metadata.createdAt)
-                    : undefined;
-                const createdAt =
-                  metadataCreatedAt && !Number.isNaN(metadataCreatedAt.getTime())
-                    ? metadataCreatedAt
-                    : new Date();
-                const updatedAt = new Date();
+          await options.onPrepareSendMessagesRequest?.({
+            chatId,
+            connection,
+            historicalMessages: options.initialMessages,
+            messages: messages as AppUIMessage[],
+          });
 
-                return {
-                  id: msg.id,
-                  chatId: chatId,
-                  role: msg.role,
-                  parts: msg.parts ?? [],
-                  metadata: msg.metadata,
-                  createdAt,
-                  updatedAt,
-                } as Message;
-              });
-
-            if (userMessagesToSave.length > 0) {
-              let provisionalTitle: string | undefined;
-              if (
-                historicalMessages.length === 0 &&
-                messages.length === 1 &&
-                messages[0]?.role === "user"
-              ) {
-                provisionalTitle = buildProvisionalSessionTitle(
-                  extractTextFromMessage(messages[0])
-                );
-                if (provisionalTitle) {
-                  ChatUIContext.updateTitle(provisionalTitle);
-                }
-              }
-
-              await SessionManager.saveMessages(chatId, userMessagesToSave);
-              await SessionManager.touchSessionById(
-                chatId,
-                connection.connectionId,
-                provisionalTitle
-              );
-            }
-          }
+          const requestContext = options.context ?? ChatContext.build();
 
           return {
             body: {
@@ -288,7 +365,8 @@ export class ChatFactory {
               agentContext: {
                 pruneValidateSql: AgentConfigurationManager.getConfiguration().pruneValidateSql,
               },
-              ...(ChatContext.build() && { context: ChatContext.build() }),
+              generateTitle: options.generateTitle,
+              ...(requestContext && { context: requestContext }),
               ...(currentModel && { model: currentModel }),
             },
             headers,
@@ -297,14 +375,7 @@ export class ChatFactory {
         },
       }),
 
-      messages: historicalMessages.map((msg) => ({
-        id: msg.id,
-        role: msg.role,
-        parts: msg.parts,
-        createdAt: msg.createdAt,
-        updatedAt: msg.updatedAt,
-        metadata: msg.metadata,
-      })) as AppUIMessage[],
+      messages: options.initialMessages,
 
       onToolCall: async ({ toolCall }) => {
         const { toolName, toolCallId, input } = toolCall;
@@ -358,42 +429,15 @@ export class ChatFactory {
         }
       },
 
-      onFinish: skipStorage
-        ? undefined
-        : async ({ message }) => {
-            // Use current local time for createdAt (only used for display, not sorting)
-            // Messages are sorted by UUIDv7 message ID, which maintains chronological order
-            const now = new Date();
-
-            const messageToSave: Message = {
-              id: message.id,
-              role: message.role,
-              parts: message.parts as Message["parts"],
-              metadata: message.metadata as MessageMetadata,
-              createdAt: now,
-              updatedAt: now,
-            };
-
-            await SessionManager.saveMessage(chatId, messageToSave);
-            let title: string | undefined;
-            if (message.metadata?.title && typeof message.metadata.title.text === "string") {
-              title = message.metadata.title.text;
-              ChatUIContext.updateTitle(title);
-            } else if (
-              message.role === "assistant" &&
-              message.parts.length > 1 &&
-              message.parts[0].type === "dynamic-tool" &&
-              message.parts[0].toolName === SERVER_TOOL_NAMES.PLAN
-            ) {
-              const output = message.parts[0].output as PlanToolOutput;
-              if (output.title) {
-                title = output.title;
-                ChatUIContext.updateTitle(title);
-              }
-            }
-
-            await SessionManager.touchSessionById(chatId, connection.connectionId, title);
-          },
+      onFinish: options.onFinish
+        ? async ({ message }) => {
+            await options.onFinish?.({
+              chatId,
+              connection,
+              message: message as AppUIMessage,
+            });
+          }
+        : undefined,
     });
 
     return chat;

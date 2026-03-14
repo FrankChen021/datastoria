@@ -9,6 +9,8 @@ export type AgentConfiguration = {
   mode: AgentMode;
   /** Whether to prune successful validate_sql tool calls from history. Default true. */
   pruneValidateSql?: boolean;
+  /** Whether eligible ClickHouse errors should auto-trigger an inline AI explanation. */
+  autoExplainClickHouseErrors?: boolean;
 };
 
 export class AgentConfigurationManager {
@@ -25,6 +27,7 @@ export class AgentConfigurationManager {
         return {
           mode: "v2",
           pruneValidateSql: true,
+          autoExplainClickHouseErrors: false,
         };
       });
     }

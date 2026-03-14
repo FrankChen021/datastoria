@@ -45,6 +45,12 @@ export function AgentEdit() {
     AgentConfigurationManager.setConfiguration(newConfig);
   };
 
+  const handleAutoExplainChange = (checked: boolean) => {
+    const newConfig = { ...configuration, autoExplainClickHouseErrors: checked };
+    setConfiguration(newConfig);
+    AgentConfigurationManager.setConfiguration(newConfig);
+  };
+
   return (
     <div ref={containerRef} className="h-full flex flex-col">
       <div className="px-4 py-2 grid gap-2">
@@ -88,6 +94,22 @@ export function AgentEdit() {
           </div>
           <div className="text-sm text-muted-foreground pt-2">
             Enable surgical pruning of SQL validations from history to save tokens.
+          </div>
+        </div>
+
+        <Separator />
+        <div className="grid grid-cols-[200px_300px_1fr] gap-8 items-start">
+          <div className="space-y-1 pt-2">
+            <Label>Auto Explain Errors</Label>
+          </div>
+          <div className="flex items-center h-10">
+            <Switch
+              checked={configuration.autoExplainClickHouseErrors ?? false}
+              onCheckedChange={handleAutoExplainChange}
+            />
+          </div>
+          <div className="text-sm text-muted-foreground pt-2">
+            Automatically ask AI to explain eligible ClickHouse errors inline in query results.
           </div>
         </div>
       </div>
