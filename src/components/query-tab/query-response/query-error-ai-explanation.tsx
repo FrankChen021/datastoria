@@ -17,7 +17,7 @@ interface QueryErrorAIExplanationProps {
   sql?: string;
 }
 
-const SHOW_AUTO_EXPLAIN_TOOL_CHROME = process.env.NODE_ENV !== "development";
+const SHOW_AUTO_EXPLAIN_TOOL_CHROME = process.env.NODE_ENV === "development";
 
 function getVisibleAssistantMessage(message: AppUIMessage): AppUIMessage | null {
   if (SHOW_AUTO_EXPLAIN_TOOL_CHROME) {

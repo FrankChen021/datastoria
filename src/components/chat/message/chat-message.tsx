@@ -278,7 +278,6 @@ export const ChatMessage = memo(function ChatMessage({
                 <div className="flex items-center gap-2 text-muted-foreground">
                   {/* Under the state that request is submitted, but server has not responded yet */}
                   <span>{loadingText}</span>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 </div>
               )}
               {parts.length === 0 && !isLoading && !error && "Nothing returned"}
@@ -294,7 +293,7 @@ export const ChatMessage = memo(function ChatMessage({
               {error && <ErrorMessageDisplay errorText={error.message || String(error)} />}
               {showLoading && (
                 <div className="mt-2 flex items-center gap-2 text-muted-foreground">
-                  <TypingDots />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 </div>
               )}
             </div>
