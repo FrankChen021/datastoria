@@ -60,11 +60,13 @@ const ErrorLocationView = memo(function ErrorLocationView({
 
 interface QueryResponseErrorViewProps {
   error: QueryErrorDisplay;
+  queryId: string;
   sql?: string;
 }
 
 export const QueryResponseErrorView = memo(function QueryResponseErrorView({
   error,
+  queryId,
   sql,
 }: QueryResponseErrorViewProps) {
   const clickHouseErrorCode = error.exceptionCode;
@@ -146,6 +148,7 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
           <>
             {shouldAutoExplain ? (
               <QueryErrorAIExplanation
+                queryId={queryId}
                 errorMessage={detailMessage}
                 errorCode={clickHouseErrorCode}
                 sql={sql}

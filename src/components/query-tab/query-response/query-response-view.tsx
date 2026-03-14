@@ -173,13 +173,17 @@ export function QueryResponseView({
       </div>
 
       {error && (
-        <TabsContent value="result">
-          <QueryResponseErrorView error={error} sql={sql} />
+        <TabsContent value="result" forceMount className="data-[state=inactive]:hidden">
+          <QueryResponseErrorView error={error} queryId={queryRequest.queryId} sql={sql} />
         </TabsContent>
       )}
 
       {!error && (
-        <TabsContent value="result" className="overflow-auto mt-0">
+        <TabsContent
+          value="result"
+          forceMount
+          className="overflow-auto mt-0 data-[state=inactive]:hidden"
+        >
           <div className="relative">
             {view === "table" ? (
               <QueryResponseTableView queryResponse={queryResponse} />

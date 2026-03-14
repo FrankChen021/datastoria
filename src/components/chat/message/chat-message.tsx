@@ -8,7 +8,7 @@ import { DateTimeExtension } from "@/lib/datetime-utils";
 import { cn } from "@/lib/utils";
 import NumberFlow from "@number-flow/react";
 import type { LanguageModelUsage } from "ai";
-import { Info } from "lucide-react";
+import { Info, Loader2 } from "lucide-react";
 import { memo } from "react";
 import { ErrorMessageDisplay } from "./message-error";
 import { MessageMarkdown } from "./message-markdown";
@@ -206,6 +206,7 @@ interface ChatMessageProps {
   isFirst?: boolean; // Whether this is a new user request (needs top spacing)
   isLast?: boolean; // Whether this is the last message in a sequence
   isRunning?: boolean;
+  loadingText?: string;
 }
 
 function resolveMessageTimestamp(message: AppUIMessage): number | undefined {
@@ -233,6 +234,7 @@ export const ChatMessage = memo(function ChatMessage({
   isLoading = false,
   isFirst = false,
   isRunning = true,
+  loadingText = "Thinking",
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const timestamp = resolveMessageTimestamp(message);
@@ -275,7 +277,8 @@ export const ChatMessage = memo(function ChatMessage({
               {parts.length === 0 && isLoading && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   {/* Under the state that request is submitted, but server has not responded yet */}
-                  <span>Thinking</span>
+                  <span>{loadingText}</span>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 </div>
               )}
               {parts.length === 0 && !isLoading && !error && "Nothing returned"}
