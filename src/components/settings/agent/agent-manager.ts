@@ -4,6 +4,7 @@ import { StorageManager } from "@/lib/storage/storage-provider-manager";
 export type AgentMode = "v2" | "legacy";
 
 const STORAGE_KEY = "settings:ai:agent";
+export const DEFAULT_AUTO_EXPLAIN_BLACKLIST = ["62", "194", "241"];
 
 export type AgentConfiguration = {
   mode: AgentMode;
@@ -11,6 +12,8 @@ export type AgentConfiguration = {
   pruneValidateSql?: boolean;
   /** Whether eligible ClickHouse errors should auto-trigger an inline AI explanation. */
   autoExplainClickHouseErrors?: boolean;
+  /** ClickHouse error codes that should never auto-trigger inline explanation. */
+  autoExplainBlacklist?: string[];
 };
 
 export class AgentConfigurationManager {
@@ -28,6 +31,7 @@ export class AgentConfigurationManager {
           mode: "v2",
           pruneValidateSql: true,
           autoExplainClickHouseErrors: false,
+          autoExplainBlacklist: DEFAULT_AUTO_EXPLAIN_BLACKLIST,
         };
       });
     }

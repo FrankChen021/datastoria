@@ -12,6 +12,7 @@ describe("shouldAutoExplain", () => {
   beforeEach(() => {
     vi.mocked(AgentConfigurationManager.getConfiguration).mockReturnValue({
       autoExplainClickHouseErrors: true,
+      autoExplainBlacklist: ["194", "241"],
     });
   });
 
@@ -29,7 +30,18 @@ describe("shouldAutoExplain", () => {
 
     vi.mocked(AgentConfigurationManager.getConfiguration).mockReturnValue({
       autoExplainClickHouseErrors: false,
+      autoExplainBlacklist: ["62"],
     });
     expect(shouldAutoExplain(62)).toBe(false);
+  });
+
+  it("respects the configured blacklist", () => {
+    vi.mocked(AgentConfigurationManager.getConfiguration).mockReturnValue({
+      autoExplainClickHouseErrors: true,
+      autoExplainBlacklist: ["60"],
+    });
+
+    expect(shouldAutoExplain(60)).toBe(false);
+    expect(shouldAutoExplain(62)).toBe(true);
   });
 });

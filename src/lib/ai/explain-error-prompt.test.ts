@@ -30,7 +30,9 @@ describe("buildExplainErrorPrompt", () => {
       mode: "inline-auto",
     });
 
-    expect(prompt).toContain("Respond for inline query error help in a compact, action-first format.");
+    expect(prompt).toContain(
+      "Respond for inline query error help in a compact, action-first format."
+    );
     expect(prompt).toContain("## Cause");
     expect(prompt).toContain("## Fix");
     expect(prompt).toContain("## Example");

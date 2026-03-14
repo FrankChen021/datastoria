@@ -224,7 +224,12 @@ export class ChatFactory {
         metadata: msg.metadata,
       })) as AppUIMessage[],
       generateTitle: true,
-      onPrepareSendMessagesRequest: async ({ messages, connection, chatId, historicalMessages }) => {
+      onPrepareSendMessagesRequest: async ({
+        messages,
+        connection,
+        chatId,
+        historicalMessages,
+      }) => {
         const userMessagesToSave = messages
           .filter((msg) => msg.role === "user")
           .map((msg) => {

@@ -74,28 +74,25 @@ const InlineAutoExplainChat = memo(function InlineAutoExplainChat({
     };
   }, [chat.id, stop]);
 
-  const assistantMessages = useMemo(
-    () => {
-      const responseMessages = messages
-        .filter((message) => message.role === "assistant")
-        .map(getVisibleAssistantMessage)
-        .filter((message): message is AppUIMessage => message !== null);
+  const assistantMessages = useMemo(() => {
+    const responseMessages = messages
+      .filter((message) => message.role === "assistant")
+      .map(getVisibleAssistantMessage)
+      .filter((message): message is AppUIMessage => message !== null);
 
-      if (responseMessages.length > 0 || !hasRequested || error) {
-        return responseMessages;
-      }
+    if (responseMessages.length > 0 || !hasRequested || error) {
+      return responseMessages;
+    }
 
-      return [
-        {
-          id: `auto-explain-loading-${queryId}`,
-          role: "assistant",
-          parts: [],
-          createdAt: new Date(),
-        } as AppUIMessage,
-      ];
-    },
-    [messages, hasRequested, error, queryId]
-  );
+    return [
+      {
+        id: `auto-explain-loading-${queryId}`,
+        role: "assistant",
+        parts: [],
+        createdAt: new Date(),
+      } as AppUIMessage,
+    ];
+  }, [messages, hasRequested, error, queryId]);
 
   const isRunning = status === "submitted" || status === "streaming";
 
