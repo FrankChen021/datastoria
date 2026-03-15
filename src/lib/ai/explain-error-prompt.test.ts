@@ -21,20 +21,4 @@ describe("buildExplainErrorPrompt", () => {
       })
     ).toBe("/explain_error_code error message: Network error");
   });
-
-  it("adds compact inline instructions for auto explain mode", () => {
-    const prompt = buildExplainErrorPrompt({
-      errorCode: "47",
-      errorMessage: "Unknown identifier",
-      sql: "select ve",
-      mode: "inline-auto",
-    });
-
-    expect(prompt).toContain(
-      "Respond for inline query error help in a compact, action-first format."
-    );
-    expect(prompt).toContain("## Cause");
-    expect(prompt).toContain("## Fix");
-    expect(prompt).toContain("## Example");
-  });
 });

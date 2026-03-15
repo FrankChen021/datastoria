@@ -250,6 +250,16 @@ export function AgentEdit() {
     updateBlacklist(new Set());
   };
 
+  const resetBlacklistToDefault = () => {
+    updateBlacklist(new Set(DEFAULT_AUTO_EXPLAIN_BLACKLIST));
+  };
+
+  const isBlacklistDefault = useMemo(() => {
+    const cur = [...(configuration.autoExplainBlacklist ?? DEFAULT_AUTO_EXPLAIN_BLACKLIST)].sort();
+    const def = [...DEFAULT_AUTO_EXPLAIN_BLACKLIST].sort();
+    return cur.length === def.length && cur.every((c, i) => c === def[i]);
+  }, [configuration.autoExplainBlacklist]);
+
   return (
     <div ref={containerRef} className="h-full flex flex-col">
       <Table className="table-fixed">
@@ -342,6 +352,16 @@ export function AgentEdit() {
                       Checked error codes will not auto-trigger inline explanation.
                     </div>
                     <div className="flex items-center gap-2">
+                      {!isBlacklistDefault && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={resetBlacklistToDefault}
+                        >
+                          Reset
+                        </Button>
+                      )}
                       {selectedErrorCodes.length > 0 && (
                         <Button
                           variant="outline"
@@ -358,7 +378,7 @@ export function AgentEdit() {
                         className="h-8"
                         onClick={openBlacklistDialog}
                       >
-                        <Plus className="mr-2 h-4 w-4" />
+                        <Plus className="h-4 w-4" />
                         Add
                       </Button>
                     </div>

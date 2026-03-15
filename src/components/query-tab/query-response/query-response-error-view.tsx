@@ -6,7 +6,7 @@ import { AlertCircleIcon, SparklesIcon } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
 import type { QueryErrorDisplay } from "../query-view-model";
 import { QueryErrorAIExplanation } from "./query-error-ai-explanation";
-import { shouldAutoExplain } from "./query-error-auto-explain-config";
+import { AutoExplainState, getAutoExplainState } from "./query-error-auto-explain-config";
 
 interface ErrorLocationViewProps {
   errorLocation: ErrorLocation;
@@ -70,6 +70,10 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
 }: QueryResponseErrorViewProps) {
   const clickHouseErrorCode = error.exceptionCode;
   const [isManualExplainRequested, setIsManualExplainRequested] = useState(false);
+  const autoExplainState = useMemo(
+    () => getAutoExplainState(clickHouseErrorCode),
+    [clickHouseErrorCode]
+  );
 
   // Memoize detailMessage computation
   const detailMessage = useMemo(() => {
@@ -135,30 +139,34 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
             )}
           </div>
         )}
-        {detailMessage && detailMessage.length > 0 && sql && sql.length > 0 && (
-          <>
-            {shouldAutoExplain(clickHouseErrorCode) || isManualExplainRequested ? (
-              <QueryErrorAIExplanation
-                queryId={queryId}
-                errorMessage={detailMessage}
-                errorCode={clickHouseErrorCode}
-                sql={sql}
-              />
-            ) : (
-              <div className="mt-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsManualExplainRequested(true)}
-                  className="gap-2 rounded-sm text-primary bg-primary/10 hover:bg-primary/20 hover:text-primary border-primary/50 font-semibold animate-pulse"
-                >
-                  <SparklesIcon className="h-4 w-4" />
-                  Ask AI for Explanation
-                </Button>
-              </div>
-            )}
-          </>
-        )}
+        {detailMessage &&
+          detailMessage.length > 0 &&
+          sql &&
+          sql.length > 0 &&
+          autoExplainState !== AutoExplainState.UNAVAILABLE && (
+            <>
+              {autoExplainState === AutoExplainState.ENABLED || isManualExplainRequested ? (
+                <QueryErrorAIExplanation
+                  queryId={queryId}
+                  errorMessage={detailMessage}
+                  errorCode={clickHouseErrorCode}
+                  sql={sql}
+                />
+              ) : (
+                <div className="mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsManualExplainRequested(true)}
+                    className="gap-2 rounded-sm text-primary bg-primary/10 hover:bg-primary/20 hover:text-primary border-primary/50 font-semibold animate-pulse"
+                  >
+                    <SparklesIcon className="h-4 w-4" />
+                    Ask AI for Explanation
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
       </AlertDescription>
     </Alert>
   );

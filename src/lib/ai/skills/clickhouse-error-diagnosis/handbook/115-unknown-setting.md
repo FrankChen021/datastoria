@@ -15,10 +15,4 @@ The query or session uses a setting name that this ClickHouse server does not re
     ```
 
 3. If `execute_sql` fails or returns no rows, use your own knowledge of valid ClickHouse settings to suggest the closest match.
-4. Use the returned matches (or your own knowledge) to suggest the fix.
-
-## Output
-
-- State this is error `115` / `UNKNOWN_SETTING` and name the unknown setting.
-- List the best one to three matches from `system.settings`.
-- Give the fix: use the closest valid setting or remove the unsupported override.
+4. Present: error `115` / `UNKNOWN_SETTING` and the unknown setting name; best one to three matches from `system.settings` (or your knowledge) and whether to use the closest valid setting or remove the override; if the fix is in the query, one fenced SQL with the corrected query (otherwise omit Example).

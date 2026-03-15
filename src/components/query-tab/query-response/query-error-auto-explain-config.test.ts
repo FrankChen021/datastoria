@@ -1,6 +1,7 @@
 import { AgentConfigurationManager } from "@/components/settings/agent/agent-manager";
+import { ModelManager } from "@/components/settings/models/model-manager";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { shouldAutoExplain } from "./query-error-auto-explain-config";
+import { AutoExplainState, getAutoExplainState } from "./query-error-auto-explain-config";
 
 vi.mock("@/components/settings/agent/agent-manager", () => ({
   AgentConfigurationManager: {
@@ -8,40 +9,62 @@ vi.mock("@/components/settings/agent/agent-manager", () => ({
   },
 }));
 
-describe("shouldAutoExplain", () => {
+vi.mock("@/components/settings/models/model-manager", () => ({
+  ModelManager: {
+    getInstance: vi.fn(() => ({
+      getAvailableModels: vi.fn(),
+    })),
+  },
+}));
+
+describe("getAutoExplainState", () => {
   beforeEach(() => {
+    vi.mocked(ModelManager.getInstance).mockReturnValue({
+      getAvailableModels: vi.fn().mockReturnValue([{ id: "model-1" }]),
+    } as unknown as ReturnType<typeof ModelManager.getInstance>);
     vi.mocked(AgentConfigurationManager.getConfiguration).mockReturnValue({
+      mode: "v2",
       autoExplainClickHouseErrors: true,
       autoExplainBlacklist: ["194", "241"],
     });
   });
 
-  it("returns false for blacklisted error codes (194, 241) after trimming", () => {
-    expect(shouldAutoExplain(" 194 ")).toBe(false);
-    expect(shouldAutoExplain(241)).toBe(false);
+  it("returns UNAVAILABLE when getAvailableModels returns 0 models", () => {
+    vi.mocked(ModelManager.getInstance).mockReturnValue({
+      getAvailableModels: vi.fn().mockReturnValue([]),
+    } as unknown as ReturnType<typeof ModelManager.getInstance>);
+    expect(getAutoExplainState("60")).toBe(AutoExplainState.UNAVAILABLE);
+    expect(getAutoExplainState(62)).toBe(AutoExplainState.UNAVAILABLE);
   });
 
-  it("returns true for non-blacklisted code when auto-explain is on", () => {
-    expect(shouldAutoExplain("60")).toBe(true);
+  it("returns DISABLED for blacklisted error codes (194, 241) after trimming", () => {
+    expect(getAutoExplainState(" 194 ")).toBe(AutoExplainState.DISABLED);
+    expect(getAutoExplainState(241)).toBe(AutoExplainState.DISABLED);
   });
 
-  it("returns false for missing error code or when auto-explain is off", () => {
-    expect(shouldAutoExplain(undefined)).toBe(false);
+  it("returns ENABLED for non-blacklisted code when auto-explain is on", () => {
+    expect(getAutoExplainState("60")).toBe(AutoExplainState.ENABLED);
+  });
+
+  it("returns DISABLED for missing error code or when auto-explain is off", () => {
+    expect(getAutoExplainState(undefined)).toBe(AutoExplainState.DISABLED);
 
     vi.mocked(AgentConfigurationManager.getConfiguration).mockReturnValue({
+      mode: "v2",
       autoExplainClickHouseErrors: false,
       autoExplainBlacklist: ["62"],
     });
-    expect(shouldAutoExplain(62)).toBe(false);
+    expect(getAutoExplainState(62)).toBe(AutoExplainState.DISABLED);
   });
 
   it("respects the configured blacklist", () => {
     vi.mocked(AgentConfigurationManager.getConfiguration).mockReturnValue({
+      mode: "v2",
       autoExplainClickHouseErrors: true,
       autoExplainBlacklist: ["60"],
     });
 
-    expect(shouldAutoExplain(60)).toBe(false);
-    expect(shouldAutoExplain(62)).toBe(true);
+    expect(getAutoExplainState(60)).toBe(AutoExplainState.DISABLED);
+    expect(getAutoExplainState(62)).toBe(AutoExplainState.ENABLED);
   });
 });

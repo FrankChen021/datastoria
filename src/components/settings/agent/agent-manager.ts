@@ -4,7 +4,12 @@ import { StorageManager } from "@/lib/storage/storage-provider-manager";
 export type AgentMode = "v2" | "legacy";
 
 const STORAGE_KEY = "settings:ai:agent";
-export const DEFAULT_AUTO_EXPLAIN_BLACKLIST = ["62", "194", "241"];
+
+// See clickhouse-error-code.ts
+export const DEFAULT_AUTO_EXPLAIN_BLACKLIST = [
+  "62", // SYNTAX_ERROR
+  "194", // REQUIRED_PASSWORD
+];
 
 export type AgentConfiguration = {
   mode: AgentMode;

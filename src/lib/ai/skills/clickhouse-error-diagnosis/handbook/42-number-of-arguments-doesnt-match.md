@@ -11,11 +11,5 @@ The query calls a ClickHouse function with the wrong number of arguments.
     select arguments from system.functions where name = 'FUNCTION_NAME'
     ```
 
-3. If `execute_sql` fails or returns no rows, use your own knowledge of the function's signature to explain the fix.
-4. Use the returned `arguments` value (or your own knowledge) to explain the fix.
-
-## Output
-
-- State this is error `42` / `NUMBER_OF_ARGUMENTS_DOESNT_MATCH` and name the function.
-- Explain expected arguments from the `arguments` value returned (or your own knowledge).
-- Rewrite the function call with the correct argument count.
+3. If `execute_sql` fails or returns no rows, use your own knowledge of the function's signature.
+4. Present: error `42` / `NUMBER_OF_ARGUMENTS_DOESNT_MATCH` and the function name; expected arguments (from `arguments` or your knowledge) and the corrected argument count; one fenced SQL with the user's query fixed.

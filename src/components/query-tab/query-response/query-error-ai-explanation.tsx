@@ -152,7 +152,6 @@ export const QueryErrorAIExplanation = memo(function QueryErrorAIExplanation({
         errorMessage,
         errorCode,
         sql,
-        mode: "inline-auto",
       }),
     [errorCode, errorMessage, sql]
   );
