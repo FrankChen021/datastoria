@@ -2,7 +2,7 @@ import { AppLogo } from "@/components/app-logo";
 import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { useConnection } from "@/components/connection/connection-context";
 import { ConnectionSelector } from "@/components/connection/connection-selector";
-import { ConnectionSelectorDialog } from "@/components/connection/connection-selector-dialog";
+import { openConnectionSelectorDialog } from "@/components/connection/connection-selector-dialog";
 import { openReleaseNotes } from "@/components/release-note/release-notes-view";
 import { SYSTEM_TABLE_REGISTRY } from "@/components/system-table-tab/system-table-registry";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -157,7 +157,14 @@ function ConnectionManageSidebarMenuItem() {
             }
           : undefined
       }
-      onClick={isMobile ? undefined : () => setOpen((s) => !s)}
+      onClick={
+        isMobile
+          ? () =>
+              openConnectionSelectorDialog({
+                defaultConnectionName: connection?.name ?? null,
+              })
+          : () => setOpen((s) => !s)
+      }
     >
       <Database className="h-5 w-5" />
       <span>Switch connection</span>
@@ -165,14 +172,7 @@ function ConnectionManageSidebarMenuItem() {
   );
 
   if (isMobile) {
-    return (
-      <SidebarMenuItem>
-        <ConnectionSelectorDialog
-          trigger={triggerButton}
-          defaultConnectionName={connection?.name ?? null}
-        />
-      </SidebarMenuItem>
-    );
+    return <SidebarMenuItem>{triggerButton}</SidebarMenuItem>;
   }
 
   return (
