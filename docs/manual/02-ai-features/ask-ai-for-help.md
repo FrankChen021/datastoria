@@ -1,19 +1,25 @@
 ---
 title: Ask AI for Help
-description: Get instant AI assistance for SQL errors - automatic error explanation, suggested fixes, and debugging help. One-click AI-powered error resolution for ClickHouse queries.
+description: Get instant AI assistance for ClickHouse query errors with automatic inline explanations, suggested fixes, and one-click manual help.
 head:
   - - meta
     - name: keywords
-      content: AI error help, SQL error fix, query debugging, AI SQL assistant, automatic error fix, SQL error explanation, database error help, ClickHouse error debugging
+      content: AI error help, SQL error fix, query debugging, AI SQL assistant, automatic error explanation, SQL error explanation, database error help, ClickHouse error debugging
 ---
 
 # Ask AI for Help
 
-The "Ask AI for Help" feature provides instant AI-powered assistance when you encounter query errors in the Query Editor. With a single click, you can get explanations of what went wrong and receive suggested fixes for your SQL queries.
+The "Ask AI for Help" feature provides AI-powered assistance when a query fails in the Query Editor. It can explain what went wrong, suggest likely fixes, and provide corrected SQL examples.
 
 ## Overview
 
-When a query execution fails, DataStoria automatically displays an "Ask AI for Help" button alongside the error message. This feature leverages AI to:
+DataStoria supports two ways to get help for ClickHouse errors:
+
+- **Automatic inline explanation**: When enabled, eligible ClickHouse errors are explained directly inside the query result view
+  ![Automatic inline explanation in query results](./img/auto-explanation.webp)
+- **Manual help**: You can still click **Ask AI for Fix** to request help on demand
+
+This feature leverages AI to:
 
 - **Explain errors**: Understand what went wrong with your query
 - **Provide fixes**: Get corrected SQL queries ready to use
@@ -21,32 +27,39 @@ When a query execution fails, DataStoria automatically displays an "Ask AI for H
 
 ## How It Works
 
-### Automatic Error Detection
+### Automatic Inline Explanation
 
-The "Ask AI for Help" button appears automatically when:
+If **Auto Explain Errors** is enabled in settings, DataStoria can automatically request an AI explanation when:
 
-1. A SQL query execution fails
-2. An error message is returned from ClickHouse
-3. The error view is displayed in the Query Editor
+1. A query fails with a ClickHouse error code
+2. AI models are available
+3. The error code is not blacklisted from auto explanation
 
-The button is prominently displayed with a pulsing animation to draw your attention, making it easy to get help when you need it most.
+The explanation is streamed directly inside the error view, below the ClickHouse error details.
+
+The response is intentionally compact and action-focused, usually organized as:
+
+- **Cause**: What failed
+- **Fix**: Concrete actions to try
+- **Example**: A corrected SQL example when applicable
+
+### Manual Help
+
+Even if automatic explanation is disabled, you can still request help manually.
+
+When a query execution fails, DataStoria can show an **Ask AI for Fix** button alongside the error message. Clicking it sends the SQL query and ClickHouse error details to AI and renders the streamed explanation inline.
+
+This is useful when:
+
+1. Auto explain is disabled
+2. The error is blacklisted from automatic explanation
+3. You only want AI help for selected failures
 
 ![AI help dialog explaining ClickHouse table engine concepts with detailed descriptions and recommendations](./img/ask-ai-for-help-example-1.jpg)
 
-### Getting Help with One Click
+In the example above, AI highlights the likely cause and suggests a corrected query much faster than manually inspecting a long ClickHouse exception.
 
-With this integration, you no longer need to panic over long error messages from ClickHouse. With one click, AI helps you understand what's wrong, where the error is, and how to fix it.
-
-When the "Ask AI for Help" button is clicked, it automatically starts a new chat session, attaching both the executed SQL query and the error message to get an answer from AI.
-
-In the above example, it would take significant time for a human to pinpoint the error. However, with AI, you can get this error fixed within seconds.
-
-![AI assistance providing guidance on ClickHouse query optimization techniques and best practices](./img/ask-ai-for-help-example-2.jpg)
-
-As shown in the response, AI clearly points out where the error is and provides a fix with explanatory comments in the SQL to help you better understand the issue.
-
-Here's a comparison of the wrong and correct versions to help you better understand the error and the fix provided by AI.
-
+Here is a simplified comparison of the wrong and corrected SQL:
 
 ```sql
 --wrong
@@ -56,20 +69,26 @@ GROUP BY toStartOfMinute(event_date)
 GROUP BY toStartOfMinute(event_time)
 ```
 
-## Integration with Chat Panel
+## Settings
 
-The "Ask AI for Help" feature seamlessly integrates with the global chat panel:
+Open **Settings → AI → Agent** to control this feature:
 
-- **Automatic Context**: Your SQL and error are automatically included
-- **New Chat Session**: Opens a fresh chat session for focused assistance
-- **Follow-up Questions**: You can continue the conversation to refine the solution
-- **Query Execution**: Once you receive a corrected query, you can execute it directly from the chat and the query result will be shown below the SQL
+![AI agent settings with auto explain and blacklist](./img/ask-ai-settings-auto-explain.webp)
+
+- **Auto Explain Errors**: Enables automatic inline explanations for eligible ClickHouse errors
+- **Blacklist**: Prevents selected ClickHouse error codes from auto-triggering AI, while still allowing manual help
+
+Use the blacklist when some error codes are too noisy, too obvious, or not useful for automatic diagnosis.
+
+Use **Add** in the blacklist section to search ClickHouse error codes and select the ones that should stay manual-only:
+
+![Blacklist picker for ClickHouse error codes](./img/ask-ai-settings-blacklist-picker.webp)
 
 ## Best Practices
 
 ### When to Use
 
-✅ **Use "Ask AI for Help" when:**
+✅ **Use automatic or manual AI help when:**
 - You encounter an error you don't understand
 - The error message is unclear or technical
 - You need a quick fix for a syntax error
@@ -78,37 +97,31 @@ The "Ask AI for Help" feature seamlessly integrates with the global chat panel:
 ❌ **Consider alternatives when:**
 - The error is clearly a connection issue (check your connection settings)
 - The error is about permissions (check your user privileges)
-- You want to learn SQL fundamentals (use the chat panel for general questions)
+- You want broader SQL learning or exploration (use the chat panel for general questions)
 
 ### Getting Better Results
 
-1. **Review the Error First**: Try to understand the basic error before asking for help
-2. **Provide Context**: If the AI's first suggestion doesn't work, provide more context in follow-up messages
-3. **Verify Schema**: Ensure your table and column names are correct before asking
-4. **Check Documentation**: For complex ClickHouse-specific features, the AI can reference official documentation
+1. **Review the ClickHouse error first**: The inline explanation is best when the original error is meaningful
+2. **Verify schema names**: Confirm table and column names when possible
+3. **Use manual help selectively**: Blacklist noisy codes and ask manually only when needed
+4. **Validate the fix**: AI suggestions are helpful, but you should still verify the corrected query
 
 ## Limitations
 
+- Automatic explanation only applies to eligible ClickHouse errors
 - The AI's suggestions are based on the error message and your SQL query
 - Complex errors may require multiple iterations to resolve
 - The AI may not have access to your full database schema context
-- Some ClickHouse-specific features may need manual verification
+- Some ClickHouse-specific features still need manual verification
 
 ## Integration with Other Features
-
-### Natural Language Data Exploration
-
-After receiving a fix from "Ask AI for Help", you can:
-1. Execute the corrected query
-2. Use the chat panel to explore the results further
-3. Ask follow-up questions about the data
 
 ### Query Optimization
 
 If your query executes but is slow:
-1. Use "Ask AI for Help" to understand performance issues
+1. Use AI help to understand obvious query issues
 2. Switch to the Query Optimization feature for detailed analysis
-3. Combine both approaches for comprehensive query improvement
+3. Combine both for a more complete workflow
 
 ## Next Steps
 
@@ -116,4 +129,3 @@ If your query executes but is slow:
 - **[Natural Language Data Exploration](./natural-language-sql.md)** — Generate queries from scratch
 - **[Query Optimization](./query-optimization.md)** — Optimize working queries
 - **[Error Diagnostics](../03-query-experience/error-diagnostics.md)** — Learn more about understanding errors
-

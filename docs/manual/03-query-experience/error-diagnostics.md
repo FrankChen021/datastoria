@@ -17,7 +17,7 @@ When a query fails, DataStoria's error diagnostics system provides:
 
 - **Detailed Error Messages**: The original ClickHouse error message (code, message, and context)
 - **Error Location Highlighting**: Inline pointers with line/column context to pinpoint the failing part
-- **AI-Powered Fix Suggestions**: A shortcut to “Ask AI for help” when the error is non-obvious
+- **AI-Powered Fix Suggestions**: A shortcut to “Ask AI for Fix” when the error is non-obvious
 
 ## Error Location Highlighting
 
@@ -92,7 +92,7 @@ order by 1
 
 ## AI-Powered Fix Suggestions
 
-For errors that require more context (permissions, cluster setup, function usage, performance-related settings, etc.), you can use the integrated AI feature to **Ask AI for help**.
+For errors that require more context (permissions, cluster setup, function usage, performance-related settings, etc.), you can use the integrated AI feature to **Ask AI for Fix**.
 
 > **Learn more**: See [Ask AI for Help](../02-ai-features/ask-ai-for-help.md) for detailed information about AI-powered error assistance and how to get instant fixes with one click.
 
@@ -107,4 +107,3 @@ For errors that require more context (permissions, cluster setup, function usage
 - **[Query Execution](./query-execution.md)** — Learn how to execute queries and handle results
 - **[SQL Editor](./sql-editor.md)** — Master the SQL editor features
 - **[Query Optimization](../02-ai-features/query-optimization.md)** — Optimize queries for better performance
-

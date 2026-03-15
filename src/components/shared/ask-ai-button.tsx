@@ -48,7 +48,7 @@ export const AskAIButton = memo(function AskAIButton({
       className={`gap-2 rounded-sm text-primary bg-primary/10 hover:bg-primary/20 hover:text-primary border-primary/50 font-semibold animate-pulse ${className || ""}`}
     >
       <SparklesIcon className="h-4 w-4" />
-      Ask AI for Help
+      Ask AI for Fix
     </Button>
   );
 });

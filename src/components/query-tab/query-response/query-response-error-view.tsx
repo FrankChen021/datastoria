@@ -76,8 +76,7 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
     () => getAutoExplainState(clickHouseErrorCode),
     [clickHouseErrorCode]
   );
-  const shouldAutoExplain =
-    enableAutoExplanation && autoExplainState === AutoExplainState.ENABLED;
+  const shouldAutoExplain = enableAutoExplanation && autoExplainState === AutoExplainState.ENABLED;
 
   // Memoize detailMessage computation
   const detailMessage = useMemo(() => {
@@ -165,7 +164,7 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
                     className="gap-2 rounded-sm text-primary bg-primary/10 hover:bg-primary/20 hover:text-primary border-primary/50 font-semibold animate-pulse"
                   >
                     <SparklesIcon className="h-4 w-4" />
-                    Ask AI for Explanation
+                    Ask AI for Fix
                   </Button>
                 </div>
               )}
