@@ -467,6 +467,7 @@ WHERE trace_id = '{traceId}'
           {loadError ? (
             <div className="px-2">
               <QueryResponseErrorView
+                queryId={activeTraceId ?? queryText ?? "span-log-inspector-error"}
                 sql={queryText}
                 error={{
                   message: loadError.message,

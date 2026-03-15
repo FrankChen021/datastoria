@@ -320,6 +320,7 @@ ORDER BY start_time_microseconds
           {loadError ? (
             <div className="px-2">
               <QueryResponseErrorView
+                queryId={activeQueryId ?? queryText ?? "query-log-inspector-error"}
                 sql={queryText}
                 error={{
                   message: loadError.message,

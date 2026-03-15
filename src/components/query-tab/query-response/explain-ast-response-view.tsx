@@ -244,7 +244,11 @@ export const ExplainASTResponseView = memo(
         </div>
         {error && (
           <TabsContent value="result">
-            <QueryResponseErrorView error={error} sql={queryRequest.sql} />
+            <QueryResponseErrorView
+              error={error}
+              queryId={queryRequest.queryId}
+              sql={queryRequest.sql}
+            />
           </TabsContent>
         )}
         {graphModeResult && (
