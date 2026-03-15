@@ -4,11 +4,11 @@ import { ChatFactory } from "@/components/chat/chat-factory";
 import { ChatMessage } from "@/components/chat/message/chat-message";
 import { useConnection } from "@/components/connection/connection-context";
 import type { AppUIMessage } from "@/lib/ai/chat-types";
-import { buildExplainErrorPrompt } from "@/lib/ai/explain-error-prompt";
 import { useChat, type Chat } from "@ai-sdk/react";
 import { AlertCircle } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { buildExplainErrorPrompt } from "./explain-error-prompt";
 
 interface QueryErrorAIExplanationProps {
   queryId: string;

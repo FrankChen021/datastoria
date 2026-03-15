@@ -1,5 +1,5 @@
+import { buildExplainErrorPrompt } from "@/components/query-tab/query-response/explain-error-prompt";
 import { Button } from "@/components/ui/button";
-import { buildExplainErrorPrompt } from "@/lib/ai/explain-error-prompt";
 import { SparklesIcon } from "lucide-react";
 import { memo, useState } from "react";
 import { useChatPanel } from "../chat/view/use-chat-panel";
