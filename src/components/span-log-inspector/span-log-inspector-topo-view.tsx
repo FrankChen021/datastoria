@@ -76,15 +76,15 @@ function TopoEdgeRenderer({ id, sourceX, sourceY, targetX, targetY, data, marker
             style={{
               position: "absolute",
               transform: `translate(-50%, -100%) translate(${labelX}px,${labelY - 4}px)`,
-              background: "hsl(var(--background))",
-              border: isSelected ? "1px solid #3b82f6" : "1px solid hsl(var(--border))",
+              background: "var(--background)",
+              border: isSelected ? "1px solid var(--primary)" : "1px solid var(--border)",
               borderRadius: 4,
               fontSize: 10,
-              color: "hsl(var(--foreground))",
+              color: "var(--foreground)",
               whiteSpace: "pre-line",
               textAlign: "center",
               padding: "2px 6px",
-              boxShadow: isSelected ? "0 0 0 1px #3b82f6 inset" : undefined,
+              boxShadow: isSelected ? "0 0 0 1px var(--primary) inset" : undefined,
               pointerEvents: "all",
             }}
             className="nodrag nopan"
@@ -134,8 +134,8 @@ const TraceTopoFlow = ({
     return topoEdges.map((edge) => {
       const avgDuration = edge.count > 0 ? Math.floor(edge.totalDurationUs / edge.count) : 0;
       const isSelected = selectedEdgeId === edge.id;
-      const edgeColor = edge.errorCount > 0 ? "#ef4444" : undefined;
-      const selectedEdgeColor = edge.errorCount > 0 ? "#dc2626" : "#3b82f6";
+      const edgeColor = edge.errorCount > 0 ? "var(--destructive)" : undefined;
+      const selectedEdgeColor = edge.errorCount > 0 ? "var(--destructive)" : "var(--primary)";
       const label =
         edge.count <= 1
           ? `${edge.count} call\nRT=${microsecondFormatter(edge.maxDurationUs)}`

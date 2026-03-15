@@ -35,7 +35,7 @@ export function ConnectionWizard() {
     /* pt/pb use max(1rem, env(safe-area-inset-*)): at least 1rem padding, or the device safe-area inset when larger (e.g. iPhone notch and home indicator), so the wizard stays centered and clear of system UI. */
   }
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm overflow-y-auto overflow-x-hidden flex flex-col items-center justify-center min-h-[100dvh] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] px-4 sm:px-8">
+    <div className="fixed inset-0 bg-background/95 overflow-y-auto overflow-x-hidden flex flex-col items-center justify-center min-h-[100dvh] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] px-4 sm:px-8">
       <div className="w-full max-w-2xl flex flex-col my-auto">
         {!isCreatingConnection ? (
           <Card className="w-full">
