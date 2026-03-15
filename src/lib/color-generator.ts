@@ -9,6 +9,7 @@ export interface Color {
 
 // Dark-mode friendly palette: softer saturation, good contrast on dark backgrounds.
 // Foreground is used for timeline bars and topo strokes; avoids harsh yellow/orange.
+// Hex/rgb values are intentional—distinct per-connection badge colors, not theme tokens.
 const APP_COLORS = [
   { background: "#1e3a5f", foreground: "#60a5fa", hover: "rgb(56, 189, 248)", text: "#93c5fd" },
   { background: "#1e3d2f", foreground: "#4ade80", hover: "rgb(52, 211, 153)", text: "#86efac" },

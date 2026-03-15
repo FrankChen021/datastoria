@@ -51,7 +51,7 @@ export function ConnectionSelectorDialog({
   return (
     <button
       type="button"
-      className="flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-inherit text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      className="flex cursor-pointer items-center gap-1 rounded-md border-0 bg-transparent p-0 font-inherit text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       onClick={handleClick}
     >
       {trigger}

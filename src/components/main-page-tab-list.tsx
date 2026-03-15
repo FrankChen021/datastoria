@@ -58,10 +58,10 @@ const TableTabLazy = dynamic(
   { ssr: false, loading: () => <TabChunkLoading /> }
 );
 
-const NodeTabLazy = dynamic(
-  () => import("@/components/node-tab/node-tab").then((m) => m.NodeTab),
-  { ssr: false, loading: () => <TabChunkLoading /> }
-);
+const NodeTabLazy = dynamic(() => import("@/components/node-tab/node-tab").then((m) => m.NodeTab), {
+  ssr: false,
+  loading: () => <TabChunkLoading />,
+});
 
 const CustomDashboardTabLazy = dynamic(
   () => import("@/components/dashboard-tab/custom-dashboard-tab").then((m) => m.CustomDashboardTab),
@@ -168,8 +168,9 @@ function EmptyStateButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors cursor-pointer"
+      className="flex items-center gap-2 rounded px-3 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
     >
       <Icon className="h-4 w-4" />
       {children}
@@ -251,7 +252,10 @@ function EmptyTabPlaceholderComponent() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors cursor-pointer">
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded px-3 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
+            >
               <ScrollText className="h-4 w-4" />
               System Tables
               <ChevronDown className="h-3 w-3" />
@@ -806,8 +810,9 @@ export const MainPageTabList = memo(function MainPageTabList({
                           )}
                         </TabsTrigger>
                         <button
+                          type="button"
                           onClick={(e) => handleCloseTab(tab.id, e)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted z-10"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 outline-none z-10 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                           aria-label="Close tab"
                         >
                           <X className="h-3 w-3" />
