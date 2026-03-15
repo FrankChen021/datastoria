@@ -141,7 +141,7 @@ const ChatHeader = React.memo(
     }, []);
 
     return (
-      <div className="h-9 border-b flex items-center justify-between px-2 shrink-0 bg-background/50 backdrop-blur-sm z-10">
+      <div className="h-9 border-b flex items-center justify-between px-2 shrink-0 bg-background z-10">
         <h2 className="text-sm font-semibold">{title || "Work with AI"}</h2>
         <div className="flex items-center">
           <Button

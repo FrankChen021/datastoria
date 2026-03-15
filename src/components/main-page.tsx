@@ -633,7 +633,7 @@ export function MainPage() {
   if (showInitializer) {
     return (
       <div className="relative h-full w-full flex min-w-0 overflow-hidden">
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center pt-[20vh] px-8 pb-8">
+        <div className="fixed inset-0 z-50 bg-background/95 flex items-start justify-center pt-[20vh] px-8 pb-8">
           <ConnectionInitializer config={pendingConfig || null} onReady={handleReady} />
         </div>
       </div>

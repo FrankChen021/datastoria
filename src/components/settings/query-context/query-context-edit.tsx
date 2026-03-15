@@ -22,6 +22,7 @@ import { preprocessAdmonitions } from "@/lib/clickhouse/admonition-preprocessor"
 import { transformMarkdownLink } from "@/lib/clickhouse/clickhouse-docs-link";
 import { type JSONCompactFormatResponse, type QueryError } from "@/lib/connection/connection";
 import { toastManager } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 import { AlertCircle, Check, Info, Plus, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -65,13 +66,10 @@ function SettingsDescriptionWithAdmonition({
       <ReactMarkdown
         rehypePlugins={[rehypeRaw]}
         components={{
-          a: ({ ...props }) => (
+          a: ({ className, ...props }) => (
             <a
               {...props}
-              style={{
-                color: "#0070f3",
-                textDecoration: "underline",
-              }}
+              className={cn("text-primary underline", className)}
               target="_blank"
               rel="noopener noreferrer"
             />

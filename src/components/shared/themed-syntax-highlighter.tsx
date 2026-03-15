@@ -110,7 +110,7 @@ export function ThemedSyntaxHighlighter({
       return;
     }
 
-    applySearchHighlights(root, query, currentDarkMode);
+    applySearchHighlights(root, query);
 
     return () => {
       clearSearchHighlights(root);
@@ -167,7 +167,7 @@ export function ThemedSyntaxHighlighter({
               right: 0,
               bottom: 0,
               height: 48,
-              background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(17,24,39,0.7) 100%)",
+              background: "linear-gradient(180deg, transparent 0%, var(--syntax-fade-end) 100%)",
               pointerEvents: "none",
             }}
           />
@@ -202,7 +202,7 @@ export function ThemedSyntaxHighlighter({
   );
 }
 
-function applySearchHighlights(root: HTMLElement, query: string, isDark: boolean) {
+function applySearchHighlights(root: HTMLElement, query: string) {
   const normalizedQuery = query.toLocaleLowerCase();
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
@@ -288,10 +288,10 @@ function applySearchHighlights(root: HTMLElement, query: string, isDark: boolean
 
       const mark = document.createElement("mark");
       mark.setAttribute(SEARCH_HIGHLIGHT_ATTR, "true");
-      mark.style.backgroundColor = isDark ? "rgba(250, 204, 21, 0.28)" : "rgba(250, 204, 21, 0.42)";
       mark.style.color = "inherit";
       mark.style.padding = "0";
       mark.style.borderRadius = "2px";
+      mark.style.backgroundColor = "var(--highlight-bg)";
       targetNode.parentNode?.replaceChild(mark, targetNode);
       mark.appendChild(targetNode);
     }

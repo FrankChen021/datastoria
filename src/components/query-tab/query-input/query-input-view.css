@@ -6,18 +6,18 @@
   flex-direction: column;
 }
 
-/* Override ace editor background in light mode to match app white background */
+/* Override ace editor background to match app theme */
 :not(.dark) .ace-github {
-  background-color: #ffffff !important;
+  background-color: var(--background) !important;
 }
 
 :not(.dark) .ace-github .ace_gutter {
-  background-color: #f5f5f5 !important;
-  border-right: 1px solid #e1e4e8 !important;
+  background-color: var(--muted) !important;
+  border-right: 1px solid var(--border) !important;
 }
 
 :not(.dark) .ace-github .ace_print-margin {
-  border-left: 1px solid #e1e4e8 !important;
+  border-left: 1px solid var(--border) !important;
 }
 
 /* Override default style */
@@ -43,8 +43,8 @@
   /* Default: pre, which prevents the word-break */
   white-space: pre-wrap !important;
 
-  /* Default: 400px */
-  max-width: 350px !important;
+  /* Responsive: avoid overflow on narrow viewports */
+  max-width: min(350px, 90vw) !important;
 
   /* Allow the tooltip to grow - don't constrain height */
   max-height: none !important;
@@ -59,24 +59,18 @@
   box-sizing: border-box !important;
 }
 
-/* Solarized Dark theme overrides */
-.ace-solarized-dark .ace_tooltip {
-  background-color: #25282c !important;
-  color: #c5c8c6 !important;
-  border: 1px solid #586e75 !important;
-}
-
-/* Ensure the head text color matches */
-.ace-solarized-dark .ace_tooltip .ace-tooltip-head {
-  color: #c5c8c6 !important;
-  border-bottom: 1px solid #586e75 !important;
-}
-
-/* Light mode overrides */
+/* Ace tooltip: use app design tokens for theme consistency */
+.ace-solarized-dark .ace_tooltip,
 .ace-xcode .ace_tooltip {
-  background-color: #ffffff !important;
-  color: #333333 !important;
-  border: 1px solid #e1e4e8 !important;
+  background-color: var(--ace-tooltip-bg) !important;
+  color: var(--ace-tooltip-fg) !important;
+  border: 1px solid var(--ace-tooltip-border) !important;
+}
+
+.ace-solarized-dark .ace_tooltip .ace-tooltip-head,
+.ace-xcode .ace_tooltip .ace-tooltip-head {
+  color: var(--ace-tooltip-fg) !important;
+  border-bottom: 1px solid var(--ace-tooltip-border) !important;
 }
 
 /* Ensure any scrollable divs inside tooltip work properly */
@@ -119,11 +113,10 @@
 }
 
 /*
- * Increase the width of the autocomplete suggestion dialog
+ * Increase the width of the autocomplete suggestion dialog (responsive)
  */
 .ace_autocomplete {
-  /* Default: 280px, increased to 400px to show more content */
-  width: 400px !important;
+  width: min(400px, 95vw) !important;
 }
 
 /* Allow horizontal scrolling */
@@ -134,13 +127,12 @@
   font-size: 12px;
 }
 
-/* 
+/*
  * Force a wide content area to accommodate long function names.
- * Since Ace uses absolute positioning, we can't easily auto-size to text width.
- * Setting a large fixed width ensures the scrollbar allows reaching the end of long text.
+ * Use min() so narrow viewports get 100vw instead of overflow.
  */
 .ace_autocomplete .ace_content {
-  width: 1200px !important;
+  width: min(1200px, 100vw) !important;
   min-width: 100%;
 }
 

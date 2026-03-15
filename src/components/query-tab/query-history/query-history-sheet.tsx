@@ -266,7 +266,7 @@ function QueryHistoryEntryCard({
       <div className="relative p-0">
         <div
           className={cn(
-            "absolute right-1 top-2 z-10 flex flex-wrap items-center justify-end gap-1 rounded-md bg-background/90 p-0.5 shadow-sm backdrop-blur-sm transition-opacity",
+            "absolute right-1 top-2 z-10 flex flex-wrap items-center justify-end gap-1 rounded-md bg-background/90 p-0.5 shadow-sm transition-opacity",
             isHovered || isDeleteOpen
               ? "opacity-100 pointer-events-auto"
               : "opacity-0 pointer-events-none"
@@ -355,7 +355,7 @@ function QueryHistoryEntryCard({
             expandable={true}
             collapseLines={10}
             customStyle={{
-              backgroundColor: "rgba(143, 153, 168, 0.12)",
+              backgroundColor: "var(--code-block-bg)",
               margin: 0,
               padding: "12px",
             }}

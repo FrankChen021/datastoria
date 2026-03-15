@@ -578,7 +578,7 @@ export function QueryLogInspectorTopoView({ queryLogs }: QueryLogInspectorTopoPr
                 className="w-full h-full"
               />
               {graphEdges.length > 0 && (
-                <div className="absolute top-2 left-2 bg-background/90 backdrop-blur-sm rounded-md shadow-sm z-10 text-xs text-muted-foreground">
+                <div className="absolute top-2 left-2 bg-background rounded-md shadow-sm z-10 text-xs text-muted-foreground">
                   💡 Click on any node/edge to view query details
                 </div>
               )}

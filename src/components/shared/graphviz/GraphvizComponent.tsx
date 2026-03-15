@@ -844,7 +844,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
                 this.zoomInHandler();
               }
             }}
-            className="h-8 w-8 bg-background/90 backdrop-blur-sm shadow-md hover:bg-background"
+            className="h-8 w-8 bg-background border border-border shadow-md hover:bg-background"
             title="Zoom In"
           >
             <ZoomIn className="h-4 w-4" />
@@ -857,7 +857,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
                 this.zoomOutHandler();
               }
             }}
-            className="h-8 w-8 bg-background/90 backdrop-blur-sm shadow-md hover:bg-background"
+            className="h-8 w-8 bg-background border border-border shadow-md hover:bg-background"
             title="Zoom Out"
           >
             <ZoomOut className="h-4 w-4" />
@@ -867,7 +867,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
               variant="outline"
               size="icon"
               onClick={this.enterFullscreen}
-              className="h-8 w-8 bg-background/90 backdrop-blur-sm shadow-md hover:bg-background"
+              className="h-8 w-8 bg-background border border-border shadow-md hover:bg-background"
               title="Enter Fullscreen"
             >
               <Maximize className="h-4 w-4" />
@@ -877,7 +877,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
               variant="outline"
               size="icon"
               onClick={this.exitFullscreen}
-              className="h-8 w-8 bg-background/90 backdrop-blur-sm shadow-md hover:bg-background"
+              className="h-8 w-8 bg-background border border-border shadow-md hover:bg-background"
               title="Exit Fullscreen (ESC)"
             >
               <Minimize2 className="h-4 w-4" />

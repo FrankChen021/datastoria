@@ -795,7 +795,7 @@ const DependencyGraphFlowInner = ({
       </ReactFlow>
       {flowEdges.length > 0 && (
         <div
-          className="absolute top-1 left-1 bg-background/95 backdrop-blur-sm shadow-lg text-xs text-muted-foreground pointer-events-none"
+          className="absolute top-1 left-1 bg-background shadow-lg text-xs text-muted-foreground pointer-events-none rounded-md"
           style={{ zIndex: 10 }}
         >
           💡 Use scroll wheel or trackpad to zoom, drag to pan

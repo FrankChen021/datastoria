@@ -49,8 +49,12 @@ export function ConnectionSelectorDialog({
   }, [dialogClassName, handleClose, defaultConnectionName]);
 
   return (
-    <div className="flex items-center gap-1" onClick={handleClick}>
+    <button
+      type="button"
+      className="flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-left"
+      onClick={handleClick}
+    >
       {trigger}
-    </div>
+    </button>
   );
 }

@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import { TextHighlighter } from "@/lib/text-highlighter";
+import { cn } from "@/lib/utils";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { useCommandState, useCommandStore } from "cmdk";
 import * as React from "react";
@@ -57,13 +58,10 @@ function DefaultDescriptionRender({ descriptionMarkdown }: { descriptionMarkdown
     <div className="text-sm text-foreground [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:ml-4 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:ml-4 [&_ol]:mb-2 [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:rounded [&_pre]:overflow-x-auto [&_pre]:mb-2 [&_pre_code]:block [&_pre_code]:p-0 [&_pre_code]:bg-transparent [&_pre_code]:m-0 [&_strong]:font-semibold [&_em]:italic">
       <ReactMarkdown
         components={{
-          a: ({ ...props }) => (
+          a: ({ className, ...props }) => (
             <a
               {...props}
-              style={{
-                color: "#0070f3",
-                textDecoration: "underline",
-              }}
+              className={cn("text-primary underline", className)}
               target="_blank"
               rel="noopener noreferrer"
             />

@@ -273,7 +273,7 @@ const TopologyGraphFlowInner = ({
             variant="ghost"
             size="icon"
             onClick={() => zoomIn()}
-            className="h-7 w-7 bg-background/90 backdrop-blur-sm"
+            className="h-7 w-7 bg-background border border-border"
             title="Zoom In"
           >
             <ZoomIn className="h-3 w-3" />
@@ -282,7 +282,7 @@ const TopologyGraphFlowInner = ({
             variant="ghost"
             size="icon"
             onClick={() => zoomOut()}
-            className="h-7 w-7 bg-background/90 backdrop-blur-sm"
+            className="h-7 w-7 bg-background border border-border"
             title="Zoom Out"
           >
             <ZoomOut className="h-3 w-3" />
@@ -291,7 +291,7 @@ const TopologyGraphFlowInner = ({
             variant="ghost"
             size="icon"
             onClick={() => fitView({ padding: 0.2 })}
-            className="h-7 w-7 bg-background/90 backdrop-blur-sm"
+            className="h-7 w-7 bg-background border border-border"
             title="Fit View"
           >
             <Maximize2 className="h-3 w-3" />

@@ -56,6 +56,12 @@
     --shadow-2xl: 0px 4px 8px -1px hsl(0 0% 0% / 0.25);
     --tracking-normal: 0em;
     --spacing: 0.25rem;
+    --syntax-fade-end: color-mix(in oklch, var(--foreground) 20%, transparent);
+    --highlight-bg: oklch(0.85 0.15 95 / 0.42);
+    --code-block-bg: color-mix(in oklch, var(--muted-foreground) 12%, transparent);
+    --ace-tooltip-bg: var(--card);
+    --ace-tooltip-fg: var(--card-foreground);
+    --ace-tooltip-border: var(--border);
   }
 
   .dark {
@@ -109,6 +115,12 @@
     --shadow-lg: 0px 4px 8px -1px hsl(0 0% 0% / 0.1), 0px 4px 6px -2px hsl(0 0% 0% / 0.1);
     --shadow-xl: 0px 4px 8px -1px hsl(0 0% 0% / 0.1), 0px 8px 10px -2px hsl(0 0% 0% / 0.1);
     --shadow-2xl: 0px 4px 8px -1px hsl(0 0% 0% / 0.25);
+    --syntax-fade-end: color-mix(in oklch, var(--foreground) 25%, transparent);
+    --highlight-bg: oklch(0.85 0.15 95 / 0.28);
+    --code-block-bg: color-mix(in oklch, var(--muted-foreground) 12%, transparent);
+    --ace-tooltip-bg: var(--card);
+    --ace-tooltip-fg: var(--card-foreground);
+    --ace-tooltip-border: var(--border);
   }
 
   @theme inline {
@@ -224,20 +236,36 @@
     display: none; /* Chrome, Safari and Opera */
   }
 
+  /* Default: reduced motion (no blur) for accessibility */
   .slide-in-up {
-    animation: slideInUp 0.3s forwards;
+    animation: slideInUpReduced 0.3s forwards;
   }
 
   .slide-out-up {
-    animation: slideOutUp 0.3s forwards;
+    animation: slideOutUpReduced 0.3s forwards;
   }
 
   .slide-in-down {
-    animation: slideInDown 0.3s forwards;
+    animation: slideInDownReduced 0.3s forwards;
   }
 
   .slide-out-down {
-    animation: slideOutDown 0.3s forwards;
+    animation: slideOutDownReduced 0.3s forwards;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .slide-in-up {
+      animation: slideInUp 0.3s forwards;
+    }
+    .slide-out-up {
+      animation: slideOutUp 0.3s forwards;
+    }
+    .slide-in-down {
+      animation: slideInDown 0.3s forwards;
+    }
+    .slide-out-down {
+      animation: slideOutDown 0.3s forwards;
+    }
   }
 
   @keyframes slideInUp {
@@ -281,6 +309,42 @@
     to {
       transform: translateY(50px);
       filter: blur(5px);
+    }
+  }
+
+  @keyframes slideInUpReduced {
+    from {
+      transform: translateY(50px);
+    }
+    to {
+      transform: translateY(0px);
+    }
+  }
+
+  @keyframes slideOutUpReduced {
+    from {
+      transform: translateY(0px);
+    }
+    to {
+      transform: translateY(-50px);
+    }
+  }
+
+  @keyframes slideInDownReduced {
+    from {
+      transform: translateY(-50px);
+    }
+    to {
+      transform: translateY(0px);
+    }
+  }
+
+  @keyframes slideOutDownReduced {
+    from {
+      transform: translateY(0px);
+    }
+    to {
+      transform: translateY(50px);
     }
   }
 }
