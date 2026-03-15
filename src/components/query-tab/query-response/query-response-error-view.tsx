@@ -3,7 +3,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { parseErrorLocation, type ErrorLocation } from "@/lib/clickhouse/clickhouse-error-parser";
 import { AlertCircleIcon, SparklesIcon } from "lucide-react";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type { QueryErrorDisplay } from "../query-view-model";
 import { QueryErrorAIExplanation } from "./query-error-ai-explanation";
 import { AutoExplainState, getAutoExplainState } from "./query-error-auto-explain-config";
@@ -61,12 +61,14 @@ interface QueryResponseErrorViewProps {
   error: QueryErrorDisplay;
   queryId: string;
   sql?: string;
+  enableAutoExplanation?: boolean;
 }
 
 export const QueryResponseErrorView = memo(function QueryResponseErrorView({
   error,
   queryId,
   sql,
+  enableAutoExplanation = false,
 }: QueryResponseErrorViewProps) {
   const clickHouseErrorCode = error.exceptionCode;
   const [isManualExplainRequested, setIsManualExplainRequested] = useState(false);
@@ -74,6 +76,8 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
     () => getAutoExplainState(clickHouseErrorCode),
     [clickHouseErrorCode]
   );
+  const shouldAutoExplain =
+    enableAutoExplanation && autoExplainState === AutoExplainState.ENABLED;
 
   // Memoize detailMessage computation
   const detailMessage = useMemo(() => {
@@ -145,7 +149,7 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
           sql.length > 0 &&
           autoExplainState !== AutoExplainState.UNAVAILABLE && (
             <>
-              {autoExplainState === AutoExplainState.ENABLED || isManualExplainRequested ? (
+              {shouldAutoExplain || isManualExplainRequested ? (
                 <QueryErrorAIExplanation
                   queryId={queryId}
                   errorMessage={detailMessage}

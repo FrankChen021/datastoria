@@ -174,7 +174,12 @@ export function QueryResponseView({
 
       {error && (
         <TabsContent value="result" forceMount className="data-[state=inactive]:hidden">
-          <QueryResponseErrorView error={error} queryId={queryRequest.queryId} sql={sql} />
+          <QueryResponseErrorView
+            error={error}
+            queryId={queryRequest.queryId}
+            sql={sql}
+            enableAutoExplanation={true}
+          />
         </TabsContent>
       )}
 
