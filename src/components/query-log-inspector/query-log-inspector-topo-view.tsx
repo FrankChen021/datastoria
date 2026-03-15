@@ -90,8 +90,8 @@ function HostNode({ data }: { data: { node: GraphNode; isSelected?: boolean } })
     <div
       className="rounded-lg border-2 shadow-lg min-w-[150px] bg-background relative transition-colors"
       style={{
-        borderColor: isSelected ? "#3b82f6" : undefined,
-        boxShadow: isSelected ? "0 0 0 1px #3b82f6" : undefined,
+        borderColor: isSelected ? "var(--primary)" : undefined,
+        boxShadow: isSelected ? "0 0 0 1px var(--primary)" : undefined,
       }}
     >
       <Handle
@@ -166,15 +166,15 @@ function QueryLogEdge({ id, sourceX, sourceY, targetX, targetY, data, markerEnd 
             style={{
               position: "absolute",
               transform: `translate(-50%, -100%) translate(${labelX}px,${labelY - 3}px)`,
-              background: "hsl(var(--background))",
+              background: "var(--background)",
               padding: "4px 8px",
               borderRadius: "4px",
               fontSize: "10px",
               fontWeight: 500,
-              color: "hsl(var(--foreground))",
+              color: "var(--foreground)",
               pointerEvents: "all",
-              border: isSelected ? "1px solid #3b82f6" : "1px solid hsl(var(--border))",
-              boxShadow: isSelected ? "0 0 0 1px #3b82f6 inset" : undefined,
+              border: isSelected ? "1px solid var(--primary)" : "1px solid var(--border)",
+              boxShadow: isSelected ? "0 0 0 1px var(--primary) inset" : undefined,
               whiteSpace: "pre-line",
               textAlign: "center",
             }}
@@ -221,7 +221,7 @@ const QueryLogGraphFlow = ({
       .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
       .map((edge) => {
         const isSelected = selectedEdgeId === edge.id;
-        const selectedColor = edge.color ? "#dc2626" : "#3b82f6";
+        const selectedColor = edge.color ? "var(--destructive)" : "var(--primary)";
         return {
           id: edge.id,
           source: edge.source,

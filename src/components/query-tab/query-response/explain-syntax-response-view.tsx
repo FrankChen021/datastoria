@@ -26,7 +26,7 @@ const ExplainSyntaxResponseViewComponent = ({
       <ThemedSyntaxHighlighter
         showLineNumbers={true}
         customStyle={{
-          backgroundColor: "rgba(143, 153, 168, 0.15)",
+          backgroundColor: "var(--code-block-bg)",
           fontSize: "14px",
           margin: 0,
           padding: "1rem",

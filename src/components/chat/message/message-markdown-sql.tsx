@@ -164,7 +164,7 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
         <ThemedSyntaxHighlighter
           language={language}
           customStyle={{
-            backgroundColor: "rgba(143, 153, 168, 0.15)",
+            backgroundColor: "var(--code-block-bg)",
             margin: 0,
             padding: "3px",
             fontSize: "0.800rem",
