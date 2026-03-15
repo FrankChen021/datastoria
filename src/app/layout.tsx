@@ -3,11 +3,20 @@ import { RuntimeConfigProvider } from "@/components/runtime-config-provider";
 import "@/index.css";
 import { getAvailableSystemModels } from "@/lib/ai/llm/llm-provider-factory";
 import { BasePath } from "@/lib/base-path";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "next-auth/react";
 import type { ComponentProps } from "react";
 
 type SessionProviderSession = ComponentProps<typeof SessionProvider>["session"];
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://datastoria.app"),
