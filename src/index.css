@@ -444,3 +444,14 @@
   border-right: 2px solid oklch(var(--muted-foreground) / 0.5);
   border-bottom: 2px solid oklch(var(--muted-foreground) / 0.5);
 }
+
+/* Respect prefers-reduced-motion for users sensitive to animation (WCAG 2.3.3) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
