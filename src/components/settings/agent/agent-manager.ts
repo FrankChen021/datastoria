@@ -35,7 +35,7 @@ export class AgentConfigurationManager {
         return {
           mode: "v2",
           pruneValidateSql: true,
-          autoExplainClickHouseErrors: false,
+          autoExplainClickHouseErrors: true,
           autoExplainBlacklist: DEFAULT_AUTO_EXPLAIN_BLACKLIST,
         };
       });
