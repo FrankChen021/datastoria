@@ -3,7 +3,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { parseErrorLocation, type ErrorLocation } from "@/lib/clickhouse/clickhouse-error-parser";
 import { AlertCircleIcon, SparklesIcon } from "lucide-react";
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import type { QueryErrorDisplay } from "../query-view-model";
 import { QueryErrorAIExplanation } from "./query-error-ai-explanation";
 import { AutoExplainState, getAutoExplainState } from "./query-error-auto-explain-config";
@@ -72,6 +72,11 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
 }: QueryResponseErrorViewProps) {
   const clickHouseErrorCode = error.exceptionCode;
   const [isManualExplainRequested, setIsManualExplainRequested] = useState(false);
+
+  useEffect(() => {
+    setIsManualExplainRequested(false);
+  }, [queryId]);
+
   const autoExplainState = useMemo(
     () => getAutoExplainState(clickHouseErrorCode),
     [clickHouseErrorCode]
