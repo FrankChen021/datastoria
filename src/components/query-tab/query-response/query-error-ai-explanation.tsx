@@ -121,7 +121,7 @@ const InlineAutoExplainChat = memo(function InlineAutoExplainChat({
             isLast={index === assistantMessages.length - 1}
             isLoading={isRunning && index === assistantMessages.length - 1}
             isRunning={isRunning && index === assistantMessages.length - 1}
-            loadingText={`AI is explaning this error...`}
+            loadingText={`AI is diagnosing this error...`}
           />
         </div>
       ))}

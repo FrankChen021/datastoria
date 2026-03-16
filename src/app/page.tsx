@@ -6,6 +6,7 @@ import { ChatPanelProvider } from "@/components/chat/view/use-chat-panel";
 import { ConnectionProvider } from "@/components/connection/connection-context";
 import { MainPage } from "@/components/main-page";
 import { ReleaseDetectorProvider } from "@/components/release-note/release-detector";
+import { ModelConfigBootstrap } from "@/components/settings/models/model-config-bootstrap";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { ThemeProvider } from "@/components/shared/theme-provider";
 import { ToastProvider } from "@/components/shared/toast-provider";
@@ -15,6 +16,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 export default function Home() {
   return (
     <AppStorageProvider>
+      <ModelConfigBootstrap />
       <ThemeProvider defaultTheme="dark">
         <ConnectionProvider>
           <ChatPanelProvider>
