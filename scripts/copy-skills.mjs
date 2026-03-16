@@ -1,8 +1,9 @@
 /**
  * Copy skill markdown assets into build output so runtime fs reads work on Vercel/standalone.
  *
- * We copy only markdown (+ json) content, preserving relative paths under:
- *   src/lib/ai/skills/(recursive)/(SKILL.md | AGENTS.md | rules/(recursive)/*.md | *.json)
+ * We copy all .md and .json files under src/lib/ai/skills/ (recursive), preserving
+ * relative paths. No directory whitelist — any subdir (handbook, references, command,
+ * rules, etc.) is included so new resource dirs are picked up automatically.
  *
  * Destinations (if present):
  * - .next/server/skills
@@ -23,16 +24,10 @@ const destinations = [
   path.join(projectRoot, ".next", "standalone", ".next", "server", "skills"),
 ];
 
-const allowedBaseNames = new Set(["SKILL.md", "AGENTS.md"]);
-
+/** Copy any .md or .json under skills; no dir whitelist so new resource dirs are included automatically. */
 function isAllowedFile(relPath) {
-  const normalized = relPath.split(path.sep).join("/");
   const base = path.basename(relPath);
-
-  if (allowedBaseNames.has(base)) return true;
-  if (normalized.includes("/rules/") && base.endsWith(".md")) return true;
-  if (base.endsWith(".json")) return true;
-  return false;
+  return base.endsWith(".md") || base.endsWith(".json");
 }
 
 function walkFiles(rootDir) {
