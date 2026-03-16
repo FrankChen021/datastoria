@@ -15,7 +15,7 @@ import { convertToModelMessages, RetryError, type UIMessage } from "ai";
 export const dynamic = "force-dynamic";
 
 // Increase body size limit for this route to handle large tool results
-// This is needed when get_table_columns returns 1500+ columns (e.g., system.metric_log)
+// This is needed when get_table_columns returns 1500+ columns (e.g. system.metric_log)
 export const maxDuration = 60; // 60 seconds timeout
 
 /** UI message with chat route metadata (planner, usage, routerUsage). */

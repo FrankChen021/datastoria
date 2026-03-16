@@ -1,8 +1,11 @@
 import { getAuthenticatedUserEmail } from "@/auth";
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "@/lib/ai/agent/orchestrator-prompt";
-import { SessionTitleGenerator } from "@/lib/ai/agent/session-title-generator";
-import type { AgentContext, MessageMetadata } from "@/lib/ai/chat-types";
+import {
+  SessionTitleGenerator,
+  type SessionTitleGenerationResponse,
+} from "@/lib/ai/agent/session-title-generator";
+import type { AgentContext, AppUIMessage, MessageMetadata } from "@/lib/ai/chat-types";
 import { CommandManager } from "@/lib/ai/commands/command-manager";
 import {
   LanguageModelProviderFactory,
@@ -14,6 +17,15 @@ import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { ClientTools } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { ServerTools } from "@/lib/ai/tools/server/server-tools";
+import { resolveVerifiedUserId } from "@/lib/auth/resolve-user-identity";
+import { getServerChatPersistenceMode } from "@/lib/chat-persistence/chat-persistence-config";
+import {
+  hasCompletedToolOutputs,
+  replaceOrAppendMessageById,
+  validateRemoteChatRequest,
+} from "@/lib/chat-persistence/remote-chat-request";
+import { persistedMessageToAppUIMessage } from "@/lib/chat-persistence/serialization";
+import { getServerSessionRepository } from "@/lib/chat-persistence/server-session-repository-factory";
 import { APICallError } from "@ai-sdk/provider";
 import {
   convertToModelMessages,
@@ -27,23 +39,18 @@ import { v7 as uuidv7 } from "uuid";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-// Force this route to run on the Node.js runtime (not Edge) so Node APIs like fs/path work for dynamic skill loading.
 export const runtime = "nodejs";
 
-/** Request body for chat/v2 (same shape as chat for compatibility). */
 interface ChatV2Request {
   messages?: UIMessage[];
   context?: ServerDatabaseContext;
   model?: { provider: string; modelId: string; apiKey?: string };
-  /** Whether to request LLM-generated chat title for new conversations. Default true. */
   generateTitle?: boolean;
   agentContext?: AgentContext;
 }
 
-/**
- * Derives the message ID for the assistant response from messages (same logic as original chat API / PlanningInput).
- * Continuation (last message is assistant with tool-result): use that assistant's id. Otherwise generate a new id.
- */
+const TITLE_WAIT_MS = 3000;
+
 function getMessageIdFromMessages(messages: UIMessage[]): string {
   const isContinuation =
     messages.length > 0 &&
@@ -57,6 +64,27 @@ function getMessageIdFromMessages(messages: UIMessage[]): string {
       ? lastAssistant.id
       : undefined;
   return id ?? uuidv7();
+}
+
+function extractTextContent(message: UIMessage): string {
+  return (message.parts ?? [])
+    .filter(
+      (
+        part
+      ): part is {
+        type: "text";
+        text: string;
+      } => part.type === "text" && typeof part.text === "string"
+    )
+    .map((part) => part.text.trim())
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
+function buildProvisionalTitle(message: UIMessage): string | null {
+  const words = extractTextContent(message).split(/\s+/).filter(Boolean).slice(0, 8);
+  return words.length > 0 ? words.join(" ") : null;
 }
 
 function extractErrorMessageFromLLMProvider(
@@ -109,51 +137,58 @@ function extractErrorMessage(error: unknown): string {
   return defaultMessage;
 }
 
-/** Time to wait for title generation before building the response (ms). */
-const TITLE_WAIT_MS = 3000;
-
-/**
- * Expand the last user message if it starts with a slash command.
- * Returns a new array — originalMessages is not mutated.
- * Unknown commands pass through unchanged.
- */
 function expandCommand(messages: UIMessage[]): UIMessage[] {
   SkillManager.listSkills();
 
   let lastUserIdx = -1;
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "user") {
-      lastUserIdx = i;
+  for (let index = messages.length - 1; index >= 0; index--) {
+    if (messages[index].role === "user") {
+      lastUserIdx = index;
       break;
     }
   }
   if (lastUserIdx === -1) return messages;
 
   const lastUser = messages[lastUserIdx];
-  const textPart = lastUser.parts?.find((p) => p.type === "text");
+  const textPart = lastUser.parts?.find((part) => part.type === "text");
   if (!textPart || textPart.type !== "text") return messages;
 
   const expanded = CommandManager.expand(textPart.text);
   if (!expanded) return messages;
 
-  const newParts = lastUser.parts.map((p) => (p.type === "text" ? { ...p, text: expanded } : p));
+  const newParts = lastUser.parts.map((part) =>
+    part.type === "text" ? { ...part, text: expanded } : part
+  );
   const result = [...messages];
   result[lastUserIdx] = { ...lastUser, parts: newParts };
   return result;
 }
 
-/**
- * POST /api/ai/chat/v2
- *
- * Skill-based orchestrator: single agent with skill tool + validate_sql +
- * execute_sql + explore_schema + get_tables + optimization tools.
- * Use maxSteps so the model can load a skill, plan, execute, and retry in one request where possible.
- */
+function getRequestUsage(messages: UIMessage[], messageId: string) {
+  let continuedAssistant: UIMessage | undefined;
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index];
+    if (message.role === "assistant" && message.id === messageId) {
+      continuedAssistant = message;
+      break;
+    }
+  }
+
+  return continuedAssistant
+    ? normalizeUsage(
+        (continuedAssistant as { metadata?: { usage?: unknown } }).metadata?.usage as Record<
+          string,
+          unknown
+        >
+      )
+    : undefined;
+}
+
 export async function POST(req: Request) {
   try {
     const userEmail = getAuthenticatedUserEmail(req);
 
-    let apiRequest: ChatV2Request;
+    let payload: unknown;
     try {
       const text = await req.text();
       if (text.length > 10 * 1024 * 1024) {
@@ -162,29 +197,148 @@ export async function POST(req: Request) {
           headers: { "Content-Type": "text/plain" },
         });
       }
-      apiRequest = JSON.parse(text) as ChatV2Request;
+      payload = JSON.parse(text) as unknown;
     } catch {
       return new Response("Invalid JSON in request body", { status: 400 });
     }
 
-    if (!Array.isArray(apiRequest.messages)) {
-      return new Response("Invalid request format: messages must be an array", { status: 400 });
-    }
+    const serverMode = getServerChatPersistenceMode();
 
-    const context: ServerDatabaseContext = apiRequest.context
-      ? ({ ...apiRequest.context, userEmail } as ServerDatabaseContext)
-      : ({ userEmail } as ServerDatabaseContext);
-    if (!context.clickHouseUser || typeof context.clickHouseUser !== "string") {
-      return new Response("Missing or invalid clickHouseUser in context (required string)", {
-        status: 400,
-      });
-    }
-
+    let context: ServerDatabaseContext;
     let modelConfig: { provider: string; modelId: string; apiKey: string };
-    try {
-      modelConfig = resolveModelConfig(apiRequest.model);
-    } catch (e) {
-      return new Response(e instanceof Error ? e.message : "Unknown error", { status: 500 });
+    let agentContext: AgentContext | undefined;
+    let generateTitle = true;
+    let originalMessages: UIMessage[];
+    let messageId: string;
+    let persistenceUserId: string | null = null;
+    let persistenceChatId: string | null = null;
+    const persistence: ReturnType<typeof getServerSessionRepository> | null =
+      serverMode === "remote" ? getServerSessionRepository() : null;
+    let titlePromise: Promise<SessionTitleGenerationResponse | undefined> | undefined;
+
+    if (serverMode === "remote") {
+      const apiRequest = validateRemoteChatRequest(payload);
+      if (!apiRequest) {
+        return new Response("Invalid request format", { status: 400 });
+      }
+
+      persistenceUserId = await resolveVerifiedUserId(req);
+      if (!persistenceUserId) {
+        return new Response("Authentication required", { status: 401 });
+      }
+
+      context = apiRequest.context
+        ? ({ ...apiRequest.context, userEmail } as ServerDatabaseContext)
+        : ({ userEmail } as ServerDatabaseContext);
+      if (!context.clickHouseUser || typeof context.clickHouseUser !== "string") {
+        return new Response("Missing or invalid clickHouseUser in context (required string)", {
+          status: 400,
+        });
+      }
+
+      try {
+        modelConfig = resolveModelConfig(apiRequest.model);
+      } catch (error) {
+        return new Response(error instanceof Error ? error.message : "Unknown error", {
+          status: 500,
+        });
+      }
+
+      agentContext = apiRequest.agentContext;
+      generateTitle = !apiRequest.continuation && apiRequest.generateTitle !== false;
+      messageId = apiRequest.continuation ? apiRequest.message.id : uuidv7();
+
+      if (apiRequest.ephemeral) {
+        originalMessages = expandCommand([apiRequest.message as UIMessage]);
+      } else {
+        const existingSession = await persistence!.getSession(persistenceUserId, apiRequest.chatId);
+        if (!existingSession) {
+          await persistence!.createSession({
+            id: apiRequest.chatId,
+            owner_user_id: persistenceUserId,
+            connection_id: apiRequest.connectionId,
+            title:
+              !apiRequest.continuation && apiRequest.message.role === "user"
+                ? buildProvisionalTitle(apiRequest.message as UIMessage)
+                : null,
+          });
+        } else if (existingSession.connection_id !== apiRequest.connectionId) {
+          return new Response("Session connectionId mismatch", { status: 409 });
+        }
+
+        const persistedMessages = (
+          await persistence!.getMessages(persistenceUserId, apiRequest.chatId)
+        ).map(persistedMessageToAppUIMessage);
+
+        if (apiRequest.continuation) {
+          if (apiRequest.message.role !== "assistant") {
+            return new Response("Continuation requests must send an assistant message", {
+              status: 400,
+            });
+          }
+          if (!hasCompletedToolOutputs(apiRequest.message)) {
+            return new Response("Continuation assistant message is missing completed tool output", {
+              status: 400,
+            });
+          }
+          const hasPersistedAssistant = persistedMessages.some(
+            (message) => message.id === apiRequest.message.id && message.role === "assistant"
+          );
+          if (!hasPersistedAssistant) {
+            return new Response("Continuation assistant message does not exist", { status: 409 });
+          }
+        } else if (apiRequest.message.role !== "user") {
+          return new Response("Initial requests must send a user message", { status: 400 });
+        }
+
+        const mergedMessages = replaceOrAppendMessageById(
+          persistedMessages,
+          apiRequest.message as AppUIMessage
+        );
+        await persistence!.upsertMessage({
+          chat_id: apiRequest.chatId,
+          owner_user_id: persistenceUserId,
+          message: apiRequest.message as AppUIMessage,
+        });
+
+        originalMessages = expandCommand(mergedMessages as UIMessage[]);
+        persistenceChatId = apiRequest.chatId;
+      }
+
+      titlePromise =
+        !apiRequest.continuation && generateTitle
+          ? SessionTitleGenerator.generate(originalMessages, modelConfig)
+          : undefined;
+    } else {
+      const apiRequest = payload as ChatV2Request;
+      if (!Array.isArray(apiRequest.messages)) {
+        return new Response("Invalid request format: messages must be an array", { status: 400 });
+      }
+
+      context = apiRequest.context
+        ? ({ ...apiRequest.context, userEmail } as ServerDatabaseContext)
+        : ({ userEmail } as ServerDatabaseContext);
+      if (!context.clickHouseUser || typeof context.clickHouseUser !== "string") {
+        return new Response("Missing or invalid clickHouseUser in context (required string)", {
+          status: 400,
+        });
+      }
+
+      try {
+        modelConfig = resolveModelConfig(apiRequest.model);
+      } catch (error) {
+        return new Response(error instanceof Error ? error.message : "Unknown error", {
+          status: 500,
+        });
+      }
+
+      agentContext = apiRequest.agentContext;
+      generateTitle = apiRequest.generateTitle !== false;
+      originalMessages = expandCommand(apiRequest.messages ?? []);
+      messageId = getMessageIdFromMessages(apiRequest.messages);
+      titlePromise = generateTitle
+        ? SessionTitleGenerator.generate(originalMessages, modelConfig)
+        : undefined;
     }
 
     const model = LanguageModelProviderFactory.createModel(
@@ -193,37 +347,9 @@ export async function POST(req: Request) {
       modelConfig.apiKey
     );
     const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
-
-    // Expand slash commands for the model only — originalMessages keeps the raw user text
-    // so the client's chat history shows /command as typed, not the expanded template.
-    const originalMessages = expandCommand(apiRequest.messages ?? []);
-
-    // Request usage: only when continuing an assistant (messageId in request); else undefined for new message
-    const messageId = getMessageIdFromMessages(apiRequest.messages);
-    let continuedAssistant: UIMessage | undefined;
-    for (let i = originalMessages.length - 1; i >= 0; i--) {
-      const m = originalMessages[i];
-      if (m.role === "assistant" && m.id === messageId) {
-        continuedAssistant = m;
-        break;
-      }
-    }
-    const requestUsage = continuedAssistant
-      ? normalizeUsage(
-          (continuedAssistant as { metadata?: { usage?: unknown } }).metadata?.usage as Record<
-            string,
-            unknown
-          >
-        )
-      : undefined;
-
-    const titlePromise =
-      apiRequest.generateTitle !== false
-        ? SessionTitleGenerator.generate(originalMessages, modelConfig)
-        : undefined;
-
+    const requestUsage = getRequestUsage(originalMessages, messageId);
     const modelMessages = await convertToModelMessages(
-      MessagePruner.prune(originalMessages, apiRequest.agentContext)
+      MessagePruner.prune(originalMessages, agentContext)
     );
 
     const result = streamText({
@@ -248,6 +374,16 @@ export async function POST(req: Request) {
     const responseStream = result.toUIMessageStream({
       originalMessages: originalMessages as UIMessage[],
       generateMessageId: () => messageId,
+      onFinish:
+        serverMode === "remote" && persistence && persistenceUserId && persistenceChatId
+          ? async ({ responseMessage }) => {
+              await persistence.upsertMessage({
+                chat_id: persistenceChatId,
+                owner_user_id: persistenceUserId!,
+                message: responseMessage as AppUIMessage,
+              });
+            }
+          : undefined,
       messageMetadata: ({
         part,
       }: {
@@ -258,7 +394,6 @@ export async function POST(req: Request) {
           (part.totalUsage ?? part.usage) as Record<string, unknown>
         );
 
-        // Accumulate token usage on this message id
         const usage = sumTokenUsage([requestUsage, responseUsage]);
         return {
           usage,
@@ -308,6 +443,24 @@ export async function POST(req: Request) {
                 provider: modelConfig.provider,
                 modelId: modelConfig.modelId,
               });
+
+              if (
+                serverMode === "remote" &&
+                persistence &&
+                persistenceUserId &&
+                persistenceChatId
+              ) {
+                void titlePromise.then(async (lateTitleResult) => {
+                  const lateTitle = lateTitleResult?.title?.trim();
+                  if (lateTitle) {
+                    await persistence.updateSessionTitle(
+                      persistenceUserId!,
+                      persistenceChatId!,
+                      lateTitle
+                    );
+                  }
+                });
+              }
             }
 
             const metadata = ((chunk as { messageMetadata?: MessageMetadata }).messageMetadata ??
@@ -322,6 +475,16 @@ export async function POST(req: Request) {
                     },
                   }
                 : {};
+
+            if (
+              titleText &&
+              serverMode === "remote" &&
+              persistence &&
+              persistenceUserId &&
+              persistenceChatId
+            ) {
+              await persistence.updateSessionTitle(persistenceUserId, persistenceChatId, titleText);
+            }
 
             controller.enqueue({
               ...chunk,

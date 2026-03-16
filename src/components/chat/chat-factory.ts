@@ -1,3 +1,4 @@
+import { getRuntimeConfig } from "@/components/runtime-config-provider";
 import { AgentConfigurationManager } from "@/components/settings/agent/agent-manager";
 import { ModelManager } from "@/components/settings/models/model-manager";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
@@ -27,6 +28,7 @@ type ChatFactoryCreateOptions = {
   connection: Connection;
   apiEndpoint?: string;
   context?: DatabaseContext;
+  ephemeral?: boolean;
   model?: {
     provider: string;
     modelId: string;
@@ -230,6 +232,24 @@ export class ChatFactory {
         chatId,
         historicalMessages,
       }) => {
+        const chatPersistenceMode = getRuntimeConfig().chatPersistenceMode;
+        if (chatPersistenceMode === "remote") {
+          let provisionalTitle: string | undefined;
+          if (
+            historicalMessages.length === 0 &&
+            messages.length === 1 &&
+            messages[0]?.role === "user"
+          ) {
+            provisionalTitle = buildProvisionalSessionTitle(extractTextFromMessage(messages[0]));
+            if (provisionalTitle) {
+              ChatUIContext.updateTitle(provisionalTitle);
+            }
+          }
+
+          await SessionManager.touchSessionById(chatId, connection.connectionId, provisionalTitle);
+          return;
+        }
+
         const userMessagesToSave = messages
           .filter((msg) => msg.role === "user")
           .map((msg) => {
@@ -274,18 +294,9 @@ export class ChatFactory {
         await SessionManager.touchSessionById(chatId, connection.connectionId, provisionalTitle);
       },
       onFinish: async ({ message, connection, chatId }) => {
+        const chatPersistenceMode = getRuntimeConfig().chatPersistenceMode;
         const now = new Date();
 
-        const messageToSave: Message = {
-          id: message.id,
-          role: message.role,
-          parts: message.parts as Message["parts"],
-          metadata: message.metadata as MessageMetadata,
-          createdAt: now,
-          updatedAt: now,
-        };
-
-        await SessionManager.saveMessage(chatId, messageToSave);
         let title: string | undefined;
         if (message.metadata?.title && typeof message.metadata.title.text === "string") {
           title = message.metadata.title.text;
@@ -303,6 +314,19 @@ export class ChatFactory {
           }
         }
 
+        if (chatPersistenceMode === "local") {
+          const messageToSave: Message = {
+            id: message.id,
+            role: message.role,
+            parts: message.parts as Message["parts"],
+            metadata: message.metadata as MessageMetadata,
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          await SessionManager.saveMessage(chatId, messageToSave);
+        }
+
         await SessionManager.touchSessionById(chatId, connection.connectionId, title);
       },
     });
@@ -315,6 +339,7 @@ export class ChatFactory {
   static async createEphemeral(options: ChatFactoryCreateOptions): Promise<Chat<AppUIMessage>> {
     return ChatFactory.createInternal({
       ...options,
+      ephemeral: true,
       initialMessages: [],
       generateTitle: false,
     });
@@ -360,6 +385,33 @@ export class ChatFactory {
           });
 
           const requestContext = options.context ?? ChatContext.build();
+          const chatPersistenceMode = getRuntimeConfig().chatPersistenceMode;
+
+          if (chatPersistenceMode === "remote") {
+            const currentMessages = messages as AppUIMessage[];
+            const lastMessage = currentMessages[currentMessages.length - 1];
+            const continuation = lastAssistantMessageIsCompleteWithToolCalls({
+              messages: currentMessages,
+            });
+
+            return {
+              body: {
+                chatId,
+                connectionId: connection.connectionId,
+                message: lastMessage,
+                ...(continuation ? { continuation: true } : {}),
+                ...(!continuation && options.generateTitle ? { generateTitle: true } : {}),
+                ...(options.ephemeral ? { ephemeral: true } : {}),
+                agentContext: {
+                  pruneValidateSql: AgentConfigurationManager.getConfiguration().pruneValidateSql,
+                },
+                ...(requestContext && { context: requestContext }),
+                ...(currentModel && { model: currentModel }),
+              },
+              headers,
+              credentials,
+            };
+          }
 
           return {
             body: {

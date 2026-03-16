@@ -4,7 +4,7 @@ import type { Chat, Message } from "@/lib/ai/chat-types";
 import { useMemo, useSyncExternalStore } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { chatActionStorage } from "./chat-action-storage";
-import { sessionRepository } from "./local-session-repository";
+import { getSessionRepository } from "./session-repository-factory";
 
 export interface ManagedSession extends Chat {
   running: boolean;
@@ -67,7 +67,8 @@ export const SessionManager = {
       return [];
     }
 
-    const sessions = await sessionRepository.getSessionsForConnection(connectionId);
+    const storage = await getSessionRepository();
+    const sessions = await storage.getSessionsForConnection(connectionId);
     const bucket = getConnectionBucket(connectionId);
     const previousChatIds = new Set(Object.keys(bucket));
 
@@ -90,7 +91,8 @@ export const SessionManager = {
       }
     }
 
-    const session = await sessionRepository.getSession(chatId);
+    const storage = await getSessionRepository();
+    const session = await storage.getSession(chatId);
     if (!session) {
       return null;
     }
@@ -128,24 +130,29 @@ export const SessionManager = {
       updatedAt: now,
     };
 
-    await sessionRepository.saveSession(session);
+    const storage = await getSessionRepository();
+    await storage.saveSession(session);
     return this.upsertSession(session);
   },
 
   async getMessages(chatId: string): Promise<Message[]> {
-    return sessionRepository.getMessages(chatId);
+    const storage = await getSessionRepository();
+    return storage.getMessages(chatId);
   },
 
   async saveMessages(chatId: string, messages: Message[]): Promise<void> {
-    await sessionRepository.saveMessages(chatId, messages);
+    const storage = await getSessionRepository();
+    await storage.saveMessages(chatId, messages);
   },
 
   async saveMessage(chatId: string, message: Message): Promise<void> {
-    await sessionRepository.saveMessage(chatId, message);
+    const storage = await getSessionRepository();
+    await storage.saveMessage(chatId, message);
   },
 
   async getOrCreateSession(chatId: string, connectionId: string): Promise<ManagedSession> {
-    const existing = await sessionRepository.getSession(chatId);
+    const storage = await getSessionRepository();
+    const existing = await storage.getSession(chatId);
     if (existing) {
       return this.upsertSession(existing);
     }
@@ -158,7 +165,7 @@ export const SessionManager = {
       updatedAt: now,
     };
 
-    await sessionRepository.saveSession(session);
+    await storage.saveSession(session);
     return this.upsertSession(session);
   },
 
@@ -189,9 +196,10 @@ export const SessionManager = {
   },
 
   async renameSession(connectionId: string | undefined, chatId: string, title: string) {
+    const storage = await getSessionRepository();
     const current =
       (connectionId ? getConnectionBucket(connectionId)[chatId] : undefined) ??
-      (await sessionRepository.getSession(chatId));
+      (await storage.getSession(chatId));
 
     if (!current) {
       return;
@@ -202,12 +210,13 @@ export const SessionManager = {
       title,
     };
 
-    await sessionRepository.saveSession(nextSession);
+    await storage.renameSession(chatId, title);
     this.upsertSession(nextSession);
   },
 
   async deleteSessions(connectionId: string | undefined, chatIds: string[]) {
-    await Promise.all(chatIds.map((chatId) => sessionRepository.deleteSession(chatId)));
+    const storage = await getSessionRepository();
+    await Promise.all(chatIds.map((chatId) => storage.deleteSession(chatId)));
     chatActionStorage.clearHiddenActionsForChats(chatIds);
 
     if (!connectionId) {
@@ -224,7 +233,8 @@ export const SessionManager = {
   },
 
   async touchSession(session: Chat) {
-    await sessionRepository.saveSession(session);
+    const storage = await getSessionRepository();
+    await storage.saveSession(session);
     this.upsertSession(session);
   },
 
@@ -236,7 +246,8 @@ export const SessionManager = {
       updatedAt: new Date(),
     };
 
-    await sessionRepository.saveSession(nextSession);
+    const storage = await getSessionRepository();
+    await storage.saveSession(nextSession);
     return this.upsertSession(nextSession);
   },
 };
