@@ -41,6 +41,7 @@ COPY components.json ./
 COPY scripts ./scripts
 COPY src ./src
 COPY public ./public
+COPY resources ./resources
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
