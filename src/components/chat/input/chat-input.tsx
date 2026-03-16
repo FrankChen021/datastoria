@@ -17,6 +17,15 @@ import {
 } from "./chat-input-suggestions";
 import { ModelSelector } from "./model-selector";
 
+const LEADING_COMMAND_RE = /^\/[a-z][a-z0-9_-]*/;
+
+export function replaceLeadingCommand(input: string, commandName: string): string {
+  const match = LEADING_COMMAND_RE.exec(input);
+  const argsStart = match ? match[0].length : input.length;
+  const existingArgs = input.slice(argsStart);
+  return `/${commandName}${existingArgs || " "}`;
+}
+
 interface ChatInputProps {
   onSubmit: (text: string) => void;
   onStop?: () => void;
@@ -158,10 +167,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const handleSelectCommand = React.useCallback(
       (command: CommandDetail) => {
         // Replace the /name portion with /name + space, keeping any args already typed
-        const match = /^\/[a-z][a-z0-9_]*/.exec(input);
-        const argsStart = match ? match[0].length : input.length;
-        const existingArgs = input.slice(argsStart);
-        const newText = `/${command.name}${existingArgs || " "}`;
+        const newText = replaceLeadingCommand(input, command.name);
         setInput(newText);
         commandRef.current?.close();
 
