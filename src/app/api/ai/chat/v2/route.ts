@@ -9,6 +9,7 @@ import {
   resolveModelConfig,
 } from "@/lib/ai/llm/llm-provider-factory";
 import { MessagePruner } from "@/lib/ai/message-pruner";
+import { SkillManager } from "@/lib/ai/skills/skill-manager";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { ClientTools } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
@@ -117,6 +118,8 @@ const TITLE_WAIT_MS = 3000;
  * Unknown commands pass through unchanged.
  */
 function expandCommand(messages: UIMessage[]): UIMessage[] {
+  SkillManager.listSkills();
+
   let lastUserIdx = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === "user") {

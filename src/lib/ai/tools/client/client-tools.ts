@@ -277,7 +277,7 @@ export const ClientTools = {
   }),
   collect_cluster_status: tool({
     description:
-      "Collect ClickHouse cluster status from system tables. Supports current snapshot and time-windowed status. This is a collection tool (not diagnosis): it returns raw health summaries/outliers for the cluster-diagnostics skill to interpret.",
+      "Collect ClickHouse cluster status from system tables. Supports current snapshot and time-windowed status. This is a collection tool (not diagnosis): it returns raw health summaries/outliers for the diagnose-clickhouse-clusters skill to interpret.",
     inputSchema: z.object({
       status_analysis_mode: z
         .enum(["snapshot", "windowed"])

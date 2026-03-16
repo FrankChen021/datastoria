@@ -10,7 +10,7 @@ describe("buildExplainErrorPrompt", () => {
         sql: "SELECT 1",
       })
     ).toBe(
-      "/explain_error_code error code: 62\n\nerror message: Syntax error\n\nsql:\n```sql\nSELECT 1\n```"
+      "/diagnose-clickhouse-errors error code: 62\n\nerror message: Syntax error\n\nsql:\n```sql\nSELECT 1\n```"
     );
   });
 
@@ -19,6 +19,6 @@ describe("buildExplainErrorPrompt", () => {
       buildExplainErrorPrompt({
         errorMessage: "Network error",
       })
-    ).toBe("/explain_error_code error message: Network error");
+    ).toBe("/diagnose-clickhouse-errors error message: Network error");
   });
 });

@@ -2,6 +2,7 @@
 // This enables multi-file skill packs and avoids manual static imports.
 import fs from "node:fs";
 import path from "node:path";
+import { CommandManager } from "@/lib/ai/commands/command-manager";
 import matter from "gray-matter";
 
 export interface SkillMetadata {
@@ -31,6 +32,8 @@ export interface SkillCatalogItem {
   summary?: string;
   /** Whether this skill has sub-resources (rules/*.md, AGENTS.md, etc.). */
   hasResources?: boolean;
+  /** Whether this skill is excluded from slash command registration. */
+  disableSlashCommand?: boolean;
 }
 
 type SkillCache = {
@@ -69,6 +72,12 @@ export class SkillManager {
     const parsed = matter(raw);
     const content = parsed.content.trim();
     return `# Manual Loaded: ${skillName}\n\n${content}`;
+  }
+
+  private static shouldDisableSlashCommand(data: Record<string, unknown>): boolean {
+    if (data["disable-slash-command"] === true) return true;
+    const metadataBlock = (data.metadata ?? {}) as Record<string, unknown>;
+    return metadataBlock["disable-slash-command"] === true;
   }
 
   private static getSkillsRootDir(): string {
@@ -161,6 +170,8 @@ export class SkillManager {
     const catalog: SkillCatalogItem[] = [];
     const rawContent = new Map<string, string>();
 
+    CommandManager.clearCache();
+
     for (const skillFile of skillFiles) {
       const raw = SkillManager.readSkillFile(skillFile);
       if (!raw) continue;
@@ -170,6 +181,7 @@ export class SkillManager {
 
       const dirName = path.basename(path.dirname(skillFile));
       const metaName = typeof data.name === "string" ? data.name : dirName;
+      const disableSlashCommand = SkillManager.shouldDisableSlashCommand(data);
       const meta: SkillMetadata = {
         name: metaName,
         description: typeof data.description === "string" ? data.description : "",
@@ -198,9 +210,19 @@ export class SkillManager {
         provider: typeof metadataBlock.author === "string" ? metadataBlock.author : undefined,
         summary: SkillManager.extractSummary(parsed.content),
         hasResources: SkillManager.skillDirHasResources(path.dirname(skillFile)),
+        disableSlashCommand,
       };
       catalog.push(catalogItem);
       rawContent.set(dirName, raw);
+
+      if (!disableSlashCommand) {
+        CommandManager.registerCommand({
+          name: metaName,
+          description: meta.description,
+          skillId: dirName,
+          template: CommandManager.buildSkillCommandTemplate(metaName),
+        });
+      }
 
       console.info(`[SkillManager] Loaded skill [${meta.name}] at location ${skillFile}`);
     }
@@ -311,6 +333,7 @@ export class SkillManager {
   /** Clear in-memory cache (useful for tests or dev tooling). */
   public static clearCache(): void {
     SkillManager.cache = null;
+    CommandManager.clearCache();
   }
 
   // ---------------------------------------------------------------------------

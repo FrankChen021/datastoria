@@ -3,6 +3,7 @@ name: clickhouse-system-queries
 description: Dispatcher skill for ClickHouse system-table operational queries. Use table-specific references for concrete SQL patterns.
 metadata:
   author: DataStoria
+  disable-slash-command: true
 ---
 
 # ClickHouse System Queries Skill

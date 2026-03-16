@@ -3,6 +3,7 @@ name: visualization
 description: Rules for charts and visualization. Use when the user asks for charts, graphs, plots, or visual representations (line, bar, pie, timeseries).
 metadata:
   author: System
+  disable-slash-command: true
 ---
 
 # WORKFLOW (MANDATORY ORDER)

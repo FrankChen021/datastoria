@@ -19,5 +19,5 @@ export function buildExplainErrorPrompt({
     parts.push(`sql:\n\`\`\`sql\n${sql}\n\`\`\``);
   }
 
-  return `/explain_error_code ${parts.join("\n\n")}`;
+  return `/diagnose-clickhouse-errors ${parts.join("\n\n")}`;
 }

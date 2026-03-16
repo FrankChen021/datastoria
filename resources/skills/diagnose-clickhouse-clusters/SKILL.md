@@ -1,5 +1,5 @@
 ---
-name: cluster-diagnostics
+name: diagnose-clickhouse-clusters
 description: Diagnose ClickHouse cluster health and provide concrete remediation.
 metadata:
   author: System
