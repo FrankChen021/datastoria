@@ -1,7 +1,7 @@
 /**
  * Copy skill markdown assets into build output so runtime fs reads work on Vercel/standalone.
  *
- * We copy all .md and .json files under src/lib/ai/skills/ (recursive), preserving
+ * We copy all .md and .json files under resources/skills/ (recursive), preserving
  * relative paths. No directory whitelist — any subdir (handbook, references, command,
  * rules, etc.) is included so new resource dirs are picked up automatically.
  *
@@ -17,7 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const projectRoot = path.join(__dirname, "..");
-const sourceRoot = path.join(projectRoot, "src", "lib", "ai", "skills");
+const sourceRoot = path.join(projectRoot, "resources", "skills");
 
 const destinations = [
   path.join(projectRoot, ".next", "server", "skills"),

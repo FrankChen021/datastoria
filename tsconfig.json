@@ -39,6 +39,6 @@
   ],
   "exclude": [
     "node_modules",
-    "src/lib/ai/skills/clickhouse/packages"
+    "resources/skills/clickhouse/packages"
   ]
 }

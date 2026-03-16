@@ -83,10 +83,7 @@ export class SkillManager {
       path.join(process.cwd(), ".next", "standalone", ".next", "server", "skills"),
     ];
 
-    const devCandidates = [
-      path.join(process.cwd(), "src", "lib", "ai", "skills"),
-      ...prodCandidates,
-    ];
+    const devCandidates = [path.join(process.cwd(), "resources", "skills"), ...prodCandidates];
 
     const candidates = process.env.NODE_ENV === "production" ? prodCandidates : devCandidates;
 
@@ -98,7 +95,7 @@ export class SkillManager {
       }
     }
 
-    return path.join(process.cwd(), "src", "lib", "ai", "skills");
+    return path.join(process.cwd(), "resources", "skills");
   }
 
   private static isSafeRelativePath(p: string): boolean {

@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
   },
   webpack: (config) => {
     // Bundle SKILL.md files as raw strings (build-time import, no runtime fs)
-    const skillsDir = path.join(process.cwd(), 'src', 'lib', 'ai', 'skills')
+    const skillsDir = path.join(process.cwd(), 'resources', 'skills')
     config.module.rules.push({
       test: /\/SKILL\.md$/,
       include: skillsDir,
