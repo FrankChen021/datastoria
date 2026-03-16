@@ -1,0 +1,226 @@
+export const HIGH_PARTITION_COUNT_TEMPLATE_SOURCE = String.raw`
+symptom: high_partition_count
+
+observations:
+  - id: logical_stats
+    kind: sql_observation
+    stage: "rca high_partition_count: partition_logical_stats"
+    progress: 43
+    source: system.parts
+    description: "Logical (replica-deduplicated) partition inventory"
+    sql: |
+      SELECT
+        uniqExact(partition) AS partition_count,
+        sum(logical_parts_per_partition) AS active_parts,
+        max(logical_parts_per_partition) AS max_parts_per_partition
+      FROM (
+        SELECT
+          partition,
+          uniqExact(name) AS logical_parts_per_partition
+        FROM {clusterAllReplicas:system.parts}
+        WHERE active AND {partsTableFilterExpression}
+        GROUP BY partition
+      )
+    metrics:
+      - name: partition_count
+        type: number
+      - name: active_parts
+        type: number
+      - name: max_parts_per_partition
+        type: number
+
+  - id: node_ratio
+    kind: sql_observation
+    stage: "rca high_partition_count: partition_node_ratio"
+    progress: 44
+    source: system.parts
+    description: "Per-node partition-to-parts ratio (logical, replica-deduplicated within node)"
+    sql: |
+      SELECT
+        max(node_partition_to_parts_ratio) AS max_node_partition_to_parts_ratio,
+        avg(node_partition_to_parts_ratio) AS avg_node_partition_to_parts_ratio,
+        ifNull(argMax(host_name, node_partition_to_parts_ratio), '') AS top_ratio_node
+      FROM (
+        SELECT
+          host_name,
+          if(sum(logical_parts_per_partition) = 0, 0, uniqExact(partition) / sum(logical_parts_per_partition)) AS node_partition_to_parts_ratio
+        FROM (
+          SELECT
+            hostName() AS host_name,
+            partition,
+            uniqExact(name) AS logical_parts_per_partition
+          FROM {clusterAllReplicas:system.parts}
+          WHERE active AND {partsTableFilterExpression}
+          GROUP BY host_name, partition
+        )
+        GROUP BY host_name
+      )
+    metrics:
+      - name: max_node_partition_to_parts_ratio
+        type: number
+        decimals: 4
+      - name: avg_node_partition_to_parts_ratio
+        type: number
+        decimals: 4
+      - name: top_ratio_node
+        type: string
+
+  - id: partition_growth
+    kind: sql_observation
+    stage: "rca high_partition_count: partition_growth"
+    progress: 45
+    source: system.parts
+    description: "Recent partition growth"
+    sql: |
+      SELECT
+        uniqExact(partition) AS recent_partitions
+      FROM {clusterAllReplicas:system.parts}
+      WHERE active
+        AND modification_time >= now() - INTERVAL {timeWindowMinutes} MINUTE
+        AND {partsTableFilterExpression}
+    metrics:
+      - name: recent_partitions
+        type: number
+
+  - id: table_meta
+    kind: sql_observation
+    stage: "rca high_partition_count: table_meta"
+    progress: 50
+    source: system.tables
+    description: "Partition key definition"
+    sql: |
+      SELECT
+        any(partition_key) AS partition_key,
+        any(engine) AS engine
+      FROM system.tables
+      WHERE database = '{resolvedTargetDatabase}'
+        AND name = '{resolvedTargetTable}'
+    metrics:
+      - name: partition_key
+        type: string
+      - name: engine
+        type: string
+
+  - id: insert_pattern
+    kind: sql_observation
+    stage: "rca high_partition_count: insert_pattern"
+    progress: 55
+    source: system.query_log
+    description: "Insert pressure for target table"
+    sql: |
+      SELECT
+        count() AS inserts,
+        avg(written_rows) AS avg_rows_per_insert
+      FROM {clusterAllReplicas:system.query_log}
+      WHERE {timeFilterExpression}
+        AND type = 'QueryFinish'
+        AND query_kind = 'Insert'
+        AND {queryLogTableFilterExpression}
+    metrics:
+      - name: inserts
+        type: number
+      - name: avg_rows_per_insert
+        type: number
+        decimals: 2
+
+candidates:
+  - cause: partition_key_too_granular
+    observations: [logical_stats, partition_growth, table_meta]
+    indicators:
+      - description: "partition count > {threshold.partition_count_gt}"
+        required: true
+        actual_template: "{logical_stats.partition_count}"
+        match:
+          kind: comparison
+          left: { observation: logical_stats, metric: partition_count }
+          operator: gt
+          right: { threshold: partition_count_gt }
+      - description: "partition key expression appears granular"
+        actual_template: "{table_meta.partition_key|default:none}"
+        match:
+          kind: regex
+          observation: table_meta
+          metric: partition_key
+          pattern: "toDate\\(|toStartOfHour|toYYYYMMDD|toYYYYMMDDhh|cityHash|user_id|trace_id"
+          flags: "i"
+      - description: "recent partitions > {threshold.recent_partitions_gt} in window"
+        actual_template: "{partition_growth.recent_partitions}"
+        match:
+          kind: comparison
+          left: { observation: partition_growth, metric: recent_partitions }
+          operator: gt
+          right: { threshold: recent_partitions_gt }
+
+  - cause: high_cardinality_partition_key
+    observations: [logical_stats, node_ratio, insert_pattern]
+    indicators:
+      - description: "partition count > {threshold.partition_count_gt}"
+        required: true
+        actual_template: "{logical_stats.partition_count}"
+        match:
+          kind: comparison
+          left: { observation: logical_stats, metric: partition_count }
+          operator: gt
+          right: { threshold: partition_count_gt }
+      - description: "partition/parts ratio > {threshold.partition_to_parts_ratio_gt}"
+        required: true
+        actual_template: "max_node={node_ratio.max_node_partition_to_parts_ratio:.2f} avg_node={node_ratio.avg_node_partition_to_parts_ratio:.2f}"
+        match:
+          kind: comparison
+          left: { observation: node_ratio, metric: max_node_partition_to_parts_ratio }
+          operator: gt
+          right: { threshold: partition_to_parts_ratio_gt }
+      - description: "avg rows per insert < {threshold.avg_rows_per_insert_lt}"
+        actual_template: "{insert_pattern.avg_rows_per_insert:.2f}"
+        match:
+          kind: all
+          conditions:
+            - kind: comparison
+              left: { observation: insert_pattern, metric: avg_rows_per_insert }
+              operator: gt
+              right: { value: 0 }
+            - kind: comparison
+              left: { observation: insert_pattern, metric: avg_rows_per_insert }
+              operator: lt
+              right: { threshold: avg_rows_per_insert_lt }
+
+  - cause: unbounded_partition_growth
+    observations: [partition_growth, logical_stats, table_meta]
+    next_checks:
+      - "review partition lifecycle policy and retention granularity"
+    indicators:
+      - description: "recent partitions > {threshold.recent_partitions_gt} in window"
+        required: true
+        actual_template: "{partition_growth.recent_partitions}"
+        match:
+          kind: comparison
+          left: { observation: partition_growth, metric: recent_partitions }
+          operator: gt
+          right: { threshold: recent_partitions_gt }
+      - description: "partition count > {threshold.unbounded_growth_partition_count_gt}"
+        actual_template: "{logical_stats.partition_count}"
+        match:
+          kind: comparison
+          left: { observation: logical_stats, metric: partition_count }
+          operator: gt
+          right: { threshold: unbounded_growth_partition_count_gt }
+      - description: "engine is MergeTree family"
+        actual_template: "{table_meta.engine|default:unknown}"
+        match:
+          kind: regex
+          observation: table_meta
+          metric: engine
+          pattern: "MergeTree"
+          flags: "i"
+
+actions:
+  - title: "Coarsen partition key granularity (for example month-level time partition)"
+    risk: high
+    tied_to: partition_key_too_granular
+  - title: "Align partitioning with lifecycle management and retention"
+    risk: medium
+    tied_to: unbounded_partition_growth
+  - title: "Reduce insert fragmentation to avoid compounding partition pressure"
+    risk: low
+    tied_to: high_cardinality_partition_key
+`;

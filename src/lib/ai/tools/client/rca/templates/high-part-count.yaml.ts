@@ -1,0 +1,356 @@
+export const HIGH_PART_COUNT_TEMPLATE_SOURCE = String.raw`
+version: 1
+symptom: high_part_count
+description: Diagnose excessive active part count for a cluster, node, or table.
+
+observations:
+  - id: logical_partition_stats
+    kind: sql_observation
+    stage: "rca high_part_count: parts_logical_partition_stats"
+    progress: 40
+    source: system.parts
+    description: "Logical (replica-deduplicated) part inventory by partition"
+    sql: |
+      SELECT
+        uniqExact(partition) AS distinct_partitions,
+        max(logical_parts_per_partition) AS max_parts_per_partition
+      FROM (
+        SELECT
+          partition,
+          uniqExact(name) AS logical_parts_per_partition
+        FROM {clusterAllReplicas:system.parts}
+        WHERE active AND {partsTableFilterExpression}
+        GROUP BY partition
+      )
+    metrics:
+      - name: distinct_partitions
+        type: number
+      - name: max_parts_per_partition
+        type: number
+
+  - id: node_partition_ratio
+    kind: sql_observation
+    stage: "rca high_part_count: parts_node_partition_ratio"
+    progress: 44
+    source: system.parts
+    description: "Per-node partition-to-parts ratio (logical, replica-deduplicated within node)"
+    sql: |
+      SELECT
+        max(node_partition_to_parts_ratio) AS max_node_partition_to_parts_ratio,
+        avg(node_partition_to_parts_ratio) AS avg_node_partition_to_parts_ratio,
+        ifNull(argMax(host_name, node_partition_to_parts_ratio), '') AS top_ratio_node
+      FROM (
+        SELECT
+          host_name,
+          if(sum(logical_parts_per_partition) = 0, 0, uniqExact(partition) / sum(logical_parts_per_partition)) AS node_partition_to_parts_ratio
+        FROM (
+          SELECT
+            hostName() AS host_name,
+            partition,
+            uniqExact(name) AS logical_parts_per_partition
+          FROM {clusterAllReplicas:system.parts}
+          WHERE active AND {partsTableFilterExpression}
+          GROUP BY host_name, partition
+        )
+        GROUP BY host_name
+      )
+    metrics:
+      - name: max_node_partition_to_parts_ratio
+        type: number
+        decimals: 4
+      - name: avg_node_partition_to_parts_ratio
+        type: number
+        decimals: 4
+      - name: top_ratio_node
+        type: string
+
+  - id: node_totals
+    kind: sql_observation
+    stage: "rca high_part_count: parts_node_totals"
+    progress: 44
+    source: system.parts
+    description: "Per-node active part totals (replica-inclusive, hotspot-oriented)"
+    sql: |
+      SELECT
+        max(node_active_parts) AS max_active_parts_per_node,
+        avg(node_active_parts) AS avg_active_parts_per_node,
+        ifNull(argMax(host_name, node_active_parts), '') AS top_parts_node
+      FROM (
+        SELECT
+          hostName() AS host_name,
+          count() AS node_active_parts
+        FROM {clusterAllReplicas:system.parts}
+        WHERE active AND {partsTableFilterExpression}
+        GROUP BY host_name
+      )
+    metrics:
+      - name: max_active_parts_per_node
+        type: number
+      - name: avg_active_parts_per_node
+        type: number
+        decimals: 2
+      - name: top_parts_node
+        type: string
+
+  - id: merges
+    kind: sql_observation
+    stage: "rca high_part_count: merges"
+    progress: 45
+    source: system.merges
+    description: "Merge pressure around target scope"
+    sql: |
+      SELECT
+        count() AS active_merges,
+        max(elapsed) AS max_merge_elapsed_seconds
+      FROM {clusterAllReplicas:system.merges}
+      WHERE {nodeFilterExpression}
+        AND {partsTableFilterExpression}
+    metrics:
+      - name: active_merges
+        type: number
+      - name: max_merge_elapsed_seconds
+        type: number
+        decimals: 2
+
+  - id: insert_pattern
+    kind: sql_observation
+    stage: "rca high_part_count: insert_pattern"
+    progress: 50
+    source: system.query_log
+    description: "Insert pattern over last {timeWindowMinutes} minutes"
+    sql: |
+      SELECT
+        count() AS inserts,
+        avg(written_rows) AS avg_rows_per_insert
+      FROM {clusterAllReplicas:system.query_log}
+      WHERE {timeFilterExpression}
+        AND type = 'QueryFinish'
+        AND query_kind = 'Insert'
+        AND {queryLogTableFilterExpression}
+    metrics:
+      - name: inserts
+        type: number
+      - name: avg_rows_per_insert
+        type: number
+        decimals: 2
+      - name: inserts_per_minute
+        type: number
+        decimals: 2
+        derive:
+          use: divide_by_time_window_minutes
+          from: inserts
+
+  - id: table_meta
+    kind: sql_observation
+    stage: "rca high_part_count: table_meta"
+    progress: 55
+    source: system.tables
+    description: "Table engine and partition key"
+    sql: |
+      SELECT
+        any(engine) AS engine,
+        any(partition_key) AS partition_key
+      FROM system.tables
+      WHERE database = '{resolvedTargetDatabase}'
+        AND name = '{resolvedTargetTable}'
+    metrics:
+      - name: engine
+        type: string
+      - name: partition_key
+        type: string
+
+candidates:
+  - cause: insert_too_frequent
+    observations:
+      - insert_pattern
+      - node_totals
+    next_checks:
+      - "increase insert batch size and reduce insert frequency"
+    indicators:
+      - description: "inserts per minute > {threshold.inserts_per_minute_gt}"
+        required: true
+        actual_template: "{insert_pattern.inserts_per_minute:.2f}"
+        match:
+          kind: comparison
+          left:
+            observation: insert_pattern
+            metric: inserts_per_minute
+          operator: gt
+          right:
+            threshold: inserts_per_minute_gt
+      - description: "avg rows per insert < {threshold.avg_rows_per_insert_lt}"
+        actual_template: "{insert_pattern.avg_rows_per_insert:.2f}"
+        match:
+          kind: all
+          conditions:
+            - kind: comparison
+              left:
+                observation: insert_pattern
+                metric: avg_rows_per_insert
+              operator: gt
+              right:
+                value: 0
+            - kind: comparison
+              left:
+                observation: insert_pattern
+                metric: avg_rows_per_insert
+              operator: lt
+              right:
+                threshold: avg_rows_per_insert_lt
+      - description: "max active parts per node > {threshold.total_active_parts_gt}"
+        required: true
+        actual_template: "{node_totals.max_active_parts_per_node}"
+        match:
+          kind: comparison
+          left:
+            observation: node_totals
+            metric: max_active_parts_per_node
+          operator: gt
+          right:
+            threshold: total_active_parts_gt
+
+  - cause: merge_backlog
+    observations:
+      - merges
+      - node_totals
+    indicators:
+      - description: "active merges > {threshold.active_merges_gt}"
+        actual_template: "{merges.active_merges}"
+        match:
+          kind: comparison
+          left:
+            observation: merges
+            metric: active_merges
+          operator: gt
+          right:
+            threshold: active_merges_gt
+      - description: "max merge elapsed > {threshold.max_merge_elapsed_seconds_gt}s"
+        actual_template: "{merges.max_merge_elapsed_seconds:.2f}s"
+        match:
+          kind: comparison
+          left:
+            observation: merges
+            metric: max_merge_elapsed_seconds
+          operator: gt
+          right:
+            threshold: max_merge_elapsed_seconds_gt
+      - description: "max active parts per node > {threshold.total_active_parts_gt}"
+        required: true
+        actual_template: "{node_totals.max_active_parts_per_node}"
+        match:
+          kind: comparison
+          left:
+            observation: node_totals
+            metric: max_active_parts_per_node
+          operator: gt
+          right:
+            threshold: total_active_parts_gt
+
+  - cause: partition_granularity_pressure
+    observations:
+      - logical_partition_stats
+      - node_partition_ratio
+      - table_meta
+    next_checks:
+      - "run collect_rca_evidence with symptom=high_partition_count for partition-key RCA"
+    indicators:
+      - description: "distinct partitions > {threshold.distinct_partitions_gt}"
+        required: true
+        actual_template: "{logical_partition_stats.distinct_partitions}"
+        match:
+          kind: comparison
+          left:
+            observation: logical_partition_stats
+            metric: distinct_partitions
+          operator: gt
+          right:
+            threshold: distinct_partitions_gt
+      - description: "partition/parts ratio > {threshold.partition_to_parts_ratio_gt}"
+        actual_template: "max_node={node_partition_ratio.max_node_partition_to_parts_ratio:.2f} avg_node={node_partition_ratio.avg_node_partition_to_parts_ratio:.2f}"
+        match:
+          kind: comparison
+          left:
+            observation: node_partition_ratio
+            metric: max_node_partition_to_parts_ratio
+          operator: gt
+          right:
+            threshold: partition_to_parts_ratio_gt
+      - description: "partition key is configured"
+        actual_template: "{table_meta.partition_key|default:none}"
+        match:
+          kind: non_empty
+          observation: table_meta
+          metric: partition_key
+
+  - cause: wrong_engine_settings
+    observations:
+      - logical_partition_stats
+      - node_totals
+      - table_meta
+    next_checks:
+      - "review merge-tree table settings and per-table insert patterns"
+    indicators:
+      - description: "engine is MergeTree family"
+        blocker: true
+        actual_template: "{table_meta.engine|default:unknown}"
+        match:
+          kind: regex
+          observation: table_meta
+          metric: engine
+          pattern: "MergeTree"
+          flags: "i"
+      - description: "max active parts per node > {threshold.total_active_parts_gt}"
+        required: true
+        actual_template: "{node_totals.max_active_parts_per_node}"
+        match:
+          kind: comparison
+          left:
+            observation: node_totals
+            metric: max_active_parts_per_node
+          operator: gt
+          right:
+            threshold: total_active_parts_gt
+      - description: "max parts in one partition > {threshold.max_parts_per_partition_gt}"
+        required: true
+        actual_template: "{logical_partition_stats.max_parts_per_partition}"
+        match:
+          kind: comparison
+          left:
+            observation: logical_partition_stats
+            metric: max_parts_per_partition
+          operator: gt
+          right:
+            threshold: max_parts_per_partition_gt
+
+actions:
+  - title: "Increase insert batch size and reduce insert frequency"
+    risk: low
+    tied_to: insert_too_frequent
+  - title: "Investigate merge backlog and node merge pressure"
+    risk: medium
+    tied_to: merge_backlog
+  - title: "Review partition key granularity and lifecycle alignment"
+    risk: high
+    tied_to: partition_granularity_pressure
+
+enrichment:
+  partition_key_columns:
+    use: enrich_partition_key_columns
+    stage: "rca high_part_count: partition_key_columns"
+    progress: 60
+
+related_symptoms:
+  - symptom: high_partition_count
+    when_any:
+      - kind: comparison
+        left:
+          observation: logical_partition_stats
+          metric: distinct_partitions
+        operator: gte
+        right:
+          threshold: related_symptom_distinct_partitions_gte
+      - kind: candidate_score
+        cause: partition_granularity_pressure
+        operator: gte
+        threshold: related_symptom_signal_strength_gte
+`;
