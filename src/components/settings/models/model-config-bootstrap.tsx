@@ -1,8 +1,15 @@
 "use client";
 
-import { useModelConfig } from "@/hooks/use-model-config";
+import { useRuntimeConfig } from "@/components/runtime-config-provider";
+import { ModelManager } from "@/components/settings/models/model-manager";
+import { useEffect } from "react";
 
 export function ModelConfigBootstrap() {
-  useModelConfig();
+  const { systemModels } = useRuntimeConfig();
+
+  useEffect(() => {
+    ModelManager.getInstance().setSystemModels(systemModels, false);
+  }, [systemModels]);
+
   return null;
 }

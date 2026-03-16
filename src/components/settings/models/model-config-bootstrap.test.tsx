@@ -2,18 +2,37 @@
  * @vitest-environment jsdom
  */
 
+import type { ModelProps } from "@/lib/ai/llm/llm-provider-factory";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ModelConfigBootstrap } from "./model-config-bootstrap";
 
-const useModelConfigMock = vi.fn();
+const setSystemModelsMock = vi.fn();
 const testGlobal = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
 };
+const systemModels: ModelProps[] = [
+  {
+    provider: "OpenAI",
+    modelId: "gpt-5",
+    source: "system",
+  },
+];
 
-vi.mock("@/hooks/use-model-config", () => ({
-  useModelConfig: () => useModelConfigMock(),
+vi.mock("@/components/runtime-config-provider", () => ({
+  useRuntimeConfig: () => ({
+    connectionProviderEnabled: false,
+    systemModels,
+  }),
+}));
+
+vi.mock("@/components/settings/models/model-manager", () => ({
+  ModelManager: {
+    getInstance: () => ({
+      setSystemModels: setSystemModelsMock,
+    }),
+  },
 }));
 
 describe("ModelConfigBootstrap", () => {
@@ -22,7 +41,7 @@ describe("ModelConfigBootstrap", () => {
 
   beforeEach(() => {
     testGlobal.IS_REACT_ACT_ENVIRONMENT = true;
-    useModelConfigMock.mockReset();
+    setSystemModelsMock.mockReset();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -35,12 +54,13 @@ describe("ModelConfigBootstrap", () => {
     container.remove();
   });
 
-  it("initializes model configuration on mount without rendering UI", () => {
+  it("hydrates system models on mount without rendering UI", () => {
     act(() => {
       root.render(<ModelConfigBootstrap />);
     });
 
-    expect(useModelConfigMock).toHaveBeenCalledTimes(1);
+    expect(setSystemModelsMock).toHaveBeenCalledTimes(1);
+    expect(setSystemModelsMock).toHaveBeenCalledWith(systemModels, false);
     expect(container.innerHTML).toBe("");
   });
 });
