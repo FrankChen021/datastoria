@@ -1,5 +1,41 @@
 [
   {
+    "id": "be54046",
+    "date": "2026-03-17T01:53:59.395Z",
+    "notes": [
+      {
+        "text": "default autoExplainClickHouseErrors to true",
+        "pr": 129,
+        "type": "feature",
+        "merged_at": "2026-03-15T08:25:30Z"
+      },
+      {
+        "text": "refactor: move skills resources to resources/skills",
+        "pr": 131,
+        "type": "feature",
+        "merged_at": "2026-03-16T11:23:49Z"
+      },
+      {
+        "text": "derive slash commands from skill metadata",
+        "pr": 132,
+        "type": "feature",
+        "merged_at": "2026-03-16T13:16:29Z"
+      },
+      {
+        "text": "copy all .md and .json under skills in copy-skills.mjs",
+        "pr": 130,
+        "type": "fix",
+        "merged_at": "2026-03-16T05:14:36Z"
+      },
+      {
+        "text": "Fix AI auto explanation initialization",
+        "pr": 133,
+        "type": "fix",
+        "merged_at": "2026-03-16T15:46:06Z"
+      }
+    ]
+  },
+  {
     "id": "3d76cc9",
     "date": "2026-03-15T08:05:00.420Z",
     "notes": [
