@@ -112,7 +112,8 @@ export class ChatFactory {
   private static readonly clientToolAbortControllers = new Map<string, Set<AbortController>>();
 
   private static trackAbortController(sessionId: string, abortController: AbortController): void {
-    const controllers = this.clientToolAbortControllers.get(sessionId) ?? new Set<AbortController>();
+    const controllers =
+      this.clientToolAbortControllers.get(sessionId) ?? new Set<AbortController>();
     controllers.add(abortController);
     this.clientToolAbortControllers.set(sessionId, controllers);
 
@@ -156,7 +157,10 @@ export class ChatFactory {
     wrappedConnection.queryOnNode = (sql, params, headers) =>
       ChatFactory.trackAbortableResult(sessionId, connection.queryOnNode(sql, params, headers));
     wrappedConnection.queryRawResponse = (sql, params, headers) =>
-      ChatFactory.trackAbortableResult(sessionId, connection.queryRawResponse(sql, params, headers));
+      ChatFactory.trackAbortableResult(
+        sessionId,
+        connection.queryRawResponse(sql, params, headers)
+      );
 
     return wrappedConnection;
   }
@@ -245,7 +249,11 @@ export class ChatFactory {
             }
           }
 
-          await SessionManager.touchSessionById(sessionId, connection.connectionId, provisionalTitle);
+          await SessionManager.touchSessionById(
+            sessionId,
+            connection.connectionId,
+            provisionalTitle
+          );
           return;
         }
 

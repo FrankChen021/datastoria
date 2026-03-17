@@ -267,9 +267,7 @@ export abstract class AbstractServerSessionRepository implements ServerSessionRe
         .select("user_id", "session_id")
         .where("updated_at", "<", cutoff);
 
-      await trx("chat_messages")
-        .whereIn(["user_id", "session_id"], expiredSessionsQuery)
-        .del();
+      await trx("chat_messages").whereIn(["user_id", "session_id"], expiredSessionsQuery).del();
 
       const deletedCount = await trx("chat_sessions").where("updated_at", "<", cutoff).del();
       return deletedCount;

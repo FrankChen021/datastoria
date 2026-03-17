@@ -11,7 +11,10 @@ export class ServerSessionRepositoryNoop implements ServerSessionRepository {
     return null;
   }
 
-  async getSessionsForConnection(_userId: string, _connectionId: string): Promise<PersistedChatSession[]> {
+  async getSessionsForConnection(
+    _userId: string,
+    _connectionId: string
+  ): Promise<PersistedChatSession[]> {
     return [];
   }
 
