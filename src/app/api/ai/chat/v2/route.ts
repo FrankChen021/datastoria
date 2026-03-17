@@ -12,20 +12,20 @@ import {
   resolveModelConfig,
 } from "@/lib/ai/llm/llm-provider-factory";
 import { MessagePruner } from "@/lib/ai/message-pruner";
+import {
+  hasCompletedToolOutputs,
+  replaceOrAppendMessageById,
+  validateRemoteChatRequest,
+} from "@/lib/ai/session/remote-chat-request";
+import { persistedMessageToAppUIMessage } from "@/lib/ai/session/serialization";
+import { getSessionRepositoryType } from "@/lib/ai/session/server-session-repository-config";
+import { getServerSessionRepository } from "@/lib/ai/session/server-session-repository-factory";
 import { SkillManager } from "@/lib/ai/skills/skill-manager";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { ClientTools } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { ServerTools } from "@/lib/ai/tools/server/server-tools";
 import { resolveVerifiedUserId } from "@/lib/auth/resolve-user-identity";
-import { getServerChatPersistenceMode } from "@/lib/chat-persistence/chat-persistence-config";
-import {
-  hasCompletedToolOutputs,
-  replaceOrAppendMessageById,
-  validateRemoteChatRequest,
-} from "@/lib/chat-persistence/remote-chat-request";
-import { persistedMessageToAppUIMessage } from "@/lib/chat-persistence/serialization";
-import { getServerSessionRepository } from "@/lib/chat-persistence/server-session-repository-factory";
 import { APICallError } from "@ai-sdk/provider";
 import {
   convertToModelMessages,
@@ -202,7 +202,7 @@ export async function POST(req: Request) {
       return new Response("Invalid JSON in request body", { status: 400 });
     }
 
-    const serverMode = getServerChatPersistenceMode();
+    const serverMode = getSessionRepositoryType();
 
     let context: ServerDatabaseContext;
     let modelConfig: { provider: string; modelId: string; apiKey: string };

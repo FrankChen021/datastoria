@@ -729,12 +729,14 @@ Remote mode must enforce:
 | File | Purpose |
 |------|---------|
 | `src/lib/auth/resolve-user-identity.ts` | verified user resolution |
-| `src/lib/chat-persistence/server-session-repository.ts` | interface and types |
-| `src/lib/chat-persistence/noop-server-session-repository.ts` | local-mode no-op |
-| `src/lib/chat-persistence/sql-server-session-repository.ts` | SQL implementation |
-| `src/lib/chat-persistence/server-session-repository-factory.ts` | chooses implementation |
-| `src/lib/chat-persistence/schema.ts` | Drizzle schema |
-| `src/lib/chat-persistence/migrations/` | migrations |
+| `src/lib/ai/session/server-session-repository.ts` | server repository interface and persisted types |
+| `src/lib/ai/session/server-session-repository-config.ts` | server-side repository mode and SQL config resolution |
+| `src/lib/ai/session/server-session-repository-factory.ts` | chooses the active server repository |
+| `src/lib/ai/session/impl/server-session-repository-noop.ts` | local-mode no-op implementation |
+| `src/lib/ai/session/impl/server-session-repository-mysql.ts` | SQL-backed server repository implementation |
+| `src/lib/ai/session/remote-chat-request.ts` | remote request parsing and validation helpers |
+| `src/lib/ai/session/serialization.ts` | persisted message serialization helpers |
+| `resources/database/mysql.sql` | MySQL schema for chat session persistence |
 | `src/app/api/chat/sessions/route.ts` | list sessions |
 | `src/app/api/chat/sessions/[chatId]/route.ts` | get/patch/delete session |
 | `src/app/api/chat/sessions/[chatId]/messages/route.ts` | get paginated messages |
@@ -778,7 +780,7 @@ Remote mode must enforce:
 
 ### Phase 2: Server Persistence
 
-9. add Drizzle schema and migrations for MySQL
+9. add the SQL schema for MySQL in `resources/database/mysql.sql`
 10. add `ServerSessionRepository`
 11. implement shared remote merge/validation helpers and app-managed cascade delete
 12. update v2 route

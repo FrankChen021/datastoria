@@ -2,8 +2,8 @@ import { getSession } from "@/auth";
 import { RuntimeConfigProvider } from "@/components/runtime-config-provider";
 import "@/index.css";
 import { getAvailableSystemModels } from "@/lib/ai/llm/llm-provider-factory";
+import { getSessionRepositoryType } from "@/lib/ai/session/server-session-repository-config";
 import { BasePath } from "@/lib/base-path";
-import { getServerChatPersistenceMode } from "@/lib/chat-persistence/chat-persistence-config";
 import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "next-auth/react";
 import type { ComponentProps } from "react";
@@ -205,7 +205,7 @@ export default async function RootLayout({
               connectionProviderEnabled:
                 process.env.NEXT_PUBLIC_CONSOLE_CONNECTION_PROVIDER_ENABLED === "true",
               systemModels: getAvailableSystemModels(),
-              chatPersistenceMode: getServerChatPersistenceMode(),
+              chatPersistenceMode: getSessionRepositoryType(),
             }}
           >
             {children}

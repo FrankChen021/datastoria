@@ -1,6 +1,6 @@
+import { persistedMessageToDTO } from "@/lib/ai/session/serialization";
+import { getServerSessionRepository } from "@/lib/ai/session/server-session-repository-factory";
 import { resolveVerifiedUserId } from "@/lib/auth/resolve-user-identity";
-import { persistedMessageToDTO } from "@/lib/chat-persistence/serialization";
-import { getServerSessionRepository } from "@/lib/chat-persistence/server-session-repository-factory";
 
 export const dynamic = "force-dynamic";
 

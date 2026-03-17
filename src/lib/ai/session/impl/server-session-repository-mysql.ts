@@ -4,8 +4,7 @@ import mysql, {
   type RowDataPacket,
 } from "mysql2/promise";
 import { Pool, type Pool as PgPool, type PoolClient, type QueryResultRow } from "pg";
-import { getChatPersistenceDatabaseConfig } from "./chat-persistence-config";
-import { serializeMessageMetadata, serializeMessageParts } from "./serialization";
+import { serializeMessageMetadata, serializeMessageParts } from "../serialization";
 import type {
   CreateSessionInput,
   PersistedChatMessage,
@@ -13,7 +12,8 @@ import type {
   ServerSessionRepository,
   TouchSessionInput,
   UpsertMessageInput,
-} from "./server-session-repository";
+} from "../server-session-repository";
+import { getServerSessionRepositoryConfig } from "../server-session-repository-config";
 
 type MySqlSessionRow = PersistedChatSession & RowDataPacket;
 type MySqlMessageRow = PersistedChatMessage & RowDataPacket;
@@ -24,7 +24,7 @@ let mySqlPool: MySqlPool | null = null;
 let pgPool: PgPool | null = null;
 
 function requireDatabaseConfig() {
-  const config = getChatPersistenceDatabaseConfig();
+  const config = getServerSessionRepositoryConfig();
   if (!config) {
     throw new Error("Remote chat persistence is not configured");
   }
@@ -63,7 +63,7 @@ function toPersistedMessage(row: PersistedChatMessage): PersistedChatMessage {
   };
 }
 
-export class SqlServerSessionRepository implements ServerSessionRepository {
+export class ServerSessionRepositoryMySql implements ServerSessionRepository {
   private readonly config = requireDatabaseConfig();
 
   async getSession(userId: string, chatId: string): Promise<PersistedChatSession | null> {

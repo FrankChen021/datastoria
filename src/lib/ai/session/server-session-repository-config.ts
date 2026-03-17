@@ -1,12 +1,12 @@
-export type ChatPersistenceMode = "local" | "remote";
-export type ChatPersistenceDialect = "mysql" | "postgres";
+export type SessionRepositoryType = "local" | "remote";
+export type ServerRepositoryDialect = "mysql" | "postgres";
 
-export type ChatPersistenceDatabaseConfig = {
-  dialect: ChatPersistenceDialect;
+export type ServerRepositoryConfig = {
+  dialect: ServerRepositoryDialect;
   url: string;
 };
 
-export function getChatPersistenceDatabaseConfig(): ChatPersistenceDatabaseConfig | null {
+export function getServerSessionRepositoryConfig(): ServerRepositoryConfig | null {
   const explicitDialect = process.env.CHAT_PERSISTENCE_DIALECT;
   const sharedUrl = process.env.CHAT_PERSISTENCE_DATABASE_URL;
   const mysqlUrl = process.env.CHAT_PERSISTENCE_MYSQL_URL;
@@ -31,6 +31,6 @@ export function getChatPersistenceDatabaseConfig(): ChatPersistenceDatabaseConfi
   return null;
 }
 
-export function getServerChatPersistenceMode(): ChatPersistenceMode {
-  return getChatPersistenceDatabaseConfig() ? "remote" : "local";
+export function getSessionRepositoryType(): SessionRepositoryType {
+  return getServerSessionRepositoryConfig() ? "remote" : "local";
 }

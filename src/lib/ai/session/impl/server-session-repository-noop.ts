@@ -4,9 +4,9 @@ import type {
   ServerSessionRepository,
   TouchSessionInput,
   UpsertMessageInput,
-} from "./server-session-repository";
+} from "../server-session-repository";
 
-export class NoopServerSessionRepository implements ServerSessionRepository {
+export class ServerSessionRepositoryNoop implements ServerSessionRepository {
   async getSession(): Promise<PersistedChatSession | null> {
     return null;
   }
