@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS chat_sessions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT NOT NULL,
-  connection_id TEXT NOT NULL CHECK (LENGTH(connection_id) = 64),
+  connection_id TEXT NOT NULL,
   session_id TEXT NOT NULL,
   title TEXT NULL,
   created_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
