@@ -232,7 +232,7 @@ export class ChatFactory {
         chatId,
         historicalMessages,
       }) => {
-        const chatPersistenceMode = getRuntimeConfig().chatPersistenceMode;
+        const chatPersistenceMode = getRuntimeConfig().sessionRepositoryType;
         if (chatPersistenceMode === "remote") {
           let provisionalTitle: string | undefined;
           if (
@@ -294,7 +294,7 @@ export class ChatFactory {
         await SessionManager.touchSessionById(chatId, connection.connectionId, provisionalTitle);
       },
       onFinish: async ({ message, connection, chatId }) => {
-        const chatPersistenceMode = getRuntimeConfig().chatPersistenceMode;
+        const chatPersistenceMode = getRuntimeConfig().sessionRepositoryType;
         const now = new Date();
 
         let title: string | undefined;
@@ -385,7 +385,7 @@ export class ChatFactory {
           });
 
           const requestContext = options.context ?? ChatContext.build();
-          const chatPersistenceMode = getRuntimeConfig().chatPersistenceMode;
+          const chatPersistenceMode = getRuntimeConfig().sessionRepositoryType;
 
           if (chatPersistenceMode === "remote") {
             const currentMessages = messages as AppUIMessage[];

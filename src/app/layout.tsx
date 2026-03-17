@@ -205,7 +205,7 @@ export default async function RootLayout({
               connectionProviderEnabled:
                 process.env.NEXT_PUBLIC_CONSOLE_CONNECTION_PROVIDER_ENABLED === "true",
               systemModels: getAvailableSystemModels(),
-              chatPersistenceMode: getSessionRepositoryType(),
+              sessionRepositoryType: getSessionRepositoryType(),
             }}
           >
             {children}

@@ -1,3 +1,4 @@
+import { validateChatId } from "@/lib/ai/session/remote-chat-request";
 import { persistedMessageToDTO } from "@/lib/ai/session/serialization";
 import { getServerSessionRepository } from "@/lib/ai/session/server-session-repository-factory";
 import { resolveVerifiedUserId } from "@/lib/auth/resolve-user-identity";
@@ -15,6 +16,10 @@ export async function GET(req: Request, context: RouteContext) {
   }
 
   const { chatId } = await context.params;
+  if (!validateChatId(chatId)) {
+    return new Response("Invalid chatId", { status: 400 });
+  }
+
   const persistence = getServerSessionRepository();
   const session = await persistence.getSession(userId, chatId);
   if (!session) {

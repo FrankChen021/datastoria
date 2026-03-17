@@ -67,7 +67,7 @@ export const SessionManager = {
       return [];
     }
 
-    const storage = await getSessionRepository();
+    const storage = getSessionRepository();
     const sessions = await storage.getSessionsForConnection(connectionId);
     const bucket = getConnectionBucket(connectionId);
     const previousChatIds = new Set(Object.keys(bucket));
@@ -91,7 +91,7 @@ export const SessionManager = {
       }
     }
 
-    const storage = await getSessionRepository();
+    const storage = getSessionRepository();
     const session = await storage.getSession(chatId);
     if (!session) {
       return null;
@@ -130,28 +130,28 @@ export const SessionManager = {
       updatedAt: now,
     };
 
-    const storage = await getSessionRepository();
+    const storage = getSessionRepository();
     await storage.saveSession(session);
     return this.upsertSession(session);
   },
 
   async getMessages(chatId: string): Promise<Message[]> {
-    const storage = await getSessionRepository();
+    const storage = getSessionRepository();
     return storage.getMessages(chatId);
   },
 
   async saveMessages(chatId: string, messages: Message[]): Promise<void> {
-    const storage = await getSessionRepository();
+    const storage = getSessionRepository();
     await storage.saveMessages(chatId, messages);
   },
 
   async saveMessage(chatId: string, message: Message): Promise<void> {
-    const storage = await getSessionRepository();
+    const storage = getSessionRepository();
     await storage.saveMessage(chatId, message);
   },
 
   async getOrCreateSession(chatId: string, connectionId: string): Promise<ManagedSession> {
-    const storage = await getSessionRepository();
+    const storage = getSessionRepository();
     const existing = await storage.getSession(chatId);
     if (existing) {
       return this.upsertSession(existing);
@@ -196,7 +196,7 @@ export const SessionManager = {
   },
 
   async renameSession(connectionId: string | undefined, chatId: string, title: string) {
-    const storage = await getSessionRepository();
+    const storage = getSessionRepository();
     const current =
       (connectionId ? getConnectionBucket(connectionId)[chatId] : undefined) ??
       (await storage.getSession(chatId));
@@ -215,7 +215,7 @@ export const SessionManager = {
   },
 
   async deleteSessions(connectionId: string | undefined, chatIds: string[]) {
-    const storage = await getSessionRepository();
+    const storage = getSessionRepository();
     await Promise.all(chatIds.map((chatId) => storage.deleteSession(chatId)));
     chatActionStorage.clearHiddenActionsForChats(chatIds);
 
@@ -233,7 +233,7 @@ export const SessionManager = {
   },
 
   async touchSession(session: Chat) {
-    const storage = await getSessionRepository();
+    const storage = getSessionRepository();
     await storage.saveSession(session);
     this.upsertSession(session);
   },
@@ -246,7 +246,7 @@ export const SessionManager = {
       updatedAt: new Date(),
     };
 
-    const storage = await getSessionRepository();
+    const storage = getSessionRepository();
     await storage.saveSession(nextSession);
     return this.upsertSession(nextSession);
   },

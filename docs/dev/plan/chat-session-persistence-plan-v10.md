@@ -421,7 +421,7 @@ For the current implementation scope, **v1 does not support chat session persist
 |--------|------|---------|
 | `GET` | `/api/chat/sessions?connectionId=...` | List sessions for a connection |
 | `GET` | `/api/chat/sessions/:chatId` | Get one session |
-| `GET` | `/api/chat/sessions/:chatId/messages` | Get paginated messages |
+| `GET` | `/api/chat/sessions/:chatId/messages` | Get session messages |
 | `PATCH` | `/api/chat/sessions/:chatId` | Rename session |
 | `DELETE` | `/api/chat/sessions/:chatId` | Delete session |
 
@@ -739,7 +739,7 @@ Remote mode must enforce:
 | `resources/database/mysql.sql` | MySQL schema for chat session persistence |
 | `src/app/api/chat/sessions/route.ts` | list sessions |
 | `src/app/api/chat/sessions/[chatId]/route.ts` | get/patch/delete session |
-| `src/app/api/chat/sessions/[chatId]/messages/route.ts` | get paginated messages |
+| `src/app/api/chat/sessions/[chatId]/messages/route.ts` | get session messages |
 | `src/app/layout.tsx` + `src/components/runtime-config-provider.tsx` | inject runtime mode into shared client config |
 
 ---
@@ -786,7 +786,7 @@ Remote mode must enforce:
 12. update v2 route
 13. defer v1 route persistence
 14. add narrow history APIs
-15. add rate limiting
+15. defer rate limiting to follow-up work
 
 ### Phase 3: Validation
 
@@ -817,3 +817,10 @@ For the row-upsert persistence design in this document:
 - **MySQL is the first recommended backend**
 
 If the team wants ClickHouse as the first storage engine, we should treat that as a different persistence architecture based on append-only events rather than in-place upserts.
+
+## Current Implementation Notes
+
+- The current worktree includes a MySQL schema file at `resources/database/mysql.sql`.
+- PostgreSQL query support exists in the SQL-backed repository, but a dedicated PostgreSQL schema script is still follow-up work.
+- The `GET /api/chat/sessions/:chatId/messages` endpoint currently returns the full message list for a session; pagination is deferred.
+- Rate limiting is not yet implemented in this worktree.

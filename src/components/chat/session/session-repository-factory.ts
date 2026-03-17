@@ -6,7 +6,7 @@ import type { SessionRepository } from "./session-repository";
 const localSessionRepository = new LocalSessionRepository();
 const remoteSessionRepository = new RemoteSessionRepository();
 
-export async function getSessionRepository(): Promise<SessionRepository> {
-  const mode = getRuntimeConfig().chatPersistenceMode;
+export function getSessionRepository(): SessionRepository {
+  const mode = getRuntimeConfig().sessionRepositoryType;
   return mode === "remote" ? remoteSessionRepository : localSessionRepository;
 }

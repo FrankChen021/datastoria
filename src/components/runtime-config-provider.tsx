@@ -1,20 +1,19 @@
 "use client";
 
 import type { ModelProps } from "@/lib/ai/llm/llm-provider-factory";
+import type { SessionRepositoryType } from "@/lib/ai/session/server-session-repository-config";
 import { createContext, useContext, type ReactNode } from "react";
-
-export type ChatPersistenceMode = "local" | "remote";
 
 export interface RuntimeConfig {
   connectionProviderEnabled: boolean;
   systemModels: ModelProps[];
-  chatPersistenceMode: ChatPersistenceMode;
+  sessionRepositoryType: SessionRepositoryType;
 }
 
 const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
   connectionProviderEnabled: false,
   systemModels: [],
-  chatPersistenceMode: "local",
+  sessionRepositoryType: "local",
 };
 
 const RuntimeConfigContext = createContext<RuntimeConfig>(DEFAULT_RUNTIME_CONFIG);
