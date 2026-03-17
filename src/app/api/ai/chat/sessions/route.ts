@@ -1,6 +1,6 @@
+import { getAuthenticatedUserEmail } from "@/auth";
 import { persistedSessionToDTO } from "@/lib/ai/session/serialization";
 import { getServerSessionRepository } from "@/lib/ai/session/server-session-repository-factory";
-import { getAuthenticatedUserEmail } from "@/auth";
 
 export const dynamic = "force-dynamic";
 
