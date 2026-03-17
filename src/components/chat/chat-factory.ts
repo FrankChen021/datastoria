@@ -411,7 +411,7 @@ export class ChatFactory {
                 connectionId: sessionRepositoryConnectionId,
                 message: lastMessage,
                 ...(continuation ? { continuation: true } : {}),
-                ...(!continuation && options.generateTitle ? { generateTitle: true } : {}),
+                ...(!continuation ? { generateTitle: options.generateTitle } : {}),
                 ...(options.ephemeral ? { ephemeral: true } : {}),
                 agentContext: {
                   pruneValidateSql: AgentConfigurationManager.getConfiguration().pruneValidateSql,
