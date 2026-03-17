@@ -27,7 +27,6 @@ import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { ClientTools } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { ServerTools } from "@/lib/ai/tools/server/server-tools";
-import { resolveVerifiedUserId } from "@/lib/auth/resolve-user-identity";
 import { APICallError } from "@ai-sdk/provider";
 import {
   convertToModelMessages,
@@ -188,9 +187,7 @@ function getRequestUsage(messages: UIMessage[], messageId: string) {
 
 export async function POST(req: Request) {
   try {
-    const userEmail =
-      getAuthenticatedUserEmail(req) ??
-      (process.env.ALLOW_ANONYMOUS_USER === "true" ? "anonymous" : undefined);
+    const userEmail = getAuthenticatedUserEmail(req);
 
     let payload: unknown;
     try {
@@ -206,7 +203,8 @@ export async function POST(req: Request) {
       return new Response("Invalid JSON in request body", { status: 400 });
     }
 
-    const serverMode = getSessionRepositoryType();
+    const resolvedUserIdForRemote = getAuthenticatedUserEmail(req) ?? null;
+    const serverMode = getSessionRepositoryType(resolvedUserIdForRemote);
 
     let context: ServerDatabaseContext;
     let modelConfig: { provider: string; modelId: string; apiKey: string };
@@ -226,7 +224,7 @@ export async function POST(req: Request) {
         return new Response("Invalid request format", { status: 400 });
       }
 
-      sessionRepositoryUserId = await resolveVerifiedUserId(req);
+      sessionRepositoryUserId = resolvedUserIdForRemote;
       if (!sessionRepositoryUserId) {
         return new Response("Authentication required", { status: 401 });
       }

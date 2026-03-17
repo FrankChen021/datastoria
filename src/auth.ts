@@ -105,7 +105,7 @@ const authConfig: NextAuthConfig = {
         .setExpirationTime(exp)
         .setIssuedAt(iat)
         .setNotBefore(iat)
-        .setIssuer("https://clickhouse-console.local/token/issuer")
+        .setIssuer("https://datastoria.app/token/issuer")
         .sign(new TextEncoder().encode(secret as string));
     },
     decode: async ({ secret, token }) => {

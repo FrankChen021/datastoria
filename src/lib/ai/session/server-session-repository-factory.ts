@@ -71,25 +71,30 @@ export function getServerSessionRepositoryConfig(): ServerRepositoryConfig | nul
   return null;
 }
 
-export function getSessionRepositoryType(): SessionRepositoryType {
+/**
+ * Resolves effective session storage mode.
+ *
+ * Rules:
+ * - no remote DB config -> local
+ * - remote DB configured and userId provided -> local for anonymous users, remote otherwise
+ */
+export function getSessionRepositoryType(userId: string | null): SessionRepositoryType {
+  if (!getServerSessionRepositoryConfig()) {
+    return "local";
+  }
+
+  const normalizedUserId = userId ?? null;
+  const isAnonymous = !normalizedUserId && process.env.ALLOW_ANONYMOUS_USER === "true";
+
+  return isAnonymous ? "local" : "remote";
+}
+
+function getConfiguredSessionRepositoryType(): SessionRepositoryType {
   return getServerSessionRepositoryConfig() ? "remote" : "local";
 }
 
-export function requireDatabaseConfig(expectedDialect: ServerRepositoryDialect) {
-  const config = getServerSessionRepositoryConfig();
-  if (!config) {
-    throw new Error("Remote chat persistence is not configured");
-  }
-
-  if (config.dialect !== expectedDialect) {
-    throw new Error(`Expected ${expectedDialect} chat persistence configuration`);
-  }
-
-  return config;
-}
-
 export function getServerSessionRepository(): ServerSessionRepository {
-  if (getSessionRepositoryType() === "local") {
+  if (getConfiguredSessionRepositoryType() === "local") {
     return noopServerSessionRepository;
   }
 

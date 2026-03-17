@@ -1,11 +1,11 @@
 import { persistedSessionToDTO } from "@/lib/ai/session/serialization";
 import { getServerSessionRepository } from "@/lib/ai/session/server-session-repository-factory";
-import { resolveVerifiedUserId } from "@/lib/auth/resolve-user-identity";
+import { getAuthenticatedUserEmail } from "@/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const userId = await resolveVerifiedUserId(req);
+  const userId = getAuthenticatedUserEmail(req);
   if (!userId) {
     return new Response("Authentication required", { status: 401 });
   }

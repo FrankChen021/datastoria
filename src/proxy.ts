@@ -18,21 +18,21 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (allowAnonymousUser()) {
-    return NextResponse.next();
-  }
-
   const session = (await getSession()) as Session | null;
 
-  if (!session?.user) {
+  const user = session?.user ?? null;
+  if (!user && !allowAnonymousUser()) {
     const loginUrl = new URL(BasePath.getURL("/login"), request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   const newHeaders = new Headers(request.headers);
-  if (session.user.email) {
-    newHeaders.set(AUTH_HEADER_USER_EMAIL, session.user.email);
+  newHeaders.delete(AUTH_HEADER_USER_EMAIL);
+
+  const email = user?.email;
+  if (email) {
+    newHeaders.set(AUTH_HEADER_USER_EMAIL, email);
   }
   return NextResponse.next({ request: { headers: newHeaders } });
 }
