@@ -14,6 +14,7 @@ import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } fro
 import { v7 as uuidv7 } from "uuid";
 import { ChatContext, type DatabaseContext } from "./chat-context";
 import { ChatUIContext } from "./chat-ui-context";
+import { toSessionRepositoryConnectionId } from "./session/session-connection-id";
 import { SessionManager } from "./session/session-manager";
 
 type AbortableQueryResult<TResponse extends QueryResponse | Response> = {
@@ -24,11 +25,12 @@ type ClientToolName = keyof typeof ClientToolExecutors;
 const PROVISIONAL_SESSION_TITLE_WORDS = 8;
 
 type ChatFactoryCreateOptions = {
-  id?: string;
+  sessionId?: string;
   connection: Connection;
   apiEndpoint?: string;
   context?: DatabaseContext;
   ephemeral?: boolean;
+  initialMessages: AppUIMessage[];
   model?: {
     provider: string;
     modelId: string;
@@ -36,13 +38,13 @@ type ChatFactoryCreateOptions = {
   };
 };
 type PrepareSendMessagesRequestArgs = {
-  chatId: string;
+  sessionId: string;
   connection: Connection;
   historicalMessages: AppUIMessage[];
   messages: AppUIMessage[];
 };
 type FinishMessageArgs = {
-  chatId: string;
+  sessionId: string;
   connection: Connection;
   message: AppUIMessage;
 };
@@ -102,61 +104,65 @@ function createToolProgressCallback(
   };
 }
 
+function newUniqueSessionId(): string {
+  return uuidv7().replace(/-/g, "");
+}
+
 export class ChatFactory {
   private static readonly clientToolAbortControllers = new Map<string, Set<AbortController>>();
 
-  private static trackAbortController(chatId: string, abortController: AbortController): void {
-    const controllers = this.clientToolAbortControllers.get(chatId) ?? new Set<AbortController>();
+  private static trackAbortController(sessionId: string, abortController: AbortController): void {
+    const controllers = this.clientToolAbortControllers.get(sessionId) ?? new Set<AbortController>();
     controllers.add(abortController);
-    this.clientToolAbortControllers.set(chatId, controllers);
+    this.clientToolAbortControllers.set(sessionId, controllers);
 
     abortController.signal.addEventListener(
       "abort",
       () => {
-        const currentControllers = this.clientToolAbortControllers.get(chatId);
+        const currentControllers = this.clientToolAbortControllers.get(sessionId);
         currentControllers?.delete(abortController);
         if (currentControllers && currentControllers.size === 0) {
-          this.clientToolAbortControllers.delete(chatId);
+          this.clientToolAbortControllers.delete(sessionId);
         }
       },
       { once: true }
     );
   }
 
-  private static untrackAbortController(chatId: string, abortController: AbortController): void {
-    const controllers = this.clientToolAbortControllers.get(chatId);
+  private static untrackAbortController(sessionId: string, abortController: AbortController): void {
+    const controllers = this.clientToolAbortControllers.get(sessionId);
     controllers?.delete(abortController);
     if (controllers && controllers.size === 0) {
-      this.clientToolAbortControllers.delete(chatId);
+      this.clientToolAbortControllers.delete(sessionId);
     }
   }
 
   private static trackAbortableResult<TResponse extends QueryResponse | Response>(
-    chatId: string,
+    sessionId: string,
     result: AbortableQueryResult<TResponse>
   ): AbortableQueryResult<TResponse> {
-    ChatFactory.trackAbortController(chatId, result.abortController);
+    ChatFactory.trackAbortController(sessionId, result.abortController);
     void result.response.finally(() => {
-      ChatFactory.untrackAbortController(chatId, result.abortController);
+      ChatFactory.untrackAbortController(sessionId, result.abortController);
     });
     return result;
   }
 
-  private static createClientToolConnection(chatId: string, connection: Connection): Connection {
+  private static createClientToolConnection(sessionId: string, connection: Connection): Connection {
     const wrappedConnection = Object.create(connection) as Connection;
 
     wrappedConnection.query = (sql, params, headers) =>
-      ChatFactory.trackAbortableResult(chatId, connection.query(sql, params, headers));
+      ChatFactory.trackAbortableResult(sessionId, connection.query(sql, params, headers));
     wrappedConnection.queryOnNode = (sql, params, headers) =>
-      ChatFactory.trackAbortableResult(chatId, connection.queryOnNode(sql, params, headers));
+      ChatFactory.trackAbortableResult(sessionId, connection.queryOnNode(sql, params, headers));
     wrappedConnection.queryRawResponse = (sql, params, headers) =>
-      ChatFactory.trackAbortableResult(chatId, connection.queryRawResponse(sql, params, headers));
+      ChatFactory.trackAbortableResult(sessionId, connection.queryRawResponse(sql, params, headers));
 
     return wrappedConnection;
   }
 
-  static stopClientTools(chatId: string): void {
-    const controllers = this.clientToolAbortControllers.get(chatId);
+  static stopClientTools(sessionId: string): void {
+    const controllers = this.clientToolAbortControllers.get(sessionId);
     if (!controllers) {
       return;
     }
@@ -164,7 +170,7 @@ export class ChatFactory {
     for (const controller of [...controllers]) {
       controller.abort();
     }
-    this.clientToolAbortControllers.delete(chatId);
+    this.clientToolAbortControllers.delete(sessionId);
   }
 
   /**
@@ -208,28 +214,21 @@ export class ChatFactory {
    * Create or retrieve a persisted chat instance
    */
   static async create(options: ChatFactoryCreateOptions): Promise<Chat<AppUIMessage>> {
-    const chatId = options.id || uuidv7();
-    const historicalMessages = await SessionManager.getMessages(chatId);
+    const sessionId = options.sessionId || newUniqueSessionId();
+    const historicalMessages = options.initialMessages;
 
     // A full chat session should start with a clean tool-progress timeline.
     useToolProgressStore.getState().clearAllProgress();
 
     return ChatFactory.createInternal({
       ...options,
-      id: chatId,
-      initialMessages: historicalMessages.map((msg) => ({
-        id: msg.id,
-        role: msg.role,
-        parts: msg.parts,
-        createdAt: msg.createdAt,
-        updatedAt: msg.updatedAt,
-        metadata: msg.metadata,
-      })) as AppUIMessage[],
+      sessionId,
+      initialMessages: historicalMessages,
       generateTitle: true,
       onPrepareSendMessagesRequest: async ({
         messages,
         connection,
-        chatId,
+        sessionId,
         historicalMessages,
       }) => {
         const chatPersistenceMode = getRuntimeConfig().sessionRepositoryType;
@@ -246,7 +245,7 @@ export class ChatFactory {
             }
           }
 
-          await SessionManager.touchSessionById(chatId, connection.connectionId, provisionalTitle);
+          await SessionManager.touchSessionById(sessionId, connection.connectionId, provisionalTitle);
           return;
         }
 
@@ -265,7 +264,7 @@ export class ChatFactory {
 
             return {
               id: msg.id,
-              chatId,
+              chatId: sessionId,
               role: msg.role,
               parts: msg.parts ?? [],
               metadata: msg.metadata,
@@ -290,10 +289,10 @@ export class ChatFactory {
           }
         }
 
-        await SessionManager.saveMessages(chatId, userMessagesToSave);
-        await SessionManager.touchSessionById(chatId, connection.connectionId, provisionalTitle);
+        await SessionManager.saveMessages(sessionId, userMessagesToSave);
+        await SessionManager.touchSessionById(sessionId, connection.connectionId, provisionalTitle);
       },
-      onFinish: async ({ message, connection, chatId }) => {
+      onFinish: async ({ message, connection, sessionId }) => {
         const chatPersistenceMode = getRuntimeConfig().sessionRepositoryType;
         const now = new Date();
 
@@ -324,10 +323,10 @@ export class ChatFactory {
             updatedAt: now,
           };
 
-          await SessionManager.saveMessage(chatId, messageToSave);
+          await SessionManager.saveMessage(sessionId, messageToSave);
         }
 
-        await SessionManager.touchSessionById(chatId, connection.connectionId, title);
+        await SessionManager.touchSessionById(sessionId, connection.connectionId, title);
       },
     });
   }
@@ -340,21 +339,21 @@ export class ChatFactory {
     return ChatFactory.createInternal({
       ...options,
       ephemeral: true,
-      initialMessages: [],
+      initialMessages: options.initialMessages,
       generateTitle: false,
     });
   }
 
   private static async createInternal(options: CreateInternalOptions): Promise<Chat<AppUIMessage>> {
-    const chatId = options.id || uuidv7();
+    const sessionId = options.sessionId || newUniqueSessionId();
     const modelConfig = options.model;
     const connection = options.connection;
-    const clientToolConnection = ChatFactory.createClientToolConnection(chatId, connection);
+    const clientToolConnection = ChatFactory.createClientToolConnection(sessionId, connection);
 
     // Create Chat instance
     const chat = new Chat<AppUIMessage>({
-      id: chatId,
-      generateId: uuidv7,
+      id: sessionId,
+      generateId: newUniqueSessionId,
 
       // Automatically send tool results back to the API when all tool calls are complete
       sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
@@ -378,7 +377,7 @@ export class ChatFactory {
           const currentModel = modelConfig || ChatFactory.getCurrentModelConfig();
 
           await options.onPrepareSendMessagesRequest?.({
-            chatId,
+            sessionId,
             connection,
             historicalMessages: options.initialMessages,
             messages: messages as AppUIMessage[],
@@ -390,14 +389,18 @@ export class ChatFactory {
           if (chatPersistenceMode === "remote") {
             const currentMessages = messages as AppUIMessage[];
             const lastMessage = currentMessages[currentMessages.length - 1];
+            const sessionRepositoryConnectionId = toSessionRepositoryConnectionId(
+              connection.connectionId
+            );
             const continuation = lastAssistantMessageIsCompleteWithToolCalls({
               messages: currentMessages,
             });
 
             return {
               body: {
-                chatId,
-                connectionId: connection.connectionId,
+                sessionId,
+                // Keep payload naming aligned with backend API contract.
+                connectionId: sessionRepositoryConnectionId,
                 message: lastMessage,
                 ...(continuation ? { continuation: true } : {}),
                 ...(!continuation && options.generateTitle ? { generateTitle: true } : {}),
@@ -489,7 +492,7 @@ export class ChatFactory {
       onFinish: options.onFinish
         ? async ({ message }) => {
             await options.onFinish?.({
-              chatId,
+              sessionId,
               connection,
               message: message as AppUIMessage,
             });

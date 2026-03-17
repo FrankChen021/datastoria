@@ -2,7 +2,7 @@ import { getSession } from "@/auth";
 import { RuntimeConfigProvider } from "@/components/runtime-config-provider";
 import "@/index.css";
 import { getAvailableSystemModels } from "@/lib/ai/llm/llm-provider-factory";
-import { getSessionRepositoryType } from "@/lib/ai/session/server-session-repository-config";
+import { getSessionRepositoryType } from "@/lib/ai/session/server-session-repository-factory";
 import { BasePath } from "@/lib/base-path";
 import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "next-auth/react";

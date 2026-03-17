@@ -31,6 +31,10 @@ interface ChatHeaderProps {
   isRunning?: boolean;
 }
 
+type LoadChatOptions = {
+  isNewSession?: boolean;
+};
+
 function sanitizeFileName(input: string): string {
   return Array.from(input)
     .map((char) => {
@@ -78,6 +82,17 @@ function buildSessionMarkdown(title: string, messages: Message[], userLabel: str
   }
 
   return lines.join("\n").trimEnd() + "\n";
+}
+
+function toAppUiMessage(message: Message): AppUIMessage {
+  return {
+    id: message.id,
+    role: message.role,
+    parts: message.parts,
+    createdAt: message.createdAt,
+    updatedAt: message.updatedAt,
+    metadata: message.metadata,
+  } as AppUIMessage;
 }
 
 function getDisplayModeButtonInfo(displayMode: ChatPanelDisplayMode): {
@@ -249,22 +264,27 @@ export function ChatPanel({
   const { connection } = useConnection();
   const { data: authSession } = useSession();
 
-  const createDraftChatId = useCallback(() => uuidv7(), []);
+  const createDraftSession = useCallback(
+    () => ({
+      id: uuidv7(),
+      title: "New Chat",
+    }),
+    []
+  );
 
   const loadChat = useCallback(
-    async (chatIdToLoad: string): Promise<void> => {
-      const chatData = await SessionManager.getSession(chatIdToLoad);
-      if (chatData) {
-        setChatTitle(chatData.title);
-      } else {
-        // New chat - set title to "New Chat"
-        setChatTitle("New Chat");
-      }
+    async (chatIdToLoad: string, options?: LoadChatOptions): Promise<void> => {
+      const chatData =
+        options?.isNewSession === true ? null : await SessionManager.getSession(chatIdToLoad);
+      const initialMessages = chatData
+        ? ((await SessionManager.getMessages(chatIdToLoad)).map(toAppUiMessage) as AppUIMessage[])
+        : [];
+      setChatTitle(chatData?.title ?? "New Chat");
 
       const newChat = await ChatFactory.create({
-        // We still use this id if it's not found in the storage because it might be a new chat id
-        id: chatIdToLoad,
+        sessionId: chatIdToLoad,
         connection: connection!,
+        initialMessages,
       });
       setChat(newChat);
       chatViewRef.current = null;
@@ -272,6 +292,18 @@ export function ChatPanel({
     },
     [connection]
   );
+
+  const loadDraftChat = useCallback(async (): Promise<void> => {
+    const draftSession = createDraftSession();
+    await loadChat(draftSession.id, { isNewSession: true });
+  }, [createDraftSession, loadChat]);
+
+  const createFreshChat = useCallback(async () => {
+    if (!connection?.connectionId) return;
+
+    previousChatIdRef.current = chat?.id || null;
+    await loadDraftChat();
+  }, [chat?.id, connection?.connectionId, loadDraftChat]);
 
   // Initial chat loading - only run once when chat is null
   useEffect(() => {
@@ -284,33 +316,36 @@ export function ChatPanel({
 
       // Capture pendingCommand at initialization time to avoid re-running when it changes
       const currentPendingCommand = pendingCommand;
-      let idToLoad: string | undefined;
+      let loadTarget:
+        | {
+            id: string;
+            isNewSession: boolean;
+          }
+        | undefined;
 
       // Explicit session selection should win when opening a hidden panel.
       if (selectedChatId) {
-        idToLoad = selectedChatId;
+        loadTarget = { id: selectedChatId, isNewSession: false };
       } else if (initialInput?.chatId) {
         // Check if initialInput has a specific chatId
-        idToLoad = initialInput.chatId;
+        loadTarget = { id: initialInput.chatId, isNewSession: false };
       } else if (currentPendingCommand?.forceNewChat) {
-        idToLoad = createDraftChatId();
+        loadTarget = { id: createDraftSession().id, isNewSession: true };
         previousChatIdRef.current = null;
-        setChatTitle("New Chat");
         // Mark this command as processed to prevent duplicate handling
         const commandKey = `${currentPendingCommand.timestamp}-${currentPendingCommand.forceNewChat}`;
         processedPendingCommandRef.current = commandKey;
       } else if (currentPendingCommand?.text) {
         // If there's a pending command (but not forcing new chat), create a fresh session.
-        idToLoad = createDraftChatId();
+        loadTarget = { id: createDraftSession().id, isNewSession: true };
       } else {
         // Default to a fresh session when opening chat without an existing selection.
-        idToLoad = createDraftChatId();
-        setChatTitle("New Chat");
+        loadTarget = { id: createDraftSession().id, isNewSession: true };
       }
 
-      if (idToLoad) {
-        await loadChat(idToLoad);
-        if (selectedChatId === idToLoad) {
+      if (loadTarget) {
+        await loadChat(loadTarget.id, { isNewSession: loadTarget.isNewSession });
+        if (selectedChatId === loadTarget.id) {
           clearSelectedChatId();
         }
         isInitializedRef.current = true;
@@ -321,7 +356,7 @@ export function ChatPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     connection?.connectionId,
-    createDraftChatId,
+    createDraftSession,
     initialInput?.chatId,
     chat,
     loadChat,
@@ -338,18 +373,17 @@ export function ChatPanel({
     if (processedPendingCommandRef.current === commandKey) return;
 
     void (async () => {
-      const chatId = createDraftChatId();
+      const chatId = createDraftSession().id;
       previousChatIdRef.current = chat.id;
       processedPendingCommandRef.current = commandKey;
-      setChatTitle("New Chat");
-      await loadChat(chatId);
+      await loadChat(chatId, { isNewSession: true });
     })();
   }, [
     pendingCommand?.forceNewChat,
     pendingCommand?.timestamp,
     connection,
     chat,
-    createDraftChatId,
+    createDraftSession,
     loadChat,
   ]);
 
@@ -380,15 +414,6 @@ export function ChatPanel({
       return () => clearTimeout(timer);
     }
   }, [initialInput, chat, clearInitialInput]);
-
-  const createFreshChat = useCallback(async () => {
-    if (!connection?.connectionId) return;
-
-    const chatId = createDraftChatId();
-    previousChatIdRef.current = chat?.id || null;
-    setChatTitle("New Chat");
-    await loadChat(chatId);
-  }, [chat, connection?.connectionId, createDraftChatId, loadChat]);
 
   // Handle new chat creation (from user action)
   const handleNewChat = useCallback(async () => {

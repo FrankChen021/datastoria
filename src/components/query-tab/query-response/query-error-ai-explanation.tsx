@@ -167,6 +167,7 @@ export const QueryErrorAIExplanation = memo(function QueryErrorAIExplanation({
     void (async () => {
       const createdChat = await ChatFactory.createEphemeral({
         connection,
+        initialMessages: [],
         context: {
           currentQuery: sql,
           clickHouseUser: connection.metadata.internalUser,

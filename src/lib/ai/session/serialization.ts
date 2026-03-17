@@ -48,7 +48,7 @@ function parseJsonField<T>(label: string, value: string | null): T | null {
 
 export function persistedSessionToChat(session: PersistedChatSession): Chat {
   return {
-    chatId: session.id,
+    chatId: session.session_id,
     databaseId: session.connection_id,
     title: session.title ?? undefined,
     createdAt: new Date(session.created_at),
@@ -58,7 +58,7 @@ export function persistedSessionToChat(session: PersistedChatSession): Chat {
 
 export function persistedMessageToAppUIMessage(message: PersistedChatMessage): AppUIMessage {
   return {
-    id: message.id,
+    id: message.message_id,
     role: message.role,
     parts: parseJsonField<MessagePart[]>("parts", message.parts_text) ?? [],
     metadata: parseJsonField<MessageMetadata>("metadata", message.metadata_text) ?? undefined,
@@ -69,7 +69,7 @@ export function persistedMessageToAppUIMessage(message: PersistedChatMessage): A
 
 export function persistedSessionToDTO(session: PersistedChatSession): ChatSessionDTO {
   return {
-    chatId: session.id,
+    chatId: session.session_id,
     databaseId: session.connection_id,
     title: session.title,
     createdAt: session.created_at.toISOString(),
@@ -79,7 +79,7 @@ export function persistedSessionToDTO(session: PersistedChatSession): ChatSessio
 
 export function persistedMessageToDTO(message: PersistedChatMessage): ChatMessageDTO {
   return {
-    id: message.id,
+    id: message.message_id,
     role: message.role,
     parts: parseJsonField<MessagePart[]>("parts", message.parts_text) ?? [],
     metadata: parseJsonField<MessageMetadata>("metadata", message.metadata_text),

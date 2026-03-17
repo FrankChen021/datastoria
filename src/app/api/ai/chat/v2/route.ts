@@ -18,8 +18,10 @@ import {
   validateRemoteChatRequest,
 } from "@/lib/ai/session/remote-chat-request";
 import { persistedMessageToAppUIMessage } from "@/lib/ai/session/serialization";
-import { getSessionRepositoryType } from "@/lib/ai/session/server-session-repository-config";
-import { getServerSessionRepository } from "@/lib/ai/session/server-session-repository-factory";
+import {
+  getServerSessionRepository,
+  getSessionRepositoryType,
+} from "@/lib/ai/session/server-session-repository-factory";
 import { SkillManager } from "@/lib/ai/skills/skill-manager";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { ClientTools } from "@/lib/ai/tools/client/client-tools";
@@ -186,7 +188,9 @@ function getRequestUsage(messages: UIMessage[], messageId: string) {
 
 export async function POST(req: Request) {
   try {
-    const userEmail = getAuthenticatedUserEmail(req);
+    const userEmail =
+      getAuthenticatedUserEmail(req) ??
+      (process.env.ALLOW_ANONYMOUS_USER === "true" ? "anonymous" : undefined);
 
     let payload: unknown;
     try {
@@ -210,9 +214,9 @@ export async function POST(req: Request) {
     let generateTitle = true;
     let originalMessages: UIMessage[];
     let messageId: string;
-    let persistenceUserId: string | null = null;
-    let persistenceChatId: string | null = null;
-    const persistence: ReturnType<typeof getServerSessionRepository> | null =
+    let sessionRepositoryUserId: string | null = null;
+    let sessionRepositoryChatId: string | null = null;
+    const sessionRepository: ReturnType<typeof getServerSessionRepository> | null =
       serverMode === "remote" ? getServerSessionRepository() : null;
     let titlePromise: Promise<SessionTitleGenerationResponse | undefined> | undefined;
 
@@ -222,8 +226,8 @@ export async function POST(req: Request) {
         return new Response("Invalid request format", { status: 400 });
       }
 
-      persistenceUserId = await resolveVerifiedUserId(req);
-      if (!persistenceUserId) {
+      sessionRepositoryUserId = await resolveVerifiedUserId(req);
+      if (!sessionRepositoryUserId) {
         return new Response("Authentication required", { status: 401 });
       }
 
@@ -251,11 +255,14 @@ export async function POST(req: Request) {
       if (apiRequest.ephemeral) {
         originalMessages = expandCommand([apiRequest.message as UIMessage]);
       } else {
-        const existingSession = await persistence!.getSession(persistenceUserId, apiRequest.chatId);
+        const existingSession = await sessionRepository!.getSession(
+          sessionRepositoryUserId,
+          apiRequest.sessionId
+        );
         if (!existingSession) {
-          await persistence!.createSession({
-            id: apiRequest.chatId,
-            owner_user_id: persistenceUserId,
+          await sessionRepository!.createSession({
+            id: apiRequest.sessionId,
+            user_id: sessionRepositoryUserId,
             connection_id: apiRequest.connectionId,
             title:
               !apiRequest.continuation && apiRequest.message.role === "user"
@@ -267,7 +274,7 @@ export async function POST(req: Request) {
         }
 
         const persistedMessages = (
-          await persistence!.getMessages(persistenceUserId, apiRequest.chatId)
+          await sessionRepository!.getMessages(sessionRepositoryUserId, apiRequest.sessionId)
         ).map(persistedMessageToAppUIMessage);
 
         if (apiRequest.continuation) {
@@ -295,14 +302,14 @@ export async function POST(req: Request) {
           persistedMessages,
           apiRequest.message as AppUIMessage
         );
-        await persistence!.upsertMessage({
-          chat_id: apiRequest.chatId,
-          owner_user_id: persistenceUserId,
+        await sessionRepository!.upsertMessage({
+          session_id: apiRequest.sessionId,
+          user_id: sessionRepositoryUserId,
           message: apiRequest.message as AppUIMessage,
         });
 
         originalMessages = expandCommand(mergedMessages as UIMessage[]);
-        persistenceChatId = apiRequest.chatId;
+        sessionRepositoryChatId = apiRequest.sessionId;
       }
 
       titlePromise =
@@ -375,11 +382,14 @@ export async function POST(req: Request) {
       originalMessages: originalMessages as UIMessage[],
       generateMessageId: () => messageId,
       onFinish:
-        serverMode === "remote" && persistence && persistenceUserId && persistenceChatId
+        serverMode === "remote" &&
+        sessionRepository &&
+        sessionRepositoryUserId &&
+        sessionRepositoryChatId
           ? async ({ responseMessage }) => {
-              await persistence.upsertMessage({
-                chat_id: persistenceChatId,
-                owner_user_id: persistenceUserId!,
+              await sessionRepository.upsertMessage({
+                session_id: sessionRepositoryChatId,
+                user_id: sessionRepositoryUserId,
                 message: responseMessage as AppUIMessage,
               });
             }
@@ -446,16 +456,16 @@ export async function POST(req: Request) {
 
               if (
                 serverMode === "remote" &&
-                persistence &&
-                persistenceUserId &&
-                persistenceChatId
+                sessionRepository &&
+                sessionRepositoryUserId &&
+                sessionRepositoryChatId
               ) {
                 void titlePromise.then(async (lateTitleResult) => {
                   const lateTitle = lateTitleResult?.title?.trim();
                   if (lateTitle) {
-                    await persistence.updateSessionTitle(
-                      persistenceUserId!,
-                      persistenceChatId!,
+                    await sessionRepository.updateSessionTitle(
+                      sessionRepositoryUserId,
+                      sessionRepositoryChatId,
                       lateTitle
                     );
                   }
@@ -479,11 +489,15 @@ export async function POST(req: Request) {
             if (
               titleText &&
               serverMode === "remote" &&
-              persistence &&
-              persistenceUserId &&
-              persistenceChatId
+              sessionRepository &&
+              sessionRepositoryUserId &&
+              sessionRepositoryChatId
             ) {
-              await persistence.updateSessionTitle(persistenceUserId, persistenceChatId, titleText);
+              await sessionRepository.updateSessionTitle(
+                sessionRepositoryUserId,
+                sessionRepositoryChatId,
+                titleText
+              );
             }
 
             controller.enqueue({

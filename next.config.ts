@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
   ...(basePath && { basePath }),
   reactStrictMode: false,
   transpilePackages: ['@number-flow/react', 'number-flow'],
+  serverExternalPackages: ['knex'],
   // Enable standalone output for Docker deployment
   output: 'standalone',
   // Increase body size limit for API routes to handle large tool results

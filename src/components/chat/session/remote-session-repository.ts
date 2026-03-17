@@ -52,7 +52,7 @@ async function parseJson<T>(response: Response): Promise<T> {
 export class RemoteSessionRepository implements SessionRepository {
   async getSession(chatId: string): Promise<Chat | null> {
     const response = await fetch(
-      BasePath.getURL(`/api/chat/sessions/${encodeURIComponent(chatId)}`),
+      BasePath.getURL(`/api/ai/chat/sessions/${encodeURIComponent(chatId)}`),
       {
         credentials: "same-origin",
         cache: "no-store",
@@ -69,17 +69,20 @@ export class RemoteSessionRepository implements SessionRepository {
 
   async getSessionsForConnection(connectionId: string): Promise<Chat[]> {
     const searchParams = new URLSearchParams({ connectionId });
-    const response = await fetch(BasePath.getURL(`/api/chat/sessions?${searchParams.toString()}`), {
-      credentials: "same-origin",
-      cache: "no-store",
-    });
+    const response = await fetch(
+      BasePath.getURL(`/api/ai/chat/sessions?${searchParams.toString()}`),
+      {
+        credentials: "same-origin",
+        cache: "no-store",
+      }
+    );
     const sessions = await parseJson<ChatSessionDTO[]>(response);
     return sessions.map(toChat);
   }
 
   async getMessages(chatId: string): Promise<Message[]> {
     const response = await fetch(
-      BasePath.getURL(`/api/chat/sessions/${encodeURIComponent(chatId)}/messages`),
+      BasePath.getURL(`/api/ai/chat/sessions/${encodeURIComponent(chatId)}/messages`),
       {
         credentials: "same-origin",
         cache: "no-store",
@@ -102,7 +105,7 @@ export class RemoteSessionRepository implements SessionRepository {
 
   async renameSession(chatId: string, title: string): Promise<void> {
     const response = await fetch(
-      BasePath.getURL(`/api/chat/sessions/${encodeURIComponent(chatId)}`),
+      BasePath.getURL(`/api/ai/chat/sessions/${encodeURIComponent(chatId)}`),
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -118,7 +121,7 @@ export class RemoteSessionRepository implements SessionRepository {
 
   async deleteSession(chatId: string): Promise<void> {
     const response = await fetch(
-      BasePath.getURL(`/api/chat/sessions/${encodeURIComponent(chatId)}`),
+      BasePath.getURL(`/api/ai/chat/sessions/${encodeURIComponent(chatId)}`),
       {
         method: "DELETE",
         credentials: "same-origin",

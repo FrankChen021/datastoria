@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     return new Response("Missing connectionId", { status: 400 });
   }
 
-  const persistence = getServerSessionRepository();
-  const sessions = await persistence.getSessionsForConnection(userId, connectionId);
+  const sessionRepository = getServerSessionRepository();
+  const sessions = await sessionRepository.getSessionsForConnection(userId, connectionId);
   return Response.json(sessions.map(persistedSessionToDTO));
 }

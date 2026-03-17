@@ -2,7 +2,7 @@ import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
 import type { AgentContext, AppUIMessage } from "@/lib/ai/chat-types";
 
 export interface ChatRequestBase {
-  chatId: string;
+  sessionId: string;
   connectionId: string;
   ephemeral?: boolean;
   context?: ServerDatabaseContext;
@@ -37,8 +37,8 @@ export function replaceOrAppendMessageById(
   return next;
 }
 
-export function validateChatId(chatId: string): boolean {
-  return typeof chatId === "string" && chatId.length > 0 && chatId.length <= 64;
+export function validateSessionId(sessionId: string): boolean {
+  return typeof sessionId === "string" && sessionId.length > 0 && sessionId.length <= 64;
 }
 
 export function hasCompletedToolOutputs(message: AppUIMessage): boolean {
@@ -57,7 +57,7 @@ export function validateRemoteChatRequest(payload: unknown): RemoteChatRequest |
 
   const candidate = payload as Partial<RemoteChatRequest>;
   if (
-    !validateChatId(candidate.chatId ?? "") ||
+    !validateSessionId(candidate.sessionId ?? "") ||
     typeof candidate.connectionId !== "string" ||
     !candidate.message ||
     typeof candidate.message !== "object" ||

@@ -233,7 +233,7 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
 
     React.useEffect(() => {
       void refreshSessions();
-    }, [refreshSessions, currentChatId]);
+    }, [refreshSessions]);
 
     const handleDeleteChats = React.useCallback(
       async (chatIds: string[]) => {

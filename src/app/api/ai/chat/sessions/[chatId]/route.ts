@@ -1,4 +1,4 @@
-import { validateChatId } from "@/lib/ai/session/remote-chat-request";
+import { validateSessionId } from "@/lib/ai/session/remote-chat-request";
 import { persistedSessionToDTO } from "@/lib/ai/session/serialization";
 import { getServerSessionRepository } from "@/lib/ai/session/server-session-repository-factory";
 import { resolveVerifiedUserId } from "@/lib/auth/resolve-user-identity";
@@ -15,13 +15,13 @@ export async function GET(req: Request, context: RouteContext) {
     return new Response("Authentication required", { status: 401 });
   }
 
-  const { chatId } = await context.params;
-  if (!validateChatId(chatId)) {
-    return new Response("Invalid chatId", { status: 400 });
+  const { chatId: sessionId } = await context.params;
+  if (!validateSessionId(sessionId)) {
+    return new Response("Invalid sessionId", { status: 400 });
   }
 
-  const persistence = getServerSessionRepository();
-  const session = await persistence.getSession(userId, chatId);
+  const sessionRepository = getServerSessionRepository();
+  const session = await sessionRepository.getSession(userId, sessionId);
   if (!session) {
     return new Response("Not found", { status: 404 });
   }
@@ -35,9 +35,9 @@ export async function PATCH(req: Request, context: RouteContext) {
     return new Response("Authentication required", { status: 401 });
   }
 
-  const { chatId } = await context.params;
-  if (!validateChatId(chatId)) {
-    return new Response("Invalid chatId", { status: 400 });
+  const { chatId: sessionId } = await context.params;
+  if (!validateSessionId(sessionId)) {
+    return new Response("Invalid sessionId", { status: 400 });
   }
 
   let payload: { title?: unknown };
@@ -51,14 +51,14 @@ export async function PATCH(req: Request, context: RouteContext) {
     return new Response("Missing title", { status: 400 });
   }
 
-  const persistence = getServerSessionRepository();
-  const session = await persistence.getSession(userId, chatId);
+  const sessionRepository = getServerSessionRepository();
+  const session = await sessionRepository.getSession(userId, sessionId);
   if (!session) {
     return new Response("Not found", { status: 404 });
   }
 
-  await persistence.renameSession(userId, chatId, payload.title.trim());
-  const updated = await persistence.getSession(userId, chatId);
+  await sessionRepository.renameSession(userId, sessionId, payload.title.trim());
+  const updated = await sessionRepository.getSession(userId, sessionId);
   if (!updated) {
     return new Response("Not found", { status: 404 });
   }
@@ -72,17 +72,17 @@ export async function DELETE(req: Request, context: RouteContext) {
     return new Response("Authentication required", { status: 401 });
   }
 
-  const { chatId } = await context.params;
-  if (!validateChatId(chatId)) {
-    return new Response("Invalid chatId", { status: 400 });
+  const { chatId: sessionId } = await context.params;
+  if (!validateSessionId(sessionId)) {
+    return new Response("Invalid sessionId", { status: 400 });
   }
 
-  const persistence = getServerSessionRepository();
-  const session = await persistence.getSession(userId, chatId);
+  const sessionRepository = getServerSessionRepository();
+  const session = await sessionRepository.getSession(userId, sessionId);
   if (!session) {
     return new Response("Not found", { status: 404 });
   }
 
-  await persistence.deleteSession(userId, chatId);
+  await sessionRepository.deleteSession(userId, sessionId);
   return new Response(null, { status: 204 });
 }

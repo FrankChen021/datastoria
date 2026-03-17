@@ -7,23 +7,23 @@ import type {
 } from "../server-session-repository";
 
 export class ServerSessionRepositoryNoop implements ServerSessionRepository {
-  async getSession(): Promise<PersistedChatSession | null> {
+  async getSession(_userId: string, _sessionId: string): Promise<PersistedChatSession | null> {
     return null;
   }
 
-  async getSessionsForConnection(): Promise<PersistedChatSession[]> {
+  async getSessionsForConnection(_userId: string, _connectionId: string): Promise<PersistedChatSession[]> {
     return [];
   }
 
-  async getMessages(): Promise<[]> {
+  async getMessages(_userId: string, _sessionId: string): Promise<[]> {
     return [];
   }
 
   async createSession(input: CreateSessionInput): Promise<PersistedChatSession> {
     const now = new Date();
     return {
-      id: input.id,
-      owner_user_id: input.owner_user_id,
+      session_id: input.id,
+      user_id: input.user_id,
       connection_id: input.connection_id,
       title: input.title ?? null,
       created_at: now,
@@ -37,9 +37,13 @@ export class ServerSessionRepositoryNoop implements ServerSessionRepository {
 
   async upsertMessage(_input: UpsertMessageInput): Promise<void> {}
 
-  async updateSessionTitle(): Promise<void> {}
+  async updateSessionTitle(_userId: string, _sessionId: string, _title: string): Promise<void> {}
 
-  async renameSession(): Promise<void> {}
+  async renameSession(_userId: string, _sessionId: string, _title: string): Promise<void> {}
 
-  async deleteSession(): Promise<void> {}
+  async deleteSession(_userId: string, _sessionId: string): Promise<void> {}
+
+  async cleanupExpiredSessions(): Promise<number> {
+    return 0;
+  }
 }

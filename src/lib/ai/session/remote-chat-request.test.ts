@@ -46,7 +46,7 @@ describe("replaceOrAppendMessageById", () => {
 describe("validateRemoteChatRequest", () => {
   it("accepts a valid initial request", () => {
     const request = validateRemoteChatRequest({
-      chatId: "chat-1",
+      sessionId: "chat-1",
       connectionId: "conn-1",
       message: createMessage({ role: "user" }),
     });
@@ -57,7 +57,7 @@ describe("validateRemoteChatRequest", () => {
 
   it("accepts a valid continuation request", () => {
     const request = validateRemoteChatRequest({
-      chatId: "chat-1",
+      sessionId: "chat-1",
       connectionId: "conn-1",
       continuation: true,
       message: createMessage({
