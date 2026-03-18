@@ -175,7 +175,9 @@ const TopologyGraphFlowInner = ({
       setFlowNodes((prev) =>
         prev.map((existing) => {
           const updated = nextNodesById.get(existing.id);
-          return updated ? { ...existing, data: updated.data } : existing;
+          return updated
+            ? { ...existing, data: updated.data, selected: updated.selected }
+            : existing;
         })
       );
     }

@@ -58,19 +58,68 @@ interface ExplainPlanFetchedTableNode {
   metadataModificationTime: string;
 }
 
+function unquoteIdentifierPart(identifier: string): string {
+  const trimmed = identifier.trim();
+  if (trimmed.length < 2) {
+    return trimmed;
+  }
+  const quote = trimmed[0];
+  if ((quote !== "`" && quote !== '"') || trimmed[trimmed.length - 1] !== quote) {
+    return trimmed;
+  }
+  const inner = trimmed.slice(1, -1);
+  return quote === "`" ? inner.replaceAll("``", "`") : inner.replaceAll('""', '"');
+}
+
 function parseQualifiedTableName(
   qualifiedName: string | undefined
 ): { database: string; table: string } | undefined {
   if (!qualifiedName) {
     return undefined;
   }
-  const separatorIndex = qualifiedName.indexOf(".");
-  if (separatorIndex <= 0 || separatorIndex === qualifiedName.length - 1) {
+
+  const input = qualifiedName.trim();
+  let inBacktickQuote = false;
+  let inDoubleQuote = false;
+  let separatorIndex = -1;
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+    if (char === "`" && !inDoubleQuote) {
+      if (inBacktickQuote && input[index + 1] === "`") {
+        index += 1;
+      } else {
+        inBacktickQuote = !inBacktickQuote;
+      }
+      continue;
+    }
+    if (char === '"' && !inBacktickQuote) {
+      if (inDoubleQuote && input[index + 1] === '"') {
+        index += 1;
+      } else {
+        inDoubleQuote = !inDoubleQuote;
+      }
+      continue;
+    }
+    if (char === "." && !inBacktickQuote && !inDoubleQuote) {
+      separatorIndex = index;
+      break;
+    }
+  }
+
+  if (separatorIndex <= 0 || separatorIndex === input.length - 1) {
     return undefined;
   }
+
+  const databasePart = input.slice(0, separatorIndex).trim();
+  const tablePart = input.slice(separatorIndex + 1).trim();
+  if (!databasePart || !tablePart) {
+    return undefined;
+  }
+
   return {
-    database: qualifiedName.slice(0, separatorIndex),
-    table: qualifiedName.slice(separatorIndex + 1),
+    database: unquoteIdentifierPart(databasePart),
+    table: unquoteIdentifierPart(tablePart),
   };
 }
 
@@ -209,6 +258,7 @@ function ExplainPlanGraphNode({
     displayTitle?: string;
     displaySubtitle?: string;
     displaySummaryBadges?: string[];
+    displayWidth?: number;
     selectKind?: ExplainPlanSelection["kind"];
     selectNodeId?: string;
     onSelect?: (selection: ExplainPlanSelection) => void;
@@ -237,9 +287,10 @@ function ExplainPlanGraphNode({
   return (
     <div
       className={cn(
-        `flex h-[${EXPLAIN_PLAN_GRAPH_NODE_HEIGHT}px] w-[240px] cursor-pointer flex-col justify-center rounded-lg border border-border bg-background px-3 py-2 shadow-sm transition-[box-shadow,colors] hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40`,
+        `flex h-[${EXPLAIN_PLAN_GRAPH_NODE_HEIGHT}px] cursor-pointer flex-col justify-center rounded-lg border border-border bg-background px-3 py-2 shadow-sm transition-[box-shadow,colors] hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40`,
         selected ? "ring-2 ring-primary/20 border-primary/50" : ""
       )}
+      style={{ width: `${data.displayWidth ?? 240}px` }}
       role="button"
       tabIndex={0}
       aria-pressed={selected}
@@ -853,6 +904,7 @@ function ExplainPlanSplitView({
 
 function ExplainPlanGraphView({ nodes }: { nodes: ExplainPlanNode[] }) {
   const isMobile = useIsMobile();
+  const graphNodeWidth = isMobile ? 200 : 240;
   const [selectedSelection, setSelectedSelection] = useState<ExplainPlanSelection | undefined>(
     nodes[0] ? { kind: "plan", id: nodes[0].id } : undefined
   );
@@ -881,6 +933,7 @@ function ExplainPlanGraphView({ nodes }: { nodes: ExplainPlanNode[] }) {
             node,
             displaySubtitle: isReadSourceNode ? undefined : node.subtitle,
             displaySummaryBadges: nodeSummaryBadges,
+            displayWidth: graphNodeWidth,
             selectKind: "plan",
             selectNodeId: node.id,
             onSelect: setSelectedSelection,
@@ -897,6 +950,7 @@ function ExplainPlanGraphView({ nodes }: { nodes: ExplainPlanNode[] }) {
               displayTitle: node.sourceName,
               displaySubtitle: "table",
               displaySummaryBadges: [],
+              displayWidth: graphNodeWidth,
               selectKind: "table",
               selectNodeId: node.id,
               onSelect: setSelectedSelection,
@@ -910,7 +964,7 @@ function ExplainPlanGraphView({ nodes }: { nodes: ExplainPlanNode[] }) {
 
     visit(nodes);
     return result;
-  }, [nodes, selectedSelection]);
+  }, [graphNodeWidth, nodes, selectedSelection]);
 
   const graphEdges = useMemo(() => {
     const result: Edge[] = [];
@@ -975,7 +1029,7 @@ function ExplainPlanGraphView({ nodes }: { nodes: ExplainPlanNode[] }) {
             nodeTypes={planNodeTypes}
             edgeTypes={planEdgeTypes}
             rankdir="TB"
-            nodeWidth={isMobile ? 200 : 240}
+            nodeWidth={graphNodeWidth}
             nodeHeight={EXPLAIN_PLAN_GRAPH_NODE_HEIGHT}
             ranksep={isMobile ? 28 : 40}
             nodesep={isMobile ? 48 : 70}
