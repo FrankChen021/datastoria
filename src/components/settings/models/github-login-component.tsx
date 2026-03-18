@@ -67,7 +67,7 @@ export function GitHubLoginComponent({ onSuccess, onCancel }: GitHubLoginCompone
     setAuthError(null);
     setAuthData(null); // Reset auth data on retry
     try {
-      const res = await fetch(BasePath.getURL("/api/api/github/auth/device/code"), {
+      const res = await fetch(BasePath.getURL("/api/ai/github/auth/device/code"), {
         method: "POST",
       });
       if (!res.ok) {
@@ -84,7 +84,7 @@ export function GitHubLoginComponent({ onSuccess, onCancel }: GitHubLoginCompone
         if (!isLoggingInRef.current) return;
 
         try {
-          const tokenRes = await fetch(BasePath.getURL("/api/api/github/auth/device/token"), {
+          const tokenRes = await fetch(BasePath.getURL("/api/ai/github/auth/device/token"), {
             method: "POST",
             body: JSON.stringify({ device_code: data.device_code }),
           });
