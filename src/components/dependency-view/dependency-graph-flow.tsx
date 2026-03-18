@@ -155,7 +155,7 @@ interface GraphControlPanelProps {
   onFocusFirstMatch: () => void;
   onNextMatch: () => void;
   onPreviousMatch: () => void;
-  containerRef: React.RefObject<HTMLDivElement | null>;
+  containerRef: React.RefObject<HTMLElement | null>;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitView: () => void;
