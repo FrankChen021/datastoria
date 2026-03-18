@@ -139,9 +139,7 @@ export function QueryControl({ onOpenHistory }: { onOpenHistory: () => void }) {
             <DropdownMenuItem onClick={() => handleExplain("syntax")}>
               Explain Syntax
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExplain("plan")}>
-              Explain Plan
-            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExplain("plan")}>Explain Plan</DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleExplain("pipeline")}>
               Explain Pipeline
             </DropdownMenuItem>

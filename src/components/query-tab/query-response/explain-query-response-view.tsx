@@ -1,6 +1,6 @@
 import { useConnection } from "@/components/connection/connection-context";
-import { TablePanel } from "@/components/dependency-view/table-panel";
 import type { DependencyGraphNode } from "@/components/dependency-view/dependency-builder";
+import { TablePanel } from "@/components/dependency-view/table-panel";
 import { CollapsibleSection } from "@/components/shared/collapsible-section";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { TopologyGraphFlow } from "@/components/shared/topology/topology-graph-flow";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { SqlUtils } from "@/lib/sql-utils";
 import { cn } from "@/lib/utils";
 import {
@@ -27,8 +28,6 @@ import { ChevronRight, X } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import type { QueryResponseViewProps } from "../query-view-model";
-import { QueryResponseErrorView } from "./query-response-error-view";
-import { QueryResponseHttpHeaderView } from "./query-response-http-header-view";
 import {
   getDefaultExpandedNodeIds,
   getExplainPlanAncestorIds,
@@ -43,11 +42,11 @@ import {
   type ExplainPlanIndex,
   type ExplainPlanNode,
 } from "./explain-plan-utils";
+import { QueryResponseErrorView } from "./query-response-error-view";
+import { QueryResponseHttpHeaderView } from "./query-response-http-header-view";
 
 type PlanTabValue = "result" | "graph" | "text" | "raw" | "headers";
-type ExplainPlanSelection =
-  | { kind: "plan"; id: string }
-  | { kind: "table"; id: string };
+type ExplainPlanSelection = { kind: "plan"; id: string } | { kind: "table"; id: string };
 const EXPLAIN_PLAN_GRAPH_NODE_HEIGHT = 60;
 
 interface ExplainPlanFetchedTableNode {
@@ -146,9 +145,7 @@ function getExplainPlanAdditionalRawEntries(
 ): Array<[string, unknown]> {
   return Object.entries(raw)
     .filter(
-      ([key, value]) =>
-        !EXPLAIN_PLAN_DETAIL_EXCLUDED_RAW_KEYS.has(key) &&
-        value !== undefined
+      ([key, value]) => !EXPLAIN_PLAN_DETAIL_EXCLUDED_RAW_KEYS.has(key) && value !== undefined
     )
     .map(([key, value]) => [key, value]);
 }
@@ -214,29 +211,46 @@ function ExplainPlanGraphNode({
     displaySummaryBadges?: string[];
     selectKind?: ExplainPlanSelection["kind"];
     selectNodeId?: string;
+    onSelect?: (selection: ExplainPlanSelection) => void;
   };
   selected?: boolean;
 }) {
   const summaryBadges = data.displaySummaryBadges ?? getExplainPlanSummaryBadges(data.node);
   const title = data.displayTitle ?? data.node.title;
-  const subtitle =
-    Object.prototype.hasOwnProperty.call(data, "displaySubtitle")
-      ? data.displaySubtitle
-      : data.node.subtitle;
+  const subtitle = Object.prototype.hasOwnProperty.call(data, "displaySubtitle")
+    ? data.displaySubtitle
+    : data.node.subtitle;
+  const handleSelect = () => {
+    data.onSelect?.({
+      kind: data.selectKind ?? "plan",
+      id: data.selectNodeId ?? data.node.id,
+    });
+  };
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    event.preventDefault();
+    handleSelect();
+  };
 
   return (
     <div
       className={cn(
-        `flex h-[${EXPLAIN_PLAN_GRAPH_NODE_HEIGHT}px] w-[240px] flex-col justify-center rounded-lg border border-border bg-background px-3 py-2 shadow-sm transition-colors`,
-        selected ? "ring-2 ring-primary/20" : ""
+        `flex h-[${EXPLAIN_PLAN_GRAPH_NODE_HEIGHT}px] w-[240px] cursor-pointer flex-col justify-center rounded-lg border border-border bg-background px-3 py-2 shadow-sm transition-[box-shadow,colors] hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40`,
+        selected ? "ring-2 ring-primary/20 border-primary/50" : ""
       )}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      aria-label={`Inspect ${title}`}
+      onClick={handleSelect}
+      onKeyDown={handleKeyDown}
     >
       <Handle type="target" position={Position.Top} />
       <Handle type="source" position={Position.Bottom} />
-      <div className="text-sm font-semibold text-foreground">{title}</div>
-      {subtitle && (
-        <div className="truncate text-xs text-muted-foreground">{subtitle}</div>
-      )}
+      <div className="truncate text-sm font-semibold text-foreground">{title}</div>
+      {subtitle && <div className="truncate text-xs text-muted-foreground">{subtitle}</div>}
       {summaryBadges.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {summaryBadges.map((item) => (
@@ -265,7 +279,6 @@ function ExplainPlanGraphEdge({
     targetX,
     targetY,
   });
-
   const label = typeof data?.label === "string" ? data.label : "";
 
   return (
@@ -279,11 +292,12 @@ function ExplainPlanGraphEdge({
       {label && (
         <EdgeLabelRenderer>
           <div
-            className="nodrag nopan rounded-full border border-border bg-background px-2 py-1 text-[10px] font-medium text-muted-foreground shadow-sm"
+            className="nodrag nopan max-w-[160px] select-none truncate px-1 text-xs font-medium text-foreground/90"
             style={{
               position: "absolute",
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             }}
+            title={label}
           >
             {label}
           </div>
@@ -399,11 +413,7 @@ function DetailPaneSection({
   );
 }
 
-function ExpressionSubsection({
-  items,
-}: {
-  items: ExplainPlanExpressionItem[];
-}) {
+function ExpressionSubsection({ items }: { items: ExplainPlanExpressionItem[] }) {
   if (items.length === 0) {
     return null;
   }
@@ -440,13 +450,7 @@ function ExpressionActionsSection({ actions }: { actions: ExplainPlanExpressionA
   );
 }
 
-function ExplainPlanDetailPane({
-  node,
-  onClose,
-}: {
-  node: ExplainPlanNode;
-  onClose: () => void;
-}) {
+function ExplainPlanDetailPane({ node, onClose }: { node: ExplainPlanNode; onClose: () => void }) {
   const readStatsEntries: Array<[string, unknown]> = [
     ["Read Type", node.stats.readType],
     ["Parts", node.stats.parts],
@@ -457,7 +461,10 @@ function ExplainPlanDetailPane({
     ["Selected Granules", node.stats.selectedGranules],
     ["Indexes", node.stats.indexCount > 0 ? node.stats.indexCount : undefined],
     ["Primary Key Condition", node.stats.primaryKeyCondition],
-  ].filter(([, value]) => value !== undefined && value !== "");
+  ];
+  const filteredReadStatsEntries = readStatsEntries.filter(
+    ([, value]) => value !== undefined && value !== ""
+  );
   const additionalRawEntries = getExplainPlanAdditionalRawEntries(node.raw);
   const prewhereEntries = getExplainPlanPrewhereEntries(node.prewhere?.raw);
 
@@ -476,147 +483,163 @@ function ExplainPlanDetailPane({
               <div className="truncate text-xs text-muted-foreground">{node.subtitle}</div>
             )}
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={onClose}
+            aria-label="Close plan details"
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto space-y-2 p-2 pb-16">
-            {additionalRawEntries.length > 0 && (
-              <DetailPaneSection title="Properties">
-                <div className="overflow-x-auto">
-                  <OverviewGrid entries={additionalRawEntries} />
-                </div>
-              </DetailPaneSection>
-            )}
-
-            {readStatsEntries.length > 0 && (
-              <DetailPaneSection title="Read Stats">
-                <div className="overflow-x-auto">
-                  <OverviewGrid entries={readStatsEntries} />
-                </div>
-              </DetailPaneSection>
-            )}
-
-            {node.indexes.length > 0 && (
-              <DetailPaneSection title="Indexes">
-                <div className="overflow-x-auto">
-                  <TableSection
-                    columns={[
-                      "Type",
-                      "Condition",
-                      "Initial Parts",
-                      "Selected Parts",
-                      "Initial Granules",
-                      "Selected Granules",
-                    ]}
-                    rows={node.indexes.map((index: ExplainPlanIndex) => [
-                      index.type,
-                      index.condition || "-",
-                      formatPrimitive(index.initialParts),
-                      formatPrimitive(index.selectedParts),
-                      formatPrimitive(index.initialGranules),
-                      formatPrimitive(index.selectedGranules),
-                    ])}
-                  />
-                </div>
-              </DetailPaneSection>
-            )}
-
-            {node.expression && node.expression.inputs.length > 0 && (
-              <DetailPaneSection title={`Expression.Inputs (${node.expression.inputs.length})`}>
-                <div className="overflow-x-auto">
-                  <ExpressionSubsection items={node.expression.inputs} />
-                </div>
-              </DetailPaneSection>
-            )}
-
-            {node.expression && node.expression.actions.length > 0 && (
-              <DetailPaneSection title={`Expression.Actions (${node.expression.actions.length})`}>
-                <div className="overflow-x-auto">
-                  <ExpressionActionsSection actions={node.expression.actions} />
-                </div>
-              </DetailPaneSection>
-            )}
-
-            {node.expression && node.expression.outputs.length > 0 && (
-              <DetailPaneSection title={`Expression.Outputs (${node.expression.outputs.length})`}>
-                <div className="overflow-x-auto">
-                  <ExpressionSubsection items={node.expression.outputs} />
-                </div>
-              </DetailPaneSection>
-            )}
-
-            {node.expression && node.expression.positions.length > 0 && (
-              <DetailPaneSection title="Expression.Positions">
-                <div className="overflow-x-auto">
-                  <OverviewGrid entries={[["Positions", node.expression.positions.join(", ")]]} />
-                </div>
-              </DetailPaneSection>
-            )}
-
-            {prewhereEntries.length > 0 && (
-              <DetailPaneSection title="Prewhere">
-                <div className="overflow-x-auto">
-                  <OverviewGrid entries={prewhereEntries} />
-                </div>
-              </DetailPaneSection>
-            )}
-
-            {node.prewhere?.filter && node.prewhere.filter.inputs.length > 0 && (
-              <DetailPaneSection title={`Prewhere.Filter.Inputs (${node.prewhere.filter.inputs.length})`}>
-                <div className="overflow-x-auto">
-                  <ExpressionSubsection items={node.prewhere.filter.inputs} />
-                </div>
-              </DetailPaneSection>
-            )}
-
-            {node.prewhere?.filter && node.prewhere.filter.actions.length > 0 && (
-              <DetailPaneSection title={`Prewhere.Filter.Actions (${node.prewhere.filter.actions.length})`}>
-                <div className="overflow-x-auto">
-                  <ExpressionActionsSection actions={node.prewhere.filter.actions} />
-                </div>
-              </DetailPaneSection>
-            )}
-
-            {node.prewhere?.filter && node.prewhere.filter.outputs.length > 0 && (
-              <DetailPaneSection title={`Prewhere.Filter.Outputs (${node.prewhere.filter.outputs.length})`}>
-                <div className="overflow-x-auto">
-                  <ExpressionSubsection items={node.prewhere.filter.outputs} />
-                </div>
-              </DetailPaneSection>
-            )}
-
-            {node.aggregates.length > 0 && (
-              <DetailPaneSection title="Aggregation">
-                <div className="overflow-x-auto">
-                  <TableSection
-                    columns={["Name", "Function", "Arguments", "Argument Types", "Result Type"]}
-                    rows={node.aggregates.map((aggregate: ExplainPlanAggregate) => [
-                      aggregate.name || "-",
-                      aggregate.functionName || "-",
-                      aggregate.arguments.length > 0 ? aggregate.arguments.join(", ") : "-",
-                      aggregate.argumentTypes.length > 0 ? aggregate.argumentTypes.join(", ") : "-",
-                      aggregate.resultType || "-",
-                    ])}
-                  />
-                </div>
-              </DetailPaneSection>
-            )}
-
-            <DetailPaneSection title="Raw JSON" defaultOpen={false}>
+          {additionalRawEntries.length > 0 && (
+            <DetailPaneSection title="Properties">
               <div className="overflow-x-auto">
-                <div className="max-h-[420px] overflow-auto rounded-md bg-background/40">
-                  <ThemedSyntaxHighlighter
-                    language="json"
-                    customStyle={{ margin: 0, padding: 0, background: "transparent" }}
-                  >
-                    {JSON.stringify(node.raw, (key, value) => (key === "Plans" ? undefined : value), 2)}
-                  </ThemedSyntaxHighlighter>
-                </div>
+                <OverviewGrid entries={additionalRawEntries} />
               </div>
             </DetailPaneSection>
-          </div>
+          )}
+
+          {filteredReadStatsEntries.length > 0 && (
+            <DetailPaneSection title="Read Stats">
+              <div className="overflow-x-auto">
+                <OverviewGrid entries={filteredReadStatsEntries} />
+              </div>
+            </DetailPaneSection>
+          )}
+
+          {node.indexes.length > 0 && (
+            <DetailPaneSection title="Indexes">
+              <div className="overflow-x-auto">
+                <TableSection
+                  columns={[
+                    "Type",
+                    "Condition",
+                    "Initial Parts",
+                    "Selected Parts",
+                    "Initial Granules",
+                    "Selected Granules",
+                  ]}
+                  rows={node.indexes.map((index: ExplainPlanIndex) => [
+                    index.type,
+                    index.condition || "-",
+                    formatPrimitive(index.initialParts),
+                    formatPrimitive(index.selectedParts),
+                    formatPrimitive(index.initialGranules),
+                    formatPrimitive(index.selectedGranules),
+                  ])}
+                />
+              </div>
+            </DetailPaneSection>
+          )}
+
+          {node.expression && node.expression.inputs.length > 0 && (
+            <DetailPaneSection title={`Expression.Inputs (${node.expression.inputs.length})`}>
+              <div className="overflow-x-auto">
+                <ExpressionSubsection items={node.expression.inputs} />
+              </div>
+            </DetailPaneSection>
+          )}
+
+          {node.expression && node.expression.actions.length > 0 && (
+            <DetailPaneSection title={`Expression.Actions (${node.expression.actions.length})`}>
+              <div className="overflow-x-auto">
+                <ExpressionActionsSection actions={node.expression.actions} />
+              </div>
+            </DetailPaneSection>
+          )}
+
+          {node.expression && node.expression.outputs.length > 0 && (
+            <DetailPaneSection title={`Expression.Outputs (${node.expression.outputs.length})`}>
+              <div className="overflow-x-auto">
+                <ExpressionSubsection items={node.expression.outputs} />
+              </div>
+            </DetailPaneSection>
+          )}
+
+          {node.expression && node.expression.positions.length > 0 && (
+            <DetailPaneSection title="Expression.Positions">
+              <div className="overflow-x-auto">
+                <OverviewGrid entries={[["Positions", node.expression.positions.join(", ")]]} />
+              </div>
+            </DetailPaneSection>
+          )}
+
+          {prewhereEntries.length > 0 && (
+            <DetailPaneSection title="Prewhere">
+              <div className="overflow-x-auto">
+                <OverviewGrid entries={prewhereEntries} />
+              </div>
+            </DetailPaneSection>
+          )}
+
+          {node.prewhere?.filter && node.prewhere.filter.inputs.length > 0 && (
+            <DetailPaneSection
+              title={`Prewhere.Filter.Inputs (${node.prewhere.filter.inputs.length})`}
+            >
+              <div className="overflow-x-auto">
+                <ExpressionSubsection items={node.prewhere.filter.inputs} />
+              </div>
+            </DetailPaneSection>
+          )}
+
+          {node.prewhere?.filter && node.prewhere.filter.actions.length > 0 && (
+            <DetailPaneSection
+              title={`Prewhere.Filter.Actions (${node.prewhere.filter.actions.length})`}
+            >
+              <div className="overflow-x-auto">
+                <ExpressionActionsSection actions={node.prewhere.filter.actions} />
+              </div>
+            </DetailPaneSection>
+          )}
+
+          {node.prewhere?.filter && node.prewhere.filter.outputs.length > 0 && (
+            <DetailPaneSection
+              title={`Prewhere.Filter.Outputs (${node.prewhere.filter.outputs.length})`}
+            >
+              <div className="overflow-x-auto">
+                <ExpressionSubsection items={node.prewhere.filter.outputs} />
+              </div>
+            </DetailPaneSection>
+          )}
+
+          {node.aggregates.length > 0 && (
+            <DetailPaneSection title="Aggregation">
+              <div className="overflow-x-auto">
+                <TableSection
+                  columns={["Name", "Function", "Arguments", "Argument Types", "Result Type"]}
+                  rows={node.aggregates.map((aggregate: ExplainPlanAggregate) => [
+                    aggregate.name || "-",
+                    aggregate.functionName || "-",
+                    aggregate.arguments.length > 0 ? aggregate.arguments.join(", ") : "-",
+                    aggregate.argumentTypes.length > 0 ? aggregate.argumentTypes.join(", ") : "-",
+                    aggregate.resultType || "-",
+                  ])}
+                />
+              </div>
+            </DetailPaneSection>
+          )}
+
+          <DetailPaneSection title="Raw JSON" defaultOpen={false}>
+            <div className="overflow-x-auto">
+              <div className="max-h-[420px] overflow-auto rounded-md bg-background/40">
+                <ThemedSyntaxHighlighter
+                  language="json"
+                  customStyle={{ margin: 0, padding: 0, background: "transparent" }}
+                >
+                  {JSON.stringify(
+                    node.raw,
+                    (key, value) => (key === "Plans" ? undefined : value),
+                    2
+                  )}
+                </ThemedSyntaxHighlighter>
+              </div>
+            </div>
+          </DetailPaneSection>
+        </div>
       </div>
     </Panel>
   );
@@ -694,9 +717,7 @@ LIMIT 1
         if (cancelled) {
           return;
         }
-        setFetchError(
-          error instanceof Error ? error.message : "Failed to load table metadata."
-        );
+        setFetchError(error instanceof Error ? error.message : "Failed to load table metadata.");
       })
       .finally(() => {
         if (!cancelled) {
@@ -728,7 +749,13 @@ LIMIT 1
               </div>
               <div className="truncate text-xs text-muted-foreground">table</div>
             </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onClose}
+              aria-label="Close table details"
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -754,7 +781,13 @@ LIMIT 1
               </div>
               <div className="truncate text-xs text-muted-foreground">table</div>
             </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onClose}
+              aria-label="Close table details"
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -788,18 +821,29 @@ LIMIT 1
 function ExplainPlanSplitView({
   children,
   detailPane,
+  isMobile,
 }: {
   children: ReactNode;
   detailPane?: ReactNode;
+  isMobile: boolean;
 }) {
+  const direction = isMobile ? "vertical" : "horizontal";
   return (
-    <PanelGroup direction="horizontal" className="h-[70vh] min-h-[520px]">
-      <Panel defaultSize={detailPane ? 64 : 100} minSize={40}>
+    <PanelGroup
+      direction={direction}
+      className={cn("h-[70vh] min-h-[520px]", isMobile && "h-[75vh] min-h-[420px]")}
+    >
+      <Panel defaultSize={detailPane ? (isMobile ? 58 : 64) : 100} minSize={isMobile ? 28 : 40}>
         {children}
       </Panel>
       {detailPane && (
         <>
-          <PanelResizeHandle className="w-[1px] bg-border/60 transition-colors hover:bg-border" />
+          <PanelResizeHandle
+            className={cn(
+              "bg-border/60 transition-colors hover:bg-border",
+              isMobile ? "h-[1px]" : "w-[1px]"
+            )}
+          />
           {detailPane}
         </>
       )}
@@ -807,11 +851,8 @@ function ExplainPlanSplitView({
   );
 }
 
-function ExplainPlanGraphView({
-  nodes,
-}: {
-  nodes: ExplainPlanNode[];
-}) {
+function ExplainPlanGraphView({ nodes }: { nodes: ExplainPlanNode[] }) {
+  const isMobile = useIsMobile();
   const [selectedSelection, setSelectedSelection] = useState<ExplainPlanSelection | undefined>(
     nodes[0] ? { kind: "plan", id: nodes[0].id } : undefined
   );
@@ -842,6 +883,7 @@ function ExplainPlanGraphView({
             displaySummaryBadges: nodeSummaryBadges,
             selectKind: "plan",
             selectNodeId: node.id,
+            onSelect: setSelectedSelection,
           },
           selected: selectedSelection?.kind === "plan" && selectedSelection.id === node.id,
         });
@@ -857,6 +899,7 @@ function ExplainPlanGraphView({
               displaySummaryBadges: [],
               selectKind: "table",
               selectNodeId: node.id,
+              onSelect: setSelectedSelection,
             },
             selected: selectedSelection?.kind === "table" && selectedSelection.id === node.id,
           });
@@ -903,11 +946,18 @@ function ExplainPlanGraphView({
   }, [nodes]);
 
   const selectedPlanNode =
-    selectedSelection?.kind === "plan" ? findExplainPlanNodeById(nodes, selectedSelection.id) : undefined;
+    selectedSelection?.kind === "plan"
+      ? findExplainPlanNodeById(nodes, selectedSelection.id)
+      : undefined;
   const selectedTableNode =
-    selectedSelection?.kind === "table" ? findExplainPlanNodeById(nodes, selectedSelection.id) : undefined;
+    selectedSelection?.kind === "table"
+      ? findExplainPlanNodeById(nodes, selectedSelection.id)
+      : undefined;
   const detailPane = selectedPlanNode ? (
-    <ExplainPlanDetailPane node={selectedPlanNode} onClose={() => setSelectedSelection(undefined)} />
+    <ExplainPlanDetailPane
+      node={selectedPlanNode}
+      onClose={() => setSelectedSelection(undefined)}
+    />
   ) : selectedTableNode ? (
     <ExplainPlanTableDetailPane
       tableNode={selectedTableNode}
@@ -917,7 +967,7 @@ function ExplainPlanGraphView({
 
   return (
     <div ref={planContainerRef}>
-      <ExplainPlanSplitView detailPane={detailPane}>
+      <ExplainPlanSplitView detailPane={detailPane} isMobile={isMobile}>
         <div className="relative h-full w-full">
           <TopologyGraphFlow
             initialNodes={graphNodes}
@@ -925,30 +975,17 @@ function ExplainPlanGraphView({
             nodeTypes={planNodeTypes}
             edgeTypes={planEdgeTypes}
             rankdir="TB"
-            nodeWidth={240}
+            nodeWidth={isMobile ? 200 : 240}
             nodeHeight={EXPLAIN_PLAN_GRAPH_NODE_HEIGHT}
-            ranksep={40}
-            nodesep={70}
+            ranksep={isMobile ? 28 : 40}
+            nodesep={isMobile ? 48 : 70}
             hideHandles={true}
             fullscreenTargetRef={planContainerRef}
-            onNodeClick={(_event, node) =>
-              setSelectedSelection({
-                kind:
-                  typeof node.data === "object" && node.data && "selectKind" in node.data
-                    ? ((node.data as { selectKind?: ExplainPlanSelection["kind"] }).selectKind ??
-                      "plan")
-                    : "plan",
-                id:
-                  typeof node.data === "object" && node.data && "selectNodeId" in node.data
-                    ? ((node.data as { selectNodeId?: string }).selectNodeId ?? node.id)
-                    : node.id,
-              })
-            }
             className="h-full w-full bg-muted/20"
           />
           {graphNodes.length > 0 && (
-            <div className="pointer-events-none absolute left-2 top-2 z-0 rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur-sm">
-              Click a node to inspect actions, indexes, and raw plan details.
+            <div className="pointer-events-none absolute left-2 top-2 z-0 max-w-[min(30rem,calc(100%-1rem))] rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur-sm">
+              Select a node to inspect actions, indexes, and raw plan details.
             </div>
           )}
         </div>
@@ -1056,6 +1093,7 @@ function ExplainPlanTextView({
   nodes: ExplainPlanNode[];
   parentMap: Map<string, string | undefined>;
 }) {
+  const isMobile = useIsMobile();
   const initialExpandedIds = useMemo(() => getDefaultExpandedNodeIds(nodes), [nodes]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(nodes[0]?.id);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(initialExpandedIds));
@@ -1086,7 +1124,7 @@ function ExplainPlanTextView({
   ) : undefined;
 
   return (
-    <ExplainPlanSplitView detailPane={detailPane}>
+    <ExplainPlanSplitView detailPane={detailPane} isMobile={isMobile}>
       <div className="h-full overflow-auto">
         {nodes.map((node) => (
           <ExplainPlanTreeRow
@@ -1114,7 +1152,10 @@ function ExplainPlanTextView({
   );
 }
 
-function findExplainPlanNodeById(nodes: ExplainPlanNode[], nodeId: string): ExplainPlanNode | undefined {
+function findExplainPlanNodeById(
+  nodes: ExplainPlanNode[],
+  nodeId: string
+): ExplainPlanNode | undefined {
   for (const node of nodes) {
     if (node.id === nodeId) {
       return node;
@@ -1132,7 +1173,10 @@ const ExplainQueryResponseViewComponent = ({
   queryResponse,
   error,
 }: QueryResponseViewProps) => {
-  const parsedPlan = useMemo(() => parseExplainPlanResponse(queryResponse.data), [queryResponse.data]);
+  const parsedPlan = useMemo(
+    () => parseExplainPlanResponse(queryResponse.data),
+    [queryResponse.data]
+  );
   const hasParsedPlan = parsedPlan.rootNodes.length > 0 && !parsedPlan.parseError;
   const [selectedTab, setSelectedTab] = useState<PlanTabValue>(
     error ? "result" : hasParsedPlan ? "graph" : "raw"
@@ -1143,7 +1187,11 @@ const ExplainQueryResponseViewComponent = ({
   }, [error, hasParsedPlan, parsedPlan.rawJsonText, parsedPlan.rootNodes]);
 
   return (
-    <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as PlanTabValue)} className="mt-2">
+    <Tabs
+      value={selectedTab}
+      onValueChange={(value) => setSelectedTab(value as PlanTabValue)}
+      className="mt-2"
+    >
       <TabsList className="inline-flex min-w-full justify-start rounded-none border-0 h-auto p-0 bg-transparent flex-nowrap">
         {error && (
           <TabsTrigger
@@ -1193,24 +1241,28 @@ const ExplainQueryResponseViewComponent = ({
 
       {error && (
         <TabsContent value="result">
-          <QueryResponseErrorView error={error} sql={queryRequest.sql} />
+          <QueryResponseErrorView
+            error={error}
+            queryId={queryRequest.queryId}
+            sql={queryRequest.sql}
+          />
         </TabsContent>
       )}
 
       {hasParsedPlan && (
-        <TabsContent value="graph" className="mt-3">
+        <TabsContent value="graph" className="mt-0">
           <ExplainPlanGraphView nodes={parsedPlan.rootNodes} />
         </TabsContent>
       )}
 
       {hasParsedPlan && (
-        <TabsContent value="text" className="mt-3">
+        <TabsContent value="text" className="mt-0">
           <ExplainPlanTextView nodes={parsedPlan.rootNodes} parentMap={parsedPlan.parentMap} />
         </TabsContent>
       )}
 
-      <TabsContent value="raw" className="mt-3">
-        <div className="relative rounded-md border bg-background p-3">
+      <TabsContent value="raw" className="mt-0">
+        <div className="relative bg-background px-3">
           <CopyButton value={parsedPlan.rawJsonText} className="left-3 top-3" />
           <div className="pr-10">
             <ThemedSyntaxHighlighter
@@ -1224,7 +1276,7 @@ const ExplainQueryResponseViewComponent = ({
       </TabsContent>
 
       {queryResponse.httpHeaders && (
-        <TabsContent value="headers" className="overflow-auto">
+        <TabsContent value="headers" className="overflow-auto mt-0">
           <QueryResponseHttpHeaderView headers={queryResponse.httpHeaders} />
         </TabsContent>
       )}

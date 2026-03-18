@@ -171,9 +171,10 @@ const TopologyGraphFlowInner = ({
     } else {
       // Same graph structure — sync node data (e.g. isSelected) while
       // preserving existing positions so no relayout occurs.
+      const nextNodesById = new Map(initialNodes.map((node) => [node.id, node]));
       setFlowNodes((prev) =>
         prev.map((existing) => {
-          const updated = initialNodes.find((n) => n.id === existing.id);
+          const updated = nextNodesById.get(existing.id);
           return updated ? { ...existing, data: updated.data } : existing;
         })
       );
@@ -318,42 +319,50 @@ const TopologyGraphFlowInner = ({
     >
       <style>{styleText}</style>
       {showFloatingControls && (
-        <div className="absolute top-1 right-2 z-10 flex items-center gap-1">
+        <div className="absolute top-1 right-2 z-10 flex max-w-[calc(100%-1rem)] flex-wrap justify-end gap-1">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => zoomIn()}
-            className="h-7 w-7 bg-background border border-border"
+            className="h-11 w-11 sm:h-9 sm:w-9 bg-background border border-border shadow-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40"
             title="Zoom In"
+            aria-label="Zoom in graph"
           >
-            <ZoomIn className="h-3 w-3" />
+            <ZoomIn className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => zoomOut()}
-            className="h-7 w-7 bg-background border border-border"
+            className="h-11 w-11 sm:h-9 sm:w-9 bg-background border border-border shadow-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40"
             title="Zoom Out"
+            aria-label="Zoom out graph"
           >
-            <ZoomOut className="h-3 w-3" />
+            <ZoomOut className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => fitView({ padding: 0.2 })}
-            className="h-7 w-7 bg-background border border-border"
+            className="h-11 w-11 sm:h-9 sm:w-9 bg-background border border-border shadow-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40"
             title="Fit View"
+            aria-label="Fit graph to viewport"
           >
-            <Maximize2 className="h-3 w-3" />
+            <Maximize2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => void handleFullscreenToggle()}
-            className="h-7 w-7 bg-background/90 backdrop-blur-sm"
+            className="h-11 w-11 sm:h-9 sm:w-9 bg-background/90 border border-border shadow-sm backdrop-blur-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40"
             title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            aria-label={isFullscreen ? "Exit graph fullscreen" : "Enter graph fullscreen"}
           >
-            {isFullscreen ? <Minimize className="h-3 w-3" /> : <Maximize className="h-3 w-3" />}
+            {isFullscreen ? (
+              <Minimize className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+            ) : (
+              <Maximize className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+            )}
           </Button>
         </div>
       )}

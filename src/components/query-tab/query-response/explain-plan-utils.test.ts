@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  getExplainPlanEdgeLabel,
-  parseExplainPlanResponse,
-} from "./explain-plan-utils";
+import { getExplainPlanEdgeLabel, parseExplainPlanResponse } from "./explain-plan-utils";
 
 const samplePayload = JSON.stringify([
   {

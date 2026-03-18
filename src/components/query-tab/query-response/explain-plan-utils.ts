@@ -294,7 +294,10 @@ function normalizeNode(
     granules: numberProp(rawNode, "Granules"),
     readType: stringProp(rawNode, "Read Type"),
     initialParts: maxNumber(...indexes.map((index) => index.initialParts)),
-    selectedParts: maxNumber(numberProp(rawNode, "Parts"), ...indexes.map((index) => index.selectedParts)),
+    selectedParts: maxNumber(
+      numberProp(rawNode, "Parts"),
+      ...indexes.map((index) => index.selectedParts)
+    ),
     initialGranules: maxNumber(...indexes.map((index) => index.initialGranules)),
     selectedGranules: maxNumber(
       numberProp(rawNode, "Granules"),
