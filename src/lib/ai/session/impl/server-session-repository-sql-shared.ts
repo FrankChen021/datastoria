@@ -160,7 +160,9 @@ export abstract class AbstractServerSessionRepository implements ServerSessionRe
     const metadataText = serializeMessageMetadata(input.message);
 
     await this.db().transaction(async (trx) => {
-      await this.ensureSessionForUpdate(trx, input.user_id, input.session_id);
+      if (!input.allowMissingSession) {
+        await this.ensureSessionForUpdate(trx, input.user_id, input.session_id);
+      }
 
       const existingRow = (await trx("chat_messages")
         .select("sequence")
@@ -214,14 +216,16 @@ export abstract class AbstractServerSessionRepository implements ServerSessionRe
         });
       }
 
-      await trx("chat_sessions")
-        .where({
-          session_id: input.session_id,
-          user_id: input.user_id,
-        })
-        .update({
-          updated_at: this.nowRaw(trx),
-        });
+      if (!input.allowMissingSession) {
+        await trx("chat_sessions")
+          .where({
+            session_id: input.session_id,
+            user_id: input.user_id,
+          })
+          .update({
+            updated_at: this.nowRaw(trx),
+          });
+      }
     });
   }
 
@@ -268,6 +272,15 @@ export abstract class AbstractServerSessionRepository implements ServerSessionRe
         .where("updated_at", "<", cutoff);
 
       await trx("chat_messages").whereIn(["user_id", "session_id"], expiredSessionsQuery).del();
+      await trx("chat_messages as m")
+        .where("m.updated_at", "<", cutoff)
+        .whereNotExists(
+          trx("chat_sessions as s")
+            .select(trx.raw("1"))
+            .whereRaw("s.user_id = m.user_id")
+            .whereRaw("s.session_id = m.session_id")
+        )
+        .del();
 
       const deletedCount = await trx("chat_sessions").where("updated_at", "<", cutoff).del();
       return deletedCount;

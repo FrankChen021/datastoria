@@ -38,6 +38,7 @@ export interface UpsertMessageInput {
   session_id: string;
   user_id: string;
   message: AppUIMessage;
+  allowMissingSession?: boolean;
 }
 
 export interface ServerSessionRepository {

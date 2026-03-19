@@ -219,8 +219,8 @@ export async function POST(req: Request) {
       return new Response("Invalid JSON in request body", { status: 400 });
     }
 
-    const resolvedUserIdForRemote = getAuthenticatedUserEmail(req) ?? null;
-    const serverMode = getSessionRepositoryType(resolvedUserIdForRemote);
+    const resolvedUserIdForRemote = userEmail ?? null;
+    const repositoryType = getSessionRepositoryType(resolvedUserIdForRemote);
 
     let context: ServerDatabaseContext;
     let modelConfig: { provider: string; modelId: string; apiKey: string };
@@ -230,11 +230,12 @@ export async function POST(req: Request) {
     let messageId: string;
     let sessionRepositoryUserId: string | null = null;
     let sessionRepositoryChatId: string | null = null;
+    let sessionRepositoryAllowMissingSession = false;
     const sessionRepository: ReturnType<typeof getServerSessionRepository> | null =
-      serverMode === "remote" ? getServerSessionRepository() : null;
+      repositoryType === "remote" ? getServerSessionRepository() : null;
     let titlePromise: Promise<SessionTitleGenerationResponse | undefined> | undefined;
 
-    if (serverMode === "remote") {
+    if (repositoryType === "remote") {
       const apiRequest = validateRemoteChatRequest(payload);
       if (!apiRequest) {
         return new Response("Invalid request format", { status: 400 });
@@ -267,7 +268,21 @@ export async function POST(req: Request) {
       messageId = apiRequest.continuation ? apiRequest.message.id : uuidv7();
 
       if (apiRequest.ephemeral) {
+        const ephemeralSessionId = uuidv7();
+        const incomingMessage = apiRequest.message as AppUIMessage;
+        const persistedIncomingMessage =
+          incomingMessage.role === "assistant"
+            ? withModelMetadata(incomingMessage, modelConfig)
+            : incomingMessage;
+        await sessionRepository!.upsertMessage({
+          session_id: ephemeralSessionId,
+          user_id: sessionRepositoryUserId,
+          message: persistedIncomingMessage,
+          allowMissingSession: true,
+        });
         originalMessages = expandCommand([apiRequest.message as UIMessage]);
+        sessionRepositoryChatId = ephemeralSessionId;
+        sessionRepositoryAllowMissingSession = true;
       } else {
         const existingSession = await sessionRepository!.getSession(
           sessionRepositoryUserId,
@@ -329,6 +344,7 @@ export async function POST(req: Request) {
 
         originalMessages = expandCommand(mergedMessages as UIMessage[]);
         sessionRepositoryChatId = apiRequest.sessionId;
+        sessionRepositoryAllowMissingSession = false;
       }
 
       titlePromise =
@@ -401,7 +417,7 @@ export async function POST(req: Request) {
       originalMessages: originalMessages as UIMessage[],
       generateMessageId: () => messageId,
       onFinish:
-        serverMode === "remote" &&
+        repositoryType === "remote" &&
         sessionRepository &&
         sessionRepositoryUserId &&
         sessionRepositoryChatId
@@ -410,6 +426,7 @@ export async function POST(req: Request) {
                 session_id: sessionRepositoryChatId,
                 user_id: sessionRepositoryUserId,
                 message: withModelMetadata(responseMessage as AppUIMessage, modelConfig),
+                allowMissingSession: sessionRepositoryAllowMissingSession,
               });
             }
           : undefined,
@@ -474,10 +491,11 @@ export async function POST(req: Request) {
               });
 
               if (
-                serverMode === "remote" &&
+                repositoryType === "remote" &&
                 sessionRepository &&
                 sessionRepositoryUserId &&
-                sessionRepositoryChatId
+                sessionRepositoryChatId &&
+                !sessionRepositoryAllowMissingSession
               ) {
                 void titlePromise.then(async (lateTitleResult) => {
                   const lateTitle = lateTitleResult?.title?.trim();
@@ -507,10 +525,11 @@ export async function POST(req: Request) {
 
             if (
               titleText &&
-              serverMode === "remote" &&
+              repositoryType === "remote" &&
               sessionRepository &&
               sessionRepositoryUserId &&
-              sessionRepositoryChatId
+              sessionRepositoryChatId &&
+              !sessionRepositoryAllowMissingSession
             ) {
               await sessionRepository.updateSessionTitle(
                 sessionRepositoryUserId,
