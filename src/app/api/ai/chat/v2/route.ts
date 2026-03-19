@@ -265,10 +265,10 @@ export async function POST(req: Request) {
 
       agentContext = apiRequest.agentContext;
       generateTitle = !apiRequest.continuation && apiRequest.generateTitle !== false;
-      messageId = apiRequest.continuation ? apiRequest.message.id : uuidv7();
+      messageId = apiRequest.continuation ? apiRequest.message.id : uuidv7().replace(/-/g, "");
 
       if (apiRequest.ephemeral) {
-        const ephemeralSessionId = uuidv7();
+        const ephemeralSessionId = "ephemeral-" + uuidv7().replace(/-/g, "");
         const incomingMessage = apiRequest.message as AppUIMessage;
         const persistedIncomingMessage =
           incomingMessage.role === "assistant"
