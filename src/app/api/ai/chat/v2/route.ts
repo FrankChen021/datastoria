@@ -185,6 +185,22 @@ function getRequestUsage(messages: UIMessage[], messageId: string) {
     : undefined;
 }
 
+function withModelMetadata(
+  message: AppUIMessage,
+  modelConfig: { provider: string; modelId: string }
+): AppUIMessage {
+  return {
+    ...message,
+    metadata: {
+      ...(message.metadata ?? {}),
+      model: {
+        provider: modelConfig.provider,
+        modelId: modelConfig.modelId,
+      },
+    } satisfies MessageMetadata,
+  };
+}
+
 export async function POST(req: Request) {
   try {
     const userEmail = getAuthenticatedUserEmail(req);
@@ -296,14 +312,19 @@ export async function POST(req: Request) {
           return new Response("Initial requests must send a user message", { status: 400 });
         }
 
+        const incomingMessage = apiRequest.message as AppUIMessage;
+        const persistedIncomingMessage =
+          incomingMessage.role === "assistant"
+            ? withModelMetadata(incomingMessage, modelConfig)
+            : incomingMessage;
         const mergedMessages = replaceOrAppendMessageById(
           persistedMessages,
-          apiRequest.message as AppUIMessage
+          persistedIncomingMessage
         );
         await sessionRepository!.upsertMessage({
           session_id: apiRequest.sessionId,
           user_id: sessionRepositoryUserId,
-          message: apiRequest.message as AppUIMessage,
+          message: persistedIncomingMessage,
         });
 
         originalMessages = expandCommand(mergedMessages as UIMessage[]);
@@ -388,7 +409,7 @@ export async function POST(req: Request) {
               await sessionRepository.upsertMessage({
                 session_id: sessionRepositoryChatId,
                 user_id: sessionRepositoryUserId,
-                message: responseMessage as AppUIMessage,
+                message: withModelMetadata(responseMessage as AppUIMessage, modelConfig),
               });
             }
           : undefined,
