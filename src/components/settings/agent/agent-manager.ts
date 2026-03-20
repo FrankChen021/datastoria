@@ -47,11 +47,6 @@ export type AgentConfiguration = {
   autoExplainLanguage?: AutoExplainLanguage;
 };
 
-type StoredAgentConfiguration = AgentConfiguration & {
-  /** @deprecated Renamed to autoExplainLanguage; removed on next load. */
-  inlineExplainLanguage?: string;
-};
-
 export class AgentConfigurationManager {
   private static configuration: AgentConfiguration | null = null;
 
@@ -59,22 +54,10 @@ export class AgentConfigurationManager {
     return StorageManager.getInstance().getStorageProvider().subStorage(STORAGE_KEY);
   }
 
-  private static normalizeStoredConfiguration(raw: StoredAgentConfiguration): AgentConfiguration {
-    const copy: Record<string, unknown> = { ...raw };
-    if (
-      copy.inlineExplainLanguage != null &&
-      (copy.autoExplainLanguage === undefined || copy.autoExplainLanguage === null)
-    ) {
-      copy.autoExplainLanguage = normalizeAutoExplainLanguage(String(copy.inlineExplainLanguage));
-    }
-    delete copy.inlineExplainLanguage;
-    return copy as AgentConfiguration;
-  }
-
   public static getConfiguration(): AgentConfiguration {
     if (!this.configuration) {
       const storage = this.getStorage();
-      const fromStorage = storage.getAsJSON<StoredAgentConfiguration>(() => {
+      this.configuration = storage.getAsJSON<AgentConfiguration>(() => {
         return {
           mode: "v2",
           pruneValidateSql: true,
@@ -83,10 +66,6 @@ export class AgentConfigurationManager {
           autoExplainLanguage: DEFAULT_AUTO_EXPLAIN_LANGUAGE,
         };
       });
-      this.configuration = this.normalizeStoredConfiguration(fromStorage);
-      if (Object.hasOwn(fromStorage as object, "inlineExplainLanguage")) {
-        storage.setJSON(this.configuration);
-      }
     }
     return this.configuration!;
   }
