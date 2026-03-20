@@ -1,6 +1,6 @@
 import {
-  DEFAULT_INLINE_EXPLAIN_LANGUAGE,
-  type InlineExplainLanguage,
+  DEFAULT_AUTO_EXPLAIN_LANGUAGE,
+  type AutoExplainLanguage,
 } from "@/components/settings/agent/agent-manager";
 
 function isEnglishLanguageTag(tag: string): boolean {
@@ -12,13 +12,13 @@ export function buildExplainErrorPrompt({
   errorMessage,
   errorCode,
   sql,
-  language = DEFAULT_INLINE_EXPLAIN_LANGUAGE,
+  language = DEFAULT_AUTO_EXPLAIN_LANGUAGE,
 }: {
   errorMessage: string;
   errorCode?: string | number;
   sql?: string;
   /** BCP-47 language for prose and headings; English adds no extra instructions. */
-  language?: InlineExplainLanguage;
+  language?: AutoExplainLanguage;
 }): string {
   const parts: string[] = [];
 

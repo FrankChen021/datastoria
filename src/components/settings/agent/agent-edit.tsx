@@ -1,11 +1,11 @@
 import {
   AgentConfigurationManager,
+  AUTO_EXPLAIN_LANGUAGE_OPTIONS,
   DEFAULT_AUTO_EXPLAIN_BLACKLIST,
-  INLINE_EXPLAIN_LANGUAGE_OPTIONS,
-  normalizeInlineExplainLanguage,
+  normalizeAutoExplainLanguage,
   type AgentConfiguration,
   type AgentMode,
-  type InlineExplainLanguage,
+  type AutoExplainLanguage,
 } from "@/components/settings/agent/agent-manager";
 import { Button } from "@/components/ui/button";
 import {
@@ -211,17 +211,17 @@ export function AgentEdit() {
       ...configuration,
       autoExplainClickHouseErrors: checked,
       autoExplainBlacklist: configuration.autoExplainBlacklist ?? DEFAULT_AUTO_EXPLAIN_BLACKLIST,
-      inlineExplainLanguage:
-        configuration.inlineExplainLanguage ?? normalizeInlineExplainLanguage(undefined),
+      autoExplainLanguage:
+        configuration.autoExplainLanguage ?? normalizeAutoExplainLanguage(undefined),
     };
     setConfiguration(newConfig);
     AgentConfigurationManager.setConfiguration(newConfig);
   };
 
-  const handleInlineExplainLanguageChange = (value: string) => {
+  const handleAutoExplainLanguageChange = (value: string) => {
     const newConfig = {
       ...configuration,
-      inlineExplainLanguage: value as InlineExplainLanguage,
+      autoExplainLanguage: value as AutoExplainLanguage,
     };
     setConfiguration(newConfig);
     AgentConfigurationManager.setConfiguration(newConfig);
@@ -356,10 +356,10 @@ export function AgentEdit() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="w-[300px] justify-between">
                     {
-                      INLINE_EXPLAIN_LANGUAGE_OPTIONS.find(
+                      AUTO_EXPLAIN_LANGUAGE_OPTIONS.find(
                         (o) =>
                           o.value ===
-                          normalizeInlineExplainLanguage(configuration.inlineExplainLanguage)
+                          normalizeAutoExplainLanguage(configuration.autoExplainLanguage)
                       )?.label
                     }
                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
@@ -367,10 +367,10 @@ export function AgentEdit() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent container={dropdownContainer} className="w-[300px] z-[10000]">
                   <DropdownMenuRadioGroup
-                    value={normalizeInlineExplainLanguage(configuration.inlineExplainLanguage)}
-                    onValueChange={handleInlineExplainLanguageChange}
+                    value={normalizeAutoExplainLanguage(configuration.autoExplainLanguage)}
+                    onValueChange={handleAutoExplainLanguageChange}
                   >
-                    {INLINE_EXPLAIN_LANGUAGE_OPTIONS.map((opt) => (
+                    {AUTO_EXPLAIN_LANGUAGE_OPTIONS.map((opt) => (
                       <DropdownMenuRadioItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </DropdownMenuRadioItem>

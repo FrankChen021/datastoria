@@ -12,27 +12,27 @@ export const DEFAULT_AUTO_EXPLAIN_BLACKLIST = [
 ];
 
 /** BCP-47 tags for inline error AI explanations only (default: English). */
-export const INLINE_EXPLAIN_LANGUAGE_OPTIONS = [
+export const AUTO_EXPLAIN_LANGUAGE_OPTIONS = [
   { value: "en", label: "English" },
   { value: "zh-CN", label: "简体中文" },
   { value: "zh-TW", label: "繁體中文" },
   { value: "ja", label: "日本語" },
   { value: "ko", label: "한국어" },
-  { value: "es", label: "Español" },
+  { value: "es", label: "Español" }, // Spanish (ISO 639-1)
   { value: "fr", label: "Français" },
   { value: "de", label: "Deutsch" },
 ] as const;
 
-export type InlineExplainLanguage = (typeof INLINE_EXPLAIN_LANGUAGE_OPTIONS)[number]["value"];
+export type AutoExplainLanguage = (typeof AUTO_EXPLAIN_LANGUAGE_OPTIONS)[number]["value"];
 
-export const DEFAULT_INLINE_EXPLAIN_LANGUAGE: InlineExplainLanguage = "en";
+export const DEFAULT_AUTO_EXPLAIN_LANGUAGE: AutoExplainLanguage = "en";
 
-export function normalizeInlineExplainLanguage(raw: string | undefined): InlineExplainLanguage {
+export function normalizeAutoExplainLanguage(raw: string | undefined): AutoExplainLanguage {
   if (!raw) {
-    return DEFAULT_INLINE_EXPLAIN_LANGUAGE;
+    return DEFAULT_AUTO_EXPLAIN_LANGUAGE;
   }
-  const option = INLINE_EXPLAIN_LANGUAGE_OPTIONS.find((o) => o.value === raw);
-  return option ? option.value : DEFAULT_INLINE_EXPLAIN_LANGUAGE;
+  const option = AUTO_EXPLAIN_LANGUAGE_OPTIONS.find((o) => o.value === raw);
+  return option ? option.value : DEFAULT_AUTO_EXPLAIN_LANGUAGE;
 }
 
 export type AgentConfiguration = {
@@ -44,7 +44,12 @@ export type AgentConfiguration = {
   /** ClickHouse error codes that should never auto-trigger inline explanation. */
   autoExplainBlacklist?: string[];
   /** Language for automatic inline error explanations only (BCP-47). Default English. */
-  inlineExplainLanguage?: InlineExplainLanguage;
+  autoExplainLanguage?: AutoExplainLanguage;
+};
+
+type StoredAgentConfiguration = AgentConfiguration & {
+  /** @deprecated Renamed to autoExplainLanguage; removed on next load. */
+  inlineExplainLanguage?: string;
 };
 
 export class AgentConfigurationManager {
@@ -54,18 +59,34 @@ export class AgentConfigurationManager {
     return StorageManager.getInstance().getStorageProvider().subStorage(STORAGE_KEY);
   }
 
+  private static normalizeStoredConfiguration(raw: StoredAgentConfiguration): AgentConfiguration {
+    const copy: Record<string, unknown> = { ...raw };
+    if (
+      copy.inlineExplainLanguage != null &&
+      (copy.autoExplainLanguage === undefined || copy.autoExplainLanguage === null)
+    ) {
+      copy.autoExplainLanguage = normalizeAutoExplainLanguage(String(copy.inlineExplainLanguage));
+    }
+    delete copy.inlineExplainLanguage;
+    return copy as AgentConfiguration;
+  }
+
   public static getConfiguration(): AgentConfiguration {
     if (!this.configuration) {
       const storage = this.getStorage();
-      this.configuration = storage.getAsJSON<AgentConfiguration>(() => {
+      const fromStorage = storage.getAsJSON<StoredAgentConfiguration>(() => {
         return {
           mode: "v2",
           pruneValidateSql: true,
           autoExplainClickHouseErrors: true,
           autoExplainBlacklist: DEFAULT_AUTO_EXPLAIN_BLACKLIST,
-          inlineExplainLanguage: DEFAULT_INLINE_EXPLAIN_LANGUAGE,
+          autoExplainLanguage: DEFAULT_AUTO_EXPLAIN_LANGUAGE,
         };
       });
+      this.configuration = this.normalizeStoredConfiguration(fromStorage);
+      if (Object.hasOwn(fromStorage as object, "inlineExplainLanguage")) {
+        storage.setJSON(this.configuration);
+      }
     }
     return this.configuration!;
   }
