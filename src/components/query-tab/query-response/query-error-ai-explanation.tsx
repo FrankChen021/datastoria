@@ -3,6 +3,10 @@
 import { ChatFactory } from "@/components/chat/chat-factory";
 import { ChatMessage } from "@/components/chat/message/chat-message";
 import { useConnection } from "@/components/connection/connection-context";
+import {
+  AgentConfigurationManager,
+  normalizeInlineExplainLanguage,
+} from "@/components/settings/agent/agent-manager";
 import type { AppUIMessage } from "@/lib/ai/chat-types";
 import { useChat, type Chat } from "@ai-sdk/react";
 import { AlertCircle } from "lucide-react";
@@ -146,14 +150,19 @@ export const QueryErrorAIExplanation = memo(function QueryErrorAIExplanation({
   const { connection } = useConnection();
   const [chat, setChat] = useState<Chat<AppUIMessage> | null>(null);
 
+  const inlineLanguage = normalizeInlineExplainLanguage(
+    AgentConfigurationManager.getConfiguration().inlineExplainLanguage
+  );
+
   const prompt = useMemo(
     () =>
       buildExplainErrorPrompt({
         errorMessage,
         errorCode,
         sql,
+        language: inlineLanguage,
       }),
-    [errorCode, errorMessage, sql]
+    [errorCode, errorMessage, sql, inlineLanguage]
   );
 
   useEffect(() => {

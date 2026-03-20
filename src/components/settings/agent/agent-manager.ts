@@ -11,6 +11,30 @@ export const DEFAULT_AUTO_EXPLAIN_BLACKLIST = [
   "194", // REQUIRED_PASSWORD
 ];
 
+/** BCP-47 tags for inline error AI explanations only (default: English). */
+export const INLINE_EXPLAIN_LANGUAGE_OPTIONS = [
+  { value: "en", label: "English" },
+  { value: "zh-CN", label: "简体中文" },
+  { value: "zh-TW", label: "繁體中文" },
+  { value: "ja", label: "日本語" },
+  { value: "ko", label: "한국어" },
+  { value: "es", label: "Español" },
+  { value: "fr", label: "Français" },
+  { value: "de", label: "Deutsch" },
+] as const;
+
+export type InlineExplainLanguage = (typeof INLINE_EXPLAIN_LANGUAGE_OPTIONS)[number]["value"];
+
+export const DEFAULT_INLINE_EXPLAIN_LANGUAGE: InlineExplainLanguage = "en";
+
+export function normalizeInlineExplainLanguage(raw: string | undefined): InlineExplainLanguage {
+  if (!raw) {
+    return DEFAULT_INLINE_EXPLAIN_LANGUAGE;
+  }
+  const option = INLINE_EXPLAIN_LANGUAGE_OPTIONS.find((o) => o.value === raw);
+  return option ? option.value : DEFAULT_INLINE_EXPLAIN_LANGUAGE;
+}
+
 export type AgentConfiguration = {
   mode: AgentMode;
   /** Whether to prune successful validate_sql tool calls from history. Default true. */
@@ -19,6 +43,8 @@ export type AgentConfiguration = {
   autoExplainClickHouseErrors?: boolean;
   /** ClickHouse error codes that should never auto-trigger inline explanation. */
   autoExplainBlacklist?: string[];
+  /** Language for automatic inline error explanations only (BCP-47). Default English. */
+  inlineExplainLanguage?: InlineExplainLanguage;
 };
 
 export class AgentConfigurationManager {
@@ -37,6 +63,7 @@ export class AgentConfigurationManager {
           pruneValidateSql: true,
           autoExplainClickHouseErrors: true,
           autoExplainBlacklist: DEFAULT_AUTO_EXPLAIN_BLACKLIST,
+          inlineExplainLanguage: DEFAULT_INLINE_EXPLAIN_LANGUAGE,
         };
       });
     }

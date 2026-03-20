@@ -1,8 +1,11 @@
 import {
   AgentConfigurationManager,
   DEFAULT_AUTO_EXPLAIN_BLACKLIST,
+  INLINE_EXPLAIN_LANGUAGE_OPTIONS,
+  normalizeInlineExplainLanguage,
   type AgentConfiguration,
   type AgentMode,
+  type InlineExplainLanguage,
 } from "@/components/settings/agent/agent-manager";
 import { Button } from "@/components/ui/button";
 import {
@@ -208,6 +211,17 @@ export function AgentEdit() {
       ...configuration,
       autoExplainClickHouseErrors: checked,
       autoExplainBlacklist: configuration.autoExplainBlacklist ?? DEFAULT_AUTO_EXPLAIN_BLACKLIST,
+      inlineExplainLanguage:
+        configuration.inlineExplainLanguage ?? normalizeInlineExplainLanguage(undefined),
+    };
+    setConfiguration(newConfig);
+    AgentConfigurationManager.setConfiguration(newConfig);
+  };
+
+  const handleInlineExplainLanguageChange = (value: string) => {
+    const newConfig = {
+      ...configuration,
+      inlineExplainLanguage: value as InlineExplainLanguage,
     };
     setConfiguration(newConfig);
     AgentConfigurationManager.setConfiguration(newConfig);
@@ -330,6 +344,44 @@ export function AgentEdit() {
             </TableCell>
             <TableCell className="px-0 py-1 align-middle text-sm text-muted-foreground">
               Automatically ask AI to explain eligible ClickHouse errors inline in query results.
+            </TableCell>
+          </TableRow>
+
+          <TableRow className="h-12 hover:bg-transparent">
+            <TableCell className="px-0 pl-4 py-1 align-middle">
+              <Label>Inline explanation language</Label>
+            </TableCell>
+            <TableCell className="px-0 py-1 align-middle">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-[300px] justify-between">
+                    {
+                      INLINE_EXPLAIN_LANGUAGE_OPTIONS.find(
+                        (o) =>
+                          o.value ===
+                          normalizeInlineExplainLanguage(configuration.inlineExplainLanguage)
+                      )?.label
+                    }
+                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent container={dropdownContainer} className="w-[300px] z-[10000]">
+                  <DropdownMenuRadioGroup
+                    value={normalizeInlineExplainLanguage(configuration.inlineExplainLanguage)}
+                    onValueChange={handleInlineExplainLanguageChange}
+                  >
+                    {INLINE_EXPLAIN_LANGUAGE_OPTIONS.map((opt) => (
+                      <DropdownMenuRadioItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+            <TableCell className="px-0 py-1 align-middle text-sm text-muted-foreground">
+              Language for automatic inline error explanations only. Does not change the main AI
+              chat.
             </TableCell>
           </TableRow>
 

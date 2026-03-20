@@ -21,4 +21,24 @@ describe("buildExplainErrorPrompt", () => {
       })
     ).toBe("/diagnose-clickhouse-errors error message: Network error");
   });
+
+  it("appends response language when not English", () => {
+    expect(
+      buildExplainErrorPrompt({
+        errorMessage: "Syntax error",
+        language: "zh-CN",
+      })
+    ).toBe(
+      `/diagnose-clickhouse-errors error message: Syntax error\n\nResponse language (BCP-47): zh-CN\nWrite the ## Cause, ## Fix, and optional ## Example sections in this language (localize the headings to match). Keep SQL, error codes, ClickHouse setting names, and identifiers unchanged.`
+    );
+  });
+
+  it("does not append language instructions for default English", () => {
+    expect(
+      buildExplainErrorPrompt({
+        errorMessage: "Syntax error",
+        language: "en",
+      })
+    ).toBe("/diagnose-clickhouse-errors error message: Syntax error");
+  });
 });
