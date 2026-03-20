@@ -21,27 +21,6 @@ interface QueryErrorAIExplanationProps {
   sql?: string;
 }
 
-const SHOW_AUTO_EXPLAIN_TOOL_CHROME = process.env.NODE_ENV === "development";
-
-function getVisibleAssistantMessage(message: AppUIMessage): AppUIMessage | null {
-  if (SHOW_AUTO_EXPLAIN_TOOL_CHROME) {
-    return message;
-  }
-
-  const visibleParts = message.parts.filter(
-    (part) => part.type === "text" || part.type === "reasoning"
-  );
-
-  if (visibleParts.length === 0) {
-    return null;
-  }
-
-  return {
-    ...message,
-    parts: visibleParts,
-  };
-}
-
 const InlineAutoExplainChat = memo(function InlineAutoExplainChat({
   chat,
   prompt,
@@ -79,10 +58,7 @@ const InlineAutoExplainChat = memo(function InlineAutoExplainChat({
   }, [chat.id, stop]);
 
   const assistantMessages = useMemo(() => {
-    const responseMessages = messages
-      .filter((message) => message.role === "assistant")
-      .map(getVisibleAssistantMessage)
-      .filter((message): message is AppUIMessage => message !== null);
+    const responseMessages = messages.filter((message) => message.role === "assistant");
 
     if (responseMessages.length > 0 || !hasRequested || error) {
       return responseMessages;
