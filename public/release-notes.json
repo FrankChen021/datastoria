@@ -1,5 +1,17 @@
 [
   {
+    "id": "bd0dca8",
+    "date": "2026-03-22T11:49:54.500Z",
+    "notes": [
+      {
+        "text": "restore Vercel compatibility on Next 16.2",
+        "pr": 145,
+        "type": "fix",
+        "merged_at": "2026-03-22T11:49:20Z"
+      }
+    ]
+  },
+  {
     "id": "8473052",
     "date": "2026-03-22T09:53:35.593Z",
     "notes": [
