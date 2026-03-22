@@ -1,26 +1,24 @@
-export const HIGH_PARTITION_COUNT_TEMPLATE_SOURCE = String.raw`
 symptom: high_partition_count
 
 observations:
   - id: logical_stats
-    kind: sql_observation
-    stage: "rca high_partition_count: partition_logical_stats"
-    progress: 43
     source: system.parts
     description: "Logical (replica-deduplicated) partition inventory"
-    sql: |
-      SELECT
-        uniqExact(partition) AS partition_count,
-        sum(logical_parts_per_partition) AS active_parts,
-        max(logical_parts_per_partition) AS max_parts_per_partition
-      FROM (
+    datasource:
+      type: clickhouse
+      sql: |
         SELECT
-          partition,
-          uniqExact(name) AS logical_parts_per_partition
-        FROM {clusterAllReplicas:system.parts}
-        WHERE active AND {partsTableFilterExpression}
-        GROUP BY partition
-      )
+          uniqExact(partition) AS partition_count,
+          sum(logical_parts_per_partition) AS active_parts,
+          max(logical_parts_per_partition) AS max_parts_per_partition
+        FROM (
+          SELECT
+            partition,
+            uniqExact(name) AS logical_parts_per_partition
+          FROM {clusterAllReplicas:system.parts}
+          WHERE active AND {partsTableFilterExpression}
+          GROUP BY partition
+        )
     metrics:
       - name: partition_count
         type: number
@@ -30,31 +28,30 @@ observations:
         type: number
 
   - id: node_ratio
-    kind: sql_observation
-    stage: "rca high_partition_count: partition_node_ratio"
-    progress: 44
     source: system.parts
     description: "Per-node partition-to-parts ratio (logical, replica-deduplicated within node)"
-    sql: |
-      SELECT
-        max(node_partition_to_parts_ratio) AS max_node_partition_to_parts_ratio,
-        avg(node_partition_to_parts_ratio) AS avg_node_partition_to_parts_ratio,
-        ifNull(argMax(host_name, node_partition_to_parts_ratio), '') AS top_ratio_node
-      FROM (
+    datasource:
+      type: clickhouse
+      sql: |
         SELECT
-          host_name,
-          if(sum(logical_parts_per_partition) = 0, 0, uniqExact(partition) / sum(logical_parts_per_partition)) AS node_partition_to_parts_ratio
+          max(node_partition_to_parts_ratio) AS max_node_partition_to_parts_ratio,
+          avg(node_partition_to_parts_ratio) AS avg_node_partition_to_parts_ratio,
+          ifNull(argMax(host_name, node_partition_to_parts_ratio), '') AS top_ratio_node
         FROM (
           SELECT
-            hostName() AS host_name,
-            partition,
-            uniqExact(name) AS logical_parts_per_partition
-          FROM {clusterAllReplicas:system.parts}
-          WHERE active AND {partsTableFilterExpression}
-          GROUP BY host_name, partition
+            host_name,
+            if(sum(logical_parts_per_partition) = 0, 0, uniqExact(partition) / sum(logical_parts_per_partition)) AS node_partition_to_parts_ratio
+          FROM (
+            SELECT
+              hostName() AS host_name,
+              partition,
+              uniqExact(name) AS logical_parts_per_partition
+            FROM {clusterAllReplicas:system.parts}
+            WHERE active AND {partsTableFilterExpression}
+            GROUP BY host_name, partition
+          )
+          GROUP BY host_name
         )
-        GROUP BY host_name
-      )
     metrics:
       - name: max_node_partition_to_parts_ratio
         type: number
@@ -66,35 +63,33 @@ observations:
         type: string
 
   - id: partition_growth
-    kind: sql_observation
-    stage: "rca high_partition_count: partition_growth"
-    progress: 45
     source: system.parts
     description: "Recent partition growth"
-    sql: |
-      SELECT
-        uniqExact(partition) AS recent_partitions
-      FROM {clusterAllReplicas:system.parts}
-      WHERE active
-        AND modification_time >= now() - INTERVAL {timeWindowMinutes} MINUTE
-        AND {partsTableFilterExpression}
+    datasource:
+      type: clickhouse
+      sql: |
+        SELECT
+          uniqExact(partition) AS recent_partitions
+        FROM {clusterAllReplicas:system.parts}
+        WHERE active
+          AND modification_time >= now() - INTERVAL {timeWindowMinutes} MINUTE
+          AND {partsTableFilterExpression}
     metrics:
       - name: recent_partitions
         type: number
 
   - id: table_meta
-    kind: sql_observation
-    stage: "rca high_partition_count: table_meta"
-    progress: 50
     source: system.tables
     description: "Partition key definition"
-    sql: |
-      SELECT
-        any(partition_key) AS partition_key,
-        any(engine) AS engine
-      FROM system.tables
-      WHERE database = '{resolvedTargetDatabase}'
-        AND name = '{resolvedTargetTable}'
+    datasource:
+      type: clickhouse
+      sql: |
+        SELECT
+          any(partition_key) AS partition_key,
+          any(engine) AS engine
+        FROM system.tables
+        WHERE database = '{resolvedTargetDatabase}'
+          AND name = '{resolvedTargetTable}'
     metrics:
       - name: partition_key
         type: string
@@ -102,20 +97,19 @@ observations:
         type: string
 
   - id: insert_pattern
-    kind: sql_observation
-    stage: "rca high_partition_count: insert_pattern"
-    progress: 55
     source: system.query_log
     description: "Insert pressure for target table"
-    sql: |
-      SELECT
-        count() AS inserts,
-        avg(written_rows) AS avg_rows_per_insert
-      FROM {clusterAllReplicas:system.query_log}
-      WHERE {timeFilterExpression}
-        AND type = 'QueryFinish'
-        AND query_kind = 'Insert'
-        AND {queryLogTableFilterExpression}
+    datasource:
+      type: clickhouse
+      sql: |
+        SELECT
+          count() AS inserts,
+          avg(written_rows) AS avg_rows_per_insert
+        FROM {clusterAllReplicas:system.query_log}
+        WHERE {timeFilterExpression}
+          AND type = 'QueryFinish'
+          AND query_kind = 'Insert'
+          AND {queryLogTableFilterExpression}
     metrics:
       - name: inserts
         type: number
@@ -223,4 +217,7 @@ actions:
   - title: "Reduce insert fragmentation to avoid compounding partition pressure"
     risk: low
     tied_to: high_cardinality_partition_key
-`;
+
+output:
+  target:
+    base: resolved_target

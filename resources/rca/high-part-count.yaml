@@ -1,27 +1,25 @@
-export const HIGH_PART_COUNT_TEMPLATE_SOURCE = String.raw`
 version: 1
 symptom: high_part_count
 description: Diagnose excessive active part count for a cluster, node, or table.
 
 observations:
   - id: logical_partition_stats
-    kind: sql_observation
-    stage: "rca high_part_count: parts_logical_partition_stats"
-    progress: 40
     source: system.parts
     description: "Logical (replica-deduplicated) part inventory by partition"
-    sql: |
-      SELECT
-        uniqExact(partition) AS distinct_partitions,
-        max(logical_parts_per_partition) AS max_parts_per_partition
-      FROM (
+    datasource:
+      type: clickhouse
+      sql: |
         SELECT
-          partition,
-          uniqExact(name) AS logical_parts_per_partition
-        FROM {clusterAllReplicas:system.parts}
-        WHERE active AND {partsTableFilterExpression}
-        GROUP BY partition
-      )
+          uniqExact(partition) AS distinct_partitions,
+          max(logical_parts_per_partition) AS max_parts_per_partition
+        FROM (
+          SELECT
+            partition,
+            uniqExact(name) AS logical_parts_per_partition
+          FROM {clusterAllReplicas:system.parts}
+          WHERE active AND {partsTableFilterExpression}
+          GROUP BY partition
+        )
     metrics:
       - name: distinct_partitions
         type: number
@@ -29,31 +27,30 @@ observations:
         type: number
 
   - id: node_partition_ratio
-    kind: sql_observation
-    stage: "rca high_part_count: parts_node_partition_ratio"
-    progress: 44
     source: system.parts
     description: "Per-node partition-to-parts ratio (logical, replica-deduplicated within node)"
-    sql: |
-      SELECT
-        max(node_partition_to_parts_ratio) AS max_node_partition_to_parts_ratio,
-        avg(node_partition_to_parts_ratio) AS avg_node_partition_to_parts_ratio,
-        ifNull(argMax(host_name, node_partition_to_parts_ratio), '') AS top_ratio_node
-      FROM (
+    datasource:
+      type: clickhouse
+      sql: |
         SELECT
-          host_name,
-          if(sum(logical_parts_per_partition) = 0, 0, uniqExact(partition) / sum(logical_parts_per_partition)) AS node_partition_to_parts_ratio
+          max(node_partition_to_parts_ratio) AS max_node_partition_to_parts_ratio,
+          avg(node_partition_to_parts_ratio) AS avg_node_partition_to_parts_ratio,
+          ifNull(argMax(host_name, node_partition_to_parts_ratio), '') AS top_ratio_node
         FROM (
           SELECT
-            hostName() AS host_name,
-            partition,
-            uniqExact(name) AS logical_parts_per_partition
-          FROM {clusterAllReplicas:system.parts}
-          WHERE active AND {partsTableFilterExpression}
-          GROUP BY host_name, partition
+            host_name,
+            if(sum(logical_parts_per_partition) = 0, 0, uniqExact(partition) / sum(logical_parts_per_partition)) AS node_partition_to_parts_ratio
+          FROM (
+            SELECT
+              hostName() AS host_name,
+              partition,
+              uniqExact(name) AS logical_parts_per_partition
+            FROM {clusterAllReplicas:system.parts}
+            WHERE active AND {partsTableFilterExpression}
+            GROUP BY host_name, partition
+          )
+          GROUP BY host_name
         )
-        GROUP BY host_name
-      )
     metrics:
       - name: max_node_partition_to_parts_ratio
         type: number
@@ -65,24 +62,23 @@ observations:
         type: string
 
   - id: node_totals
-    kind: sql_observation
-    stage: "rca high_part_count: parts_node_totals"
-    progress: 44
     source: system.parts
     description: "Per-node active part totals (replica-inclusive, hotspot-oriented)"
-    sql: |
-      SELECT
-        max(node_active_parts) AS max_active_parts_per_node,
-        avg(node_active_parts) AS avg_active_parts_per_node,
-        ifNull(argMax(host_name, node_active_parts), '') AS top_parts_node
-      FROM (
+    datasource:
+      type: clickhouse
+      sql: |
         SELECT
-          hostName() AS host_name,
-          count() AS node_active_parts
-        FROM {clusterAllReplicas:system.parts}
-        WHERE active AND {partsTableFilterExpression}
-        GROUP BY host_name
-      )
+          max(node_active_parts) AS max_active_parts_per_node,
+          avg(node_active_parts) AS avg_active_parts_per_node,
+          ifNull(argMax(host_name, node_active_parts), '') AS top_parts_node
+        FROM (
+          SELECT
+            hostName() AS host_name,
+            count() AS node_active_parts
+          FROM {clusterAllReplicas:system.parts}
+          WHERE active AND {partsTableFilterExpression}
+          GROUP BY host_name
+        )
     metrics:
       - name: max_active_parts_per_node
         type: number
@@ -93,18 +89,17 @@ observations:
         type: string
 
   - id: merges
-    kind: sql_observation
-    stage: "rca high_part_count: merges"
-    progress: 45
     source: system.merges
     description: "Merge pressure around target scope"
-    sql: |
-      SELECT
-        count() AS active_merges,
-        max(elapsed) AS max_merge_elapsed_seconds
-      FROM {clusterAllReplicas:system.merges}
-      WHERE {nodeFilterExpression}
-        AND {partsTableFilterExpression}
+    datasource:
+      type: clickhouse
+      sql: |
+        SELECT
+          count() AS active_merges,
+          max(elapsed) AS max_merge_elapsed_seconds
+        FROM {clusterAllReplicas:system.merges}
+        WHERE {nodeFilterExpression}
+          AND {partsTableFilterExpression}
     metrics:
       - name: active_merges
         type: number
@@ -113,20 +108,19 @@ observations:
         decimals: 2
 
   - id: insert_pattern
-    kind: sql_observation
-    stage: "rca high_part_count: insert_pattern"
-    progress: 50
     source: system.query_log
     description: "Insert pattern over last {timeWindowMinutes} minutes"
-    sql: |
-      SELECT
-        count() AS inserts,
-        avg(written_rows) AS avg_rows_per_insert
-      FROM {clusterAllReplicas:system.query_log}
-      WHERE {timeFilterExpression}
-        AND type = 'QueryFinish'
-        AND query_kind = 'Insert'
-        AND {queryLogTableFilterExpression}
+    datasource:
+      type: clickhouse
+      sql: |
+        SELECT
+          count() AS inserts,
+          avg(written_rows) AS avg_rows_per_insert
+        FROM {clusterAllReplicas:system.query_log}
+        WHERE {timeFilterExpression}
+          AND type = 'QueryFinish'
+          AND query_kind = 'Insert'
+          AND {queryLogTableFilterExpression}
     metrics:
       - name: inserts
         type: number
@@ -141,18 +135,17 @@ observations:
           from: inserts
 
   - id: table_meta
-    kind: sql_observation
-    stage: "rca high_part_count: table_meta"
-    progress: 55
     source: system.tables
     description: "Table engine and partition key"
-    sql: |
-      SELECT
-        any(engine) AS engine,
-        any(partition_key) AS partition_key
-      FROM system.tables
-      WHERE database = '{resolvedTargetDatabase}'
-        AND name = '{resolvedTargetTable}'
+    datasource:
+      type: clickhouse
+      sql: |
+        SELECT
+          any(engine) AS engine,
+          any(partition_key) AS partition_key
+        FROM system.tables
+        WHERE database = '{resolvedTargetDatabase}'
+          AND name = '{resolvedTargetTable}'
     metrics:
       - name: engine
         type: string
@@ -333,12 +326,6 @@ actions:
     risk: high
     tied_to: partition_granularity_pressure
 
-enrichment:
-  partition_key_columns:
-    use: enrich_partition_key_columns
-    stage: "rca high_part_count: partition_key_columns"
-    progress: 60
-
 related_symptoms:
   - symptom: high_partition_count
     when_any:
@@ -353,4 +340,7 @@ related_symptoms:
         cause: partition_granularity_pressure
         operator: gte
         threshold: related_symptom_signal_strength_gte
-`;
+
+output:
+  target:
+    base: resolved_target

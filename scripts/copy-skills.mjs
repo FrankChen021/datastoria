@@ -1,13 +1,16 @@
 /**
- * Copy skill markdown assets into build output so runtime fs reads work on Vercel/standalone.
+ * Copy runtime-loaded assets into build output so runtime fs reads work on Vercel/standalone.
  *
- * We copy all .md and .json files under resources/skills/ (recursive), preserving
- * relative paths. No directory whitelist — any subdir (handbook, references, command,
- * rules, etc.) is included so new resource dirs are picked up automatically.
+ * We copy:
+ * - all .md and .json files under resources/skills/ (recursive)
+ * - all .yaml files under resources/rca/ (recursive)
+ * preserving relative paths under separate destination roots.
  *
  * Destinations (if present):
  * - .next/server/skills
  * - .next/standalone/.next/server/skills
+ * - .next/server/rca
+ * - .next/standalone/.next/server/rca
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -17,18 +20,33 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const projectRoot = path.join(__dirname, "..");
-const sourceRoot = path.join(projectRoot, "resources", "skills");
-
-const destinations = [
-  path.join(projectRoot, ".next", "server", "skills"),
-  path.join(projectRoot, ".next", "standalone", ".next", "server", "skills"),
+const assetGroups = [
+  {
+    sourceRoot: path.join(projectRoot, "resources", "skills"),
+    destinations: [
+      path.join(projectRoot, ".next", "server", "skills"),
+      path.join(projectRoot, ".next", "standalone", ".next", "server", "skills"),
+    ],
+    isAllowedFile(relPath) {
+      const base = path.basename(relPath);
+      return base.endsWith(".md") || base.endsWith(".json");
+    },
+    missingWarning: "copy-skills: skills source missing",
+    emptyWarning: "copy-skills: no skill files found",
+  },
+  {
+    sourceRoot: path.join(projectRoot, "resources", "rca"),
+    destinations: [
+      path.join(projectRoot, ".next", "server", "rca"),
+      path.join(projectRoot, ".next", "standalone", ".next", "server", "rca"),
+    ],
+    isAllowedFile(relPath) {
+      return path.basename(relPath).endsWith(".yaml");
+    },
+    missingWarning: "copy-skills: rca source missing",
+    emptyWarning: "copy-skills: no rca files found",
+  },
 ];
-
-/** Copy any .md or .json under skills; no dir whitelist so new resource dirs are included automatically. */
-function isAllowedFile(relPath) {
-  const base = path.basename(relPath);
-  return base.endsWith(".md") || base.endsWith(".json");
-}
 
 function walkFiles(rootDir) {
   const out = [];
@@ -52,7 +70,7 @@ function walkFiles(rootDir) {
       }
       if (!entry.isFile()) continue;
       const rel = path.relative(rootDir, full);
-      if (isAllowedFile(rel)) out.push({ full, rel });
+      out.push({ full, rel });
     }
   }
 
@@ -70,32 +88,47 @@ function copyFile(src, dest) {
 }
 
 function main() {
-  if (!fs.existsSync(sourceRoot)) {
-    console.warn(`copy-skills: source missing: ${sourceRoot}`);
-    return;
-  }
+  const activeGroups = assetGroups
+    .map((group) => {
+      if (!fs.existsSync(group.sourceRoot)) {
+        console.warn(`${group.missingWarning}: ${group.sourceRoot}`);
+        return null;
+      }
 
-  const files = walkFiles(sourceRoot);
-  if (files.length === 0) {
-    console.warn("copy-skills: no skill files found");
-    return;
-  }
+      const files = walkFiles(group.sourceRoot).filter((file) => group.isAllowedFile(file.rel));
+      if (files.length === 0) {
+        console.warn(group.emptyWarning);
+        return null;
+      }
 
-  const activeDests = destinations.filter((d) => fs.existsSync(path.dirname(d)));
-  if (activeDests.length === 0) {
+      const activeDests = group.destinations.filter((d) => fs.existsSync(path.dirname(d)));
+      return activeDests.length > 0 ? { ...group, files, activeDests } : null;
+    })
+    .filter(Boolean);
+
+  if (activeGroups.length === 0) {
     // If build output doesn't exist yet, this script was invoked too early.
     console.warn("copy-skills: build output not found; run after next build");
     return;
   }
 
-  for (const destRoot of activeDests) {
-    ensureDir(destRoot);
-    for (const f of files) {
-      copyFile(f.full, path.join(destRoot, f.rel));
+  let copiedCount = 0;
+  let destinationCount = 0;
+
+  for (const group of activeGroups) {
+    destinationCount += group.activeDests.length;
+    for (const destRoot of group.activeDests) {
+      ensureDir(destRoot);
+      for (const f of group.files) {
+        copyFile(f.full, path.join(destRoot, f.rel));
+        copiedCount += 1;
+      }
     }
   }
 
-  console.log(`copy-skills: copied ${files.length} file(s) to ${activeDests.length} destination(s)`);
+  console.log(
+    `copy-skills: copied ${copiedCount} file(s) to ${destinationCount} destination(s)`
+  );
 }
 
 main();

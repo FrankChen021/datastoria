@@ -1,29 +1,27 @@
-export const HIGH_QUERY_LATENCY_TEMPLATE_SOURCE = String.raw`
 symptom: high_query_latency
 
 observations:
   - id: query_log
-    kind: sql_observation
-    stage: "rca high_query_latency: query_log"
-    progress: 40
     source: system.query_log
     description: "Latency summary over last {timeWindowMinutes} minutes"
     scope_summary:
       level: cluster
       aggregation_semantics: quantile
       cluster_aggregation: "cluster-wide query_log quantiles"
-    sql: |
-      SELECT
-        quantileExact(0.95)(query_duration_ms) AS p95_ms,
-        quantileExact(0.99)(query_duration_ms) AS p99_ms,
-        avg(read_rows) AS avg_read_rows,
-        avg(read_bytes) AS avg_read_bytes,
-        avg(memory_usage) AS avg_memory_bytes,
-        any(toString(normalized_query_hash)) AS sample_query_hash
-      FROM {clusterAllReplicas:system.query_log}
-      WHERE {timeFilterExpression}
-        AND type = 'QueryFinish'
-        AND {scopeFilterExpression}
+    datasource:
+      type: clickhouse
+      sql: |
+        SELECT
+          quantileExact(0.95)(query_duration_ms) AS p95_ms,
+          quantileExact(0.99)(query_duration_ms) AS p99_ms,
+          avg(read_rows) AS avg_read_rows,
+          avg(read_bytes) AS avg_read_bytes,
+          avg(memory_usage) AS avg_memory_bytes,
+          any(toString(normalized_query_hash)) AS sample_query_hash
+        FROM {clusterAllReplicas:system.query_log}
+        WHERE {timeFilterExpression}
+          AND type = 'QueryFinish'
+          AND {scopeFilterExpression}
     metrics:
       - name: p95_ms
         type: number
@@ -44,20 +42,19 @@ observations:
         type: string
 
   - id: merges
-    kind: sql_observation
-    stage: "rca high_query_latency: merges"
-    progress: 45
     source: system.merges
     description: "Merge pressure snapshot"
     scope_summary:
       level: cluster
       aggregation_semantics: additive
       cluster_aggregation: "sum/max across replicas"
-    sql: |
-      SELECT
-        count() AS active_merges,
-        max(elapsed) AS max_merge_elapsed_seconds
-      FROM {clusterAllReplicas:system.merges}
+    datasource:
+      type: clickhouse
+      sql: |
+        SELECT
+          count() AS active_merges,
+          max(elapsed) AS max_merge_elapsed_seconds
+        FROM {clusterAllReplicas:system.merges}
     metrics:
       - name: active_merges
         type: number
@@ -66,9 +63,6 @@ observations:
         decimals: 2
 
   - id: memory_metrics
-    kind: sql_observation
-    stage: "rca high_query_latency: metrics"
-    progress: 50
     source: system.asynchronous_metrics
     description: "Memory pressure hotspot snapshot over last {timeWindowMinutes} minutes"
     scope_summary:
@@ -86,18 +80,20 @@ observations:
       metric_name: memory_used_percent
       value_metric: memory_used_percent_max
       threshold: memory_used_percent_gte
-    sql: |
-      SELECT
-        ifNull(max(memory_used_percent), 0) AS memory_used_percent_max,
-        ifNull(argMax(host, memory_used_percent), '') AS max_memory_node
-      FROM (
+    datasource:
+      type: clickhouse
+      sql: |
         SELECT
-          hostName() AS host,
-          (SELECT value FROM system.metrics WHERE metric = 'MemoryTracking') AS usedBytes,
-          (SELECT value FROM system.asynchronous_metrics WHERE metric = 'OSMemoryTotal') AS totalBytes,
-          ifNull(usedBytes / nullIf(totalBytes, 0) * 100, 0) AS memory_used_percent
-        FROM {clusterAllReplicas:system.one}
-      )
+          ifNull(max(memory_used_percent), 0) AS memory_used_percent_max,
+          ifNull(argMax(host, memory_used_percent), '') AS max_memory_node
+        FROM (
+          SELECT
+            hostName() AS host,
+            (SELECT value FROM system.metrics WHERE metric = 'MemoryTracking') AS usedBytes,
+            (SELECT value FROM system.asynchronous_metrics WHERE metric = 'OSMemoryTotal') AS totalBytes,
+            ifNull(usedBytes / nullIf(totalBytes, 0) * 100, 0) AS memory_used_percent
+          FROM {clusterAllReplicas:system.one}
+        )
     metrics:
       - name: memory_used_percent_max
         type: number
@@ -198,4 +194,12 @@ actions:
   - title: "Review memory-heavy queries and memory limits"
     risk: medium
     tied_to: memory_pressure
-`;
+
+output:
+  target:
+    base: input_target
+    query_hash_from_observation:
+      when_scope: query_pattern
+      observation: query_log
+      metric: sample_query_hash
+      fallback_input_target_key: query_hash

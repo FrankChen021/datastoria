@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import yaml from "js-yaml";
 import {
   asNumber,
@@ -50,12 +52,12 @@ type ObservationNodesOverThresholdTemplate = {
 
 type ObservationTemplate = {
   id: string;
-  kind: "sql_observation";
-  stage: string;
-  progress: number;
   source: string;
   description: string;
-  sql: string;
+  datasource: {
+    type: "clickhouse";
+    sql: string;
+  };
   metrics: ObservationMetricTemplate[];
   scope_summary?: ObservationScopeSummaryTemplate;
   top_nodes?: ObservationTopNodesTemplate;
@@ -130,12 +132,29 @@ type RelatedSymptomTemplate = {
   when_any: ConditionTemplate[];
 };
 
+type TargetBaseTemplate = "input_target" | "resolved_target";
+
+type QueryHashOutputTemplate = {
+  when_scope: Scope;
+  observation: string;
+  metric: string;
+  fallback_input_target_key?: "query_hash";
+};
+
+type OutputTemplate = {
+  target?: {
+    base?: TargetBaseTemplate;
+    query_hash_from_observation?: QueryHashOutputTemplate;
+  };
+};
+
 export type RcaTemplate = {
   symptom: CanonicalSymptom;
   observations: ObservationTemplate[];
   candidates: CandidateTemplate[];
   actions: PossibleAction[];
   related_symptoms?: RelatedSymptomTemplate[];
+  output?: OutputTemplate;
 };
 
 export type TemplateRuntimeContext = SymptomContext & {
@@ -148,12 +167,35 @@ export type TemplateRuntimeContext = SymptomContext & {
 
 const templateCache = new Map<string, RcaTemplate>();
 
-function loadTemplate(cacheKey: string, source: string): RcaTemplate {
+function getRcaTemplateRootDir(): string {
+  const prodCandidates = [
+    path.join(process.cwd(), ".next", "server", "rca"),
+    path.join(process.cwd(), ".next", "standalone", ".next", "server", "rca"),
+  ];
+  const devCandidates = [path.join(process.cwd(), "resources", "rca"), ...prodCandidates];
+  const candidates = process.env.NODE_ENV === "production" ? prodCandidates : devCandidates;
+
+  for (const dir of candidates) {
+    try {
+      if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
+        return dir;
+      }
+    } catch {
+      // ignore and continue
+    }
+  }
+
+  return path.join(process.cwd(), "resources", "rca");
+}
+
+function loadTemplate(cacheKey: string, resourcePath: string): RcaTemplate {
   const cached = templateCache.get(cacheKey);
   if (cached) {
     return cached;
   }
 
+  const fullPath = path.join(getRcaTemplateRootDir(), resourcePath);
+  const source = fs.readFileSync(fullPath, "utf-8");
   const parsed = yaml.load(source) as RcaTemplate;
   templateCache.set(cacheKey, parsed);
   return parsed;
@@ -296,15 +338,19 @@ function buildNodesOverThreshold(input: {
 
 async function collectObservationFromTemplate(
   context: TemplateRuntimeContext,
+  symptom: CanonicalSymptom,
   template: ObservationTemplate,
+  observationIndex: number,
   thresholds: Record<string, number>
 ): Promise<Observation> {
   const directMetrics = template.metrics.filter((metric) => !metric.derive);
+  const stage = `rca ${symptom}: ${template.id}`;
+  const progress = 40 + observationIndex;
   return collectObservation({
     context,
-    stage: template.stage,
-    progress: template.progress,
-    sqlTemplate: template.sql,
+    stage,
+    progress,
+    sqlTemplate: template.datasource.sql,
     toObservation: (row, ctx) => {
       const metrics: Observation["metrics"] = {};
       directMetrics.forEach((metric, index) => {
@@ -351,9 +397,52 @@ async function collectObservationFromTemplate(
   });
 }
 
+function dedupeObservations(observations: Observation[]): Observation[] {
+  const byKey = new Map<string, Observation>();
+  for (const observation of observations) {
+    const key = `${observation.source}::${observation.description}`;
+    if (!byKey.has(key)) {
+      byKey.set(key, observation);
+    }
+  }
+  return [...byKey.values()];
+}
+
+function resolveTemplateTarget(input: {
+  context: TemplateRuntimeContext;
+  output: OutputTemplate | undefined;
+  observationsById: Map<string, Observation>;
+}): Target | undefined {
+  const { context, output, observationsById } = input;
+  const base = output?.target?.base ?? "input_target";
+  const target =
+    base === "resolved_target" ? (context.resolvedTarget ?? context.target) : context.target;
+
+  const queryHashConfig = output?.target?.query_hash_from_observation;
+  if (!queryHashConfig || context.scope !== queryHashConfig.when_scope) {
+    return target;
+  }
+
+  const observation = observationsById.get(queryHashConfig.observation);
+  const queryHash = String(observation?.metrics[queryHashConfig.metric] ?? "");
+  const fallbackQueryHash =
+    queryHashConfig.fallback_input_target_key === "query_hash"
+      ? context.target?.query_hash
+      : undefined;
+
+  if (!queryHash && !fallbackQueryHash) {
+    return target;
+  }
+
+  return {
+    ...(target ?? {}),
+    query_hash: queryHash || fallbackQueryHash,
+  };
+}
+
 export async function executeRcaTemplate(input: {
   cacheKey: string;
-  templateSource: string;
+  templatePath: string;
   thresholdSet: ThresholdSetName;
   context: TemplateRuntimeContext;
 }): Promise<{
@@ -362,17 +451,25 @@ export async function executeRcaTemplate(input: {
   excludedCandidates: ReturnType<typeof scoreCauseEvaluations>["excludedCandidates"];
   possibleActions: PossibleAction[];
   relatedSymptoms: CanonicalSymptom[];
+  target: Target | undefined;
 }> {
-  const template = loadTemplate(input.cacheKey, input.templateSource);
+  const template = loadTemplate(input.cacheKey, input.templatePath);
   const thresholdValues = input.context.thresholds[input.thresholdSet] as Record<string, number>;
 
-  const observations = await Promise.all(
-    template.observations.map((observation) =>
-      collectObservationFromTemplate(input.context, observation, thresholdValues)
+  const rawObservations = await Promise.all(
+    template.observations.map((observation, index) =>
+      collectObservationFromTemplate(
+        input.context,
+        template.symptom,
+        observation,
+        index,
+        thresholdValues
+      )
     )
   );
+  const observations = dedupeObservations(rawObservations);
   const observationsById = new Map(
-    template.observations.map((item, index) => [item.id, observations[index]])
+    template.observations.map((item, index) => [item.id, rawObservations[index]])
   );
 
   const evaluations: CauseEvaluation[] = template.candidates.map((candidate) =>
@@ -425,5 +522,10 @@ export async function executeRcaTemplate(input: {
     excludedCandidates,
     possibleActions: template.actions,
     relatedSymptoms,
+    target: resolveTemplateTarget({
+      context: input.context,
+      output: template.output,
+      observationsById,
+    }),
   };
 }
