@@ -34,8 +34,8 @@ COPY --from=deps /app/external ./external
 COPY package*.json ./
 COPY next.config.ts ./
 COPY tsconfig.json ./
-COPY tailwind.config.js ./
-COPY postcss.config.js ./
+COPY tailwind.config.mjs ./
+COPY postcss.config.mjs ./
 COPY components.json ./
 
 COPY scripts ./scripts
