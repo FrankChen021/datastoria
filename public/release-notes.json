@@ -1,5 +1,77 @@
 [
   {
+    "id": "8473052",
+    "date": "2026-03-22T09:53:35.593Z",
+    "notes": [
+      {
+        "text": "Flexible session storages support",
+        "pr": 134,
+        "type": "feature",
+        "merged_at": "2026-03-17T13:56:14Z"
+      },
+      {
+        "text": "Bump next from 16.1.6 to 16.1.7 in the npm_and_yarn group across 1 directory",
+        "pr": 136,
+        "type": "feature",
+        "merged_at": "2026-03-18T05:13:54Z"
+      },
+      {
+        "text": "improve clickhouse-system-queries skill structure",
+        "pr": 135,
+        "type": "feature",
+        "merged_at": "2026-03-18T12:27:36Z"
+      },
+      {
+        "text": "Improve EXPLAIN plan response graph and detail UX",
+        "pr": 138,
+        "type": "feature",
+        "merged_at": "2026-03-18T15:56:01Z"
+      },
+      {
+        "text": "upgrade next.js to 16.2.0",
+        "pr": 139,
+        "type": "feature",
+        "merged_at": "2026-03-20T08:35:05Z"
+      },
+      {
+        "text": "auto explain language for inline error diagnostics",
+        "pr": 140,
+        "type": "feature",
+        "merged_at": "2026-03-20T08:40:25Z"
+      },
+      {
+        "text": "Bump flatted from 3.3.3 to 3.4.2 in the npm_and_yarn group across 1 directory",
+        "pr": 141,
+        "type": "feature",
+        "merged_at": "2026-03-20T08:49:48Z"
+      },
+      {
+        "text": "persist model metadata for remote session messages",
+        "pr": 142,
+        "type": "feature",
+        "merged_at": "2026-03-20T08:53:58Z"
+      },
+      {
+        "text": "skill: expand diagnose-clickhouse-errors references",
+        "pr": 144,
+        "type": "feature",
+        "merged_at": "2026-03-20T09:23:14Z"
+      },
+      {
+        "text": "move GitHub auth routes to /api/ai namespace",
+        "pr": 137,
+        "type": "fix",
+        "merged_at": "2026-03-18T14:26:19Z"
+      },
+      {
+        "text": "show full inline auto-explain assistant output",
+        "pr": 143,
+        "type": "fix",
+        "merged_at": "2026-03-20T08:56:03Z"
+      }
+    ]
+  },
+  {
     "id": "be54046",
     "date": "2026-03-17T01:53:59.395Z",
     "notes": [
