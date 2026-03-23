@@ -11,6 +11,7 @@ import { v7 as uuidv7 } from "uuid";
 import { ChatActionProvider } from "../chat-action-context";
 import { ChatContext } from "../chat-context";
 import { ChatFactory } from "../chat-factory";
+import { ChatCommandProvider } from "../command-context";
 import { ChatInput, type ChatInputHandle } from "../input/chat-input";
 import { getTableContextByMentions } from "../input/mention-utils";
 import { ChatMessageList } from "../message/chat-message-list";
@@ -203,50 +204,52 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
 
   return (
     <ChatActionProvider onAction={handleUserAction} chatId={chat.id}>
-      <div className="flex flex-col h-full bg-background overflow-hidden relative">
-        {isEmpty ? (
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 flex flex-col">
-            <div className="flex flex-col items-center w-full max-w-full my-auto pb-8 pt-6">
-              <div className="mb-0">
-                <AppLogo width={64} height={64} />
-              </div>
-              <p className="text-xl text-center font-medium mb-4 mt-0">
-                {GREETINGS[Math.floor(Math.random() * GREETINGS.length)]}
-              </p>
-              {questions && questions.length > 0 && (
-                <div className="w-full flex flex-col items-center space-y-2">
-                  {questions.map((question, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      className="w-max max-w-full text-left px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg border border-border/50 whitespace-normal hover:border-border transition-colors"
-                      onClick={() => handleQuestionClick(question)}
-                    >
-                      {question.text}
-                    </button>
-                  ))}
+      <ChatCommandProvider>
+        <div className="flex flex-col h-full bg-background overflow-hidden relative">
+          {isEmpty ? (
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 flex flex-col">
+              <div className="flex flex-col items-center w-full max-w-full my-auto pb-8 pt-6">
+                <div className="mb-0">
+                  <AppLogo width={64} height={64} />
                 </div>
-              )}
+                <p className="text-xl text-center font-medium mb-4 mt-0">
+                  {GREETINGS[Math.floor(Math.random() * GREETINGS.length)]}
+                </p>
+                {questions && questions.length > 0 && (
+                  <div className="w-full flex flex-col items-center space-y-2">
+                    {questions.map((question, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className="w-max max-w-full text-left px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg border border-border/50 whitespace-normal hover:border-border transition-colors"
+                        onClick={() => handleQuestionClick(question)}
+                      >
+                        {question.text}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ) : (
-          <ChatMessageList
-            messages={messages as AppUIMessage[]}
+          ) : (
+            <ChatMessageList
+              messages={messages as AppUIMessage[]}
+              isRunning={isRunning}
+              error={error || null}
+            />
+          )}
+          <ChatInput
+            ref={chatInputRef}
+            onSubmit={handleSubmit}
+            onStop={handleStop}
             isRunning={isRunning}
-            error={error || null}
+            hasMessages={messages.length > 0}
+            tokenUsage={tokenUsage}
+            onNewChat={onNewChat}
+            externalInput={promptInput}
           />
-        )}
-        <ChatInput
-          ref={chatInputRef}
-          onSubmit={handleSubmit}
-          onStop={handleStop}
-          isRunning={isRunning}
-          hasMessages={messages.length > 0}
-          tokenUsage={tokenUsage}
-          onNewChat={onNewChat}
-          externalInput={promptInput}
-        />
-      </div>
+        </div>
+      </ChatCommandProvider>
     </ChatActionProvider>
   );
 });

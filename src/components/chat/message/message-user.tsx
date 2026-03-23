@@ -1,4 +1,9 @@
-import { memo } from "react";
+import { showSettingsDialog } from "@/components/settings/settings-dialog";
+import { Button } from "@/components/ui/button";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { memo, useMemo } from "react";
+import { useChatCommands } from "../command-context";
+import { getLeadingCommand } from "../input/command-utils";
 import { TABLE_MENTION_REGEX } from "../input/mention-utils";
 import { MessageMarkdown } from "./message-markdown";
 
@@ -9,9 +14,17 @@ import { MessageMarkdown } from "./message-markdown";
  * But some places given markdown text, like using ``` code blocks, in this case, we should not do the replacement.
  */
 export const MessageUser = memo(function MessageUser({ text }: { text: string }) {
-  const processedText = !text
-    ? text
-    : text
+  const { commandsByName } = useChatCommands();
+  const matchedCommand = text ? getLeadingCommand(text) : null;
+  const command = matchedCommand ? commandsByName.get(matchedCommand.commandName) : null;
+
+  const processedText = useMemo(() => {
+    if (!text) return text;
+
+    const baseText = command && matchedCommand ? matchedCommand.remainder.replace(/^ /, "") : text;
+
+    return (
+      baseText
         // Replace @xxx.yyy with @`xxx.yyy` so markdown treats it as inline code
         // This allows MessageMarkdown to detect and render it as a table button
         // Uses the shared TABLE_MENTION_REGEX to match table mentions including
@@ -27,7 +40,49 @@ export const MessageUser = memo(function MessageUser({ text }: { text: string })
           if (codeBlock) return codeBlock;
           // If it's a newline outside code block, double it
           return "\n\n";
-        });
+        })
+    );
+  }, [command, matchedCommand, text]);
+
+  if (command && matchedCommand) {
+    return (
+      <div className="flex flex-wrap items-start gap-1">
+        <HoverCard openDelay={150} closeDelay={100}>
+          <HoverCardTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 rounded-sm px-1 font-mono text-primary text-xs underline"
+              onClick={() => {
+                showSettingsDialog({
+                  initialSection: "skills",
+                  initialSkillId: command.skillId,
+                });
+              }}
+            >
+              {matchedCommand.commandText}
+            </Button>
+          </HoverCardTrigger>
+          {command.description ? (
+            <HoverCardContent className="w-80 break-words p-3 text-sm leading-relaxed">
+              {command.description}
+            </HoverCardContent>
+          ) : null}
+        </HoverCard>
+        {processedText ? (
+          <div className="min-w-0 flex-1">
+            <MessageMarkdown
+              text={processedText}
+              showExecuteButton={false}
+              customStyle={{ fontSize: "0.9rem", lineHeight: "1.6" }}
+              expandable={true}
+            />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <MessageMarkdown
