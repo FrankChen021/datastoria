@@ -8,7 +8,7 @@ import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
 import {
   CLIENT_TOOL_NAMES,
   type AskUserQuestionInput,
-  type AskUserQuestionOutput
+  type AskUserQuestionOutput,
 } from "@/lib/ai/tools/client/client-tools";
 import { cn } from "@/lib/utils";
 import { CircleAlert, HelpCircle, Loader2 } from "lucide-react";

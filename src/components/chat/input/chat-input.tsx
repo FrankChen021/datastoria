@@ -4,10 +4,10 @@ import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { CommandDetail } from "@/lib/ai/commands/command-manager";
-import { BasePath } from "@/lib/base-path";
 import type { LanguageModelUsage } from "ai";
 import { MessageSquarePlus, Send, Square } from "lucide-react";
 import * as React from "react";
+import { useChatCommands } from "../command-context";
 import { ChatTokenStatus } from "../message/chat-token-status";
 import { ChatInputCommands, type ChatInputCommandsType } from "./chat-input-commands";
 import {
@@ -15,16 +15,10 @@ import {
   type ChatInputSuggestionItem,
   type ChatInputSuggestionsType,
 } from "./chat-input-suggestions";
+import { replaceLeadingCommand } from "./command-utils";
 import { ModelSelector } from "./model-selector";
 
-const LEADING_COMMAND_RE = /^\/[a-z][a-z0-9_-]*/;
-
-export function replaceLeadingCommand(input: string, commandName: string): string {
-  const match = LEADING_COMMAND_RE.exec(input);
-  const argsStart = match ? match[0].length : input.length;
-  const existingArgs = input.slice(argsStart);
-  return `/${commandName}${existingArgs || " "}`;
-}
+export { replaceLeadingCommand } from "./command-utils";
 
 interface ChatInputProps {
   onSubmit: (text: string) => void;
@@ -55,11 +49,8 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     // Mention state
     const [suggestionStartPos, setSuggestionStartPos] = React.useState(0);
 
-    // Command state
-    const [commands, setCommands] = React.useState<CommandDetail[]>([]);
-    const commandsFetchedRef = React.useRef(false);
-
     const { connection } = useConnection();
+    const { commands } = useChatCommands();
 
     // Handle external input (e.g., from prompt clicks)
     React.useEffect(() => {
@@ -181,63 +172,45 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       [input]
     );
 
-    const fetchCommands = React.useCallback(async () => {
-      if (commandsFetchedRef.current) return;
-      commandsFetchedRef.current = true;
-      try {
-        const res = await fetch(BasePath.getURL("/api/ai/commands"));
-        if (res.ok) {
-          const data = (await res.json()) as CommandDetail[];
-          setCommands(data);
-        }
-      } catch {
-        // non-fatal: slash commands just won't appear
-      }
-    }, []);
-
     /**
      * Check '@' input for table suggestions and '/' at start for slash commands.
      */
-    const handleInputChange = React.useCallback(
-      (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const text = e.target.value;
-        const cursorPos = e.target.selectionStart;
-        setInput(text);
+    const handleInputChange = React.useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const text = e.target.value;
+      const cursorPos = e.target.selectionStart;
+      setInput(text);
 
-        const textBeforeCursor = text.substring(0, cursorPos);
+      const textBeforeCursor = text.substring(0, cursorPos);
 
-        // Slash command: only trigger when / is the very first character
-        if (text.startsWith("/")) {
-          const afterSlash = textBeforeCursor.substring(1);
-          // While the user is still typing the command name (no space yet), keep popover open
-          if (!afterSlash.includes(" ") && !afterSlash.includes("\n")) {
-            void fetchCommands();
-            commandRef.current?.open(afterSlash);
-            suggestionRef.current?.close();
-            return;
-          }
-          // Space typed — command name is locked in, close popover
-          commandRef.current?.close();
+      // Slash command: only trigger when / is the very first character
+      if (text.startsWith("/")) {
+        const afterSlash = textBeforeCursor.substring(1);
+        // While the user is still typing the command name (no space yet), keep popover open
+        if (!afterSlash.includes(" ") && !afterSlash.includes("\n")) {
+          commandRef.current?.open(afterSlash);
           suggestionRef.current?.close();
           return;
         }
-
+        // Space typed — command name is locked in, close popover
         commandRef.current?.close();
-
-        // Table mention
-        const lastAtIndex = textBeforeCursor.lastIndexOf("@");
-        if (lastAtIndex !== -1) {
-          const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-          if (!textAfterAt.includes(" ") && !textAfterAt.includes("\n")) {
-            suggestionRef.current?.open(textAfterAt);
-            setSuggestionStartPos(lastAtIndex);
-            return;
-          }
-        }
         suggestionRef.current?.close();
-      },
-      [fetchCommands]
-    );
+        return;
+      }
+
+      commandRef.current?.close();
+
+      // Table mention
+      const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+      if (lastAtIndex !== -1) {
+        const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+        if (!textAfterAt.includes(" ") && !textAfterAt.includes("\n")) {
+          suggestionRef.current?.open(textAfterAt);
+          setSuggestionStartPos(lastAtIndex);
+          return;
+        }
+      }
+      suggestionRef.current?.close();
+    }, []);
 
     const handleSubmit = React.useCallback(() => {
       const message = input.trim();
