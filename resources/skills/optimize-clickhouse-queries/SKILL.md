@@ -17,7 +17,7 @@ Workflow is evidence-driven: collect evidence with tools, then recommend based o
 4. **NEITHER**: Call `ask_user_question` with exactly one question:
    - `header`: `Please provide one of the following for optimization`
    - `options`:
-     - `{ "id": "sql", "label": "Provide SQL", "type": "textarea" }`
+     - `{ "id": "sql", "label": "Provide SQL", "type": "text" }`
      - `{ "id": "query_id", "label": "Provide query_id", "type": "text" }`
      - `{ "id": "resource", "label": "Find the query that consumes the most", "type": "select", "choices": ["duration", "cpu", "memory", "disk"] }`
    After the tool returns:
