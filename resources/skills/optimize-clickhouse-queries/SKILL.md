@@ -14,11 +14,16 @@ Workflow is evidence-driven: collect evidence with tools, then recommend based o
 1. **HAS SQL**: Conversation contains a SQL query -> Go to WORKFLOW step 2 (Collect Evidence).
 2. **HAS QUERY_ID**: Conversation contains query_id -> Go to WORKFLOW step 2 (Call `collect_sql_optimization_evidence` immediately).
 3. **DISCOVERY REQUEST**: User asks to optimize the slowest/heaviest queries but does not provide SQL/query_id -> Go to WORKFLOW step 1 (Discovery).
-4. **NEITHER**: Output ONLY a concise 1-sentence request for the SQL query or query_id (e.g. "Please provide the SQL query or query_id you'd like to optimize."). Do NOT ask for any other details (like version, table sizes, etc.). Then include the following UI trigger block in the response (must be present and unchanged; place it at the end of the reply):
-
-```user_actions
-{ "type": "optimization_skill_input" }
-```
+4. **NEITHER**: Call `ask_user_question` with exactly one question:
+   - `header`: `Please provide one of the following for optimization`
+   - `options`:
+     - `{ "id": "sql", "label": "Provide SQL", "type": "text" }`
+     - `{ "id": "query_id", "label": "Provide query_id", "type": "text" }`
+     - `{ "id": "resource", "label": "Find the query that consumes the most", "type": "select", "choices": ["duration", "cpu", "memory", "disk"] }`
+   After the tool returns:
+   - If `optionId` is `sql`, treat `value` as the SQL text and continue with evidence collection.
+   - If `optionId` is `query_id`, treat `value` as the query_id and continue with evidence collection.
+   - If `optionId` is `resource`, treat `value` as the ranking metric and run discovery for the top 1 query in the last 1 day before continuing.
 
 ## Discovery
 

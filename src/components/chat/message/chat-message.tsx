@@ -13,6 +13,7 @@ import { memo } from "react";
 import { ErrorMessageDisplay } from "./message-error";
 import { MessageMarkdown } from "./message-markdown";
 import { MessageReasoning } from "./message-reasoning";
+import { MessageToolAskUserQuestion } from "./message-tool-ask-user-question";
 import { MessageToolCollectSqlOptimizationEvidence } from "./message-tool-collect-sql-optimization-evidence";
 import { MessageToolExecuteSql } from "./message-tool-execute-sql";
 import { MessageToolExploreSchema } from "./message-tool-explore-schema";
@@ -148,7 +149,9 @@ const ChatMessagePart = memo(
       return <MessageToolSkill part={part} isRunning={isRunning} label="Load Skill Resources" />;
     }
     // CLIENT TOOLS
-    else if (toolName === CLIENT_TOOL_NAMES.EXECUTE_SQL) {
+    else if (toolName === CLIENT_TOOL_NAMES.ASK_USER_QUESTION) {
+      return <MessageToolAskUserQuestion part={part} isRunning={isRunning} />;
+    } else if (toolName === CLIENT_TOOL_NAMES.EXECUTE_SQL) {
       return <MessageToolExecuteSql part={part} isRunning={isRunning} />;
     } else if (toolName === CLIENT_TOOL_NAMES.VALIDATE_SQL) {
       return <MessageToolValidateSql part={part} isRunning={isRunning} />;

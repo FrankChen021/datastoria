@@ -21,8 +21,9 @@ export function buildExplainErrorPrompt({
   language?: AutoExplainLanguage;
 }): string {
   const parts: string[] = [];
+  const hasErrorCode = errorCode !== undefined;
 
-  if (errorCode !== undefined) {
+  if (hasErrorCode) {
     parts.push(`error code: ${errorCode}`);
   }
 
@@ -32,7 +33,9 @@ export function buildExplainErrorPrompt({
     parts.push(`sql:\n\`\`\`sql\n${sql}\n\`\`\``);
   }
 
-  const base = `/diagnose-clickhouse-errors ${parts.join("\n\n")}`;
+  const base = hasErrorCode
+    ? `/diagnose-clickhouse-errors ${parts.join("\n\n")}`
+    : `Help me diagnose this ClickHouse error and suggest a fix.\n\n${parts.join("\n\n")}`;
 
   if (isEnglishLanguageTag(language)) {
     return base;

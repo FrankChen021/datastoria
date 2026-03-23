@@ -7,11 +7,11 @@ import { useEffect, useState } from "react";
 import { SkillsCard } from "./skills-card";
 import { SkillsDetailView } from "./skills-detail-view";
 
-export function SkillsEdit() {
+export function SkillsEdit({ initialSkillId }: { initialSkillId?: string }) {
   const [skills, setSkills] = useState<SkillCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
+  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(initialSkillId ?? null);
 
   useEffect(() => {
     setLoading(true);

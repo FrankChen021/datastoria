@@ -5,6 +5,7 @@ import type { UserActionInput } from "./message/message-user-actions";
 
 interface ChatActionContextType {
   onAction: (input: UserActionInput) => void;
+  onToolOutput: (input: { tool: string; toolCallId: string; output: unknown }) => Promise<void>;
   chatId?: string;
 }
 
@@ -21,13 +22,17 @@ export function useChatAction() {
 export function ChatActionProvider({
   children,
   onAction,
+  onToolOutput,
   chatId,
 }: {
   children: React.ReactNode;
   onAction: (input: UserActionInput) => void;
+  onToolOutput: (input: { tool: string; toolCallId: string; output: unknown }) => Promise<void>;
   chatId?: string;
 }) {
   return (
-    <ChatActionContext.Provider value={{ onAction, chatId }}>{children}</ChatActionContext.Provider>
+    <ChatActionContext.Provider value={{ onAction, onToolOutput, chatId }}>
+      {children}
+    </ChatActionContext.Provider>
   );
 }

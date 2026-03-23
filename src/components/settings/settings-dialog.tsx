@@ -20,15 +20,18 @@ import { SETTINGS_REGISTRY, type SettingsSection } from "./settings-registry";
 
 export interface ShowSettingsDialogOptions {
   initialSection?: SettingsSection;
+  initialSkillId?: string;
   onCancel?: () => void;
 }
 
 function SettingsDialogWrapper({
   onCancel,
   initialSection = "query-context",
+  initialSkillId,
 }: {
   onCancel?: () => void;
   initialSection?: SettingsSection;
+  initialSkillId?: string;
 }) {
   const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
 
@@ -41,6 +44,7 @@ function SettingsDialogWrapper({
 
   const activePage = SETTINGS_REGISTRY[activeSection];
   const ActiveComponent = activePage.component;
+  const activeComponentProps = activeSection === "skills" ? { initialSkillId } : undefined;
 
   return (
     <div className="fixed inset-0 bg-background flex flex-col">
@@ -151,7 +155,7 @@ function SettingsDialogWrapper({
 
             {/* Content Area - Fills remaining space */}
             <div className="flex-1 overflow-y-auto px-0 py-0">
-              <ActiveComponent />
+              <ActiveComponent {...activeComponentProps} />
             </div>
           </div>
         </div>
@@ -161,7 +165,7 @@ function SettingsDialogWrapper({
 }
 
 export function showSettingsDialog(options: ShowSettingsDialogOptions = {}) {
-  const { onCancel, initialSection } = options;
+  const { onCancel, initialSection, initialSkillId } = options;
 
   SharedDialog.showDialog({
     title: "Settings",
@@ -171,6 +175,12 @@ export function showSettingsDialog(options: ShowSettingsDialogOptions = {}) {
       "!z-[9990] !inset-0 !left-0 !top-0 !h-screen !w-screen !max-h-screen !max-w-none !translate-x-0 !translate-y-0 rounded-none border-0 p-0 shadow-none duration-0 data-[state=open]:!animate-none data-[state=closed]:!animate-none",
     closeButtonClassName: "hidden",
     disableContentScroll: true,
-    mainContent: <SettingsDialogWrapper onCancel={onCancel} initialSection={initialSection} />,
+    mainContent: (
+      <SettingsDialogWrapper
+        onCancel={onCancel}
+        initialSection={initialSection}
+        initialSkillId={initialSkillId}
+      />
+    ),
   });
 }

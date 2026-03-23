@@ -401,6 +401,7 @@ export async function POST(req: Request) {
       tools: {
         [SERVER_TOOL_NAMES.SKILL]: ServerTools.skill,
         [SERVER_TOOL_NAMES.SKILL_RESOURCE]: ServerTools.skill_resource,
+        ask_user_question: ClientTools.ask_user_question,
         get_tables: ClientTools.get_tables,
         explore_schema: ClientTools.explore_schema,
         validate_sql: ClientTools.validate_sql,
