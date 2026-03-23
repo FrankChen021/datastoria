@@ -50,20 +50,6 @@ function buildUserContextSection(context?: ServerDatabaseContext): string {
 }
 
 /**
- * Build current query context section for SQL generation prompts
- */
-function buildCurrentQuerySection(context?: ServerDatabaseContext): string {
-  if (!context?.currentQuery) return "";
-
-  return `\n## Current Query Context
-The user may be asking about or modifying this existing query:
-\`\`\`sql
-${context.currentQuery}
-\`\`\`
-Consider this query when generating the new SQL.`;
-}
-
-/**
  * Build ProfileEvents section for SQL generation prompts
  */
 function buildProfileEventsSection(): string {
@@ -97,7 +83,6 @@ function buildSqlGenerationPrompt({
 }): {
   prompt: string;
   userContextSection: string;
-  currentQuerySection: string;
 } {
   const normalizeTable = (table: {
     database: string;
@@ -159,7 +144,6 @@ function buildSqlGenerationPrompt({
 
   // Build context sections using shared helpers
   const userContextSection = buildUserContextSection(context);
-  const currentQuerySection = buildCurrentQuerySection(context);
   const profileEventsSection = buildProfileEventsSection();
 
   // Add validation error context if this is a retry
@@ -236,12 +220,11 @@ When the Schema Context shows PRIMARY KEY or PARTITION BY for a table, you MUST 
 - Example: For \`PARTITION BY: toYYYYMM(event_date)\`, add \`WHERE event_date >= today() - 30\` to limit partitions scanned
 
 **MANDATORY**: If the schema shows both PRIMARY KEY and PARTITION BY, your WHERE clause MUST include filters on at least the partition key column(s) to ensure efficient query execution.
-${userContextSection}${currentQuerySection}${profileEventsSection}${validationErrorSection}
+${userContextSection}${profileEventsSection}${validationErrorSection}
 ## Schema Context
 ${schemaContext.length > 0 ? schemaContext.join("\n") : "No schema context provided. Generate SQL based on the user question."}
 ${schemaDiscoverySection}${validationSection}`,
     userContextSection,
-    currentQuerySection,
   };
 }
 
@@ -249,7 +232,7 @@ ${schemaDiscoverySection}${validationSection}`,
  * Server-side tool: SQL Generation
  * Calls the SQL sub-agent to generate ClickHouse queries
  * @param inputModel - Model configuration to use for the sub-agent
- * @param context - Database context (user, database, tables, currentQuery) to pass to sub-agent
+ * @param context - Database context (database, tables, diagnosis metadata) to pass to sub-agent
  */
 export function createGenerateSqlTool(inputModel: InputModel, context?: ServerDatabaseContext) {
   return tool({
@@ -285,7 +268,6 @@ export function createGenerateSqlTool(inputModel: InputModel, context?: ServerDa
         ),
       context: z
         .object({
-          currentQuery: z.string().optional(),
           database: z.string().optional(),
           tables: z
             .array(
@@ -303,7 +285,7 @@ export function createGenerateSqlTool(inputModel: InputModel, context?: ServerDa
           clickHouseUser: z.string().optional(),
         })
         .optional()
-        .describe("Full database context including user, database, tables, and current query"),
+        .describe("Full database context including database, tables, and shared runtime metadata"),
     }),
     execute: async ({
       userQuestion,

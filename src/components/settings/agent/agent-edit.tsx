@@ -278,7 +278,7 @@ export function AgentEdit() {
     <div ref={containerRef} className="h-full flex flex-col">
       <Table className="table-fixed">
         <colgroup>
-          <col className="w-[200px]" />
+          <col className="w-[220px]" />
           <col className="w-[350px]" />
           <col />
         </colgroup>
@@ -290,7 +290,7 @@ export function AgentEdit() {
             <TableCell className="px-0 py-1 align-middle">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-[300px] justify-between">
+                  <Button variant="outline" className="h-9 w-[300px] justify-between">
                     {configuration.mode === "v2" ? "V2 (Skill-based)" : "V1 (Legacy)"}
                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                   </Button>
@@ -349,12 +349,12 @@ export function AgentEdit() {
 
           <TableRow className="h-12 hover:bg-transparent">
             <TableCell className="px-0 pl-4 py-1 align-middle">
-              <Label>Inline explanation language</Label>
+              <Label className="pl-6">Explanation Language</Label>
             </TableCell>
             <TableCell className="px-0 py-1 align-middle">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-[300px] justify-between">
+                  <Button variant="outline" className="h-9 w-[300px] justify-between">
                     {
                       AUTO_EXPLAIN_LANGUAGE_OPTIONS.find(
                         (o) =>
@@ -389,9 +389,7 @@ export function AgentEdit() {
             <>
               <TableRow className="h-12 border-b-0 hover:bg-transparent">
                 <TableCell className="px-0 pl-4 py-1 align-middle">
-                  <div className="pl-6">
-                    <Label>Blacklist</Label>
-                  </div>
+                  <Label className="pl-6">Blacklist</Label>
                 </TableCell>
                 <TableCell className="px-0 py-1 align-middle text-sm text-muted-foreground">
                   {selectedErrorCodes.length === 0

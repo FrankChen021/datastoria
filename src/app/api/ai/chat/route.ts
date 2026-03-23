@@ -154,7 +154,7 @@ export async function POST(req: Request) {
       return new Response("Invalid request format: messages must be an array", { status: 400 });
     }
 
-    // Validate clickHouseUser is provided in context and add userEmail
+    // Validate clickHouseUser is provided in database context and add userEmail
     const context: ServerDatabaseContext = apiRequest.context
       ? ({ ...apiRequest.context, userEmail } as ServerDatabaseContext)
       : ({ userEmail } as ServerDatabaseContext);

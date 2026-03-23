@@ -71,4 +71,24 @@ describe("validateRemoteChatRequest", () => {
     expect(request?.continuation).toBe(true);
     expect(hasCompletedToolOutputs(request!.message)).toBe(true);
   });
+
+  it("preserves nested diagnosis context when provided", () => {
+    const request = validateRemoteChatRequest({
+      sessionId: "chat-1",
+      connectionId: "conn-1",
+      context: {
+        clickHouseUser: "default",
+        clusterName: "prod-eu",
+        serverVersion: "24.8.1.1",
+      },
+      message: createMessage({ role: "user" }),
+    });
+
+    expect(request).not.toBeNull();
+    expect(request?.context).toEqual({
+      clickHouseUser: "default",
+      clusterName: "prod-eu",
+      serverVersion: "24.8.1.1",
+    });
+  });
 });

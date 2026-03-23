@@ -8,6 +8,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatMessageList } from "./chat-message-list";
 
+const testGlobal = globalThis as typeof globalThis & {
+  IS_REACT_ACT_ENVIRONMENT?: boolean;
+};
+
 vi.mock("use-debounce", () => ({
   useDebouncedCallback: <T extends (...args: never[]) => void>(callback: T) => callback,
 }));
@@ -29,7 +33,7 @@ describe("ChatMessageList", () => {
   let root: Root;
 
   beforeEach(() => {
-    globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+    testGlobal.IS_REACT_ACT_ENVIRONMENT = true;
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
       callback(0);
       return 0;

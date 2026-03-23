@@ -31,6 +31,8 @@ describe("Connection query context parameters", () => {
       url: "http://localhost:8123",
       user: "default",
       password: "",
+      cluster: "",
+      editable: true,
     });
 
     await connection.query("SELECT 1").response;
@@ -52,6 +54,8 @@ describe("Connection query context parameters", () => {
       url: "http://localhost:8123?max_execution_time=5",
       user: "default",
       password: "",
+      cluster: "",
+      editable: true,
     });
 
     await connection.query("SELECT 1", {
@@ -74,6 +78,8 @@ describe("Connection query context parameters", () => {
       url: "http://localhost:8123",
       user: "default",
       password: "",
+      cluster: "",
+      editable: true,
     });
 
     await connection.queryRawResponse("SELECT 1").response;

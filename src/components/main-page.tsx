@@ -108,13 +108,16 @@ function extractTableNames(result: SchemaLoadResult): {
 
 // Initialize cluster info on a temporary connection and update metadata directly
 async function getConnectionMetadata(connection: Connection): Promise<void> {
+  let remoteHostName: string | undefined;
+
   // Use FQDN instead of hostname is that the hostname returns short name on k8s,
   // which fails to resolve in remote function
   const metadataQuery = connection
     .query(
       `SELECT currentUser(), 
       timezone(),
-      FQDN()`,
+      FQDN(),
+      version()`,
       { default_format: "JSONCompact" }
     )
     .response.then((metadataResponse) => {
@@ -123,16 +126,20 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
         const internalUser = data.data[0][0];
         const timezone = data.data[0][1];
         const hostname = data.data[0][2] as string;
+        const serverVersion = data.data[0][3] as string;
         // Index mapping for JSONCompact row:
         // 0: currentUser()
         // 1: timezone()
         // 2: FQDN()
+        // 3: version()
 
         const isCluster = connection.cluster && connection.cluster.length > 0;
+        remoteHostName = isCluster ? hostname : undefined;
         connection.metadata = {
           ...connection.metadata,
           displayName: hostname,
-          remoteHostName: isCluster ? hostname : undefined,
+          remoteHostName,
+          serverVersion,
           internalUser: internalUser as string,
           timezone: timezone as string,
         };
@@ -237,7 +244,7 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
   const clusterTableQuery = connection.cluster
     ? connection
         .query(
-          `SELECT host_name FROM system.clusters WHERE cluster = '${SqlUtils.escapeSqlString(connection.cluster)}'`,
+          `SELECT host_name, host_address, shard_num FROM system.clusters WHERE cluster = '${SqlUtils.escapeSqlString(connection.cluster)}'`,
           {
             default_format: "JSONCompact",
           }
@@ -248,6 +255,10 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
             if (data && Array.isArray(data.data)) {
               const hostNames = data.data.map((row) => row[0] as string);
               hostNameManager.shortenHostnames(hostNames);
+              connection.metadata = {
+                ...connection.metadata,
+                remoteHostName: remoteHostName ?? connection.metadata.remoteHostName,
+              };
             }
           }
         })

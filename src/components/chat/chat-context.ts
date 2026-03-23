@@ -1,16 +1,49 @@
+import type { Connection } from "@/lib/connection/connection";
+
 export interface DatabaseContext {
-  currentQuery?: string;
   database?: string;
   tables?: Array<{
     name: string;
     columns: Array<{ name: string; type: string }> | string[];
     totalColumns?: number;
   }>;
-
-  /**
-   * Used for SQL generation
-   */
+  clusterName?: string;
+  serverVersion?: string;
   clickHouseUser?: string;
+}
+
+export function hasDatabaseContextFacts(context?: DatabaseContext): boolean {
+  return Boolean(context?.clusterName || context?.serverVersion || context?.clickHouseUser);
+}
+
+export function formatDatabaseContextFacts(context?: DatabaseContext): string {
+  if (!context) {
+    return "";
+  }
+
+  return [
+    "Database context facts:",
+    `- Cluster name: ${context.clusterName ?? "unknown"}`,
+    `- Server version: ${context.serverVersion ?? "unknown"}`,
+    `- ClickHouse user: ${context.clickHouseUser ?? "unknown"}`,
+    "Use these facts only when they materially change the answer. Do not infer missing values.",
+  ].join("\n");
+}
+
+export function getDatabaseContextFromConnection(
+  connection?: Pick<Connection, "cluster" | "metadata"> | null
+): DatabaseContext | undefined {
+  if (!connection) {
+    return undefined;
+  }
+
+  const context: DatabaseContext = {
+    clusterName: connection.cluster?.trim() || undefined,
+    serverVersion: connection.metadata.serverVersion?.trim() || undefined,
+    clickHouseUser: connection.metadata.internalUser?.trim() || undefined,
+  };
+
+  return hasDatabaseContextFacts(context) ? context : undefined;
 }
 
 /**

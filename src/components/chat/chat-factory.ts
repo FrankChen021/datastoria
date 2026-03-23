@@ -54,6 +54,24 @@ type CreateInternalOptions = ChatFactoryCreateOptions & {
   onPrepareSendMessagesRequest?: (args: PrepareSendMessagesRequestArgs) => Promise<void> | void;
   onFinish?: (args: FinishMessageArgs) => Promise<void> | void;
 };
+type SendMessagesRequestPayloadArgs = {
+  sessionId: string;
+  connectionId: string;
+  messages: AppUIMessage[];
+  trigger: unknown;
+  messageId: string | undefined;
+  body: unknown;
+  requestContext?: DatabaseContext;
+  currentModel?: {
+    provider: string;
+    modelId: string;
+    apiKey?: string;
+  };
+  generateTitle: boolean;
+  ephemeral?: boolean;
+  pruneValidateSql: boolean;
+  chatPersistenceMode: "local" | "remote";
+};
 
 function extractTextFromMessage(
   message: Pick<Message, "parts"> | Pick<AppUIMessage, "parts">
@@ -106,6 +124,53 @@ function createToolProgressCallback(
 
 function newUniqueSessionId(): string {
   return uuidv7().replace(/-/g, "");
+}
+
+export function buildSendMessagesRequestPayload({
+  sessionId,
+  connectionId,
+  messages,
+  trigger,
+  messageId,
+  body,
+  requestContext,
+  currentModel,
+  generateTitle,
+  ephemeral,
+  pruneValidateSql,
+  chatPersistenceMode,
+}: SendMessagesRequestPayloadArgs): Record<string, unknown> {
+  if (chatPersistenceMode === "remote") {
+    const lastMessage = messages[messages.length - 1];
+    const continuation = lastAssistantMessageIsCompleteWithToolCalls({ messages });
+
+    return {
+      sessionId,
+      connectionId: toSessionRepositoryConnectionId(connectionId),
+      message: lastMessage,
+      ...(continuation ? { continuation: true } : {}),
+      ...(!continuation ? { generateTitle } : {}),
+      ...(ephemeral ? { ephemeral: true } : {}),
+      agentContext: {
+        pruneValidateSql,
+      },
+      ...(requestContext ? { context: requestContext } : {}),
+      ...(currentModel ? { model: currentModel } : {}),
+    };
+  }
+
+  return {
+    ...(typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {}),
+    messages,
+    trigger,
+    messageId,
+    agentContext: {
+      pruneValidateSql,
+    },
+    generateTitle,
+    ...(requestContext ? { context: requestContext } : {}),
+    ...(currentModel ? { model: currentModel } : {}),
+  };
 }
 
 export class ChatFactory {
@@ -393,50 +458,22 @@ export class ChatFactory {
 
           const requestContext = options.context ?? ChatContext.build();
           const chatPersistenceMode = getRuntimeConfig().sessionRepositoryType;
-
-          if (chatPersistenceMode === "remote") {
-            const currentMessages = messages as AppUIMessage[];
-            const lastMessage = currentMessages[currentMessages.length - 1];
-            const sessionRepositoryConnectionId = toSessionRepositoryConnectionId(
-              connection.connectionId
-            );
-            const continuation = lastAssistantMessageIsCompleteWithToolCalls({
-              messages: currentMessages,
-            });
-
-            return {
-              body: {
-                sessionId,
-                // Keep payload naming aligned with backend API contract.
-                connectionId: sessionRepositoryConnectionId,
-                message: lastMessage,
-                ...(continuation ? { continuation: true } : {}),
-                ...(!continuation ? { generateTitle: options.generateTitle } : {}),
-                ...(options.ephemeral ? { ephemeral: true } : {}),
-                agentContext: {
-                  pruneValidateSql: AgentConfigurationManager.getConfiguration().pruneValidateSql,
-                },
-                ...(requestContext && { context: requestContext }),
-                ...(currentModel && { model: currentModel }),
-              },
-              headers,
-              credentials,
-            };
-          }
-
           return {
-            body: {
-              ...body,
-              messages,
+            body: buildSendMessagesRequestPayload({
+              sessionId,
+              connectionId: connection.connectionId,
+              messages: messages as AppUIMessage[],
               trigger,
               messageId,
-              agentContext: {
-                pruneValidateSql: AgentConfigurationManager.getConfiguration().pruneValidateSql,
-              },
+              body,
+              requestContext,
+              currentModel,
               generateTitle: options.generateTitle,
-              ...(requestContext && { context: requestContext }),
-              ...(currentModel && { model: currentModel }),
-            },
+              ephemeral: options.ephemeral,
+              pruneValidateSql:
+                AgentConfigurationManager.getConfiguration().pruneValidateSql ?? true,
+              chatPersistenceMode,
+            }),
             headers,
             credentials,
           };

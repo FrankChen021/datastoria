@@ -84,6 +84,7 @@ export interface ConnectionMetadata {
   // It will be used to execute future queries in users intend to perform query on that node
   // ONLY available under the cluster mode
   remoteHostName?: string;
+  serverVersion?: string;
 
   // The current user at server side, will be used to execute queries that require the internal user name instead of the client side configured user name
   internalUser: string;

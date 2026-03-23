@@ -1,5 +1,6 @@
 "use client";
 
+import { ChatContext, getDatabaseContextFromConnection } from "@/components/chat/chat-context";
 import { ChatFactory } from "@/components/chat/chat-factory";
 import { ChatUIContext } from "@/components/chat/chat-ui-context";
 import { SessionManager } from "@/components/chat/session/session-manager";
@@ -13,7 +14,6 @@ import { useSession } from "next-auth/react";
 import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { ChatContext } from "../chat-context";
 import { OpenSessionListButton } from "../session/open-session-list-button";
 import { SqlExecutionProvider } from "../sql-execution-context";
 import { ChatView, DEFAULT_CHAT_QUESTIONS, type ChatViewHandle } from "./chat-view";
@@ -397,12 +397,11 @@ export function ChatPanel({
   // Update context builder when props change
   useEffect(() => {
     ChatContext.setBuilder(() => ({
-      currentQuery,
       database: currentDatabase,
       tables: availableTables,
-      clickHouseUser: connection?.metadata.internalUser,
+      ...getDatabaseContextFromConnection(connection),
     }));
-  }, [currentQuery, currentDatabase, availableTables, connection]);
+  }, [currentDatabase, availableTables, connection]);
 
   // Clear initialInput after it's been used
   useEffect(() => {

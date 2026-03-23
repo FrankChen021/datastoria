@@ -9,7 +9,7 @@ import { useChat, type Chat } from "@ai-sdk/react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { ChatActionProvider } from "../chat-action-context";
-import { ChatContext } from "../chat-context";
+import { ChatContext, getDatabaseContextFromConnection } from "../chat-context";
 import { ChatFactory } from "../chat-factory";
 import { ChatInput, type ChatInputHandle } from "../input/chat-input";
 import { getTableContextByMentions } from "../input/mention-utils";
@@ -131,10 +131,9 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
 
       // Update context builder to include mentioned tables
       ChatContext.setBuilder(() => ({
-        currentQuery,
         database: currentDatabase,
         tables: [...(availableTables || []), ...(mentionedTables || [])],
-        clickHouseUser: connection?.metadata.internalUser,
+        ...getDatabaseContextFromConnection(connection),
       }));
 
       sendMessage({
@@ -146,7 +145,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         },
       });
     },
-    [chat, sendMessage, connection, currentQuery, currentDatabase, availableTables]
+    [chat, sendMessage, connection, currentDatabase, availableTables]
   );
 
   // Expose send and getInput to parent component via imperative handle

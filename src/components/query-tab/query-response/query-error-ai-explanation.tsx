@@ -1,5 +1,6 @@
 "use client";
 
+import { getDatabaseContextFromConnection } from "@/components/chat/chat-context";
 import { ChatFactory } from "@/components/chat/chat-factory";
 import { ChatMessage } from "@/components/chat/message/chat-message";
 import { useConnection } from "@/components/connection/connection-context";
@@ -153,10 +154,7 @@ export const QueryErrorAIExplanation = memo(function QueryErrorAIExplanation({
       const createdChat = await ChatFactory.createEphemeral({
         connection,
         initialMessages: [],
-        context: {
-          currentQuery: sql,
-          clickHouseUser: connection.metadata.internalUser,
-        },
+        context: getDatabaseContextFromConnection(connection),
       });
 
       if (cancelled) {

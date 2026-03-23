@@ -9,7 +9,8 @@ metadata:
 
 1. Extract the numeric error code from the error text (e.g. `Code: 60`).
 2. Load `references/<code>.md` with `skill_resource` (e.g. `references/60.md`) and follow its workflow.
-3. If `skill_resource` returns nothing, use the error message and your ClickHouse knowledge to provide a best-effort Cause / Fix / Example response.
+3. If the orchestrator provides diagnosis environment facts (cluster name, server version, ClickHouse user), use them when they materially change the cause or fix. Treat missing values as unknown; do not infer them.
+4. If `skill_resource` returns nothing, use the error message and your ClickHouse knowledge to provide a best-effort Cause / Fix / Example response.
 
 ## Response format
 

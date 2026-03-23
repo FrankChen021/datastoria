@@ -1,6 +1,6 @@
 import { getAuthenticatedUserEmail } from "@/auth";
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
-import { ORCHESTRATOR_SYSTEM_PROMPT } from "@/lib/ai/agent/orchestrator-prompt";
+import { buildOrchestratorSystemPrompt } from "@/lib/ai/agent/orchestrator-prompt";
 import {
   SessionTitleGenerator,
   type SessionTitleGenerationResponse,
@@ -396,7 +396,7 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model,
-      system: ORCHESTRATOR_SYSTEM_PROMPT,
+      system: buildOrchestratorSystemPrompt(context),
       messages: modelMessages,
       tools: {
         [SERVER_TOOL_NAMES.SKILL]: ServerTools.skill,

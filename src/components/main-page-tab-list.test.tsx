@@ -10,6 +10,11 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const testGlobal = globalThis as typeof globalThis & {
+  IS_REACT_ACT_ENVIRONMENT?: boolean;
+  ResizeObserver?: typeof ResizeObserver;
+};
+
 const queryLogRenderCounts: Record<string, number> = {};
 
 vi.mock("@/components/app-logo", () => ({
@@ -86,8 +91,8 @@ describe("MainPageTabList", () => {
   let root: Root;
 
   beforeEach(() => {
-    globalThis.IS_REACT_ACT_ENVIRONMENT = true;
-    globalThis.ResizeObserver = class ResizeObserver {
+    testGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+    testGlobal.ResizeObserver = class ResizeObserver {
       observe() {}
       unobserve() {}
       disconnect() {}

@@ -7,6 +7,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardSection } from "../dashboard-section";
 
+const testGlobal = globalThis as typeof globalThis & {
+  IS_REACT_ACT_ENVIRONMENT?: boolean;
+};
+
 let containerWidth = 320;
 let panelMounts = 0;
 let panelUnmounts = 0;
@@ -76,7 +80,7 @@ describe("DashboardSection", () => {
   let root: Root;
 
   beforeEach(() => {
-    globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+    testGlobal.IS_REACT_ACT_ENVIRONMENT = true;
     containerWidth = 320;
     panelMounts = 0;
     panelUnmounts = 0;
