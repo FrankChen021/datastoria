@@ -4,7 +4,7 @@ import { ModelManager } from "@/components/settings/models/model-manager";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import type { AppUIMessage, Message, MessageMetadata } from "@/lib/ai/chat-types";
 import type { StageStatus, ToolProgressCallback } from "@/lib/ai/tools/client/client-tool-types";
-import { ClientToolExecutors } from "@/lib/ai/tools/client/client-tools";
+import { CLIENT_TOOL_NAMES, ClientToolExecutors } from "@/lib/ai/tools/client/client-tools";
 import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { BasePath } from "@/lib/base-path";
@@ -455,6 +455,10 @@ export class ChatFactory {
           toolName === SERVER_TOOL_NAMES.SKILL ||
           toolName === SERVER_TOOL_NAMES.SKILL_RESOURCE
         ) {
+          return;
+        }
+
+        if (toolName === CLIENT_TOOL_NAMES.ASK_USER_QUESTION) {
           return;
         }
 

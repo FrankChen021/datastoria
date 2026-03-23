@@ -27,6 +27,33 @@ import {
 } from "./status/collect-cluster-status";
 import { validateSqlExecutor } from "./validate-sql";
 
+export type AskUserQuestionOption =
+  | {
+      id: string;
+      label: string;
+      type: "text";
+    }
+  | {
+      id: string;
+      label: string;
+      type: "select";
+      choices: string[];
+    };
+
+export type AskUserQuestionInput = {
+  questions: {
+    header: string;
+    options: AskUserQuestionOption[];
+  }[];
+};
+
+export type AskUserQuestionOutput = {
+  optionId: string;
+  label: string;
+  type: "text" | "select";
+  value: string;
+};
+
 export type ValidateSqlToolInput = {
   sql: string;
 };
@@ -36,7 +63,50 @@ export type ValidateSqlToolOutput = {
   error?: string;
 };
 
+const askUserQuestionExecutor: ToolExecutor<
+  AskUserQuestionInput,
+  AskUserQuestionOutput
+> = async () => {
+  throw new Error("ask_user_question is interactive and must not be eagerly executed.");
+};
+
+const askUserQuestionOptionSchema = z.discriminatedUnion("type", [
+  z.object({
+    id: z.string(),
+    label: z.string(),
+    type: z.literal("text"),
+  }),
+  z.object({
+    id: z.string(),
+    label: z.string(),
+    type: z.literal("select"),
+    choices: z.array(z.string()).min(1),
+  }),
+]);
+
 export const ClientTools = {
+  ask_user_question: tool({
+    description:
+      "Ask the user a single structured follow-up question inside the chat UI. This is an interactive tool: it pauses until the user answers, then returns the normalized selection and value.",
+    inputSchema: z.object({
+      questions: z
+        .array(
+          z.object({
+            header: z.string(),
+            options: z.array(askUserQuestionOptionSchema).min(1),
+          })
+        )
+        .min(1)
+        .max(1)
+        .describe("Exactly one question for v1."),
+    }) satisfies z.ZodType<AskUserQuestionInput>,
+    outputSchema: z.object({
+      optionId: z.string(),
+      label: z.string(),
+      type: z.enum(["text", "select"]),
+      value: z.string(),
+    }) satisfies z.ZodType<AskUserQuestionOutput>,
+  }),
   explore_schema: tool({
     description: `Explore table schemas: columns, engine, sorting/primary/partition keys. Supports multiple tables per call.
 - Use fully qualified 'database.table' format (e.g., 'system.metric_log').
@@ -447,6 +517,7 @@ export const ClientTools = {
  */
 export const CLIENT_TOOL_NAMES = {
   // Client-side introspection and execution tools
+  ASK_USER_QUESTION: "ask_user_question",
   EXPLORE_SCHEMA: "explore_schema",
   GET_TABLES: "get_tables",
   EXECUTE_SQL: "execute_sql",
@@ -469,6 +540,7 @@ export const ClientToolExecutors: {
     InferToolOutput<(typeof ClientTools)[K]>
   >;
 } = {
+  ask_user_question: askUserQuestionExecutor,
   explore_schema: exploreSchemaExecutor,
   get_tables: getTablesExecutor,
   execute_sql: executeSqlExecutor,

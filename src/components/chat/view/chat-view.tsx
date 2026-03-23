@@ -202,7 +202,17 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   }, [chat.id, stop]);
 
   return (
-    <ChatActionProvider onAction={handleUserAction} chatId={chat.id}>
+    <ChatActionProvider
+      onAction={handleUserAction}
+      onToolOutput={({ tool, toolCallId, output }) =>
+        chat.addToolOutput({
+          tool: tool as never,
+          toolCallId,
+          output: output as never,
+        })
+      }
+      chatId={chat.id}
+    >
       <div className="flex flex-col h-full bg-background overflow-hidden relative">
         {isEmpty ? (
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 flex flex-col">
