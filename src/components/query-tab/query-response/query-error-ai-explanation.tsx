@@ -586,7 +586,7 @@ export const QueryErrorAIExplanation = memo(function QueryErrorAIExplanation({
     };
   }, [connection, queryId, sql]);
 
-  if (!chat) {
+  if (!chat || !connection) {
     return null;
   }
 
