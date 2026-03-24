@@ -5,7 +5,7 @@ export interface SkillMetadata {
 
 export type SkillSource = "disk" | "database";
 export type SkillStatus = "available" | "disabled" | "invalid";
-export type SkillState = "draft" | "committed";
+export type SkillState = "draft" | "published";
 export type SkillScope = "global" | "self";
 
 export interface SkillCatalogItem {

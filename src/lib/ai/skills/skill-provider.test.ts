@@ -35,7 +35,7 @@ describe("skill provider overlay", () => {
     }
   });
 
-  it("overlays disk skills with committed database skills and resources", async () => {
+  it("overlays disk skills with published database skills and resources", async () => {
     const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "skill-provider-test-"));
     tempDirs.push(rootDir);
     process.env.SKILLS_ROOT_DIR = rootDir;
@@ -76,7 +76,7 @@ Database copy.
         name: "visualization",
         description: "Render charts from database.",
       }),
-      state: "committed",
+      state: "published",
       scope: "global",
       version: "2.0.0",
       owner_id: "owner@example.com",
@@ -88,7 +88,7 @@ Database copy.
       skill_id: "visualization",
       content: "database resource",
       meta_text: JSON.stringify({ path: "references/rules.md" }),
-      state: "committed",
+      state: "published",
       scope: "global",
       version: "2.0.0",
       owner_id: "owner@example.com",
@@ -126,7 +126,7 @@ Database copy.
       type: "skill",
       content: "# Private skill",
       meta_text: JSON.stringify({ name: "private-skill", description: "Only mine." }),
-      state: "committed",
+      state: "published",
       scope: "self",
       owner_id: "me@example.com",
       source: "database",

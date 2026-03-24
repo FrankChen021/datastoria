@@ -19,6 +19,15 @@ export interface SkillDetailResponse extends SkillCatalogItem {
   resourcePaths: string[];
 }
 
+export interface SkillResourceResponse {
+  content: string;
+  source: SkillCatalogItem["source"];
+  state?: SkillCatalogItem["state"];
+  scope?: SkillCatalogItem["scope"];
+  author?: SkillCatalogItem["author"];
+  version?: SkillCatalogItem["version"];
+}
+
 export interface SkillProvider {
   /** Return true when this provider owns the given skill id. */
   hasSkill(id: string): Promise<boolean>;
@@ -31,6 +40,9 @@ export interface SkillProvider {
 
   /** Return raw content of a sub-resource file, or null if not found. */
   getSkillResource(id: string, resourcePath: string): Promise<string | null>;
+
+  /** Return raw content plus metadata for a sub-resource file, or null if not found. */
+  getSkillResourceDetail(id: string, resourcePath: string): Promise<SkillResourceResponse | null>;
 }
 
 /**
@@ -71,10 +83,18 @@ export class CompositeSkillProvider implements SkillProvider {
   }
 
   async getSkillResource(id: string, resourcePath: string): Promise<string | null> {
+    const detail = await this.getSkillResourceDetail(id, resourcePath);
+    return detail?.content ?? null;
+  }
+
+  async getSkillResourceDetail(
+    id: string,
+    resourcePath: string
+  ): Promise<SkillResourceResponse | null> {
     for (let index = this.providers.length - 1; index >= 0; index--) {
       const provider = this.providers[index];
       if (await provider.hasSkill(id)) {
-        return provider.getSkillResource(id, resourcePath);
+        return provider.getSkillResourceDetail(id, resourcePath);
       }
     }
     return null;

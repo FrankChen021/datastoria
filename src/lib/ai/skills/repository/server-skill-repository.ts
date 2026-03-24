@@ -35,6 +35,20 @@ export interface UpsertSkillRecordInput {
   source: Extract<SkillSource, "database">;
 }
 
+export interface SkillBundleResourceInput {
+  path: string;
+  content: string;
+}
+
+export interface UpsertSkillBundleInput {
+  id: string;
+  content: string;
+  scope?: SkillScope;
+  version?: string | null;
+  resources?: SkillBundleResourceInput[];
+  state?: SkillState;
+}
+
 export interface ServerSkillRepository {
   listSkills(visibility: SkillRepositoryVisibility): Promise<PersistedSkillRecord[]>;
   getSkill(id: string, visibility: SkillRepositoryVisibility): Promise<PersistedSkillRecord | null>;
@@ -47,5 +61,8 @@ export interface ServerSkillRepository {
     resourcePath: string,
     visibility: SkillRepositoryVisibility
   ): Promise<PersistedSkillRecord | null>;
+  upsertSkillBundle(ownerId: string, input: UpsertSkillBundleInput): Promise<void>;
   upsertSkill(input: UpsertSkillRecordInput): Promise<void>;
+  deleteSkill(skillId: string, ownerId: string): Promise<void>;
+  publishSkill(skillId: string, ownerId: string): Promise<void>;
 }

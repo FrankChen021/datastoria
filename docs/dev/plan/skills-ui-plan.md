@@ -131,7 +131,7 @@ This is especially useful for user-created skills in phase 2, where users may wa
 ```ts
 type SkillSource = "disk" | "database";
 type SkillStatus = "available" | "disabled" | "invalid";
-type SkillState = "draft" | "committed";
+type SkillState = "draft" | "published";
 type SkillScope = "global" | "self";
 
 interface SkillCatalogItem {
@@ -176,7 +176,7 @@ interface SkillDetailResponse extends SkillCatalogItem {
 - **`id` derivation**: For built-in skills, `id` = leaf folder name via `path.basename(path.dirname(skillFile))`. DB overrides must reuse this same logical id when replacing a disk skill.
 - **`source`**: The resolved source is `"disk"` or `"database"`.
 - **`status`**: Always `"available"` in phase 1. Future phases add validation states.
-- **`state`**: Runtime defaults to committed-only. Draft is opt-in for tests and preview flows.
+- **`state`**: Runtime defaults to published-only. Draft is opt-in for tests and preview flows.
 - **`scope`**: Database skills use `"global"` or `"self"`.
 - **`summary`**: Derived conservatively from the first non-heading paragraph of SKILL.md body. If extraction is fragile, omit it — this is a nice-to-have.
 - **`content`**: The detail endpoint returns the **full raw markdown** (including frontmatter). The frontend decides whether to render it or show raw based on the toggle state.

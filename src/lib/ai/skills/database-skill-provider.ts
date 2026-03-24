@@ -4,7 +4,7 @@ import type {
   ServerSkillRepository,
   SkillRepositoryVisibility,
 } from "./repository/server-skill-repository";
-import type { SkillDetailResponse, SkillProvider } from "./skill-provider";
+import type { SkillDetailResponse, SkillProvider, SkillResourceResponse } from "./skill-provider";
 import type { SkillCatalogItem } from "./skill-types";
 
 type DatabaseSkillProviderOptions = {
@@ -118,7 +118,7 @@ function toSkillCatalogItem(row: PersistedSkillRecord): SkillCatalogItem {
     name,
     description,
     source: "database",
-    status: row.state === "committed" ? "available" : "disabled",
+    status: row.state === "published" ? "available" : "disabled",
     state: row.state,
     scope: row.scope,
     version: row.version ?? undefined,
@@ -132,7 +132,7 @@ function toSkillCatalogItem(row: PersistedSkillRecord): SkillCatalogItem {
 function buildVisibility(options: DatabaseSkillProviderOptions): SkillRepositoryVisibility {
   return {
     userId: options.userId,
-    states: options.includeDraft ? ["draft", "committed"] : ["committed"],
+    states: options.includeDraft ? ["draft", "published"] : ["published"],
   };
 }
 
@@ -185,8 +185,27 @@ export class DatabaseSkillProvider implements SkillProvider {
   }
 
   async getSkillResource(id: string, resourcePath: string): Promise<string | null> {
+    const detail = await this.getSkillResourceDetail(id, resourcePath);
+    return detail?.content ?? null;
+  }
+
+  async getSkillResourceDetail(
+    id: string,
+    resourcePath: string
+  ): Promise<SkillResourceResponse | null> {
     const rows = await this.repository.listSkillResource(id, buildVisibility(this.options));
     const match = rows.find((row) => getResourcePath(row) === resourcePath);
-    return match?.content ?? null;
+    if (!match) {
+      return null;
+    }
+
+    return {
+      content: match.content,
+      source: "database",
+      state: match.state,
+      scope: match.scope,
+      author: match.owner_id ?? undefined,
+      version: match.version ?? undefined,
+    };
   }
 }

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type { SkillDetailResponse } from "@/lib/ai/skills/skill-provider";
+import type { SkillDetailResponse, SkillResourceResponse } from "@/lib/ai/skills/skill-provider";
 import { BasePath } from "@/lib/base-path";
 import matter from "gray-matter";
 import { ArrowLeft, ChevronRight, File, FileText, Folder } from "lucide-react";
@@ -210,6 +210,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
   // Left panel: null = SKILL.md, string = resource path
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [resourceContent, setResourceContent] = useState<string | null>(null);
+  const [resourceState, setResourceState] = useState<SkillResourceResponse["state"] | null>(null);
   const [resourceLoading, setResourceLoading] = useState(false);
   const [resourceError, setResourceError] = useState<string | null>(null);
 
@@ -228,6 +229,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
     setDetail(null);
     setSelectedFile(null);
     setResourceContent(null);
+    setResourceState(null);
     setResourceError(null);
     setResourceLoading(false);
     resourceAbortControllerRef.current?.abort();
@@ -266,6 +268,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
 
       setSelectedFile(resourcePath);
       setResourceContent(null);
+      setResourceState(null);
       setResourceError(null);
       setResourceLoading(true);
       setRenderMode("rendered");
@@ -278,11 +281,12 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
       )
         .then((res) => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.json() as Promise<{ content: string }>;
+          return res.json() as Promise<SkillResourceResponse>;
         })
-        .then(({ content }) => {
+        .then(({ content, state }) => {
           if (resourceRequestIdRef.current !== requestId) return;
           setResourceContent(content);
+          setResourceState(state ?? null);
           setResourceLoading(false);
         })
         .catch((err: unknown) => {
@@ -301,6 +305,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
     resourceAbortControllerRef.current = null;
     setSelectedFile(null);
     setResourceContent(null);
+    setResourceState(null);
     setResourceError(null);
     setResourceLoading(false);
     setRenderMode("rendered");
@@ -312,6 +317,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
   const isJsonFile = selectedFile?.endsWith(".json") || selectedFile?.endsWith(".JSON");
   const displayedFilename = selectedFile === null ? "SKILL.md" : selectedFile.split("/").pop()!;
   const currentContent = selectedFile === null ? (detail?.content ?? "") : (resourceContent ?? "");
+  const currentState = selectedFile === null ? (detail?.state ?? null) : resourceState;
   const dirTree = detail ? buildDirTree(detail.resourcePaths) : [];
 
   return (
@@ -331,6 +337,11 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
             <Badge variant="secondary" className="text-xs px-1.5 py-0 shrink-0 capitalize">
               {detail.source}
             </Badge>
+            {detail.state && (
+              <Badge variant="outline" className="text-xs px-1.5 py-0 shrink-0 capitalize">
+                {detail.state}
+              </Badge>
+            )}
             {detail.version && (
               <Badge variant="secondary" className="text-xs px-1.5 py-0 shrink-0">
                 v{detail.version}
@@ -366,6 +377,11 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
                 <span className="text-xs font-medium text-muted-foreground truncate">
                   {displayedFilename}
                 </span>
+                {currentState && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 capitalize">
+                    {currentState}
+                  </Badge>
+                )}
               </div>
               <ToggleGroup
                 type="single"

@@ -1,8 +1,11 @@
+import matter from "gray-matter";
 import type { Knex } from "knex";
 import type {
   PersistedSkillRecord,
   ServerSkillRepository,
+  SkillBundleResourceInput,
   SkillRepositoryVisibility,
+  UpsertSkillBundleInput,
   UpsertSkillRecordInput,
 } from "../server-skill-repository";
 
@@ -39,7 +42,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     visibility: SkillRepositoryVisibility
   ): Knex.QueryBuilder {
     const states =
-      visibility.states && visibility.states.length > 0 ? visibility.states : ["committed"];
+      visibility.states && visibility.states.length > 0 ? visibility.states : ["published"];
     query.whereIn("state", states);
     query.andWhere((builder) => {
       builder.where("scope", "global");
@@ -58,6 +61,47 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
       created_at: new Date(row.created_at),
       updated_at: new Date(row.updated_at),
     };
+  }
+
+  private isSafeRelativePath(input: string): boolean {
+    if (!input || input.length === 0) return false;
+    if (input.startsWith("/") || input.startsWith("\\")) return false;
+    const normalized = input.replaceAll("\\", "/");
+    return !normalized.includes("../") && normalized !== "..";
+  }
+
+  private buildSkillMetaText(content: string): string {
+    const parsed = matter(content);
+    const data = parsed.data as Record<string, unknown>;
+    const metadataBlock = (data.metadata ?? {}) as Record<string, unknown>;
+
+    return JSON.stringify({
+      name: typeof data.name === "string" ? data.name : undefined,
+      description: typeof data.description === "string" ? data.description : undefined,
+      disableSlashCommand:
+        data["disable-slash-command"] === true || metadataBlock["disable-slash-command"] === true,
+      metadata: {
+        author:
+          typeof metadataBlock.author === "string"
+            ? metadataBlock.author
+            : typeof metadataBlock.provider === "string"
+              ? metadataBlock.provider
+              : undefined,
+        disableSlashCommand: metadataBlock["disable-slash-command"] === true,
+      },
+    });
+  }
+
+  private buildResourceId(skillId: string, resourcePath: string): string {
+    return `${skillId}:${resourcePath}`;
+  }
+
+  private normalizeResourcePath(resource: SkillBundleResourceInput): string {
+    const resourcePath = resource.path.trim();
+    if (!this.isSafeRelativePath(resourcePath)) {
+      throw new Error(`Invalid resource path: ${resource.path}`);
+    }
+    return resourcePath;
   }
 
   async listSkills(visibility: SkillRepositoryVisibility): Promise<PersistedSkillRecord[]> {
@@ -161,6 +205,63 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
         }
       }) ?? null
     );
+  }
+
+  async upsertSkillBundle(ownerId: string, input: UpsertSkillBundleInput): Promise<void> {
+    const scope = input.scope ?? "self";
+    const state = input.state ?? "draft";
+    const version = input.version ?? null;
+
+    await this.upsertSkill({
+      id: input.id,
+      type: "skill",
+      content: input.content,
+      meta_text: this.buildSkillMetaText(input.content),
+      state,
+      scope,
+      version,
+      owner_id: ownerId,
+      source: "database",
+    });
+
+    for (const resource of input.resources ?? []) {
+      const resourcePath = this.normalizeResourcePath(resource);
+      await this.upsertSkill({
+        id: this.buildResourceId(input.id, resourcePath),
+        type: "resource",
+        skill_id: input.id,
+        content: resource.content,
+        meta_text: JSON.stringify({ path: resourcePath }),
+        state,
+        scope,
+        version,
+        owner_id: ownerId,
+        source: "database",
+      });
+    }
+  }
+
+  async deleteSkill(skillId: string, ownerId: string): Promise<void> {
+    await this.ensureReady();
+    await this.db()("ai_skills")
+      .where((builder) => {
+        builder.where({ id: skillId }).orWhere({ skill_id: skillId });
+      })
+      .andWhere({ owner_id: ownerId })
+      .del();
+  }
+
+  async publishSkill(skillId: string, ownerId: string): Promise<void> {
+    await this.ensureReady();
+    await this.db()("ai_skills")
+      .where((builder) => {
+        builder.where({ id: skillId }).orWhere({ skill_id: skillId });
+      })
+      .andWhere({ owner_id: ownerId })
+      .update({
+        state: "published",
+        updated_at: this.nowRaw(this.db()),
+      });
   }
 
   async upsertSkill(input: UpsertSkillRecordInput): Promise<void> {

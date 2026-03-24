@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { CommandManager } from "@/lib/ai/commands/command-manager";
 import matter from "gray-matter";
-import type { SkillDetailResponse, SkillProvider } from "./skill-provider";
+import type { SkillDetailResponse, SkillProvider, SkillResourceResponse } from "./skill-provider";
 import type { SkillCatalogItem, SkillMetadata } from "./skill-types";
 
 type SkillCache = {
@@ -223,7 +223,7 @@ export class DiskSkillProvider implements SkillProvider {
         description: typeof data.description === "string" ? data.description : "",
         source: "disk",
         status: "available",
-        state: "committed",
+        state: "published",
         scope: "global",
         version: typeof metadataBlock.version === "string" ? metadataBlock.version : undefined,
         author:
@@ -336,5 +336,22 @@ export class DiskSkillProvider implements SkillProvider {
     if (!resourceCache) return null;
 
     return resourceCache.get(trimmedResourcePath) ?? null;
+  }
+
+  async getSkillResourceDetail(
+    id: string,
+    resourcePath: string
+  ): Promise<SkillResourceResponse | null> {
+    const content = await this.getSkillResource(id, resourcePath);
+    if (content === null) {
+      return null;
+    }
+
+    return {
+      content,
+      source: "disk",
+      state: "published",
+      scope: "global",
+    };
   }
 }
