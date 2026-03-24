@@ -45,7 +45,8 @@ const AISetupSuggestionBanner = memo(function AISetupSuggestionBanner() {
           }}
           className="h-7 text-muted-foreground text-xs"
         >
-          <X className="h-3.5 w-3.5" />Never show this suggestion again
+          <X className="h-3.5 w-3.5" />
+          Never show this suggestion again
         </Button>
       </div>
     </div>
