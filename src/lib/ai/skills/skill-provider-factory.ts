@@ -1,6 +1,6 @@
 import { DatabaseSkillProvider } from "./database-skill-provider";
 import { DiskSkillProvider } from "./disk-skill-provider";
-import { getServerSkillRepository } from "./server-skill-repository-factory";
+import { getServerSkillRepository } from "./repository/server-skill-repository-factory";
 import { CompositeSkillProvider, type SkillProvider } from "./skill-provider";
 
 export type SkillProviderFactoryOptions = {

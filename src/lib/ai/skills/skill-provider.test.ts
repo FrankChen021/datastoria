@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { DatabaseSkillProvider } from "./database-skill-provider";
 import { DiskSkillProvider } from "./disk-skill-provider";
-import { ServerSkillRepositorySqlite } from "./impl/server-skill-repository-sqlite";
+import { ServerSkillRepositorySqlite } from "./repository/impl/server-skill-repository-sqlite";
 import { CompositeSkillProvider } from "./skill-provider";
 
 function writeSkill(

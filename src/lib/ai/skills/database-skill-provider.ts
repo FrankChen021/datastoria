@@ -3,7 +3,7 @@ import type {
   PersistedSkillRecord,
   ServerSkillRepository,
   SkillRepositoryVisibility,
-} from "./server-skill-repository";
+} from "./repository/server-skill-repository";
 import type { SkillDetailResponse, SkillProvider } from "./skill-provider";
 import type { SkillCatalogItem } from "./skill-types";
 

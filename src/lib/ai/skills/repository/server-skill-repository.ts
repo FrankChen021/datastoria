@@ -1,4 +1,4 @@
-import type { SkillScope, SkillSource, SkillState } from "./skill-types";
+import type { SkillScope, SkillSource, SkillState } from "../skill-types";
 
 export type PersistedSkillRecordType = "skill" | "resource";
 
