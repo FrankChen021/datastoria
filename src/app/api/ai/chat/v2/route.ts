@@ -21,7 +21,7 @@ import {
   getServerSessionRepository,
   getSessionRepositoryType,
 } from "@/lib/ai/session/server-session-repository-factory";
-import { getSkillProvider } from "@/lib/ai/skills/skill-provider-factory";
+import { SkillProviderFactory } from "@/lib/ai/skills/skill-provider-factory";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { ClientTools } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
@@ -235,7 +235,7 @@ export async function POST(req: Request) {
     const sessionRepository: ReturnType<typeof getServerSessionRepository> | null =
       repositoryType === "remote" ? getServerSessionRepository() : null;
     let titlePromise: Promise<SessionTitleGenerationResponse | undefined> | undefined;
-    const skillProvider = getSkillProvider({ userId: userEmail ?? null });
+    const skillProvider = SkillProviderFactory.getProvider({ userId: userEmail ?? null });
     const availableSkills = await skillProvider.listSkills();
     const serverTools = createServerTools(skillProvider, availableSkills);
     const skillCommands = buildSkillCommands(availableSkills);

@@ -6,7 +6,7 @@
  * without a second round-trip.
  */
 import { getAuthenticatedUserEmail } from "@/auth";
-import { getSkillProvider } from "@/lib/ai/skills/skill-provider-factory";
+import { SkillProviderFactory } from "@/lib/ai/skills/skill-provider-factory";
 import { buildSkillCommands } from "@/lib/ai/tools/server/skill-tool";
 import { NextResponse } from "next/server";
 
@@ -15,7 +15,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
-    const skillProvider = getSkillProvider({ userId: getAuthenticatedUserEmail(req) ?? null });
+    const skillProvider = SkillProviderFactory.getProvider({
+      userId: getAuthenticatedUserEmail(req) ?? null,
+    });
     const commands = buildSkillCommands(await skillProvider.listSkills());
     return NextResponse.json(commands);
   } catch (err) {

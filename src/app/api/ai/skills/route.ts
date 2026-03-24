@@ -4,7 +4,7 @@
  * Returns compact catalog metadata for the effective skill set.
  */
 import { getAuthenticatedUserEmail } from "@/auth";
-import { getSkillProvider } from "@/lib/ai/skills/skill-provider-factory";
+import { SkillProviderFactory } from "@/lib/ai/skills/skill-provider-factory";
 import { NextResponse } from "next/server";
 
 // Force Node.js runtime (disk-backed skills use fs)
@@ -13,7 +13,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
-    const skillProvider = getSkillProvider({ userId: getAuthenticatedUserEmail(req) ?? null });
+    const skillProvider = SkillProviderFactory.getProvider({
+      userId: getAuthenticatedUserEmail(req) ?? null,
+    });
     const skills = await skillProvider.listSkills((s) => s.author !== "System");
     return NextResponse.json(skills);
   } catch (err) {

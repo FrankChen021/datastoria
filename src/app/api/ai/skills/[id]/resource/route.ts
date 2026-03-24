@@ -5,7 +5,7 @@
  * Used by the detail view when a user clicks a file node in the directory tree.
  */
 import { getAuthenticatedUserEmail } from "@/auth";
-import { getSkillProvider } from "@/lib/ai/skills/skill-provider-factory";
+import { SkillProviderFactory } from "@/lib/ai/skills/skill-provider-factory";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -24,7 +24,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   try {
-    const skillProvider = getSkillProvider({ userId: getAuthenticatedUserEmail(req) ?? null });
+    const skillProvider = SkillProviderFactory.getProvider({
+      userId: getAuthenticatedUserEmail(req) ?? null,
+    });
     const content = await skillProvider.getSkillResource(id, resourcePath);
     if (content === null) {
       return NextResponse.json({ error: "Resource not found" }, { status: 404 });

@@ -21,9 +21,6 @@ export function SkillsCard({ skill, onClick }: SkillsCardProps) {
             {skill.name}
           </CardTitle>
           <div className="flex items-center gap-1 shrink-0 mt-0.5">
-            <Badge variant="secondary" className="text-xs px-1.5 py-0 capitalize">
-              {skill.source}
-            </Badge>
             {skill.version && (
               <Badge variant="secondary" className="text-xs px-1.5 py-0">
                 v{skill.version}

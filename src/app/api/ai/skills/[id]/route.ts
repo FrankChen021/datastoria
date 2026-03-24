@@ -5,7 +5,7 @@
  * The frontend toggle controls whether to render as markdown or show the raw text.
  */
 import { getAuthenticatedUserEmail } from "@/auth";
-import { getSkillProvider } from "@/lib/ai/skills/skill-provider-factory";
+import { SkillProviderFactory } from "@/lib/ai/skills/skill-provider-factory";
 import { NextResponse } from "next/server";
 
 // Force Node.js runtime (disk-backed skills use fs)
@@ -20,7 +20,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   try {
-    const skillProvider = getSkillProvider({ userId: getAuthenticatedUserEmail(req) ?? null });
+    const skillProvider = SkillProviderFactory.getProvider({
+      userId: getAuthenticatedUserEmail(req) ?? null,
+    });
     const detail = await skillProvider.getSkillDetail(id);
     if (!detail) {
       return NextResponse.json({ error: "Skill not found" }, { status: 404 });

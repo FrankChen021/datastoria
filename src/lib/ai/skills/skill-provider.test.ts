@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { DatabaseSkillProvider } from "./database-skill-provider";
-import { DiskSkillProvider } from "./disk-skill-provider";
+import { clearDiskSkillProviderCache, DiskSkillProvider } from "./disk-skill-provider";
 import { ServerSkillRepositorySqlite } from "./repository/impl/server-skill-repository-sqlite";
 import { CompositeSkillProvider } from "./skill-provider";
 
@@ -29,7 +29,7 @@ describe("skill provider overlay", () => {
 
   afterEach(() => {
     process.env.SKILLS_ROOT_DIR = originalSkillsRootDir;
-    DiskSkillProvider.clearCache();
+    clearDiskSkillProviderCache();
     for (const dir of tempDirs.splice(0)) {
       fs.rmSync(dir, { recursive: true, force: true });
     }

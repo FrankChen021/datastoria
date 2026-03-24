@@ -8,14 +8,18 @@ export type SkillProviderFactoryOptions = {
   includeDraft?: boolean;
 };
 
-export function getSkillProvider(options: SkillProviderFactoryOptions): SkillProvider {
-  const providers: SkillProvider[] = [new DiskSkillProvider()];
-  const repository = getServerSkillRepository();
-  providers.push(
-    new DatabaseSkillProvider(repository, {
-      userId: options.userId,
-      includeDraft: options.includeDraft,
-    })
-  );
-  return new CompositeSkillProvider(providers);
+const diskSkillProvider = new DiskSkillProvider();
+
+export class SkillProviderFactory {
+  static getProvider(options: SkillProviderFactoryOptions): SkillProvider {
+    const repository = getServerSkillRepository();
+
+    return new CompositeSkillProvider([
+      diskSkillProvider,
+      new DatabaseSkillProvider(repository, {
+        userId: options.userId,
+        includeDraft: options.includeDraft,
+      }),
+    ]);
+  }
 }

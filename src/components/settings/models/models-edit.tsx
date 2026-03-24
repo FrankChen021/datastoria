@@ -244,7 +244,7 @@ export function ModelsEdit() {
                 <TableRow className="h-9">
                   <TableHead className="w-[300px] py-2 pl-8 font-bold">Model ID</TableHead>
                   <TableHead className="w-[100px] py-2 font-bold">Free</TableHead>
-                  <TableHead className="w-[100px] py-2 font-bold">Disabled</TableHead>
+                  <TableHead className="w-[140px] py-2 font-bold">Disabled</TableHead>
                   <TableHead className="min-w-[200px] py-2 font-bold">API Key</TableHead>
                 </TableRow>
               </TableHeader>
@@ -256,12 +256,16 @@ export function ModelsEdit() {
                   );
                   const sourceInfo = providerSources[provider];
                   const hasSystemModels = !!sourceInfo?.hasSystemModels;
+                  const disabledModelCount = providerModels.filter(
+                    (model) => model.disabled
+                  ).length;
+                  const totalModelCount = providerModels.length;
 
                   return (
                     <React.Fragment key={provider}>
                       {/* Provider Group Header */}
                       <TableRow className="h-10 bg-muted/50 hover:bg-muted/70">
-                        <TableCell colSpan={3} className="px-1 py-2">
+                        <TableCell colSpan={2} className="px-1 py-2">
                           <button
                             type="button"
                             onClick={() => toggleProvider(provider)}
@@ -286,6 +290,9 @@ export function ModelsEdit() {
                             </span>
                           </button>
                         </TableCell>
+                        <TableCell className="w-[140px] py-1.5 text-sm text-muted-foreground whitespace-nowrap">
+                          {disabledModelCount}/{totalModelCount}
+                        </TableCell>
                         <TableCell className="py-1.5 pr-4">
                           <div className="flex items-center gap-2">
                             {PROVIDER_LINKS[provider] && (
@@ -300,7 +307,7 @@ export function ModelsEdit() {
                               </a>
                             )}
                             {provider === PROVIDER_GITHUB_COPILOT && (
-                              <div className="flex flex-col gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
                                 {!providerSetting?.apiKey ? (
                                   <Button
                                     variant="outline"
@@ -356,7 +363,7 @@ export function ModelsEdit() {
                                   </StatusPopover>
                                 )}
                                 {providerSetting?.authError && (
-                                  <div className="text-xs text-destructive">
+                                  <div className="text-xs text-destructive whitespace-nowrap">
                                     {providerSetting.authError === "refresh_failed"
                                       ? "Session refresh failed. Please login again."
                                       : "Session expired. Please login again."}
