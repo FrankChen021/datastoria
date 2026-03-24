@@ -6,7 +6,6 @@ import {
   type SessionTitleGenerationResponse,
 } from "@/lib/ai/agent/session-title-generator";
 import type { AgentContext, AppUIMessage, MessageMetadata } from "@/lib/ai/chat-types";
-import { CommandManager } from "@/lib/ai/commands/command-manager";
 import {
   LanguageModelProviderFactory,
   resolveModelConfig,
@@ -22,11 +21,12 @@ import {
   getServerSessionRepository,
   getSessionRepositoryType,
 } from "@/lib/ai/session/server-session-repository-factory";
-import { SkillManager } from "@/lib/ai/skills/skill-manager";
+import { getSkillProvider } from "@/lib/ai/skills/skill-provider-factory";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { ClientTools } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
-import { ServerTools } from "@/lib/ai/tools/server/server-tools";
+import { createServerTools } from "@/lib/ai/tools/server/server-tools";
+import { buildSkillCommands, expandCommandText } from "@/lib/ai/tools/server/skill-tool";
 import { APICallError } from "@ai-sdk/provider";
 import {
   convertToModelMessages,
@@ -138,9 +138,10 @@ function extractErrorMessage(error: unknown): string {
   return defaultMessage;
 }
 
-function expandCommand(messages: UIMessage[]): UIMessage[] {
-  SkillManager.listSkills();
-
+function expandCommand(
+  messages: UIMessage[],
+  commands: ReturnType<typeof buildSkillCommands>
+): UIMessage[] {
   let lastUserIdx = -1;
   for (let index = messages.length - 1; index >= 0; index--) {
     if (messages[index].role === "user") {
@@ -154,7 +155,7 @@ function expandCommand(messages: UIMessage[]): UIMessage[] {
   const textPart = lastUser.parts?.find((part) => part.type === "text");
   if (!textPart || textPart.type !== "text") return messages;
 
-  const expanded = CommandManager.expand(textPart.text);
+  const expanded = expandCommandText(textPart.text, commands);
   if (!expanded) return messages;
 
   const newParts = lastUser.parts.map((part) =>
@@ -234,6 +235,10 @@ export async function POST(req: Request) {
     const sessionRepository: ReturnType<typeof getServerSessionRepository> | null =
       repositoryType === "remote" ? getServerSessionRepository() : null;
     let titlePromise: Promise<SessionTitleGenerationResponse | undefined> | undefined;
+    const skillProvider = getSkillProvider({ userId: userEmail ?? null });
+    const availableSkills = await skillProvider.listSkills();
+    const serverTools = createServerTools(skillProvider, availableSkills);
+    const skillCommands = buildSkillCommands(availableSkills);
 
     if (repositoryType === "remote") {
       const apiRequest = validateRemoteChatRequest(payload);
@@ -279,7 +284,7 @@ export async function POST(req: Request) {
           message: persistedIncomingMessage,
           allowMissingSession: true,
         });
-        originalMessages = expandCommand([apiRequest.message as UIMessage]);
+        originalMessages = expandCommand([apiRequest.message as UIMessage], skillCommands);
         sessionRepositoryChatId = apiRequest.sessionId;
         sessionRepositoryAllowMissingSession = true;
       } else {
@@ -341,7 +346,7 @@ export async function POST(req: Request) {
           message: persistedIncomingMessage,
         });
 
-        originalMessages = expandCommand(mergedMessages as UIMessage[]);
+        originalMessages = expandCommand(mergedMessages as UIMessage[], skillCommands);
         sessionRepositoryChatId = apiRequest.sessionId;
         sessionRepositoryAllowMissingSession = false;
       }
@@ -375,7 +380,7 @@ export async function POST(req: Request) {
 
       agentContext = apiRequest.agentContext;
       generateTitle = apiRequest.generateTitle !== false;
-      originalMessages = expandCommand(apiRequest.messages ?? []);
+      originalMessages = expandCommand(apiRequest.messages ?? [], skillCommands);
       messageId = getMessageIdFromMessages(apiRequest.messages);
       titlePromise = generateTitle
         ? SessionTitleGenerator.generate(originalMessages, modelConfig)
@@ -398,8 +403,8 @@ export async function POST(req: Request) {
       system: buildOrchestratorSystemPrompt(context),
       messages: modelMessages,
       tools: {
-        [SERVER_TOOL_NAMES.SKILL]: ServerTools.skill,
-        [SERVER_TOOL_NAMES.SKILL_RESOURCE]: ServerTools.skill_resource,
+        [SERVER_TOOL_NAMES.SKILL]: serverTools.skill,
+        [SERVER_TOOL_NAMES.SKILL_RESOURCE]: serverTools.skill_resource,
         ask_user_question: ClientTools.ask_user_question,
         get_tables: ClientTools.get_tables,
         explore_schema: ClientTools.explore_schema,

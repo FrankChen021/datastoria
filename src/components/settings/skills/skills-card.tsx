@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { SkillCatalogItem } from "@/lib/ai/skills/skill-manager";
+import type { SkillCatalogItem } from "@/lib/ai/skills/skill-types";
 
 interface SkillsCardProps {
   skill: SkillCatalogItem;
@@ -21,11 +21,9 @@ export function SkillsCard({ skill, onClick }: SkillsCardProps) {
             {skill.name}
           </CardTitle>
           <div className="flex items-center gap-1 shrink-0 mt-0.5">
-            {skill.source === "built-in" && (
-              <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                Built-in
-              </Badge>
-            )}
+            <Badge variant="secondary" className="text-xs px-1.5 py-0 capitalize">
+              {skill.source}
+            </Badge>
             {skill.version && (
               <Badge variant="secondary" className="text-xs px-1.5 py-0">
                 v{skill.version}
@@ -40,9 +38,9 @@ export function SkillsCard({ skill, onClick }: SkillsCardProps) {
         </div>
         <p
           className="mt-1.5 text-xs text-muted-foreground/70"
-          style={{ visibility: skill.provider ? "visible" : "hidden" }}
+          style={{ visibility: skill.author ? "visible" : "hidden" }}
         >
-          by {skill.provider ?? "\u00a0"}
+          {skill.author ? `author: ${skill.author}` : "\u00a0"}
         </p>
       </CardContent>
     </Card>

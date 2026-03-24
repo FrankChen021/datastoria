@@ -328,16 +328,18 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
         ) : detail ? (
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-semibold text-sm truncate">{detail.name}</span>
-            <Badge variant="secondary" className="text-xs px-1.5 py-0 shrink-0">
-              Built-in
+            <Badge variant="secondary" className="text-xs px-1.5 py-0 shrink-0 capitalize">
+              {detail.source}
             </Badge>
             {detail.version && (
               <Badge variant="secondary" className="text-xs px-1.5 py-0 shrink-0">
                 v{detail.version}
               </Badge>
             )}
-            {detail.provider && (
-              <span className="text-xs text-muted-foreground shrink-0">by {detail.provider}</span>
+            {detail.author && (
+              <span className="text-xs text-muted-foreground shrink-0">
+                author: {detail.author}
+              </span>
             )}
           </div>
         ) : null}

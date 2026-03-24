@@ -1,22 +1,20 @@
 /**
  * GET /api/ai/skills
  *
- * Returns compact catalog metadata for all skills (no full SKILL.md content).
- * Phase 1: only built-in skills from disk.
+ * Returns compact catalog metadata for the effective skill set.
  */
-import { DiskSkillProvider } from "@/lib/ai/skills/disk-skill-provider";
-import { CompositeSkillProvider } from "@/lib/ai/skills/skill-provider";
+import { getAuthenticatedUserEmail } from "@/auth";
+import { getSkillProvider } from "@/lib/ai/skills/skill-provider-factory";
 import { NextResponse } from "next/server";
 
-// Force Node.js runtime (SkillManager uses fs)
+// Force Node.js runtime (disk-backed skills use fs)
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const skillProvider = new CompositeSkillProvider([new DiskSkillProvider()]);
-
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const skills = await skillProvider.listSkills((s) => s.provider !== "System");
+    const skillProvider = getSkillProvider({ userId: getAuthenticatedUserEmail(req) ?? null });
+    const skills = await skillProvider.listSkills((s) => s.author !== "System");
     return NextResponse.json(skills);
   } catch (err) {
     console.error("[/api/ai/skills] Failed to list skills", err);

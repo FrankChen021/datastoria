@@ -1,7 +1,7 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import type { SkillCatalogItem } from "@/lib/ai/skills/skill-manager";
+import type { SkillCatalogItem } from "@/lib/ai/skills/skill-types";
 import { BasePath } from "@/lib/base-path";
 import { useEffect, useState } from "react";
 import { SkillsCard } from "./skills-card";

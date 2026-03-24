@@ -129,24 +129,30 @@ This is especially useful for user-created skills in phase 2, where users may wa
 ### SkillCatalogItem
 
 ```ts
-type SkillSource = "built-in" | "user";
+type SkillSource = "disk" | "database";
 type SkillStatus = "available" | "disabled" | "invalid";
+type SkillState = "draft" | "committed";
+type SkillScope = "global" | "self";
 
 interface SkillCatalogItem {
-  /** Stable identifier. Derived from folder name for built-in, generated for user skills. */
+  /** Stable logical identifier. Built-ins and DB overrides share the same id. */
   id: string;
   /** Human-readable name from frontmatter `name` field. */
   name: string;
   /** One-line description from frontmatter `description` field. */
   description: string;
-  /** Origin of the skill. Always "built-in" in phase 1. */
+  /** Where the effective skill content was loaded from. */
   source: SkillSource;
   /** Runtime status. Always "available" in phase 1. */
   status: SkillStatus;
+  /** Persistence state of the effective skill. */
+  state?: SkillState;
+  /** Visibility scope of the effective skill. */
+  scope?: SkillScope;
   /** Optional version string from metadata frontmatter. */
   version?: string;
-  /** Optional author/provider from metadata frontmatter. */
-  provider?: string;
+  /** Display author. For DB-backed skills this is derived from owner_id. */
+  author?: string;
   /** Short summary paragraph extracted from the SKILL.md body. */
   summary?: string;
   /** Whether this skill has sub-resources (rules/*.md, AGENTS.md, etc.). */
@@ -167,9 +173,11 @@ interface SkillDetailResponse extends SkillCatalogItem {
 
 ### Design Decisions
 
-- **`id` derivation**: For built-in skills, `id` = leaf folder name via `path.basename(path.dirname(skillFile))`. This gives `"clickhouse-best-practices"`, not the full relative path. For user skills in phase 2, `id` will be generated (UUID or similar).
-- **`source`**: Always `"built-in"` in phase 1. Set by each `SkillProvider` implementation.
+- **`id` derivation**: For built-in skills, `id` = leaf folder name via `path.basename(path.dirname(skillFile))`. DB overrides must reuse this same logical id when replacing a disk skill.
+- **`source`**: The resolved source is `"disk"` or `"database"`.
 - **`status`**: Always `"available"` in phase 1. Future phases add validation states.
+- **`state`**: Runtime defaults to committed-only. Draft is opt-in for tests and preview flows.
+- **`scope`**: Database skills use `"global"` or `"self"`.
 - **`summary`**: Derived conservatively from the first non-heading paragraph of SKILL.md body. If extraction is fragile, omit it — this is a nice-to-have.
 - **`content`**: The detail endpoint returns the **full raw markdown** (including frontmatter). The frontend decides whether to render it or show raw based on the toggle state.
 - **`resourcePaths`**: Flat list of relative paths (e.g. `["AGENTS.md", "README.md", "metadata.json", "rules/insert-batch-size.md", ...]`). The frontend builds the directory tree from these paths.

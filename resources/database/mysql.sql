@@ -26,6 +26,24 @@ CREATE TABLE chat_messages (
   UNIQUE KEY uk_chat_messages_user_session_message_sequence (user_id, session_id, message_id, sequence)
 );
 
+CREATE TABLE ai_skills (
+  id VARCHAR(255) NOT NULL PRIMARY KEY,
+  type VARCHAR(32) NOT NULL,
+  skill_id VARCHAR(255) NULL,
+  meta LONGTEXT NULL,
+  content LONGTEXT NOT NULL,
+  state VARCHAR(32) NOT NULL,
+  scope VARCHAR(32) NOT NULL,
+  version VARCHAR(255) NULL,
+  owner_id VARCHAR(255) NULL,
+  source VARCHAR(32) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  KEY idx_ai_skills_type_state_scope (type, state, scope),
+  KEY idx_ai_skills_owner_scope (owner_id, scope),
+  KEY idx_ai_skills_skill_id (skill_id)
+);
+
 CREATE TABLE IF NOT EXISTS feedback_events (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   user_id VARCHAR(255) NOT NULL,

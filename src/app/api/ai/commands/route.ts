@@ -5,17 +5,18 @@
  * Templates are included so the frontend can expand them at submit time
  * without a second round-trip.
  */
-import { CommandManager } from "@/lib/ai/commands/command-manager";
-import { SkillManager } from "@/lib/ai/skills/skill-manager";
+import { getAuthenticatedUserEmail } from "@/auth";
+import { getSkillProvider } from "@/lib/ai/skills/skill-provider-factory";
+import { buildSkillCommands } from "@/lib/ai/tools/server/skill-tool";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    SkillManager.listSkills();
-    const commands = CommandManager.listCommands();
+    const skillProvider = getSkillProvider({ userId: getAuthenticatedUserEmail(req) ?? null });
+    const commands = buildSkillCommands(await skillProvider.listSkills());
     return NextResponse.json(commands);
   } catch (err) {
     console.error("[/api/ai/commands] Failed to list commands", err);

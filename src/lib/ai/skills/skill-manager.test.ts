@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { CommandManager } from "@/lib/ai/commands/command-manager";
 import { afterEach, describe, expect, it } from "vitest";
-import { SkillManager } from "./skill-manager";
+import { DiskSkillProvider } from "./disk-skill-provider";
 
 function writeSkill(rootDir: string, dirName: string, content: string): void {
   const skillDir = path.join(rootDir, dirName);
@@ -11,13 +11,13 @@ function writeSkill(rootDir: string, dirName: string, content: string): void {
   fs.writeFileSync(path.join(skillDir, "SKILL.md"), content);
 }
 
-describe("SkillManager slash command registration", () => {
+describe("DiskSkillProvider slash command registration", () => {
   const originalSkillsRootDir = process.env.SKILLS_ROOT_DIR;
   const tempDirs: string[] = [];
 
   afterEach(() => {
     process.env.SKILLS_ROOT_DIR = originalSkillsRootDir;
-    SkillManager.clearCache();
+    DiskSkillProvider.clearCache();
     for (const dir of tempDirs.splice(0)) {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -54,9 +54,9 @@ metadata:
     );
 
     process.env.SKILLS_ROOT_DIR = rootDir;
-    SkillManager.clearCache();
+    DiskSkillProvider.clearCache();
 
-    const skills = SkillManager.listSkillCatalog();
+    const skills = DiskSkillProvider.listSkillCatalog();
     const commands = CommandManager.listCommands();
 
     expect(

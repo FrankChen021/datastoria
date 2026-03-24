@@ -4,17 +4,15 @@
  * Returns full detail for a single skill: SKILL.md content (raw) + resource paths.
  * The frontend toggle controls whether to render as markdown or show the raw text.
  */
-import { DiskSkillProvider } from "@/lib/ai/skills/disk-skill-provider";
-import { CompositeSkillProvider } from "@/lib/ai/skills/skill-provider";
+import { getAuthenticatedUserEmail } from "@/auth";
+import { getSkillProvider } from "@/lib/ai/skills/skill-provider-factory";
 import { NextResponse } from "next/server";
 
-// Force Node.js runtime (SkillManager uses fs)
+// Force Node.js runtime (disk-backed skills use fs)
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const skillProvider = new CompositeSkillProvider([new DiskSkillProvider()]);
-
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   if (!id || typeof id !== "string") {
@@ -22,6 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
 
   try {
+    const skillProvider = getSkillProvider({ userId: getAuthenticatedUserEmail(req) ?? null });
     const detail = await skillProvider.getSkillDetail(id);
     if (!detail) {
       return NextResponse.json({ error: "Skill not found" }, { status: 404 });
