@@ -11,19 +11,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 async function fetchCopilotModels(token: string): Promise<ModelProps[]> {
   try {
-    const response = await fetch(BasePath.getURL("/api/ai/models/available"), {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      console.error("Failed to fetch Copilot models:", await response.text());
-      return [];
-    }
-
-    const data = (await response.json()) as { githubModels?: ModelProps[] };
-    return data.githubModels ?? [];
+    const { githubModels } = await fetchAvailableModels(token);
+    return githubModels;
   } catch (error) {
     console.error("Error fetching Copilot models:", error);
     return [];

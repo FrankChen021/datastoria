@@ -2,10 +2,16 @@ import { normalizeGitHubCopilotModels } from "@/lib/ai/llm/github-copilot-models
 import { getAvailableSystemModels } from "@/lib/ai/llm/llm-provider-factory";
 import { NextRequest, NextResponse } from "next/server";
 
-async function fetchGitHubModels(authorization: string) {
+interface AvailableModelsRequestBody {
+  github?: {
+    token?: string;
+  };
+}
+
+async function fetchGitHubModels(token: string) {
   const response = await fetch("https://api.githubcopilot.com/models", {
     headers: {
-      Authorization: authorization,
+      Authorization: `Bearer ${token}`,
       "Editor-Version": "vscode/1.91.1",
       "Editor-Plugin-Version": "copilot-chat/0.17.1",
       "User-Agent": "GitHubCopilotChat/0.17.1",
@@ -19,16 +25,23 @@ async function fetchGitHubModels(authorization: string) {
   return normalizeGitHubCopilotModels(await response.json());
 }
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const systemModels = getAvailableSystemModels();
-  const authHeader = req.headers.get("Authorization");
+  let body: AvailableModelsRequestBody | undefined;
 
-  if (!authHeader) {
+  try {
+    body = (await req.json()) as AvailableModelsRequestBody;
+  } catch {
+    body = undefined;
+  }
+
+  const githubToken = body?.github?.token?.trim();
+  if (!githubToken) {
     return NextResponse.json({ systemModels, githubModels: [] });
   }
 
   try {
-    const githubModels = await fetchGitHubModels(authHeader);
+    const githubModels = await fetchGitHubModels(githubToken);
     return NextResponse.json({ systemModels, githubModels });
   } catch (error) {
     console.error("Error loading GitHub Copilot models for initial bootstrap:", error);

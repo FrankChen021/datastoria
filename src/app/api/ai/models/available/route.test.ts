@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GET } from "./route";
+import { POST } from "./route";
 
 const getAvailableSystemModelsMock = vi.fn();
 
@@ -7,7 +7,7 @@ vi.mock("@/lib/ai/llm/llm-provider-factory", () => ({
   getAvailableSystemModels: () => getAvailableSystemModelsMock(),
 }));
 
-describe("GET /api/ai/models/available", () => {
+describe("POST /api/ai/models/available", () => {
   beforeEach(() => {
     getAvailableSystemModelsMock.mockReset();
     getAvailableSystemModelsMock.mockReturnValue([
@@ -21,7 +21,15 @@ describe("GET /api/ai/models/available", () => {
   });
 
   it("returns system models when no GitHub token is provided", async () => {
-    const response = await GET(new Request("http://localhost/api/ai/models/available") as never);
+    const response = await POST(
+      new Request("http://localhost/api/ai/models/available", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      }) as never
+    );
     const body = await response.json();
 
     expect(body).toEqual({
@@ -36,7 +44,7 @@ describe("GET /api/ai/models/available", () => {
     });
   });
 
-  it("returns GitHub models when an authorization header is present", async () => {
+  it("returns GitHub models when a GitHub token is present in the request body", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       json: async () => [
@@ -50,11 +58,17 @@ describe("GET /api/ai/models/available", () => {
       ],
     } as Response);
 
-    const response = await GET(
+    const response = await POST(
       new Request("http://localhost/api/ai/models/available", {
+        method: "POST",
         headers: {
-          Authorization: "Bearer copilot-token",
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          github: {
+            token: "copilot-token",
+          },
+        }),
       }) as never
     );
     const body = await response.json();
@@ -67,5 +81,29 @@ describe("GET /api/ai/models/available", () => {
         source: "user",
       }),
     ]);
+  });
+
+  it("treats invalid JSON as no optional providers", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/ai/models/available", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: "{",
+      }) as never
+    );
+    const body = await response.json();
+
+    expect(body).toEqual({
+      systemModels: [
+        {
+          provider: "OpenAI",
+          modelId: "gpt-5",
+          source: "system",
+        },
+      ],
+      githubModels: [],
+    });
   });
 });

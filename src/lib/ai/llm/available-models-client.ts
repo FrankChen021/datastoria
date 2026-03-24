@@ -8,11 +8,19 @@ export interface AvailableModelsResponse {
 
 export async function fetchAvailableModels(accessToken?: string): Promise<AvailableModelsResponse> {
   const response = await fetch(BasePath.getURL("/api/ai/models/available"), {
-    headers: accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : undefined,
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(
+      accessToken
+        ? {
+            github: {
+              token: accessToken,
+            },
+          }
+        : {}
+    ),
   });
 
   if (!response.ok) {
