@@ -16,27 +16,28 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 export default function Home() {
   return (
     <AppStorageProvider>
-      <ModelConfigBootstrap />
-      <ThemeProvider defaultTheme="dark">
-        <ConnectionProvider>
-          <ChatPanelProvider>
-            <ReleaseDetectorProvider>
-              <ToastProvider />
-              <DialogProvider />
-              <SidebarProvider open={false}>
-                <AppSidebar />
-                <SidebarInset className="min-w-0 flex flex-col overflow-x-hidden h-screen">
-                  <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
-                    <ErrorBoundary>
-                      <MainPage />
-                    </ErrorBoundary>
-                  </div>
-                </SidebarInset>
-              </SidebarProvider>
-            </ReleaseDetectorProvider>
-          </ChatPanelProvider>
-        </ConnectionProvider>
-      </ThemeProvider>
+      <ModelConfigBootstrap>
+        <ThemeProvider defaultTheme="dark">
+          <ConnectionProvider>
+            <ChatPanelProvider>
+              <ReleaseDetectorProvider>
+                <ToastProvider />
+                <DialogProvider />
+                <SidebarProvider open={false}>
+                  <AppSidebar />
+                  <SidebarInset className="min-w-0 flex flex-col overflow-x-hidden h-screen">
+                    <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+                      <ErrorBoundary>
+                        <MainPage />
+                      </ErrorBoundary>
+                    </div>
+                  </SidebarInset>
+                </SidebarProvider>
+              </ReleaseDetectorProvider>
+            </ChatPanelProvider>
+          </ConnectionProvider>
+        </ThemeProvider>
+      </ModelConfigBootstrap>
     </AppStorageProvider>
   );
 }

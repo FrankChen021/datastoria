@@ -2,7 +2,7 @@
 
 import { DEFAULT_USER_ID, StorageManager } from "@/lib/storage/storage-provider-manager";
 import { useSession } from "next-auth/react";
-import { useEffect } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 /**
  * Normalize email for use as storage user id (one user per email across providers).
@@ -14,6 +14,16 @@ function normalizeEmail(email: string | null | undefined): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
+interface AppStorageContextValue {
+  isStorageReady: boolean;
+  storageUserId: string;
+}
+
+const AppStorageContext = createContext<AppStorageContextValue>({
+  isStorageReady: false,
+  storageUserId: DEFAULT_USER_ID,
+});
+
 /**
  * Sets the app local storage identity from the current session.
  * Must be rendered inside SessionProvider.
@@ -22,13 +32,27 @@ function normalizeEmail(email: string | null | undefined): string | null {
  */
 export function AppStorageProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
+  const [storageState, setStorageState] = useState<AppStorageContextValue>({
+    isStorageReady: false,
+    storageUserId: DEFAULT_USER_ID,
+  });
 
   useEffect(() => {
     if (status !== "authenticated" && status !== "unauthenticated") return;
     const userId =
       normalizeEmail(session?.user?.email ?? null) ?? session?.user?.id ?? DEFAULT_USER_ID;
     StorageManager.getInstance().setStorageProvider(userId);
+    setStorageState({
+      isStorageReady: true,
+      storageUserId: userId,
+    });
   }, [status, session?.user?.email, session?.user?.id]);
 
-  return <>{children}</>;
+  const contextValue = useMemo(() => storageState, [storageState]);
+
+  return <AppStorageContext.Provider value={contextValue}>{children}</AppStorageContext.Provider>;
+}
+
+export function useAppStorage() {
+  return useContext(AppStorageContext);
 }

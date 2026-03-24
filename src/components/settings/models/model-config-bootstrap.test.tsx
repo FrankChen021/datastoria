@@ -9,9 +9,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ModelConfigBootstrap } from "./model-config-bootstrap";
 
 const setSystemModelsMock = vi.fn();
+const setDynamicModelsMock = vi.fn();
+const getProviderSettingsMock = vi.fn();
+const fetchAvailableModelsMock = vi.fn();
+
 const testGlobal = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
 };
+
 const systemModels: ModelProps[] = [
   {
     provider: "OpenAI",
@@ -20,17 +25,31 @@ const systemModels: ModelProps[] = [
   },
 ];
 
-vi.mock("@/components/runtime-config-provider", () => ({
-  useRuntimeConfig: () => ({
-    connectionProviderEnabled: false,
-    systemModels,
+const githubModels: ModelProps[] = [
+  {
+    provider: "GitHub Copilot",
+    modelId: "gpt-5",
+    source: "user",
+  },
+];
+
+vi.mock("@/lib/ai/llm/available-models-client", () => ({
+  fetchAvailableModels: (...args: unknown[]) => fetchAvailableModelsMock(...args),
+}));
+
+vi.mock("@/components/app-storage-provider", () => ({
+  useAppStorage: () => ({
+    isStorageReady: true,
+    storageUserId: "user-1",
   }),
 }));
 
 vi.mock("@/components/settings/models/model-manager", () => ({
   ModelManager: {
     getInstance: () => ({
+      getProviderSettings: getProviderSettingsMock,
       setSystemModels: setSystemModelsMock,
+      setDynamicModels: setDynamicModelsMock,
     }),
   },
 }));
@@ -42,6 +61,14 @@ describe("ModelConfigBootstrap", () => {
   beforeEach(() => {
     testGlobal.IS_REACT_ACT_ENVIRONMENT = true;
     setSystemModelsMock.mockReset();
+    setDynamicModelsMock.mockReset();
+    getProviderSettingsMock.mockReset();
+    fetchAvailableModelsMock.mockReset();
+    getProviderSettingsMock.mockReturnValue([]);
+    fetchAvailableModelsMock.mockResolvedValue({
+      systemModels,
+      githubModels: [],
+    });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -54,13 +81,44 @@ describe("ModelConfigBootstrap", () => {
     container.remove();
   });
 
-  it("hydrates system models on mount without rendering UI", () => {
-    act(() => {
-      root.render(<ModelConfigBootstrap />);
+  it("loads the initial model catalog before rendering children", async () => {
+    await act(async () => {
+      root.render(
+        <ModelConfigBootstrap>
+          <div>ready</div>
+        </ModelConfigBootstrap>
+      );
     });
 
-    expect(setSystemModelsMock).toHaveBeenCalledTimes(1);
+    expect(fetchAvailableModelsMock).toHaveBeenCalledWith(undefined);
     expect(setSystemModelsMock).toHaveBeenCalledWith(systemModels, false);
-    expect(container.innerHTML).toBe("");
+    expect(setDynamicModelsMock).toHaveBeenCalledWith([]);
+    expect(container.textContent).toBe("ready");
+  });
+
+  it("passes the stored Copilot token to the initial-models API", async () => {
+    getProviderSettingsMock.mockReturnValue([
+      {
+        provider: "GitHub Copilot",
+        apiKey: "copilot-token",
+      },
+    ]);
+    fetchAvailableModelsMock.mockResolvedValue({
+      systemModels,
+      githubModels,
+    });
+
+    await act(async () => {
+      root.render(
+        <ModelConfigBootstrap>
+          <div>ready</div>
+        </ModelConfigBootstrap>
+      );
+    });
+
+    expect(fetchAvailableModelsMock).toHaveBeenCalledWith("copilot-token");
+    expect(setSystemModelsMock).toHaveBeenCalledWith(systemModels, false);
+    expect(setDynamicModelsMock).toHaveBeenCalledWith(githubModels);
+    expect(container.textContent).toBe("ready");
   });
 });

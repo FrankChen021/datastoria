@@ -1,7 +1,6 @@
 import { getSession } from "@/auth";
 import { RuntimeConfigProvider } from "@/components/runtime-config-provider";
 import "@/index.css";
-import { getAvailableSystemModels } from "@/lib/ai/llm/llm-provider-factory";
 import { getSessionRepositoryType } from "@/lib/ai/session/server-session-repository-factory";
 import { BasePath } from "@/lib/base-path";
 import type { Metadata, Viewport } from "next";
@@ -204,7 +203,6 @@ export default async function RootLayout({
             value={{
               connectionProviderEnabled:
                 process.env.NEXT_PUBLIC_CONSOLE_CONNECTION_PROVIDER_ENABLED === "true",
-              systemModels: getAvailableSystemModels(),
               sessionRepositoryType: getSessionRepositoryType(session?.user?.id ?? null),
             }}
           >
