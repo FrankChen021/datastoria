@@ -25,3 +25,21 @@ CREATE TABLE chat_messages (
   KEY idx_chat_messages_user_session_sequence (user_id, session_id, sequence),
   UNIQUE KEY uk_chat_messages_user_session_message_sequence (user_id, session_id, message_id, sequence)
 );
+
+CREATE TABLE IF NOT EXISTS feedback_events (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL,
+  source VARCHAR(128) NOT NULL,
+  session_id VARCHAR(64) NOT NULL,
+  message_id VARCHAR(255) NOT NULL,
+  solved BOOLEAN NOT NULL,
+  reason_code VARCHAR(128) NULL,
+  payload_text LONGTEXT NOT NULL,
+  free_text LONGTEXT NULL,
+  recovery_action_taken BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  UNIQUE KEY uk_feedback_events_user_source_message (user_id, source, message_id),
+  KEY idx_feedback_events_source_created_at (source, created_at),
+  KEY idx_feedback_events_message (user_id, session_id, message_id)
+);

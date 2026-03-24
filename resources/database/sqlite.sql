@@ -33,3 +33,25 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_user_session
 
 CREATE INDEX IF NOT EXISTS idx_chat_messages_user_session_sequence
   ON chat_messages (user_id, session_id, sequence);
+
+CREATE TABLE IF NOT EXISTS feedback_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  source TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  message_id TEXT NOT NULL,
+  solved INTEGER NOT NULL,
+  reason_code TEXT NULL,
+  payload_text TEXT NOT NULL,
+  free_text TEXT NULL,
+  recovery_action_taken INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
+  updated_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
+  UNIQUE (user_id, source, message_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_events_source_created_at
+  ON feedback_events (source, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_events_message
+  ON feedback_events (user_id, session_id, message_id);

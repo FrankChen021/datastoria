@@ -1,7 +1,8 @@
 import type { Chat, Message } from "@/lib/ai/chat-types";
 import type { LocalStorage } from "@/lib/storage/local-storage-provider";
 import { StorageManager } from "@/lib/storage/storage-provider-manager";
-import type { SessionRepository } from "./session-repository";
+import { v7 as uuidv7 } from "uuid";
+import type { CreateSessionFromMessagesInput, SessionRepository } from "./session-repository";
 
 /**
  * LocalStorage-based implementation of SessionRepository for simplicity
@@ -10,6 +11,37 @@ import type { SessionRepository } from "./session-repository";
  * This implementation includes automatic cleanup of old chats when quota is exceeded.
  */
 export class LocalSessionRepository implements SessionRepository {
+  private toValidDate(value: unknown): Date | null {
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? null : value;
+    }
+
+    if (typeof value === "string" || typeof value === "number") {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    return null;
+  }
+
+  private resolveMessageCreatedAt(message: Partial<Message>): Date {
+    const metadataCreatedAt =
+      typeof message.metadata?.createdAt === "number"
+        ? this.toValidDate(message.metadata.createdAt)
+        : null;
+
+    return this.toValidDate(message.createdAt) ?? metadataCreatedAt ?? new Date();
+  }
+
+  private normalizeMessage(message: Message): Message {
+    const createdAt = this.resolveMessageCreatedAt(message);
+    return {
+      ...message,
+      createdAt,
+      updatedAt: this.toValidDate(message.updatedAt) ?? createdAt,
+    };
+  }
+
   private get chatsStorage(): LocalStorage {
     return StorageManager.getInstance()
       .getStorageProvider()
@@ -245,11 +277,7 @@ export class LocalSessionRepository implements SessionRepository {
 
   async getMessages(chatId: string): Promise<Message[]> {
     const messagesMap = this.getMessagesForChat(chatId);
-    const messages = Object.values(messagesMap).map((message) => ({
-      ...message,
-      createdAt: new Date(message.createdAt),
-      updatedAt: new Date(message.updatedAt),
-    }));
+    const messages = Object.values(messagesMap).map((message) => this.normalizeMessage(message));
 
     const needsBackfill = messages.some((message) => message.sequence == null);
     if (needsBackfill && messages.length > 0) {
@@ -263,6 +291,25 @@ export class LocalSessionRepository implements SessionRepository {
     }
 
     return messages.sort((a, b) => this.compareMessages(a, b));
+  }
+
+  async createSessionFromMessages(input: CreateSessionFromMessagesInput): Promise<Chat> {
+    const now = new Date();
+    const session: Chat = {
+      chatId: input.sessionId || uuidv7(),
+      databaseId: input.connectionId,
+      title: input.title || "Inline error diagnosis",
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await this.saveSession(session);
+    if (input.messages.length > 0) {
+      const messages = input.messages.map((message) => this.normalizeMessage(message));
+      await this.saveMessages(session.chatId, messages);
+    }
+
+    return session;
   }
 
   async saveMessage(chatId: string, message: Message): Promise<void> {
@@ -279,9 +326,8 @@ export class LocalSessionRepository implements SessionRepository {
     }
 
     const messageToSave: Message = {
-      ...message,
+      ...this.normalizeMessage(message),
       sequence,
-      createdAt: message.createdAt || new Date(),
       updatedAt: new Date(),
     };
 
@@ -310,9 +356,8 @@ export class LocalSessionRepository implements SessionRepository {
       }
 
       const messageToSave: Message = {
-        ...message,
+        ...this.normalizeMessage(message),
         sequence,
-        createdAt: message.createdAt || new Date(),
         updatedAt: new Date(),
       };
       messagesMap[message.id] = messageToSave;

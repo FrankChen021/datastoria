@@ -233,7 +233,7 @@ export function AgentEdit() {
     [configuration.autoExplainBlacklist]
   );
   const selectedErrorCodes = useMemo(
-    () => allErrorCodeEntries.filter(([code]) => blacklistedCodes.has(code)),
+    () => allErrorCodeEntries.filter(([code]) => blacklistedCodes.has(String(code))),
     [blacklistedCodes]
   );
 

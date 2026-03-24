@@ -1,9 +1,6 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { knex, type Knex } from "knex";
+import { readRepositorySchemaSql, splitSqlStatements } from "./server-session-repository-schema";
 import { AbstractServerSessionRepository } from "./server-session-repository-sql-shared";
-
-let sqliteSchemaSql: string | null = null;
 
 function resolveSqliteLocation(location: string): string {
   if (location === ":memory:") {
@@ -15,21 +12,6 @@ function resolveSqliteLocation(location: string): string {
   }
 
   return location;
-}
-
-function getSqliteSchemaSql(): string {
-  if (!sqliteSchemaSql) {
-    sqliteSchemaSql = readFileSync(join(process.cwd(), "resources/database/sqlite.sql"), "utf8");
-  }
-
-  return sqliteSchemaSql;
-}
-
-function splitSqlStatements(schemaSql: string): string[] {
-  return schemaSql
-    .split(/;\s*(?:\r?\n|$)/)
-    .map((statement) => statement.trim())
-    .filter((statement) => statement.length > 0);
 }
 
 export class ServerSessionRepositorySqlite extends AbstractServerSessionRepository {
@@ -66,7 +48,7 @@ export class ServerSessionRepositorySqlite extends AbstractServerSessionReposito
         await db.raw("PRAGMA foreign_keys = OFF");
         await db.raw("PRAGMA busy_timeout = 5000");
 
-        for (const statement of splitSqlStatements(getSqliteSchemaSql())) {
+        for (const statement of splitSqlStatements(readRepositorySchemaSql("sqlite.sql"))) {
           await db.raw(statement);
         }
       })();

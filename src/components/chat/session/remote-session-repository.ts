@@ -1,6 +1,6 @@
 import type { Chat, Message } from "@/lib/ai/chat-types";
 import { BasePath } from "@/lib/base-path";
-import type { SessionRepository } from "./session-repository";
+import type { CreateSessionFromMessagesInput, SessionRepository } from "./session-repository";
 
 type ChatSessionDTO = {
   chatId: string;
@@ -95,6 +95,23 @@ export class RemoteSessionRepository implements SessionRepository {
 
     const messages = await parseJson<ChatMessageDTO[]>(response);
     return messages.map(toMessage);
+  }
+
+  async createSessionFromMessages(input: CreateSessionFromMessagesInput): Promise<Chat> {
+    const response = await fetch(BasePath.getURL("/api/ai/chat/sessions"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        connectionId: input.connectionId,
+        sessionId: input.sessionId,
+        title: input.title,
+        messages: input.messages,
+      }),
+    });
+
+    const data = await parseJson<{ session: ChatSessionDTO }>(response);
+    return toChat(data.session);
   }
 
   async saveSession(_session: Chat): Promise<void> {}

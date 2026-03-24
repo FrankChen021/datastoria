@@ -162,6 +162,22 @@ export const SessionManager = {
     return storage.getMessages(chatId);
   },
 
+  async createSessionFromMessages(
+    connectionId: string,
+    messages: Message[],
+    title?: string,
+    sessionId?: string
+  ): Promise<ManagedSession> {
+    const storage = getSessionRepository();
+    const session = await storage.createSessionFromMessages({
+      connectionId: toSessionRepositoryConnectionId(connectionId),
+      sessionId,
+      title,
+      messages,
+    });
+    return this.upsertSession(session);
+  },
+
   async saveMessages(chatId: string, messages: Message[]): Promise<void> {
     const storage = getSessionRepository();
     await storage.saveMessages(chatId, messages);

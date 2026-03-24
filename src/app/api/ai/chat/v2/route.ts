@@ -268,20 +268,19 @@ export async function POST(req: Request) {
       messageId = apiRequest.continuation ? apiRequest.message.id : uuidv7().replace(/-/g, "");
 
       if (apiRequest.ephemeral) {
-        const ephemeralSessionId = "ephemeral-" + uuidv7().replace(/-/g, "");
         const incomingMessage = apiRequest.message as AppUIMessage;
         const persistedIncomingMessage =
           incomingMessage.role === "assistant"
             ? withModelMetadata(incomingMessage, modelConfig)
             : incomingMessage;
         await sessionRepository!.upsertMessage({
-          session_id: ephemeralSessionId,
+          session_id: apiRequest.sessionId,
           user_id: sessionRepositoryUserId,
           message: persistedIncomingMessage,
           allowMissingSession: true,
         });
         originalMessages = expandCommand([apiRequest.message as UIMessage]);
-        sessionRepositoryChatId = ephemeralSessionId;
+        sessionRepositoryChatId = apiRequest.sessionId;
         sessionRepositoryAllowMissingSession = true;
       } else {
         const existingSession = await sessionRepository!.getSession(

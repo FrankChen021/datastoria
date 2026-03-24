@@ -1,12 +1,56 @@
+import { showSettingsDialog } from "@/components/settings/settings-dialog";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { parseErrorLocation, type ErrorLocation } from "@/lib/clickhouse/clickhouse-error-parser";
-import { AlertCircleIcon, SparklesIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { AlertCircleIcon, SparklesIcon, WandSparklesIcon, X, XIcon } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
 import type { QueryErrorDisplay } from "../query-view-model";
 import { QueryErrorAIExplanation } from "./query-error-ai-explanation";
 import { AutoExplainState, getAutoExplainState } from "./query-error-auto-explain-config";
+
+const LS_DISMISS_AI_SETUP_KEY = "datastoria:query-response-error-view:dismiss-ai-setup-suggestion";
+
+const AISetupSuggestionBanner = memo(function AISetupSuggestionBanner() {
+  const [dismissed, setDismissed] = useState(
+    () => localStorage.getItem(LS_DISMISS_AI_SETUP_KEY) === "true"
+  );
+
+  if (dismissed) return null;
+
+  return (
+    <div className="mt-3 flex gap-[1px]">
+      <div className={cn("self-stretch w-1 flex-shrink-0", "bg-emerald-400 dark:bg-emerald-500")} />
+      <div className="flex flex-1 items-center gap-2 bg-primary/5 py-1 pl-2.5 pr-1">
+        <span className="text-sm text-muted-foreground">
+          You don't have an AI model set up.{" "}
+          <Button
+            variant="link"
+            size="sm"
+            onClick={() => showSettingsDialog({ initialSection: "models" })}
+            className="h-auto p-0 text-sm font-semibold underline-offset-4"
+          >
+            Set up an AI model
+          </Button>{" "}
+          to enable inline error diagnosis.
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label="Never show this suggestion again"
+          onClick={() => {
+            localStorage.setItem(LS_DISMISS_AI_SETUP_KEY, "true");
+            setDismissed(true);
+          }}
+          className="h-7 text-muted-foreground text-xs"
+        >
+          <X className="h-3.5 w-3.5" />Never show this suggestion again
+        </Button>
+      </div>
+    </div>
+  );
+});
 
 interface ErrorLocationViewProps {
   errorLocation: ErrorLocation;
@@ -147,34 +191,32 @@ export const QueryResponseErrorView = memo(function QueryResponseErrorView({
             )}
           </div>
         )}
-        {detailMessage &&
-          detailMessage.length > 0 &&
-          sql &&
-          sql.length > 0 &&
-          autoExplainState !== AutoExplainState.UNAVAILABLE && (
-            <>
-              {shouldAutoExplain || isManualExplainRequested ? (
-                <QueryErrorAIExplanation
-                  queryId={queryId}
-                  errorMessage={detailMessage}
-                  errorCode={clickHouseErrorCode}
-                  sql={sql}
-                />
-              ) : (
-                <div className="mt-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsManualExplainRequested(true)}
-                    className="gap-2 rounded-sm text-primary bg-primary/10 hover:bg-primary/20 hover:text-primary border-primary/50 font-semibold animate-pulse"
-                  >
-                    <SparklesIcon className="h-4 w-4" />
-                    Ask AI for Fix
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
+        {detailMessage && detailMessage.length > 0 && sql && sql.length > 0 && (
+          <>
+            {autoExplainState === AutoExplainState.UNAVAILABLE ? (
+              <AISetupSuggestionBanner />
+            ) : shouldAutoExplain || isManualExplainRequested ? (
+              <QueryErrorAIExplanation
+                queryId={queryId}
+                errorMessage={detailMessage}
+                errorCode={clickHouseErrorCode}
+                sql={sql}
+              />
+            ) : (
+              <div className="mt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsManualExplainRequested(true)}
+                  className="gap-2 rounded-sm text-primary bg-primary/10 hover:bg-primary/20 hover:text-primary border-primary/50 font-semibold animate-pulse"
+                >
+                  <SparklesIcon className="h-4 w-4" />
+                  Ask AI for Fix
+                </Button>
+              </div>
+            )}
+          </>
+        )}
       </AlertDescription>
     </Alert>
   );

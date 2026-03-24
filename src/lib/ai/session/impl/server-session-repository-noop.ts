@@ -1,8 +1,12 @@
 import type {
   CreateSessionInput,
+  GetFeedbackEventsInput,
   PersistedChatSession,
+  PersistedFeedbackEvent,
+  RecordMessageMetadataInput,
   ServerSessionRepository,
   TouchSessionInput,
+  UpsertFeedbackEventInput,
   UpsertMessageInput,
 } from "../server-session-repository";
 
@@ -39,6 +43,29 @@ export class ServerSessionRepositoryNoop implements ServerSessionRepository {
   }
 
   async upsertMessage(_input: UpsertMessageInput): Promise<void> {}
+
+  async recordMessageMetadata(_input: RecordMessageMetadataInput): Promise<void> {}
+
+  async upsertFeedbackEvent(input: UpsertFeedbackEventInput): Promise<PersistedFeedbackEvent> {
+    const now = new Date();
+    return {
+      user_id: input.user_id,
+      source: input.source,
+      session_id: input.session_id,
+      message_id: input.message_id,
+      solved: input.solved,
+      reason_code: input.reason_code,
+      payload_text: input.payload_text,
+      free_text: input.free_text,
+      recovery_action_taken: input.recovery_action_taken,
+      created_at: now,
+      updated_at: now,
+    };
+  }
+
+  async getFeedbackEvents(_input?: GetFeedbackEventsInput): Promise<PersistedFeedbackEvent[]> {
+    return [];
+  }
 
   async updateSessionTitle(_userId: string, _sessionId: string, _title: string): Promise<void> {}
 
