@@ -46,6 +46,7 @@ class ModelManager {
    */
   private dynamicModels: ModelProps[] = [];
   private systemModels: ModelProps[] = [];
+  private systemModelsHydrated = false;
 
   public static getInstance(): ModelManager {
     if (!ModelManager.instance) {
@@ -74,9 +75,14 @@ class ModelManager {
     }
 
     this.systemModels = normalized;
+    this.systemModelsHydrated = true;
     if (notify) {
       this.notify();
     }
+  }
+
+  public hasSystemModelsHydrated(): boolean {
+    return this.systemModelsHydrated;
   }
 
   /**

@@ -191,7 +191,7 @@ export function useModelConfig() {
     };
     window.addEventListener("storage", handleStorage);
 
-    if (manager.getAllModels().length === 0) {
+    if (!manager.hasSystemModelsHydrated()) {
       const providerSettings = manager.getProviderSettings();
       const copilotSetting = providerSettings.find((p) => p.provider === PROVIDER_GITHUB_COPILOT);
 
