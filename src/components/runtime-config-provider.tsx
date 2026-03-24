@@ -6,11 +6,13 @@ import { createContext, useContext, type ReactNode } from "react";
 export interface RuntimeConfig {
   connectionProviderEnabled: boolean;
   sessionRepositoryType: SessionRepositoryType;
+  allowEditSkill: boolean;
 }
 
 const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
   connectionProviderEnabled: false,
   sessionRepositoryType: "local",
+  allowEditSkill: false,
 };
 
 const RuntimeConfigContext = createContext<RuntimeConfig>(DEFAULT_RUNTIME_CONFIG);
