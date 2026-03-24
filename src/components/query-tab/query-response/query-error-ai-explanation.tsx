@@ -445,6 +445,7 @@ const InlineAutoExplainChat = memo(function InlineAutoExplainChat({
 
     sentKeyRef.current = queryId;
     setHasRequested(true);
+    setFeedbackDismissed(false);
     sendMessage({
       id: uuidv7(),
       role: "user",
