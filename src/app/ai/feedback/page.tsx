@@ -16,37 +16,38 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 export default function AIFeedbackPage() {
   return (
     <AppStorageProvider>
-      <ModelConfigBootstrap />
-      <ThemeProvider defaultTheme="dark">
-        <ConnectionProvider>
-          <ChatPanelProvider>
-            <ReleaseDetectorProvider>
-              <ToastProvider />
-              <DialogProvider />
-              <SidebarProvider open={false}>
-                <AppSidebar />
-                <SidebarInset className="min-w-0 flex flex-col overflow-x-hidden h-screen">
-                  <div className="flex-1 min-h-0 overflow-auto">
-                    <ErrorBoundary>
-                      <div className="mx-auto w-full max-w-6xl p-6">
-                        <div className="mb-6">
-                          <h1 className="text-2xl font-semibold tracking-tight">
-                            AI Feedback Report
-                          </h1>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            Internal reporting for inline auto explain feedback quality.
-                          </p>
+      <ModelConfigBootstrap>
+        <ThemeProvider defaultTheme="dark">
+          <ConnectionProvider>
+            <ChatPanelProvider>
+              <ReleaseDetectorProvider>
+                <ToastProvider />
+                <DialogProvider />
+                <SidebarProvider open={false}>
+                  <AppSidebar />
+                  <SidebarInset className="min-w-0 flex flex-col overflow-x-hidden h-screen">
+                    <div className="flex-1 min-h-0 overflow-auto">
+                      <ErrorBoundary>
+                        <div className="mx-auto w-full max-w-6xl p-6">
+                          <div className="mb-6">
+                            <h1 className="text-2xl font-semibold tracking-tight">
+                              AI Feedback Report
+                            </h1>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              Internal reporting for inline auto explain feedback quality.
+                            </p>
+                          </div>
+                          <AutoExplainFeedbackReport />
                         </div>
-                        <AutoExplainFeedbackReport />
-                      </div>
-                    </ErrorBoundary>
-                  </div>
-                </SidebarInset>
-              </SidebarProvider>
-            </ReleaseDetectorProvider>
-          </ChatPanelProvider>
-        </ConnectionProvider>
-      </ThemeProvider>
+                      </ErrorBoundary>
+                    </div>
+                  </SidebarInset>
+                </SidebarProvider>
+              </ReleaseDetectorProvider>
+            </ChatPanelProvider>
+          </ConnectionProvider>
+        </ThemeProvider>
+      </ModelConfigBootstrap>
     </AppStorageProvider>
   );
 }
