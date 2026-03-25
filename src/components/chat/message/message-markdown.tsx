@@ -1,14 +1,25 @@
 import { useConnection } from "@/components/connection/connection-context";
+import { showSettingsDialog } from "@/components/settings/settings-dialog";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
+import { Button } from "@/components/ui/button";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
 import { memo, useEffect, useMemo, useRef } from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 import { MessageMarkdownUserActions } from "./message-user-actions";
+
+function transformMarkdownUrl(url: string) {
+  if (url.startsWith("skill://")) {
+    return url;
+  }
+
+  return defaultUrlTransform(url);
+}
 
 /**
  * Render text message with markdown support
@@ -124,6 +135,39 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         );
       },
       a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+        if (href?.startsWith("skill://")) {
+          const skillId = href.replace("skill://", "");
+          const trigger = (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 rounded-sm px-1.5 font-mono text-primary text-xs bg-accent text-accent-foreground"
+              onClick={() => {
+                showSettingsDialog({
+                  initialSection: "skills",
+                  initialSkillId: skillId,
+                });
+              }}
+            >
+              {children}
+            </Button>
+          );
+
+          if (!props.title) {
+            return trigger;
+          }
+
+          return (
+            <HoverCard openDelay={150} closeDelay={100}>
+              <HoverCardTrigger asChild>{trigger}</HoverCardTrigger>
+              <HoverCardContent side="bottom" align="start" className="w-80 break-words p-2 text-sm leading-relaxed">
+                {props.title}
+              </HoverCardContent>
+            </HoverCard>
+          );
+        }
+
         return (
           <a
             href={href}
@@ -231,6 +275,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
         components={components}
+        urlTransform={transformMarkdownUrl}
       >
         {text}
       </ReactMarkdown>

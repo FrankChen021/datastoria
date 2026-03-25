@@ -7,12 +7,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MessageUser } from "./message-user";
 
-const showSettingsDialog = vi.fn();
 const messageMarkdownSpy = vi.fn();
-
-vi.mock("@/components/settings/settings-dialog", () => ({
-  showSettingsDialog: (...args: unknown[]) => showSettingsDialog(...args),
-}));
 
 vi.mock("../command-context", () => ({
   useChatCommands: () => ({
@@ -47,7 +42,6 @@ describe("MessageUser", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    showSettingsDialog.mockReset();
     messageMarkdownSpy.mockReset();
   });
 
@@ -58,28 +52,18 @@ describe("MessageUser", () => {
     container.remove();
   });
 
-  it("maps a known leading slash command to a settings deep-link", () => {
+  it("maps a known leading slash command to an inline skill link", () => {
     act(() => {
       root.render(<MessageUser text="/review check this query" />);
     });
-
-    const button = container.querySelector("button");
-    expect(button?.textContent).toBe("/review");
 
     const props = messageMarkdownSpy.mock.calls[0]?.[0] as {
       text: string;
     };
 
-    expect(props.text).toBe("check this query");
-
-    act(() => {
-      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
-    expect(showSettingsDialog).toHaveBeenCalledWith({
-      initialSection: "skills",
-      initialSkillId: "plan-review",
-    });
+    expect(props.text).toBe(
+      '<a href="skill://plan-review" data-chat-command="true" title="Review the plan">/review</a> check this query'
+    );
   });
 
   it("keeps unknown leading slash tokens as plain text", () => {
