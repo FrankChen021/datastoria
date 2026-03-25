@@ -40,6 +40,17 @@ export function useModelConfig() {
     refreshTimerRef.current = undefined;
   }, []);
 
+  const clearCopilotAuthErrorIfRecovered = useCallback(
+    (accessToken: string | undefined, models: ModelProps[]) => {
+      if (!accessToken || models.length === 0) {
+        return;
+      }
+
+      manager.updateProviderSetting(PROVIDER_GITHUB_COPILOT, { authError: undefined });
+    },
+    [manager]
+  );
+
   const fetchDynamicModels = useCallback(
     async (token: string) => {
       setCopilotModelsLoaded(false);
@@ -47,6 +58,7 @@ export function useModelConfig() {
       try {
         const fetchedModels = await fetchCopilotModels(token);
         manager.setDynamicModels(fetchedModels);
+        clearCopilotAuthErrorIfRecovered(token, fetchedModels);
       } catch (error) {
         console.error("Failed to fetch dynamic models:", error);
       } finally {
@@ -54,7 +66,7 @@ export function useModelConfig() {
         setCopilotModelsLoaded(true);
       }
     },
-    [manager]
+    [clearCopilotAuthErrorIfRecovered, manager]
   );
 
   type CopilotRefreshResponse = {
@@ -190,6 +202,7 @@ export function useModelConfig() {
         .then(({ systemModels, githubModels }) => {
           manager.setSystemModels(systemModels, false);
           manager.setDynamicModels(githubModels);
+          clearCopilotAuthErrorIfRecovered(copilotSetting?.apiKey, githubModels);
         })
         .catch((error) => {
           console.error("Failed to recover model catalog:", error);
@@ -205,7 +218,7 @@ export function useModelConfig() {
       window.removeEventListener(MODEL_CONFIG_UPDATED_EVENT, refresh);
       window.removeEventListener("storage", handleStorage);
     };
-  }, [refresh, manager, clearRefreshTimer]);
+  }, [refresh, manager, clearRefreshTimer, clearCopilotAuthErrorIfRecovered]);
 
   useEffect(() => {
     const copilotSetting = config.providerSettings.find(

@@ -10,6 +10,7 @@ import { ModelConfigBootstrap } from "./model-config-bootstrap";
 
 const setSystemModelsMock = vi.fn();
 const setDynamicModelsMock = vi.fn();
+const updateProviderSettingMock = vi.fn();
 const getProviderSettingsMock = vi.fn();
 const fetchAvailableModelsMock = vi.fn();
 
@@ -50,6 +51,7 @@ vi.mock("@/components/settings/models/model-manager", () => ({
       getProviderSettings: getProviderSettingsMock,
       setSystemModels: setSystemModelsMock,
       setDynamicModels: setDynamicModelsMock,
+      updateProviderSetting: updateProviderSettingMock,
     }),
   },
 }));
@@ -62,6 +64,7 @@ describe("ModelConfigBootstrap", () => {
     testGlobal.IS_REACT_ACT_ENVIRONMENT = true;
     setSystemModelsMock.mockReset();
     setDynamicModelsMock.mockReset();
+    updateProviderSettingMock.mockReset();
     getProviderSettingsMock.mockReset();
     fetchAvailableModelsMock.mockReset();
     getProviderSettingsMock.mockReturnValue([]);
@@ -119,6 +122,9 @@ describe("ModelConfigBootstrap", () => {
     expect(fetchAvailableModelsMock).toHaveBeenCalledWith("copilot-token");
     expect(setSystemModelsMock).toHaveBeenCalledWith(systemModels, false);
     expect(setDynamicModelsMock).toHaveBeenCalledWith(githubModels);
+    expect(updateProviderSettingMock).toHaveBeenCalledWith("GitHub Copilot", {
+      authError: undefined,
+    });
     expect(container.textContent).toBe("ready");
   });
 });

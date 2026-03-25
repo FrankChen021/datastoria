@@ -1,7 +1,7 @@
 import { getSessionPrivate } from "@/auth-private";
 import { BasePath } from "@/lib/base-path";
 import type { AuthConfig } from "@auth/core";
-import { jwtVerify, SignJWT } from "jose";
+import { errors as joseErrors, jwtVerify, SignJWT } from "jose";
 import NextAuth from "next-auth";
 import type { Provider } from "next-auth/providers";
 import GitHubProvider from "next-auth/providers/github";
@@ -10,11 +10,73 @@ import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 
 /** Header name for authenticated user email, set by proxy. APIs read via getAuthenticatedUserEmail(request). */
 export const AUTH_HEADER_USER_EMAIL = "x-datastoria-user-email";
+const SESSION_TOKEN_COOKIE_NAME = "datastoria.session-token";
 
 /** Reads authenticated user email from request headers (set by proxy). Returns undefined for anonymous users. */
 export function getAuthenticatedUserEmail(request: Request): string | undefined {
   const email = request.headers.get(AUTH_HEADER_USER_EMAIL);
   return email && email.length > 0 ? email : undefined;
+}
+
+function isJwtExpiredError(error: unknown): boolean {
+  if (error instanceof joseErrors.JWTExpired) {
+    return true;
+  }
+
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.name === "JWTExpired";
+}
+
+function isIgnorableJwtSessionError(error: Error): boolean {
+  const authError = error as Error & {
+    type?: string;
+    cause?: { err?: Error };
+  };
+
+  if (authError.type !== "JWTSessionError") {
+    return false;
+  }
+
+  const causeError = authError.cause?.err;
+  if (!(causeError instanceof Error)) {
+    return false;
+  }
+
+  return causeError.message === "Invalid JWT" || isJwtExpiredError(causeError);
+}
+
+function logAuthError(error: Error) {
+  const name =
+    "type" in error && typeof error.type === "string" && error.type.length > 0
+      ? error.type
+      : error.name;
+
+  console.error(`[auth][error] ${name}: ${error.message}`);
+
+  const authError = error as Error & {
+    cause?: Record<string, unknown> & { err?: Error };
+  };
+
+  if (
+    authError.cause &&
+    typeof authError.cause === "object" &&
+    authError.cause.err instanceof Error
+  ) {
+    const { err, ...details } = authError.cause;
+    console.error("[auth][cause]:", err.stack);
+
+    if (Object.keys(details).length > 0) {
+      console.error("[auth][details]:", JSON.stringify(details, null, 2));
+    }
+    return;
+  }
+
+  if (error.stack) {
+    console.error(error.stack.replace(/.*/, "").substring(1));
+  }
 }
 
 /** Provider enabled when credentials are configured AND NEXTAUTH_*_ENABLED is "true". Single source of truth for auth and login UI. */
@@ -81,6 +143,15 @@ const authConfig: NextAuthConfig = {
   basePath: BasePath.getAuthBasePath(),
   providers: getAuthProviders(),
   secret: process.env.NEXTAUTH_SECRET,
+  logger: {
+    error(error) {
+      if (isIgnorableJwtSessionError(error)) {
+        return;
+      }
+
+      logAuthError(error);
+    },
+  },
   pages: {
     signIn: "/login",
   },
@@ -112,17 +183,27 @@ const authConfig: NextAuthConfig = {
       if (!token) {
         throw new Error("Token is required for decoding");
       }
-      const { payload } = await jwtVerify(token, new TextEncoder().encode(secret as string), {
-        algorithms: ["HS256"],
-      });
-      // Keep the raw token in the payload to pass it to the session callback
-      payload.accessToken = token;
-      return payload;
+
+      try {
+        const { payload } = await jwtVerify(token, new TextEncoder().encode(secret as string), {
+          algorithms: ["HS256"],
+        });
+        // Keep the raw token in the payload to pass it to the session callback
+        payload.accessToken = token;
+        return payload;
+      } catch (error) {
+        // Expired tokens are a normal logged-out state, not an application error.
+        if (isJwtExpiredError(error)) {
+          return null;
+        }
+
+        throw error;
+      }
     },
   },
   cookies: {
     sessionToken: {
-      name: "clickhouse-console.session-token",
+      name: SESSION_TOKEN_COOKIE_NAME,
       options: {
         path: "/",
       },

@@ -80,7 +80,6 @@ Database copy.
       scope: "global",
       version: "2.0.0",
       owner_id: "owner@example.com",
-      source: "database",
     });
     await repository.upsertSkill({
       id: "visualization:references/rules.md",
@@ -92,7 +91,6 @@ Database copy.
       scope: "global",
       version: "2.0.0",
       owner_id: "owner@example.com",
-      source: "database",
     });
 
     const provider = new CompositeSkillProvider([
@@ -129,7 +127,6 @@ Database copy.
       state: "published",
       scope: "self",
       owner_id: "me@example.com",
-      source: "database",
     });
 
     const visibleProvider = new DatabaseSkillProvider(repository, { userId: "me@example.com" });
@@ -141,5 +138,110 @@ Database copy.
 
     const hiddenSkills = await hiddenProvider.listSkills();
     expect(hiddenSkills).toEqual([]);
+  });
+
+  it("falls back to disk references when a database override only changes some resources", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "skill-provider-sparse-test-"));
+    tempDirs.push(rootDir);
+    process.env.SKILLS_ROOT_DIR = rootDir;
+
+    writeSkill(
+      rootDir,
+      "diagnose-clickhouse-errors",
+      `---
+name: diagnose-clickhouse-errors
+description: Diagnose ClickHouse errors.
+---
+
+# Diagnose ClickHouse Errors
+`,
+      {
+        "references/47.md": "disk error 47",
+        "references/60.md": "disk error 60",
+      }
+    );
+
+    const repository = new ServerSkillRepositorySqlite(":memory:");
+    await repository.upsertSkill({
+      id: "diagnose-clickhouse-errors",
+      type: "skill",
+      content: `---
+name: diagnose-clickhouse-errors
+description: Diagnose ClickHouse errors.
+---
+
+# Diagnose ClickHouse Errors
+`,
+      meta_text: JSON.stringify({
+        name: "diagnose-clickhouse-errors",
+        description: "Diagnose ClickHouse errors.",
+      }),
+      state: "published",
+      scope: "self",
+      owner_id: "me@example.com",
+    });
+    await repository.upsertSkill({
+      id: "diagnose-clickhouse-errors:references/47.md",
+      type: "resource",
+      skill_id: "diagnose-clickhouse-errors",
+      content: "db error 47",
+      meta_text: JSON.stringify({ path: "references/47.md" }),
+      state: "published",
+      scope: "self",
+      owner_id: "me@example.com",
+    });
+
+    const provider = new CompositeSkillProvider([
+      new DiskSkillProvider(),
+      new DatabaseSkillProvider(repository, { userId: "me@example.com" }),
+    ]);
+
+    const detail = await provider.getSkillDetail("diagnose-clickhouse-errors");
+    expect(detail?.resourcePaths).toEqual(["references/47.md", "references/60.md"]);
+    expect(await provider.getSkillResource("diagnose-clickhouse-errors", "references/47.md")).toBe(
+      "db error 47"
+    );
+    expect(await provider.getSkillResource("diagnose-clickhouse-errors", "references/60.md")).toBe(
+      "disk error 60"
+    );
+  });
+
+  it("uses database resources even when there is no database skill row", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "skill-provider-resource-only-test-"));
+    tempDirs.push(rootDir);
+    process.env.SKILLS_ROOT_DIR = rootDir;
+
+    writeSkill(
+      rootDir,
+      "diagnose-clickhouse-errors",
+      `---
+name: diagnose-clickhouse-errors
+description: Diagnose ClickHouse errors.
+---
+
+# Diagnose ClickHouse Errors
+`,
+      {
+        "references/115.md": "disk error 115",
+      }
+    );
+
+    const repository = new ServerSkillRepositorySqlite(":memory:");
+    await repository.publishSkillResources("me@example.com", {
+      id: "diagnose-clickhouse-errors",
+      resources: [{ path: "references/115.md", content: "db error 115" }],
+    });
+
+    const provider = new CompositeSkillProvider([
+      new DiskSkillProvider(),
+      new DatabaseSkillProvider(repository, { userId: "me@example.com" }),
+    ]);
+
+    const detail = await provider.getSkillDetail("diagnose-clickhouse-errors");
+    expect(detail?.source).toBe("disk");
+    expect(detail?.resourcePaths).toEqual(["references/115.md"]);
+    expect(await provider.getSkillResource("diagnose-clickhouse-errors", "references/115.md")).toBe(
+      "db error 115"
+    );
   });
 });

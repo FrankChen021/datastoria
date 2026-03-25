@@ -38,6 +38,9 @@ export interface SkillProvider {
   /** Return full detail for a single skill by id, or null if not found. */
   getSkillDetail(id: string): Promise<SkillDetailResponse | null>;
 
+  /** Return resource paths known by this provider for the given skill id. */
+  getSkillResourcePaths(id: string): Promise<string[]>;
+
   /** Return raw content of a sub-resource file, or null if not found. */
   getSkillResource(id: string, resourcePath: string): Promise<string | null>;
 
@@ -73,13 +76,37 @@ export class CompositeSkillProvider implements SkillProvider {
   }
 
   async getSkillDetail(id: string): Promise<SkillDetailResponse | null> {
-    for (let index = this.providers.length - 1; index >= 0; index--) {
+    let resolved: SkillDetailResponse | null = null;
+    const resourcePaths = new Set<string>();
+
+    for (let index = 0; index < this.providers.length; index++) {
       const provider = this.providers[index];
-      if (await provider.hasSkill(id)) {
-        return provider.getSkillDetail(id);
+      const providerResourcePaths = await provider.getSkillResourcePaths(id);
+      providerResourcePaths.forEach((path) => resourcePaths.add(path));
+
+      if (!(await provider.hasSkill(id))) {
+        continue;
       }
+
+      const detail = await provider.getSkillDetail(id);
+      if (!detail) {
+        continue;
+      }
+
+      detail.resourcePaths.forEach((path) => resourcePaths.add(path));
+      resolved = detail;
     }
-    return null;
+
+    if (!resolved) {
+      return null;
+    }
+
+    const mergedResourcePaths = [...resourcePaths].sort();
+    return {
+      ...resolved,
+      hasResources: mergedResourcePaths.length > 0,
+      resourcePaths: mergedResourcePaths,
+    };
   }
 
   async getSkillResource(id: string, resourcePath: string): Promise<string | null> {
@@ -93,8 +120,9 @@ export class CompositeSkillProvider implements SkillProvider {
   ): Promise<SkillResourceResponse | null> {
     for (let index = this.providers.length - 1; index >= 0; index--) {
       const provider = this.providers[index];
-      if (await provider.hasSkill(id)) {
-        return provider.getSkillResourceDetail(id, resourcePath);
+      const detail = await provider.getSkillResourceDetail(id, resourcePath);
+      if (detail) {
+        return detail;
       }
     }
     return null;

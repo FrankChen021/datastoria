@@ -1,5 +1,6 @@
 import type {
   PersistedSkillRecord,
+  PublishSkillResourcesInput,
   ServerSkillRepository,
   SkillRepositoryVisibility,
   UpsertSkillBundleInput,
@@ -34,6 +35,16 @@ export class ServerSkillRepositoryNoop implements ServerSkillRepository {
   }
 
   async upsertSkillBundle(_ownerId: string, _input: UpsertSkillBundleInput): Promise<void> {}
+
+  async saveAndPublishSkillBundle(
+    _ownerId: string,
+    _input: UpsertSkillBundleInput
+  ): Promise<void> {}
+
+  async publishSkillResources(
+    _ownerId: string,
+    _input: PublishSkillResourcesInput
+  ): Promise<void> {}
 
   async upsertSkill(_input: UpsertSkillRecordInput): Promise<void> {}
 

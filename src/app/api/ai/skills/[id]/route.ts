@@ -62,6 +62,23 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   try {
     if (payload?.action === "publish") {
+      if (payload.content) {
+        await repository.saveAndPublishSkillBundle(userId, {
+          ...payload,
+          id,
+        });
+        return NextResponse.json({ ok: true });
+      }
+      if ((payload.resources?.length ?? 0) > 0 || (payload.deletedResourcePaths?.length ?? 0) > 0) {
+        await repository.publishSkillResources(userId, {
+          id,
+          scope: payload.scope,
+          version: payload.version,
+          resources: payload.resources,
+          deletedResourcePaths: payload.deletedResourcePaths,
+        });
+        return NextResponse.json({ ok: true });
+      }
       await repository.publishSkill(id, userId);
       return NextResponse.json({ ok: true });
     }

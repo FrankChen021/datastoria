@@ -389,17 +389,17 @@ export function AgentEdit() {
             <>
               <TableRow className="h-12 border-b-0 hover:bg-transparent">
                 <TableCell className="px-0 pl-4 py-1 align-middle">
-                  <Label className="pl-6">Blacklist</Label>
+                  <Label className="pl-6">Skipped Error Codes</Label>
                 </TableCell>
                 <TableCell className="px-0 py-1 align-middle text-sm text-muted-foreground">
                   {selectedErrorCodes.length === 0
-                    ? "No blacklisted error codes selected."
-                    : `${selectedErrorCodes.length} blacklisted error code${selectedErrorCodes.length === 1 ? "" : "s"}`}
+                    ? "No error codes selected."
+                    : `${selectedErrorCodes.length} error code${selectedErrorCodes.length === 1 ? "" : "s"}`}
                 </TableCell>
                 <TableCell className="px-0 pr-2 py-1 align-middle">
                   <div className="flex items-center justify-between gap-4">
                     <div className="text-muted-foreground">
-                      Checked error codes will not auto-trigger inline explanation.
+                      Error codes listed below will be SKIPPED for auto-trigger inline explanation.
                     </div>
                     <div className="flex items-center gap-2">
                       {!isBlacklistDefault && (

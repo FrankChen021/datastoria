@@ -61,7 +61,7 @@ describe("SkillsEdit", () => {
     );
   });
 
-  it("loads draft-aware skills when skill editing is enabled", async () => {
+  it("loads skills from the published catalog endpoint", async () => {
     const fetchMock = vi.mocked(fetch);
 
     await act(async () => {
@@ -78,8 +78,8 @@ describe("SkillsEdit", () => {
       );
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/api/ai/skills?includeDraft=1")
-    );
+    const calledUrls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(calledUrls.some((url) => url.includes("/api/ai/skills"))).toBe(true);
+    expect(calledUrls.some((url) => url.includes("/api/ai/skills?includeDraft=1"))).toBe(false);
   });
 });

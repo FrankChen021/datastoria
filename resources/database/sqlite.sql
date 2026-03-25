@@ -44,7 +44,6 @@ CREATE TABLE IF NOT EXISTS ai_skills (
   scope TEXT NOT NULL,
   version TEXT NULL,
   owner_id TEXT NULL,
-  source TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
   updated_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))
 );

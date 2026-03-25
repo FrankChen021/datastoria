@@ -31,6 +31,9 @@ export function ModelConfigBootstrap({ children }: { children: ReactNode }) {
         }
         manager.setSystemModels(systemModels, false);
         manager.setDynamicModels(githubModels);
+        if (copilotSetting?.apiKey && githubModels.length > 0) {
+          manager.updateProviderSetting(PROVIDER_GITHUB_COPILOT, { authError: undefined });
+        }
       } catch (error) {
         console.error("Failed to bootstrap model catalog:", error);
       } finally {

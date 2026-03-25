@@ -2,6 +2,7 @@ import matter from "gray-matter";
 import type { Knex } from "knex";
 import type {
   PersistedSkillRecord,
+  PublishSkillResourcesInput,
   ServerSkillRepository,
   SkillBundleResourceInput,
   SkillRepositoryVisibility,
@@ -117,7 +118,6 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
         scope: "scope",
         version: "version",
         owner_id: "owner_id",
-        source: "source",
         created_at: "created_at",
         updated_at: "updated_at",
       })
@@ -143,7 +143,6 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
         scope: "scope",
         version: "version",
         owner_id: "owner_id",
-        source: "source",
         created_at: "created_at",
         updated_at: "updated_at",
       })
@@ -173,7 +172,6 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
         scope: "scope",
         version: "version",
         owner_id: "owner_id",
-        source: "source",
         created_at: "created_at",
         updated_at: "updated_at",
       })
@@ -209,7 +207,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
 
   async upsertSkillBundle(ownerId: string, input: UpsertSkillBundleInput): Promise<void> {
     const scope = input.scope ?? "self";
-    const state = input.state ?? "draft";
+    const state = input.state ?? "published";
     const version = input.version ?? null;
 
     await this.upsertSkill({
@@ -221,7 +219,6 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
       scope,
       version,
       owner_id: ownerId,
-      source: "database",
     });
 
     for (const resource of input.resources ?? []) {
@@ -236,8 +233,68 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
         scope,
         version,
         owner_id: ownerId,
-        source: "database",
       });
+    }
+
+    const deletedResourceIds = (input.deletedResourcePaths ?? []).map((resourcePath) =>
+      this.buildResourceId(
+        input.id,
+        this.normalizeResourcePath({ path: resourcePath, content: "" })
+      )
+    );
+    if (deletedResourceIds.length > 0) {
+      await this.db()("ai_skills")
+        .whereIn("id", deletedResourceIds)
+        .andWhere({
+          type: "resource",
+          skill_id: input.id,
+          owner_id: ownerId,
+        })
+        .del();
+    }
+  }
+
+  async saveAndPublishSkillBundle(ownerId: string, input: UpsertSkillBundleInput): Promise<void> {
+    await this.upsertSkillBundle(ownerId, {
+      ...input,
+      state: "published",
+    });
+  }
+
+  async publishSkillResources(ownerId: string, input: PublishSkillResourcesInput): Promise<void> {
+    const scope = input.scope ?? "self";
+    const version = input.version ?? null;
+
+    for (const resource of input.resources ?? []) {
+      const resourcePath = this.normalizeResourcePath(resource);
+      await this.upsertSkill({
+        id: this.buildResourceId(input.id, resourcePath),
+        type: "resource",
+        skill_id: input.id,
+        content: resource.content,
+        meta_text: JSON.stringify({ path: resourcePath }),
+        state: "published",
+        scope,
+        version,
+        owner_id: ownerId,
+      });
+    }
+
+    const deletedResourceIds = (input.deletedResourcePaths ?? []).map((resourcePath) =>
+      this.buildResourceId(
+        input.id,
+        this.normalizeResourcePath({ path: resourcePath, content: "" })
+      )
+    );
+    if (deletedResourceIds.length > 0) {
+      await this.db()("ai_skills")
+        .whereIn("id", deletedResourceIds)
+        .andWhere({
+          type: "resource",
+          skill_id: input.id,
+          owner_id: ownerId,
+        })
+        .del();
     }
   }
 
@@ -280,7 +337,6 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
           scope: input.scope,
           version: input.version ?? null,
           owner_id: input.owner_id ?? null,
-          source: input.source,
           updated_at: this.nowRaw(this.db()),
         });
       return;
@@ -296,7 +352,6 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
       scope: input.scope,
       version: input.version ?? null,
       owner_id: input.owner_id ?? null,
-      source: input.source,
       created_at: this.nowRaw(this.db()),
       updated_at: this.nowRaw(this.db()),
     });

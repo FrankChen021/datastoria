@@ -309,6 +309,10 @@ export class DiskSkillProvider implements SkillProvider {
     };
   }
 
+  async getSkillResourcePaths(id: string): Promise<string[]> {
+    return this.listSkillResources(id);
+  }
+
   async getSkillResource(id: string, resourcePath: string): Promise<string | null> {
     const trimmedSkillName = id.trim();
     const trimmedResourcePath = resourcePath.trim();

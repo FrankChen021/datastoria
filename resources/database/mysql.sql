@@ -36,7 +36,6 @@ CREATE TABLE ai_skills (
   scope VARCHAR(32) NOT NULL,
   version VARCHAR(255) NULL,
   owner_id VARCHAR(255) NULL,
-  source VARCHAR(32) NOT NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   KEY idx_ai_skills_type_state_scope (type, state, scope),

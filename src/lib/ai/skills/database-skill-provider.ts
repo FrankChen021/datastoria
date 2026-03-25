@@ -184,6 +184,14 @@ export class DatabaseSkillProvider implements SkillProvider {
     };
   }
 
+  async getSkillResourcePaths(id: string): Promise<string[]> {
+    const resourceRows = await this.repository.listSkillResource(id, buildVisibility(this.options));
+    return resourceRows
+      .map((resourceRow) => getResourcePath(resourceRow))
+      .filter((path): path is string => Boolean(path))
+      .sort();
+  }
+
   async getSkillResource(id: string, resourcePath: string): Promise<string | null> {
     const detail = await this.getSkillResourceDetail(id, resourcePath);
     return detail?.content ?? null;

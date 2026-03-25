@@ -1,6 +1,5 @@
 "use client";
 
-import { useRuntimeConfig } from "@/components/runtime-config-provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SkillCatalogItem } from "@/lib/ai/skills/skill-types";
 import { BasePath } from "@/lib/base-path";
@@ -9,7 +8,6 @@ import { SkillsCard } from "./skills-card";
 import { SkillsDetailView } from "./skills-detail-view";
 
 export function SkillsEdit({ initialSkillId }: { initialSkillId?: string }) {
-  const { allowEditSkill } = useRuntimeConfig();
   const [skills, setSkills] = useState<SkillCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,8 +17,7 @@ export function SkillsEdit({ initialSkillId }: { initialSkillId?: string }) {
     setLoading(true);
     setError(null);
 
-    const suffix = allowEditSkill ? "?includeDraft=1" : "";
-    fetch(BasePath.getURL(`/api/ai/skills${suffix}`))
+    fetch(BasePath.getURL("/api/ai/skills"))
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<SkillCatalogItem[]>;
@@ -33,7 +30,7 @@ export function SkillsEdit({ initialSkillId }: { initialSkillId?: string }) {
         setError(err instanceof Error ? err.message : "Failed to load skills");
         setLoading(false);
       });
-  }, [allowEditSkill]);
+  }, []);
 
   useEffect(() => {
     loadSkills();
