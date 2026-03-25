@@ -371,6 +371,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             isDraggingResizeHandle ? "" : "transition-all duration-200"
           }`}
         >
+          {/* Resize Handler */}
           <div
             role="separator"
             aria-label="Resize chat input"
@@ -378,15 +379,9 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             className="absolute inset-x-0 top-0 z-10 h-3 -translate-y-1/2 cursor-row-resize touch-none"
             onMouseDown={handleResizeStart}
             onDoubleClick={handleResizeReset}
-          >
-            <div
-              className={`mx-auto mt-1 h-1 w-12 rounded-full transition-colors ${
-                isDraggingResizeHandle
-                  ? "bg-ring/70"
-                  : "bg-border/70 group-hover:bg-border group-focus-within:bg-ring/60"
-              }`}
-            />
-          </div>
+          ></div>
+
+          {/* Input Container */}
           <div className={isResizable ? "flex h-full flex-col overflow-hidden" : undefined}>
             <ChatInputSuggestions
               ref={suggestionRef}
