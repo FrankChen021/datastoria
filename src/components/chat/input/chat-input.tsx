@@ -20,6 +20,10 @@ import { ModelSelector } from "./model-selector";
 
 export { replaceLeadingCommand } from "./command-utils";
 
+const MIN_CHAT_INPUT_HEIGHT = 116;
+const MAX_CHAT_INPUT_HEIGHT = 360;
+const TEXTAREA_MIN_HEIGHT = 80;
+
 interface ChatInputProps {
   onSubmit: (text: string) => void;
   onStop?: () => void;
@@ -40,10 +44,19 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     { onSubmit, onStop, isRunning, hasMessages = false, tokenUsage, onNewChat, externalInput },
     ref
   ) => {
+    const containerRef = React.useRef<HTMLDivElement>(null);
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     const suggestionRef = React.useRef<ChatInputSuggestionsType>(null);
     const commandRef = React.useRef<ChatInputCommandsType>(null);
+    const dragStateRef = React.useRef<{
+      startY: number;
+      startHeight: number;
+      nextHeight: number;
+    } | null>(null);
+    const resizeFrameRef = React.useRef<number | null>(null);
     const [input, setInput] = React.useState("");
+    const [resizedHeight, setResizedHeight] = React.useState<number | null>(null);
+    const [isDraggingResizeHandle, setIsDraggingResizeHandle] = React.useState(false);
     const prevExternalInputRef = React.useRef<string | undefined>(undefined);
 
     // Mention state
@@ -51,6 +64,64 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     const { connection } = useConnection();
     const { commands } = useChatCommands();
+    const isResizable = resizedHeight !== null;
+
+    const applyContainerHeight = React.useCallback((height: number | null) => {
+      const container = containerRef.current;
+      if (!container) return;
+      container.style.height = height === null ? "" : `${height}px`;
+    }, []);
+
+    const handleMouseMove = React.useCallback(
+      (moveEvent: MouseEvent) => {
+        const dragState = dragStateRef.current;
+        if (!dragState) return;
+
+        dragState.nextHeight = Math.max(
+          MIN_CHAT_INPUT_HEIGHT,
+          Math.min(
+            MAX_CHAT_INPUT_HEIGHT,
+            dragState.startHeight - (moveEvent.clientY - dragState.startY)
+          )
+        );
+
+        if (resizeFrameRef.current !== null) {
+          return;
+        }
+
+        resizeFrameRef.current = window.requestAnimationFrame(() => {
+          resizeFrameRef.current = null;
+          if (!dragStateRef.current) return;
+          applyContainerHeight(dragStateRef.current.nextHeight);
+        });
+      },
+      [applyContainerHeight]
+    );
+
+    const cleanupResizeDrag = React.useCallback(() => {
+      if (resizeFrameRef.current !== null) {
+        window.cancelAnimationFrame(resizeFrameRef.current);
+        resizeFrameRef.current = null;
+      }
+      dragStateRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      setIsDraggingResizeHandle(false);
+    }, [handleMouseMove]);
+
+    const handleMouseUp = React.useCallback(() => {
+      const finalHeight = dragStateRef.current?.nextHeight ?? null;
+      cleanupResizeDrag();
+      setResizedHeight(finalHeight);
+    }, [cleanupResizeDrag]);
+
+    React.useEffect(() => {
+      return () => {
+        cleanupResizeDrag();
+      };
+    }, [cleanupResizeDrag]);
 
     // Handle external input (e.g., from prompt clicks)
     React.useEffect(() => {
@@ -80,11 +151,18 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     // Auto-resize textarea
     React.useEffect(() => {
+      if (isResizable) {
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "";
+        }
+        return;
+      }
+
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
         textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
       }
-    }, [input]);
+    }, [input, isResizable]);
 
     // Focus textarea on mount
     React.useEffect(() => {
@@ -222,6 +300,41 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       }
     }, [input, onSubmit]);
 
+    const handleResizeStart = React.useCallback(
+      (e: React.MouseEvent<HTMLDivElement>) => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        e.preventDefault();
+
+        const startHeight = Math.max(
+          MIN_CHAT_INPUT_HEIGHT,
+          Math.min(MAX_CHAT_INPUT_HEIGHT, container.getBoundingClientRect().height)
+        );
+
+        dragStateRef.current = {
+          startY: e.clientY,
+          startHeight,
+          nextHeight: startHeight,
+        };
+
+        applyContainerHeight(startHeight);
+        setResizedHeight(startHeight);
+        setIsDraggingResizeHandle(true);
+        document.body.style.cursor = "ns-resize";
+        document.body.style.userSelect = "none";
+        window.addEventListener("mousemove", handleMouseMove, { passive: true });
+        window.addEventListener("mouseup", handleMouseUp, { once: true });
+      },
+      [applyContainerHeight, handleMouseMove, handleMouseUp]
+    );
+
+    const handleResizeReset = React.useCallback(() => {
+      cleanupResizeDrag();
+      setResizedHeight(null);
+      applyContainerHeight(null);
+    }, [applyContainerHeight, cleanupResizeDrag]);
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       // Delegate to command popover first, then mention popover
       if (commandRef.current?.handleKeyDown(e)) return;
@@ -251,73 +364,100 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     return (
       <div className="px-3 pb-3">
-        <div className="relative group border rounded-md bg-muted/30 focus-within:bg-background focus-within:ring-1 focus-within:ring-ring transition-all duration-200">
-          <ChatInputSuggestions
-            ref={suggestionRef}
-            suggestions={tableSuggestions}
-            onSelect={handleSelectTable}
-            onInteractOutside={(target) => target !== textareaRef.current}
-          />
+        <div
+          ref={containerRef}
+          data-testid="chat-input-container"
+          className={`relative group border rounded-md bg-muted/30 focus-within:bg-background focus-within:ring-1 focus-within:ring-ring ${
+            isDraggingResizeHandle ? "" : "transition-all duration-200"
+          }`}
+        >
+          <div
+            role="separator"
+            aria-label="Resize chat input"
+            aria-orientation="horizontal"
+            className="absolute inset-x-0 top-0 z-10 h-3 -translate-y-1/2 cursor-row-resize touch-none"
+            onMouseDown={handleResizeStart}
+            onDoubleClick={handleResizeReset}
+          >
+            <div
+              className={`mx-auto mt-1 h-1 w-12 rounded-full transition-colors ${
+                isDraggingResizeHandle
+                  ? "bg-ring/70"
+                  : "bg-border/70 group-hover:bg-border group-focus-within:bg-ring/60"
+              }`}
+            />
+          </div>
+          <div className={isResizable ? "flex h-full flex-col overflow-hidden" : undefined}>
+            <ChatInputSuggestions
+              ref={suggestionRef}
+              suggestions={tableSuggestions}
+              onSelect={handleSelectTable}
+              onInteractOutside={(target) => target !== textareaRef.current}
+            />
 
-          <ChatInputCommands
-            ref={commandRef}
-            commands={commands}
-            onSelect={handleSelectCommand}
-            onInteractOutside={(target) => target !== textareaRef.current}
-          />
+            <ChatInputCommands
+              ref={commandRef}
+              commands={commands}
+              onSelect={handleSelectCommand}
+              onInteractOutside={(target) => target !== textareaRef.current}
+            />
 
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={handleInputChange}
-            placeholder={`Press Enter for new line, ${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"} + Enter to send. Use @ to mention tables, / for commands.`}
-            aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables, / for commands."
-            className="w-full min-h-[80px] max-h-[200px] resize-none border-0 bg-transparent py-3 pl-3 pr-10 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 overflow-y-auto"
-            disabled={isRunning}
-            onKeyDown={handleKeyDown}
-          />
-          <div className="flex items-center justify-between px-2 pb-2 mt-[-4px]">
-            <div className="flex items-center gap-1">
-              <ModelSelector className="bg-muted" />
-              {hasMessages && (
-                <>
-                  {onNewChat && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 gap-1 px-2 text-xs"
-                      title="Start New Chat"
-                      onClick={handleNewChat}
-                    >
-                      <MessageSquarePlus className="h-3 w-3" />
-                      New
-                    </Button>
-                  )}
-                  {tokenUsage && <ChatTokenStatus usage={tokenUsage} />}
-                </>
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleInputChange}
+              placeholder={`Press Enter for new line, ${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"} + Enter to send. Use @ to mention tables, / for commands.`}
+              aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables, / for commands."
+              className={`w-full resize-none border-0 bg-transparent py-3 pl-3 pr-10 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 overflow-y-auto ${
+                isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px] max-h-[200px]"
+              }`}
+              style={isResizable ? { minHeight: `${TEXTAREA_MIN_HEIGHT}px` } : undefined}
+              disabled={isRunning}
+              onKeyDown={handleKeyDown}
+            />
+            <div className="mt-[-4px] flex shrink-0 items-center justify-between px-2 pb-2">
+              <div className="flex items-center gap-1">
+                <ModelSelector className="bg-muted" />
+                {hasMessages && (
+                  <>
+                    {onNewChat && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 gap-1 px-2 text-xs"
+                        title="Start New Chat"
+                        onClick={handleNewChat}
+                      >
+                        <MessageSquarePlus className="h-3 w-3" />
+                        New
+                      </Button>
+                    )}
+                    {tokenUsage && <ChatTokenStatus usage={tokenUsage} />}
+                  </>
+                )}
+              </div>
+              {isRunning ? (
+                <Button
+                  onClick={handleStopChat}
+                  size="icon"
+                  variant="destructive"
+                  className="h-6 w-6 rounded-md shadow-sm"
+                  title="Stop generating"
+                >
+                  <Square className="h-3.5 w-3.5" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!input.trim()}
+                  size="icon"
+                  className="h-6 w-6 rounded-md shadow-sm"
+                  title={`Send (${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"}+Enter)`}
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </Button>
               )}
             </div>
-            {isRunning ? (
-              <Button
-                onClick={handleStopChat}
-                size="icon"
-                variant="destructive"
-                className="h-6 w-6 rounded-md shadow-sm"
-                title="Stop generating"
-              >
-                <Square className="h-3.5 w-3.5" />
-              </Button>
-            ) : (
-              <Button
-                onClick={handleSubmit}
-                disabled={!input.trim()}
-                size="icon"
-                className="h-6 w-6 rounded-md shadow-sm"
-                title={`Send (${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"}+Enter)`}
-              >
-                <Send className="h-3.5 w-3.5" />
-              </Button>
-            )}
           </div>
         </div>
       </div>
