@@ -161,7 +161,11 @@ export const MessageMarkdown = memo(function MessageMarkdown({
           return (
             <HoverCard openDelay={150} closeDelay={100}>
               <HoverCardTrigger asChild>{trigger}</HoverCardTrigger>
-              <HoverCardContent side="bottom" align="start" className="w-80 break-words p-2 text-sm leading-relaxed">
+              <HoverCardContent
+                side="bottom"
+                align="start"
+                className="w-80 break-words p-2 text-sm leading-relaxed"
+              >
                 {props.title}
               </HoverCardContent>
             </HoverCard>
