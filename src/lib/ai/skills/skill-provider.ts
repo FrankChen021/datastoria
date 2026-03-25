@@ -109,6 +109,17 @@ export class CompositeSkillProvider implements SkillProvider {
     };
   }
 
+  async getSkillResourcePaths(id: string): Promise<string[]> {
+    const resourcePaths = new Set<string>();
+
+    for (const provider of this.providers) {
+      const providerResourcePaths = await provider.getSkillResourcePaths(id);
+      providerResourcePaths.forEach((path) => resourcePaths.add(path));
+    }
+
+    return [...resourcePaths].sort();
+  }
+
   async getSkillResource(id: string, resourcePath: string): Promise<string | null> {
     const detail = await this.getSkillResourceDetail(id, resourcePath);
     return detail?.content ?? null;
