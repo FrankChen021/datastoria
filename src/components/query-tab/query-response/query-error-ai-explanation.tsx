@@ -483,7 +483,7 @@ const InlineAutoExplainChat = memo(function InlineAutoExplainChat({
 
   useEffect(() => {
     const node = bottomRef.current;
-    if (!node) {
+    if (!node || typeof node.scrollIntoView !== "function") {
       return;
     }
 
