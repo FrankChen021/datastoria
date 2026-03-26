@@ -7,12 +7,14 @@ export interface RuntimeConfig {
   connectionProviderEnabled: boolean;
   sessionRepositoryType: SessionRepositoryType;
   allowEditSkill: boolean;
+  autoSelectAvailable: boolean;
 }
 
 const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
   connectionProviderEnabled: false,
   sessionRepositoryType: "local",
   allowEditSkill: false,
+  autoSelectAvailable: false,
 };
 
 const RuntimeConfigContext = createContext<RuntimeConfig>(DEFAULT_RUNTIME_CONFIG);
