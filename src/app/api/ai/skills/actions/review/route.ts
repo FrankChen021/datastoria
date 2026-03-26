@@ -63,7 +63,12 @@ export async function POST(req: Request) {
       content: reviewedFile.content,
     });
 
-    if (LanguageModelProviderFactory.supportsStructuredOutputs(modelConfig.modelId)) {
+    if (
+      LanguageModelProviderFactory.supportsStructuredOutputs(
+        modelConfig.provider,
+        modelConfig.modelId
+      )
+    ) {
       const result = streamText({
         model,
         prompt,

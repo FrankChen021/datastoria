@@ -149,7 +149,7 @@ Skill id: ${input.skillId}
 File path: ${input.path}
 
 Current file content:
-\`\`\`md
+<<<FILE_CONTENT_START>>>
 ${input.content}
-\`\`\``;
+<<<FILE_CONTENT_END>>>`;
 }

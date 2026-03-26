@@ -116,12 +116,12 @@ describe("POST /api/ai/skills/actions/review", () => {
       modelId: "gpt-5",
     });
     expect(createModelMock).toHaveBeenCalledWith("OpenAI", "gpt-5", "secret");
-    expect(supportsStructuredOutputsMock).toHaveBeenCalledWith("gpt-5");
+    expect(supportsStructuredOutputsMock).toHaveBeenCalledWith("OpenAI", "gpt-5");
     expect(streamTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: { model: "fake" },
         temperature: 0.1,
-        prompt: expect.stringContaining("Current file content"),
+        prompt: expect.stringContaining("<<<FILE_CONTENT_START>>>"),
       })
     );
     await expect(response.json()).resolves.toEqual({
@@ -234,7 +234,7 @@ describe("POST /api/ai/skills/actions/review", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(supportsStructuredOutputsMock).toHaveBeenCalledWith("gpt-4o");
+    expect(supportsStructuredOutputsMock).toHaveBeenCalledWith("GitHub Copilot", "gpt-4o");
     expect(streamTextMock).toHaveBeenCalledWith(
       expect.not.objectContaining({
         output: expect.anything(),
