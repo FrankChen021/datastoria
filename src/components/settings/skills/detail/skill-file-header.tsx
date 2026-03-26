@@ -1,10 +1,12 @@
 "use client";
 
+import { ModelSelector } from "@/components/chat/input/model-selector";
+import type { ModelSelection } from "@/components/chat/input/model-selector-impl";
 import { StatusPopover } from "@/components/connection/connection-edit-component";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { AlertCircle, FileText, Trash2 } from "lucide-react";
+import { AlertCircle, FileText, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { memo } from "react";
 
 export const SkillFileHeader = memo(function SkillFileHeader({
@@ -14,9 +16,14 @@ export const SkillFileHeader = memo(function SkillFileHeader({
   canEditSelectedReference,
   showDeleteSelectedReference,
   canDeleteSelectedReference,
+  showReviewAction,
+  reviewModel,
+  isReviewing,
   showRenderToggle,
   isDeleteReferenceConfirmOpen,
   onRenderModeChange,
+  onReviewModelChange,
+  onReview,
   onDeleteReference,
   onDeleteReferenceConfirmOpenChange,
 }: {
@@ -26,9 +33,14 @@ export const SkillFileHeader = memo(function SkillFileHeader({
   canEditSelectedReference: boolean;
   showDeleteSelectedReference: boolean;
   canDeleteSelectedReference: boolean;
+  showReviewAction: boolean;
+  reviewModel: ModelSelection | null;
+  isReviewing: boolean;
   showRenderToggle: boolean;
   isDeleteReferenceConfirmOpen: boolean;
   onRenderModeChange: (value: "rendered" | "raw") => void;
+  onReviewModelChange: (model: ModelSelection) => void;
+  onReview: () => void;
   onDeleteReference: () => void;
   onDeleteReferenceConfirmOpenChange: (open: boolean) => void;
 }) {
@@ -49,6 +61,36 @@ export const SkillFileHeader = memo(function SkillFileHeader({
         ) : null}
       </div>
       <div className="flex items-center gap-1">
+        {showReviewAction ? (
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 gap-1 border rounded-r-none px-2 text-xs"
+              onClick={onReview}
+              disabled={isReviewing || !reviewModel}
+            >
+              {isReviewing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              AI Review
+            </Button>
+            <ModelSelector
+              value={reviewModel}
+              onChange={onReviewModelChange}
+              disabled={isReviewing}
+              showLabel={false}
+              ariaLabel="Select review model"
+              popoverAlign="end"
+              popoverSide="bottom"
+              popoverContentClassName="z-[10000]"
+              showConfigureAction={false}
+              className="h-6 border border-l-0 rounded-l-none px-1 text-xs"
+            />
+          </div>
+        ) : null}
         <ToggleGroup
           type="single"
           value={renderMode}

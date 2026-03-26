@@ -15,7 +15,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { ChevronRight, X } from "lucide-react";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { SETTINGS_REGISTRY, type SettingsSection } from "./settings-registry";
 
 export interface ShowSettingsDialogOptions {
@@ -115,20 +115,20 @@ function SettingsDialogWrapper({
                           <SidebarMenuSubItem>
                             <SidebarMenuSubButton
                               className="cursor-pointer"
-                              onClick={() => setActiveSection("skills")}
-                              isActive={activeSection === "skills"}
+                              onClick={() => setActiveSection("agent")}
+                              isActive={activeSection === "agent"}
                             >
-                              <span>Skills</span>
+                              <span>Agent</span>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
 
                           <SidebarMenuSubItem>
                             <SidebarMenuSubButton
                               className="cursor-pointer"
-                              onClick={() => setActiveSection("agent")}
-                              isActive={activeSection === "agent"}
+                              onClick={() => setActiveSection("skills")}
+                              isActive={activeSection === "skills"}
                             >
-                              <span>Agent</span>
+                              <span>Skills</span>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
                         </SidebarMenuSub>

@@ -28,6 +28,11 @@ interface ModelCommandItemProps {
   showProvider?: boolean;
 }
 
+export interface ModelSelection {
+  provider: string;
+  modelId: string;
+}
+
 function FreeBadge() {
   return (
     <Badge className="ml-auto rounded-sm bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-none hover:bg-green-100 dark:hover:bg-green-900/30 text-[9px]">
@@ -86,14 +91,34 @@ function ModelCommandItem({
   );
 }
 
-interface ModelSelectorImplProps {
+export interface ModelSelectorImplProps {
   className?: string;
   autoSelectAvailable?: boolean;
+  value?: ModelSelection | null;
+  onChange?: (model: ModelSelection) => void;
+  disabled?: boolean;
+  showLabel?: boolean;
+  ariaLabel?: string;
+  popoverAlign?: "start" | "center" | "end";
+  popoverSide?: "top" | "right" | "bottom" | "left";
+  popoverSideOffset?: number;
+  popoverContentClassName?: string;
+  showConfigureAction?: boolean;
 }
 
 export function ModelSelectorImpl({
   className,
-  autoSelectAvailable = false,
+  autoSelectAvailable,
+  value,
+  onChange,
+  disabled = false,
+  showLabel = true,
+  ariaLabel = "Select model",
+  popoverAlign = "start",
+  popoverSide = "top",
+  popoverSideOffset = 4,
+  popoverContentClassName,
+  showConfigureAction = true,
 }: ModelSelectorImplProps = {}) {
   const [open, setOpen] = useState(false);
   const {
@@ -104,18 +129,22 @@ export function ModelSelectorImpl({
     providerSettings,
     copilotModelsLoaded,
   } = useModelConfig();
+  const effectiveAutoSelectAvailable =
+    autoSelectAvailable ??
+    availableModels.some((model) => model.provider === "System" && model.modelId === "Auto");
+  const activeModel = value ?? selectedModel;
   const [highlightedValue, setHighlightedValue] = useState<string | undefined>(
-    selectedModel ? `${selectedModel.provider} ${selectedModel.modelId}` : undefined
+    activeModel ? `${activeModel.provider} ${activeModel.modelId}` : undefined
   );
   const [groupByProvider, setGroupByProvider] = useState(false);
 
   // Filter out "System (Auto)" if auto-select is not available
   const filteredModels = useMemo(() => {
-    if (autoSelectAvailable) {
+    if (effectiveAutoSelectAvailable) {
       return availableModels;
     }
     return availableModels.filter((m) => !(m.provider === "System" && m.modelId === "Auto"));
-  }, [availableModels, autoSelectAvailable]);
+  }, [availableModels, effectiveAutoSelectAvailable]);
 
   const sortedModels = useMemo(() => {
     const items = [...filteredModels];
@@ -145,6 +174,10 @@ export function ModelSelectorImpl({
 
   useEffect(() => {
     // If no model is selected, or the selected model is no longer available, select default
+    if (onChange) {
+      return;
+    }
+
     const isSelectedModelAvailable =
       selectedModel &&
       filteredModels.some(
@@ -167,7 +200,7 @@ export function ModelSelectorImpl({
     if (!selectedModel || !isSelectedModelAvailable) {
       // If auto-select is available, default to "System (Auto)"
       // Otherwise, select the first available user-configured model
-      if (autoSelectAvailable) {
+      if (effectiveAutoSelectAvailable) {
         setSelectedModel({ provider: "System", modelId: "Auto" });
       } else if (filteredModels.length > 0) {
         const firstModel = filteredModels[0];
@@ -176,35 +209,40 @@ export function ModelSelectorImpl({
     }
   }, [
     filteredModels,
+    onChange,
     selectedModel,
     setSelectedModel,
-    autoSelectAvailable,
+    effectiveAutoSelectAvailable,
     isLoading,
     copilotModelsLoaded,
     providerSettings,
   ]);
 
   useEffect(() => {
-    if (open && selectedModel) {
-      setHighlightedValue(`${selectedModel.provider} ${selectedModel.modelId}`);
+    if (open && activeModel) {
+      setHighlightedValue(`${activeModel.provider} ${activeModel.modelId}`);
     }
-  }, [open, selectedModel]);
+  }, [activeModel, open]);
 
   const handleSelect = useCallback(
-    (model: { provider: string; modelId: string }) => {
-      setSelectedModel(model);
+    (model: ModelSelection) => {
+      if (onChange) {
+        onChange(model);
+      } else {
+        setSelectedModel(model);
+      }
       setOpen(false);
-      // Trigger a custom event so other components know the model changed
-      window.dispatchEvent(new CustomEvent("MODEL_CHANGED", { detail: model }));
+      if (!onChange) {
+        window.dispatchEvent(new CustomEvent("MODEL_CHANGED", { detail: model }));
+      }
     },
-    [setSelectedModel]
+    [onChange, setSelectedModel]
   );
 
   const currentModel = filteredModels.find(
-    (m) =>
-      selectedModel && m.provider === selectedModel.provider && m.modelId === selectedModel.modelId
+    (m) => activeModel && m.provider === activeModel.provider && m.modelId === activeModel.modelId
   );
-  const displayModel = currentModel ?? selectedModel;
+  const displayModel = currentModel ?? activeModel;
 
   const highlightedModel = useMemo(() => {
     // When searching, highlightedValue matches the composite value (provider + modelId)
@@ -223,24 +261,31 @@ export function ModelSelectorImpl({
           size="sm"
           role="combobox"
           aria-expanded={open}
+          aria-label={ariaLabel}
+          disabled={disabled}
           className={cn(
             "h-6 gap-1 px-2 text-xs font-normal text-muted-foreground hover:text-foreground",
             className
           )}
         >
-          <span className="truncate max-w-[350px]">
-            {displayModel
-              ? `${displayModel.provider} | ${displayModel.modelId}`
-              : "Select model..."}
-          </span>
+          {showLabel ? (
+            <span className="truncate max-w-[350px]">
+              {displayModel
+                ? `${displayModel.provider} | ${displayModel.modelId}`
+                : "Select model..."}
+            </span>
+          ) : null}
           <ChevronsUpDown className="ml-0.5 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="p-0 w-auto flex items-stretch bg-transparent border-0 shadow-none pointer-events-auto"
-        align="start"
-        side="top"
-        sideOffset={4}
+        className={cn(
+          "p-0 w-auto flex items-stretch bg-transparent border-0 shadow-none pointer-events-auto",
+          popoverContentClassName
+        )}
+        align={popoverAlign}
+        side={popoverSide}
+        sideOffset={popoverSideOffset}
       >
         <Command
           value={highlightedValue}
@@ -296,8 +341,8 @@ export function ModelSelectorImpl({
                           key={`${model.provider}-${model.modelId}`}
                           model={model}
                           isSelected={
-                            selectedModel?.modelId === model.modelId &&
-                            selectedModel?.provider === model.provider
+                            activeModel?.modelId === model.modelId &&
+                            activeModel?.provider === model.provider
                           }
                           onSelect={handleSelect}
                           showProvider={false}
@@ -311,29 +356,33 @@ export function ModelSelectorImpl({
                       key={`${model.provider}-${model.modelId}`}
                       model={model}
                       isSelected={
-                        selectedModel?.modelId === model.modelId &&
-                        selectedModel?.provider === model.provider
+                        activeModel?.modelId === model.modelId &&
+                        activeModel?.provider === model.provider
                       }
                       onSelect={handleSelect}
                       showProvider={true}
                     />
                   ))}
             </CommandList>
-            <div className="h-px bg-border shrink-0" />
-            <div className="h-[32px] items-center flex mx-1 shrink-0">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full h-[24px] justify-start px-2 text-[10px] font-normal gap-2 rounded-sm"
-                onClick={() => {
-                  setOpen(false);
-                  showSettingsDialog({ initialSection: "models" });
-                }}
-              >
-                <Settings2 className="h-3 w-3" />
-                Configure more AI Models...
-              </Button>
-            </div>
+            {showConfigureAction ? (
+              <>
+                <div className="h-px bg-border shrink-0" />
+                <div className="h-[32px] items-center flex mx-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full h-[24px] justify-start px-2 text-[10px] font-normal gap-2 rounded-sm"
+                    onClick={() => {
+                      setOpen(false);
+                      showSettingsDialog({ initialSection: "models" });
+                    }}
+                  >
+                    <Settings2 className="h-3 w-3" />
+                    Configure more AI Models...
+                  </Button>
+                </div>
+              </>
+            ) : null}
           </div>
 
           {highlightedModel?.description && (

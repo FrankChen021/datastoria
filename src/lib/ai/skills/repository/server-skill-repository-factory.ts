@@ -10,10 +10,6 @@ let mySqlServerSkillRepository: ServerSkillRepositoryMySql | null = null;
 let pgServerSkillRepository: ServerSkillRepositoryPg | null = null;
 let sqliteServerSkillRepository: ServerSkillRepositorySqlite | null = null;
 
-export function isSkillEditingEnabled(): boolean {
-  return getServerSessionRepositoryConfig() !== null;
-}
-
 export function getServerSkillRepository(): ServerSkillRepository {
   const config = getServerSessionRepositoryConfig();
   if (!config) {

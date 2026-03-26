@@ -5,6 +5,7 @@
  * Used by the detail view when a user clicks a file node in the directory tree.
  */
 import { getAuthenticatedUserEmail } from "@/auth";
+import { SkillPermissionManager } from "@/lib/ai/skills/skill-permission-manager";
 import { SkillProviderFactory } from "@/lib/ai/skills/skill-provider-factory";
 import { NextResponse } from "next/server";
 
@@ -12,7 +13,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function shouldIncludeDraft(req: Request, userId: string | null): boolean {
-  if (!userId) return false;
+  if (!SkillPermissionManager.canUserEditSkill(userId)) return false;
   const flag = new URL(req.url).searchParams.get("includeDraft");
   return flag === "true" || flag === "1";
 }
