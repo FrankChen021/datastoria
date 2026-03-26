@@ -55,9 +55,10 @@ export const executeSqlExecutor: ToolExecutor<ExecuteSqlInput, ExecuteSqlOutput>
       sampleRow: rows[0] || {},
     };
   } catch (error) {
-    if (error instanceof QueryError && (error as QueryError).data) {
+    if (error instanceof QueryError && error.data) {
+      const errorMessage = typeof error.data === "string" ? error.data : error.message;
       return {
-        error: (error as QueryError).data,
+        error: errorMessage,
         columns: [],
         rows: [],
         rowCount: 0,

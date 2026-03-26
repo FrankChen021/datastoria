@@ -109,6 +109,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
       setIsDraggingResizeHandle(false);
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- drag cleanup and mouse-up handlers intentionally reference each other
     }, [handleMouseMove]);
 
     const handleMouseUp = React.useCallback(() => {

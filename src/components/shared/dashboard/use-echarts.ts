@@ -137,6 +137,7 @@ export function useEcharts(options: UseEchartsOptions = {}) {
         chartInstanceRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- caller provides additional dynamic dependencies for chart lifecycle
   }, [isDark, useExplicitSize, JSON.stringify(initOptions), ...dependencies]);
 
   return {

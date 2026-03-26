@@ -113,7 +113,7 @@ LIMIT 100
         },
       } as SelectorFilterSpec,
     ];
-  }, []);
+  }, [connection]);
 
   // Build Dashboard configuration with chart and table
   const dashboard = useMemo<Dashboard>(() => {

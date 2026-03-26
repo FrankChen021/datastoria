@@ -442,7 +442,7 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
             return prev.map((s) => (s.id === "cluster" ? { ...s, status: "error" } : s));
           });
           if (err instanceof QueryError) {
-            setError(err.data || err.message);
+            setError(typeof err.data === "string" && err.data.length > 0 ? err.data : err.message);
           } else {
             setError(err instanceof Error ? err.message : String(err));
           }

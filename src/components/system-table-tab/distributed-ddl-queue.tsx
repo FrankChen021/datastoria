@@ -142,6 +142,8 @@ interface DDLDistributedQueueHostLogTableProps {
 
 const DDLDistributedQueueHostLogTable = memo(
   ({ records }: DDLDistributedQueueHostLogTableProps) => {
+    const tableData = useMemo(() => records as unknown as Record<string, unknown>[], [records]);
+
     const tableMeta = useMemo(
       () => [
         { name: "host", type: "String" },
@@ -198,7 +200,7 @@ const DDLDistributedQueueHostLogTable = memo(
       <div className="bg-background border rounded-md overflow-hidden shadow-sm h-[400px]">
         <DataTable
           enableCompactMode
-          data={records as any}
+          data={tableData}
           meta={tableMeta}
           fieldOptions={fieldOptions}
           enableIndexColumn
@@ -397,7 +399,7 @@ const DistributedDDLQueueAggregateView = memo(
           className="flex flex-col overflow-hidden"
         >
           <DataTable
-            data={data as any}
+            data={data.map((row) => ({ ...row }))}
             meta={tableMeta}
             defaultSort={{
               column: "query_create_time",
@@ -481,7 +483,7 @@ const DistributedDDLQueueRawView = memo(({ data, isLoading }: DistributedDDLQueu
 
   return (
     <DataTable
-      data={data as any}
+      data={data.map((row) => ({ ...row }))}
       meta={tableMeta}
       fieldOptions={fieldOptions}
       enableIndexColumn
@@ -625,7 +627,7 @@ ORDER BY t
 };
 
 export const DistributedDDLQueue = memo(() => {
-  const { connection } = useConnection();
+  const { connection: _connection } = useConnection();
   const filterSpecs = useMemo<FilterSpec[]>(() => {
     return [
       {
@@ -643,7 +645,7 @@ ORDER BY host`,
         },
       } as SelectorFilterSpec,
     ];
-  }, [connection]);
+  }, []);
   return (
     <DashboardPage
       dashboardId="distributed-ddl-queue"

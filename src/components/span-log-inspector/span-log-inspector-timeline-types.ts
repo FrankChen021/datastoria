@@ -40,11 +40,6 @@ function toStringValue(value: unknown): string {
   return String(value);
 }
 
-function compactServerName(value: string): string {
-  const first = value.split(".")[0];
-  return first || value;
-}
-
 function getInstanceName(span: SpanLogElement): string {
   return toStringValue(span.hostname) || "-";
 }

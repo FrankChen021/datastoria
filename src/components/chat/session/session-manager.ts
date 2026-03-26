@@ -297,11 +297,14 @@ export const SessionManager = {
 };
 
 export function useSessions(connectionId?: string): ManagedSession[] {
-  const version = useSyncExternalStore(
+  const snapshotVersion = useSyncExternalStore(
     SessionManager.subscribe,
     SessionManager.getVersion,
     SessionManager.getVersion
   );
 
-  return useMemo(() => SessionManager.getSessions(connectionId), [connectionId, version]);
+  return useMemo(() => {
+    void snapshotVersion;
+    return SessionManager.getSessions(connectionId);
+  }, [connectionId, snapshotVersion]);
 }

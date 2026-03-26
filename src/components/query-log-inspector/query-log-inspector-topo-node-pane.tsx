@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- topology rows include raw ClickHouse query log payloads */
+
 import { CollapsibleSection } from "@/components/shared/collapsible-section";
 import { Button } from "@/components/ui/button";
 import { Formatter } from "@/lib/formatter";

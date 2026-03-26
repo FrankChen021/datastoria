@@ -10,7 +10,7 @@ import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highl
 import { Dialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { type QueryResponse } from "@/lib/connection/connection";
+import { type JSONFormatResponse, type QueryResponse } from "@/lib/connection/connection";
 import { AlertTriangle, EllipsisVertical } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 
@@ -61,7 +61,7 @@ export const Dashboards = memo(({ database, table }: DashboardsProps) => {
         )
         .response.then((response: QueryResponse) => {
           try {
-            const responseData = response.data.json<any>();
+            const responseData = response.data.json<JSONFormatResponse>();
             const rows = responseData.data || [];
             const meta = responseData.meta || [];
 
@@ -240,7 +240,7 @@ export const Dashboards = memo(({ database, table }: DashboardsProps) => {
       )
       .response.then((response: QueryResponse) => {
         try {
-          const responseData = response.data.json<any>();
+          const responseData = response.data.json<JSONFormatResponse>();
           const rows = responseData.data || [];
           const meta = responseData.meta || [];
 

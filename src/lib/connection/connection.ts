@@ -6,13 +6,21 @@ import { getAuthUser } from "./connection-private";
 // Re-export ConnectionConfig for convenience
 export type { ConnectionConfig };
 
+type QueryHeaders = Record<string, string>;
+type ErrorWithCaptureStackTrace = ErrorConstructor & {
+  captureStackTrace?: (
+    targetObject: object,
+    constructorOpt?: (...args: never[]) => unknown
+  ) => void;
+};
+
 export class QueryError extends Error {
   httpStatus?: number;
-  httpHeaders?: any;
-  data: any;
+  httpHeaders?: QueryHeaders;
+  data: unknown;
   errorCode?: string;
 
-  constructor(message: string, httpStatus?: number, httpHeaders?: any, data?: any) {
+  constructor(message: string, httpStatus?: number, httpHeaders?: QueryHeaders, data?: unknown) {
     super(message);
     this.name = "QueryError";
     this.httpStatus = httpStatus;
@@ -24,20 +32,21 @@ export class QueryError extends Error {
     Object.setPrototypeOf(this, QueryError.prototype);
 
     // Maintains proper stack trace for where our error was thrown (only available on V8)
-    if (typeof (Error as any).captureStackTrace === "function") {
-      (Error as any).captureStackTrace(this, QueryError);
+    const errorConstructor = Error as ErrorWithCaptureStackTrace;
+    if (typeof errorConstructor.captureStackTrace === "function") {
+      errorConstructor.captureStackTrace(this, QueryError);
     }
   }
 }
 
 export interface QueryResponseData {
   text: () => string;
-  json: <T = any>() => T;
+  json: <T = unknown>() => T;
 }
 
 export interface QueryResponse {
   httpStatus: number;
-  httpHeaders: any;
+  httpHeaders: QueryHeaders;
   data: QueryResponseData;
 }
 
@@ -288,7 +297,7 @@ export class Connection {
 
         const data: QueryResponseData = {
           text: () => responseText,
-          json: <T = any>() => JSON.parse(responseText) as T,
+          json: <T = unknown>() => JSON.parse(responseText) as T,
         };
 
         return {

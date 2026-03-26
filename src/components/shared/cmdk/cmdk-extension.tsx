@@ -3,7 +3,9 @@ import NumberFlow from "@number-flow/react";
 import { useCommandState } from "cmdk";
 
 export const CommandItemCount: React.FC<React.PropsWithChildren> = ({ children }) => {
-  const filterCount = useCommandState((state: any) => state.filtered.count);
+  const filterCount = useCommandState(
+    (state: { filtered: { count: number } }) => state.filtered.count
+  );
 
   return (
     <>
@@ -19,6 +21,6 @@ export const CommandItemCount: React.FC<React.PropsWithChildren> = ({ children }
 };
 
 export const HighlightableCommandItem: React.FC<{ text: string }> = ({ text }) => {
-  const search = useCommandState((state: any) => state.search);
+  const search = useCommandState((state: { search: string }) => state.search);
   return TextHighlighter.highlight(text, search, "text-yellow-500");
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPanelConstraints, type PanelConstraints } from "../dashboard-layout-constraints";
+import { getPanelConstraints } from "../dashboard-layout-constraints";
 
 describe("dashboard-layout-constraints", () => {
   it("returns constraints for stat panel", () => {

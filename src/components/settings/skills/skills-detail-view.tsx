@@ -313,7 +313,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
       setIsPublishing(false);
     }
   }, [
-    deletedResourcePaths.length,
+    deletedResourcePaths,
     detail,
     fetchResource,
     reloadDetail,
@@ -386,9 +386,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
         title: "New File",
         description: `Add a new file under ${folderPath}/.`,
         className: "w-full max-w-[560px] sm:max-w-[560px]",
-        mainContent: (
-          <NewReferenceForm controllerRef={newReferenceFormRef} folderPath={folderPath} />
-        ),
+        mainContent: <NewReferenceForm controllerRef={newReferenceFormRef} />,
         dialogButtons: [
           {
             text: "Cancel",
@@ -474,12 +472,6 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
     selectedFile === null
       ? (detail?.content ?? "")
       : (selectedDraftResource ?? resourceDetail?.content ?? "");
-  const currentState =
-    selectedFile === null
-      ? (detail?.state ?? null)
-      : selectedDraftResource !== undefined
-        ? "draft"
-        : (resourceDetail?.state ?? null);
   const currentSource =
     selectedFile === null
       ? (detail?.source ?? null)

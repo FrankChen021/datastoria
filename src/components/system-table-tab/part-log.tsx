@@ -51,7 +51,7 @@ WHERE
 AND event_time < {to:String}
 ORDER BY event_time DESC
 `,
-    []
+    [connection]
   );
 
   const filterSpecs = useMemo<FilterSpec[]>(() => {
@@ -189,7 +189,7 @@ ORDER BY event_time DESC
       }
       return true;
     });
-  }, []);
+  }, [connection]);
 
   // Build Dashboard configuration with chart and table
   const dashboard = useMemo<Dashboard>(() => {

@@ -223,7 +223,6 @@ ChatHeader.displayName = "ChatHeader";
 
 interface ChatPanelProps {
   // Optional: Pass in context from your app
-  currentQuery?: string;
   currentDatabase?: string;
   availableTables?: Array<{
     name: string;
@@ -232,12 +231,7 @@ interface ChatPanelProps {
   onClose?: () => void;
 }
 
-export function ChatPanel({
-  currentQuery,
-  currentDatabase,
-  availableTables,
-  onClose,
-}: ChatPanelProps) {
+export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPanelProps) {
   const {
     pendingCommand,
     consumeCommand,
@@ -568,7 +562,6 @@ export function ChatPanel({
           onClose={onClose}
           onNewChat={handleNewChat}
           questions={DEFAULT_CHAT_QUESTIONS}
-          currentQuery={currentQuery}
           currentDatabase={currentDatabase}
           availableTables={availableTables}
           externalInput={

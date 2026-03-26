@@ -12,10 +12,8 @@ export interface NewReferenceFormController {
 
 export function NewReferenceForm({
   controllerRef,
-  folderPath,
 }: {
   controllerRef: MutableRefObject<NewReferenceFormController | null>;
-  folderPath: string;
 }) {
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState<string | null>(null);

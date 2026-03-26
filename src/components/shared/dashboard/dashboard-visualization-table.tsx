@@ -237,7 +237,13 @@ export const TableVisualization = React.forwardRef<TableVisualizationRef, TableV
           }
         }
       },
-      [descriptor.pagination?.mode, hasMorePages, onLoadData, data.length]
+      [
+        descriptor.pagination?.mode,
+        descriptor.miscOption?.enableCompactMode,
+        hasMorePages,
+        onLoadData,
+        data.length,
+      ]
     );
 
     // Component for rendering show/hide columns submenu

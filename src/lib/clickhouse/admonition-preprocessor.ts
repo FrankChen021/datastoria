@@ -2,7 +2,9 @@
  * Admonition blocks (:::note, :::warning, etc.) for markdown.
  * Used by marked extension (query-suggestion-manager) and preprocessor (ReactMarkdown).
  */
-import { marked } from "marked";
+import { marked, type Token } from "marked";
+
+type MarkedInlineToken = Token & { text?: string };
 
 /** Regex for a single admonition block. Use with exec() or add 'g' for replace(). */
 const ADMONITION_REGEX = /^(\s*):::([a-zA-Z]+)\s*\n([\s\S]*?)\n\s*:::/;
@@ -58,7 +60,6 @@ export const markedAdmonitionExtension = {
 
 /** Custom renderer so links in admonition content open in new tab */
 const admonitionRenderer = new marked.Renderer();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- marked link renderer uses internal token types
 admonitionRenderer.link = function ({
   href,
   title,
@@ -66,7 +67,7 @@ admonitionRenderer.link = function ({
 }: {
   href: string | null;
   title?: string | null;
-  tokens: any;
+  tokens: MarkedInlineToken[];
 }) {
   const text = this.parser
     ? this.parser.parseInline(tokens)

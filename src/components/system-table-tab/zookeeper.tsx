@@ -51,7 +51,7 @@ function flattenTree(
   return result;
 }
 
-export const Zookeeper = React.memo(({ database, table }: ZookeeperProps) => {
+export const Zookeeper = React.memo(({ database: _database, table: _table }: ZookeeperProps) => {
   const { connection } = useConnection();
   // Root node is hardcoded as per requirement
   const [root, setRoot] = useState<ZookeeperNode>({
@@ -127,7 +127,15 @@ WHERE path = '${nodePath}'`,
         ).response;
         const jsonResponse = await response.data.json<JSONFormatResponse>();
 
-        const dataRows = jsonResponse.data as any[];
+        const dataRows = jsonResponse.data as Array<{
+          name: string;
+          path: string;
+          value: string;
+          ctime: string;
+          mtime: string;
+          dataLength: string;
+          numChildren?: number;
+        }>;
         const newChildren: ZookeeperNode[] = dataRows.map((row) => {
           const name = row.name;
 
@@ -169,7 +177,7 @@ WHERE path = '${nodePath}'`,
       // Expand root by default
       setExpandedPaths(new Set(["/"]));
     }
-  }, [connection]); // Run once when connection is available (and root is not loaded)
+  }, [connection, fetchChildren, loadingPaths, root.isLoaded]); // Run when connection/root load state changes
 
   const toggleExpand = useCallback(
     (node: ZookeeperNode) => {
@@ -194,7 +202,7 @@ WHERE path = '${nodePath}'`,
         }
       }
     },
-    [expandedPaths, loadingPaths, fetchChildren, root]
+    [expandedPaths, loadingPaths, fetchChildren]
   );
 
   const parentRef = useRef<HTMLDivElement>(null);
@@ -219,6 +227,7 @@ WHERE path = '${nodePath}'`,
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
     document.body.style.cursor = "col-resize";
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resize handlers intentionally form a closed mouse interaction lifecycle
   }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {

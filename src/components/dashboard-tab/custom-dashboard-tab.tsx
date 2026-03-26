@@ -132,7 +132,7 @@ const CustomDashboardTabComponent = ({ dashboardId, dashboardName }: CustomDashb
   const dashboard = useMemo(() => {
     if (!config) return null;
     return CustomDashboardStorage.toDashboard(config);
-  }, [config, dashboardKey]);
+  }, [config]);
 
   const allPanels = useMemo(() => (config ? flattenPanels(config.panels) : []), [config]);
 

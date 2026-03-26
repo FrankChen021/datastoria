@@ -111,9 +111,9 @@ function PanelEditSqlEditorComponent({
   // Initialize completions when connection changes
   useEffect(() => {
     if (connection) {
-      QuerySuggestionManager.getInstance().onConnectionSelected(connection as any);
+      QuerySuggestionManager.getInstance().onConnectionSelected(connection);
     }
-  }, [connection?.name]);
+  }, [connection]);
 
   // Update editor theme when it changes
   useEffect(() => {

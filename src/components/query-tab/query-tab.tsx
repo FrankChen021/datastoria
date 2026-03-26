@@ -18,20 +18,13 @@ const QueryInputView = dynamic(
 );
 
 export interface QueryTabProps {
-  tabId?: string;
   initialQuery?: string;
   initialMode?: "replace" | "insert" | "none";
   initialExecute?: boolean;
   active?: boolean;
 }
 
-const QueryTabContent = ({
-  tabId,
-  initialQuery,
-  initialMode,
-  initialExecute,
-  active,
-}: QueryTabProps) => {
+const QueryTabContent = ({ initialQuery, initialMode, initialExecute, active }: QueryTabProps) => {
   const queryInputRef = useRef<QueryInputViewRef>(null);
   const { connection } = useConnection();
   const { executeQuery, isSqlExecuting } = useQueryExecutor();
@@ -151,7 +144,7 @@ const QueryTabContent = ({
       <PanelGroup direction="vertical" className="h-full">
         {/* Top Panel: Query Response View */}
         <Panel defaultSize={60} minSize={20} className="bg-background overflow-auto">
-          <QueryListView tabId={tabId} />
+          <QueryListView />
         </Panel>
 
         <PanelResizeHandle className="h-0.5 bg-border hover:bg-border/80 transition-colors cursor-row-resize" />

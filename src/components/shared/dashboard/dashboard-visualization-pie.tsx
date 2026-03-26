@@ -4,14 +4,13 @@ import { Dialog } from "@/components/shared/use-dialog";
 import { CardContent } from "@/components/ui/card";
 import { Formatter } from "@/lib/formatter";
 import * as echarts from "echarts";
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect } from "react";
 import { DRILLDOWN_DIALOG_CLASS_NAME } from "./dashboard-dialog-utils";
 import type { PanelDescriptor, PieDescriptor, TableDescriptor } from "./dashboard-model";
 import type { VisualizationRef } from "./dashboard-visualization-layout";
 import { DashboardVisualizationPanel } from "./dashboard-visualization-panel";
 import type { TimeSpan } from "./timespan-selector";
 import { useEcharts } from "./use-echarts";
-import useIsDarkTheme from "./use-is-dark-theme";
 
 export interface PieVisualizationProps {
   // Data from facade
@@ -31,8 +30,6 @@ export type PieVisualizationRef = VisualizationRef;
 export const PieVisualization = React.forwardRef<PieVisualizationRef, PieVisualizationProps>(
   function PieVisualization(props, ref) {
     const { data, meta, descriptor, selectedTimeSpan } = props;
-    const isDark = useIsDarkTheme();
-
     // Refs
     const { chartContainerRef, chartInstanceRef } = useEcharts();
 
@@ -328,6 +325,7 @@ export const PieVisualization = React.forwardRef<PieVisualizationRef, PieVisuali
       } catch (err) {
         console.error("Error updating pie chart:", err);
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- chart ref identity is stable and should not retrigger effect work
     }, [data, meta, descriptor, hasDrilldown, handleDrilldownClick]);
 
     // Expose methods via ref

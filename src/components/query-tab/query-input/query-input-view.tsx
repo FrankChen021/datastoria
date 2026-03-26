@@ -232,8 +232,8 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           // Let's check if we need to update managers later.
           // Connection has static config which is what completion likely needs (url, user, etc).
           // Let's passed it as is.
-          QuerySuggestionManager.getInstance().onConnectionSelected(connection as any);
-          QuerySnippetManager.getInstance().onConnectionChanged(connection as any);
+          QuerySuggestionManager.getInstance().onConnectionSelected(connection);
+          QuerySnippetManager.getInstance().onConnectionChanged(connection);
         }
       } else {
         lastConnectionRef.current = null;

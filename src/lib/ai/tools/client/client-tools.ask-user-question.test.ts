@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { ClientTools } from "./client-tools";
 
 describe("ask_user_question tool schema", () => {
-  const inputSchema = (ClientTools.ask_user_question as { inputSchema: { safeParse: Function } })
-    .inputSchema;
-  const outputSchema = (ClientTools.ask_user_question as { outputSchema: { safeParse: Function } })
-    .outputSchema;
+  const tool = ClientTools.ask_user_question as {
+    inputSchema: { safeParse: (value: unknown) => { success: boolean } };
+    outputSchema: { safeParse: (value: unknown) => { success: boolean } };
+  };
+  const inputSchema = tool.inputSchema;
+  const outputSchema = tool.outputSchema;
 
   it("accepts a single structured question", () => {
     const result = inputSchema.safeParse({

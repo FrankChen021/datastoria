@@ -1,5 +1,4 @@
 import { AppLogo } from "@/components/app-logo";
-import { TypingDots } from "@/components/ui/typing-dots";
 import { UserProfileImage } from "@/components/user-profile-image";
 import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";

@@ -573,7 +573,7 @@ ORDER BY host
       }
 
       return def;
-    }, [database]);
+    }, [database, connection?.cluster, isClusterMode]);
 
     return (
       <DashboardPanelContainer ref={ref} dashboard={dashboard} initialTimeSpan={selectedTimeSpan} />

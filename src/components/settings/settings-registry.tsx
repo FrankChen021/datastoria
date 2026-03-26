@@ -9,7 +9,7 @@ export type SettingsSection = "query-context" | "ui" | "models" | "agent" | "ski
 export interface SettingsPageConfig {
   title: string;
   description: string;
-  component: React.ComponentType<any>;
+  component: React.ComponentType<Record<string, unknown>>;
 }
 
 export const SETTINGS_REGISTRY: Record<SettingsSection, SettingsPageConfig> = {

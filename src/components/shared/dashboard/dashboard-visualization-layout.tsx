@@ -82,8 +82,6 @@ export interface DashboardVisualizationLayoutProps {
 
 interface DashboardPanelHeaderProps {
   titleOption: TitleOption;
-  isCollapsible: boolean;
-  isCollapsed?: boolean;
   headerBackground: boolean;
   headerClassName?: string;
   wrapInTrigger: boolean;
@@ -95,8 +93,6 @@ interface DashboardPanelHeaderProps {
 const DashboardPanelHeader = React.memo<DashboardPanelHeaderProps>(
   ({
     titleOption,
-    isCollapsible,
-    isCollapsed,
     headerBackground,
     headerClassName,
     wrapInTrigger,
@@ -255,8 +251,6 @@ export function DashboardVisualizationLayout({
     return (
       <DashboardPanelHeader
         titleOption={titleOption}
-        isCollapsible={isCollapsible}
-        isCollapsed={isCollapsed}
         headerBackground={headerBackground}
         headerClassName={headerClassName}
         wrapInTrigger={wrapInTrigger}

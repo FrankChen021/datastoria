@@ -230,7 +230,7 @@ export const Processes = memo(({ database: _database, table: _table }: Processes
         } as TableDescriptor,
       ],
     };
-  }, [connection]);
+  }, [hasCluster]);
 
   const filterSpecs = useMemo<FilterSpec[]>(() => {
     return connection?.cluster && connection?.cluster.length > 0
@@ -250,7 +250,7 @@ export const Processes = memo(({ database: _database, table: _table }: Processes
           } as SelectorFilterSpec,
         ]
       : [];
-  }, []);
+  }, [connection]);
 
   return (
     <DashboardPage

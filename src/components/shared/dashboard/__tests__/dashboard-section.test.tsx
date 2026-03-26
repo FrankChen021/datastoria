@@ -71,8 +71,6 @@ const baseProps = {
   onSubComponentUpdated: () => {},
   globalPanelStartIndex: 0,
   initialLoading: false,
-  panelCollapseStates: new Map<number, boolean>(),
-  onPanelCollapsedChange: () => {},
 };
 
 describe("DashboardSection", () => {

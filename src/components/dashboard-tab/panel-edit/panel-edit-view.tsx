@@ -23,7 +23,7 @@ function PanelEditViewComponent({ editingPanel, onSave, onDiscard }: PanelEditVi
     if (descriptor) {
       onSave(descriptor);
     }
-  }, [state.buildDescriptor, onSave]);
+  }, [state, onSave]);
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
