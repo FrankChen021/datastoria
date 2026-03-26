@@ -240,17 +240,15 @@ WHERE path = '${nodePath}'`,
           setRootLoadError(errorMessage);
         }
       } finally {
-        if (isRootRequest && rootRequestToken !== rootRequestTokenRef.current) {
-          return;
-        }
-
-        setLoadingPaths((prev) => {
-          const next = new Set(prev);
-          next.delete(nodePath);
-          return next;
-        });
-        if (isRootRequest && rootRequestToken === rootRequestTokenRef.current) {
-          rootAbortControllerRef.current = null;
+        if (!isRootRequest || rootRequestToken === rootRequestTokenRef.current) {
+          setLoadingPaths((prev) => {
+            const next = new Set(prev);
+            next.delete(nodePath);
+            return next;
+          });
+          if (isRootRequest) {
+            rootAbortControllerRef.current = null;
+          }
         }
       }
     },
