@@ -1,7 +1,7 @@
 "use client";
 
 import type { Chat, Message } from "@/lib/ai/chat-types";
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { chatActionStorage } from "./chat-action-storage";
 import { toSessionRepositoryConnectionId } from "./session-connection-id";
@@ -297,11 +297,14 @@ export const SessionManager = {
 };
 
 export function useSessions(connectionId?: string): ManagedSession[] {
-  useSyncExternalStore(
+  const snapshotVersion = useSyncExternalStore(
     SessionManager.subscribe,
     SessionManager.getVersion,
     SessionManager.getVersion
   );
 
-  return SessionManager.getSessions(connectionId);
+  return useMemo(() => {
+    void snapshotVersion;
+    return SessionManager.getSessions(connectionId);
+  }, [connectionId, snapshotVersion]);
 }

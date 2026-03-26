@@ -142,6 +142,8 @@ interface DDLDistributedQueueHostLogTableProps {
 
 const DDLDistributedQueueHostLogTable = memo(
   ({ records }: DDLDistributedQueueHostLogTableProps) => {
+    const tableData = useMemo(() => records as unknown as Record<string, unknown>[], [records]);
+
     const tableMeta = useMemo(
       () => [
         { name: "host", type: "String" },
@@ -198,7 +200,7 @@ const DDLDistributedQueueHostLogTable = memo(
       <div className="bg-background border rounded-md overflow-hidden shadow-sm h-[400px]">
         <DataTable
           enableCompactMode
-          data={records.map((record) => ({ ...record }))}
+          data={tableData}
           meta={tableMeta}
           fieldOptions={fieldOptions}
           enableIndexColumn
