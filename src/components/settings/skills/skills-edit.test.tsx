@@ -71,6 +71,7 @@ describe("SkillsEdit", () => {
             connectionProviderEnabled: false,
             sessionRepositoryType: "local",
             allowEditSkill: true,
+            autoSelectAvailable: false,
           }}
         >
           <SkillsEdit />

@@ -1,17 +1,22 @@
 "use client";
 
+import type { ModelSelection } from "@/components/chat/input/model-selector-impl";
 import { useRuntimeConfig } from "@/components/runtime-config-provider";
 import FloatingProgressBar from "@/components/shared/floating-progress-bar";
+import { useTheme } from "@/components/shared/theme-provider";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { Dialog as SharedDialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useModelConfig } from "@/hooks/use-model-config";
 import type { SkillDetailResponse, SkillResourceResponse } from "@/lib/ai/skills/skill-provider";
+import type { SkillReviewResponse } from "@/lib/ai/skills/skill-review";
 import { BasePath } from "@/lib/base-path";
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ReactDiffViewer from "react-diff-viewer-continued";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { NewReferenceForm, type NewReferenceFormController } from "./detail/new-reference-form";
 import { SkillDetailHeader } from "./detail/skill-detail-header";
@@ -19,6 +24,7 @@ import { buildDirTree } from "./detail/skill-detail-tree";
 import { SkillFileHeader } from "./detail/skill-file-header";
 import { SkillFileTreePanel } from "./detail/skill-file-tree-panel";
 import { SkillMarkdownRenderer } from "./detail/skill-markdown-renderer";
+import { SkillReviewPanel } from "./detail/skill-review-panel";
 
 interface SkillsDetailViewProps {
   skillId: string;
@@ -71,6 +77,8 @@ async function readJsonError(response: Response, fallback: string): Promise<stri
 
 export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
   const { allowEditSkill } = useRuntimeConfig();
+  const { theme } = useTheme();
+  const { availableModels, selectedModel, providerSettings } = useModelConfig();
   const [detail, setDetail] = useState<SkillDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,9 +91,13 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
   const [resourceLoadingPath, setResourceLoadingPath] = useState<string | null>(null);
   const [resourceError, setResourceError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
   const [isDeleteReferenceConfirmOpen, setIsDeleteReferenceConfirmOpen] = useState(false);
+  const [reviewModel, setReviewModel] = useState<ModelSelection | null>(null);
+  const [reviewResult, setReviewResult] = useState<SkillReviewResponse | null>(null);
 
   const [renderMode, setRenderMode] = useState<"rendered" | "raw">("rendered");
   const detailRequestIdRef = useRef(0);
@@ -93,6 +105,40 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
   const resourceAbortControllerRef = useRef<AbortController | null>(null);
   const editorTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const newReferenceFormRef = useRef<NewReferenceFormController | null>(null);
+  const isDarkTheme =
+    theme === "dark" ||
+    (theme === "system" &&
+      typeof window !== "undefined" &&
+      window.document.documentElement.classList.contains("dark"));
+
+  useEffect(() => {
+    const isCurrentReviewModelAvailable =
+      reviewModel &&
+      availableModels.some(
+        (model) => model.provider === reviewModel.provider && model.modelId === reviewModel.modelId
+      );
+    if (isCurrentReviewModelAvailable) {
+      return;
+    }
+
+    const preferredModel =
+      selectedModel &&
+      availableModels.find(
+        (model) =>
+          model.provider === selectedModel.provider &&
+          model.modelId === selectedModel.modelId &&
+          !(model.provider === "System" && model.modelId === "Auto")
+      );
+    const fallbackModel =
+      preferredModel ??
+      availableModels.find((model) => !(model.provider === "System" && model.modelId === "Auto"));
+    if (!fallbackModel) {
+      setReviewModel(null);
+      return;
+    }
+
+    setReviewModel({ provider: fallbackModel.provider, modelId: fallbackModel.modelId });
+  }, [availableModels, reviewModel, selectedModel]);
 
   // Load skill detail
   useEffect(() => {
@@ -108,6 +154,8 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
     setDeletedResourcePaths([]);
     setResourceError(null);
     setSaveError(null);
+    setReviewError(null);
+    setReviewResult(null);
     setResourceLoadingPath(null);
     resourceAbortControllerRef.current?.abort();
     resourceAbortControllerRef.current = null;
@@ -156,6 +204,8 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
         setSelectedFile(resourcePath);
         setResourceDetail(null);
         setResourceError(null);
+        setReviewError(null);
+        setReviewResult(null);
         setResourceLoadingPath(null);
         setRenderMode("raw");
         return;
@@ -169,6 +219,8 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
       setSelectedFile(resourcePath);
       setResourceDetail(null);
       setResourceError(null);
+      setReviewError(null);
+      setReviewResult(null);
       setResourceLoadingPath(resourcePath);
       setRenderMode("raw");
 
@@ -201,6 +253,8 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
     setSelectedFile(null);
     setResourceDetail(null);
     setResourceError(null);
+    setReviewError(null);
+    setReviewResult(null);
     setResourceLoadingPath(null);
     setRenderMode("rendered");
   }, []);
@@ -318,6 +372,8 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
       setResourceError(null);
       setResourceLoadingPath(null);
       setSaveError(null);
+      setReviewError(null);
+      setReviewResult(null);
       setRenderMode("raw");
       return { ok: true as const };
     },
@@ -389,6 +445,8 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
     setResourceError(null);
     setResourceLoadingPath(null);
     setSaveError(null);
+    setReviewError(null);
+    setReviewResult(null);
     setRenderMode("rendered");
   }, [detail?.resourcePaths, resourceDrafts, selectedFile]);
 
@@ -410,6 +468,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
   const isJsonFile = selectedFile?.endsWith(".json") || selectedFile?.endsWith(".JSON");
   const isReferenceFile = selectedFile?.startsWith("references/") ?? false;
   const canEditSelectedReference = allowEditSkill && isReferenceFile;
+  const canReviewSelectedReference = canEditSelectedReference && isMarkdownFile;
   const displayedFilename = selectedFile === null ? "SKILL.md" : selectedFile.split("/").pop()!;
   const currentContent =
     selectedFile === null
@@ -445,6 +504,82 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
   const canDeleteSelectedReference =
     showDeleteSelectedReference &&
     (isUnsavedNewSelectedReference || resourceDetail?.source === "database");
+  const reviewProposal = reviewResult?.proposals.find((item) => item.path === selectedFile) ?? null;
+  const dismissReview = useCallback(() => {
+    setReviewResult(null);
+    setReviewError(null);
+  }, []);
+
+  const reviewSelectedFile = useCallback(async () => {
+    if (!selectedFile || !reviewModel) {
+      return;
+    }
+
+    const providerSetting = providerSettings.find((item) => item.provider === reviewModel.provider);
+    const requestedReviewModel = providerSetting?.apiKey
+      ? {
+          provider: reviewModel.provider,
+          modelId: reviewModel.modelId,
+          apiKey: providerSetting.apiKey,
+        }
+      : {
+          provider: reviewModel.provider,
+          modelId: reviewModel.modelId,
+        };
+
+    setIsReviewing(true);
+    setReviewError(null);
+    setReviewResult(null);
+
+    try {
+      const response = await fetch(BasePath.getURL("/api/ai/skills/actions/review"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          scope: "file",
+          skillId,
+          model: requestedReviewModel,
+          target: {
+            primaryPath: selectedFile,
+            files: [
+              {
+                path: selectedFile,
+                content: currentContent,
+              },
+            ],
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readJsonError(response, "Failed to review file"));
+      }
+
+      setReviewResult((await response.json()) as SkillReviewResponse);
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : "Failed to review file");
+    } finally {
+      setIsReviewing(false);
+    }
+  }, [currentContent, providerSettings, reviewModel, selectedFile, skillId]);
+
+  const applyReviewProposal = useCallback(() => {
+    if (!selectedFile || !reviewResult) {
+      return;
+    }
+
+    const proposal = reviewResult.proposals.find((item) => item.path === selectedFile);
+    if (!proposal) {
+      return;
+    }
+
+    setResourceDrafts((prev) => ({ ...prev, [selectedFile]: proposal.updatedContent }));
+    setReviewError(null);
+    setReviewResult(null);
+    setRenderMode("raw");
+  }, [reviewResult, selectedFile]);
 
   useEffect(() => {
     if (!canEditSelectedReference || renderMode !== "raw" || resourceLoading || resourceError) {
@@ -519,9 +654,14 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
               canEditSelectedReference={canEditSelectedReference}
               showDeleteSelectedReference={showDeleteSelectedReference}
               canDeleteSelectedReference={canDeleteSelectedReference}
+              showReviewAction={canReviewSelectedReference}
+              reviewModel={reviewModel}
+              isReviewing={isReviewing}
               showRenderToggle={showRenderToggle}
               isDeleteReferenceConfirmOpen={isDeleteReferenceConfirmOpen}
               onRenderModeChange={setRenderMode}
+              onReviewModelChange={setReviewModel}
+              onReview={reviewSelectedFile}
               onDeleteReference={deleteSelectedReference}
               onDeleteReferenceConfirmOpenChange={setIsDeleteReferenceConfirmOpen}
             />
@@ -529,6 +669,9 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
             {canEditSelectedReference ? (
               <div className="flex flex-1 min-h-0 flex-col">
                 {saveError ? <p className="mb-3 text-sm text-destructive">{saveError}</p> : null}
+                {reviewError ? (
+                  <p className="mb-3 text-sm text-destructive">{reviewError}</p>
+                ) : null}
                 {resourceLoading ? (
                   <div className="space-y-2">
                     <Skeleton className="h-3 w-full" />
@@ -537,6 +680,103 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
                   </div>
                 ) : resourceError ? (
                   <p className="text-sm text-destructive">{resourceError}</p>
+                ) : reviewProposal ? (
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="flex h-10 flex-shrink-0 items-center justify-between border-b px-4">
+                      <p className="text-xs font-medium text-muted-foreground">Review Diff</p>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={dismissReview}
+                        >
+                          Reject
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={applyReviewProposal}
+                        >
+                          Accept
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-auto">
+                      <ReactDiffViewer
+                        oldValue={currentContent}
+                        newValue={reviewProposal.updatedContent}
+                        splitView={true}
+                        useDarkTheme={isDarkTheme}
+                        hideLineNumbers={false}
+                        disableWordDiff={false}
+                        leftTitle={"Current"}
+                        rightTitle={"Review Proposal"}
+                        hideSummary={true}
+                        styles={{
+                          variables: {
+                            dark: {
+                              diffViewerBackground: "hsl(var(--background))",
+                              diffViewerTitleBackground: "hsl(var(--background))",
+                              diffViewerTitleColor: "hsl(var(--foreground))",
+                              diffViewerColor: "hsl(var(--foreground))",
+                              diffViewerTitleBorderColor: "hsl(var(--border))",
+                              addedBackground: "rgba(34, 197, 94, 0.16)",
+                              removedBackground: "rgba(248, 113, 113, 0.16)",
+                              wordAddedBackground: "rgba(34, 197, 94, 0.28)",
+                              wordRemovedBackground: "rgba(248, 113, 113, 0.28)",
+                              addedColor: "hsl(var(--foreground))",
+                              removedColor: "hsl(var(--foreground))",
+                            },
+                            light: {
+                              diffViewerBackground: "hsl(var(--background))",
+                              diffViewerTitleBackground: "hsl(var(--background))",
+                              diffViewerTitleColor: "hsl(var(--foreground))",
+                              diffViewerColor: "hsl(var(--foreground))",
+                              diffViewerTitleBorderColor: "hsl(var(--border))",
+                              addedBackground: "rgba(34, 197, 94, 0.08)",
+                              removedBackground: "rgba(248, 113, 113, 0.08)",
+                              wordAddedBackground: "rgba(34, 197, 94, 0.16)",
+                              wordRemovedBackground: "rgba(248, 113, 113, 0.16)",
+                              addedColor: "hsl(var(--foreground))",
+                              removedColor: "hsl(var(--foreground))",
+                            },
+                          },
+                          diffContainer: {
+                            overflowX: "auto",
+                            border: "0",
+                          },
+                          marker: {
+                            minWidth: "2.5rem",
+                            color: "hsl(var(--muted-foreground))",
+                          },
+                          lineNumber: {
+                            color: "hsl(var(--muted-foreground))",
+                          },
+                          gutter: {
+                            background: "hsl(var(--muted))",
+                            borderColor: "hsl(var(--border))",
+                          },
+                          highlightedGutter: {
+                            background: "hsl(var(--muted))",
+                          },
+                          codeFoldGutter: {
+                            background: "hsl(var(--muted))",
+                          },
+                          content: {
+                            width: "50%",
+                          },
+                          contentText: {
+                            fontSize: "12px",
+                            lineHeight: 1.5,
+                            color: "hsl(var(--foreground))",
+                            fontFamily:
+                              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                          },
+                        }}
+                      />
+                    </div>
+                  </div>
                 ) : renderMode === "raw" ? (
                   <Textarea
                     ref={editorTextareaRef}
@@ -545,6 +785,8 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
                       const nextValue = event.target.value;
                       setResourceDrafts((prev) => ({ ...prev, [selectedFile!]: nextValue }));
                       setSaveError(null);
+                      setReviewError(null);
+                      setReviewResult(null);
                     }}
                     className="h-full min-h-0 flex-1 border-0 resize-none font-mono text-xs leading-relaxed focus-visible:border-input focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
@@ -597,16 +839,20 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
 
           {/* ── Right panel — directory tree ── */}
           <Panel defaultSize={25} minSize={20} className="flex flex-col overflow-hidden">
-            <SkillFileTreePanel
-              allowEditSkill={allowEditSkill}
-              selectedFile={selectedFile}
-              dirTree={dirTree}
-              draftPaths={draftPaths}
-              deletedPaths={deletedPaths}
-              onNewFile={openNewReferenceDialog}
-              onSkillMdClick={handleSkillMdClick}
-              onFileClick={handleFileClick}
-            />
+            {reviewResult ? (
+              <SkillReviewPanel review={reviewResult} onDismiss={dismissReview} />
+            ) : (
+              <SkillFileTreePanel
+                allowEditSkill={allowEditSkill}
+                selectedFile={selectedFile}
+                dirTree={dirTree}
+                draftPaths={draftPaths}
+                deletedPaths={deletedPaths}
+                onNewFile={openNewReferenceDialog}
+                onSkillMdClick={handleSkillMdClick}
+                onFileClick={handleFileClick}
+              />
+            )}
           </Panel>
         </PanelGroup>
       ) : null}

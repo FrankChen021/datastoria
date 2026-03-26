@@ -39,8 +39,12 @@ CREATE TABLE ai_skills (
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   KEY idx_ai_skills_type_state_scope (type, state, scope),
+  KEY idx_ai_skills_type_state_scope_updated_at (type, state, scope, updated_at),
   KEY idx_ai_skills_owner_scope (owner_id, scope),
-  KEY idx_ai_skills_skill_id (skill_id)
+  KEY idx_ai_skills_type_state_owner_updated_at (type, state, owner_id, updated_at),
+  KEY idx_ai_skills_skill_id (skill_id),
+  KEY idx_ai_skills_type_skill_state_scope (type, skill_id, state, scope),
+  KEY idx_ai_skills_type_skill_state_owner (type, skill_id, state, owner_id)
 );
 
 CREATE TABLE IF NOT EXISTS feedback_events (

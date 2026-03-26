@@ -1,8 +1,9 @@
 import { getSession } from "@/auth";
 import { RuntimeConfigProvider } from "@/components/runtime-config-provider";
 import "@/index.css";
+import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import { getSessionRepositoryType } from "@/lib/ai/session/server-session-repository-factory";
-import { isSkillEditingEnabled } from "@/lib/ai/skills/repository/server-skill-repository-factory";
+import { SkillPermissionManager } from "@/lib/ai/skills/skill-permission-manager";
 import { BasePath } from "@/lib/base-path";
 import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "next-auth/react";
@@ -100,6 +101,14 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = (await getSession()) as SessionProviderSession;
+  let autoSelectAvailable = false;
+
+  try {
+    LanguageModelProviderFactory.autoSelectModel();
+    autoSelectAvailable = true;
+  } catch {
+    autoSelectAvailable = false;
+  }
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -205,7 +214,8 @@ export default async function RootLayout({
               connectionProviderEnabled:
                 process.env.NEXT_PUBLIC_CONSOLE_CONNECTION_PROVIDER_ENABLED === "true",
               sessionRepositoryType: getSessionRepositoryType(session?.user?.id ?? null),
-              allowEditSkill: isSkillEditingEnabled(),
+              allowEditSkill: SkillPermissionManager.canUserEditSkill(session?.user?.email ?? null),
+              autoSelectAvailable,
             }}
           >
             {children}

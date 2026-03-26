@@ -6,6 +6,7 @@
 import { getAuthenticatedUserEmail } from "@/auth";
 import type { UpsertSkillBundleInput } from "@/lib/ai/skills/repository/server-skill-repository";
 import { getServerSkillRepository } from "@/lib/ai/skills/repository/server-skill-repository-factory";
+import { SkillPermissionManager } from "@/lib/ai/skills/skill-permission-manager";
 import { SkillProviderFactory } from "@/lib/ai/skills/skill-provider-factory";
 import { NextResponse } from "next/server";
 
@@ -14,7 +15,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function shouldIncludeDraft(req: Request, userId: string | null): boolean {
-  if (!userId) return false;
+  if (!SkillPermissionManager.canUserEditSkill(userId)) return false;
   const flag = new URL(req.url).searchParams.get("includeDraft");
   return flag === "true" || flag === "1";
 }
@@ -38,6 +39,9 @@ export async function POST(req: Request) {
   const userId = getAuthenticatedUserEmail(req) ?? null;
   if (!userId) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+  if (!SkillPermissionManager.canUserEditSkill(userId)) {
+    return NextResponse.json({ error: "Skill editing is not allowed" }, { status: 403 });
   }
 
   let payload: UpsertSkillBundleInput | null = null;

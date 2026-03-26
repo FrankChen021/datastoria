@@ -51,11 +51,23 @@ CREATE TABLE IF NOT EXISTS ai_skills (
 CREATE INDEX IF NOT EXISTS idx_ai_skills_type_state_scope
   ON ai_skills (type, state, scope);
 
+CREATE INDEX IF NOT EXISTS idx_ai_skills_type_state_scope_updated_at
+  ON ai_skills (type, state, scope, updated_at DESC);
+
 CREATE INDEX IF NOT EXISTS idx_ai_skills_owner_scope
   ON ai_skills (owner_id, scope);
 
+CREATE INDEX IF NOT EXISTS idx_ai_skills_type_state_owner_updated_at
+  ON ai_skills (type, state, owner_id, updated_at DESC);
+
 CREATE INDEX IF NOT EXISTS idx_ai_skills_skill_id
   ON ai_skills (skill_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_skills_type_skill_state_scope
+  ON ai_skills (type, skill_id, state, scope);
+
+CREATE INDEX IF NOT EXISTS idx_ai_skills_type_skill_state_owner
+  ON ai_skills (type, skill_id, state, owner_id);
 
 CREATE TABLE IF NOT EXISTS feedback_events (
   id BIGSERIAL PRIMARY KEY,

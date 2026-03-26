@@ -1,3 +1,4 @@
+import { useRuntimeConfig } from "@/components/runtime-config-provider";
 import {
   MODEL_CONFIG_UPDATED_EVENT,
   ModelManager,
@@ -21,10 +22,11 @@ async function fetchCopilotModels(token: string): Promise<ModelProps[]> {
 
 export function useModelConfig() {
   const manager = ModelManager.getInstance();
+  const { autoSelectAvailable } = useRuntimeConfig();
 
   const [config, setConfig] = useState(() => ({
     allModels: manager.getAllModels(),
-    availableModels: manager.getAvailableModels(),
+    availableModels: manager.getAvailableModels(autoSelectAvailable),
     selectedModel: manager.getSelectedModel(),
     modelSettings: manager.getModelSettings(),
     providerSettings: manager.getProviderSettings(),
@@ -175,12 +177,12 @@ export function useModelConfig() {
   const refresh = useCallback(() => {
     setConfig({
       allModels: manager.getAllModels(),
-      availableModels: manager.getAvailableModels(),
+      availableModels: manager.getAvailableModels(autoSelectAvailable),
       selectedModel: manager.getSelectedModel(),
       modelSettings: manager.getModelSettings(),
       providerSettings: manager.getProviderSettings(),
     });
-  }, [manager]);
+  }, [autoSelectAvailable, manager]);
 
   useEffect(() => {
     window.addEventListener(MODEL_CONFIG_UPDATED_EVENT, refresh);
