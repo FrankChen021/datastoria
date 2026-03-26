@@ -313,7 +313,7 @@ ${query.trim()}
       }
 
       postMessage(
-        `The following SQL query has errors, please explain what went wrong in short and analyze the its performance and provide a fix.
+        `The following SQL query has errors, please explain what went wrong in short and analyze its performance and provide a fix.
 ### SQL
 \`\`\`sql
 ${query.trim()}
