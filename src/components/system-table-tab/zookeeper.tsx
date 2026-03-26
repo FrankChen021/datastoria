@@ -80,6 +80,8 @@ export const Zookeeper = React.memo(({ database, table }: ZookeeperProps) => {
     () => getRootLoadKey(connection?.connectionId, database, table),
     [connection?.connectionId, database, table]
   );
+  const rootRequestTokenRef = useRef(0);
+  const rootAbortControllerRef = useRef<AbortController | null>(null);
   // Root node is hardcoded as per requirement
   const [root, setRoot] = useState<ZookeeperNode>(createInitialRootNode);
 
@@ -94,6 +96,10 @@ export const Zookeeper = React.memo(({ database, table }: ZookeeperProps) => {
 
   const resetTree = useCallback(
     (clearFailure: boolean = false) => {
+      rootRequestTokenRef.current += 1;
+      rootAbortControllerRef.current?.abort();
+      rootAbortControllerRef.current = null;
+
       if (clearFailure) {
         rootLoadFailures.delete(rootLoadKey);
       }
@@ -142,8 +148,13 @@ export const Zookeeper = React.memo(({ database, table }: ZookeeperProps) => {
   const fetchChildren = useCallback(
     async (nodePath: string) => {
       if (!connection) return;
+      const isRootRequest = nodePath === "/";
+      let rootRequestToken = 0;
 
-      if (nodePath === "/") {
+      if (isRootRequest) {
+        rootAbortControllerRef.current?.abort();
+        rootRequestTokenRef.current += 1;
+        rootRequestToken = rootRequestTokenRef.current;
         setRootLoadState("loading");
         setRootLoadError(null);
       }
@@ -155,7 +166,7 @@ export const Zookeeper = React.memo(({ database, table }: ZookeeperProps) => {
       });
 
       try {
-        const response = await connection.query(
+        const queryRequest = connection.query(
           `SELECT 
   path, 
   decodeURLComponent(name) as name, 
@@ -167,7 +178,12 @@ export const Zookeeper = React.memo(({ database, table }: ZookeeperProps) => {
 FROM system.zookeeper
 WHERE path = '${nodePath}'`,
           { default_format: "JSON" }
-        ).response;
+        );
+        if (isRootRequest) {
+          rootAbortControllerRef.current = queryRequest.abortController;
+        }
+
+        const response = await queryRequest.response;
         const jsonResponse = await response.data.json<JSONFormatResponse>();
 
         const dataRows = jsonResponse.data as Array<{
@@ -198,25 +214,44 @@ WHERE path = '${nodePath}'`,
         // Sort by name
         newChildren.sort((a, b) => a.name.localeCompare(b.name));
 
+        if (isRootRequest && rootRequestToken !== rootRequestTokenRef.current) {
+          return;
+        }
+
         updateNodeChildren(nodePath, newChildren);
-        if (nodePath === "/") {
+        if (isRootRequest) {
           rootLoadFailures.delete(rootLoadKey);
           setRootLoadState("loaded");
         }
       } catch (e) {
+        if (isRootRequest && rootRequestToken !== rootRequestTokenRef.current) {
+          return;
+        }
+
+        if (e instanceof Error && e.name === "AbortError") {
+          return;
+        }
+
         console.error("Failed to fetch zookeeper nodes", e);
-        if (nodePath === "/") {
+        if (isRootRequest) {
           const errorMessage = e instanceof Error ? e.message : "Failed to fetch zookeeper nodes";
           rootLoadFailures.set(rootLoadKey, errorMessage);
           setRootLoadState("error");
           setRootLoadError(errorMessage);
         }
       } finally {
+        if (isRootRequest && rootRequestToken !== rootRequestTokenRef.current) {
+          return;
+        }
+
         setLoadingPaths((prev) => {
           const next = new Set(prev);
           next.delete(nodePath);
           return next;
         });
+        if (isRootRequest && rootRequestToken === rootRequestTokenRef.current) {
+          rootAbortControllerRef.current = null;
+        }
       }
     },
     [connection, rootLoadKey, updateNodeChildren]
@@ -340,7 +375,10 @@ WHERE path = '${nodePath}'`,
       {/* Body */}
       <div ref={parentRef} className="flex-1 overflow-auto relative">
         {rootLoadError ? (
-          <div className="border-b bg-destructive/5 px-4 py-2 text-sm text-destructive">
+          <div
+            className="border-b bg-destructive/5 px-4 py-2 text-sm text-destructive"
+            role="alert"
+          >
             Failed to load ZooKeeper nodes. {rootLoadError}
           </div>
         ) : null}

@@ -22,6 +22,7 @@ vi.mock("@tanstack/react-virtual", () => ({
 }));
 
 function getConnectionContextValue(connection: {
+  connectionId: string;
   query: (
     sql: string,
     options?: unknown
@@ -37,6 +38,16 @@ function getConnectionContextValue(connection: {
     updateConnectionMetadata: () => {},
     commitConnection: () => {},
   };
+}
+
+function createDeferredResponse<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
 
 describe("Zookeeper", () => {
@@ -67,13 +78,12 @@ describe("Zookeeper", () => {
     const queryMock = vi.fn().mockReturnValue({
       response: Promise.reject(new Error("HTTP 500")),
     });
+    const connection = { connectionId: "zookeeper-test-1", query: queryMock };
 
     const renderWithConnection = async () => {
       await act(async () => {
         root.render(
-          <ConnectionContext.Provider
-            value={getConnectionContextValue({ query: queryMock }) as never}
-          >
+          <ConnectionContext.Provider value={getConnectionContextValue(connection) as never}>
             <Zookeeper database="system" table="zookeeper" />
           </ConnectionContext.Provider>
         );
@@ -105,6 +115,67 @@ describe("Zookeeper", () => {
 
     await vi.waitFor(() => {
       expect(queryMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("ignores stale root request failures after a manual refresh starts a newer request", async () => {
+    const firstResponse = createDeferredResponse<{ data: { json: () => Promise<unknown> } }>();
+    const secondResponse = createDeferredResponse<{ data: { json: () => Promise<unknown> } }>();
+    const queryMock = vi
+      .fn()
+      .mockReturnValueOnce({
+        response: firstResponse.promise,
+        abortController: new AbortController(),
+      })
+      .mockReturnValueOnce({
+        response: secondResponse.promise,
+        abortController: new AbortController(),
+      });
+
+    await act(async () => {
+      root.render(
+        <ConnectionContext.Provider
+          value={
+            getConnectionContextValue({
+              connectionId: "zookeeper-test-2",
+              query: queryMock,
+            }) as never
+          }
+        >
+          <Zookeeper database="system" table="zookeeper" />
+        </ConnectionContext.Provider>
+      );
+    });
+
+    await vi.waitFor(() => {
+      expect(queryMock).toHaveBeenCalledTimes(1);
+    });
+
+    const refreshButton = container.querySelector('button[title="Refresh"]');
+    expect(refreshButton).not.toBeNull();
+
+    await act(async () => {
+      refreshButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    await vi.waitFor(() => {
+      expect(queryMock).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      secondResponse.resolve({
+        data: {
+          json: async () => ({ data: [] }),
+        },
+      });
+    });
+
+    await act(async () => {
+      firstResponse.reject(new Error("HTTP 500"));
+    });
+
+    await vi.waitFor(() => {
+      expect(container.textContent).not.toContain("Failed to load ZooKeeper nodes");
     });
   });
 });
