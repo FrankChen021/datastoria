@@ -532,7 +532,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
     setReviewResult(null);
 
     try {
-      const response = await fetch(BasePath.getURL("/api/ai/skills/review"), {
+      const response = await fetch(BasePath.getURL("/api/ai/skills/actions/review"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

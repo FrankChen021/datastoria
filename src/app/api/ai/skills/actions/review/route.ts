@@ -72,7 +72,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(normalizeSkillReviewResponse(output));
   } catch (error) {
-    console.error("[/api/ai/skills/review] Failed to review skill file", error);
+    console.error("[/api/ai/skills/actions/review] Failed to review skill file", error);
     return NextResponse.json({ error: "Failed to review skill file" }, { status: 500 });
   }
 }

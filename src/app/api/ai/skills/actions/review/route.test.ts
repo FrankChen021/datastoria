@@ -30,7 +30,7 @@ vi.mock("@/lib/ai/skills/skill-permission-manager", () => ({
   },
 }));
 
-describe("POST /api/ai/skills/review", () => {
+describe("POST /api/ai/skills/actions/review", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -39,7 +39,7 @@ describe("POST /api/ai/skills/review", () => {
     const { POST } = await import("./route");
 
     const response = await POST(
-      new Request("http://localhost/api/ai/skills/review", {
+      new Request("http://localhost/api/ai/skills/actions/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -84,7 +84,7 @@ describe("POST /api/ai/skills/review", () => {
     const { POST } = await import("./route");
 
     const response = await POST(
-      new Request("http://localhost/api/ai/skills/review", {
+      new Request("http://localhost/api/ai/skills/actions/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -150,7 +150,7 @@ describe("POST /api/ai/skills/review", () => {
     const { POST } = await import("./route");
 
     const response = await POST(
-      new Request("http://localhost/api/ai/skills/review", {
+      new Request("http://localhost/api/ai/skills/actions/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
