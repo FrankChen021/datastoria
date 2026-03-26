@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const generateTextMock = vi.fn();
+const streamTextMock = vi.fn();
 const createModelMock = vi.fn();
 const resolveModelConfigMock = vi.fn();
 const getDefaultTemperatureMock = vi.fn();
+const supportsStructuredOutputsMock = vi.fn();
 
 vi.mock("ai", () => ({
-  generateText: generateTextMock,
+  streamText: streamTextMock,
   Output: {
     object: ({ schema }: { schema: unknown }) => ({ schema }),
   },
@@ -16,6 +17,7 @@ vi.mock("@/lib/ai/llm/llm-provider-factory", () => ({
   LanguageModelProviderFactory: {
     createModel: createModelMock,
     getDefaultTemperature: getDefaultTemperatureMock,
+    supportsStructuredOutputs: supportsStructuredOutputsMock,
   },
   resolveModelConfig: resolveModelConfigMock,
 }));
@@ -67,8 +69,9 @@ describe("POST /api/ai/skills/actions/review", () => {
     });
     createModelMock.mockReturnValue({ model: "fake" });
     getDefaultTemperatureMock.mockReturnValue(0.1);
-    generateTextMock.mockResolvedValue({
-      output: {
+    supportsStructuredOutputsMock.mockReturnValue(true);
+    streamTextMock.mockReturnValue({
+      output: Promise.resolve({
         findings:
           "## Findings\n\n- The remediation section does not explain how to verify the setting name.",
         proposals: [
@@ -78,7 +81,7 @@ describe("POST /api/ai/skills/actions/review", () => {
             updatedContent: "# Code 115\n\nRevised content",
           },
         ],
-      },
+      }),
     });
 
     const { POST } = await import("./route");
@@ -113,7 +116,8 @@ describe("POST /api/ai/skills/actions/review", () => {
       modelId: "gpt-5",
     });
     expect(createModelMock).toHaveBeenCalledWith("OpenAI", "gpt-5", "secret");
-    expect(generateTextMock).toHaveBeenCalledWith(
+    expect(supportsStructuredOutputsMock).toHaveBeenCalledWith("gpt-5");
+    expect(streamTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: { model: "fake" },
         temperature: 0.1,
@@ -141,10 +145,11 @@ describe("POST /api/ai/skills/actions/review", () => {
     });
     createModelMock.mockReturnValue({ model: "fake" });
     getDefaultTemperatureMock.mockReturnValue(0.1);
-    generateTextMock.mockResolvedValue({
-      output: {
+    supportsStructuredOutputsMock.mockReturnValue(true);
+    streamTextMock.mockReturnValue({
+      output: Promise.resolve({
         proposals: [],
-      },
+      }),
     });
 
     const { POST } = await import("./route");
@@ -177,6 +182,73 @@ describe("POST /api/ai/skills/actions/review", () => {
     await expect(response.json()).resolves.toEqual({
       findings: "## Review Notes\n\nNo major issues found in this file.",
       proposals: [],
+    });
+  });
+
+  it("falls back to plain streamed text when structured outputs are not supported", async () => {
+    resolveModelConfigMock.mockReturnValue({
+      provider: "GitHub Copilot",
+      modelId: "gpt-4o",
+      apiKey: "secret",
+    });
+    createModelMock.mockReturnValue({ model: "fake" });
+    getDefaultTemperatureMock.mockReturnValue(0.1);
+    supportsStructuredOutputsMock.mockReturnValue(false);
+    streamTextMock.mockReturnValue({
+      text: Promise.resolve(`{
+        "findings": "## Findings\\n\\n- Clarify the remediation step.",
+        "proposals": [
+          {
+            "path": "references/115.md",
+            "reason": "Tighten the instructions.",
+            "updatedContent": "# Code 115\\n\\nUpdated content"
+          }
+        ]
+      }`),
+    });
+
+    const { POST } = await import("./route");
+
+    const response = await POST(
+      new Request("http://localhost/api/ai/skills/actions/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scope: "file",
+          skillId: "diagnose-clickhouse-errors",
+          model: {
+            provider: "GitHub Copilot",
+            modelId: "gpt-4o",
+          },
+          target: {
+            primaryPath: "references/115.md",
+            files: [
+              {
+                path: "references/115.md",
+                content: "# Code 115\n\nCurrent content",
+              },
+            ],
+          },
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(supportsStructuredOutputsMock).toHaveBeenCalledWith("gpt-4o");
+    expect(streamTextMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        output: expect.anything(),
+      })
+    );
+    await expect(response.json()).resolves.toEqual({
+      findings: "## Findings\n\n- Clarify the remediation step.",
+      proposals: [
+        {
+          path: "references/115.md",
+          reason: "Tighten the instructions.",
+          updatedContent: "# Code 115\n\nUpdated content",
+        },
+      ],
     });
   });
 });

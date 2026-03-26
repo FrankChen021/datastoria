@@ -390,6 +390,8 @@ export const SYSTEM_MODELS: ModelProps[] = MODELS.filter((model) =>
   source: "system",
 }));
 
+const MODELS_WITHOUT_STRUCTURED_OUTPUTS = new Set<string>(["gpt-4o"]);
+
 export function getAvailableSystemModels(): ModelProps[] {
   return SYSTEM_MODELS.filter(
     (model) => getSystemProviderApiKey(model.provider) && model.autoSelectable !== true
@@ -544,5 +546,9 @@ export class LanguageModelProviderFactory {
     }
 
     return providerDefinition.create(modelId, apiKey);
+  }
+
+  static supportsStructuredOutputs(modelId: string): boolean {
+    return !MODELS_WITHOUT_STRUCTURED_OUTPUTS.has(modelId);
   }
 }
