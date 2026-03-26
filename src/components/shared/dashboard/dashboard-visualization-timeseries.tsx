@@ -33,7 +33,6 @@ import type { VisualizationRef } from "./dashboard-visualization-layout";
 import { DashboardVisualizationPanel } from "./dashboard-visualization-panel";
 import type { TimeSpan } from "./timespan-selector";
 import { useEcharts } from "./use-echarts";
-import useIsDarkTheme from "./use-is-dark-theme";
 
 // Chart legend interface
 interface Legend {
@@ -316,7 +315,6 @@ export const TimeseriesVisualization = React.forwardRef<
   TimeseriesVisualizationProps
 >(function TimeseriesVisualization(props, ref) {
   const { data, meta, descriptor, selectedTimeSpan: _selectedTimeSpan, onChartSelection } = props;
-  const isDark = useIsDarkTheme();
 
   // Refs
   const { chartContainerRef, chartInstanceRef } = useEcharts();
@@ -676,6 +674,7 @@ export const TimeseriesVisualization = React.forwardRef<
     return () => {
       clearChartListeners();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chart ref identity is stable and not a semantic dependency
   }, [onChartSelection]);
 
   // Update chart when data changes
@@ -1331,6 +1330,7 @@ export const TimeseriesVisualization = React.forwardRef<
     } catch (err) {
       console.error("Error updating timeseries chart:", err);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ECharts refs are stable containers; data/config changes are the real triggers
   }, [
     data,
     descriptor,

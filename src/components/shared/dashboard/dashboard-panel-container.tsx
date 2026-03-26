@@ -210,8 +210,6 @@ const DashboardPanelContainer = forwardRef<
     },
     ref
   ) => {
-    // Track individual panel collapse states (keyed by global panel index)
-    const [panelCollapseStates, setPanelCollapseStates] = useState<Map<number, boolean>>(new Map());
     // Track section collapse states (keyed by section index) - local state, not persisted
     const [sectionCollapseStates, setSectionCollapseStates] = useState<Map<number, boolean>>(
       new Map()
@@ -275,24 +273,6 @@ const DashboardPanelContainer = forwardRef<
       return result;
     }, [panels]);
 
-    // Initialize panel collapse states from descriptors
-    useEffect(() => {
-      setPanelCollapseStates((prev) => {
-        const next = new Map(prev);
-        let changed = false;
-        sections.forEach((section) => {
-          section.panels.forEach((panel, localIndex) => {
-            const globalIndex = section.globalPanelStartIndex + localIndex;
-            if (!prev.has(globalIndex)) {
-              next.set(globalIndex, panel.collapsed ?? false);
-              changed = true;
-            }
-          });
-        });
-        return changed ? next : prev;
-      });
-    }, [sections]);
-
     // Store callback in ref to avoid stale closure in setState
     const onSectionCollapseChangeRef = useRef(onSectionCollapseChange);
     onSectionCollapseChangeRef.current = onSectionCollapseChange;
@@ -339,14 +319,6 @@ const DashboardPanelContainer = forwardRef<
         onSectionCollapseChangeRef.current?.(sectionIndex, collapsed);
       }
     }, [sectionCollapseStates]);
-
-    const onPanelCollapsedChange = useCallback((globalPanelIndex: number, isCollapsed: boolean) => {
-      setPanelCollapseStates((prev) => {
-        const next = new Map(prev);
-        next.set(globalPanelIndex, isCollapsed);
-        return next;
-      });
-    }, []);
 
     // Function to connect all chart instances together
     const connectAllCharts = useCallback(() => {
@@ -481,8 +453,6 @@ const DashboardPanelContainer = forwardRef<
                   initialTimeSpan={initialTimeSpan}
                   initialFilterExpression={initialFilterExpression}
                   initialLoading={initialLoading}
-                  panelCollapseStates={panelCollapseStates}
-                  onPanelCollapsedChange={onPanelCollapsedChange}
                   onChartSelection={onChartSelection}
                   showEditControls={showSectionEditControls && section.group !== null}
                   onRename={

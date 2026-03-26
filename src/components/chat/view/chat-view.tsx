@@ -63,7 +63,6 @@ interface ChatViewProps {
   onClose?: () => void;
   onNewChat?: () => void;
   questions?: Question[];
-  currentQuery?: string;
   currentDatabase?: string;
   availableTables?: Array<{
     name: string;
@@ -84,7 +83,6 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     chat,
     onNewChat,
     questions,
-    currentQuery,
     currentDatabase,
     availableTables,
     externalInput,

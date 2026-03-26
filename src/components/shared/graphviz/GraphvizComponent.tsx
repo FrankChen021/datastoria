@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- d3-graphviz and fullscreen vendor APIs are dynamically typed */
+
 import { Button } from "@/components/ui/button";
 import { graphviz, type Graphviz, type GraphvizOptions } from "d3-graphviz";
 import { select as d3_select, selectAll as d3_selectAll, type Selection } from "d3-selection";
@@ -356,7 +358,8 @@ class GraphvizComponentImpl extends React.Component<
     const node = (zoomSelection as any).node();
     if (!node) return;
 
-    let { x, y, k } = d3_zoomTransform(node as any);
+    let { x, y } = d3_zoomTransform(node as any);
+    const { k } = d3_zoomTransform(node as any);
     const [x0, y0, scale0] = [x, y, k];
     const xOffset0 = x0 + bbox.x * scale0;
     const yOffset0 = y0 + bbox.y * scale0;
@@ -433,7 +436,7 @@ class GraphvizComponentImpl extends React.Component<
       }
       try {
         this.graphviz.zoom(zoomed);
-      } catch (e) {
+      } catch {
         // Ignore errors
       }
     }
@@ -719,7 +722,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
         return;
       }
       this.setState({ isFullscreen: true });
-    } catch (error) {
+    } catch {
       // Silently handle fullscreen errors
     }
   };
@@ -736,7 +739,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
         await (document as any).msExitFullscreen();
       }
       this.setState({ isFullscreen: false });
-    } catch (error) {
+    } catch {
       // Silently handle fullscreen errors
     }
   };

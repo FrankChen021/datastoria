@@ -9,11 +9,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useQueryExecutor } from "./query-execution/query-executor";
 import { QueryListItemView } from "./query-list-item-view";
 
-export interface QueryListViewProps {
-  tabId?: string; // Optional tab ID for multi-tab support
-}
-
-export function QueryListView({ tabId }: QueryListViewProps) {
+export function QueryListView() {
   const {
     sqlMessages,
     isSqlExecuting,

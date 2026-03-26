@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- query log records are rendered from dynamic ClickHouse payloads */
+
 import { CollapsibleSection } from "@/components/shared/collapsible-section";
 import type { FieldOption } from "@/components/shared/dashboard/dashboard-model";
 import { DataTable } from "@/components/shared/dashboard/data-table";

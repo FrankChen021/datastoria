@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- ACE and marked callbacks expose loosely typed legacy payloads */
+
 import { markedAdmonitionExtension } from "@/lib/clickhouse/admonition-preprocessor";
 import { transformMarkdownLink } from "@/lib/clickhouse/clickhouse-docs-link";
 import { Connection, type JSONCompactFormatResponse } from "@/lib/connection/connection";

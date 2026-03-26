@@ -29,7 +29,6 @@ export class ErrorBoundary extends PureComponent<Props, State> {
   override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     // Log to console in development; could send to error reporting in production
     if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("ErrorBoundary caught an error:", error, errorInfo);
     }
   }

@@ -173,17 +173,6 @@ const DEFAULT_TIMESERIES_OPTIONS: TimeseriesOptions = {
   stacked: false,
 };
 
-function legendValuesToReducers(preset: "simple" | "detailed" | "full"): Reducer[] {
-  switch (preset) {
-    case "simple":
-      return ["avg"];
-    case "detailed":
-      return ["min", "max", "avg"];
-    case "full":
-      return ["min", "max", "avg", "sum", "count", "first", "last"];
-  }
-}
-
 function reducersToLegendValues(values?: Reducer[]): "simple" | "detailed" | "full" {
   if (!values || values.length <= 1) return "simple";
   if (values.length <= 3) return "detailed";
@@ -593,7 +582,7 @@ function buildDescriptorFromState(
         valueOption: {
           ...original?.valueOption,
           reducer: statOpts.reducer,
-          format: statOpts.format as any,
+          format: statOpts.format,
         },
         comparisonOption: original?.comparisonOption,
       } as StatDescriptor;
@@ -612,7 +601,7 @@ function buildDescriptorFromState(
         yAxis: [
           {
             ...original?.yAxis?.[0],
-            format: timeseriesOpts.yAxisFormat as any,
+            format: timeseriesOpts.yAxisFormat,
           },
         ],
         tooltipOption: original?.tooltipOption,
@@ -645,7 +634,7 @@ function buildDescriptorFromState(
           ...original?.gaugeOption,
           min: gaugeOpts.min,
           max: gaugeOpts.max,
-          valueFormat: gaugeOpts.valueFormat as any,
+          valueFormat: gaugeOpts.valueFormat,
         },
         fieldOptions: original?.fieldOptions,
       } as GaugeDescriptor;

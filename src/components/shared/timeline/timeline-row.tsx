@@ -30,7 +30,7 @@ interface TimelineRowProps {
 export const TimelineRow = React.memo(
   ({
     node,
-    searchTerm,
+    searchTerm: _searchTerm,
     isSelected,
     isExpanded,
     treeWidthPercent,

@@ -4,7 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { parseErrorLocation, type ErrorLocation } from "@/lib/clickhouse/clickhouse-error-parser";
 import { cn } from "@/lib/utils";
-import { AlertCircleIcon, SparklesIcon, WandSparklesIcon, X, XIcon } from "lucide-react";
+import { AlertCircleIcon, SparklesIcon, X } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
 import type { QueryErrorDisplay } from "../query-view-model";
 import { QueryErrorAIExplanation } from "./query-error-ai-explanation";

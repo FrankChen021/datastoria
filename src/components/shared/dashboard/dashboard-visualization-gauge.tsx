@@ -5,7 +5,7 @@ import { CardContent } from "@/components/ui/card";
 import { Formatter } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
 import * as echarts from "echarts";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { DRILLDOWN_DIALOG_CLASS_NAME } from "./dashboard-dialog-utils";
 import type { GaugeDescriptor, PanelDescriptor, TableDescriptor } from "./dashboard-model";
 import type { VisualizationRef } from "./dashboard-visualization-layout";
@@ -403,6 +403,7 @@ export const GaugeVisualization = React.forwardRef<GaugeVisualizationRef, GaugeV
       } catch (err) {
         console.error("Error updating gauge chart:", err);
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- ECharts refs are stable containers, not semantic dependencies
     }, [data, meta, descriptor, isDark, chartColor, hasDrilldown, handleDrilldownClick]);
 
     // Expose methods via ref

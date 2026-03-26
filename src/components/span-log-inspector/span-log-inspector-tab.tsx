@@ -280,8 +280,6 @@ export function SpanLogInspectorTab({
     return 0;
   }, []);
 
-  const elapsedSeconds = useMemo(() => streamProgress.elapsedMs, [streamProgress.elapsedMs]);
-
   const loadSpanLogs = useCallback(() => {
     if (!activeTraceId) {
       return;

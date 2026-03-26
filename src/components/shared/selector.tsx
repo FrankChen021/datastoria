@@ -558,6 +558,16 @@ const Selector = React.forwardRef<SelectorRef, SelectorProps>(
       }
     }, [defaultPattern]);
 
+    const beforeLoadItemRef = React.useRef(beforeLoadItem);
+    const afterLoadItemRef = React.useRef(afterLoadItem);
+    const onLoadItemRef = React.useRef(onLoadItem);
+
+    React.useEffect(() => {
+      beforeLoadItemRef.current = beforeLoadItem;
+      afterLoadItemRef.current = afterLoadItem;
+      onLoadItemRef.current = onLoadItem;
+    }, [afterLoadItem, beforeLoadItem, onLoadItem]);
+
     useEffect(() => {
       if (!isOpen) {
         return;
@@ -568,12 +578,12 @@ const Selector = React.forwardRef<SelectorRef, SelectorProps>(
         searchInputRef.current?.focus(); // Focus the input when the popover opens
       }, 0);
 
-      if (beforeLoadItem && beforeLoadItem()) {
+      if (beforeLoadItemRef.current && beforeLoadItemRef.current()) {
         setIsLoading(true);
-        onLoadItem().then((newItems) => {
+        onLoadItemRef.current().then((newItems) => {
           setListItems(newItems);
           setIsLoading(false);
-          afterLoadItem();
+          afterLoadItemRef.current();
         });
       }
     }, [isOpen]);
@@ -617,7 +627,7 @@ const Selector = React.forwardRef<SelectorRef, SelectorProps>(
           event.stopPropagation();
         }
       },
-      [selectedComparator]
+      [selectedComparator, onItemSelected]
     );
 
     const onComparatorSelected = React.useCallback(
@@ -635,7 +645,7 @@ const Selector = React.forwardRef<SelectorRef, SelectorProps>(
           );
         }
       },
-      [selectedValue]
+      [selectedValue, onItemSelected]
     );
 
     const onApplyFilterClicked = useCallback(() => {
@@ -671,7 +681,7 @@ const Selector = React.forwardRef<SelectorRef, SelectorProps>(
           new QueryPattern(isMultiValue, selectedComparator.name, Array.from(selectedPatterns))
         );
       }
-    }, []);
+    }, [onItemSelected]);
 
     const onClearSelection = React.useCallback(
       (event: React.MouseEvent) => {

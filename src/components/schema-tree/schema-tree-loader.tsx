@@ -1,4 +1,4 @@
-import { Connection, type QueryError } from "@/lib/connection/connection";
+import { Connection, type JSONFormatResponse, type QueryError } from "@/lib/connection/connection";
 import type { SchemaLoadResult, TableItemDO } from "./schema-tree-types";
 
 // Re-export types for backward compatibility
@@ -66,7 +66,8 @@ ORDER BY lower(database), database, table, columnName`;
 
       const apiResponse = await response;
 
-      const rows = (apiResponse.data.json<any>().data || []) as TableItemDO[];
+      const rows = (apiResponse.data.json<JSONFormatResponse>().data ||
+        []) as unknown as TableItemDO[];
 
       // Extract server display name from HTTP header
       const serverDisplayName = apiResponse.httpHeaders?.["x-clickhouse-server-display-name"];
@@ -82,11 +83,13 @@ ORDER BY lower(database), database, table, columnName`;
         errorMessage += ` (HTTP ${apiError.httpStatus})`;
       }
       const detailMessage =
-        typeof apiError?.data === "object"
-          ? apiError.data?.message
-            ? apiError.data.message
-            : JSON.stringify(apiError.data, null, 2)
-          : apiError?.data;
+        typeof apiError?.data === "string"
+          ? apiError.data
+          : apiError?.data && typeof apiError.data === "object" && "message" in apiError.data
+            ? String(apiError.data.message)
+            : apiError?.data
+              ? JSON.stringify(apiError.data, null, 2)
+              : undefined;
       if (detailMessage) {
         errorMessage += `\n${detailMessage}`;
       }

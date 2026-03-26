@@ -12,7 +12,7 @@ export interface ToastProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
-  ({ id, message, type = 'info', onDismiss, className, ...props }, ref) => {
+  ({ id: _id, message, type = 'info', onDismiss, className, ...props }, ref) => {
     const typeStyles = {
       success: 'bg-green-500 text-white border-green-600',
       error: 'bg-destructive text-destructive-foreground border-destructive',

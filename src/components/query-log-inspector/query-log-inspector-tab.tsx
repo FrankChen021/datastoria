@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- query log records come from dynamic ClickHouse payloads */
+
 import { useConnection } from "@/components/connection/connection-context";
 import { SQLQueryBuilder } from "@/components/shared/dashboard/sql-query-builder";
 import TimeSpanSelector, {

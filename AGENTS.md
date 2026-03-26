@@ -75,7 +75,8 @@ Prefer targeted checks when possible, but do not invent alternate toolchains if 
 
 - After code changes, run `npm run format`.
 - Minimum preferred validation for TypeScript code changes: `npm run typecheck`.
-- For lint-sensitive edits, run `npm run lint`.
+- For changes to `src/**/*.ts` or `src/**/*.tsx`, run `npm run lint`.
+- For non-`src` changes, run `npm run lint` whenever the touched files or config can affect ESLint behavior or results.
 - For behavior changes with test coverage, run `npm run test` or the narrowest Vitest target available.
 - For docs changes that affect the manual, run `npm run docs:build` when practical.
 - For build-sensitive framework changes, run `npm run build` if the change could affect bundling, routing, or server/client boundaries.

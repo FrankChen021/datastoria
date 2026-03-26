@@ -1,6 +1,5 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Layout, LayoutItem, ResponsiveLayouts } from "react-grid-layout";
 import {
@@ -43,10 +42,6 @@ export interface DashboardSectionProps {
   initialFilterExpression?: string;
   /** Initial loading state */
   initialLoading?: boolean;
-  /** Panel collapse states (keyed by global panel index) */
-  panelCollapseStates: Map<number, boolean>;
-  /** Callback when panel collapse state changes */
-  onPanelCollapsedChange: (globalPanelIndex: number, collapsed: boolean) => void;
   /** Callback when chart selection occurs */
   onChartSelection?: (
     timeSpan: TimeSpan,
@@ -193,8 +188,6 @@ export function DashboardSection({
   initialTimeSpan,
   initialFilterExpression,
   initialLoading,
-  panelCollapseStates,
-  onPanelCollapsedChange,
   onChartSelection,
   showEditControls = false,
   onRename,
@@ -340,8 +333,6 @@ export function DashboardSection({
             >
               {panels.map((panel, localIndex) => {
                 const globalIndex = globalPanelStartIndex + localIndex;
-                const isPanelCollapsed =
-                  panelCollapseStates.get(globalIndex) ?? panel.collapsed ?? false;
 
                 return (
                   <div key={`panel-${localIndex}`} className="w-full h-full">
@@ -352,9 +343,6 @@ export function DashboardSection({
                       initialFilterExpression={initialFilterExpression}
                       initialLoading={initialLoading}
                       ref={(el) => onSubComponentUpdated(el, globalIndex)}
-                      onCollapsedChange={(collapsed) =>
-                        onPanelCollapsedChange(globalIndex, collapsed)
-                      }
                       onChartSelection={onChartSelection}
                     />
                   </div>

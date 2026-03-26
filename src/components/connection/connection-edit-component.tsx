@@ -593,7 +593,7 @@ export function ConnectionEditComponent({
           const clusterApiResponse = await clusterResponse;
 
           setAbort(undefined);
-          if (clusterApiResponse.data.json().length === 0) {
+          if (clusterApiResponse.data.json<unknown[]>().length === 0) {
             setTestResultWithDelay({
               type: "error",
               message: `Cluster [${testConnectionConfig.cluster}] is not found on given ClickHouse server.`,
@@ -635,11 +635,13 @@ export function ConnectionEditComponent({
 
         // try to detect if the error object has 'message' field and then use it if it has
         const detailMessage =
-          typeof apiError?.data == "object"
-            ? apiError.data?.message
-              ? apiError.data.message
-              : JSON.stringify(apiError.data, null, 2)
-            : apiError?.data;
+          typeof apiError?.data === "string"
+            ? apiError.data
+            : apiError?.data && typeof apiError.data === "object" && "message" in apiError.data
+              ? String(apiError.data.message)
+              : apiError?.data
+                ? JSON.stringify(apiError.data, null, 2)
+                : undefined;
 
         setTestResultWithDelay({
           type: "error",

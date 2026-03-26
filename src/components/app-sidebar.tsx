@@ -441,25 +441,6 @@ function HelpSidebarMenuItem() {
   );
 }
 
-function DocumentationButton() {
-  const simpleTooltipClass =
-    "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm";
-
-  return (
-    <SidebarMenuButton
-      size="default"
-      tooltip={{
-        children: "Documentation",
-        className: simpleTooltipClass,
-      }}
-      onClick={() => window.open("https://docs.datastoria.app", "_blank", "noopener,noreferrer")}
-    >
-      <BookOpen className="h-5 w-5" />
-      <span>Documentation</span>
-    </SidebarMenuButton>
-  );
-}
-
 function GitHubButton() {
   const simpleTooltipClass =
     "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm";

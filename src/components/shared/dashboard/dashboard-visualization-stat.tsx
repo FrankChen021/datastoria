@@ -33,7 +33,6 @@ import type { VisualizationRef } from "./dashboard-visualization-layout";
 import { DashboardVisualizationPanel } from "./dashboard-visualization-panel";
 import type { TimeSpan } from "./timespan-selector";
 import { useEcharts } from "./use-echarts";
-import useIsDarkTheme from "./use-is-dark-theme";
 
 // Safety scale used in the initial font size calculation.
 const INITIAL_SAFETY_SCALE = 0.97;
@@ -108,8 +107,6 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
   });
   const brushHandlerRef = React.useRef<((params: unknown) => void) | null>(null);
   const [chartColor, setChartColor] = React.useState<string>("hsl(var(--chart-1))");
-  const isDark = useIsDarkTheme();
-
   React.useEffect(() => {
     const updateChartColor = () => {
       const tempEl = document.createElement("div");
@@ -349,6 +346,7 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
         brushHandlerRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chart ref identity is stable and not a meaningful trigger
   }, [data, option.type, chartColor, onBrushChange]);
 
   // Cleanup on unmount
@@ -365,6 +363,7 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
         }
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup is intentionally unmount-only
   }, []);
 
   return (

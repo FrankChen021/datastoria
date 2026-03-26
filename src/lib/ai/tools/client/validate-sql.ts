@@ -109,9 +109,10 @@ export const validateSqlExecutor: ToolExecutor<ValidateSqlInput, ValidateSqlOutp
       success: true,
     };
   } catch (error) {
-    if (error instanceof QueryError && (error as QueryError).data) {
+    if (error instanceof QueryError && error.data) {
+      const errorMessage = typeof error.data === "string" ? error.data : error.message;
       return {
-        error: (error as QueryError).data,
+        error: errorMessage,
         success: false,
       };
     }

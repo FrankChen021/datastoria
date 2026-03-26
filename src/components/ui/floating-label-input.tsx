@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
 
 const FloatingInput = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, ...props }, ref) => {
@@ -47,4 +47,3 @@ const FloatingLabelInput = React.forwardRef<
 FloatingLabelInput.displayName = 'FloatingLabelInput';
 
 export { FloatingInput, FloatingLabel, FloatingLabelInput };
-

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- topology nodes and edges are built from raw query log payloads */
+
 import type { GraphEdge, GraphNode } from "@/components/shared/graphviz/Graph";
 import { TopologyGraphFlow } from "@/components/shared/topology/topology-graph-flow";
 import { hostNameManager } from "@/lib/host-name-manager";

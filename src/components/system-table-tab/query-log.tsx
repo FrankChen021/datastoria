@@ -59,7 +59,7 @@ WHERE
 AND event_time < {to:String}
 ORDER BY event_time DESC
 `,
-    []
+    [connection]
   );
 
   const filterSpecs = useMemo<FilterSpec[]>(() => {
@@ -238,7 +238,95 @@ LIMIT 100
       }
       return true;
     });
-  }, []);
+  }, [connection]);
+
+  const { postMessage } = useChatPanel();
+
+  const handleAskForOptimization = useCallback(
+    async (row: Record<string, unknown>) => {
+      let query = row.formatted_query as string;
+      if (query === undefined || query === null || query === "") {
+        query = row.query as string;
+
+        // Try to format it for better readability
+        if (connection?.metadata.has_format_query_function) {
+          const response = connection.query(
+            `SELECT formatQuery('${query.replaceAll("'", "''")}')`,
+            {
+              default_format: "JSONCompact",
+            }
+          ).response;
+          try {
+            const data = (await response).data.json<JSONCompactFormatResponse>();
+            query = data.data[0][0] as string;
+          } catch {
+            // Ignore error
+          }
+        }
+      }
+
+      // Qualify table names using the tables array from query_log
+      const tables = row.tables as string[] | undefined;
+      if (tables && tables.length > 0) {
+        query = SqlUtils.qualifyTableNames(query, tables);
+      }
+
+      postMessage(
+        `Please analyze the following SQL query and see if we can optimize it.
+### SQL
+\`\`\`sql
+${query.trim()}
+\`\`\`
+`,
+        { forceNewChat: true }
+      );
+    },
+    [connection, postMessage]
+  );
+
+  const handleExplainError = useCallback(
+    async (row: Record<string, unknown>) => {
+      let query = row.formatted_query as string;
+      if (query === undefined || query === null || query === "") {
+        query = row.query as string;
+
+        // Try to format it for better readability
+        if (connection?.metadata.has_format_query_function) {
+          const response = connection.query(
+            `SELECT formatQuery('${query.replaceAll("'", "''")}')`,
+            {
+              default_format: "JSONCompact",
+            }
+          ).response;
+          try {
+            const data = (await response).data.json<JSONCompactFormatResponse>();
+            query = data.data[0][0] as string;
+          } catch {
+            // Ignore error
+          }
+        }
+      }
+      // Qualify table names using the tables array from query_log
+      const tables = row.tables as string[] | undefined;
+      if (tables && tables.length > 0) {
+        query = SqlUtils.qualifyTableNames(query, tables);
+      }
+
+      postMessage(
+        `The following SQL query has errors, please explain what went wrong in short and analyze the its performance and provide a fix.
+### SQL
+\`\`\`sql
+${query.trim()}
+\`\`\`
+
+### Error Message
+${row.exception as string}
+`,
+        { forceNewChat: true }
+      );
+    },
+    [connection, postMessage]
+  );
 
   // Build Dashboard configuration with chart and table
   const dashboard = useMemo<Dashboard>(() => {
@@ -363,83 +451,7 @@ LIMIT 100
         } as TableDescriptor,
       ],
     };
-  }, [DISTRIBUTION_QUERY, TABLE_QUERY]);
-
-  const { postMessage } = useChatPanel();
-
-  const handleAskForOptimization = useCallback(async (row: Record<string, unknown>) => {
-    let query = row.formatted_query as string;
-    if (query === undefined || query === null || query === "") {
-      query = row.query as string;
-
-      // Try to format it for better readability
-      if (connection?.metadata.has_format_query_function) {
-        const response = connection.query(`SELECT formatQuery('${query.replaceAll("'", "''")}')`, {
-          default_format: "JSONCompact",
-        }).response;
-        try {
-          const data = (await response).data.json<JSONCompactFormatResponse>();
-          query = data.data[0][0] as string;
-        } catch {
-          // Ignore error
-        }
-      }
-    }
-
-    // Qualify table names using the tables array from query_log
-    const tables = row.tables as string[] | undefined;
-    if (tables && tables.length > 0) {
-      query = SqlUtils.qualifyTableNames(query, tables);
-    }
-
-    postMessage(
-      `Please analyze the following SQL query and see if we can optimize it.
-### SQL
-\`\`\`sql
-${query.trim()}
-\`\`\`
-`,
-      { forceNewChat: true }
-    );
-  }, []);
-
-  const handleExplainError = useCallback(async (row: Record<string, unknown>) => {
-    let query = row.formatted_query as string;
-    if (query === undefined || query === null || query === "") {
-      query = row.query as string;
-
-      // Try to format it for better readability
-      if (connection?.metadata.has_format_query_function) {
-        const response = connection.query(`SELECT formatQuery('${query.replaceAll("'", "''")}')`, {
-          default_format: "JSONCompact",
-        }).response;
-        try {
-          const data = (await response).data.json<JSONCompactFormatResponse>();
-          query = data.data[0][0] as string;
-        } catch {
-          // Ignore error
-        }
-      }
-    }
-    // Qualify table names using the tables array from query_log
-    const tables = row.tables as string[] | undefined;
-    if (tables && tables.length > 0) {
-      query = SqlUtils.qualifyTableNames(query, tables);
-    }
-
-    postMessage(
-      `The following SQL query has errors, please explain what went wrong in short and analyze the its performance and provide a fix.
-### SQL
-\`\`\`sql
-${query.trim()}
-\`\`\`
-
-### Error Message
-${row.exception as string}
-`,
-      { forceNewChat: true }
-    );
-  }, []);
+  }, [DISTRIBUTION_QUERY, TABLE_QUERY, handleAskForOptimization, handleExplainError]);
 
   return (
     <DashboardPage

@@ -16,6 +16,8 @@ import { useCommandState, useCommandStore } from "cmdk";
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
 
+type CommandSearchState = { search: string };
+
 export interface SuggestionItem {
   name: string;
   descriptionMarkdown: string;
@@ -87,7 +89,7 @@ const InputControl = React.forwardRef<
   }
 >((props, forwardedRef) => {
   const { onChange, initialValue, onValueChange, ...rest } = props;
-  const search = useCommandState((state: any) => state.search);
+  const search = useCommandState((state: CommandSearchState) => state.search);
   const store = useCommandStore();
 
   // Initialize cmdk's search state with initialValue (only once)
@@ -146,7 +148,7 @@ function ItemList({
   onSelect: (value: string) => void;
   onSelectItem: (item: SuggestionItem) => void;
 }) {
-  const search = useCommandState((state: any) => state.search);
+  const search = useCommandState((state: CommandSearchState) => state.search);
   const handleSelect = React.useCallback(
     (value: string) => {
       onSelect(value);

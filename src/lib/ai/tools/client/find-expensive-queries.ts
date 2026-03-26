@@ -171,7 +171,7 @@ export const findExpensiveQueriesExecutor: ToolExecutor<
   } catch (error) {
     let errorMessage: string;
     if (error instanceof QueryError && error.data) {
-      errorMessage = error.data;
+      errorMessage = typeof error.data === "string" ? error.data : error.message;
     } else if (error instanceof Error) {
       errorMessage = error.message;
     } else {

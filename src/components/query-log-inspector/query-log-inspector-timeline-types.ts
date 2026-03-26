@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- timeline nodes retain raw ClickHouse query log payloads */
+
 import type { TimelineNode, TimelineStats } from "@/components/shared/timeline/timeline-types";
 import { colorGenerator } from "@/lib/color-generator";
 import { hostNameManager } from "@/lib/host-name-manager";
