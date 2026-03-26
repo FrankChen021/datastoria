@@ -35,6 +35,25 @@ interface FlatNode {
   isExpanded: boolean;
 }
 
+type RootLoadState = "idle" | "loading" | "loaded" | "error";
+
+const rootLoadFailures = new Map<string, string>();
+
+function createInitialRootNode(): ZookeeperNode {
+  return {
+    name: "/",
+    path: "",
+    fullPath: "/",
+    value: "",
+    ctime: "",
+    mtime: "",
+    dataLength: "",
+    numChildren: undefined,
+    isLoaded: false,
+    children: [],
+  };
+}
+
 function flattenTree(
   nodes: ZookeeperNode[],
   expandedPaths: Set<string>,
@@ -51,24 +70,49 @@ function flattenTree(
   return result;
 }
 
-export const Zookeeper = React.memo(({ database: _database, table: _table }: ZookeeperProps) => {
+function getRootLoadKey(connectionId: string | undefined, database: string, table: string): string {
+  return `${connectionId ?? "unknown"}:${database}.${table}`;
+}
+
+export const Zookeeper = React.memo(({ database, table }: ZookeeperProps) => {
   const { connection } = useConnection();
+  const rootLoadKey = useMemo(
+    () => getRootLoadKey(connection?.connectionId, database, table),
+    [connection?.connectionId, database, table]
+  );
+  const rootRequestTokenRef = useRef(0);
+  const rootAbortControllerRef = useRef<AbortController | null>(null);
   // Root node is hardcoded as per requirement
-  const [root, setRoot] = useState<ZookeeperNode>({
-    name: "/",
-    path: "",
-    fullPath: "/",
-    value: "",
-    ctime: "",
-    mtime: "",
-    dataLength: "",
-    numChildren: undefined,
-    isLoaded: false,
-    children: [],
-  });
+  const [root, setRoot] = useState<ZookeeperNode>(createInitialRootNode);
 
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set());
+  const [rootLoadState, setRootLoadState] = useState<RootLoadState>(() =>
+    rootLoadFailures.has(rootLoadKey) ? "error" : "idle"
+  );
+  const [rootLoadError, setRootLoadError] = useState<string | null>(
+    () => rootLoadFailures.get(rootLoadKey) ?? null
+  );
+
+  const resetTree = useCallback(
+    (clearFailure: boolean = false) => {
+      rootRequestTokenRef.current += 1;
+      rootAbortControllerRef.current?.abort();
+      rootAbortControllerRef.current = null;
+
+      if (clearFailure) {
+        rootLoadFailures.delete(rootLoadKey);
+      }
+
+      const cachedError = rootLoadFailures.get(rootLoadKey) ?? null;
+      setRoot(createInitialRootNode());
+      setExpandedPaths(new Set(["/"]));
+      setLoadingPaths(new Set());
+      setRootLoadState(cachedError ? "error" : "idle");
+      setRootLoadError(cachedError);
+    },
+    [rootLoadKey]
+  );
 
   // Function to update a node's children in the tree
   const updateNodeChildren = useCallback((targetPath: string, children: ZookeeperNode[]) => {
@@ -104,6 +148,16 @@ export const Zookeeper = React.memo(({ database: _database, table: _table }: Zoo
   const fetchChildren = useCallback(
     async (nodePath: string) => {
       if (!connection) return;
+      const isRootRequest = nodePath === "/";
+      let rootRequestToken = 0;
+
+      if (isRootRequest) {
+        rootAbortControllerRef.current?.abort();
+        rootRequestTokenRef.current += 1;
+        rootRequestToken = rootRequestTokenRef.current;
+        setRootLoadState("loading");
+        setRootLoadError(null);
+      }
 
       setLoadingPaths((prev) => {
         const next = new Set(prev);
@@ -112,7 +166,7 @@ export const Zookeeper = React.memo(({ database: _database, table: _table }: Zoo
       });
 
       try {
-        const response = await connection.query(
+        const queryRequest = connection.query(
           `SELECT 
   path, 
   decodeURLComponent(name) as name, 
@@ -124,7 +178,12 @@ export const Zookeeper = React.memo(({ database: _database, table: _table }: Zoo
 FROM system.zookeeper
 WHERE path = '${nodePath}'`,
           { default_format: "JSON" }
-        ).response;
+        );
+        if (isRootRequest) {
+          rootAbortControllerRef.current = queryRequest.abortController;
+        }
+
+        const response = await queryRequest.response;
         const jsonResponse = await response.data.json<JSONFormatResponse>();
 
         const dataRows = jsonResponse.data as Array<{
@@ -155,29 +214,59 @@ WHERE path = '${nodePath}'`,
         // Sort by name
         newChildren.sort((a, b) => a.name.localeCompare(b.name));
 
+        if (isRootRequest && rootRequestToken !== rootRequestTokenRef.current) {
+          return;
+        }
+
         updateNodeChildren(nodePath, newChildren);
+        if (isRootRequest) {
+          rootLoadFailures.delete(rootLoadKey);
+          setRootLoadState("loaded");
+        }
       } catch (e) {
+        if (isRootRequest && rootRequestToken !== rootRequestTokenRef.current) {
+          return;
+        }
+
+        if (e instanceof Error && e.name === "AbortError") {
+          return;
+        }
+
         console.error("Failed to fetch zookeeper nodes", e);
+        if (isRootRequest) {
+          const errorMessage = e instanceof Error ? e.message : "Failed to fetch zookeeper nodes";
+          rootLoadFailures.set(rootLoadKey, errorMessage);
+          setRootLoadState("error");
+          setRootLoadError(errorMessage);
+        }
       } finally {
-        setLoadingPaths((prev) => {
-          const next = new Set(prev);
-          next.delete(nodePath);
-          return next;
-        });
+        if (!isRootRequest || rootRequestToken === rootRequestTokenRef.current) {
+          setLoadingPaths((prev) => {
+            const next = new Set(prev);
+            next.delete(nodePath);
+            return next;
+          });
+          if (isRootRequest) {
+            rootAbortControllerRef.current = null;
+          }
+        }
       }
     },
-    [connection, updateNodeChildren]
+    [connection, rootLoadKey, updateNodeChildren]
   );
 
-  // Initial load for root
   useEffect(() => {
-    // Check if root is already loaded or loading
-    if (!root.isLoaded && !loadingPaths.has("/")) {
-      fetchChildren("/");
-      // Expand root by default
-      setExpandedPaths(new Set(["/"]));
+    resetTree();
+  }, [connection, resetTree, database, table]);
+
+  // Initial load for root. Do not auto-retry after a failed request.
+  useEffect(() => {
+    if (!connection || rootLoadState !== "idle") {
+      return;
     }
-  }, [connection, fetchChildren, loadingPaths, root.isLoaded]); // Run when connection/root load state changes
+
+    fetchChildren("/");
+  }, [connection, fetchChildren, rootLoadState]);
 
   const toggleExpand = useCallback(
     (node: ZookeeperNode) => {
@@ -246,21 +335,8 @@ WHERE path = '${nodePath}'`,
   }, [handleMouseMove]);
 
   const handleRefresh = useCallback(() => {
-    setRoot({
-      name: "/",
-      path: "",
-      fullPath: "/",
-      value: "",
-      ctime: "",
-      mtime: "",
-      dataLength: "",
-      numChildren: undefined,
-      isLoaded: false,
-      children: [],
-    });
-    setExpandedPaths(new Set(["/"]));
-    fetchChildren("/");
-  }, [fetchChildren]);
+    resetTree(true);
+  }, [resetTree]);
 
   const truncatedTextFormatter = Formatter.getInstance().getFormatter("truncatedText");
 
@@ -296,6 +372,14 @@ WHERE path = '${nodePath}'`,
 
       {/* Body */}
       <div ref={parentRef} className="flex-1 overflow-auto relative">
+        {rootLoadError ? (
+          <div
+            className="border-b bg-destructive/5 px-4 py-2 text-sm text-destructive"
+            role="alert"
+          >
+            Failed to load ZooKeeper nodes. {rootLoadError}
+          </div>
+        ) : null}
         <div
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
