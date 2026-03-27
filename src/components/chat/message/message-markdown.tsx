@@ -9,12 +9,16 @@ import { memo, useEffect, useMemo, useRef } from "react";
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
+import { buildCodeViewerUrl, replaceFileReferenceTokens } from "./file-reference-utils";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 import { MessageMarkdownUserActions } from "./message-user-actions";
 
 function transformMarkdownUrl(url: string) {
   if (url.startsWith("skill://")) {
+    return url;
+  }
+  if (url.startsWith("codefile://")) {
     return url;
   }
 
@@ -54,6 +58,8 @@ export const MessageMarkdown = memo(function MessageMarkdown({
     tableNamesRef.current = connection?.metadata?.tableNames;
     databaseNamesRef.current = connection?.metadata?.databaseNames;
   }, [connection?.metadata?.tableNames, connection?.metadata?.databaseNames]);
+
+  const renderedText = useMemo(() => replaceFileReferenceTokens(text), [text]);
 
   const components = useMemo<Components>(
     () => ({
@@ -172,6 +178,31 @@ export const MessageMarkdown = memo(function MessageMarkdown({
           );
         }
 
+        if (href?.startsWith("codefile://")) {
+          const parsed = new URL(href);
+          const filePath = parsed.searchParams.get("path") ?? "";
+          const startLine = parsed.searchParams.get("startLine");
+          const endLine = parsed.searchParams.get("endLine");
+          const viewerUrl = buildCodeViewerUrl({
+            path: filePath,
+            startLine: startLine ? Number.parseInt(startLine, 10) : undefined,
+            endLine: endLine ? Number.parseInt(endLine, 10) : undefined,
+          });
+
+          return (
+            <a
+              href={viewerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={filePath}
+              className="inline-flex max-w-full items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2.5 py-1 font-mono text-xs text-primary transition-colors hover:bg-muted hover:text-primary"
+              {...props}
+            >
+              <span className="truncate">{children}</span>
+            </a>
+          );
+        }
+
         return (
           <a
             href={href}
@@ -281,7 +312,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         components={components}
         urlTransform={transformMarkdownUrl}
       >
-        {text}
+        {renderedText}
       </ReactMarkdown>
     </div>
   );

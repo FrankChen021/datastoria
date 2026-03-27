@@ -47,6 +47,13 @@ export interface ReadCodeFileFailure {
 
 export type ReadCodeFileResult = ReadCodeFileSuccess | ReadCodeFileFailure;
 
+export interface ReadCodeFileForViewerInput {
+  path: string;
+}
+
+const VIEWER_MAX_FILE_BYTES = 256 * 1024;
+const VIEWER_MAX_READ_LINES = 2000;
+
 function hasNullByte(buffer: Buffer): boolean {
   for (const value of buffer) {
     if (value === 0) {
@@ -300,5 +307,34 @@ export async function readCodeFile(
     endLine: cappedEndLine,
     content: capped.content,
     truncated: capped.truncated || hasMoreLines,
+  };
+}
+
+export async function readCodeFileForViewer(
+  config: CodeAnalysisConfig,
+  input: ReadCodeFileForViewerInput
+): Promise<ReadCodeFileResult> {
+  const resolved = await resolveFilePath(config, input.path);
+  if ("error" in resolved) {
+    return resolved;
+  }
+
+  if (await isBinaryFile(resolved.fullPath)) {
+    return { error: "binary file rejected" };
+  }
+
+  const content = await fs.readFile(resolved.fullPath, "utf8");
+  const allLines = content.split(/\r?\n/);
+  const cappedEndLine = Math.min(allLines.length, VIEWER_MAX_READ_LINES);
+  const selected = allLines.slice(0, cappedEndLine);
+  const joined = selected.join("\n");
+  const capped = capContent(joined, VIEWER_MAX_FILE_BYTES);
+
+  return {
+    path: resolved.relativePath,
+    startLine: 1,
+    endLine: cappedEndLine,
+    content: capped.content,
+    truncated: capped.truncated || cappedEndLine < allLines.length,
   };
 }

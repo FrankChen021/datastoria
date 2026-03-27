@@ -28,12 +28,7 @@ function buildCodeAnalysisPrompt(capabilities?: OrchestratorCapabilities): strin
     return "";
   }
 
-  return `
-## Code Analysis
-- When the user asks about source code, use \`search_code\` first to locate relevant files and line numbers.
-- Use \`read_code_file\` only for targeted sections instead of trying to inspect entire files.
-- Do not claim to have reviewed code you did not load with tools.
-- Cite repo-relative file paths and line ranges when possible.`;
+  return `When the user asks about source code, load the \`source-code-inspection\` skill before using code-analysis tools.`;
 }
 
 export function buildOrchestratorSystemPrompt(
@@ -43,11 +38,12 @@ export function buildOrchestratorSystemPrompt(
   const codeAnalysisPrompt = buildCodeAnalysisPrompt(capabilities);
 
   if (!hasDatabaseContextFacts(context)) {
-    return `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}${codeAnalysisPrompt}`;
+    return codeAnalysisPrompt
+      ? `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}\n7. **Source code**: ${codeAnalysisPrompt}`
+      : ORCHESTRATOR_SYSTEM_PROMPT_BASE;
   }
 
-  return `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}
-${codeAnalysisPrompt}
+  return `${codeAnalysisPrompt ? `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}\n7. **Source code**: ${codeAnalysisPrompt}` : ORCHESTRATOR_SYSTEM_PROMPT_BASE}
 
 ## Diagnosis Context
 ${formatDatabaseContextFacts(context)}
