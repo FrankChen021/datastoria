@@ -2,6 +2,8 @@
  * Server-Side Tools for the skill-based agent (chat-v2).
  * Tool definitions live here; execution is implemented in the corresponding modules.
  */
+import type { CodeAnalysisConfigResult } from "@/lib/ai/code-analysis/code-analysis-config";
+import { createCodeAnalysisTools } from "@/lib/ai/code-analysis/code-analysis-tools";
 import type { SkillProvider } from "@/lib/ai/skills/skill-provider";
 import type { SkillCatalogItem } from "@/lib/ai/skills/skill-types";
 import { tool } from "ai";
@@ -13,8 +15,12 @@ import {
   createSkillToolExecutor,
 } from "./skill-tool";
 
-export function createServerTools(provider: SkillProvider, skills: SkillCatalogItem[]) {
-  return {
+export function createServerTools(
+  provider: SkillProvider,
+  skills: SkillCatalogItem[],
+  codeAnalysisConfig?: CodeAnalysisConfigResult
+) {
+  const baseTools = {
     skill: tool({
       description: buildSkillToolDescription(skills),
       inputSchema: z.object({
@@ -52,5 +58,14 @@ export function createServerTools(provider: SkillProvider, skills: SkillCatalogI
       }),
       execute: createSkillResourceToolExecutor(provider),
     }),
+  };
+
+  if (!codeAnalysisConfig?.enabled) {
+    return baseTools;
+  }
+
+  return {
+    ...baseTools,
+    ...createCodeAnalysisTools(codeAnalysisConfig),
   };
 }

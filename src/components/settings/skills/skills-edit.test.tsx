@@ -72,6 +72,7 @@ describe("SkillsEdit", () => {
             sessionRepositoryType: "local",
             allowEditSkill: true,
             autoSelectAvailable: false,
+            codeAnalysisEnabled: false,
           }}
         >
           <SkillsEdit />

@@ -6,6 +6,8 @@ import {
   type SessionTitleGenerationResponse,
 } from "@/lib/ai/agent/session-title-generator";
 import type { AgentContext, AppUIMessage, MessageMetadata } from "@/lib/ai/chat-types";
+import { getCodeAnalysisConfig } from "@/lib/ai/code-analysis/code-analysis-config";
+import { createCodeAnalysisTools } from "@/lib/ai/code-analysis/code-analysis-tools";
 import {
   LanguageModelProviderFactory,
   resolveModelConfig,
@@ -237,7 +239,11 @@ export async function POST(req: Request) {
     let titlePromise: Promise<SessionTitleGenerationResponse | undefined> | undefined;
     const skillProvider = SkillProviderFactory.getProvider({ userId: userEmail ?? null });
     const availableSkills = await skillProvider.listSkills();
-    const serverTools = createServerTools(skillProvider, availableSkills);
+    const codeAnalysisConfig = getCodeAnalysisConfig();
+    const serverTools = createServerTools(skillProvider, availableSkills, codeAnalysisConfig);
+    const codeAnalysisTools = codeAnalysisConfig.enabled
+      ? createCodeAnalysisTools(codeAnalysisConfig)
+      : null;
     const skillCommands = buildSkillCommands(availableSkills);
 
     if (repositoryType === "remote") {
@@ -400,11 +406,19 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model,
-      system: buildOrchestratorSystemPrompt(context),
+      system: buildOrchestratorSystemPrompt(context, {
+        codeAnalysisEnabled: codeAnalysisConfig.enabled,
+      }),
       messages: modelMessages,
       tools: {
         [SERVER_TOOL_NAMES.SKILL]: serverTools.skill,
         [SERVER_TOOL_NAMES.SKILL_RESOURCE]: serverTools.skill_resource,
+        ...(codeAnalysisTools
+          ? {
+              [SERVER_TOOL_NAMES.SEARCH_CODE]: codeAnalysisTools.search_code,
+              [SERVER_TOOL_NAMES.READ_CODE_FILE]: codeAnalysisTools.read_code_file,
+            }
+          : {}),
         ask_user_question: ClientTools.ask_user_question,
         get_tables: ClientTools.get_tables,
         explore_schema: ClientTools.explore_schema,

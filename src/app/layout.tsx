@@ -1,6 +1,7 @@
 import { getSession } from "@/auth";
 import { RuntimeConfigProvider } from "@/components/runtime-config-provider";
 import "@/index.css";
+import { getCodeAnalysisConfig } from "@/lib/ai/code-analysis/code-analysis-config";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import { getSessionRepositoryType } from "@/lib/ai/session/server-session-repository-factory";
 import { SkillPermissionManager } from "@/lib/ai/skills/skill-permission-manager";
@@ -109,6 +110,7 @@ export default async function RootLayout({
   } catch {
     autoSelectAvailable = false;
   }
+  const codeAnalysisConfig = getCodeAnalysisConfig();
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -216,6 +218,7 @@ export default async function RootLayout({
               sessionRepositoryType: getSessionRepositoryType(session?.user?.id ?? null),
               allowEditSkill: SkillPermissionManager.canUserEditSkill(session?.user?.email ?? null),
               autoSelectAvailable,
+              codeAnalysisEnabled: codeAnalysisConfig.enabled,
             }}
           >
             {children}

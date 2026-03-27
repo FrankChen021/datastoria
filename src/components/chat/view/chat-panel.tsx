@@ -5,6 +5,7 @@ import { ChatFactory } from "@/components/chat/chat-factory";
 import { ChatUIContext } from "@/components/chat/chat-ui-context";
 import { SessionManager } from "@/components/chat/session/session-manager";
 import { useConnection } from "@/components/connection/connection-context";
+import { useRuntimeConfig } from "@/components/runtime-config-provider";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { AppUIMessage, Message } from "@/lib/ai/chat-types";
@@ -12,11 +13,11 @@ import type { Chat } from "@ai-sdk/react";
 import { Download, Loader2, Maximize2, Minimize2, Plus, Square, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import * as React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { OpenSessionListButton } from "../session/open-session-list-button";
 import { SqlExecutionProvider } from "../sql-execution-context";
-import { ChatView, DEFAULT_CHAT_QUESTIONS, type ChatViewHandle } from "./chat-view";
+import { ChatView, DEFAULT_CHAT_QUESTIONS, type ChatViewHandle, type Question } from "./chat-view";
 import { useChatPanel, type ChatPanelDisplayMode } from "./use-chat-panel";
 
 interface ChatHeaderProps {
@@ -257,6 +258,25 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
   const isInitializedRef = useRef(false);
   const { connection } = useConnection();
   const { data: authSession } = useSession();
+  const { codeAnalysisEnabled } = useRuntimeConfig();
+
+  const starterQuestions = useMemo<Question[]>(
+    () =>
+      codeAnalysisEnabled
+        ? [
+            {
+              text: "Find where the AI chat tools are registered and explain how a new server tool is wired in",
+              autoRun: true,
+            },
+            {
+              text: "Review the chat route and summarize how code-analysis capability is gated",
+              autoRun: true,
+            },
+            ...DEFAULT_CHAT_QUESTIONS,
+          ]
+        : DEFAULT_CHAT_QUESTIONS,
+    [codeAnalysisEnabled]
+  );
 
   const createDraftSession = useCallback(
     () => ({
@@ -561,7 +581,7 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
           chat={chat}
           onClose={onClose}
           onNewChat={handleNewChat}
-          questions={DEFAULT_CHAT_QUESTIONS}
+          questions={starterQuestions}
           currentDatabase={currentDatabase}
           availableTables={availableTables}
           externalInput={

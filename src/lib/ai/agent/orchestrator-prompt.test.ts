@@ -20,4 +20,14 @@ describe("buildOrchestratorSystemPrompt", () => {
 
     expect(prompt).not.toContain("## Diagnosis Context");
   });
+
+  it("includes code analysis instructions only when the capability is enabled", () => {
+    const enabledPrompt = buildOrchestratorSystemPrompt({}, { codeAnalysisEnabled: true });
+    const disabledPrompt = buildOrchestratorSystemPrompt({}, { codeAnalysisEnabled: false });
+
+    expect(enabledPrompt).toContain("## Code Analysis");
+    expect(enabledPrompt).toContain("search_code");
+    expect(enabledPrompt).toContain("read_code_file");
+    expect(disabledPrompt).not.toContain("## Code Analysis");
+  });
 });
