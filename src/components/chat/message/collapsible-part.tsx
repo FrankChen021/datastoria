@@ -135,7 +135,7 @@ export function CollapsiblePart({
           )}
           style={keepChildrenMounted && !isExpanded ? { display: "none" } : undefined}
         >
-          {isComplete ? children : children ? children : "running"}
+          {isComplete ? children : children}
         </div>
       )}
     </div>
