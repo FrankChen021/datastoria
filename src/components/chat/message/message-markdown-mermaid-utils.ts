@@ -3,19 +3,19 @@ export function normalizeMermaidChart(chart: string) {
     .split("\n")
     .some((line) => line.trim().length > 0 && /^(?:flowchart|graph)\b/i.test(line.trim()));
 
-  return chart
+  const normalizedChart = chart
     .split("\n")
     .map((line) => {
       const quotedParticipantLine = quoteSequenceAliasLabel(line);
-      const escapedSequenceLine = escapeSequenceMessageSemicolons(quotedParticipantLine);
-
-      if (!isFlowchart) {
-        return escapedSequenceLine;
-      }
-
-      return quoteFlowchartNodeLabels(escapedSequenceLine);
+      return escapeSequenceMessageSemicolons(quotedParticipantLine);
     })
     .join("\n");
+
+  if (!isFlowchart) {
+    return normalizedChart;
+  }
+
+  return quoteFlowchartNodeLabels(normalizedChart);
 }
 
 export function quoteSequenceAliasLabel(line: string) {
@@ -60,14 +60,21 @@ export function escapeSequenceMessageSemicolons(line: string) {
 }
 
 export function quoteFlowchartNodeLabels(line: string) {
-  let normalizedLine = line.replace(/\[(?!")([^\]\n]+)\]/g, (match, label) =>
+  let normalizedLine = line.replace(/\[\[(?!")([\s\S]*?)\]\]/g, (match, label) =>
+    quoteFlowchartLabel(match, label, "[[", "]]")
+  );
+
+  normalizedLine = normalizedLine.replace(/(?<!\[)\[(?!\[|")([\s\S]*?)\](?!\])/g, (match, label) =>
     quoteFlowchartLabel(match, label, "[", "]")
   );
 
-  normalizedLine = normalizedLine.replace(/(^|[^@])\{(?!")([^}\n]+)\}/g, (match, prefix, label) => {
-    const quoted = quoteFlowchartLabel(`{${label}}`, label, "{", "}");
-    return `${prefix}${quoted}`;
-  });
+  normalizedLine = normalizedLine.replace(
+    /(^|[^@])\{(?!")([\s\S]*?)\}/g,
+    (match, prefix, label) => {
+      const quoted = quoteFlowchartLabel(`{${label}}`, label, "{", "}");
+      return `${prefix}${quoted}`;
+    }
+  );
 
   return normalizedLine;
 }

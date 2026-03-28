@@ -50,4 +50,24 @@ describe("message-markdown-mermaid-utils", () => {
       ].join("\n")
     );
   });
+
+  it("quotes multiline flowchart labels across the whole chart", () => {
+    const escapedQuote = '\\"';
+
+    expect(
+      normalizeMermaidChart(
+        [
+          "flowchart TD",
+          'A[Line one\\n"quoted" line two] --> B{Question\\nwith punctuation?}',
+          "A --> C[[double bracket label]]",
+        ].join("\n")
+      )
+    ).toBe(
+      [
+        "flowchart TD",
+        `A["Line one\\n${escapedQuote}quoted${escapedQuote} line two"] --> B{"Question\\nwith punctuation?"}`,
+        'A --> C[["double bracket label"]]',
+      ].join("\n")
+    );
+  });
 });
