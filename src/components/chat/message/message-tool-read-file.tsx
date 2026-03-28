@@ -19,6 +19,7 @@ type ReadFileInput = {
 
 type ReadFileOutput =
   | {
+      path?: string;
       content?: string;
       startLine?: number;
       endLine?: number;
@@ -72,18 +73,28 @@ function inferLanguage(filePath: string): string {
   }
 }
 
-function buildHeader(input: ReadFileInput): string {
-  const path = input.path ?? "";
+function buildResolvedHeader(input: ReadFileInput, output?: ReadFileOutput): string {
+  const path =
+    output && "path" in output && typeof output.path === "string" && output.path.length > 0
+      ? output.path
+      : input.path ?? "";
+  const startLine =
+    output && "startLine" in output && typeof output.startLine === "number"
+      ? output.startLine
+      : input.startLine;
+  const endLine =
+    output && "endLine" in output && typeof output.endLine === "number" ? output.endLine : input.endLine;
+
   if (!path) {
     return "";
   }
 
-  if (input.startLine != null && input.endLine != null) {
-    return `${path}:${input.startLine}-${input.endLine}`;
+  if (startLine != null && endLine != null) {
+    return `${path}:${startLine}-${endLine}`;
   }
 
-  if (input.startLine != null) {
-    return `${path}:${input.startLine}`;
+  if (startLine != null) {
+    return `${path}:${startLine}`;
   }
 
   return path;
@@ -107,11 +118,13 @@ export const MessageToolReadFile = memo(function MessageToolReadFile({
   const rowCount = content == null ? null : content.split(/\r?\n/).length;
   const charCount = content?.length ?? null;
   const language = inferLanguage(input.path ?? "");
+  const startingLineNumber =
+    output && "startLine" in output && typeof output.startLine === "number" ? output.startLine : 1;
 
   return (
     <CollapsiblePart
       toolName="Read File"
-      headerExtra={buildHeader(input)}
+      headerExtra={buildResolvedHeader(input, output)}
       state={state}
       isRunning={isRunning}
     >
@@ -126,6 +139,7 @@ export const MessageToolReadFile = memo(function MessageToolReadFile({
             <ThemedSyntaxHighlighter
               language={language}
               showLineNumbers={true}
+              startingLineNumber={startingLineNumber}
               customStyle={{
                 backgroundColor: "transparent",
                 margin: 0,
