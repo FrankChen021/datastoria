@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { CommandManager } from "@/lib/ai/commands/command-manager";
 import { afterEach, describe, expect, it } from "vitest";
 import { clearDiskSkillProviderCache, DiskSkillProvider } from "./disk-skill-provider";
 
@@ -11,7 +10,7 @@ function writeSkill(rootDir: string, dirName: string, content: string): void {
   fs.writeFileSync(path.join(skillDir, "SKILL.md"), content);
 }
 
-describe("DiskSkillProvider slash command registration", () => {
+describe("DiskSkillProvider skill metadata", () => {
   const originalSkillsRootDir = process.env.SKILLS_ROOT_DIR;
   const tempDirs: string[] = [];
   const provider = new DiskSkillProvider();
@@ -24,7 +23,7 @@ describe("DiskSkillProvider slash command registration", () => {
     }
   });
 
-  it("registers slash commands from loaded skills and skips disabled skills", async () => {
+  it("loads disableSlashCommand metadata without eagerly registering commands", async () => {
     const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "skill-manager-test-"));
     tempDirs.push(rootDir);
 
@@ -58,23 +57,10 @@ metadata:
     clearDiskSkillProviderCache();
 
     const skills = await provider.listSkills();
-    const commands = CommandManager.listCommands();
 
     expect(
       skills.find((skill) => skill.name === "diagnose-clickhouse-errors")?.disableSlashCommand
     ).toBe(false);
     expect(skills.find((skill) => skill.name === "visualization")?.disableSlashCommand).toBe(true);
-
-    expect(commands).toEqual([
-      {
-        name: "diagnose-clickhouse-errors",
-        description: "Diagnose ClickHouse errors.",
-        skillId: "diagnose-clickhouse-errors",
-        template: "Use the `diagnose-clickhouse-errors` skill for this request: $ARGUMENTS",
-      },
-    ]);
-    expect(CommandManager.expand("/diagnose-clickhouse-errors Code: 115")).toBe(
-      "Use the `diagnose-clickhouse-errors` skill for this request: Code: 115"
-    );
   });
 });

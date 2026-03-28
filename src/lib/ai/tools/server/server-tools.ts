@@ -30,7 +30,7 @@ function createBaseServerTools(provider: SkillProvider, skills: SkillCatalogItem
             "Skill name(s) to load (e.g. ['optimization'] or ['optimization', 'visualization'])."
           ),
       }),
-      execute: createSkillToolExecutor(provider),
+      execute: createSkillToolExecutor(provider, skills),
     }),
 
     skill_resource: tool({
@@ -55,7 +55,7 @@ function createBaseServerTools(provider: SkillProvider, skills: SkillCatalogItem
           .min(1)
           .describe("Resource requests: each has a skill name and relative paths to load."),
       }),
-      execute: createSkillResourceToolExecutor(provider),
+      execute: createSkillResourceToolExecutor(provider, skills),
     }),
   };
 }
