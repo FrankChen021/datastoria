@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   escapeSequenceMessageSemicolons,
+  isLikelyCompleteMermaidChart,
   normalizeMermaidChart,
   quoteFlowchartNodeLabels,
   quoteSequenceAliasLabel,
@@ -69,5 +70,30 @@ describe("message-markdown-mermaid-utils", () => {
         'A --> C[["double bracket label"]]',
       ].join("\n")
     );
+  });
+
+  it("treats truncated streaming diagrams as incomplete", () => {
+    expect(
+      isLikelyCompleteMermaidChart(
+        [
+          "flowchart TD",
+          'A[UNKNOWN_TABLE (Code 60)] --> B{Error text contains\\n"metadata file ... different UUID"?}',
+          "B -- Yes -->",
+        ].join("\n")
+      )
+    ).toBe(false);
+  });
+
+  it("treats balanced flowcharts as complete", () => {
+    expect(
+      isLikelyCompleteMermaidChart(
+        [
+          "flowchart TD",
+          'A[UNKNOWN_TABLE (Code 60)] --> B{Error text contains\\n"metadata file ... different UUID"?}',
+          'B -- Yes --> C["Investigate metadata on disk"]',
+          "classDef src fill:#f6f6f6,stroke:#999,stroke-width:1px;",
+        ].join("\n")
+      )
+    ).toBe(true);
   });
 });

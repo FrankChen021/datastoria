@@ -33,6 +33,7 @@ interface MessageMarkdownProps {
   messageId?: string;
   customStyle?: React.CSSProperties;
   showExecuteButton?: boolean;
+  isStreaming?: boolean;
   /**
    * Allow expandable SQL blocks inside markdown. Default: false.
    */
@@ -44,6 +45,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   messageId,
   customStyle,
   showExecuteButton = true,
+  isStreaming = false,
   expandable = false,
 }: MessageMarkdownProps) {
   const { connection } = useConnection();
@@ -81,7 +83,12 @@ export const MessageMarkdown = memo(function MessageMarkdown({
           return <MessageMarkdownChartSpec spec={String(children)} />;
         }
         if (codeClassName === "language-mermaid") {
-          return <MessageMarkdownMermaid chart={String(children).replace(/\n$/, "")} />;
+          return (
+            <MessageMarkdownMermaid
+              chart={String(children).replace(/\n$/, "")}
+              isStreaming={isStreaming}
+            />
+          );
         }
         if (codeClassName === "language-user_actions") {
           return <MessageMarkdownUserActions spec={String(children)} messageId={messageId} />;
@@ -304,7 +311,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         </h6>
       ),
     }),
-    [customStyle, expandable, showExecuteButton, messageId]
+    [customStyle, expandable, showExecuteButton, messageId, isStreaming]
   );
 
   return (

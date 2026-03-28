@@ -122,6 +122,7 @@ const ChatMessagePart = memo(
           text={part.text}
           customStyle={MESSAGE_MARKDOWN_STYLE}
           messageId={messageId}
+          isStreaming={isRunning}
         />
       );
     }

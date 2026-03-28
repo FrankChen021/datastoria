@@ -18,6 +18,37 @@ export function normalizeMermaidChart(chart: string) {
   return quoteFlowchartNodeLabels(normalizedChart);
 }
 
+export function isLikelyCompleteMermaidChart(chart: string) {
+  const trimmedChart = chart.trim();
+  if (trimmedChart.length === 0) {
+    return false;
+  }
+
+  const lines = trimmedChart
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    return false;
+  }
+
+  if (
+    !/^(?:flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|gitGraph)\b/i.test(
+      lines[0]
+    )
+  ) {
+    return false;
+  }
+
+  const lastLine = lines.at(-1) ?? "";
+  if (/(?:-->|---|->|--|==>|=>|\|\s*[^|]*|[:([{,])\s*$/.test(lastLine)) {
+    return false;
+  }
+
+  return hasBalancedMermaidDelimiters(trimmedChart);
+}
+
 export function quoteSequenceAliasLabel(line: string) {
   const match = line.match(/^(\s*(?:actor|participant)\s+\S+\s+as\s+)(.+)$/);
   if (!match) {
@@ -100,4 +131,60 @@ function shouldQuoteFlowchartLabel(label: string) {
   }
 
   return /[^A-Za-z0-9_-]/.test(label);
+}
+
+function hasBalancedMermaidDelimiters(chart: string) {
+  const stack: string[] = [];
+  let inDoubleQuote = false;
+
+  for (let index = 0; index < chart.length; index += 1) {
+    const char = chart[index];
+    const previousChar = index > 0 ? chart[index - 1] : "";
+
+    if (char === '"' && previousChar !== "\\") {
+      inDoubleQuote = !inDoubleQuote;
+      continue;
+    }
+
+    if (inDoubleQuote) {
+      continue;
+    }
+
+    if (char === "[") {
+      stack.push(char);
+      continue;
+    }
+
+    if (char === "]") {
+      if (stack.pop() !== "[") {
+        return false;
+      }
+      continue;
+    }
+
+    if (char === "{") {
+      stack.push(char);
+      continue;
+    }
+
+    if (char === "}") {
+      if (stack.pop() !== "{") {
+        return false;
+      }
+      continue;
+    }
+
+    if (char === "(") {
+      stack.push(char);
+      continue;
+    }
+
+    if (char === ")") {
+      if (stack.pop() !== "(") {
+        return false;
+      }
+    }
+  }
+
+  return !inDoubleQuote && stack.length === 0;
 }

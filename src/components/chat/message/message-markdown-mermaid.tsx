@@ -5,17 +5,25 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { cn } from "@/lib/utils";
 import { AlertCircle } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
-import { normalizeMermaidChart } from "./message-markdown-mermaid-utils";
+import {
+  isLikelyCompleteMermaidChart,
+  normalizeMermaidChart,
+} from "./message-markdown-mermaid-utils";
 
 interface MessageMarkdownMermaidProps {
   chart: string;
+  isStreaming?: boolean;
 }
 
-export function MessageMarkdownMermaid({ chart }: MessageMarkdownMermaidProps) {
+export function MessageMarkdownMermaid({
+  chart,
+  isStreaming = false,
+}: MessageMarkdownMermaidProps) {
   const { theme } = useTheme();
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const diagramId = useId();
+  const shouldDeferRender = isStreaming && !isLikelyCompleteMermaidChart(chart);
 
   const isDark = useMemo(() => {
     if (typeof window !== "undefined") {
@@ -29,6 +37,14 @@ export function MessageMarkdownMermaid({ chart }: MessageMarkdownMermaidProps) {
     let cancelled = false;
 
     async function renderDiagram() {
+      if (shouldDeferRender) {
+        if (!cancelled) {
+          setSvg(null);
+          setError(null);
+        }
+        return;
+      }
+
       try {
         const mermaid = (await import("mermaid")).default;
 
@@ -61,7 +77,7 @@ export function MessageMarkdownMermaid({ chart }: MessageMarkdownMermaidProps) {
     return () => {
       cancelled = true;
     };
-  }, [chart, diagramId, isDark]);
+  }, [chart, diagramId, isDark, shouldDeferRender]);
 
   if (error) {
     return (
@@ -80,7 +96,7 @@ export function MessageMarkdownMermaid({ chart }: MessageMarkdownMermaidProps) {
   if (!svg) {
     return (
       <div className="my-2 rounded-md bg-muted/20 px-3 py-8 text-center text-sm text-muted-foreground">
-        Rendering diagram...
+        {shouldDeferRender ? "Waiting for complete Mermaid diagram..." : "Rendering diagram..."}
       </div>
     );
   }
