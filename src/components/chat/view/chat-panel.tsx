@@ -257,7 +257,6 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
   const isInitializedRef = useRef(false);
   const { connection } = useConnection();
   const { data: authSession } = useSession();
-
   const createDraftSession = useCallback(
     () => ({
       id: uuidv7(),

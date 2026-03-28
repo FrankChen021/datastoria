@@ -7,14 +7,18 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { cn } from "@/lib/utils";
 import { memo, useEffect, useMemo, useRef } from "react";
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
-import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
+import { buildCodeViewerUrl, replaceReferenceTokens } from "./file-reference-utils";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
+import { MessageMarkdownMermaid } from "./message-markdown-mermaid";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 import { MessageMarkdownUserActions } from "./message-user-actions";
 
 function transformMarkdownUrl(url: string) {
   if (url.startsWith("skill://")) {
+    return url;
+  }
+  if (url.startsWith("codefile://")) {
     return url;
   }
 
@@ -55,6 +59,8 @@ export const MessageMarkdown = memo(function MessageMarkdown({
     databaseNamesRef.current = connection?.metadata?.databaseNames;
   }, [connection?.metadata?.tableNames, connection?.metadata?.databaseNames]);
 
+  const renderedText = useMemo(() => replaceReferenceTokens(text), [text]);
+
   const components = useMemo<Components>(
     () => ({
       code: ({ className: codeClassName, children, ...props }: React.ComponentProps<"code">) => {
@@ -73,6 +79,9 @@ export const MessageMarkdown = memo(function MessageMarkdown({
 
         if (codeClassName === "language-chart-spec") {
           return <MessageMarkdownChartSpec spec={String(children)} />;
+        }
+        if (codeClassName === "language-mermaid") {
+          return <MessageMarkdownMermaid chart={String(children).replace(/\n$/, "")} />;
         }
         if (codeClassName === "language-user_actions") {
           return <MessageMarkdownUserActions spec={String(children)} messageId={messageId} />;
@@ -169,6 +178,31 @@ export const MessageMarkdown = memo(function MessageMarkdown({
                 {props.title}
               </HoverCardContent>
             </HoverCard>
+          );
+        }
+
+        if (href?.startsWith("codefile://")) {
+          const parsed = new URL(href);
+          const filePath = parsed.searchParams.get("path") ?? "";
+          const startLine = parsed.searchParams.get("startLine");
+          const endLine = parsed.searchParams.get("endLine");
+          const viewerUrl = buildCodeViewerUrl({
+            path: filePath,
+            startLine: startLine ? Number.parseInt(startLine, 10) : undefined,
+            endLine: endLine ? Number.parseInt(endLine, 10) : undefined,
+          });
+
+          return (
+            <a
+              href={viewerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={filePath}
+              className="inline-flex max-w-full items-center gap-1 font-mono text-xs text-primary transition-colors hover:underline underline-offset-4"
+              {...props}
+            >
+              <span className="truncate">{children}</span>
+            </a>
           );
         }
 
@@ -277,11 +311,10 @@ export const MessageMarkdown = memo(function MessageMarkdown({
     <div className="prose prose-sm dark:prose-invert max-w-none text-sm relative">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
         components={components}
         urlTransform={transformMarkdownUrl}
       >
-        {text}
+        {renderedText}
       </ReactMarkdown>
     </div>
   );

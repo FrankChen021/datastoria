@@ -6,8 +6,11 @@
 import { getAuthenticatedUserEmail } from "@/auth";
 import type { UpsertSkillBundleInput } from "@/lib/ai/skills/repository/server-skill-repository";
 import { getServerSkillRepository } from "@/lib/ai/skills/repository/server-skill-repository-factory";
+import { createSkillAvailabilityFilter } from "@/lib/ai/skills/skill-availability";
 import { SkillPermissionManager } from "@/lib/ai/skills/skill-permission-manager";
 import { SkillProviderFactory } from "@/lib/ai/skills/skill-provider-factory";
+import { getRuntimeAvailableToolNames } from "@/lib/ai/tools/server/runtime-tools";
+import { defaultCodeSearchFactory } from "@/lib/code-search/code-search-factory";
 import { NextResponse } from "next/server";
 
 // Force Node.js runtime (disk-backed skills use fs)
@@ -27,7 +30,14 @@ export async function GET(req: Request) {
       userId,
       includeDraft: shouldIncludeDraft(req, userId),
     });
-    const skills = await skillProvider.listSkills((s) => s.author !== "System");
+    const codeSearchContext = await defaultCodeSearchFactory.getCodeSearchContext();
+    const availableTools = getRuntimeAvailableToolNames({
+      codeSearchEnabled: codeSearchContext != null,
+    });
+    const capabilityFilter = createSkillAvailabilityFilter(availableTools);
+    const skills = await skillProvider.listSkills(
+      (skill) => skill.author !== "System" && capabilityFilter(skill)
+    );
     return NextResponse.json(skills);
   } catch (err) {
     console.error("[/api/ai/skills] Failed to list skills", err);

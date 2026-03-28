@@ -6,12 +6,9 @@
  *   skills whose manuals are already in context.
  */
 import type { SkillResourceToolInput, SkillToolInput } from "@/lib/ai/chat-types";
-import { CommandManager, type CommandDetail } from "@/lib/ai/commands/command-manager";
 import { findSkillByLookup, type SkillProvider } from "@/lib/ai/skills/skill-provider";
 import type { SkillCatalogItem } from "@/lib/ai/skills/skill-types";
 import matter from "gray-matter";
-
-const COMMAND_NAME_RE = /^[a-z][a-z0-9_-]*$/;
 
 function buildSkillXml(skills: SkillCatalogItem[]): string {
   return skills
@@ -65,18 +62,11 @@ Usage:
 IMPORTANT: Do NOT use the 'skill' tool to reload the manual. This tool loads only the referenced files.`;
 }
 
-async function resolveSkillLookup(
+export function createSkillToolExecutor(
   provider: SkillProvider,
-  lookup: string
-): Promise<SkillCatalogItem | null> {
-  const skills = await provider.listSkills();
-  return findSkillByLookup(skills, lookup);
-}
-
-export function createSkillToolExecutor(provider: SkillProvider) {
+  availableSkills: SkillCatalogItem[]
+) {
   return async ({ names }: SkillToolInput): Promise<string> => {
-    const availableSkills = await provider.listSkills();
-    const available = availableSkills.map((skill) => skill.name);
     const loaded: string[] = [];
     const notFound: string[] = [];
 
@@ -98,24 +88,29 @@ export function createSkillToolExecutor(provider: SkillProvider) {
     }
 
     if (loaded.length === 0) {
+      const available = availableSkills.map((skill) => skill.name);
       return `No skills found. Requested: ${names.join(", ")}. Available: ${available.join(", ")}.`;
     }
 
     const combined = loaded.join("\n\n---\n\n");
     if (notFound.length === 0) return combined;
+
+    const available = availableSkills.map((skill) => skill.name);
     return `${combined}\n\n---\nNote: Skill(s) not found: ${notFound.join(", ")}. Available skills: ${available.join(", ")}.`;
   };
 }
 
-export function createSkillResourceToolExecutor(provider: SkillProvider) {
+export function createSkillResourceToolExecutor(
+  provider: SkillProvider,
+  availableSkills: SkillCatalogItem[]
+) {
   return async ({ resources }: SkillResourceToolInput): Promise<string> => {
-    const availableSkills = await provider.listSkills();
     const available = availableSkills.map((skill) => skill.name);
     const loaded: string[] = [];
     const missing: string[] = [];
 
     for (const request of resources) {
-      const skill = await resolveSkillLookup(provider, request.skill.trim());
+      const skill = findSkillByLookup(availableSkills, request.skill.trim());
       if (!skill) {
         missing.push(`${request.skill}:${request.paths.join(", ")}`);
         continue;
@@ -140,31 +135,4 @@ export function createSkillResourceToolExecutor(provider: SkillProvider) {
     if (missing.length === 0) return combined;
     return `${combined}\n\n---\nNote: Resource(s) not found: ${missing.join(", ")}. Available skills: ${available.join(", ")}.`;
   };
-}
-
-export function buildSkillCommands(skills: SkillCatalogItem[]): CommandDetail[] {
-  const commands = skills
-    .filter((skill) => !skill.disableSlashCommand && COMMAND_NAME_RE.test(skill.name.trim()))
-    .map((skill) => ({
-      name: skill.name,
-      description: skill.description,
-      skillId: skill.id,
-      template: CommandManager.buildSkillCommandTemplate(skill.name),
-    }));
-  commands.sort((a, b) => a.name.localeCompare(b.name));
-  return commands;
-}
-
-export function expandCommandText(text: string, commands: CommandDetail[]): string | null {
-  const match = /^\/([a-z][a-z0-9_-]*)(?:\s+([\s\S]*))?$/.exec(text.trim());
-  if (!match) {
-    return null;
-  }
-
-  const command = commands.find((entry) => entry.name === match[1]);
-  if (!command) {
-    return null;
-  }
-
-  return command.template.replace("$ARGUMENTS", (match[2] ?? "").trim());
 }

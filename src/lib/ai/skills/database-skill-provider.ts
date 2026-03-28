@@ -4,6 +4,7 @@ import type {
   ServerSkillRepository,
   SkillRepositoryVisibility,
 } from "./repository/server-skill-repository";
+import { parseRequiredTools } from "./skill-availability";
 import type { SkillDetailResponse, SkillProvider, SkillResourceResponse } from "./skill-provider";
 import type { SkillCatalogItem } from "./skill-types";
 
@@ -21,6 +22,7 @@ type SkillMeta = {
     disableSlashCommand?: boolean;
     author?: string;
     provider?: string;
+    tools?: string;
   };
 };
 
@@ -112,6 +114,8 @@ function toSkillCatalogItem(row: PersistedSkillRecord): SkillCatalogItem {
     meta.description ??
     (typeof frontmatter.description === "string" ? frontmatter.description : undefined) ??
     "";
+  const metadataBlock = (frontmatter.metadata ?? {}) as Record<string, unknown>;
+  const requiredTools = parseRequiredTools(meta.metadata?.tools ?? metadataBlock.tools);
 
   return {
     id: row.id,
@@ -126,6 +130,7 @@ function toSkillCatalogItem(row: PersistedSkillRecord): SkillCatalogItem {
     summary: extractSummary(row.content),
     hasResources: false,
     disableSlashCommand: resolveDisableSlashCommand(meta, frontmatter),
+    requiredTools,
   };
 }
 

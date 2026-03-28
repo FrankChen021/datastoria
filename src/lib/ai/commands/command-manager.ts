@@ -1,4 +1,5 @@
-// CommandManager: registry for slash commands derived from loaded skills.
+// Request-scoped command catalog derived from the effective skill set.
+import type { SkillCatalogItem } from "@/lib/ai/skills/skill-types";
 
 export interface CommandCatalogItem {
   /** Slash command name. */
@@ -14,53 +15,49 @@ export interface CommandDetail extends CommandCatalogItem {
   template: string;
 }
 
-type CommandCache = {
-  list: CommandDetail[];
-};
-
 const COMMAND_NAME_RE = /^[a-z][a-z0-9_-]*$/;
 
 export class CommandManager {
-  private static cache: CommandCache = { list: [] };
-  private static seen = new Set<string>();
+  constructor(private readonly commands: CommandDetail[]) {}
 
   public static buildSkillCommandTemplate(skillName: string): string {
     return `Use the \`${skillName}\` skill for this request: $ARGUMENTS`;
   }
 
-  public static registerCommand(command: CommandDetail): void {
-    const name = command.name.trim();
-    if (!COMMAND_NAME_RE.test(name)) {
-      console.warn(`[CommandManager] Skipping invalid command name "${name}"`);
-      return;
-    }
+  public static fromSkills(skills: SkillCatalogItem[]): CommandManager {
+    const seen = new Set<string>();
+    const commands = skills
+      .filter((skill) => !skill.disableSlashCommand && COMMAND_NAME_RE.test(skill.name.trim()))
+      .flatMap((skill) => {
+        const name = skill.name.trim();
+        if (seen.has(name)) {
+          console.warn(`[CommandManager] Duplicate command name "${name}" — skipping`);
+          return [];
+        }
+        seen.add(name);
+        return [
+          {
+            name,
+            description: skill.description,
+            skillId: skill.id,
+            template: CommandManager.buildSkillCommandTemplate(skill.name),
+          } satisfies CommandDetail,
+        ];
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
 
-    if (CommandManager.seen.has(name)) {
-      console.warn(`[CommandManager] Duplicate command name "${name}" — skipping`);
-      return;
-    }
-
-    CommandManager.seen.add(name);
-    CommandManager.cache.list.push({ ...command, name });
-    CommandManager.cache.list.sort((a, b) => a.name.localeCompare(b.name));
-    console.info(`[CommandManager] Registered command /${name} from skill "${command.skillId}"`);
+    return new CommandManager(commands);
   }
 
   /** Return all registered commands, sorted by name. */
-  public static listCommands(): CommandDetail[] {
-    return [...CommandManager.cache.list];
+  public listCommands(): CommandDetail[] {
+    return [...this.commands];
   }
 
   /** Return full detail for a command by name, or null if not found. */
-  public static getCommand(name: string): CommandDetail | null {
+  public getCommand(name: string): CommandDetail | null {
     const trimmed = name.trim();
-    return CommandManager.cache.list.find((c) => c.name === trimmed) ?? null;
-  }
-
-  /** Clear the in-memory registry (tests and skill reloads). */
-  public static clearCache(): void {
-    CommandManager.cache = { list: [] };
-    CommandManager.seen.clear();
+    return this.commands.find((c) => c.name === trimmed) ?? null;
   }
 
   /**
@@ -69,11 +66,11 @@ export class CommandManager {
    * Returns `null` if the text does not match any command, so the caller can
    * pass it through unchanged.
    */
-  public static expand(text: string): string | null {
+  public expand(text: string): string | null {
     const match = /^\/([a-z][a-z0-9_-]*)(?:\s+([\s\S]*))?$/.exec(text.trim());
     if (!match) return null;
 
-    const cmd = CommandManager.getCommand(match[1]);
+    const cmd = this.getCommand(match[1]);
     if (!cmd) return null;
 
     return cmd.template.replace("$ARGUMENTS", (match[2] ?? "").trim());

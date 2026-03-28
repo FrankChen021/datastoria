@@ -1,6 +1,7 @@
 export interface SkillMetadata {
   name: string;
   description: string;
+  requiredTools?: string[];
 }
 
 export type SkillSource = "disk" | "database";
@@ -33,4 +34,6 @@ export interface SkillCatalogItem {
   hasResources?: boolean;
   /** Whether this skill is excluded from slash command registration. */
   disableSlashCommand?: boolean;
+  /** Tool names required for this skill to be usable at runtime. */
+  requiredTools?: string[];
 }

@@ -4,6 +4,10 @@ import {
 } from "@/components/chat/chat-context";
 import type { ServerDatabaseContext } from "./common-types";
 
+export interface OrchestratorCapabilities {
+  codeAnalysisEnabled?: boolean;
+}
+
 /**
  * Central orchestrator system prompt for the skill-based agent (chat-v2).
  * The primary "Senior Engineer" knows how to use skills and tools.
@@ -19,12 +23,27 @@ const ORCHESTRATOR_SYSTEM_PROMPT_BASE = `You are a ClickHouse Expert with access
 5. **Time context**: Reuse the most recent explicit time range from the conversation. Default to the last 60 minutes only when none exists.
 6. **Output**: Respond in markdown. Follow the loaded skill's output instructions exactly.`;
 
-export function buildOrchestratorSystemPrompt(context?: ServerDatabaseContext): string {
-  if (!hasDatabaseContextFacts(context)) {
-    return ORCHESTRATOR_SYSTEM_PROMPT_BASE;
+function buildCodeAnalysisPrompt(capabilities?: OrchestratorCapabilities): string {
+  if (!capabilities?.codeAnalysisEnabled) {
+    return "";
   }
 
-  return `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}
+  return `When the user asks about source code, load the \`source-code-inspection\` skill before using code-analysis tools.`;
+}
+
+export function buildOrchestratorSystemPrompt(
+  context?: ServerDatabaseContext,
+  capabilities?: OrchestratorCapabilities
+): string {
+  const codeAnalysisPrompt = buildCodeAnalysisPrompt(capabilities);
+
+  if (!hasDatabaseContextFacts(context)) {
+    return codeAnalysisPrompt
+      ? `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}\n7. **Source code**: ${codeAnalysisPrompt}`
+      : ORCHESTRATOR_SYSTEM_PROMPT_BASE;
+  }
+
+  return `${codeAnalysisPrompt ? `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}\n7. **Source code**: ${codeAnalysisPrompt}` : ORCHESTRATOR_SYSTEM_PROMPT_BASE}
 
 ## Diagnosis Context
 ${formatDatabaseContextFacts(context)}

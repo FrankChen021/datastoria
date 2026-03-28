@@ -6,6 +6,7 @@ import {
   type SessionTitleGenerationResponse,
 } from "@/lib/ai/agent/session-title-generator";
 import type { AgentContext, AppUIMessage, MessageMetadata } from "@/lib/ai/chat-types";
+import { CommandManager } from "@/lib/ai/commands/command-manager";
 import {
   LanguageModelProviderFactory,
   resolveModelConfig,
@@ -21,12 +22,14 @@ import {
   getServerSessionRepository,
   getSessionRepositoryType,
 } from "@/lib/ai/session/server-session-repository-factory";
+import { createSkillAvailabilityFilter } from "@/lib/ai/skills/skill-availability";
 import { SkillProviderFactory } from "@/lib/ai/skills/skill-provider-factory";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { ClientTools } from "@/lib/ai/tools/client/client-tools";
+import { getRuntimeAvailableToolNames } from "@/lib/ai/tools/server/runtime-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { createServerTools } from "@/lib/ai/tools/server/server-tools";
-import { buildSkillCommands, expandCommandText } from "@/lib/ai/tools/server/skill-tool";
+import { defaultCodeSearchFactory } from "@/lib/code-search/code-search-factory";
 import { APICallError } from "@ai-sdk/provider";
 import {
   convertToModelMessages,
@@ -138,10 +141,7 @@ function extractErrorMessage(error: unknown): string {
   return defaultMessage;
 }
 
-function expandCommand(
-  messages: UIMessage[],
-  commands: ReturnType<typeof buildSkillCommands>
-): UIMessage[] {
+function expandCommand(messages: UIMessage[], commandManager: CommandManager): UIMessage[] {
   let lastUserIdx = -1;
   for (let index = messages.length - 1; index >= 0; index--) {
     if (messages[index].role === "user") {
@@ -155,7 +155,7 @@ function expandCommand(
   const textPart = lastUser.parts?.find((part) => part.type === "text");
   if (!textPart || textPart.type !== "text") return messages;
 
-  const expanded = expandCommandText(textPart.text, commands);
+  const expanded = commandManager.expand(textPart.text);
   if (!expanded) return messages;
 
   const newParts = lastUser.parts.map((part) =>
@@ -236,9 +236,15 @@ export async function POST(req: Request) {
       repositoryType === "remote" ? getServerSessionRepository() : null;
     let titlePromise: Promise<SessionTitleGenerationResponse | undefined> | undefined;
     const skillProvider = SkillProviderFactory.getProvider({ userId: userEmail ?? null });
-    const availableSkills = await skillProvider.listSkills();
-    const serverTools = createServerTools(skillProvider, availableSkills);
-    const skillCommands = buildSkillCommands(availableSkills);
+    const codeSearchContext = await defaultCodeSearchFactory.getCodeSearchContext();
+    const availableTools = getRuntimeAvailableToolNames({
+      codeSearchEnabled: codeSearchContext != null,
+    });
+    const availableSkills = await skillProvider.listSkills(
+      createSkillAvailabilityFilter(availableTools)
+    );
+    const serverTools = createServerTools(skillProvider, availableSkills, codeSearchContext);
+    const commandManager = CommandManager.fromSkills(availableSkills);
 
     if (repositoryType === "remote") {
       const apiRequest = validateRemoteChatRequest(payload);
@@ -284,7 +290,7 @@ export async function POST(req: Request) {
           message: persistedIncomingMessage,
           allowMissingSession: true,
         });
-        originalMessages = expandCommand([apiRequest.message as UIMessage], skillCommands);
+        originalMessages = expandCommand([apiRequest.message as UIMessage], commandManager);
         sessionRepositoryChatId = apiRequest.sessionId;
         sessionRepositoryAllowMissingSession = true;
       } else {
@@ -346,7 +352,7 @@ export async function POST(req: Request) {
           message: persistedIncomingMessage,
         });
 
-        originalMessages = expandCommand(mergedMessages as UIMessage[], skillCommands);
+        originalMessages = expandCommand(mergedMessages as UIMessage[], commandManager);
         sessionRepositoryChatId = apiRequest.sessionId;
         sessionRepositoryAllowMissingSession = false;
       }
@@ -380,7 +386,7 @@ export async function POST(req: Request) {
 
       agentContext = apiRequest.agentContext;
       generateTitle = apiRequest.generateTitle !== false;
-      originalMessages = expandCommand(apiRequest.messages ?? [], skillCommands);
+      originalMessages = expandCommand(apiRequest.messages ?? [], commandManager);
       messageId = getMessageIdFromMessages(apiRequest.messages);
       titlePromise = generateTitle
         ? SessionTitleGenerator.generate(originalMessages, modelConfig)
@@ -400,11 +406,19 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model,
-      system: buildOrchestratorSystemPrompt(context),
+      system: buildOrchestratorSystemPrompt(context, {
+        codeAnalysisEnabled: codeSearchContext != null,
+      }),
       messages: modelMessages,
       tools: {
         [SERVER_TOOL_NAMES.SKILL]: serverTools.skill,
         [SERVER_TOOL_NAMES.SKILL_RESOURCE]: serverTools.skill_resource,
+        ...(codeSearchContext
+          ? {
+              [SERVER_TOOL_NAMES.SEARCH_FILE]: serverTools.search_file,
+              [SERVER_TOOL_NAMES.READ_FILE]: serverTools.read_file,
+            }
+          : {}),
         ask_user_question: ClientTools.ask_user_question,
         get_tables: ClientTools.get_tables,
         explore_schema: ClientTools.explore_schema,

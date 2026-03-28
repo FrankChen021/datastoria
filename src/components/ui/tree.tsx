@@ -57,6 +57,11 @@ type TreeProps = React.HTMLAttributes<HTMLDivElement> & {
   highlighter?: (text: string, start: number, end: number) => React.ReactNode;
   searchOptions?: {
     startLevel?: number; // Level to start searching from (0 = root, 1 = children of root, etc.)
+    includeMatchedNodeChildren?: boolean;
+    match?: (
+      node: TreeDataItem,
+      pattern: string
+    ) => { matches: boolean; start: number; end: number };
   };
   // Context menu support
   onNodeContextMenu?: (node: TreeDataItem, event: React.MouseEvent) => void;
@@ -316,6 +321,8 @@ const Tree = React.forwardRef<TreeRef, TreeProps>(
             pathSeparator,
             highlighter,
             startLevel: searchOptions?.startLevel,
+            includeMatchedNodeChildren: searchOptions?.includeMatchedNodeChildren,
+            match: searchOptions?.match,
           }
         );
         // Collect nodes auto-expanded by search (from _expanded flag)

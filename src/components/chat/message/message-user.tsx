@@ -4,12 +4,8 @@ import { getLeadingCommand } from "../input/command-utils";
 import { TABLE_MENTION_REGEX } from "../input/mention-utils";
 import { MessageMarkdown } from "./message-markdown";
 
-function escapeHtmlAttribute(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+function escapeSkillTokenValue(value: string): string {
+  return value.replaceAll("|", "\\|").replaceAll("]", "\\]");
 }
 
 /**
@@ -49,10 +45,10 @@ export const MessageUser = memo(function MessageUser({ text }: { text: string })
       return processedBaseText;
     }
 
-    const commandText = escapeHtmlAttribute(matchedCommand.commandText);
-    const skillId = escapeHtmlAttribute(command.skillId);
-    const title = command.description ? ` title="${escapeHtmlAttribute(command.description)}"` : "";
-    const commandLink = `<a href="skill://${skillId}" data-chat-command="true"${title}>${commandText}</a>`;
+    const commandText = escapeSkillTokenValue(matchedCommand.commandText);
+    const skillId = escapeSkillTokenValue(command.skillId);
+    const title = command.description ? `|${escapeSkillTokenValue(command.description)}` : "";
+    const commandLink = `[[skill:${skillId}|${commandText}${title}]]`;
 
     return processedBaseText ? `${commandLink} ${processedBaseText}` : commandLink;
   }, [command, matchedCommand, text]);

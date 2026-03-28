@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { CommandManager } from "@/lib/ai/commands/command-manager";
+import { parseRequiredTools } from "@/lib/ai/skills/skill-availability";
 import matter from "gray-matter";
 import type { SkillDetailResponse, SkillProvider, SkillResourceResponse } from "./skill-provider";
 import type { SkillCatalogItem, SkillMetadata } from "./skill-types";
@@ -22,12 +22,11 @@ let cache: SkillCache | null = null;
 
 export function clearDiskSkillProviderCache(): void {
   cache = null;
-  CommandManager.clearCache();
 }
 
 /**
  * DiskSkillProvider is the concrete filesystem-backed skill implementation.
- * It owns disk discovery, caching, resource loading, and slash-command registration.
+ * It owns disk discovery, caching, and resource loading.
  */
 export class DiskSkillProvider implements SkillProvider {
   private getSkillsRootDir(): string {
@@ -188,8 +187,6 @@ export class DiskSkillProvider implements SkillProvider {
     const resourcePaths = new Map<string, string[]>();
     const resources = new Map<string, Map<string, string>>();
 
-    CommandManager.clearCache();
-
     for (const skillFile of skillFiles) {
       const raw = this.readSkillFile(skillFile);
       if (!raw) continue;
@@ -201,9 +198,11 @@ export class DiskSkillProvider implements SkillProvider {
       const metaName = typeof data.name === "string" ? data.name : dirName;
       const disableSlashCommand =
         data["disable-slash-command"] === true || metadataBlock["disable-slash-command"] === true;
+      const requiredTools = parseRequiredTools(metadataBlock.tools);
       const meta: SkillMetadata = {
         name: metaName,
         description: typeof data.description === "string" ? data.description : "",
+        requiredTools,
       };
       const skillResources = this.readSkillResources(path.dirname(skillFile));
       const formatted = `# Manual Loaded: ${metaName}\n\n${parsed.content.trim()}`;
@@ -235,20 +234,12 @@ export class DiskSkillProvider implements SkillProvider {
         summary: this.extractSummary(parsed.content),
         hasResources: skillResources.paths.length > 0,
         disableSlashCommand,
+        requiredTools,
       };
       catalog.set(catalogItem.id, catalogItem);
       rawContent.set(dirName, raw);
       resourcePaths.set(dirName, skillResources.paths);
       resources.set(dirName, skillResources.contents);
-
-      if (!disableSlashCommand) {
-        CommandManager.registerCommand({
-          name: metaName,
-          description: meta.description,
-          skillId: dirName,
-          template: CommandManager.buildSkillCommandTemplate(metaName),
-        });
-      }
 
       console.info(`[DiskSkillProvider] Loaded skill [${meta.name}] at location ${skillFile}`);
     }

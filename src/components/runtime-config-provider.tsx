@@ -8,6 +8,7 @@ export interface RuntimeConfig {
   sessionRepositoryType: SessionRepositoryType;
   allowEditSkill: boolean;
   autoSelectAvailable: boolean;
+  codeAnalysisEnabled: boolean;
 }
 
 const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
@@ -15,6 +16,7 @@ const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
   sessionRepositoryType: "local",
   allowEditSkill: false,
   autoSelectAvailable: false,
+  codeAnalysisEnabled: false,
 };
 
 const RuntimeConfigContext = createContext<RuntimeConfig>(DEFAULT_RUNTIME_CONFIG);

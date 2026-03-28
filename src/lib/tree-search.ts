@@ -85,6 +85,7 @@ interface SearchContext {
    * Whether to perform global recursive search (for single segment searches)
    */
   isGlobal: boolean;
+  includeMatchedNodeChildren: boolean;
 }
 
 function searchNodes(
@@ -123,7 +124,7 @@ function searchNodes(
       // If current node matches, we should also show its children (collapsed)
       let children: TreeDataItem[] | undefined = undefined;
 
-      if (matches && node.children) {
+      if (matches && node.children && context.includeMatchedNodeChildren) {
         // Show matching descendants FIRST, then other immediate children
         const matchingChildIds = new Set(childrenResults.map((c) => c.id));
         children = [
@@ -174,10 +175,12 @@ function searchNodes(
         // Trailing dot: show all children without processing them
         // Only the current node should be highlighted and expanded
         if (node.children) {
-          const unprocessedChildren = node.children.map((child) => ({
-            ...child,
-            _expanded: false, // Children should not be expanded
-          }));
+          const unprocessedChildren = context.includeMatchedNodeChildren
+            ? node.children.map((child) => ({
+                ...child,
+                _expanded: false, // Children should not be expanded
+              }))
+            : undefined;
 
           return {
             ...node,
@@ -244,10 +247,12 @@ function searchNodes(
       highlightedLabel = highlight(labelText, 0, labelText.length);
 
       // Include all children without searching them, ensuring they are not highlighted or expanded
-      const unprocessedChildren = node.children.map((child) => ({
-        ...child,
-        _expanded: false, // Children should not be expanded
-      }));
+      const unprocessedChildren = context.includeMatchedNodeChildren
+        ? node.children.map((child) => ({
+            ...child,
+            _expanded: false, // Children should not be expanded
+          }))
+        : undefined;
 
       return {
         ...node,
@@ -277,10 +282,12 @@ function searchNodes(
   // This ensures that "a.b" only matches "b" as a direct child of "a".
   if (matches) {
     // If matched at last segment, return all its children as well (if any)
-    const unprocessedChildren = node.children?.map((child) => ({
-      ...child,
-      _expanded: false,
-    }));
+    const unprocessedChildren = context.includeMatchedNodeChildren
+      ? node.children?.map((child) => ({
+          ...child,
+          _expanded: false,
+        }))
+      : undefined;
 
     return {
       ...node,
@@ -346,6 +353,7 @@ export function searchTree(
     pathSeparator?: string;
     highlighter?: (text: string, start: number, end: number) => React.ReactNode;
     startLevel?: number; // Level to start searching from (0 = root, 1 = children of root, etc.)
+    includeMatchedNodeChildren?: boolean;
     match?: (
       node: TreeDataItem,
       pattern: string
@@ -410,6 +418,7 @@ export function searchTree(
     match: substringMatch,
     // Global search if single segment and NO trailing dot
     isGlobal: segments.length === 1 && !hasTrailingDot,
+    includeMatchedNodeChildren: options?.includeMatchedNodeChildren ?? true,
   };
 
   // Use searchTreeFromGivenLevel for all cases - it handles startLevel === 0 correctly

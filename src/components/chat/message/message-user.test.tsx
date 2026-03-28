@@ -61,9 +61,7 @@ describe("MessageUser", () => {
       text: string;
     };
 
-    expect(props.text).toBe(
-      '<a href="skill://plan-review" data-chat-command="true" title="Review the plan">/review</a> check this query'
-    );
+    expect(props.text).toBe("[[skill:plan-review|/review|Review the plan]] check this query");
   });
 
   it("keeps unknown leading slash tokens as plain text", () => {
