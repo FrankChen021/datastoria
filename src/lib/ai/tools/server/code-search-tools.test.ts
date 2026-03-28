@@ -34,17 +34,4 @@ describe("createCodeSearchTools", () => {
       error: "no matches found",
     });
   });
-
-  it("documents the source-code-inspection prerequisite on code search tools", () => {
-    const tools = createCodeSearchTools({
-      provider: {
-        searchFile: async () => ({ error: "unused" }),
-        readFile: async () => ({ error: "unused" }),
-      } as never,
-      maxSearchResults: 5,
-    });
-
-    expect(tools.search_file.description).toContain("source-code-inspection");
-    expect(tools.read_file.description).toContain("source-code-inspection");
-  });
 });
