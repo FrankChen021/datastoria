@@ -15,6 +15,8 @@ import type {
 const BINARY_SCAN_BYTES = 8 * 1024;
 // Number of files scanned concurrently during searchFile.
 const SEARCH_CONCURRENCY = 8;
+// readFile refuses files larger than this to prevent loading huge content into memory.
+const MAX_READ_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 // Uses Buffer.indexOf which is implemented in native code.
 function hasNullByte(buffer: Buffer): boolean {
@@ -140,18 +142,19 @@ function shouldSkipDirForGlob(dirRelativePath: string, globDirPrefix: string): b
   return !dir.startsWith(globDirPrefix) && !globDirPrefix.startsWith(dir);
 }
 
-async function collectFiles(
+// Async generator that yields FileEntry objects as the directory tree is walked.
+// Because it is a generator, the caller can break early (via return() or by
+// simply not pulling the next value) and the walk stops immediately — no full
+// file-list is ever materialised in memory.
+async function* walkFiles(
   config: CodeSearchConfig,
   directory: string,
-  results: FileEntry[],
   globDirPrefix: string,
   visitedDirectories: Set<string> = new Set(),
   seenFiles: Set<string> = new Set()
-): Promise<void> {
+): AsyncGenerator<FileEntry> {
   const normalizedDirectory = await fs.realpath(directory);
-  if (visitedDirectories.has(normalizedDirectory)) {
-    return;
-  }
+  if (visitedDirectories.has(normalizedDirectory)) return;
   visitedDirectories.add(normalizedDirectory);
 
   const entries = await fs.readdir(normalizedDirectory, { withFileTypes: true });
@@ -159,20 +162,18 @@ async function collectFiles(
   for (const entry of entries) {
     const fullPath = path.join(normalizedDirectory, entry.name);
     const relativePath = normalizeRelativePath(path.relative(config.rootDir, fullPath));
-    if (shouldIgnoreRelativePath(relativePath, config.ignoredNames)) {
-      continue;
-    }
+    if (shouldIgnoreRelativePath(relativePath, config.ignoredNames)) continue;
 
     if (entry.isDirectory()) {
       if (shouldSkipDirForGlob(relativePath, globDirPrefix)) continue;
-      await collectFiles(config, fullPath, results, globDirPrefix, visitedDirectories, seenFiles);
+      yield* walkFiles(config, fullPath, globDirPrefix, visitedDirectories, seenFiles);
       continue;
     }
 
     if (entry.isFile()) {
       if (!seenFiles.has(fullPath)) {
         seenFiles.add(fullPath);
-        results.push({ fullPath, relativePath });
+        yield { fullPath, relativePath };
       }
       continue;
     }
@@ -184,18 +185,16 @@ async function collectFiles(
       } catch {
         continue;
       }
-      if (!isPathInsideRoot(config.rootDir, realPath)) {
-        continue;
-      }
+      if (!isPathInsideRoot(config.rootDir, realPath)) continue;
       const stat = await fs.stat(realPath);
       if (stat.isDirectory()) {
         if (shouldSkipDirForGlob(relativePath, globDirPrefix)) continue;
-        await collectFiles(config, realPath, results, globDirPrefix, visitedDirectories, seenFiles);
+        yield* walkFiles(config, realPath, globDirPrefix, visitedDirectories, seenFiles);
       } else if (stat.isFile()) {
         if (!seenFiles.has(realPath)) {
           seenFiles.add(realPath);
           const realRelativePath = normalizeRelativePath(path.relative(config.rootDir, realPath));
-          results.push({ fullPath: realPath, relativePath: realRelativePath });
+          yield { fullPath: realPath, relativePath: realRelativePath };
         }
       }
     }
@@ -226,28 +225,36 @@ function appendLineWithinByteLimit(
   return { bytes: maxBytes, truncated: true };
 }
 
-// Runs `fn` over `items` with at most `concurrency` items in-flight at once.
-// If `fn` returns `false`, no new items are started and remaining workers
-// drain their current item then exit.
-async function withConcurrency<T>(
-  items: T[],
+// Consumes an async generator with bounded concurrency. Walking and scanning
+// are pipelined: the generator advances only as fast as workers consume items,
+// so the entire file list is never materialised.
+//
+// Returning false from fn signals that no more items are needed; the generator
+// is terminated via return() and all workers drain their current task then stop.
+async function withConcurrencyFromGenerator<T>(
+  gen: AsyncGenerator<T>,
   concurrency: number,
   fn: (item: T) => Promise<boolean | void>
 ): Promise<void> {
-  let index = 0;
   let stopped = false;
 
   async function worker(): Promise<void> {
-    while (!stopped && index < items.length) {
-      const current = index++;
-      const result = await fn(items[current]);
+    while (!stopped) {
+      const { value, done } = await gen.next();
+      if (done || stopped) break;
+      const result = await fn(value);
       if (result === false) {
         stopped = true;
       }
     }
   }
 
-  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
+  try {
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  } finally {
+    // Terminate the generator so it can release any in-progress I/O.
+    await gen.return(undefined);
+  }
 }
 
 export class LocalFileCodeSearch implements CodeSearch {
@@ -267,58 +274,63 @@ export class LocalFileCodeSearch implements CodeSearch {
     const matcher = globTrim ? buildGlobMatcher(globTrim) : null;
     const globDirPrefix = globTrim ? extractGlobDirPrefix(globTrim) : "";
 
-    const files: FileEntry[] = [];
-    await collectFiles(this.config, this.config.rootDir, files, globDirPrefix);
-
     // Lowercase once for the entire search rather than per line.
     const normalizedQuery = query.toLowerCase();
     const matches: SearchFileMatch[] = [];
     let hasMore = false;
 
-    await withConcurrency(files, SEARCH_CONCURRENCY, async ({ fullPath, relativePath }) => {
-      if (hasMore) return false;
-      if (matcher && !matcher.test(relativePath)) return;
-
-      // stat first (cheap metadata call) before isBinaryFile (reads 8 KB).
-      try {
-        const { size } = await fs.stat(fullPath);
-        if (size > this.config.maxFileBytes) return;
-      } catch {
-        return;
-      }
-
-      if (await isBinaryFile(fullPath)) return;
-
-      // Single readFile call replaces open + readline streaming.
-      // Files are already bounded by maxFileBytes so this is safe.
-      let content: string;
-      try {
-        content = await fs.readFile(fullPath, "utf8");
-      } catch {
-        return;
-      }
-
-      const lines = content.split(/\r?\n/);
-      for (let i = 0; i < lines.length; i++) {
-        // Check stop flag at the top of each iteration so a worker that was
-        // already past the readFile await stops as soon as possible.
+    const walker = walkFiles(this.config, this.config.rootDir, globDirPrefix);
+    await withConcurrencyFromGenerator(
+      walker,
+      SEARCH_CONCURRENCY,
+      async ({ fullPath, relativePath }) => {
         if (hasMore) return false;
-        if (!lines[i].toLowerCase().includes(normalizedQuery)) continue;
-        if (matches.length >= limit) {
-          hasMore = true;
-          return false;
+        if (matcher && !matcher.test(relativePath)) return;
+
+        // stat first (cheap metadata call) before isBinaryFile (reads 8 KB).
+        try {
+          const { size } = await fs.stat(fullPath);
+          if (size > this.config.maxFileBytes) return;
+        } catch {
+          return;
         }
-        matches.push({
-          path: relativePath,
-          line: i + 1,
-          snippet: lines[i].trim().slice(0, 300),
-        });
+
+        if (await isBinaryFile(fullPath)) return;
+
+        // Single readFile call replaces open + readline streaming.
+        // Files are already bounded by maxFileBytes so this is safe.
+        let content: string;
+        try {
+          content = await fs.readFile(fullPath, "utf8");
+        } catch {
+          return;
+        }
+
+        const lines = content.split(/\r?\n/);
+        for (let i = 0; i < lines.length; i++) {
+          // Check stop flag at the top of each iteration so a worker that was
+          // already past the readFile await stops as soon as possible.
+          if (hasMore) return false;
+          if (!lines[i].toLowerCase().includes(normalizedQuery)) continue;
+          if (matches.length >= limit) {
+            hasMore = true;
+            return false;
+          }
+          matches.push({
+            path: relativePath,
+            line: i + 1,
+            snippet: lines[i].trim().slice(0, 300),
+          });
+        }
       }
-    });
+    );
 
     if (matches.length === 0) {
       return { error: "no matches found" };
     }
+
+    // Sort for deterministic output regardless of walk order or concurrency timing.
+    matches.sort((a, b) => a.path.localeCompare(b.path) || a.line - b.line);
 
     return { matches, hasMore };
   }
@@ -327,6 +339,17 @@ export class LocalFileCodeSearch implements CodeSearch {
     const resolved = await resolveFilePath(this.config, input.path);
     if ("error" in resolved) {
       return resolved;
+    }
+
+    // stat before binary check: stat is a cheap metadata call; it also gates
+    // the large-file guard so we never read a huge file into memory.
+    try {
+      const { size } = await fs.stat(resolved.fullPath);
+      if (size > MAX_READ_FILE_BYTES) {
+        return { error: "file too large" };
+      }
+    } catch {
+      return { error: "file not found" };
     }
 
     if (await isBinaryFile(resolved.fullPath)) {
@@ -398,13 +421,11 @@ export class LocalFileCodeSearch implements CodeSearch {
   }
 
   async listFiles(): Promise<ListFilesResult> {
-    const files: FileEntry[] = [];
-    await collectFiles(this.config, this.config.rootDir, files, "");
-
-    const uniquePaths = [...new Set(files.map((f) => f.relativePath))].sort((a, b) =>
-      a.localeCompare(b)
-    );
-
-    return { paths: uniquePaths };
+    const uniquePaths = new Set<string>();
+    for await (const { relativePath } of walkFiles(this.config, this.config.rootDir, "")) {
+      uniquePaths.add(relativePath);
+    }
+    const paths = [...uniquePaths].sort((a, b) => a.localeCompare(b));
+    return { paths };
   }
 }
