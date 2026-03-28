@@ -264,6 +264,7 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
     () =>
       codeAnalysisEnabled
         ? [
+            ...DEFAULT_CHAT_QUESTIONS,
             {
               text: "Find where the AI chat tools are registered and explain how a new server tool is wired in",
               autoRun: true,
@@ -272,7 +273,6 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
               text: "Review the chat route and summarize how code-analysis capability is gated",
               autoRun: true,
             },
-            ...DEFAULT_CHAT_QUESTIONS,
           ]
         : DEFAULT_CHAT_QUESTIONS,
     [codeAnalysisEnabled]
