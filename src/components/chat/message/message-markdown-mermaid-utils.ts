@@ -68,7 +68,7 @@ export function quoteSequenceAliasLabel(line: string) {
     return line;
   }
 
-  const escapedLabel = trimmedLabel.replaceAll('"', '\\"');
+  const escapedLabel = escapeMermaidLabelText(trimmedLabel);
   return `${prefix}"${escapedLabel}"`;
 }
 
@@ -119,7 +119,7 @@ function quoteFlowchartLabel(match: string, label: string, open: string, close: 
     return match;
   }
 
-  const escapedLabel = trimmedLabel.replaceAll('"', '\\"');
+  const escapedLabel = escapeMermaidLabelText(trimmedLabel);
   return `${open}"${escapedLabel}"${close}`;
 }
 
@@ -156,7 +156,7 @@ function quoteFlowchartSubgraphTitle(line: string) {
     return line;
   }
 
-  const escapedTitle = title.replaceAll('"', '\\"');
+  const escapedTitle = escapeMermaidLabelText(title);
   return `${prefix}"${escapedTitle}"`;
 }
 
@@ -164,17 +164,22 @@ function quoteFlowchartEdgeLabels(line: string) {
   return line.replace(/\|([^|\n]+)\|/g, (match, label) => {
     const trimmedLabel = label.trim();
 
+    if (trimmedLabel.startsWith('"') && trimmedLabel.endsWith('"')) {
+      const unwrappedLabel = trimmedLabel.slice(1, -1);
+      return `|"${escapeMermaidLabelText(unwrappedLabel)}"|`;
+    }
+
     if (!shouldQuoteFlowchartLabel(trimmedLabel)) {
       return match;
     }
 
-    if (trimmedLabel.startsWith('"') && trimmedLabel.endsWith('"')) {
-      return `|${trimmedLabel}|`;
-    }
-
-    const escapedLabel = trimmedLabel.replaceAll('"', '\\"');
+    const escapedLabel = escapeMermaidLabelText(trimmedLabel);
     return `|"${escapedLabel}"|`;
   });
+}
+
+function escapeMermaidLabelText(label: string) {
+  return label.replace(/\\"/g, "&quot;").replaceAll('"', "&quot;");
 }
 
 function hasBalancedMermaidDelimiters(chart: string) {

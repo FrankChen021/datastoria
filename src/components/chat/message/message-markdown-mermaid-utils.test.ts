@@ -71,8 +71,6 @@ describe("message-markdown-mermaid-utils", () => {
   });
 
   it("quotes multiline flowchart labels across the whole chart", () => {
-    const escapedQuote = '\\"';
-
     expect(
       normalizeMermaidChart(
         [
@@ -84,8 +82,26 @@ describe("message-markdown-mermaid-utils", () => {
     ).toBe(
       [
         "flowchart TD",
-        `A["Line one\\n${escapedQuote}quoted${escapedQuote} line two"] --> B{"Question\\nwith punctuation?"}`,
+        'A["Line one\\n&quot;quoted&quot; line two"] --> B{"Question\\nwith punctuation?"}',
         'A --> C[["double bracket label"]]',
+      ].join("\n")
+    );
+  });
+
+  it("replaces embedded double quotes inside labels with Mermaid-safe entities", () => {
+    expect(
+      normalizeMermaidChart(
+        [
+          "flowchart TD",
+          'A[Start] --> B{Error message contains\\n"Cannot alter table" and "different UUID"?}',
+          'B -->|"message says \\"was not found\\""| C[Done]',
+        ].join("\n")
+      )
+    ).toBe(
+      [
+        "flowchart TD",
+        'A[Start] --> B{"Error message contains\\n&quot;Cannot alter table&quot; and &quot;different UUID&quot;?"}',
+        'B -->|"message says &quot;was not found&quot;"| C[Done]',
       ].join("\n")
     );
   });
