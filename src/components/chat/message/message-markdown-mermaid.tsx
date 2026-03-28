@@ -5,6 +5,7 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { cn } from "@/lib/utils";
 import { AlertCircle } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
+import { normalizeMermaidChart } from "./message-markdown-mermaid-utils";
 
 interface MessageMarkdownMermaidProps {
   chart: string;
@@ -129,55 +130,4 @@ async function renderWithFallback({
 
     return mermaid.render(`chat-mermaid-${diagramId}-normalized`, normalizedChart);
   }
-}
-
-function normalizeMermaidChart(chart: string) {
-  return chart
-    .split("\n")
-    .map((line) => {
-      const quotedParticipantLine = quoteSequenceAliasLabel(line);
-      return escapeSequenceMessageSemicolons(quotedParticipantLine);
-    })
-    .join("\n");
-}
-
-function quoteSequenceAliasLabel(line: string) {
-  const match = line.match(/^(\s*(?:actor|participant)\s+\S+\s+as\s+)(.+)$/);
-  if (!match) {
-    return line;
-  }
-
-  const [, prefix, label] = match;
-  const trimmedLabel = label.trim();
-
-  if (
-    trimmedLabel.length === 0 ||
-    (trimmedLabel.startsWith('"') && trimmedLabel.endsWith('"')) ||
-    !/[()/:;]/.test(trimmedLabel)
-  ) {
-    return line;
-  }
-
-  const escapedLabel = trimmedLabel.replaceAll('"', '\\"');
-  return `${prefix}"${escapedLabel}"`;
-}
-
-function escapeSequenceMessageSemicolons(line: string) {
-  if (!/(->>|-->>|->|-->|-x|--x)/.test(line)) {
-    return line;
-  }
-
-  const colonIndex = line.indexOf(":");
-  if (colonIndex === -1) {
-    return line;
-  }
-
-  const prefix = line.slice(0, colonIndex + 1);
-  const label = line.slice(colonIndex + 1);
-
-  if (!label.includes(";")) {
-    return line;
-  }
-
-  return `${prefix}${label.replaceAll(";", "#59;")}`;
 }
