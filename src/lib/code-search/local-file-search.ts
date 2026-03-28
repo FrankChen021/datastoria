@@ -1,8 +1,6 @@
 import "server-only";
-import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createInterface } from "node:readline";
 import type {
   CodeSearch,
   CodeSearchConfig,
@@ -15,14 +13,12 @@ import type {
 } from "./types";
 
 const BINARY_SCAN_BYTES = 8 * 1024;
+// Number of files scanned concurrently during searchFile.
+const SEARCH_CONCURRENCY = 8;
 
+// Uses Buffer.indexOf which is implemented in native code.
 function hasNullByte(buffer: Buffer): boolean {
-  for (const value of buffer) {
-    if (value === 0) {
-      return true;
-    }
-  }
-  return false;
+  return buffer.indexOf(0) !== -1;
 }
 
 function isPathInsideRoot(rootDir: string, candidate: string): boolean {
@@ -36,7 +32,6 @@ function normalizeRelativePath(relativePath: string): string {
 function shouldIgnoreRelativePath(relativePath: string, ignoredNames: string[]): boolean {
   const normalized = normalizeRelativePath(relativePath);
   const segments = normalized.split("/").filter(Boolean);
-
   return segments.some((segment) => ignoredNames.includes(segment));
 }
 
@@ -66,6 +61,17 @@ function buildGlobMatcher(globPattern: string): RegExp {
   }
   regex += "$";
   return new RegExp(regex, "i");
+}
+
+// Returns the leading directory prefix of a glob before the first wildcard
+// character, e.g. "src/**/*.ts" → "src/". Used to prune unrelated directories
+// during the walk so we never recurse into branches that cannot match.
+function extractGlobDirPrefix(globPattern: string): string {
+  const normalized = globPattern.replace(/\\/g, "/");
+  const firstWild = normalized.search(/[*?[{]/);
+  if (firstWild === -1) return "";
+  const slashBefore = normalized.lastIndexOf("/", firstWild);
+  return slashBefore < 0 ? "" : normalized.slice(0, slashBefore + 1);
 }
 
 async function resolveFilePath(
@@ -120,10 +126,25 @@ async function isBinaryFile(filePath: string): Promise<boolean> {
   }
 }
 
+interface FileEntry {
+  fullPath: string;
+  relativePath: string;
+}
+
+// Returns true if a directory at `dirRelativePath` should be skipped given a
+// required glob dir prefix. We skip when the directory path is neither a prefix
+// of nor a parent of the required prefix — i.e. when the two paths diverge.
+function shouldSkipDirForGlob(dirRelativePath: string, globDirPrefix: string): boolean {
+  if (!globDirPrefix) return false;
+  const dir = dirRelativePath.endsWith("/") ? dirRelativePath : `${dirRelativePath}/`;
+  return !dir.startsWith(globDirPrefix) && !globDirPrefix.startsWith(dir);
+}
+
 async function collectFiles(
   config: CodeSearchConfig,
   directory: string,
-  results: string[],
+  results: FileEntry[],
+  globDirPrefix: string,
   visitedDirectories: Set<string> = new Set(),
   seenFiles: Set<string> = new Set()
 ): Promise<void> {
@@ -143,14 +164,15 @@ async function collectFiles(
     }
 
     if (entry.isDirectory()) {
-      await collectFiles(config, fullPath, results, visitedDirectories, seenFiles);
+      if (shouldSkipDirForGlob(relativePath, globDirPrefix)) continue;
+      await collectFiles(config, fullPath, results, globDirPrefix, visitedDirectories, seenFiles);
       continue;
     }
 
     if (entry.isFile()) {
       if (!seenFiles.has(fullPath)) {
         seenFiles.add(fullPath);
-        results.push(fullPath);
+        results.push({ fullPath, relativePath });
       }
       continue;
     }
@@ -167,45 +189,17 @@ async function collectFiles(
       }
       const stat = await fs.stat(realPath);
       if (stat.isDirectory()) {
-        await collectFiles(config, realPath, results, visitedDirectories, seenFiles);
+        if (shouldSkipDirForGlob(relativePath, globDirPrefix)) continue;
+        await collectFiles(config, realPath, results, globDirPrefix, visitedDirectories, seenFiles);
       } else if (stat.isFile()) {
         if (!seenFiles.has(realPath)) {
           seenFiles.add(realPath);
-          results.push(realPath);
+          const realRelativePath = normalizeRelativePath(path.relative(config.rootDir, realPath));
+          results.push({ fullPath: realPath, relativePath: realRelativePath });
         }
       }
     }
   }
-}
-
-async function streamLines(
-  filePath: string,
-  onLine: (line: string, lineNumber: number) => void | boolean | Promise<void | boolean>
-): Promise<number> {
-  const stream = createReadStream(filePath, { encoding: "utf8" });
-  const reader = createInterface({
-    input: stream,
-    crlfDelay: Infinity,
-  });
-
-  let lineNumber = 0;
-
-  try {
-    for await (const line of reader) {
-      lineNumber += 1;
-      const shouldContinue = await onLine(line, lineNumber);
-      if (shouldContinue === false) {
-        reader.close();
-        stream.destroy();
-        break;
-      }
-    }
-  } finally {
-    reader.close();
-    stream.destroy();
-  }
-
-  return lineNumber;
 }
 
 function appendLineWithinByteLimit(
@@ -215,11 +209,12 @@ function appendLineWithinByteLimit(
   maxBytes: number
 ): { bytes: number; truncated: boolean } {
   const segment = lines.length === 0 ? line : `\n${line}`;
-  const segmentBuffer = Buffer.from(segment, "utf8");
+  // Use Buffer.byteLength to measure without allocating a buffer for the common path.
+  const segmentByteLength = Buffer.byteLength(segment, "utf8");
 
-  if (currentBytes + segmentBuffer.byteLength <= maxBytes) {
+  if (currentBytes + segmentByteLength <= maxBytes) {
     lines.push(segment);
-    return { bytes: currentBytes + segmentBuffer.byteLength, truncated: false };
+    return { bytes: currentBytes + segmentByteLength, truncated: false };
   }
 
   if (currentBytes >= maxBytes) {
@@ -227,8 +222,32 @@ function appendLineWithinByteLimit(
   }
 
   const remainingBytes = maxBytes - currentBytes;
-  lines.push(segmentBuffer.subarray(0, remainingBytes).toString("utf8"));
+  lines.push(Buffer.from(segment, "utf8").subarray(0, remainingBytes).toString("utf8"));
   return { bytes: maxBytes, truncated: true };
+}
+
+// Runs `fn` over `items` with at most `concurrency` items in-flight at once.
+// If `fn` returns `false`, no new items are started and remaining workers
+// drain their current item then exit.
+async function withConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<boolean | void>
+): Promise<void> {
+  let index = 0;
+  let stopped = false;
+
+  async function worker(): Promise<void> {
+    while (!stopped && index < items.length) {
+      const current = index++;
+      const result = await fn(items[current]);
+      if (result === false) {
+        stopped = true;
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
 }
 
 export class LocalFileCodeSearch implements CodeSearch {
@@ -244,48 +263,58 @@ export class LocalFileCodeSearch implements CodeSearch {
       Math.max(input.limit ?? this.config.maxSearchResults, 1),
       this.config.maxSearchResults
     );
-    const matcher = input.glob?.trim() ? buildGlobMatcher(input.glob.trim()) : null;
-    const files: string[] = [];
-    await collectFiles(this.config, this.config.rootDir, files);
+    const globTrim = input.glob?.trim() ?? "";
+    const matcher = globTrim ? buildGlobMatcher(globTrim) : null;
+    const globDirPrefix = globTrim ? extractGlobDirPrefix(globTrim) : "";
 
-    const normalizedQuery = query.toLocaleLowerCase();
+    const files: FileEntry[] = [];
+    await collectFiles(this.config, this.config.rootDir, files, globDirPrefix);
+
+    // Lowercase once for the entire search rather than per line.
+    const normalizedQuery = query.toLowerCase();
     const matches: SearchFileMatch[] = [];
     let hasMore = false;
 
-    for (const fullPath of files) {
-      const relativePath = normalizeRelativePath(path.relative(this.config.rootDir, fullPath));
-      if (matcher && !matcher.test(relativePath)) {
-        continue;
-      }
-      if (await isBinaryFile(fullPath)) {
-        continue;
-      }
-      const stat = await fs.stat(fullPath);
-      if (stat.size > this.config.maxFileBytes) {
-        continue;
+    await withConcurrency(files, SEARCH_CONCURRENCY, async ({ fullPath, relativePath }) => {
+      if (hasMore) return false;
+      if (matcher && !matcher.test(relativePath)) return;
+
+      // stat first (cheap metadata call) before isBinaryFile (reads 8 KB).
+      try {
+        const { size } = await fs.stat(fullPath);
+        if (size > this.config.maxFileBytes) return;
+      } catch {
+        return;
       }
 
-      await streamLines(fullPath, (line, lineNumber) => {
-        if (!line.toLocaleLowerCase().includes(normalizedQuery)) {
-          return;
-        }
+      if (await isBinaryFile(fullPath)) return;
 
+      // Single readFile call replaces open + readline streaming.
+      // Files are already bounded by maxFileBytes so this is safe.
+      let content: string;
+      try {
+        content = await fs.readFile(fullPath, "utf8");
+      } catch {
+        return;
+      }
+
+      const lines = content.split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        // Check stop flag at the top of each iteration so a worker that was
+        // already past the readFile await stops as soon as possible.
+        if (hasMore) return false;
+        if (!lines[i].toLowerCase().includes(normalizedQuery)) continue;
         if (matches.length >= limit) {
           hasMore = true;
           return false;
         }
-
         matches.push({
           path: relativePath,
-          line: lineNumber,
-          snippet: line.trim().slice(0, 300),
+          line: i + 1,
+          snippet: lines[i].trim().slice(0, 300),
         });
-      });
-
-      if (hasMore) {
-        return { matches, hasMore };
       }
-    }
+    });
 
     if (matches.length === 0) {
       return { error: "no matches found" };
@@ -312,10 +341,22 @@ export class LocalFileCodeSearch implements CodeSearch {
         ? Math.max(input.endLine, requestedStartLine)
         : requestedStartLine + maxLines - 1;
 
-    let totalLines = 0;
-    await streamLines(resolved.fullPath, (_, lineNumber) => {
-      totalLines = lineNumber;
-    });
+    // Single readFile replaces two full streamLines passes (count + collect).
+    let rawContent: string;
+    try {
+      rawContent = await fs.readFile(resolved.fullPath, "utf8");
+    } catch {
+      return { error: "file not found" };
+    }
+
+    const allLines = rawContent.split(/\r?\n/);
+    // Strip the trailing empty element produced by files that end with a newline,
+    // matching the line count readline would produce.
+    if (allLines.length > 0 && allLines[allLines.length - 1] === "") {
+      allLines.pop();
+    }
+
+    const totalLines = allLines.length;
 
     const effectiveStartLine =
       totalLines === 0 ? 1 : Math.min(requestedStartLine, Math.max(totalLines - maxLines + 1, 1));
@@ -328,18 +369,16 @@ export class LocalFileCodeSearch implements CodeSearch {
     let usedBytes = 0;
     let byteTruncated = false;
 
-    await streamLines(resolved.fullPath, (line, lineNumber) => {
-      if (lineNumber < effectiveStartLine) {
-        return;
-      }
-      if (lineNumber > effectiveEndLine) {
-        return;
-      }
-
-      const appendResult = appendLineWithinByteLimit(selectedLines, line, usedBytes, maxBytes);
+    for (let i = effectiveStartLine - 1; i < effectiveEndLine; i++) {
+      const appendResult = appendLineWithinByteLimit(
+        selectedLines,
+        allLines[i],
+        usedBytes,
+        maxBytes
+      );
       usedBytes = appendResult.bytes;
       byteTruncated = byteTruncated || appendResult.truncated;
-    });
+    }
 
     const content = selectedLines.join("");
     const hasMoreLines =
@@ -359,14 +398,12 @@ export class LocalFileCodeSearch implements CodeSearch {
   }
 
   async listFiles(): Promise<ListFilesResult> {
-    const files: string[] = [];
-    await collectFiles(this.config, this.config.rootDir, files);
+    const files: FileEntry[] = [];
+    await collectFiles(this.config, this.config.rootDir, files, "");
 
-    const uniquePaths = [
-      ...new Set(
-        files.map((fullPath) => normalizeRelativePath(path.relative(this.config.rootDir, fullPath)))
-      ),
-    ].sort((left, right) => left.localeCompare(right));
+    const uniquePaths = [...new Set(files.map((f) => f.relativePath))].sort((a, b) =>
+      a.localeCompare(b)
+    );
 
     return { paths: uniquePaths };
   }
