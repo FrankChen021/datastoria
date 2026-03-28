@@ -155,7 +155,6 @@
   },
   "overrides": {
     "esbuild": ">=0.25.0",
-    "mermaid": ">=8.13.8",
-    "serialize-javascript": "7.0.3"
+    "mermaid": ">=8.13.8"
   }
 }
