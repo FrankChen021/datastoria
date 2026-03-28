@@ -28,6 +28,24 @@ describe("message-markdown-mermaid-utils", () => {
     );
   });
 
+  it("quotes flowchart edge labels with punctuation", () => {
+    expect(
+      normalizeMermaidChart(
+        [
+          "flowchart TD",
+          "A -->|tryGetTable() returns StoragePtr| B[Table exists -> proceed]",
+          "A -->|No| C[Simple branch]",
+        ].join("\n")
+      )
+    ).toBe(
+      [
+        "flowchart TD",
+        'A -->|"tryGetTable() returns StoragePtr"| B["Table exists -> proceed"]',
+        'A -->|No| C["Simple branch"]',
+      ].join("\n")
+    );
+  });
+
   it("does not double-quote labels that are already valid", () => {
     expect(quoteFlowchartNodeLabels('A["Already quoted"] --> B[Atomic]')).toBe(
       'A["Already quoted"] --> B[Atomic]'
@@ -95,5 +113,25 @@ describe("message-markdown-mermaid-utils", () => {
         ].join("\n")
       )
     ).toBe(true);
+  });
+
+  it("quotes subgraph titles that contain spaces", () => {
+    expect(
+      normalizeMermaidChart(
+        [
+          "flowchart TD",
+          "subgraph Common root causes",
+          "  A[Wrong database/table name]",
+          "end",
+        ].join("\n")
+      )
+    ).toBe(
+      [
+        "flowchart TD",
+        'subgraph "Common root causes"',
+        '  A["Wrong database/table name"]',
+        "end",
+      ].join("\n")
+    );
   });
 });

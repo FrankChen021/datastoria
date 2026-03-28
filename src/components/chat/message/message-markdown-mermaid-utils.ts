@@ -7,7 +7,9 @@ export function normalizeMermaidChart(chart: string) {
     .split("\n")
     .map((line) => {
       const quotedParticipantLine = quoteSequenceAliasLabel(line);
-      return escapeSequenceMessageSemicolons(quotedParticipantLine);
+      const quotedSubgraphLine = quoteFlowchartSubgraphTitle(quotedParticipantLine);
+      const escapedSequenceLine = escapeSequenceMessageSemicolons(quotedSubgraphLine);
+      return quoteFlowchartEdgeLabels(escapedSequenceLine);
     })
     .join("\n");
 
@@ -131,6 +133,48 @@ function shouldQuoteFlowchartLabel(label: string) {
   }
 
   return /[^A-Za-z0-9_-]/.test(label);
+}
+
+function quoteFlowchartSubgraphTitle(line: string) {
+  const match = line.match(/^(\s*subgraph\s+)(.+)$/i);
+  if (!match) {
+    return line;
+  }
+
+  const [, prefix, rawTitle] = match;
+  const title = rawTitle.trim();
+
+  if (title.length === 0) {
+    return line;
+  }
+
+  if (title.startsWith("[") || title.startsWith('"')) {
+    return line;
+  }
+
+  if (/^[A-Za-z0-9_-]+$/.test(title)) {
+    return line;
+  }
+
+  const escapedTitle = title.replaceAll('"', '\\"');
+  return `${prefix}"${escapedTitle}"`;
+}
+
+function quoteFlowchartEdgeLabels(line: string) {
+  return line.replace(/\|([^|\n]+)\|/g, (match, label) => {
+    const trimmedLabel = label.trim();
+
+    if (!shouldQuoteFlowchartLabel(trimmedLabel)) {
+      return match;
+    }
+
+    if (trimmedLabel.startsWith('"') && trimmedLabel.endsWith('"')) {
+      return `|${trimmedLabel}|`;
+    }
+
+    const escapedLabel = trimmedLabel.replaceAll('"', '\\"');
+    return `|"${escapedLabel}"|`;
+  });
 }
 
 function hasBalancedMermaidDelimiters(chart: string) {
