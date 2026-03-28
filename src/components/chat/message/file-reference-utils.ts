@@ -10,6 +10,7 @@ const FILE_REFERENCE_PATTERN = /\[\[\s*file\s*:\s*([^\]]+?)\s*\]\]/gi;
 const SKILL_REFERENCE_PATTERN =
   /\[\[\s*skill\s*:\s*([^\]|]+?)\s*\|\s*([^\]|]+?)(?:\s*\|\s*([^\]]+?))?\s*\]\]/gi;
 const FILE_REFERENCE_WITH_LINES_PATTERN = /^(.*?)\s*#L\s*(\d+)(?:\s*-\s*L?\s*(\d+))?$/i;
+const FENCED_CODE_BLOCK_PATTERN = /(^|\n)(```[^\n]*\n[\s\S]*?\n```)(?=\n|$)/g;
 
 export function parseFileReferenceToken(token: string): FileReference | null {
   const trimmed = token.trim();
@@ -116,5 +117,29 @@ export function replaceSkillReferenceTokens(markdown: string): string {
 }
 
 export function replaceReferenceTokens(markdown: string): string {
-  return replaceSkillReferenceTokens(replaceFileReferenceTokens(markdown));
+  return replaceOutsideFencedCodeBlocks(markdown, (segment) =>
+    replaceSkillReferenceTokens(replaceFileReferenceTokens(segment))
+  );
+}
+
+function replaceOutsideFencedCodeBlocks(
+  markdown: string,
+  replacer: (segment: string) => string
+): string {
+  let result = "";
+  let lastIndex = 0;
+
+  for (const match of markdown.matchAll(FENCED_CODE_BLOCK_PATTERN)) {
+    const fullMatch = match[0];
+    const codeBlock = match[2];
+    const matchIndex = match.index ?? 0;
+    const codeBlockIndex = matchIndex + fullMatch.indexOf(codeBlock);
+
+    result += replacer(markdown.slice(lastIndex, codeBlockIndex));
+    result += codeBlock;
+    lastIndex = codeBlockIndex + codeBlock.length;
+  }
+
+  result += replacer(markdown.slice(lastIndex));
+  return result;
 }

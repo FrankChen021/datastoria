@@ -85,4 +85,28 @@ describe("file-reference-utils", () => {
       "Use [/source-code-inspection](skill://source-code-inspection) and inspect [page.tsx:12-18](codefile://open?path=src%2Fapp%2Fpage.tsx&startLine=12&endLine=18)."
     );
   });
+
+  it("does not rewrite references inside fenced code blocks", () => {
+    expect(
+      replaceReferenceTokens(
+        [
+          "Inspect [[file:src/app/page.tsx#L12-18]].",
+          "",
+          "```mermaid",
+          "flowchart TD",
+          "A --> B[[file:src/app/page.tsx#L12-18]]",
+          "```",
+        ].join("\n")
+      )
+    ).toBe(
+      [
+        "Inspect [page.tsx:12-18](codefile://open?path=src%2Fapp%2Fpage.tsx&startLine=12&endLine=18).",
+        "",
+        "```mermaid",
+        "flowchart TD",
+        "A --> B[[file:src/app/page.tsx#L12-18]]",
+        "```",
+      ].join("\n")
+    );
+  });
 });

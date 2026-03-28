@@ -64,13 +64,10 @@ export function quoteFlowchartNodeLabels(line: string) {
     quoteFlowchartLabel(match, label, "[", "]")
   );
 
-  normalizedLine = normalizedLine.replace(
-    /(^|[^@])\{(?!")([^}\n]+)\}/g,
-    (match, prefix, label) => {
-      const quoted = quoteFlowchartLabel(`{${label}}`, label, "{", "}");
-      return `${prefix}${quoted}`;
-    }
-  );
+  normalizedLine = normalizedLine.replace(/(^|[^@])\{(?!")([^}\n]+)\}/g, (match, prefix, label) => {
+    const quoted = quoteFlowchartLabel(`{${label}}`, label, "{", "}");
+    return `${prefix}${quoted}`;
+  });
 
   return normalizedLine;
 }
