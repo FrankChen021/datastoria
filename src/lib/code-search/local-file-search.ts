@@ -1,6 +1,8 @@
 import "server-only";
+import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createInterface } from "node:readline";
 import type {
   CodeSearch,
   CodeSearchConfig,
@@ -15,8 +17,8 @@ import type {
 const BINARY_SCAN_BYTES = 8 * 1024;
 // Number of files scanned concurrently during searchFile.
 const SEARCH_CONCURRENCY = 8;
-// readFile refuses files larger than this to prevent loading huge content into memory.
-const MAX_READ_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+// Files above this threshold fall back to a streamed read path.
+const MAX_BUFFERED_READ_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 // Uses Buffer.indexOf which is implemented in native code.
 function hasNullByte(buffer: Buffer): boolean {
@@ -133,6 +135,10 @@ interface FileEntry {
   relativePath: string;
 }
 
+interface IndexedFileEntry extends FileEntry {
+  index: number;
+}
+
 // Returns true if a directory at `dirRelativePath` should be skipped given a
 // required glob dir prefix. We skip when the directory path is neither a prefix
 // of nor a parent of the required prefix — i.e. when the two paths diverge.
@@ -158,6 +164,7 @@ async function* walkFiles(
   visitedDirectories.add(normalizedDirectory);
 
   const entries = await fs.readdir(normalizedDirectory, { withFileTypes: true });
+  entries.sort((left, right) => left.name.localeCompare(right.name));
 
   for (const entry of entries) {
     const fullPath = path.join(normalizedDirectory, entry.name);
@@ -199,6 +206,204 @@ async function* walkFiles(
       }
     }
   }
+}
+
+async function* enumerateFiles(gen: AsyncGenerator<FileEntry>): AsyncGenerator<IndexedFileEntry> {
+  let index = 0;
+  for await (const file of gen) {
+    yield { ...file, index };
+    index += 1;
+  }
+}
+
+async function streamLines(
+  filePath: string,
+  onLine: (line: string, lineNumber: number) => void | boolean | Promise<void | boolean>
+): Promise<number> {
+  const stream = createReadStream(filePath, { encoding: "utf8" });
+  const reader = createInterface({
+    input: stream,
+    crlfDelay: Infinity,
+  });
+
+  let lineNumber = 0;
+
+  try {
+    for await (const line of reader) {
+      lineNumber += 1;
+      const shouldContinue = await onLine(line, lineNumber);
+      if (shouldContinue === false) {
+        reader.close();
+        stream.destroy();
+        break;
+      }
+    }
+  } finally {
+    reader.close();
+    stream.destroy();
+  }
+
+  return lineNumber;
+}
+
+function splitBufferedLines(content: string): string[] {
+  const lines = content.split(/\r?\n/);
+  if (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+  return lines;
+}
+
+function getEffectiveWindow(
+  totalLines: number,
+  requestedStartLine: number,
+  requestedEndLine: number,
+  maxLines: number
+) {
+  const effectiveStartLine =
+    totalLines === 0 ? 1 : Math.min(requestedStartLine, Math.max(totalLines - maxLines + 1, 1));
+  const effectiveEndLine =
+    totalLines === 0
+      ? 0
+      : Math.min(requestedEndLine, effectiveStartLine + maxLines - 1, totalLines);
+
+  return { effectiveStartLine, effectiveEndLine };
+}
+
+function buildReadFileResult(args: {
+  relativePath: string;
+  requestedEndLine: number;
+  maxLines: number;
+  totalLines: number;
+  content: string;
+  byteTruncated: boolean;
+  inputEndLine?: number;
+  requestedStartLine: number;
+}) {
+  const { effectiveStartLine, effectiveEndLine } = getEffectiveWindow(
+    args.totalLines,
+    args.requestedStartLine,
+    args.requestedEndLine,
+    args.maxLines
+  );
+  const hasMoreLines =
+    args.totalLines > 0 &&
+    (args.inputEndLine == null
+      ? effectiveEndLine < args.totalLines
+      : effectiveEndLine < args.requestedEndLine);
+
+  return {
+    path: args.relativePath,
+    startLine: effectiveStartLine,
+    endLine: effectiveEndLine,
+    totalLines: args.totalLines,
+    content: args.content,
+    truncated: args.byteTruncated || hasMoreLines,
+    hasPrevious: args.totalLines > 0 && effectiveStartLine > 1,
+    hasNext: args.totalLines > 0 && effectiveEndLine < args.totalLines,
+  };
+}
+
+async function readFileBuffered(args: {
+  fullPath: string;
+  relativePath: string;
+  requestedStartLine: number;
+  requestedEndLine: number;
+  inputEndLine?: number;
+  maxLines: number;
+  maxBytes: number;
+}): Promise<ReadFileResult> {
+  let rawContent: string;
+  try {
+    rawContent = await fs.readFile(args.fullPath, "utf8");
+  } catch {
+    return { error: "file not found" };
+  }
+
+  const allLines = splitBufferedLines(rawContent);
+  const totalLines = allLines.length;
+  const { effectiveStartLine, effectiveEndLine } = getEffectiveWindow(
+    totalLines,
+    args.requestedStartLine,
+    args.requestedEndLine,
+    args.maxLines
+  );
+
+  const selectedLines: string[] = [];
+  let usedBytes = 0;
+  let byteTruncated = false;
+
+  for (let i = effectiveStartLine - 1; i < effectiveEndLine; i++) {
+    const appendResult = appendLineWithinByteLimit(
+      selectedLines,
+      allLines[i],
+      usedBytes,
+      args.maxBytes
+    );
+    usedBytes = appendResult.bytes;
+    byteTruncated = byteTruncated || appendResult.truncated;
+  }
+
+  return buildReadFileResult({
+    relativePath: args.relativePath,
+    requestedEndLine: args.requestedEndLine,
+    maxLines: args.maxLines,
+    totalLines,
+    content: selectedLines.join(""),
+    byteTruncated,
+    inputEndLine: args.inputEndLine,
+    requestedStartLine: args.requestedStartLine,
+  });
+}
+
+async function readFileStreamed(args: {
+  fullPath: string;
+  relativePath: string;
+  requestedStartLine: number;
+  requestedEndLine: number;
+  inputEndLine?: number;
+  maxLines: number;
+  maxBytes: number;
+}): Promise<ReadFileResult> {
+  let totalLines = 0;
+  await streamLines(args.fullPath, (_, lineNumber) => {
+    totalLines = lineNumber;
+  });
+
+  const { effectiveStartLine, effectiveEndLine } = getEffectiveWindow(
+    totalLines,
+    args.requestedStartLine,
+    args.requestedEndLine,
+    args.maxLines
+  );
+
+  const selectedLines: string[] = [];
+  let usedBytes = 0;
+  let byteTruncated = false;
+
+  await streamLines(args.fullPath, (line, lineNumber) => {
+    if (lineNumber < effectiveStartLine) {
+      return;
+    }
+    if (lineNumber > effectiveEndLine) {
+      return false;
+    }
+
+    const appendResult = appendLineWithinByteLimit(selectedLines, line, usedBytes, args.maxBytes);
+    usedBytes = appendResult.bytes;
+    byteTruncated = byteTruncated || appendResult.truncated;
+  });
+
+  return buildReadFileResult({
+    relativePath: args.relativePath,
+    requestedEndLine: args.requestedEndLine,
+    maxLines: args.maxLines,
+    totalLines,
+    content: selectedLines.join(""),
+    byteTruncated,
+    inputEndLine: args.inputEndLine,
+    requestedStartLine: args.requestedStartLine,
+  });
 }
 
 function appendLineWithinByteLimit(
@@ -278,12 +483,41 @@ export class LocalFileCodeSearch implements CodeSearch {
     const normalizedQuery = query.toLowerCase();
     const matches: SearchFileMatch[] = [];
     let hasMore = false;
+    const pending = new Map<number, SearchFileMatch[]>();
+    let nextIndexToFlush = 0;
 
-    const walker = walkFiles(this.config, this.config.rootDir, globDirPrefix);
+    const flushPending = (): boolean => {
+      while (pending.has(nextIndexToFlush)) {
+        const fileMatches = pending.get(nextIndexToFlush) ?? [];
+        pending.delete(nextIndexToFlush);
+        nextIndexToFlush += 1;
+
+        if (matches.length >= limit) {
+          if (fileMatches.length > 0) {
+            hasMore = true;
+            return false;
+          }
+          continue;
+        }
+
+        const remaining = limit - matches.length;
+        if (fileMatches.length > remaining) {
+          matches.push(...fileMatches.slice(0, remaining));
+          hasMore = true;
+          return false;
+        }
+
+        matches.push(...fileMatches);
+      }
+
+      return true;
+    };
+
+    const walker = enumerateFiles(walkFiles(this.config, this.config.rootDir, globDirPrefix));
     await withConcurrencyFromGenerator(
       walker,
       SEARCH_CONCURRENCY,
-      async ({ fullPath, relativePath }) => {
+      async ({ fullPath, relativePath, index }) => {
         if (hasMore) return false;
         if (matcher && !matcher.test(relativePath)) return;
 
@@ -306,31 +540,29 @@ export class LocalFileCodeSearch implements CodeSearch {
           return;
         }
 
-        const lines = content.split(/\r?\n/);
+        const lines = splitBufferedLines(content);
+        const fileMatches: SearchFileMatch[] = [];
         for (let i = 0; i < lines.length; i++) {
-          // Check stop flag at the top of each iteration so a worker that was
-          // already past the readFile await stops as soon as possible.
           if (hasMore) return false;
           if (!lines[i].toLowerCase().includes(normalizedQuery)) continue;
-          if (matches.length >= limit) {
-            hasMore = true;
-            return false;
-          }
-          matches.push({
+          fileMatches.push({
             path: relativePath,
             line: i + 1,
             snippet: lines[i].trim().slice(0, 300),
           });
+          if (fileMatches.length > limit) {
+            break;
+          }
         }
+
+        pending.set(index, fileMatches);
+        return flushPending();
       }
     );
 
     if (matches.length === 0) {
       return { error: "no matches found" };
     }
-
-    // Sort for deterministic output regardless of walk order or concurrency timing.
-    matches.sort((a, b) => a.path.localeCompare(b.path) || a.line - b.line);
 
     return { matches, hasMore };
   }
@@ -341,13 +573,9 @@ export class LocalFileCodeSearch implements CodeSearch {
       return resolved;
     }
 
-    // stat before binary check: stat is a cheap metadata call; it also gates
-    // the large-file guard so we never read a huge file into memory.
+    let size: number;
     try {
-      const { size } = await fs.stat(resolved.fullPath);
-      if (size > MAX_READ_FILE_BYTES) {
-        return { error: "file too large" };
-      }
+      ({ size } = await fs.stat(resolved.fullPath));
     } catch {
       return { error: "file not found" };
     }
@@ -364,60 +592,27 @@ export class LocalFileCodeSearch implements CodeSearch {
         ? Math.max(input.endLine, requestedStartLine)
         : requestedStartLine + maxLines - 1;
 
-    // Single readFile replaces two full streamLines passes (count + collect).
-    let rawContent: string;
-    try {
-      rawContent = await fs.readFile(resolved.fullPath, "utf8");
-    } catch {
-      return { error: "file not found" };
+    if (size <= MAX_BUFFERED_READ_FILE_BYTES) {
+      return readFileBuffered({
+        fullPath: resolved.fullPath,
+        relativePath: resolved.relativePath,
+        requestedStartLine,
+        requestedEndLine,
+        inputEndLine: input.endLine,
+        maxLines,
+        maxBytes,
+      });
     }
 
-    const allLines = rawContent.split(/\r?\n/);
-    // Strip the trailing empty element produced by files that end with a newline,
-    // matching the line count readline would produce.
-    if (allLines.length > 0 && allLines[allLines.length - 1] === "") {
-      allLines.pop();
-    }
-
-    const totalLines = allLines.length;
-
-    const effectiveStartLine =
-      totalLines === 0 ? 1 : Math.min(requestedStartLine, Math.max(totalLines - maxLines + 1, 1));
-    const effectiveEndLine =
-      totalLines === 0
-        ? 0
-        : Math.min(requestedEndLine, effectiveStartLine + maxLines - 1, totalLines);
-
-    const selectedLines: string[] = [];
-    let usedBytes = 0;
-    let byteTruncated = false;
-
-    for (let i = effectiveStartLine - 1; i < effectiveEndLine; i++) {
-      const appendResult = appendLineWithinByteLimit(
-        selectedLines,
-        allLines[i],
-        usedBytes,
-        maxBytes
-      );
-      usedBytes = appendResult.bytes;
-      byteTruncated = byteTruncated || appendResult.truncated;
-    }
-
-    const content = selectedLines.join("");
-    const hasMoreLines =
-      totalLines > 0 &&
-      (input.endLine == null ? effectiveEndLine < totalLines : effectiveEndLine < requestedEndLine);
-
-    return {
-      path: resolved.relativePath,
-      startLine: effectiveStartLine,
-      endLine: effectiveEndLine,
-      totalLines,
-      content,
-      truncated: byteTruncated || hasMoreLines,
-      hasPrevious: totalLines > 0 && effectiveStartLine > 1,
-      hasNext: totalLines > 0 && effectiveEndLine < totalLines,
-    };
+    return readFileStreamed({
+      fullPath: resolved.fullPath,
+      relativePath: resolved.relativePath,
+      requestedStartLine,
+      requestedEndLine,
+      inputEndLine: input.endLine,
+      maxLines,
+      maxBytes,
+    });
   }
 
   async listFiles(): Promise<ListFilesResult> {

@@ -6,13 +6,17 @@ import { buildCodeViewerWindow } from "../code-viewer-window";
 import { createCodeSearchEnabledConfig } from "../config";
 import { LocalFileCodeSearch } from "../local-file-search";
 
-function createConfig(rootDir: string) {
+function createConfig(
+  rootDir: string,
+  overrides?: Partial<ReturnType<typeof createCodeSearchEnabledConfig>>
+) {
   return createCodeSearchEnabledConfig({
     rootDir: fs.realpathSync(rootDir),
     maxFileBytes: 1024,
     maxReadLines: 3,
     maxSearchResults: 2,
     ignoredNames: [".git", "node_modules", "dist"],
+    ...overrides,
   });
 }
 
@@ -40,6 +44,27 @@ describe("LocalFileCodeSearch", () => {
     expect(result).toEqual({
       matches: [{ path: "src/main.ts", line: 1, snippet: "const token = 'secret';" }],
       hasMore: false,
+    });
+  });
+
+  it("returns deterministic limited search results in file order", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
+    tempDirs.push(rootDir);
+    fs.mkdirSync(path.join(rootDir, "src"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "src", "b.ts"), "const token = 'b';\n");
+    fs.writeFileSync(path.join(rootDir, "src", "a.ts"), "const token = 'a';\n");
+    fs.writeFileSync(path.join(rootDir, "src", "c.ts"), "const token = 'c';\n");
+
+    const result = await new LocalFileCodeSearch(
+      createConfig(rootDir, { maxSearchResults: 1 })
+    ).searchFile({
+      query: "token",
+      limit: 1,
+    });
+
+    expect(result).toEqual({
+      matches: [{ path: "src/a.ts", line: 1, snippet: "const token = 'a';" }],
+      hasMore: true,
     });
   });
 
@@ -195,5 +220,33 @@ describe("LocalFileCodeSearch", () => {
     expect(result.startLine).toBeLessThanOrEqual(3000);
     expect(result.endLine).toBeGreaterThanOrEqual(3010);
     expect(result.endLine - result.startLine + 1).toBeLessThanOrEqual(2000);
+  });
+
+  it("reads bounded windows from large text files without rejecting them", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
+    tempDirs.push(rootDir);
+
+    const largeLine = `${"x".repeat(1024)}\n`;
+    fs.writeFileSync(path.join(rootDir, "large.ts"), largeLine.repeat(11_000));
+
+    const result = await new LocalFileCodeSearch(
+      createConfig(rootDir, { maxFileBytes: 2048, maxReadLines: 2 })
+    ).readFile({
+      path: "large.ts",
+      startLine: 1,
+      maxLines: 2,
+      maxBytes: 4096,
+    });
+
+    expect("error" in result).toBe(false);
+    if ("error" in result) {
+      throw new Error(result.error);
+    }
+
+    expect(result.startLine).toBe(1);
+    expect(result.endLine).toBe(2);
+    expect(result.totalLines).toBe(11_000);
+    expect(result.hasNext).toBe(true);
+    expect(result.content.length).toBeGreaterThan(0);
   });
 });
