@@ -21,7 +21,7 @@ In those cases, prefer `source-code-inspection`. Do not start this skill's error
 2. Extract the numeric ClickHouse error code from the conversation or error text (e.g. `Code: 60`).
 3. If no numeric error code is detected and the user is asking for database-level diagnosis, call `ask_user_question` with exactly one question. Do NOT reply with natural-language text before the tool call.
    - `header`: `Please provide a ClickHouse error code for diagnosis`
-   - `options`: `{ "id": "error_code", "label": "error code", "type": "text" }`
+   - `options`: `[ { "id": "error_code", "label": "error code", "type": "text" } ]`
    - Treat the returned `value` as the numeric error code and continue.
 4. Load `references/<code>.md` with `skill_resource` (e.g. `references/60.md`) and follow its workflow.
 5. If the orchestrator provides database context facts, use them when they materially change the cause or fix.
