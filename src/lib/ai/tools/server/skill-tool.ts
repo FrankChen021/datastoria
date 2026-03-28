@@ -22,7 +22,9 @@ function buildSkillXml(skills: SkillCatalogItem[]): string {
 export function buildSkillToolDescription(skills: SkillCatalogItem[]): string {
   return `Load one or more specialized manuals (SKILL.md) for a task.
 
-You MUST call this FIRST when a task requires domain expertise (e.g., visualization, SQL generation, ClickHouse optimization).
+You MUST call this FIRST when a task requires domain expertise or before using specialized tools that rely on skill instructions (e.g., visualization, SQL generation, ClickHouse optimization).
+
+Use the available skill names and descriptions below to choose the best matching manual for the user's request. If the user explicitly names a skill, load it immediately.
 
 Usage:
   - Pass skill name(s) in the 'names' array.

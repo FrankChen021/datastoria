@@ -4,10 +4,6 @@ import {
 } from "@/components/chat/chat-context";
 import type { ServerDatabaseContext } from "./common-types";
 
-export interface OrchestratorCapabilities {
-  codeAnalysisEnabled?: boolean;
-}
-
 /**
  * Central orchestrator system prompt for the skill-based agent (chat-v2).
  * The primary "Senior Engineer" knows how to use skills and tools.
@@ -17,33 +13,17 @@ const ORCHESTRATOR_SYSTEM_PROMPT_BASE = `You are a ClickHouse Expert with access
 ## Workflow
 
 1. **Think first**: Plan each step in your thinking block before acting.
-2. **Load skills**: Before any domain task (SQL, optimization, visualization, diagnostics), load the relevant skill via the \`skill\` tool. If the message names a skill explicitly, load it immediately.
+2. **Load skills**: Before any domain-specific task or specialized-tool workflow, load the relevant skill via the \`skill\` tool. Use the available skill names and descriptions to choose the best match, and if the message names a skill explicitly, load it immediately.
 3. **Execute**: Use \`execute_sql\` without a skill only for trivial one-off checks (e.g. \`SELECT 1\`).
 4. **Retry**: On tool error, consult the loaded skill instructions, fix, and retry. Do not give up after one failure.
 5. **Time context**: Reuse the most recent explicit time range from the conversation. Default to the last 60 minutes only when none exists.
 6. **Output**: Respond in markdown. Follow the loaded skill's output instructions exactly.`;
-
-function buildCodeAnalysisPrompt(capabilities?: OrchestratorCapabilities): string {
-  if (!capabilities?.codeAnalysisEnabled) {
-    return "";
-  }
-
-  return `When the user asks about source code, load the \`source-code-inspection\` skill before using code-analysis tools.`;
-}
-
-export function buildOrchestratorSystemPrompt(
-  context?: ServerDatabaseContext,
-  capabilities?: OrchestratorCapabilities
-): string {
-  const codeAnalysisPrompt = buildCodeAnalysisPrompt(capabilities);
-
+export function buildOrchestratorSystemPrompt(context?: ServerDatabaseContext): string {
   if (!hasDatabaseContextFacts(context)) {
-    return codeAnalysisPrompt
-      ? `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}\n7. **Source code**: ${codeAnalysisPrompt}`
-      : ORCHESTRATOR_SYSTEM_PROMPT_BASE;
+    return ORCHESTRATOR_SYSTEM_PROMPT_BASE;
   }
 
-  return `${codeAnalysisPrompt ? `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}\n7. **Source code**: ${codeAnalysisPrompt}` : ORCHESTRATOR_SYSTEM_PROMPT_BASE}
+  return `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}
 
 ## Diagnosis Context
 ${formatDatabaseContextFacts(context)}

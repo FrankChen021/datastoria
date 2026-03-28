@@ -406,9 +406,7 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model,
-      system: buildOrchestratorSystemPrompt(context, {
-        codeAnalysisEnabled: codeSearchContext != null,
-      }),
+      system: buildOrchestratorSystemPrompt(context),
       messages: modelMessages,
       tools: {
         [SERVER_TOOL_NAMES.SKILL]: serverTools.skill,

@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { buildOrchestratorSystemPrompt } from "./orchestrator-prompt";
 
 describe("buildOrchestratorSystemPrompt", () => {
+  it("keeps skill-loading guidance generic", () => {
+    const prompt = buildOrchestratorSystemPrompt({});
+
+    expect(prompt).toContain("Before any domain-specific task or specialized-tool workflow");
+    expect(prompt).toContain(
+      "Use the available skill names and descriptions to choose the best match"
+    );
+  });
+
   it("appends diagnosis context when present", () => {
     const prompt = buildOrchestratorSystemPrompt({
       clickHouseUser: "default",
@@ -19,14 +28,5 @@ describe("buildOrchestratorSystemPrompt", () => {
     const prompt = buildOrchestratorSystemPrompt({});
 
     expect(prompt).not.toContain("## Diagnosis Context");
-  });
-
-  it("includes code analysis instructions only when the capability is enabled", () => {
-    const enabledPrompt = buildOrchestratorSystemPrompt({}, { codeAnalysisEnabled: true });
-    const disabledPrompt = buildOrchestratorSystemPrompt({}, { codeAnalysisEnabled: false });
-
-    expect(enabledPrompt).toContain("7. **Source code**");
-    expect(enabledPrompt).toContain("source-code-inspection");
-    expect(disabledPrompt).not.toContain("source-code-inspection");
   });
 });
