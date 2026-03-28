@@ -19,10 +19,7 @@ Use this skill when the user wants to:
 
 1. Use `search_file` first to locate relevant files and line numbers before reading content.
 2. Use `read_file` only for targeted sections; do not read entire files or large ranges.
-3. Prefer narrow, iterative reads:
-   - search identifiers, function names, or error strings, then expand only when necessary
-   - if a broad `search_file` query already returns high-confidence implementation files, do not issue narrower lexical variants of the same query unless the first results are ambiguous, too broad, or missing the needed evidence
-   - prefer reading the strongest candidate files from the first successful broad search over repeating equivalent searches that only change spelling, casing, namespaces, or nearby punctuation
+3. Prefer narrow, iterative reads: search identifiers, function names, or error strings, then expand only when necessary.
 4. Do not claim to have reviewed code that was not loaded with tools in this conversation.
 5. If `no matches found`, refine the search and retry before giving up.
 
