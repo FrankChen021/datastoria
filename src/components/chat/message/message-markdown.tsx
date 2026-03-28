@@ -11,6 +11,7 @@ import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import { buildCodeViewerUrl, replaceFileReferenceTokens } from "./file-reference-utils";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
+import { MessageMarkdownMermaid } from "./message-markdown-mermaid";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 import { MessageMarkdownUserActions } from "./message-user-actions";
 
@@ -79,6 +80,9 @@ export const MessageMarkdown = memo(function MessageMarkdown({
 
         if (codeClassName === "language-chart-spec") {
           return <MessageMarkdownChartSpec spec={String(children)} />;
+        }
+        if (codeClassName === "language-mermaid") {
+          return <MessageMarkdownMermaid chart={String(children).replace(/\n$/, "")} />;
         }
         if (codeClassName === "language-user_actions") {
           return <MessageMarkdownUserActions spec={String(children)} messageId={messageId} />;

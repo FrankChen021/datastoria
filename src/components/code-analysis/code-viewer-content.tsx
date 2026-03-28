@@ -354,7 +354,6 @@ export function CodeViewerContent({
 
   const language = inferLanguage(path);
   const treeData = useMemo(() => buildFileTree(filePaths), [filePaths]);
-  const effectiveHighlightEndLine = highlightedEndLine ?? highlightedStartLine;
   const windowSize = endLine - startLine + 1;
 
   const navigateToWindow = (nextWindowStart: number, nextWindowEnd: number) => {
