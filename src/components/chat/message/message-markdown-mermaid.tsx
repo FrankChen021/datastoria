@@ -23,7 +23,8 @@ export function MessageMarkdownMermaid({
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const diagramId = useId();
-  const shouldDeferRender = isStreaming && !isLikelyCompleteMermaidChart(chart);
+  const isCompleteChart = isLikelyCompleteMermaidChart(chart);
+  const shouldDeferRender = !isCompleteChart;
 
   const isDark = useMemo(() => {
     if (typeof window !== "undefined") {
@@ -96,7 +97,11 @@ export function MessageMarkdownMermaid({
   if (!svg) {
     return (
       <div className="my-2 rounded-md bg-muted/20 px-3 py-8 text-center text-sm text-muted-foreground">
-        {shouldDeferRender ? "Waiting for complete Mermaid diagram..." : "Rendering diagram..."}
+        {shouldDeferRender
+          ? isStreaming
+            ? "Waiting for complete Mermaid diagram..."
+            : "Incomplete Mermaid diagram"
+          : "Rendering diagram..."}
       </div>
     );
   }

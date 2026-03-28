@@ -189,7 +189,8 @@ const ChatMessagePart = memo(
     // Text and reasoning parts do not depend on isRunning.
     if (prevProps.part.type === "text" && nextProps.part.type === "text") {
       return (
-        (prevProps.part as { text: string }).text === (nextProps.part as { text: string }).text
+        (prevProps.part as { text: string }).text === (nextProps.part as { text: string }).text &&
+        prevProps.isRunning === nextProps.isRunning
       );
     }
     if (prevProps.part.type === "reasoning" && nextProps.part.type === "reasoning") {
