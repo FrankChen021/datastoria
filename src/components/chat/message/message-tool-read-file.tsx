@@ -77,13 +77,15 @@ function buildResolvedHeader(input: ReadFileInput, output?: ReadFileOutput): str
   const path =
     output && "path" in output && typeof output.path === "string" && output.path.length > 0
       ? output.path
-      : input.path ?? "";
+      : (input.path ?? "");
   const startLine =
     output && "startLine" in output && typeof output.startLine === "number"
       ? output.startLine
       : input.startLine;
   const endLine =
-    output && "endLine" in output && typeof output.endLine === "number" ? output.endLine : input.endLine;
+    output && "endLine" in output && typeof output.endLine === "number"
+      ? output.endLine
+      : input.endLine;
 
   if (!path) {
     return "";
