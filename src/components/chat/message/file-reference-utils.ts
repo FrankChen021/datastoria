@@ -6,7 +6,8 @@ export interface FileReference {
   endLine?: number;
 }
 
-const FILE_REFERENCE_PATTERN = /\[\[file:([^\]]+)\]\]/g;
+const FILE_REFERENCE_PATTERN = /\[\[\s*file\s*:\s*([^\]]+?)\s*\]\]/gi;
+const FILE_REFERENCE_WITH_LINES_PATTERN = /^(.*?)\s*#L\s*(\d+)(?:\s*-\s*L?\s*(\d+))?$/i;
 
 export function parseFileReferenceToken(token: string): FileReference | null {
   const trimmed = token.trim();
@@ -14,24 +15,18 @@ export function parseFileReferenceToken(token: string): FileReference | null {
     return null;
   }
 
-  const lineAnchorIndex = trimmed.indexOf("#L");
-  if (lineAnchorIndex === -1) {
+  const lineMatch = FILE_REFERENCE_WITH_LINES_PATTERN.exec(trimmed);
+  if (!lineMatch) {
     return { path: trimmed };
   }
 
-  const path = trimmed.slice(0, lineAnchorIndex).trim();
-  const linePart = trimmed.slice(lineAnchorIndex + 2).trim();
-  if (!path || !linePart) {
+  const path = lineMatch[1]?.trim();
+  if (!path) {
     return null;
   }
 
-  const rangeMatch = /^(\d+)(?:-(\d+))?$/.exec(linePart);
-  if (!rangeMatch) {
-    return null;
-  }
-
-  const startLine = Number.parseInt(rangeMatch[1], 10);
-  const endLine = rangeMatch[2] ? Number.parseInt(rangeMatch[2], 10) : undefined;
+  const startLine = Number.parseInt(lineMatch[2], 10);
+  const endLine = lineMatch[3] ? Number.parseInt(lineMatch[3], 10) : undefined;
   if (!Number.isFinite(startLine) || startLine <= 0) {
     return null;
   }

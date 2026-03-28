@@ -257,6 +257,69 @@ describe("tree-search", () => {
     });
   });
 
+  describe("matched node children option", () => {
+    const tree: TreeDataItem[] = [
+      createNode("common", "Common", [
+        createNode("mysqlxx", "mysqlxx", [
+          createNode("connection", "Connection.cpp"),
+          createNode("exception", "Exception.cpp"),
+        ]),
+      ]),
+    ];
+
+    it("includes matched node children by default", () => {
+      const results = searchTree(tree, "mysql", {
+        match: (node, pattern) => {
+          const index = node.search.toLowerCase().indexOf(pattern.toLowerCase());
+          return { matches: index >= 0, start: index, end: index + pattern.length };
+        },
+      });
+
+      const structure = getStructure(results);
+      expect(structure).toEqual([
+        {
+          labelContent: "Common",
+          expanded: true,
+          children: [
+            {
+              labelContent: "mysqlxx",
+              expanded: false,
+              children: [
+                { labelContent: "Connection.cpp", expanded: false, children: undefined },
+                { labelContent: "Exception.cpp", expanded: false, children: undefined },
+              ],
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("can hide unmatched children for matched nodes", () => {
+      const results = searchTree(tree, "mysql", {
+        includeMatchedNodeChildren: false,
+        match: (node, pattern) => {
+          const index = node.search.toLowerCase().indexOf(pattern.toLowerCase());
+          return { matches: index >= 0, start: index, end: index + pattern.length };
+        },
+      });
+
+      const structure = getStructure(results);
+      expect(structure).toEqual([
+        {
+          labelContent: "Common",
+          expanded: true,
+          children: [
+            {
+              labelContent: "mysqlxx",
+              expanded: false,
+              children: undefined,
+            },
+          ],
+        },
+      ]);
+    });
+  });
+
   describe("single segment search", () => {
     const tree: TreeDataItem[] = [
       createNode("system", "system", [createNode("query", "query")]),

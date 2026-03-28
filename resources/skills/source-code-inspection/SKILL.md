@@ -1,6 +1,6 @@
 ---
 name: source-code-inspection
-description: Inspect a configured source repository with search_code and read_code_file, then answer with precise file citations.
+description: Inspect a configured source repository with search_file and read_file, then answer with precise file citations.
 metadata:
   author: DataStoria
   disable-slash-command: true
@@ -8,8 +8,8 @@ metadata:
 
 # Workflow
 
-1. Use `search_code` first to locate relevant files and line numbers before reading file content.
-2. Use `read_code_file` only for targeted sections. Do not try to inspect the whole repository or large files at once.
+1. Use `search_file` first to locate relevant files and line numbers before reading file content.
+2. Use `read_file` only for targeted sections. Do not try to inspect the whole repository or large files at once.
 3. Prefer narrow, iterative reads:
    - search for identifiers, function names, route names, component names, or error strings
    - read only the most relevant file sections

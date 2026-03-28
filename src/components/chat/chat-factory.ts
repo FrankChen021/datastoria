@@ -490,7 +490,9 @@ export class ChatFactory {
           toolName === SERVER_TOOL_NAMES.OPTIMIZE_SQL ||
           toolName === SERVER_TOOL_NAMES.PLAN ||
           toolName === SERVER_TOOL_NAMES.SKILL ||
-          toolName === SERVER_TOOL_NAMES.SKILL_RESOURCE
+          toolName === SERVER_TOOL_NAMES.SKILL_RESOURCE ||
+          toolName === SERVER_TOOL_NAMES.SEARCH_FILE ||
+          toolName === SERVER_TOOL_NAMES.READ_FILE
         ) {
           return;
         }

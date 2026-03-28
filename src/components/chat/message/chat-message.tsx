@@ -21,6 +21,8 @@ import { MessageToolGenerateSql } from "./message-tool-generate-sql";
 import { MessageToolGenerateVisualization } from "./message-tool-generate-visualization";
 import { MessageToolGetTables } from "./message-tool-get-tables";
 import { MessageToolPlan } from "./message-tool-plan";
+import { MessageToolReadFile } from "./message-tool-read-file";
+import { MessageToolSearchFile } from "./message-tool-search-file";
 import { MessageToolSkill } from "./message-tool-skill";
 import { MessageToolValidateSql } from "./message-tool-validate-sql";
 import { MessageUser } from "./message-user";
@@ -146,6 +148,10 @@ const ChatMessagePart = memo(
       return <MessageToolSkill part={part} isRunning={isRunning} />;
     } else if (toolName === SERVER_TOOL_NAMES.SKILL_RESOURCE) {
       return <MessageToolSkill part={part} isRunning={isRunning} label="Load Skill Resources" />;
+    } else if (toolName === SERVER_TOOL_NAMES.SEARCH_FILE) {
+      return <MessageToolSearchFile part={part} isRunning={isRunning} />;
+    } else if (toolName === SERVER_TOOL_NAMES.READ_FILE) {
+      return <MessageToolReadFile part={part} isRunning={isRunning} />;
     }
     // CLIENT TOOLS
     else if (toolName === CLIENT_TOOL_NAMES.ASK_USER_QUESTION) {

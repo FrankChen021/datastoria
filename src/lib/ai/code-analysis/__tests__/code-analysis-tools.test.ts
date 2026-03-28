@@ -25,13 +25,13 @@ describe("createCodeAnalysisTools", () => {
     }
   });
 
-  it("returns consistent error results from search_code", async () => {
+  it("returns consistent error results from search_file", async () => {
     const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-analysis-tools-"));
     tempDirs.push(rootDir);
     fs.writeFileSync(path.join(rootDir, "app.ts"), "const value = 1;\n");
     const tools = createCodeAnalysisTools(createConfig(rootDir));
 
-    await expect(tools.search_code.execute?.({ query: "missing" }, {} as never)).resolves.toEqual({
+    await expect(tools.search_file.execute?.({ query: "missing" }, {} as never)).resolves.toEqual({
       error: "no matches found",
     });
   });

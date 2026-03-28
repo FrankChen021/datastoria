@@ -415,8 +415,8 @@ export async function POST(req: Request) {
         [SERVER_TOOL_NAMES.SKILL_RESOURCE]: serverTools.skill_resource,
         ...(codeAnalysisTools
           ? {
-              [SERVER_TOOL_NAMES.SEARCH_CODE]: codeAnalysisTools.search_code,
-              [SERVER_TOOL_NAMES.READ_CODE_FILE]: codeAnalysisTools.read_code_file,
+              [SERVER_TOOL_NAMES.SEARCH_FILE]: codeAnalysisTools.search_file,
+              [SERVER_TOOL_NAMES.READ_FILE]: codeAnalysisTools.read_file,
             }
           : {}),
         ask_user_question: ClientTools.ask_user_question,

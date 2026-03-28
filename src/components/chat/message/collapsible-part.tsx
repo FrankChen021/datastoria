@@ -45,6 +45,7 @@ export function Timer({ isRunning }: { isRunning: boolean }) {
  */
 export function CollapsiblePart({
   toolName,
+  headerExtra,
   children,
   defaultExpanded = false,
   state,
@@ -53,6 +54,7 @@ export function CollapsiblePart({
   isRunning = true,
 }: {
   toolName: string;
+  headerExtra?: React.ReactNode;
   children?: React.ReactNode;
   defaultExpanded?: boolean;
   state?: string;
@@ -116,6 +118,11 @@ export function CollapsiblePart({
               ))}
             {toolName}
           </Badge>
+          {headerExtra ? (
+            <span className="max-w-[360px] truncate font-mono text-[10px] text-muted-foreground">
+              {headerExtra}
+            </span>
+          ) : null}
           {statusText && <span className="text-muted-foreground">{statusText}</span>}
           <Timer isRunning={isActuallyRunning} />
         </div>

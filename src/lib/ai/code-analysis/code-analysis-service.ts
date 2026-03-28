@@ -37,8 +37,11 @@ export interface ReadCodeFileSuccess {
   path: string;
   startLine: number;
   endLine: number;
+  totalLines: number;
   content: string;
   truncated: boolean;
+  hasPrevious: boolean;
+  hasNext: boolean;
 }
 
 export interface ReadCodeFileFailure {
@@ -49,7 +52,21 @@ export type ReadCodeFileResult = ReadCodeFileSuccess | ReadCodeFileFailure;
 
 export interface ReadCodeFileForViewerInput {
   path: string;
+  viewStartLine?: number;
+  viewEndLine?: number;
+  targetStartLine?: number;
+  targetEndLine?: number;
 }
+
+export interface ListCodeFilesSuccess {
+  paths: string[];
+}
+
+export interface ListCodeFilesFailure {
+  error: string;
+}
+
+export type ListCodeFilesResult = ListCodeFilesSuccess | ListCodeFilesFailure;
 
 const VIEWER_MAX_FILE_BYTES = 256 * 1024;
 const VIEWER_MAX_READ_LINES = 2000;
@@ -212,6 +229,55 @@ function capContent(content: string, maxBytes: number): { content: string; trunc
   return { content: capped, truncated: true };
 }
 
+function buildViewerWindow(args: {
+  totalLines: number;
+  maxLines: number;
+  viewStartLine?: number;
+  viewEndLine?: number;
+  targetStartLine?: number;
+  targetEndLine?: number;
+}): { startLine: number; endLine: number } {
+  const { totalLines, maxLines, viewStartLine, viewEndLine, targetStartLine, targetEndLine } = args;
+
+  if (totalLines <= 0) {
+    return { startLine: 1, endLine: 1 };
+  }
+
+  if (viewStartLine != null || viewEndLine != null) {
+    const requestedStart = Math.max(1, viewStartLine ?? 1);
+    const requestedEnd = Math.max(requestedStart, viewEndLine ?? requestedStart + maxLines - 1);
+    const startLine = Math.min(requestedStart, totalLines);
+    const endLine = Math.min(requestedEnd, totalLines);
+    return { startLine, endLine };
+  }
+
+  if (targetStartLine != null) {
+    const safeTargetStart = Math.min(Math.max(1, targetStartLine), totalLines);
+    const safeTargetEnd = Math.min(
+      Math.max(targetEndLine ?? targetStartLine, safeTargetStart),
+      totalLines
+    );
+    const targetSpan = Math.max(1, safeTargetEnd - safeTargetStart + 1);
+    const remaining = Math.max(0, maxLines - targetSpan);
+    let startLine = Math.max(1, safeTargetStart - Math.floor(remaining / 2));
+    let endLine = Math.min(totalLines, safeTargetEnd + Math.ceil(remaining / 2));
+
+    const currentSpan = endLine - startLine + 1;
+    if (currentSpan < maxLines) {
+      const deficit = maxLines - currentSpan;
+      startLine = Math.max(1, startLine - deficit);
+      endLine = Math.min(totalLines, startLine + maxLines - 1);
+    }
+
+    return { startLine, endLine };
+  }
+
+  return {
+    startLine: 1,
+    endLine: Math.min(totalLines, maxLines),
+  };
+}
+
 export async function searchCode(
   config: CodeAnalysisConfig,
   input: SearchCodeInput
@@ -305,8 +371,11 @@ export async function readCodeFile(
     path: resolved.relativePath,
     startLine: requestedStartLine,
     endLine: cappedEndLine,
+    totalLines: allLines.length,
     content: capped.content,
     truncated: capped.truncated || hasMoreLines,
+    hasPrevious: requestedStartLine > 1,
+    hasNext: cappedEndLine < allLines.length,
   };
 }
 
@@ -325,16 +394,41 @@ export async function readCodeFileForViewer(
 
   const content = await fs.readFile(resolved.fullPath, "utf8");
   const allLines = content.split(/\r?\n/);
-  const cappedEndLine = Math.min(allLines.length, VIEWER_MAX_READ_LINES);
-  const selected = allLines.slice(0, cappedEndLine);
+  const { startLine, endLine } = buildViewerWindow({
+    totalLines: allLines.length,
+    maxLines: VIEWER_MAX_READ_LINES,
+    viewStartLine: input.viewStartLine,
+    viewEndLine: input.viewEndLine,
+    targetStartLine: input.targetStartLine,
+    targetEndLine: input.targetEndLine,
+  });
+  const selected = allLines.slice(startLine - 1, endLine);
   const joined = selected.join("\n");
   const capped = capContent(joined, VIEWER_MAX_FILE_BYTES);
 
   return {
     path: resolved.relativePath,
-    startLine: 1,
-    endLine: cappedEndLine,
+    startLine,
+    endLine,
+    totalLines: allLines.length,
     content: capped.content,
-    truncated: capped.truncated || cappedEndLine < allLines.length,
+    truncated: capped.truncated,
+    hasPrevious: startLine > 1,
+    hasNext: endLine < allLines.length,
   };
+}
+
+export async function listCodeFilesForViewer(
+  config: CodeAnalysisConfig
+): Promise<ListCodeFilesResult> {
+  const files: string[] = [];
+  await collectFiles(config, config.rootDir, files);
+
+  const uniquePaths = [
+    ...new Set(
+      files.map((fullPath) => normalizeRelativePath(path.relative(config.rootDir, fullPath)))
+    ),
+  ].sort((left, right) => left.localeCompare(right));
+
+  return { paths: uniquePaths };
 }

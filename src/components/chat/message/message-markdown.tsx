@@ -195,7 +195,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
               target="_blank"
               rel="noopener noreferrer"
               title={filePath}
-              className="inline-flex max-w-full items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2.5 py-1 font-mono text-xs text-primary transition-colors hover:bg-muted hover:text-primary"
+              className="inline-flex max-w-full items-center gap-1 font-mono text-xs text-primary transition-colors hover:underline underline-offset-4"
               {...props}
             >
               <span className="truncate">{children}</span>

@@ -1,6 +1,9 @@
 import { CodeViewerContent } from "@/components/code-analysis/code-viewer-content";
 import { getCodeAnalysisConfig } from "@/lib/ai/code-analysis/code-analysis-config";
-import { readCodeFileForViewer } from "@/lib/ai/code-analysis/code-analysis-service";
+import {
+  listCodeFilesForViewer,
+  readCodeFileForViewer,
+} from "@/lib/ai/code-analysis/code-analysis-service";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -56,21 +59,43 @@ export default async function CodeViewerPage({
 
   const highlightedStartLine = parsePositiveInteger(params.startLine);
   const highlightedEndLine = parsePositiveInteger(params.endLine);
-  const result = await readCodeFileForViewer(config, { path: targetPath });
+  const viewStartLine = parsePositiveInteger(params.viewStartLine);
+  const viewEndLine = parsePositiveInteger(params.viewEndLine);
+  const [result, fileListResult] = await Promise.all([
+    readCodeFileForViewer(config, {
+      path: targetPath,
+      viewStartLine,
+      viewEndLine,
+      targetStartLine: highlightedStartLine,
+      targetEndLine: highlightedEndLine,
+    }),
+    listCodeFilesForViewer(config),
+  ]);
 
   if ("error" in result) {
     return <ViewerError title="Unable to load file" description={result.error} />;
   }
 
+  if ("error" in fileListResult) {
+    return <ViewerError title="Unable to load file tree" description={fileListResult.error} />;
+  }
+
   return (
     <CodeViewerContent
+      filePaths={fileListResult.paths}
       path={result.path}
       content={result.content}
       startLine={result.startLine}
       endLine={result.endLine}
+      totalLines={result.totalLines}
       highlightedStartLine={highlightedStartLine}
       highlightedEndLine={highlightedEndLine}
+      autoScrollToHighlight={
+        highlightedStartLine != null && viewStartLine == null && viewEndLine == null
+      }
       truncated={result.truncated}
+      hasPrevious={result.hasPrevious}
+      hasNext={result.hasNext}
     />
   );
 }

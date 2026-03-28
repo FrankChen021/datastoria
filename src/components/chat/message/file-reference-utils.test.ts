@@ -18,6 +18,11 @@ describe("file-reference-utils", () => {
       startLine: 12,
       endLine: 18,
     });
+    expect(parseFileReferenceToken("Common/ErrorCodes.cpp #L50 - 90")).toEqual({
+      path: "Common/ErrorCodes.cpp",
+      startLine: 50,
+      endLine: 90,
+    });
   });
 
   it("builds compact labels and custom hrefs", () => {
@@ -36,6 +41,24 @@ describe("file-reference-utils", () => {
   it("rewrites file tokens into markdown links", () => {
     expect(replaceFileReferenceTokens("See [[file:src/app/page.tsx#L12-18]] for details.")).toBe(
       "See [page.tsx:12-18](codefile://open?path=src%2Fapp%2Fpage.tsx&startLine=12&endLine=18) for details."
+    );
+  });
+
+  it("rewrites screenshot-style file tokens and tolerates spacing", () => {
+    expect(
+      replaceFileReferenceTokens(
+        "UNKNOWN_TABLE is a ClickHouse exception code [[file:Common/ErrorCodes.cpp#L50-L90]]."
+      )
+    ).toBe(
+      "UNKNOWN_TABLE is a ClickHouse exception code [ErrorCodes.cpp:50-90](codefile://open?path=Common%2FErrorCodes.cpp&startLine=50&endLine=90)."
+    );
+
+    expect(
+      replaceFileReferenceTokens(
+        "See [[ FILE : Common/ErrorCodes.cpp #L50 - 90 ]] for the definition."
+      )
+    ).toBe(
+      "See [ErrorCodes.cpp:50-90](codefile://open?path=Common%2FErrorCodes.cpp&startLine=50&endLine=90) for the definition."
     );
   });
 });

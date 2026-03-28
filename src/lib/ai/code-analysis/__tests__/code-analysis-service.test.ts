@@ -3,7 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { CodeAnalysisConfig } from "../code-analysis-config";
-import { readCodeFile, searchCode } from "../code-analysis-service";
+import {
+  listCodeFilesForViewer,
+  readCodeFile,
+  readCodeFileForViewer,
+  searchCode,
+} from "../code-analysis-service";
 
 function createConfig(rootDir: string): CodeAnalysisConfig {
   return {
@@ -65,8 +70,77 @@ describe("code-analysis-service", () => {
       path: "app.ts",
       startLine: 2,
       endLine: 4,
+      totalLines: 5,
       content: "line 2\nline 3\nline 4",
       truncated: true,
+      hasPrevious: true,
+      hasNext: true,
     });
+  });
+
+  it("lists repo-relative files for the viewer and skips ignored directories", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-analysis-service-"));
+    tempDirs.push(rootDir);
+    fs.mkdirSync(path.join(rootDir, "src", "nested"), { recursive: true });
+    fs.mkdirSync(path.join(rootDir, "dist"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "src", "nested", "main.ts"), "export const value = 1;\n");
+    fs.writeFileSync(path.join(rootDir, "README.md"), "# test\n");
+    fs.writeFileSync(path.join(rootDir, "dist", "bundle.js"), "ignored\n");
+
+    const result = await listCodeFilesForViewer(createConfig(rootDir));
+
+    expect(result).toEqual({
+      paths: ["README.md", "src/nested/main.ts"],
+    });
+  });
+
+  it("loads the first viewer window by default", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-analysis-service-"));
+    tempDirs.push(rootDir);
+    fs.writeFileSync(
+      path.join(rootDir, "app.ts"),
+      Array.from({ length: 2105 }, (_, index) => `line ${index + 1}`).join("\n")
+    );
+
+    const result = await readCodeFileForViewer(createConfig(rootDir), { path: "app.ts" });
+
+    expect(result).toMatchObject({
+      path: "app.ts",
+      startLine: 1,
+      endLine: 2000,
+      totalLines: 2105,
+      hasPrevious: false,
+      hasNext: true,
+    });
+  });
+
+  it("loads a focused viewer window around highlighted lines", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-analysis-service-"));
+    tempDirs.push(rootDir);
+    fs.writeFileSync(
+      path.join(rootDir, "app.ts"),
+      Array.from({ length: 4000 }, (_, index) => `line ${index + 1}`).join("\n")
+    );
+
+    const result = await readCodeFileForViewer(createConfig(rootDir), {
+      path: "app.ts",
+      targetStartLine: 3000,
+      targetEndLine: 3010,
+    });
+
+    expect("error" in result).toBe(false);
+    if ("error" in result) {
+      throw new Error(result.error);
+    }
+
+    expect(result).toMatchObject({
+      path: "app.ts",
+      totalLines: 4000,
+      hasPrevious: true,
+      hasNext: false,
+    });
+    expect(result.startLine).toBeLessThanOrEqual(3000);
+    expect(result.endLine).toBeGreaterThanOrEqual(3010);
+    expect(result.endLine - result.startLine + 1).toBeLessThanOrEqual(2000);
   });
 });
