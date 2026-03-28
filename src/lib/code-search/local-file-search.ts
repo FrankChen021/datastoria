@@ -519,17 +519,22 @@ export class LocalFileCodeSearch implements CodeSearch {
       SEARCH_CONCURRENCY,
       async ({ fullPath, relativePath, index }) => {
         if (hasMore) return false;
-        if (matcher && !matcher.test(relativePath)) return;
+        const finalize = (fileMatches: SearchFileMatch[] = []) => {
+          pending.set(index, fileMatches);
+          return flushPending();
+        };
+
+        if (matcher && !matcher.test(relativePath)) return finalize();
 
         // stat first (cheap metadata call) before isBinaryFile (reads 8 KB).
         try {
           const { size } = await fs.stat(fullPath);
-          if (size > this.config.maxFileBytes) return;
+          if (size > this.config.maxFileBytes) return finalize();
         } catch {
-          return;
+          return finalize();
         }
 
-        if (await isBinaryFile(fullPath)) return;
+        if (await isBinaryFile(fullPath)) return finalize();
 
         // Single readFile call replaces open + readline streaming.
         // Files are already bounded by maxFileBytes so this is safe.
@@ -537,7 +542,7 @@ export class LocalFileCodeSearch implements CodeSearch {
         try {
           content = await fs.readFile(fullPath, "utf8");
         } catch {
-          return;
+          return finalize();
         }
 
         const lines = splitBufferedLines(content);
@@ -555,8 +560,7 @@ export class LocalFileCodeSearch implements CodeSearch {
           }
         }
 
-        pending.set(index, fileMatches);
-        return flushPending();
+        return finalize(fileMatches);
       }
     );
 

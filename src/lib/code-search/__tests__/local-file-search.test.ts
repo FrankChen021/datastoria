@@ -68,6 +68,24 @@ describe("LocalFileCodeSearch", () => {
     });
   });
 
+  it("does not lose later matches when earlier files are skipped", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
+    tempDirs.push(rootDir);
+    fs.mkdirSync(path.join(rootDir, "src"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "README.md"), "token in skipped file\n");
+    fs.writeFileSync(path.join(rootDir, "src", "main.ts"), "const token = 'secret';\n");
+
+    const result = await new LocalFileCodeSearch(createConfig(rootDir)).searchFile({
+      query: "token",
+      glob: "src/*.ts",
+    });
+
+    expect(result).toEqual({
+      matches: [{ path: "src/main.ts", line: 1, snippet: "const token = 'secret';" }],
+      hasMore: false,
+    });
+  });
+
   it("rejects traversal attempts when reading files", async () => {
     const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
     tempDirs.push(rootDir);
