@@ -84,7 +84,9 @@ function createBaseConfigFromEnv(
     maxFileBytes,
     maxReadLines,
     maxSearchResults,
-    ignoredNames: parseIgnoredNames(env.CODE_ANALYSIS_IGNORE_GLOBS),
+    ignoredNames: parseIgnoredNames(
+      env.CODE_ANALYSIS_IGNORE_NAMES ?? env.CODE_ANALYSIS_IGNORE_GLOBS
+    ),
   };
 }
 
@@ -103,6 +105,10 @@ function getBaseConfig():
 
   cachedBaseConfig = createBaseConfigFromEnv(process.env);
   return cachedBaseConfig;
+}
+
+export function isCodeSearchConfigured(): boolean {
+  return !isDisabledBaseConfig(getBaseConfig());
 }
 
 function resolveExistingLocalDir(localDir: string): string | DisabledCodeSearchConfig {

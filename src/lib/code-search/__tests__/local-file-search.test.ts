@@ -80,6 +80,28 @@ describe("LocalFileCodeSearch", () => {
     });
   });
 
+  it("clamps out-of-range read windows to the end of the file", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
+    tempDirs.push(rootDir);
+    fs.writeFileSync(path.join(rootDir, "app.ts"), ["line 1", "line 2", "line 3"].join("\n"));
+
+    const result = await new LocalFileCodeSearch(createConfig(rootDir)).readFile({
+      path: "app.ts",
+      startLine: 99,
+    });
+
+    expect(result).toEqual({
+      path: "app.ts",
+      startLine: 1,
+      endLine: 3,
+      totalLines: 3,
+      content: "line 1\nline 2\nline 3",
+      truncated: false,
+      hasPrevious: false,
+      hasNext: false,
+    });
+  });
+
   it("lists repo-relative files for the viewer and skips ignored directories", async () => {
     const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
     tempDirs.push(rootDir);
@@ -93,6 +115,22 @@ describe("LocalFileCodeSearch", () => {
 
     expect(result).toEqual({
       paths: ["README.md", "src/nested/main.ts"],
+    });
+  });
+
+  it("avoids symlink directory cycles while walking files", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
+    tempDirs.push(rootDir);
+    const srcDir = path.join(rootDir, "src");
+    const nestedDir = path.join(srcDir, "nested");
+    fs.mkdirSync(nestedDir, { recursive: true });
+    fs.writeFileSync(path.join(nestedDir, "main.ts"), "export const value = 1;\n");
+    fs.symlinkSync(srcDir, path.join(nestedDir, "cycle"), "dir");
+
+    const result = await new LocalFileCodeSearch(createConfig(rootDir)).listFiles();
+
+    expect(result).toEqual({
+      paths: ["src/nested/main.ts"],
     });
   });
 

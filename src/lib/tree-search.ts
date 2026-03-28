@@ -175,10 +175,12 @@ function searchNodes(
         // Trailing dot: show all children without processing them
         // Only the current node should be highlighted and expanded
         if (node.children) {
-          const unprocessedChildren = node.children.map((child) => ({
-            ...child,
-            _expanded: false, // Children should not be expanded
-          }));
+          const unprocessedChildren = context.includeMatchedNodeChildren
+            ? node.children.map((child) => ({
+                ...child,
+                _expanded: false, // Children should not be expanded
+              }))
+            : undefined;
 
           return {
             ...node,

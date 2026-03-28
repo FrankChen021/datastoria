@@ -30,9 +30,9 @@ function ViewerError({ title, description }: { title: string; description: strin
 export default async function CodeViewerPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
-  const params = await searchParams;
+  const params = searchParams;
   const codeSearchContext = await defaultCodeSearchFactory.getCodeSearchContext();
 
   if (!codeSearchContext) {

@@ -1,6 +1,8 @@
 import "server-only";
+import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createInterface } from "node:readline";
 import type {
   CodeSearch,
   CodeSearchConfig,
@@ -121,24 +123,35 @@ async function isBinaryFile(filePath: string): Promise<boolean> {
 async function collectFiles(
   config: CodeSearchConfig,
   directory: string,
-  results: string[]
+  results: string[],
+  visitedDirectories: Set<string> = new Set(),
+  seenFiles: Set<string> = new Set()
 ): Promise<void> {
-  const entries = await fs.readdir(directory, { withFileTypes: true });
+  const normalizedDirectory = await fs.realpath(directory);
+  if (visitedDirectories.has(normalizedDirectory)) {
+    return;
+  }
+  visitedDirectories.add(normalizedDirectory);
+
+  const entries = await fs.readdir(normalizedDirectory, { withFileTypes: true });
 
   for (const entry of entries) {
-    const fullPath = path.join(directory, entry.name);
+    const fullPath = path.join(normalizedDirectory, entry.name);
     const relativePath = normalizeRelativePath(path.relative(config.rootDir, fullPath));
     if (shouldIgnoreRelativePath(relativePath, config.ignoredNames)) {
       continue;
     }
 
     if (entry.isDirectory()) {
-      await collectFiles(config, fullPath, results);
+      await collectFiles(config, fullPath, results, visitedDirectories, seenFiles);
       continue;
     }
 
     if (entry.isFile()) {
-      results.push(fullPath);
+      if (!seenFiles.has(fullPath)) {
+        seenFiles.add(fullPath);
+        results.push(fullPath);
+      }
       continue;
     }
 
@@ -154,22 +167,68 @@ async function collectFiles(
       }
       const stat = await fs.stat(realPath);
       if (stat.isDirectory()) {
-        await collectFiles(config, realPath, results);
+        await collectFiles(config, realPath, results, visitedDirectories, seenFiles);
       } else if (stat.isFile()) {
-        results.push(realPath);
+        if (!seenFiles.has(realPath)) {
+          seenFiles.add(realPath);
+          results.push(realPath);
+        }
       }
     }
   }
 }
 
-function capContent(content: string, maxBytes: number): { content: string; truncated: boolean } {
-  const buffer = Buffer.from(content, "utf8");
-  if (buffer.byteLength <= maxBytes) {
-    return { content, truncated: false };
+async function streamLines(
+  filePath: string,
+  onLine: (line: string, lineNumber: number) => void | boolean | Promise<void | boolean>
+): Promise<number> {
+  const stream = createReadStream(filePath, { encoding: "utf8" });
+  const reader = createInterface({
+    input: stream,
+    crlfDelay: Infinity,
+  });
+
+  let lineNumber = 0;
+
+  try {
+    for await (const line of reader) {
+      lineNumber += 1;
+      const shouldContinue = await onLine(line, lineNumber);
+      if (shouldContinue === false) {
+        reader.close();
+        stream.destroy();
+        break;
+      }
+    }
+  } finally {
+    reader.close();
+    stream.destroy();
   }
 
-  const capped = buffer.subarray(0, maxBytes).toString("utf8");
-  return { content: capped, truncated: true };
+  return lineNumber;
+}
+
+function appendLineWithinByteLimit(
+  lines: string[],
+  line: string,
+  currentBytes: number,
+  maxBytes: number
+): { bytes: number; truncated: boolean } {
+  const segment = lines.length === 0 ? line : `\n${line}`;
+  const segmentBuffer = Buffer.from(segment, "utf8");
+
+  if (currentBytes + segmentBuffer.byteLength <= maxBytes) {
+    lines.push(segment);
+    return { bytes: currentBytes + segmentBuffer.byteLength, truncated: false };
+  }
+
+  if (currentBytes >= maxBytes) {
+    return { bytes: currentBytes, truncated: true };
+  }
+
+  const remainingBytes = maxBytes - currentBytes;
+  lines.push(segmentBuffer.subarray(0, remainingBytes).toString("utf8"));
+  return { bytes: maxBytes, truncated: true };
 }
 
 export class LocalFileCodeSearch implements CodeSearch {
@@ -201,25 +260,30 @@ export class LocalFileCodeSearch implements CodeSearch {
       if (await isBinaryFile(fullPath)) {
         continue;
       }
+      const stat = await fs.stat(fullPath);
+      if (stat.size > this.config.maxFileBytes) {
+        continue;
+      }
 
-      const content = await fs.readFile(fullPath, "utf8");
-      const lines = content.split(/\r?\n/);
-      for (let index = 0; index < lines.length; index++) {
-        const line = lines[index];
+      await streamLines(fullPath, (line, lineNumber) => {
         if (!line.toLocaleLowerCase().includes(normalizedQuery)) {
-          continue;
+          return;
         }
 
         if (matches.length >= limit) {
           hasMore = true;
-          return { matches, hasMore };
+          return false;
         }
 
         matches.push({
           path: relativePath,
-          line: index + 1,
+          line: lineNumber,
           snippet: line.trim().slice(0, 300),
         });
+      });
+
+      if (hasMore) {
+        return { matches, hasMore };
       }
     }
 
@@ -240,8 +304,6 @@ export class LocalFileCodeSearch implements CodeSearch {
       return { error: "binary file rejected" };
     }
 
-    const content = await fs.readFile(resolved.fullPath, "utf8");
-    const allLines = content.split(/\r?\n/);
     const maxLines = Math.max(1, input.maxLines ?? this.config.maxReadLines);
     const maxBytes = Math.max(1, input.maxBytes ?? this.config.maxFileBytes);
     const requestedStartLine = Math.max(input.startLine ?? 1, 1);
@@ -249,26 +311,50 @@ export class LocalFileCodeSearch implements CodeSearch {
       input.endLine != null
         ? Math.max(input.endLine, requestedStartLine)
         : requestedStartLine + maxLines - 1;
-    const cappedEndLine = Math.min(
-      requestedEndLine,
-      requestedStartLine + maxLines - 1,
-      allLines.length
-    );
-    const selected = allLines.slice(requestedStartLine - 1, cappedEndLine);
-    const joined = selected.join("\n");
-    const capped = capContent(joined, maxBytes);
+
+    let totalLines = 0;
+    await streamLines(resolved.fullPath, (_, lineNumber) => {
+      totalLines = lineNumber;
+    });
+
+    const effectiveStartLine =
+      totalLines === 0 ? 1 : Math.min(requestedStartLine, Math.max(totalLines - maxLines + 1, 1));
+    const effectiveEndLine =
+      totalLines === 0
+        ? 0
+        : Math.min(requestedEndLine, effectiveStartLine + maxLines - 1, totalLines);
+
+    const selectedLines: string[] = [];
+    let usedBytes = 0;
+    let byteTruncated = false;
+
+    await streamLines(resolved.fullPath, (line, lineNumber) => {
+      if (lineNumber < effectiveStartLine) {
+        return;
+      }
+      if (lineNumber > effectiveEndLine) {
+        return;
+      }
+
+      const appendResult = appendLineWithinByteLimit(selectedLines, line, usedBytes, maxBytes);
+      usedBytes = appendResult.bytes;
+      byteTruncated = byteTruncated || appendResult.truncated;
+    });
+
+    const content = selectedLines.join("");
     const hasMoreLines =
-      input.endLine == null ? cappedEndLine < allLines.length : cappedEndLine < requestedEndLine;
+      totalLines > 0 &&
+      (input.endLine == null ? effectiveEndLine < totalLines : effectiveEndLine < requestedEndLine);
 
     return {
       path: resolved.relativePath,
-      startLine: requestedStartLine,
-      endLine: cappedEndLine,
-      totalLines: allLines.length,
-      content: capped.content,
-      truncated: capped.truncated || hasMoreLines,
-      hasPrevious: requestedStartLine > 1,
-      hasNext: cappedEndLine < allLines.length,
+      startLine: effectiveStartLine,
+      endLine: effectiveEndLine,
+      totalLines,
+      content,
+      truncated: byteTruncated || hasMoreLines,
+      hasPrevious: totalLines > 0 && effectiveStartLine > 1,
+      hasNext: totalLines > 0 && effectiveEndLine < totalLines,
     };
   }
 
