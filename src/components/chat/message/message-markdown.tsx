@@ -7,9 +7,8 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { cn } from "@/lib/utils";
 import { memo, useEffect, useMemo, useRef } from "react";
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
-import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
-import { buildCodeViewerUrl, replaceFileReferenceTokens } from "./file-reference-utils";
+import { buildCodeViewerUrl, replaceReferenceTokens } from "./file-reference-utils";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
 import { MessageMarkdownMermaid } from "./message-markdown-mermaid";
 import { MessageMarkdownSql } from "./message-markdown-sql";
@@ -60,7 +59,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
     databaseNamesRef.current = connection?.metadata?.databaseNames;
   }, [connection?.metadata?.tableNames, connection?.metadata?.databaseNames]);
 
-  const renderedText = useMemo(() => replaceFileReferenceTokens(text), [text]);
+  const renderedText = useMemo(() => replaceReferenceTokens(text), [text]);
 
   const components = useMemo<Components>(
     () => ({
@@ -312,7 +311,6 @@ export const MessageMarkdown = memo(function MessageMarkdown({
     <div className="prose prose-sm dark:prose-invert max-w-none text-sm relative">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
         components={components}
         urlTransform={transformMarkdownUrl}
       >

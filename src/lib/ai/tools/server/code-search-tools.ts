@@ -1,9 +1,10 @@
+import type { CodeSearch } from "@/lib/code-search/types";
 import { tool } from "ai";
 import { z } from "zod";
-import type { CodeAnalysisConfig } from "./code-analysis-config";
-import { readCodeFile, searchCode } from "./code-analysis-service";
 
-export function createCodeAnalysisTools(config: CodeAnalysisConfig) {
+export function createCodeSearchTools(args: { provider: CodeSearch; maxSearchResults: number }) {
+  const { provider, maxSearchResults } = args;
+
   return {
     search_file: tool({
       description:
@@ -16,9 +17,9 @@ export function createCodeAnalysisTools(config: CodeAnalysisConfig) {
           .int()
           .positive()
           .optional()
-          .describe(`Max matches to return, capped at ${config.maxSearchResults}.`),
+          .describe(`Max matches to return, capped at ${maxSearchResults}.`),
       }),
-      execute: (input) => searchCode(config, input),
+      execute: (input) => provider.searchFile(input),
     }),
     read_file: tool({
       description:
@@ -28,7 +29,7 @@ export function createCodeAnalysisTools(config: CodeAnalysisConfig) {
         startLine: z.number().int().positive().optional().describe("1-based inclusive start line."),
         endLine: z.number().int().positive().optional().describe("1-based inclusive end line."),
       }),
-      execute: (input) => readCodeFile(config, input),
+      execute: (input) => provider.readFile(input),
     }),
   };
 }

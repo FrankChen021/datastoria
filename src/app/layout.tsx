@@ -1,11 +1,11 @@
 import { getSession } from "@/auth";
 import { RuntimeConfigProvider } from "@/components/runtime-config-provider";
 import "@/index.css";
-import { getCodeAnalysisConfig } from "@/lib/ai/code-analysis/code-analysis-config";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import { getSessionRepositoryType } from "@/lib/ai/session/server-session-repository-factory";
 import { SkillPermissionManager } from "@/lib/ai/skills/skill-permission-manager";
 import { BasePath } from "@/lib/base-path";
+import { getCodeSearchConfig } from "@/lib/code-search/config";
 import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "next-auth/react";
 import type { ComponentProps } from "react";
@@ -110,7 +110,7 @@ export default async function RootLayout({
   } catch {
     autoSelectAvailable = false;
   }
-  const codeAnalysisConfig = getCodeAnalysisConfig();
+  const codeAnalysisConfig = await getCodeSearchConfig();
 
   const jsonLd = {
     "@context": "https://schema.org",

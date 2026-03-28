@@ -3,7 +3,6 @@ name: source-code-inspection
 description: Inspect a configured source repository with search_file and read_file, then answer with precise file citations.
 metadata:
   author: DataStoria
-  disable-slash-command: true
 ---
 
 # Workflow

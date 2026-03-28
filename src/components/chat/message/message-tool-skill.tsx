@@ -2,10 +2,29 @@ import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
 import { memo } from "react";
 import { CollapsiblePart } from "./collapsible-part";
 
+type SkillInput = {
+  names?: string[];
+};
+
+const MAX_HEADER_LENGTH = 80;
+
+function buildHeader(input: SkillInput): string {
+  if (!Array.isArray(input.names) || input.names.length === 0) {
+    return "";
+  }
+
+  const joinedNames = input.names.join(", ");
+  if (joinedNames.length <= MAX_HEADER_LENGTH) {
+    return joinedNames;
+  }
+
+  return `${joinedNames.slice(0, MAX_HEADER_LENGTH - 1).trimEnd()}…`;
+}
+
 export const MessageToolSkill = memo(function MessageToolSkill({
   isRunning = true,
   part,
-  label = "Load Skills",
+  label = "Load Skill",
 }: {
   part: AppUIMessage["parts"][0];
   isRunning?: boolean;
@@ -13,25 +32,20 @@ export const MessageToolSkill = memo(function MessageToolSkill({
 }) {
   const toolPart = part as ToolPart;
   const state = toolPart.state;
+  const input = (toolPart.input ?? {}) as SkillInput;
+  const outputText = typeof toolPart.output === "string" ? toolPart.output : null;
+  const characterCount = outputText?.length ?? null;
 
   return (
-    <CollapsiblePart toolName={label} state={state} isRunning={isRunning}>
-      {toolPart.input != null && (
-        <div className="mt-1 max-h-[300px] overflow-auto text-[10px] text-muted-foreground">
-          <div className="mb-0.5">input:</div>
-          <pre className="bg-muted/30 rounded p-2 overflow-x-auto shadow-sm leading-tight border border-muted/20">
-            {JSON.stringify(toolPart.input, null, 2)}
-          </pre>
-        </div>
-      )}
-      {toolPart.output != null && (
-        <div className="mt-1 max-h-[300px] overflow-auto text-[10px] text-muted-foreground">
-          <div className="mb-0.5">output:</div>
-          <pre className="bg-muted/30 rounded p-2 overflow-x-auto shadow-sm leading-tight border border-muted/20">
-            {`${(toolPart.output as string).length} characters...`}
-          </pre>
-        </div>
-      )}
+    <CollapsiblePart
+      toolName={label}
+      headerExtra={buildHeader(input)}
+      state={state}
+      isRunning={isRunning}
+    >
+      {characterCount != null ? (
+        <div className="mt-1 text-[10px] text-muted-foreground">{characterCount} characters</div>
+      ) : null}
     </CollapsiblePart>
   );
 });

@@ -1,9 +1,6 @@
 import { CodeViewerContent } from "@/components/code-analysis/code-viewer-content";
-import { getCodeAnalysisConfig } from "@/lib/ai/code-analysis/code-analysis-config";
-import {
-  listCodeFilesForViewer,
-  readCodeFileForViewer,
-} from "@/lib/ai/code-analysis/code-analysis-service";
+import { defaultCodeSearchFactory } from "@/lib/code-search/code-search-factory";
+import { buildCodeViewerWindow } from "@/lib/code-search/code-viewer-window";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,9 +33,9 @@ export default async function CodeViewerPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const config = getCodeAnalysisConfig();
+  const codeSearchContext = await defaultCodeSearchFactory.getCodeSearchContext();
 
-  if (!config.enabled) {
+  if (!codeSearchContext) {
     return (
       <ViewerError
         title="Code analysis is not available"
@@ -61,15 +58,21 @@ export default async function CodeViewerPage({
   const highlightedEndLine = parsePositiveInteger(params.endLine);
   const viewStartLine = parsePositiveInteger(params.viewStartLine);
   const viewEndLine = parsePositiveInteger(params.viewEndLine);
+  const viewerWindow = buildCodeViewerWindow({
+    viewStartLine,
+    viewEndLine,
+    targetStartLine: highlightedStartLine,
+    targetEndLine: highlightedEndLine,
+  });
   const [result, fileListResult] = await Promise.all([
-    readCodeFileForViewer(config, {
+    codeSearchContext.provider.readFile({
       path: targetPath,
-      viewStartLine,
-      viewEndLine,
-      targetStartLine: highlightedStartLine,
-      targetEndLine: highlightedEndLine,
+      startLine: viewerWindow.startLine,
+      endLine: viewerWindow.endLine,
+      maxLines: viewerWindow.maxLines,
+      maxBytes: viewerWindow.maxBytes,
     }),
-    listCodeFilesForViewer(config),
+    codeSearchContext.provider.listFiles(),
   ]);
 
   if ("error" in result) {

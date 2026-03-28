@@ -2,26 +2,21 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { CodeAnalysisConfig } from "../code-analysis-config";
-import {
-  listCodeFilesForViewer,
-  readCodeFile,
-  readCodeFileForViewer,
-  searchCode,
-} from "../code-analysis-service";
+import { buildCodeViewerWindow } from "../code-viewer-window";
+import { createCodeSearchEnabledConfig } from "../config";
+import { LocalFileCodeSearch } from "../local-file-search";
 
-function createConfig(rootDir: string): CodeAnalysisConfig {
-  return {
-    enabled: true,
+function createConfig(rootDir: string) {
+  return createCodeSearchEnabledConfig({
     rootDir: fs.realpathSync(rootDir),
     maxFileBytes: 1024,
     maxReadLines: 3,
     maxSearchResults: 2,
     ignoredNames: [".git", "node_modules", "dist"],
-  };
+  });
 }
 
-describe("code-analysis-service", () => {
+describe("LocalFileCodeSearch", () => {
   const tempDirs: string[] = [];
 
   afterEach(() => {
@@ -31,14 +26,16 @@ describe("code-analysis-service", () => {
   });
 
   it("searches matching source files and skips ignored directories", async () => {
-    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-analysis-service-"));
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
     tempDirs.push(rootDir);
     fs.mkdirSync(path.join(rootDir, "src"), { recursive: true });
     fs.mkdirSync(path.join(rootDir, "node_modules"), { recursive: true });
     fs.writeFileSync(path.join(rootDir, "src", "main.ts"), "const token = 'secret';\n");
     fs.writeFileSync(path.join(rootDir, "node_modules", "lib.js"), "const token = 'ignored';\n");
 
-    const result = await searchCode(createConfig(rootDir), { query: "token" });
+    const result = await new LocalFileCodeSearch(createConfig(rootDir)).searchFile({
+      query: "token",
+    });
 
     expect(result).toEqual({
       matches: [{ path: "src/main.ts", line: 1, snippet: "const token = 'secret';" }],
@@ -47,24 +44,29 @@ describe("code-analysis-service", () => {
   });
 
   it("rejects traversal attempts when reading files", async () => {
-    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-analysis-service-"));
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
     tempDirs.push(rootDir);
     fs.writeFileSync(path.join(rootDir, "app.ts"), "export const value = 1;\n");
 
-    await expect(readCodeFile(createConfig(rootDir), { path: "../outside.ts" })).resolves.toEqual({
+    await expect(
+      new LocalFileCodeSearch(createConfig(rootDir)).readFile({ path: "../outside.ts" })
+    ).resolves.toEqual({
       error: "path rejected",
     });
   });
 
   it("returns bounded file windows with truncation metadata", async () => {
-    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-analysis-service-"));
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
     tempDirs.push(rootDir);
     fs.writeFileSync(
       path.join(rootDir, "app.ts"),
       ["line 1", "line 2", "line 3", "line 4", "line 5"].join("\n")
     );
 
-    const result = await readCodeFile(createConfig(rootDir), { path: "app.ts", startLine: 2 });
+    const result = await new LocalFileCodeSearch(createConfig(rootDir)).readFile({
+      path: "app.ts",
+      startLine: 2,
+    });
 
     expect(result).toEqual({
       path: "app.ts",
@@ -79,7 +81,7 @@ describe("code-analysis-service", () => {
   });
 
   it("lists repo-relative files for the viewer and skips ignored directories", async () => {
-    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-analysis-service-"));
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
     tempDirs.push(rootDir);
     fs.mkdirSync(path.join(rootDir, "src", "nested"), { recursive: true });
     fs.mkdirSync(path.join(rootDir, "dist"), { recursive: true });
@@ -87,7 +89,7 @@ describe("code-analysis-service", () => {
     fs.writeFileSync(path.join(rootDir, "README.md"), "# test\n");
     fs.writeFileSync(path.join(rootDir, "dist", "bundle.js"), "ignored\n");
 
-    const result = await listCodeFilesForViewer(createConfig(rootDir));
+    const result = await new LocalFileCodeSearch(createConfig(rootDir)).listFiles();
 
     expect(result).toEqual({
       paths: ["README.md", "src/nested/main.ts"],
@@ -95,14 +97,21 @@ describe("code-analysis-service", () => {
   });
 
   it("loads the first viewer window by default", async () => {
-    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-analysis-service-"));
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
     tempDirs.push(rootDir);
     fs.writeFileSync(
       path.join(rootDir, "app.ts"),
       Array.from({ length: 2105 }, (_, index) => `line ${index + 1}`).join("\n")
     );
 
-    const result = await readCodeFileForViewer(createConfig(rootDir), { path: "app.ts" });
+    const viewerWindow = buildCodeViewerWindow({});
+    const result = await new LocalFileCodeSearch(createConfig(rootDir)).readFile({
+      path: "app.ts",
+      startLine: viewerWindow.startLine,
+      endLine: viewerWindow.endLine,
+      maxLines: viewerWindow.maxLines,
+      maxBytes: viewerWindow.maxBytes,
+    });
 
     expect(result).toMatchObject({
       path: "app.ts",
@@ -115,17 +124,23 @@ describe("code-analysis-service", () => {
   });
 
   it("loads a focused viewer window around highlighted lines", async () => {
-    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-analysis-service-"));
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
     tempDirs.push(rootDir);
     fs.writeFileSync(
       path.join(rootDir, "app.ts"),
       Array.from({ length: 4000 }, (_, index) => `line ${index + 1}`).join("\n")
     );
 
-    const result = await readCodeFileForViewer(createConfig(rootDir), {
-      path: "app.ts",
+    const viewerWindow = buildCodeViewerWindow({
       targetStartLine: 3000,
       targetEndLine: 3010,
+    });
+    const result = await new LocalFileCodeSearch(createConfig(rootDir)).readFile({
+      path: "app.ts",
+      startLine: viewerWindow.startLine,
+      endLine: viewerWindow.endLine,
+      maxLines: viewerWindow.maxLines,
+      maxBytes: viewerWindow.maxBytes,
     });
 
     expect("error" in result).toBe(false);

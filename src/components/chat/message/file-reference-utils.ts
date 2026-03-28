@@ -7,6 +7,8 @@ export interface FileReference {
 }
 
 const FILE_REFERENCE_PATTERN = /\[\[\s*file\s*:\s*([^\]]+?)\s*\]\]/gi;
+const SKILL_REFERENCE_PATTERN =
+  /\[\[\s*skill\s*:\s*([^\]|]+?)\s*\|\s*([^\]|]+?)(?:\s*\|\s*([^\]]+?))?\s*\]\]/gi;
 const FILE_REFERENCE_WITH_LINES_PATTERN = /^(.*?)\s*#L\s*(\d+)(?:\s*-\s*L?\s*(\d+))?$/i;
 
 export function parseFileReferenceToken(token: string): FileReference | null {
@@ -84,4 +86,35 @@ export function replaceFileReferenceTokens(markdown: string): string {
     const label = getFileReferenceLabel(reference);
     return `[${label}](${buildCodeFileHref(reference)})`;
   });
+}
+
+function escapeMarkdownLinkText(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("[", "\\[").replaceAll("]", "\\]");
+}
+
+function escapeMarkdownLinkTitle(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+}
+
+export function replaceSkillReferenceTokens(markdown: string): string {
+  return markdown.replace(
+    SKILL_REFERENCE_PATTERN,
+    (fullMatch, skillId: string, label: string, title?: string) => {
+      const normalizedSkillId = skillId.trim();
+      const normalizedLabel = label.trim();
+      const normalizedTitle = title?.trim();
+
+      if (!normalizedSkillId || !normalizedLabel) {
+        return fullMatch;
+      }
+
+      const escapedLabel = escapeMarkdownLinkText(normalizedLabel);
+      const escapedTitle = normalizedTitle ? ` "${escapeMarkdownLinkTitle(normalizedTitle)}"` : "";
+      return `[${escapedLabel}](skill://${normalizedSkillId}${escapedTitle})`;
+    }
+  );
+}
+
+export function replaceReferenceTokens(markdown: string): string {
+  return replaceSkillReferenceTokens(replaceFileReferenceTokens(markdown));
 }

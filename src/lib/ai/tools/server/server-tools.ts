@@ -2,12 +2,12 @@
  * Server-Side Tools for the skill-based agent (chat-v2).
  * Tool definitions live here; execution is implemented in the corresponding modules.
  */
-import type { CodeAnalysisConfigResult } from "@/lib/ai/code-analysis/code-analysis-config";
-import { createCodeAnalysisTools } from "@/lib/ai/code-analysis/code-analysis-tools";
 import type { SkillProvider } from "@/lib/ai/skills/skill-provider";
 import type { SkillCatalogItem } from "@/lib/ai/skills/skill-types";
+import type { CodeSearchContext } from "@/lib/code-search/code-search-factory";
 import { tool } from "ai";
 import { z } from "zod";
+import { createCodeSearchTools } from "./code-search-tools";
 import {
   buildSkillResourceToolDescription,
   buildSkillToolDescription,
@@ -15,12 +15,11 @@ import {
   createSkillToolExecutor,
 } from "./skill-tool";
 
-export function createServerTools(
-  provider: SkillProvider,
-  skills: SkillCatalogItem[],
-  codeAnalysisConfig?: CodeAnalysisConfigResult
-) {
-  const baseTools = {
+type BaseServerTools = ReturnType<typeof createBaseServerTools>;
+type OptionalCodeSearchTools = Partial<ReturnType<typeof createCodeSearchTools>>;
+
+function createBaseServerTools(provider: SkillProvider, skills: SkillCatalogItem[]) {
+  return {
     skill: tool({
       description: buildSkillToolDescription(skills),
       inputSchema: z.object({
@@ -59,13 +58,24 @@ export function createServerTools(
       execute: createSkillResourceToolExecutor(provider),
     }),
   };
+}
 
-  if (!codeAnalysisConfig?.enabled) {
+export function createServerTools(
+  provider: SkillProvider,
+  skills: SkillCatalogItem[],
+  codeSearchContext?: CodeSearchContext | null
+): BaseServerTools & OptionalCodeSearchTools {
+  const baseTools = createBaseServerTools(provider, skills);
+
+  if (!codeSearchContext) {
     return baseTools;
   }
 
   return {
     ...baseTools,
-    ...createCodeAnalysisTools(codeAnalysisConfig),
+    ...createCodeSearchTools({
+      provider: codeSearchContext.provider,
+      maxSearchResults: codeSearchContext.config.maxSearchResults,
+    }),
   };
 }

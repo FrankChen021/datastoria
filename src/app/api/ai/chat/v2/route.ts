@@ -6,8 +6,6 @@ import {
   type SessionTitleGenerationResponse,
 } from "@/lib/ai/agent/session-title-generator";
 import type { AgentContext, AppUIMessage, MessageMetadata } from "@/lib/ai/chat-types";
-import { getCodeAnalysisConfig } from "@/lib/ai/code-analysis/code-analysis-config";
-import { createCodeAnalysisTools } from "@/lib/ai/code-analysis/code-analysis-tools";
 import {
   LanguageModelProviderFactory,
   resolveModelConfig,
@@ -29,6 +27,7 @@ import { ClientTools } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { createServerTools } from "@/lib/ai/tools/server/server-tools";
 import { buildSkillCommands, expandCommandText } from "@/lib/ai/tools/server/skill-tool";
+import { defaultCodeSearchFactory } from "@/lib/code-search/code-search-factory";
 import { APICallError } from "@ai-sdk/provider";
 import {
   convertToModelMessages,
@@ -239,11 +238,8 @@ export async function POST(req: Request) {
     let titlePromise: Promise<SessionTitleGenerationResponse | undefined> | undefined;
     const skillProvider = SkillProviderFactory.getProvider({ userId: userEmail ?? null });
     const availableSkills = await skillProvider.listSkills();
-    const codeAnalysisConfig = getCodeAnalysisConfig();
-    const serverTools = createServerTools(skillProvider, availableSkills, codeAnalysisConfig);
-    const codeAnalysisTools = codeAnalysisConfig.enabled
-      ? createCodeAnalysisTools(codeAnalysisConfig)
-      : null;
+    const codeSearchContext = await defaultCodeSearchFactory.getCodeSearchContext();
+    const serverTools = createServerTools(skillProvider, availableSkills, codeSearchContext);
     const skillCommands = buildSkillCommands(availableSkills);
 
     if (repositoryType === "remote") {
@@ -407,16 +403,16 @@ export async function POST(req: Request) {
     const result = streamText({
       model,
       system: buildOrchestratorSystemPrompt(context, {
-        codeAnalysisEnabled: codeAnalysisConfig.enabled,
+        codeAnalysisEnabled: codeSearchContext != null,
       }),
       messages: modelMessages,
       tools: {
         [SERVER_TOOL_NAMES.SKILL]: serverTools.skill,
         [SERVER_TOOL_NAMES.SKILL_RESOURCE]: serverTools.skill_resource,
-        ...(codeAnalysisTools
+        ...(codeSearchContext
           ? {
-              [SERVER_TOOL_NAMES.SEARCH_FILE]: codeAnalysisTools.search_file,
-              [SERVER_TOOL_NAMES.READ_FILE]: codeAnalysisTools.read_file,
+              [SERVER_TOOL_NAMES.SEARCH_FILE]: serverTools.search_file,
+              [SERVER_TOOL_NAMES.READ_FILE]: serverTools.read_file,
             }
           : {}),
         ask_user_question: ClientTools.ask_user_question,
