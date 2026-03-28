@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { buildOrchestratorSystemPrompt } from "./orchestrator-prompt";
 
 describe("buildOrchestratorSystemPrompt", () => {
+  it("keeps skill-loading guidance generic", () => {
+    const prompt = buildOrchestratorSystemPrompt({});
+
+    expect(prompt).toContain("Before any domain-specific task or specialized-tool workflow");
+    expect(prompt).toContain(
+      "Use the available skill names and descriptions to choose the best match"
+    );
+  });
+
   it("appends diagnosis context when present", () => {
     const prompt = buildOrchestratorSystemPrompt({
       clickHouseUser: "default",
