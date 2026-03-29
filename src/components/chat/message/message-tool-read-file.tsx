@@ -117,9 +117,13 @@ export const MessageToolReadFile = memo(function MessageToolReadFile({
     output && "error" in output && typeof output.error === "string" ? output.error : null;
   const content =
     output && "content" in output && typeof output.content === "string" ? output.content : null;
+  const resolvedPath =
+    output && "path" in output && typeof output.path === "string" && output.path.length > 0
+      ? output.path
+      : (input.path ?? "");
   const rowCount = content == null ? null : content.split(/\r?\n/).length;
   const charCount = content?.length ?? null;
-  const language = inferLanguage(input.path ?? "");
+  const language = inferLanguage(resolvedPath);
   const startingLineNumber =
     output && "startLine" in output && typeof output.startLine === "number" ? output.startLine : 1;
 

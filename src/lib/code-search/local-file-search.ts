@@ -17,6 +17,7 @@ import type {
 const BINARY_SCAN_BYTES = 8 * 1024;
 // Number of files scanned concurrently during searchFile.
 const SEARCH_CONCURRENCY = 8;
+const MAX_PENDING_SEARCH_FILES = SEARCH_CONCURRENCY * 4;
 // Files above this threshold fall back to a streamed read path.
 const MAX_BUFFERED_READ_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -144,8 +145,11 @@ interface IndexedFileEntry extends FileEntry {
 // of nor a parent of the required prefix — i.e. when the two paths diverge.
 function shouldSkipDirForGlob(dirRelativePath: string, globDirPrefix: string): boolean {
   if (!globDirPrefix) return false;
-  const dir = dirRelativePath.endsWith("/") ? dirRelativePath : `${dirRelativePath}/`;
-  return !dir.startsWith(globDirPrefix) && !globDirPrefix.startsWith(dir);
+  const dir = (
+    dirRelativePath.endsWith("/") ? dirRelativePath : `${dirRelativePath}/`
+  ).toLowerCase();
+  const prefix = globDirPrefix.toLowerCase();
+  return !dir.startsWith(prefix) && !prefix.startsWith(dir);
 }
 
 // Async generator that yields FileEntry objects as the directory tree is walked.
@@ -365,45 +369,49 @@ async function readFileStreamed(args: {
   maxLines: number;
   maxBytes: number;
 }): Promise<ReadFileResult> {
-  let totalLines = 0;
-  await streamLines(args.fullPath, (_, lineNumber) => {
-    totalLines = lineNumber;
-  });
+  try {
+    let totalLines = 0;
+    await streamLines(args.fullPath, (_, lineNumber) => {
+      totalLines = lineNumber;
+    });
 
-  const { effectiveStartLine, effectiveEndLine } = getEffectiveWindow(
-    totalLines,
-    args.requestedStartLine,
-    args.requestedEndLine,
-    args.maxLines
-  );
+    const { effectiveStartLine, effectiveEndLine } = getEffectiveWindow(
+      totalLines,
+      args.requestedStartLine,
+      args.requestedEndLine,
+      args.maxLines
+    );
 
-  const selectedLines: string[] = [];
-  let usedBytes = 0;
-  let byteTruncated = false;
+    const selectedLines: string[] = [];
+    let usedBytes = 0;
+    let byteTruncated = false;
 
-  await streamLines(args.fullPath, (line, lineNumber) => {
-    if (lineNumber < effectiveStartLine) {
-      return;
-    }
-    if (lineNumber > effectiveEndLine) {
-      return false;
-    }
+    await streamLines(args.fullPath, (line, lineNumber) => {
+      if (lineNumber < effectiveStartLine) {
+        return;
+      }
+      if (lineNumber > effectiveEndLine) {
+        return false;
+      }
 
-    const appendResult = appendLineWithinByteLimit(selectedLines, line, usedBytes, args.maxBytes);
-    usedBytes = appendResult.bytes;
-    byteTruncated = byteTruncated || appendResult.truncated;
-  });
+      const appendResult = appendLineWithinByteLimit(selectedLines, line, usedBytes, args.maxBytes);
+      usedBytes = appendResult.bytes;
+      byteTruncated = byteTruncated || appendResult.truncated;
+    });
 
-  return buildReadFileResult({
-    relativePath: args.relativePath,
-    requestedEndLine: args.requestedEndLine,
-    maxLines: args.maxLines,
-    totalLines,
-    content: selectedLines.join(""),
-    byteTruncated,
-    inputEndLine: args.inputEndLine,
-    requestedStartLine: args.requestedStartLine,
-  });
+    return buildReadFileResult({
+      relativePath: args.relativePath,
+      requestedEndLine: args.requestedEndLine,
+      maxLines: args.maxLines,
+      totalLines,
+      content: selectedLines.join(""),
+      byteTruncated,
+      inputEndLine: args.inputEndLine,
+      requestedStartLine: args.requestedStartLine,
+    });
+  } catch {
+    return { error: "file could not be read" };
+  }
 }
 
 function appendLineWithinByteLimit(
@@ -439,12 +447,16 @@ function appendLineWithinByteLimit(
 async function withConcurrencyFromGenerator<T>(
   gen: AsyncGenerator<T>,
   concurrency: number,
-  fn: (item: T) => Promise<boolean | void>
+  fn: (item: T) => Promise<boolean | void>,
+  canPull?: () => boolean
 ): Promise<void> {
   let stopped = false;
 
   async function worker(): Promise<void> {
     while (!stopped) {
+      while (!stopped && canPull && !canPull()) {
+        await new Promise((resolve) => setTimeout(resolve, 1));
+      }
       const { value, done } = await gen.next();
       if (done || stopped) break;
       const result = await fn(value);
@@ -561,7 +573,8 @@ export class LocalFileCodeSearch implements CodeSearch {
         }
 
         return finalize(fileMatches);
-      }
+      },
+      () => pending.size < MAX_PENDING_SEARCH_FILES
     );
 
     if (matches.length === 0) {

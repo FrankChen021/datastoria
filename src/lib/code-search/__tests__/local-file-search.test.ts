@@ -86,6 +86,23 @@ describe("LocalFileCodeSearch", () => {
     });
   });
 
+  it("keeps glob pruning aligned with case-insensitive glob matching", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
+    tempDirs.push(rootDir);
+    fs.mkdirSync(path.join(rootDir, "src"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "src", "main.ts"), "const token = 'secret';\n");
+
+    const result = await new LocalFileCodeSearch(createConfig(rootDir)).searchFile({
+      query: "token",
+      glob: "SRC/*.TS",
+    });
+
+    expect(result).toEqual({
+      matches: [{ path: "src/main.ts", line: 1, snippet: "const token = 'secret';" }],
+      hasMore: false,
+    });
+  });
+
   it("rejects traversal attempts when reading files", async () => {
     const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
     tempDirs.push(rootDir);
