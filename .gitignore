@@ -32,3 +32,5 @@ next-env.d.ts
 
 docs/.vitepress/cache/*
 docs/public/manual/*
+resources/skills/clickhouse/
+resources/skills/vizlayer/

@@ -14,6 +14,7 @@ ARG BUILD_FROM_SOURCE=1
 RUN apk add --no-cache git && npm install -g pnpm
 
 COPY package*.json ./
+COPY scripts ./scripts
 COPY external ./external
 
 RUN if [ "$BUILD_FROM_SOURCE" = "1" ]; then npm install --include=dev --force; fi
