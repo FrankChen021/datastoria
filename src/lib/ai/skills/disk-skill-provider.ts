@@ -260,6 +260,9 @@ export class DiskSkillProvider implements SkillProvider {
   }
 
   private getCache(): SkillCache {
+    if (process.env.NODE_ENV !== "production") {
+      return this.buildCache();
+    }
     cache ??= this.buildCache();
     return cache;
   }
