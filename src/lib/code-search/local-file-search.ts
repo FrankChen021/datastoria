@@ -15,14 +15,15 @@ import type {
 } from "./types";
 
 const BINARY_SCAN_BYTES = 8 * 1024;
+// Number of files scanned concurrently during searchFile.
+const SEARCH_CONCURRENCY = 8;
+const MAX_PENDING_SEARCH_FILES = SEARCH_CONCURRENCY * 4;
+// Files above this threshold fall back to a streamed read path.
+const MAX_BUFFERED_READ_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 
+// Uses Buffer.indexOf which is implemented in native code.
 function hasNullByte(buffer: Buffer): boolean {
-  for (const value of buffer) {
-    if (value === 0) {
-      return true;
-    }
-  }
-  return false;
+  return buffer.indexOf(0) !== -1;
 }
 
 function isPathInsideRoot(rootDir: string, candidate: string): boolean {
@@ -36,7 +37,6 @@ function normalizeRelativePath(relativePath: string): string {
 function shouldIgnoreRelativePath(relativePath: string, ignoredNames: string[]): boolean {
   const normalized = normalizeRelativePath(relativePath);
   const segments = normalized.split("/").filter(Boolean);
-
   return segments.some((segment) => ignoredNames.includes(segment));
 }
 
@@ -66,6 +66,17 @@ function buildGlobMatcher(globPattern: string): RegExp {
   }
   regex += "$";
   return new RegExp(regex, "i");
+}
+
+// Returns the leading directory prefix of a glob before the first wildcard
+// character, e.g. "src/**/*.ts" → "src/". Used to prune unrelated directories
+// during the walk so we never recurse into branches that cannot match.
+function extractGlobDirPrefix(globPattern: string): string {
+  const normalized = globPattern.replace(/\\/g, "/");
+  const firstWild = normalized.search(/[*?[{]/);
+  if (firstWild === -1) return "";
+  const slashBefore = normalized.lastIndexOf("/", firstWild);
+  return slashBefore < 0 ? "" : normalized.slice(0, slashBefore + 1);
 }
 
 async function resolveFilePath(
@@ -120,37 +131,60 @@ async function isBinaryFile(filePath: string): Promise<boolean> {
   }
 }
 
-async function collectFiles(
+interface FileEntry {
+  fullPath: string;
+  relativePath: string;
+}
+
+interface IndexedFileEntry extends FileEntry {
+  index: number;
+}
+
+// Returns true if a directory at `dirRelativePath` should be skipped given a
+// required glob dir prefix. We skip when the directory path is neither a prefix
+// of nor a parent of the required prefix — i.e. when the two paths diverge.
+function shouldSkipDirForGlob(dirRelativePath: string, globDirPrefix: string): boolean {
+  if (!globDirPrefix) return false;
+  const dir = (
+    dirRelativePath.endsWith("/") ? dirRelativePath : `${dirRelativePath}/`
+  ).toLowerCase();
+  const prefix = globDirPrefix.toLowerCase();
+  return !dir.startsWith(prefix) && !prefix.startsWith(dir);
+}
+
+// Async generator that yields FileEntry objects as the directory tree is walked.
+// Because it is a generator, the caller can break early (via return() or by
+// simply not pulling the next value) and the walk stops immediately — no full
+// file-list is ever materialised in memory.
+async function* walkFiles(
   config: CodeSearchConfig,
   directory: string,
-  results: string[],
+  globDirPrefix: string,
   visitedDirectories: Set<string> = new Set(),
   seenFiles: Set<string> = new Set()
-): Promise<void> {
+): AsyncGenerator<FileEntry> {
   const normalizedDirectory = await fs.realpath(directory);
-  if (visitedDirectories.has(normalizedDirectory)) {
-    return;
-  }
+  if (visitedDirectories.has(normalizedDirectory)) return;
   visitedDirectories.add(normalizedDirectory);
 
   const entries = await fs.readdir(normalizedDirectory, { withFileTypes: true });
+  entries.sort((left, right) => left.name.localeCompare(right.name));
 
   for (const entry of entries) {
     const fullPath = path.join(normalizedDirectory, entry.name);
     const relativePath = normalizeRelativePath(path.relative(config.rootDir, fullPath));
-    if (shouldIgnoreRelativePath(relativePath, config.ignoredNames)) {
-      continue;
-    }
+    if (shouldIgnoreRelativePath(relativePath, config.ignoredNames)) continue;
 
     if (entry.isDirectory()) {
-      await collectFiles(config, fullPath, results, visitedDirectories, seenFiles);
+      if (shouldSkipDirForGlob(relativePath, globDirPrefix)) continue;
+      yield* walkFiles(config, fullPath, globDirPrefix, visitedDirectories, seenFiles);
       continue;
     }
 
     if (entry.isFile()) {
       if (!seenFiles.has(fullPath)) {
         seenFiles.add(fullPath);
-        results.push(fullPath);
+        yield { fullPath, relativePath };
       }
       continue;
     }
@@ -162,19 +196,27 @@ async function collectFiles(
       } catch {
         continue;
       }
-      if (!isPathInsideRoot(config.rootDir, realPath)) {
-        continue;
-      }
+      if (!isPathInsideRoot(config.rootDir, realPath)) continue;
       const stat = await fs.stat(realPath);
       if (stat.isDirectory()) {
-        await collectFiles(config, realPath, results, visitedDirectories, seenFiles);
+        if (shouldSkipDirForGlob(relativePath, globDirPrefix)) continue;
+        yield* walkFiles(config, realPath, globDirPrefix, visitedDirectories, seenFiles);
       } else if (stat.isFile()) {
         if (!seenFiles.has(realPath)) {
           seenFiles.add(realPath);
-          results.push(realPath);
+          const realRelativePath = normalizeRelativePath(path.relative(config.rootDir, realPath));
+          yield { fullPath: realPath, relativePath: realRelativePath };
         }
       }
     }
+  }
+}
+
+async function* enumerateFiles(gen: AsyncGenerator<FileEntry>): AsyncGenerator<IndexedFileEntry> {
+  let index = 0;
+  for await (const file of gen) {
+    yield { ...file, index };
+    index += 1;
   }
 }
 
@@ -208,6 +250,170 @@ async function streamLines(
   return lineNumber;
 }
 
+function splitBufferedLines(content: string): string[] {
+  const lines = content.split(/\r?\n/);
+  if (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+  return lines;
+}
+
+function getEffectiveWindow(
+  totalLines: number,
+  requestedStartLine: number,
+  requestedEndLine: number,
+  maxLines: number
+) {
+  const effectiveStartLine =
+    totalLines === 0 ? 1 : Math.min(requestedStartLine, Math.max(totalLines - maxLines + 1, 1));
+  const effectiveEndLine =
+    totalLines === 0
+      ? 0
+      : Math.min(requestedEndLine, effectiveStartLine + maxLines - 1, totalLines);
+
+  return { effectiveStartLine, effectiveEndLine };
+}
+
+function buildReadFileResult(args: {
+  relativePath: string;
+  requestedEndLine: number;
+  maxLines: number;
+  totalLines: number;
+  content: string;
+  byteTruncated: boolean;
+  inputEndLine?: number;
+  requestedStartLine: number;
+}) {
+  const { effectiveStartLine, effectiveEndLine } = getEffectiveWindow(
+    args.totalLines,
+    args.requestedStartLine,
+    args.requestedEndLine,
+    args.maxLines
+  );
+  const hasMoreLines =
+    args.totalLines > 0 &&
+    (args.inputEndLine == null
+      ? effectiveEndLine < args.totalLines
+      : effectiveEndLine < args.requestedEndLine);
+
+  return {
+    path: args.relativePath,
+    startLine: effectiveStartLine,
+    endLine: effectiveEndLine,
+    totalLines: args.totalLines,
+    content: args.content,
+    truncated: args.byteTruncated || hasMoreLines,
+    hasPrevious: args.totalLines > 0 && effectiveStartLine > 1,
+    hasNext: args.totalLines > 0 && effectiveEndLine < args.totalLines,
+  };
+}
+
+async function readFileBuffered(args: {
+  fullPath: string;
+  relativePath: string;
+  requestedStartLine: number;
+  requestedEndLine: number;
+  inputEndLine?: number;
+  maxLines: number;
+  maxBytes: number;
+}): Promise<ReadFileResult> {
+  let rawContent: string;
+  try {
+    rawContent = await fs.readFile(args.fullPath, "utf8");
+  } catch {
+    return { error: "file not found" };
+  }
+
+  const allLines = splitBufferedLines(rawContent);
+  const totalLines = allLines.length;
+  const { effectiveStartLine, effectiveEndLine } = getEffectiveWindow(
+    totalLines,
+    args.requestedStartLine,
+    args.requestedEndLine,
+    args.maxLines
+  );
+
+  const selectedLines: string[] = [];
+  let usedBytes = 0;
+  let byteTruncated = false;
+
+  for (let i = effectiveStartLine - 1; i < effectiveEndLine; i++) {
+    const appendResult = appendLineWithinByteLimit(
+      selectedLines,
+      allLines[i],
+      usedBytes,
+      args.maxBytes
+    );
+    usedBytes = appendResult.bytes;
+    byteTruncated = byteTruncated || appendResult.truncated;
+  }
+
+  return buildReadFileResult({
+    relativePath: args.relativePath,
+    requestedEndLine: args.requestedEndLine,
+    maxLines: args.maxLines,
+    totalLines,
+    content: selectedLines.join(""),
+    byteTruncated,
+    inputEndLine: args.inputEndLine,
+    requestedStartLine: args.requestedStartLine,
+  });
+}
+
+async function readFileStreamed(args: {
+  fullPath: string;
+  relativePath: string;
+  requestedStartLine: number;
+  requestedEndLine: number;
+  inputEndLine?: number;
+  maxLines: number;
+  maxBytes: number;
+}): Promise<ReadFileResult> {
+  try {
+    let totalLines = 0;
+    await streamLines(args.fullPath, (_, lineNumber) => {
+      totalLines = lineNumber;
+    });
+
+    const { effectiveStartLine, effectiveEndLine } = getEffectiveWindow(
+      totalLines,
+      args.requestedStartLine,
+      args.requestedEndLine,
+      args.maxLines
+    );
+
+    const selectedLines: string[] = [];
+    let usedBytes = 0;
+    let byteTruncated = false;
+
+    await streamLines(args.fullPath, (line, lineNumber) => {
+      if (lineNumber < effectiveStartLine) {
+        return;
+      }
+      if (lineNumber > effectiveEndLine) {
+        return false;
+      }
+
+      const appendResult = appendLineWithinByteLimit(selectedLines, line, usedBytes, args.maxBytes);
+      usedBytes = appendResult.bytes;
+      byteTruncated = byteTruncated || appendResult.truncated;
+    });
+
+    return buildReadFileResult({
+      relativePath: args.relativePath,
+      requestedEndLine: args.requestedEndLine,
+      maxLines: args.maxLines,
+      totalLines,
+      content: selectedLines.join(""),
+      byteTruncated,
+      inputEndLine: args.inputEndLine,
+      requestedStartLine: args.requestedStartLine,
+    });
+  } catch {
+    return { error: "file could not be read" };
+  }
+}
+
 function appendLineWithinByteLimit(
   lines: string[],
   line: string,
@@ -215,11 +421,12 @@ function appendLineWithinByteLimit(
   maxBytes: number
 ): { bytes: number; truncated: boolean } {
   const segment = lines.length === 0 ? line : `\n${line}`;
-  const segmentBuffer = Buffer.from(segment, "utf8");
+  // Use Buffer.byteLength to measure without allocating a buffer for the common path.
+  const segmentByteLength = Buffer.byteLength(segment, "utf8");
 
-  if (currentBytes + segmentBuffer.byteLength <= maxBytes) {
+  if (currentBytes + segmentByteLength <= maxBytes) {
     lines.push(segment);
-    return { bytes: currentBytes + segmentBuffer.byteLength, truncated: false };
+    return { bytes: currentBytes + segmentByteLength, truncated: false };
   }
 
   if (currentBytes >= maxBytes) {
@@ -227,8 +434,44 @@ function appendLineWithinByteLimit(
   }
 
   const remainingBytes = maxBytes - currentBytes;
-  lines.push(segmentBuffer.subarray(0, remainingBytes).toString("utf8"));
+  lines.push(Buffer.from(segment, "utf8").subarray(0, remainingBytes).toString("utf8"));
   return { bytes: maxBytes, truncated: true };
+}
+
+// Consumes an async generator with bounded concurrency. Walking and scanning
+// are pipelined: the generator advances only as fast as workers consume items,
+// so the entire file list is never materialised.
+//
+// Returning false from fn signals that no more items are needed; the generator
+// is terminated via return() and all workers drain their current task then stop.
+async function withConcurrencyFromGenerator<T>(
+  gen: AsyncGenerator<T>,
+  concurrency: number,
+  fn: (item: T) => Promise<boolean | void>,
+  canPull?: () => boolean
+): Promise<void> {
+  let stopped = false;
+
+  async function worker(): Promise<void> {
+    while (!stopped) {
+      while (!stopped && canPull && !canPull()) {
+        await new Promise((resolve) => setTimeout(resolve, 1));
+      }
+      const { value, done } = await gen.next();
+      if (done || stopped) break;
+      const result = await fn(value);
+      if (result === false) {
+        stopped = true;
+      }
+    }
+  }
+
+  try {
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  } finally {
+    // Terminate the generator so it can release any in-progress I/O.
+    await gen.return(undefined);
+  }
 }
 
 export class LocalFileCodeSearch implements CodeSearch {
@@ -244,48 +487,95 @@ export class LocalFileCodeSearch implements CodeSearch {
       Math.max(input.limit ?? this.config.maxSearchResults, 1),
       this.config.maxSearchResults
     );
-    const matcher = input.glob?.trim() ? buildGlobMatcher(input.glob.trim()) : null;
-    const files: string[] = [];
-    await collectFiles(this.config, this.config.rootDir, files);
+    const globTrim = input.glob?.trim() ?? "";
+    const matcher = globTrim ? buildGlobMatcher(globTrim) : null;
+    const globDirPrefix = globTrim ? extractGlobDirPrefix(globTrim) : "";
 
-    const normalizedQuery = query.toLocaleLowerCase();
+    // Lowercase once for the entire search rather than per line.
+    const normalizedQuery = query.toLowerCase();
     const matches: SearchFileMatch[] = [];
     let hasMore = false;
+    const pending = new Map<number, SearchFileMatch[]>();
+    let nextIndexToFlush = 0;
 
-    for (const fullPath of files) {
-      const relativePath = normalizeRelativePath(path.relative(this.config.rootDir, fullPath));
-      if (matcher && !matcher.test(relativePath)) {
-        continue;
-      }
-      if (await isBinaryFile(fullPath)) {
-        continue;
-      }
-      const stat = await fs.stat(fullPath);
-      if (stat.size > this.config.maxFileBytes) {
-        continue;
-      }
-
-      await streamLines(fullPath, (line, lineNumber) => {
-        if (!line.toLocaleLowerCase().includes(normalizedQuery)) {
-          return;
-        }
+    const flushPending = (): boolean => {
+      while (pending.has(nextIndexToFlush)) {
+        const fileMatches = pending.get(nextIndexToFlush) ?? [];
+        pending.delete(nextIndexToFlush);
+        nextIndexToFlush += 1;
 
         if (matches.length >= limit) {
+          if (fileMatches.length > 0) {
+            hasMore = true;
+            return false;
+          }
+          continue;
+        }
+
+        const remaining = limit - matches.length;
+        if (fileMatches.length > remaining) {
+          matches.push(...fileMatches.slice(0, remaining));
           hasMore = true;
           return false;
         }
 
-        matches.push({
-          path: relativePath,
-          line: lineNumber,
-          snippet: line.trim().slice(0, 300),
-        });
-      });
-
-      if (hasMore) {
-        return { matches, hasMore };
+        matches.push(...fileMatches);
       }
-    }
+
+      return true;
+    };
+
+    const walker = enumerateFiles(walkFiles(this.config, this.config.rootDir, globDirPrefix));
+    await withConcurrencyFromGenerator(
+      walker,
+      SEARCH_CONCURRENCY,
+      async ({ fullPath, relativePath, index }) => {
+        if (hasMore) return false;
+        const finalize = (fileMatches: SearchFileMatch[] = []) => {
+          pending.set(index, fileMatches);
+          return flushPending();
+        };
+
+        if (matcher && !matcher.test(relativePath)) return finalize();
+
+        // stat first (cheap metadata call) before isBinaryFile (reads 8 KB).
+        try {
+          const { size } = await fs.stat(fullPath);
+          if (size > this.config.maxFileBytes) return finalize();
+        } catch {
+          return finalize();
+        }
+
+        if (await isBinaryFile(fullPath)) return finalize();
+
+        // Single readFile call replaces open + readline streaming.
+        // Files are already bounded by maxFileBytes so this is safe.
+        let content: string;
+        try {
+          content = await fs.readFile(fullPath, "utf8");
+        } catch {
+          return finalize();
+        }
+
+        const lines = splitBufferedLines(content);
+        const fileMatches: SearchFileMatch[] = [];
+        for (let i = 0; i < lines.length; i++) {
+          if (hasMore) return false;
+          if (!lines[i].toLowerCase().includes(normalizedQuery)) continue;
+          fileMatches.push({
+            path: relativePath,
+            line: i + 1,
+            snippet: lines[i].trim().slice(0, 300),
+          });
+          if (fileMatches.length > limit) {
+            break;
+          }
+        }
+
+        return finalize(fileMatches);
+      },
+      () => pending.size < MAX_PENDING_SEARCH_FILES
+    );
 
     if (matches.length === 0) {
       return { error: "no matches found" };
@@ -300,6 +590,13 @@ export class LocalFileCodeSearch implements CodeSearch {
       return resolved;
     }
 
+    let size: number;
+    try {
+      ({ size } = await fs.stat(resolved.fullPath));
+    } catch {
+      return { error: "file not found" };
+    }
+
     if (await isBinaryFile(resolved.fullPath)) {
       return { error: "binary file rejected" };
     }
@@ -312,62 +609,35 @@ export class LocalFileCodeSearch implements CodeSearch {
         ? Math.max(input.endLine, requestedStartLine)
         : requestedStartLine + maxLines - 1;
 
-    let totalLines = 0;
-    await streamLines(resolved.fullPath, (_, lineNumber) => {
-      totalLines = lineNumber;
+    if (size <= MAX_BUFFERED_READ_FILE_BYTES) {
+      return readFileBuffered({
+        fullPath: resolved.fullPath,
+        relativePath: resolved.relativePath,
+        requestedStartLine,
+        requestedEndLine,
+        inputEndLine: input.endLine,
+        maxLines,
+        maxBytes,
+      });
+    }
+
+    return readFileStreamed({
+      fullPath: resolved.fullPath,
+      relativePath: resolved.relativePath,
+      requestedStartLine,
+      requestedEndLine,
+      inputEndLine: input.endLine,
+      maxLines,
+      maxBytes,
     });
-
-    const effectiveStartLine =
-      totalLines === 0 ? 1 : Math.min(requestedStartLine, Math.max(totalLines - maxLines + 1, 1));
-    const effectiveEndLine =
-      totalLines === 0
-        ? 0
-        : Math.min(requestedEndLine, effectiveStartLine + maxLines - 1, totalLines);
-
-    const selectedLines: string[] = [];
-    let usedBytes = 0;
-    let byteTruncated = false;
-
-    await streamLines(resolved.fullPath, (line, lineNumber) => {
-      if (lineNumber < effectiveStartLine) {
-        return;
-      }
-      if (lineNumber > effectiveEndLine) {
-        return;
-      }
-
-      const appendResult = appendLineWithinByteLimit(selectedLines, line, usedBytes, maxBytes);
-      usedBytes = appendResult.bytes;
-      byteTruncated = byteTruncated || appendResult.truncated;
-    });
-
-    const content = selectedLines.join("");
-    const hasMoreLines =
-      totalLines > 0 &&
-      (input.endLine == null ? effectiveEndLine < totalLines : effectiveEndLine < requestedEndLine);
-
-    return {
-      path: resolved.relativePath,
-      startLine: effectiveStartLine,
-      endLine: effectiveEndLine,
-      totalLines,
-      content,
-      truncated: byteTruncated || hasMoreLines,
-      hasPrevious: totalLines > 0 && effectiveStartLine > 1,
-      hasNext: totalLines > 0 && effectiveEndLine < totalLines,
-    };
   }
 
   async listFiles(): Promise<ListFilesResult> {
-    const files: string[] = [];
-    await collectFiles(this.config, this.config.rootDir, files);
-
-    const uniquePaths = [
-      ...new Set(
-        files.map((fullPath) => normalizeRelativePath(path.relative(this.config.rootDir, fullPath)))
-      ),
-    ].sort((left, right) => left.localeCompare(right));
-
-    return { paths: uniquePaths };
+    const uniquePaths = new Set<string>();
+    for await (const { relativePath } of walkFiles(this.config, this.config.rootDir, "")) {
+      uniquePaths.add(relativePath);
+    }
+    const paths = [...uniquePaths].sort((a, b) => a.localeCompare(b));
+    return { paths };
   }
 }

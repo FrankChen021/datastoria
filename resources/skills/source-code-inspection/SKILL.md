@@ -32,6 +32,7 @@ Always use this exact format for source-file citations:
 - `[[file:path/to/file.ts#L12-L34]]`
 
 Use repo-relative paths and line anchors whenever possible. Do not use normal markdown links for source-code citations.
+Do not wrap file citation tokens in backticks, inline code, or fenced code blocks in your final answer. Use them as plain citation tokens in normal prose or list items so the UI can render them as clickable links.
 
 ## Response Style
 
