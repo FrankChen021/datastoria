@@ -57,10 +57,6 @@ vi.mock("./message-markdown-vizlayer", () => ({
   },
 }));
 
-vi.mock("./message-user-actions", () => ({
-  MessageMarkdownUserActions: () => null,
-}));
-
 describe("MessageMarkdown", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -103,7 +99,7 @@ describe("MessageMarkdown", () => {
 
     expect(vizlayerSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        spec: '{"kind":"flowchart","document":{"title":"Example"}}',
+        spec: '{"kind":"flowchart","document":{"title":"Example"}}\n',
       })
     );
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTheme } from "@/components/shared/theme-provider";
+import useIsDarkTheme from "@/components/shared/dashboard/use-is-dark-theme";
 import { CopyButton } from "@/components/ui/copy-button";
 import { cn } from "@/lib/utils";
 import {
@@ -28,15 +28,7 @@ type BuiltVizlayerChart =
     };
 
 export function MessageMarkdownVizlayer({ spec }: MessageMarkdownVizlayerProps) {
-  const { theme } = useTheme();
-
-  const isDark = useMemo(() => {
-    if (typeof window !== "undefined") {
-      return window.document.documentElement.classList.contains("dark");
-    }
-
-    return theme === "dark";
-  }, [theme]);
+  const isDark = useIsDarkTheme();
 
   const parsed = useMemo<ParsedVizlayerSpec>(
     () => VizlayerSpecParser.parseVizlayerSpec(spec),

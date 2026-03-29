@@ -83,4 +83,27 @@ describe("MessageToolSkill", () => {
     expect(container.textContent).toContain("clickhouse-best-practices");
     expect(container.textContent).toContain("input:");
   });
+
+  it("ignores malformed skill resource entries without breaking rendering", () => {
+    act(() => {
+      root.render(
+        <MessageToolSkill
+          part={createToolPart({
+            resources: [
+              null,
+              { skill: "vizlayer", paths: ["reference/flowchart.md", 123] },
+              { skill: 42, paths: ["reference/class-diagram.md"] },
+              { skill: "broken" },
+            ],
+          })}
+          isRunning={false}
+          label="Load Skill Resources"
+        />
+      );
+    });
+
+    expect(container.textContent).toContain("Load Skill Resources");
+    expect(container.textContent).toContain("vizlayer | reference/flowchart.md");
+    expect(container.textContent).not.toContain("reference/class-diagram.md");
+  });
 });

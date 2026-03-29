@@ -12,7 +12,6 @@ import { buildCodeViewerUrl, replaceReferenceTokens } from "./file-reference-uti
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 import { MessageMarkdownVizlayer } from "./message-markdown-vizlayer";
-import { MessageMarkdownUserActions } from "./message-user-actions";
 
 function transformMarkdownUrl(url: string) {
   if (url.startsWith("skill://")) {
@@ -41,7 +40,6 @@ interface MessageMarkdownProps {
 
 export const MessageMarkdown = memo(function MessageMarkdown({
   text,
-  messageId,
   customStyle,
   showExecuteButton = true,
   expandable = false,
@@ -81,10 +79,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
           return <MessageMarkdownChartSpec spec={String(children)} />;
         }
         if (codeClassName === "language-vizlayer") {
-          return <MessageMarkdownVizlayer spec={String(children).replace(/\n$/, "")} />;
-        }
-        if (codeClassName === "language-user_actions") {
-          return <MessageMarkdownUserActions spec={String(children)} messageId={messageId} />;
+          return <MessageMarkdownVizlayer spec={String(children)} />;
         }
 
         // Check if inline code is a table name or database name
@@ -304,7 +299,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         </h6>
       ),
     }),
-    [customStyle, expandable, showExecuteButton, messageId]
+    [customStyle, expandable, showExecuteButton]
   );
 
   return (

@@ -3,7 +3,6 @@
 import type { Chat, Message } from "@/lib/ai/chat-types";
 import { useMemo, useSyncExternalStore } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { chatActionStorage } from "./chat-action-storage";
 import { toSessionRepositoryConnectionId } from "./session-connection-id";
 import { getSessionRepository } from "./session-repository-factory";
 
@@ -89,7 +88,6 @@ export const SessionManager = {
         nextBucket[session.chatId] = toManagedSession(session, bucket[session.chatId]);
       }
 
-      chatActionStorage.clearHiddenActionsForChats(Array.from(previousChatIds));
       state.sessionsByConnection[repositoryConnectionId] = nextBucket;
       emitChange();
       return this.getSessions(connectionId);
@@ -260,7 +258,6 @@ export const SessionManager = {
   async deleteSessions(connectionId: string | undefined, chatIds: string[]) {
     const storage = getSessionRepository();
     await Promise.all(chatIds.map((chatId) => storage.deleteSession(chatId)));
-    chatActionStorage.clearHiddenActionsForChats(chatIds);
 
     if (!connectionId) {
       emitChange();

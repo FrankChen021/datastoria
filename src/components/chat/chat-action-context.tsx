@@ -1,7 +1,11 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { UserActionInput } from "./message/message-user-actions";
+
+export type UserActionInput = {
+  text: string;
+  autoRun?: boolean;
+};
 
 interface ChatActionContextType {
   onAction: (input: UserActionInput) => void;

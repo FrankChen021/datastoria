@@ -20,12 +20,24 @@ function getRequestedItems(input: SkillInput): string[] {
     return [];
   }
 
-  return input.resources.flatMap((resource) =>
-    resource.paths
+  return input.resources.flatMap((resource) => {
+    if (!resource || typeof resource !== "object") {
+      return [];
+    }
+
+    const paths = (resource as { paths?: unknown }).paths;
+    const skill = (resource as { skill?: unknown }).skill;
+
+    if (!Array.isArray(paths) || typeof skill !== "string") {
+      return [];
+    }
+
+    return paths
+      .filter((path): path is string => typeof path === "string")
       .map((path) => path.trim())
       .filter(Boolean)
-      .map((path) => `${resource.skill} | ${path}`)
-  );
+      .map((path) => `${skill} | ${path}`);
+  });
 }
 
 function buildHeader(input: SkillInput): string {
@@ -69,8 +81,8 @@ export const MessageToolSkill = memo(function MessageToolSkill({
         <div className="mt-1 text-[10px] text-muted-foreground">
           <div className="font-medium">input:</div>
           <div className="mt-1 space-y-1 font-mono">
-            {requestedItems.map((item) => (
-              <div key={item}>{item}</div>
+            {requestedItems.map((item, index) => (
+              <div key={`${item}-${index}`}>{item}</div>
             ))}
           </div>
         </div>

@@ -11,8 +11,8 @@ const copyButtonSpy = vi.fn();
 const toChartSpecSpy = vi.fn();
 const parseVizlayerSpecSpy = vi.fn();
 
-vi.mock("@/components/shared/theme-provider", () => ({
-  useTheme: () => ({ theme: "light" }),
+vi.mock("@/components/shared/dashboard/use-is-dark-theme", () => ({
+  default: () => false,
 }));
 
 vi.mock("@/components/ui/copy-button", () => ({
@@ -22,13 +22,22 @@ vi.mock("@/components/ui/copy-button", () => ({
   },
 }));
 
-vi.mock("@vizlayer/react", () => ({
-  VizlayerDiagram: () => null,
-  toChartSpec: (props: unknown) => toChartSpecSpy(props),
-  VizlayerSpecParser: {
-    parseVizlayerSpec: (spec: string) => parseVizlayerSpecSpy(spec),
-  },
-}));
+vi.mock("@vizlayer/react", async () => {
+  const actual = await vi.importActual<typeof import("@vizlayer/react")>("@vizlayer/react");
+
+  return {
+    ...actual,
+    VizlayerDiagram: () => null,
+    toChartSpec: (props: unknown) => toChartSpecSpy(props),
+    VizlayerSpecParser: {
+      ...actual.VizlayerSpecParser,
+      parseVizlayerSpec: (spec: string) => {
+        parseVizlayerSpecSpy(spec);
+        return actual.VizlayerSpecParser.parseVizlayerSpec(spec);
+      },
+    },
+  };
+});
 
 describe("MessageMarkdownVizlayer", () => {
   let container: HTMLDivElement;
@@ -55,20 +64,6 @@ describe("MessageMarkdownVizlayer", () => {
 
   it("copies generated Mermaid text for unified vizlayer payloads", () => {
     toChartSpecSpy.mockReturnValue("flowchart TD\n  a --> b");
-    parseVizlayerSpecSpy.mockReturnValue({
-      ok: true,
-      spec: {
-        kind: "flowchart",
-        document: {
-          direction: "TD",
-          nodes: [
-            { id: "a", label: "A" },
-            { id: "b", label: "B" },
-          ],
-          edges: [{ from: "a", to: "b" }],
-        },
-      },
-    });
 
     act(() => {
       root.render(
@@ -101,19 +96,6 @@ describe("MessageMarkdownVizlayer", () => {
 
   it("parses unified vizlayer payloads and maps their kind", () => {
     toChartSpecSpy.mockReturnValue("sequenceDiagram\nuser->>agent: request");
-    parseVizlayerSpecSpy.mockReturnValue({
-      ok: true,
-      spec: {
-        kind: "sequenceDiagram",
-        document: {
-          participants: [
-            { id: "user", label: "User" },
-            { id: "agent", label: "Agent" },
-          ],
-          messages: [{ from: "user", to: "agent", text: "request" }],
-        },
-      },
-    });
 
     act(() => {
       root.render(
@@ -140,11 +122,6 @@ describe("MessageMarkdownVizlayer", () => {
   });
 
   it("keeps copying raw Vizlayer JSON when parsing fails", () => {
-    parseVizlayerSpecSpy.mockReturnValue({
-      ok: false,
-      error: "Vizlayer payload is still streaming.",
-    });
-
     act(() => {
       root.render(<MessageMarkdownVizlayer spec='{"kind":"flowchart"' />);
     });
@@ -162,22 +139,8 @@ describe("MessageMarkdownVizlayer", () => {
     expect(container.textContent).toContain('{"kind":"flowchart"');
   });
 
-  it("still parses complete payloads with trailing whitespace after the closing brace", () => {
+  it("parses complete payloads with trailing whitespace after the closing brace", () => {
     toChartSpecSpy.mockReturnValue("flowchart TD\n  a --> b");
-    parseVizlayerSpecSpy.mockReturnValue({
-      ok: true,
-      spec: {
-        kind: "flowchart",
-        document: {
-          direction: "TD",
-          nodes: [
-            { id: "a", label: "A" },
-            { id: "b", label: "B" },
-          ],
-          edges: [{ from: "a", to: "b" }],
-        },
-      },
-    });
 
     act(() => {
       root.render(
@@ -204,12 +167,6 @@ describe("MessageMarkdownVizlayer", () => {
   });
 
   it("shows an error for unified vizlayer payloads without kind", () => {
-    parseVizlayerSpecSpy.mockReturnValue({
-      ok: false,
-      error:
-        "Unified Vizlayer payloads must include `kind` set to `flowchart`, `sequenceDiagram`, or `classDiagram`.",
-    });
-
     act(() => {
       root.render(<MessageMarkdownVizlayer spec='{"document":{"title":"Example"}}' />);
     });
@@ -227,12 +184,7 @@ describe("MessageMarkdownVizlayer", () => {
     expect(container.textContent).toContain('{"document":{"title":"Example"}}');
   });
 
-  it("shows an error for legacy raw flowchart documents without envelope fields", () => {
-    parseVizlayerSpecSpy.mockReturnValue({
-      ok: false,
-      error: "Unified Vizlayer payloads must include an object `document` field.",
-    });
-
+  it("shows an error for flowchart-like objects without the unified envelope", () => {
     act(() => {
       root.render(<MessageMarkdownVizlayer spec='{"direction":"TD","nodes":[],"edges":[]}' />);
     });
@@ -245,7 +197,7 @@ describe("MessageMarkdownVizlayer", () => {
       })
     );
     expect(container.textContent).toContain(
-      "Unified Vizlayer payloads must include an object `document` field."
+      "Unified Vizlayer payloads must include `kind` set to `flowchart`, `sequenceDiagram`, or `classDiagram`."
     );
     expect(container.textContent).toContain('{"direction":"TD","nodes":[],"edges":[]}');
   });
