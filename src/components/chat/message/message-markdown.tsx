@@ -10,8 +10,8 @@ import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markd
 import remarkGfm from "remark-gfm";
 import { buildCodeViewerUrl, replaceReferenceTokens } from "./file-reference-utils";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
-import { MessageMarkdownMermaid } from "./message-markdown-mermaid";
 import { MessageMarkdownSql } from "./message-markdown-sql";
+import { MessageMarkdownVizlayer } from "./message-markdown-vizlayer";
 import { MessageMarkdownUserActions } from "./message-user-actions";
 
 function transformMarkdownUrl(url: string) {
@@ -80,8 +80,8 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         if (codeClassName === "language-chart-spec") {
           return <MessageMarkdownChartSpec spec={String(children)} />;
         }
-        if (codeClassName === "language-mermaid") {
-          return <MessageMarkdownMermaid chart={String(children).replace(/\n$/, "")} />;
+        if (codeClassName === "language-vizlayer") {
+          return <MessageMarkdownVizlayer spec={String(children).replace(/\n$/, "")} />;
         }
         if (codeClassName === "language-user_actions") {
           return <MessageMarkdownUserActions spec={String(children)} messageId={messageId} />;

@@ -1,19 +1,40 @@
-import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
+import type {
+  AppUIMessage,
+  SkillResourceToolInput,
+  SkillToolInput,
+  ToolPart,
+} from "@/lib/ai/chat-types";
 import { memo } from "react";
 import { CollapsiblePart } from "./collapsible-part";
 
-type SkillInput = {
-  names?: string[];
-};
+type SkillInput = SkillToolInput | SkillResourceToolInput;
 
 const MAX_HEADER_LENGTH = 80;
 
+function getRequestedItems(input: SkillInput): string[] {
+  if ("names" in input && Array.isArray(input.names)) {
+    return input.names.filter(Boolean);
+  }
+
+  if (!("resources" in input) || !Array.isArray(input.resources)) {
+    return [];
+  }
+
+  return input.resources.flatMap((resource) =>
+    resource.paths
+      .map((path) => path.trim())
+      .filter(Boolean)
+      .map((path) => `${resource.skill} | ${path}`)
+  );
+}
+
 function buildHeader(input: SkillInput): string {
-  if (!Array.isArray(input.names) || input.names.length === 0) {
+  const requestedItems = getRequestedItems(input);
+  if (requestedItems.length === 0) {
     return "";
   }
 
-  const joinedNames = input.names.join(", ");
+  const joinedNames = requestedItems.join(", ");
   if (joinedNames.length <= MAX_HEADER_LENGTH) {
     return joinedNames;
   }
@@ -35,6 +56,7 @@ export const MessageToolSkill = memo(function MessageToolSkill({
   const input = (toolPart.input ?? {}) as SkillInput;
   const outputText = typeof toolPart.output === "string" ? toolPart.output : null;
   const characterCount = outputText?.length ?? null;
+  const requestedItems = getRequestedItems(input);
 
   return (
     <CollapsiblePart
@@ -43,6 +65,16 @@ export const MessageToolSkill = memo(function MessageToolSkill({
       state={state}
       isRunning={isRunning}
     >
+      {requestedItems.length > 0 ? (
+        <div className="mt-1 text-[10px] text-muted-foreground">
+          <div className="font-medium">input:</div>
+          <div className="mt-1 space-y-1 font-mono">
+            {requestedItems.map((item) => (
+              <div key={item}>{item}</div>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {characterCount != null ? (
         <div className="mt-1 text-[10px] text-muted-foreground">{characterCount} characters</div>
       ) : null}
