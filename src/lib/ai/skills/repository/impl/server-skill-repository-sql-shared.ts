@@ -21,11 +21,7 @@ type PersistedSkillRecordRow = Omit<PersistedSkillRecord, "created_at" | "update
   updated_at: Date | string;
 };
 
-type ExternalIdColumn = "id" | "record_id";
-
 export abstract class AbstractServerSkillRepository implements ServerSkillRepository {
-  private externalIdColumnPromise: Promise<ExternalIdColumn> | null = null;
-
   constructor(private readonly options: SqlRepositoryOptions) {}
 
   private db(): Knex {
@@ -40,17 +36,6 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     if (this.options.ensureReady) {
       await this.options.ensureReady();
     }
-  }
-
-  private async getExternalIdColumn(): Promise<ExternalIdColumn> {
-    if (!this.externalIdColumnPromise) {
-      this.externalIdColumnPromise = (async () => {
-        await this.ensureReady();
-        return (await this.db().schema.hasColumn("ai_skills", "record_id")) ? "record_id" : "id";
-      })();
-    }
-
-    return this.externalIdColumnPromise;
   }
 
   private applyVisibility(
@@ -122,10 +107,9 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
 
   async listSkills(visibility: SkillRepositoryVisibility): Promise<PersistedSkillRecord[]> {
     await this.ensureReady();
-    const externalIdColumn = await this.getExternalIdColumn();
     const query = this.db()("ai_skills")
       .select({
-        id: externalIdColumn,
+        id: "record_id",
         type: "type",
         skill_id: "skill_id",
         meta_text: "meta",
@@ -148,10 +132,9 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     visibility: SkillRepositoryVisibility
   ): Promise<PersistedSkillRecord | null> {
     await this.ensureReady();
-    const externalIdColumn = await this.getExternalIdColumn();
     const query = this.db()("ai_skills")
       .select({
-        id: externalIdColumn,
+        id: "record_id",
         type: "type",
         skill_id: "skill_id",
         meta_text: "meta",
@@ -164,7 +147,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
         updated_at: "updated_at",
       })
       .where({
-        [externalIdColumn]: id,
+        record_id: id,
         type: "skill",
       })
       .first();
@@ -178,10 +161,9 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     visibility: SkillRepositoryVisibility
   ): Promise<PersistedSkillRecord[]> {
     await this.ensureReady();
-    const externalIdColumn = await this.getExternalIdColumn();
     const query = this.db()("ai_skills")
       .select({
-        id: externalIdColumn,
+        id: "record_id",
         type: "type",
         skill_id: "skill_id",
         meta_text: "meta",
@@ -198,7 +180,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
         skill_id: skillId,
       });
     this.applyVisibility(query, visibility);
-    const rows = (await query.orderBy(externalIdColumn, "asc")) as PersistedSkillRecordRow[];
+    const rows = (await query.orderBy("record_id", "asc")) as PersistedSkillRecordRow[];
     return rows.map((row) => this.toPersistedSkillRecord(row));
   }
 
@@ -224,7 +206,6 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
   }
 
   async upsertSkillBundle(ownerId: string, input: UpsertSkillBundleInput): Promise<void> {
-    const externalIdColumn = await this.getExternalIdColumn();
     const scope = input.scope ?? "self";
     const state = input.state ?? "published";
     const version = input.version ?? null;
@@ -263,7 +244,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     );
     if (deletedResourceIds.length > 0) {
       await this.db()("ai_skills")
-        .whereIn(externalIdColumn, deletedResourceIds)
+        .whereIn("record_id", deletedResourceIds)
         .andWhere({
           type: "resource",
           skill_id: input.id,
@@ -281,7 +262,6 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
   }
 
   async publishSkillResources(ownerId: string, input: PublishSkillResourcesInput): Promise<void> {
-    const externalIdColumn = await this.getExternalIdColumn();
     const scope = input.scope ?? "self";
     const version = input.version ?? null;
 
@@ -308,7 +288,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     );
     if (deletedResourceIds.length > 0) {
       await this.db()("ai_skills")
-        .whereIn(externalIdColumn, deletedResourceIds)
+        .whereIn("record_id", deletedResourceIds)
         .andWhere({
           type: "resource",
           skill_id: input.id,
@@ -320,10 +300,9 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
 
   async deleteSkill(skillId: string, ownerId: string): Promise<void> {
     await this.ensureReady();
-    const externalIdColumn = await this.getExternalIdColumn();
     await this.db()("ai_skills")
       .where((builder) => {
-        builder.where({ [externalIdColumn]: skillId }).orWhere({ skill_id: skillId });
+        builder.where({ record_id: skillId }).orWhere({ skill_id: skillId });
       })
       .andWhere({ owner_id: ownerId })
       .del();
@@ -331,10 +310,9 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
 
   async publishSkill(skillId: string, ownerId: string): Promise<void> {
     await this.ensureReady();
-    const externalIdColumn = await this.getExternalIdColumn();
     await this.db()("ai_skills")
       .where((builder) => {
-        builder.where({ [externalIdColumn]: skillId }).orWhere({ skill_id: skillId });
+        builder.where({ record_id: skillId }).orWhere({ skill_id: skillId });
       })
       .andWhere({ owner_id: ownerId })
       .update({
@@ -345,15 +323,14 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
 
   async upsertSkill(input: UpsertSkillRecordInput): Promise<void> {
     await this.ensureReady();
-    const externalIdColumn = await this.getExternalIdColumn();
     const existing = await this.db()("ai_skills")
-      .select(externalIdColumn)
-      .where({ [externalIdColumn]: input.id })
+      .select("record_id")
+      .where({ record_id: input.id })
       .first();
 
     if (existing) {
       await this.db()("ai_skills")
-        .where({ [externalIdColumn]: input.id })
+        .where({ record_id: input.id })
         .update({
           type: input.type,
           skill_id: input.skill_id ?? null,
@@ -369,7 +346,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     }
 
     await this.db()("ai_skills").insert({
-      [externalIdColumn]: input.id,
+      record_id: input.id,
       type: input.type,
       skill_id: input.skill_id ?? null,
       meta: input.meta_text ?? null,

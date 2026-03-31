@@ -1,7 +1,3 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { knex } from "knex";
 import { describe, expect, it } from "vitest";
 import { ServerSkillRepositorySqlite } from "./impl/server-skill-repository-sqlite";
 
@@ -133,81 +129,5 @@ description: Diagnose ClickHouse error codes.
     });
     expect(resource?.state).toBe("published");
     expect(resource?.content).toBe("resource only publish");
-  });
-
-  it("supports legacy ai_skills tables that still use id as the external identifier", async () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "legacy-skill-repository-"));
-    const sqlitePath = path.join(tempDir, "skills.sqlite");
-
-    const db = knex({
-      client: "better-sqlite3",
-      connection: {
-        filename: sqlitePath,
-      },
-      useNullAsDefault: true,
-    });
-
-    try {
-      await db.schema.createTable("ai_skills", (table) => {
-        table.text("id").primary();
-        table.text("type").notNullable();
-        table.text("skill_id").nullable();
-        table.text("meta").nullable();
-        table.text("content").notNullable();
-        table.text("state").notNullable();
-        table.text("scope").notNullable();
-        table.text("version").nullable();
-        table.text("owner_id").nullable();
-        table.text("created_at").notNullable();
-        table.text("updated_at").notNullable();
-      });
-
-      const timestamp = "2026-03-31 00:00:00.000";
-      await db("ai_skills").insert({
-        id: "legacy-skill",
-        type: "skill",
-        skill_id: null,
-        meta: JSON.stringify({ name: "legacy-skill", description: "Legacy skill" }),
-        content: "# Legacy skill",
-        state: "published",
-        scope: "self",
-        version: null,
-        owner_id: "owner@example.com",
-        created_at: timestamp,
-        updated_at: timestamp,
-      });
-
-      const repository = new ServerSkillRepositorySqlite(sqlitePath);
-
-      const existing = await repository.getSkill("legacy-skill", {
-        userId: "owner@example.com",
-      });
-      expect(existing?.id).toBe("legacy-skill");
-
-      await repository.upsertSkillBundle("owner@example.com", {
-        id: "new-skill",
-        content: `---
-name: new-skill
-description: Newly inserted skill.
----
-
-# New Skill
-`,
-        resources: [{ path: "references/1.md", content: "legacy compatible resource" }],
-      });
-
-      const inserted = await repository.getSkill("new-skill", {
-        userId: "owner@example.com",
-      });
-      expect(inserted?.id).toBe("new-skill");
-
-      const resource = await repository.getSkillResource("new-skill", "references/1.md", {
-        userId: "owner@example.com",
-      });
-      expect(resource?.id).toBe("new-skill:references/1.md");
-    } finally {
-      await db.destroy();
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    }
   });
 });
