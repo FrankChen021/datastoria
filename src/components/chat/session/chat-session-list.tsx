@@ -7,6 +7,7 @@ import {
   type ManagedSession,
 } from "@/components/chat/session/session-manager";
 import { useConnection } from "@/components/connection/connection-context";
+import { StatusPopover } from "@/components/connection/connection-edit-component";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,12 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Tree, type TreeDataItem } from "@/components/ui/tree";
 import type { Chat } from "@/lib/ai/chat-types";
@@ -29,7 +24,7 @@ import "@/lib/number-utils";
 import { searchTree } from "@/lib/tree-search";
 import { cn } from "@/lib/utils";
 import {
-  EllipsisVertical,
+  AlertCircle,
   FolderClosed,
   Loader2,
   MessageSquareText,
@@ -67,7 +62,7 @@ type RenameState = {
 } | null;
 
 type DeleteState = {
-  chatIds: string[];
+  nodeId: string;
   title: string;
   description: string;
   confirmLabel: string;
@@ -77,7 +72,6 @@ const chatNodeId = (chatId: string) => `chat:${chatId}`;
 const groupNodeId = (label: string) => `group:${label}`;
 
 const getChatTitle = (chat: Pick<Chat, "title">) => chat.title || "New Chat";
-
 const getGroupLabel = (dateInput: Date | string) => {
   const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
   const now = new Date();
@@ -93,53 +87,99 @@ const getGroupLabel = (dateInput: Date | string) => {
   return "Earlier";
 };
 
-function HistoryNodeMenu({
-  actions,
+function HistoryNodeDeleteButton({
+  nodeId,
+  deleteState,
+  onDeleteStateChange,
+  title,
+  description,
+  confirmLabel,
+  onConfirm,
 }: {
-  actions: Array<{
-    label: string;
-    icon: React.ReactNode;
-    destructive?: boolean;
-    onSelect: () => void;
-  }>;
+  nodeId: string;
+  deleteState: DeleteState;
+  onDeleteStateChange: (next: DeleteState) => void;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => Promise<void>;
 }) {
+  const isOpen = deleteState?.nodeId === nodeId;
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <StatusPopover
+      open={isOpen}
+      onOpenChange={(open) =>
+        onDeleteStateChange(
+          open
+            ? {
+                nodeId,
+                title,
+                description,
+                confirmLabel,
+              }
+            : null
+        )
+      }
+      trigger={
         <Button
+          type="button"
           variant="ghost"
           size="icon"
-          className="h-5 w-5 text-muted-foreground opacity-0 transition-opacity group-hover/tree:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+          className="h-[18px] w-[18px] text-muted-foreground opacity-0 transition-opacity group-hover/tree:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 hover:text-destructive"
+          title={title}
+          aria-label={title}
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <EllipsisVertical className="h-3.5 w-3.5" />
+          <Trash2 className="!h-3 !w-3" />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-        {actions.map((action) => (
-          <DropdownMenuItem
-            key={action.label}
-            className={cn(action.destructive && "text-destructive focus:text-destructive")}
-            onClick={(e) => {
-              e.stopPropagation();
-              action.onSelect();
-            }}
-          >
-            {action.icon}
-            {action.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      }
+      side="bottom"
+      align="end"
+      className="w-72"
+      icon={<AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />}
+      title={title}
+    >
+      <p className="mb-3 text-xs text-muted-foreground">{description}</p>
+      <div className="flex justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteStateChange(null);
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          onClick={async (e) => {
+            e.stopPropagation();
+            await onConfirm();
+            onDeleteStateChange(null);
+          }}
+        >
+          {confirmLabel}
+        </Button>
+      </div>
+    </StatusPopover>
   );
 }
 
 function buildHistoryTree(
   history: ManagedSession[],
   onRenameChat: (chat: ManagedSession) => void,
-  onDeleteChat: (chat: ManagedSession) => void,
-  onDeleteGroup: (label: string, chats: ManagedSession[]) => void
+  onDeleteChat: (chat: ManagedSession) => Promise<void>,
+  onDeleteGroup: (label: string, chats: ManagedSession[]) => Promise<void>,
+  deleteState: DeleteState,
+  onDeleteStateChange: (next: DeleteState) => void
 ): TreeDataItem[] {
   const groups: Array<{ label: string; chats: ManagedSession[] }> = [];
   const groupIndex = new Map<string, number>();
@@ -166,15 +206,14 @@ function buildHistoryTree(
       chatIds: chats.map((chat) => chat.chatId),
     } satisfies HistoryNodeData,
     tag: () => (
-      <HistoryNodeMenu
-        actions={[
-          {
-            label: "Delete folder",
-            icon: <Trash2 className="h-4 w-4" />,
-            destructive: true,
-            onSelect: () => onDeleteGroup(label, chats),
-          },
-        ]}
+      <HistoryNodeDeleteButton
+        nodeId={groupNodeId(label)}
+        deleteState={deleteState}
+        onDeleteStateChange={onDeleteStateChange}
+        title="Delete folder"
+        description={`Delete all ${chats.length} conversations in "${label}"? This action cannot be reverted.`}
+        confirmLabel="Delete folder"
+        onConfirm={() => onDeleteGroup(label, chats)}
       />
     ),
     children: chats.map((chat) => ({
@@ -189,21 +228,32 @@ function buildHistoryTree(
         chat,
       } satisfies HistoryNodeData,
       tag: () => (
-        <HistoryNodeMenu
-          actions={[
-            {
-              label: "Rename",
-              icon: <Pencil className="h-4 w-4" />,
-              onSelect: () => onRenameChat(chat),
-            },
-            {
-              label: "Delete",
-              icon: <Trash2 className="h-4 w-4" />,
-              destructive: true,
-              onSelect: () => onDeleteChat(chat),
-            },
-          ]}
-        />
+        <div className="flex items-center gap-0.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-[18px] w-[18px] text-muted-foreground opacity-0 transition-opacity group-hover/tree:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 hover:text-foreground"
+            title="Rename conversation"
+            aria-label="Rename conversation"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRenameChat(chat);
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <Pencil className="!h-3 !w-3" />
+          </Button>
+          <HistoryNodeDeleteButton
+            nodeId={chatNodeId(chat.chatId)}
+            deleteState={deleteState}
+            onDeleteStateChange={onDeleteStateChange}
+            title="Delete conversation"
+            description={`Delete "${getChatTitle(chat)}"? This action cannot be reverted.`}
+            confirmLabel="Delete"
+            onConfirm={() => onDeleteChat(chat)}
+          />
+        </div>
       ),
     })),
   }));
@@ -275,22 +325,12 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
               chatId: chat.chatId,
               title: getChatTitle(chat),
             }),
-          (chat) =>
-            setDeleteState({
-              chatIds: [chat.chatId],
-              title: "Delete conversation",
-              description: `Delete "${getChatTitle(chat)}"? This action cannot be reverted.`,
-              confirmLabel: "Delete",
-            }),
-          (label, chats) =>
-            setDeleteState({
-              chatIds: chats.map((chat) => chat.chatId),
-              title: "Delete folder",
-              description: `Delete all ${chats.length} conversations in "${label}"? This action cannot be reverted.`,
-              confirmLabel: "Delete folder",
-            })
+          (chat) => handleDeleteChats([chat.chatId]),
+          (_label, chats) => handleDeleteChats(chats.map((chat) => chat.chatId)),
+          deleteState,
+          setDeleteState
         ),
-      [history]
+      [deleteState, handleDeleteChats, history]
     );
 
     const hasVisibleTreeData = React.useMemo(() => {
@@ -409,34 +449,6 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
               </Button>
               <Button type="button" onClick={() => void handleRenameSubmit()}>
                 Save
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={deleteState !== null} onOpenChange={(open) => !open && setDeleteState(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{deleteState?.title}</DialogTitle>
-              <DialogDescription>{deleteState?.description}</DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDeleteState(null)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={async () => {
-                  if (!deleteState) {
-                    return;
-                  }
-
-                  await handleDeleteChats(deleteState.chatIds);
-                  setDeleteState(null);
-                }}
-              >
-                {deleteState?.confirmLabel}
               </Button>
             </DialogFooter>
           </DialogContent>
