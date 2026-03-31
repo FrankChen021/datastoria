@@ -241,7 +241,10 @@ export class RipgrepCodeSearch implements CodeSearch {
         matches: matches.slice(0, limit),
         hasMore: matches.length > limit,
       };
-    } catch {
+    } catch (error) {
+      console.warn("[code-search]", "rg searchFile failed; falling back to local-file search", {
+        message: error instanceof Error ? error.message : String(error),
+      });
       return this.fallback.searchFile(input);
     }
   }
@@ -272,7 +275,10 @@ export class RipgrepCodeSearch implements CodeSearch {
         .filter((entry) => matchesSearchableSuffix(entry, this.config.searchableSuffixes));
 
       return { paths };
-    } catch {
+    } catch (error) {
+      console.warn("[code-search]", "rg listFiles failed; falling back to local-file search", {
+        message: error instanceof Error ? error.message : String(error),
+      });
       return this.fallback.listFiles();
     }
   }

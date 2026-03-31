@@ -25,6 +25,10 @@ export class CodeSearchFactory {
     }
 
     const ripgrepAvailable = await (this.options.isRipgrepAvailable ?? isRipgrepAvailable)();
+    console.info("[code-search]", "Provider selected", {
+      provider: ripgrepAvailable ? "ripgrep" : "local-file",
+      rootDir: config.rootDir,
+    });
     const provider = ripgrepAvailable
       ? (
           this.options.createRipgrepProvider ??
