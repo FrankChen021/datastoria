@@ -6,12 +6,16 @@ import {
   Calendar,
   Clock,
   Database,
+  Eye,
   FileText,
   Hash,
+  LayoutGrid,
   List,
   Map as MapIcon,
+  Microchip,
   Monitor,
   Package,
+  Sigma,
   Table as TableIcon,
   Type,
   type LucideIcon,
@@ -97,6 +101,31 @@ function getColumnIcon(typeString: string): LucideIcon | undefined {
   return undefined;
 }
 
+function getTableIcon(engine: string): LucideIcon {
+  const normalizedEngine = String(engine || "");
+
+  if (
+    normalizedEngine.includes("SummingMergeTree") ||
+    normalizedEngine.includes("AggregatingMergeTree")
+  ) {
+    return Sigma;
+  }
+
+  if (normalizedEngine.includes("MergeTree")) {
+    return LayoutGrid;
+  }
+
+  if (normalizedEngine === "Memory") {
+    return Microchip;
+  }
+
+  if (normalizedEngine === "View") {
+    return Eye;
+  }
+
+  return TableIcon;
+}
+
 // Create a column tree node
 function toColumnTreeNode(column: {
   name: string;
@@ -148,7 +177,7 @@ function toTableTreeNode(table: {
     id: `table:${fullName}`,
     labelContent: tableName,
     search: tableName.toLowerCase(),
-    icon: TableIcon,
+    icon: getTableIcon(table.fullTableEngine),
     type: "folder", // Has columns as children
     children: [],
     tag: <SchemaTreeBadge>{table.tableEngine || ""}</SchemaTreeBadge>,
