@@ -162,8 +162,8 @@ function HistoryNodeDeleteButton({
           className="h-7 px-2 text-xs"
           onClick={async (e) => {
             e.stopPropagation();
-            await onConfirm();
             onDeleteStateChange(null);
+            await onConfirm();
           }}
         >
           {confirmLabel}
