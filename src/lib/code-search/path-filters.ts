@@ -21,8 +21,9 @@ export function matchesIncludedName(relativePath: string, includeNames: string[]
     return true;
   }
 
-  const segments = getPathSegments(relativePath);
-  return segments.some((segment) => includeNames.includes(segment));
+  const lowerIncludeNames = includeNames.map((name) => name.toLowerCase());
+  const lowerSegments = getPathSegments(relativePath).map((segment) => segment.toLowerCase());
+  return lowerSegments.some((segment) => lowerIncludeNames.includes(segment));
 }
 
 export function matchesSearchableSuffix(

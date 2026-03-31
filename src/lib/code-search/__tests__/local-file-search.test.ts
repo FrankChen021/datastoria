@@ -155,6 +155,38 @@ describe("LocalFileCodeSearch", () => {
     });
   });
 
+  it("rejects reading files outside searchable suffixes", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
+    tempDirs.push(rootDir);
+    fs.writeFileSync(path.join(rootDir, "notes.txt"), "plain text\n");
+
+    await expect(
+      new LocalFileCodeSearch(createConfig(rootDir, { searchableSuffixes: [".ts"] })).readFile({
+        path: "notes.txt",
+      })
+    ).resolves.toEqual({
+      error: "path rejected",
+    });
+  });
+
+  it("matches included directories case-insensitively", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
+    tempDirs.push(rootDir);
+    fs.mkdirSync(path.join(rootDir, "Src"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "Src", "main.ts"), "const token = 'secret';\n");
+
+    const result = await new LocalFileCodeSearch(
+      createConfig(rootDir, { includeNames: ["src"] })
+    ).searchFile({
+      query: "token",
+    });
+
+    expect(result).toEqual({
+      matches: [{ path: "Src/main.ts", line: 1, snippet: "const token = 'secret';" }],
+      hasMore: false,
+    });
+  });
+
   it("returns bounded file windows with truncation metadata", async () => {
     const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
     tempDirs.push(rootDir);

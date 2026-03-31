@@ -25,19 +25,31 @@ const execFileAsync = promisify(execFile);
 let ripgrepAvailablePromise: Promise<boolean> | null = null;
 
 function buildRgFilterArgs(config: CodeSearchConfig, globPattern?: string): string[] {
-  const args = ["--hidden", "--follow", "--no-ignore", "--glob-case-insensitive"];
+  const args = ["--hidden", "--no-follow", "--no-ignore", "--glob-case-insensitive"];
 
   for (const excludedName of ALWAYS_EXCLUDED_NAMES) {
     args.push("--glob", `!**/${excludedName}/**`);
   }
 
-  for (const includeName of config.includeNames) {
-    args.push("--glob", `${includeName}/**`);
-    args.push("--glob", `**/${includeName}/**`);
-  }
+  const hasIncludeNames = config.includeNames.length > 0;
+  const hasSearchableSuffixes = config.searchableSuffixes.length > 0;
 
-  for (const suffix of config.searchableSuffixes) {
-    args.push("--glob", `**/*${suffix}`);
+  if (hasIncludeNames && hasSearchableSuffixes) {
+    for (const includeName of config.includeNames) {
+      for (const suffix of config.searchableSuffixes) {
+        args.push("--glob", `${includeName}/**/*${suffix}`);
+        args.push("--glob", `**/${includeName}/**/*${suffix}`);
+      }
+    }
+  } else if (hasIncludeNames) {
+    for (const includeName of config.includeNames) {
+      args.push("--glob", `${includeName}/**`);
+      args.push("--glob", `**/${includeName}/**`);
+    }
+  } else if (hasSearchableSuffixes) {
+    for (const suffix of config.searchableSuffixes) {
+      args.push("--glob", `**/*${suffix}`);
+    }
   }
 
   const normalizedGlob = globPattern?.trim();

@@ -103,6 +103,9 @@ export default async function RootLayout({
 }>) {
   const session = (await getSession()) as SessionProviderSession;
   const codeSearchConfig = await getCodeSearchConfig();
+  const codeAnalysisEnabled =
+    codeSearchConfig.enabled ||
+    (!codeSearchConfig.enabled && codeSearchConfig.reason === "materializing");
   let autoSelectAvailable = false;
 
   try {
@@ -217,7 +220,7 @@ export default async function RootLayout({
               sessionRepositoryType: getSessionRepositoryType(session?.user?.id ?? null),
               allowEditSkill: SkillPermissionManager.canUserEditSkill(session?.user?.email ?? null),
               autoSelectAvailable,
-              codeAnalysisEnabled: codeSearchConfig.enabled,
+              codeAnalysisEnabled,
             }}
           >
             {children}

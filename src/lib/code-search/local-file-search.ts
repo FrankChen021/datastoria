@@ -115,6 +115,10 @@ async function resolveFilePath(
     return { error: "path rejected" };
   }
 
+  if (!matchesSearchableSuffix(relativeToRoot, config.searchableSuffixes)) {
+    return { error: "path rejected" };
+  }
+
   return {
     fullPath: realPath,
     relativePath: normalizeRelativePath(relativeToRoot),
