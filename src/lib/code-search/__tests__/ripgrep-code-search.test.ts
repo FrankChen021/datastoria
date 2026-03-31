@@ -68,4 +68,38 @@ describe("RipgrepCodeSearch", () => {
       paths: ["docs/README.md", "src/main.ts"],
     });
   });
+
+  it("respects max file bytes during ripgrep search while keeping listFiles sorted", async () => {
+    if (!rgAvailable) {
+      return;
+    }
+
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "ripgrep-code-search-"));
+    tempDirs.push(rootDir);
+    fs.mkdirSync(path.join(rootDir, "src"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "src", "b.ts"), "const token = 'small';\n");
+    fs.writeFileSync(path.join(rootDir, "src", "a.ts"), `const token = '${"x".repeat(128)}';\n`);
+
+    const provider = new RipgrepCodeSearch(
+      createCodeSearchEnabledConfig({
+        rootDir: fs.realpathSync(rootDir),
+        maxFileBytes: 32,
+        maxReadLines: 10,
+        maxSearchResults: 5,
+        includeNames: ["src"],
+        searchableSuffixes: [".ts"],
+      })
+    );
+
+    const searchResult = await provider.searchFile({ query: "token" });
+    expect(searchResult).toEqual({
+      matches: [{ path: "src/b.ts", line: 1, snippet: "const token = 'small';" }],
+      hasMore: false,
+    });
+
+    const fileListResult = await provider.listFiles();
+    expect(fileListResult).toEqual({
+      paths: ["src/a.ts", "src/b.ts"],
+    });
+  });
 });

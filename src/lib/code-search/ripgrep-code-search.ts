@@ -67,6 +67,10 @@ function toSnippet(value: string): string {
     .slice(0, 300);
 }
 
+function buildMaxFilesizeArg(maxFileBytes: number): string {
+  return `${maxFileBytes}`;
+}
+
 export async function isRipgrepAvailable(): Promise<boolean> {
   if (!ripgrepAvailablePromise) {
     ripgrepAvailablePromise = execFileAsync("rg", ["--version"])
@@ -98,6 +102,8 @@ async function collectRipgrepMatches(args: {
         "never",
         "--fixed-strings",
         "--ignore-case",
+        "--max-filesize",
+        buildMaxFilesizeArg(args.config.maxFileBytes),
         ...buildRgFilterArgs(args.config, args.glob),
         args.query,
         ".",
@@ -278,7 +284,7 @@ export class RipgrepCodeSearch implements CodeSearch {
     try {
       const { stdout } = await execFileAsync(
         "rg",
-        ["--files", "--sort", "path", ...buildRgFilterArgs(this.config), "."],
+        ["--files", ...buildRgFilterArgs(this.config), "."],
         {
           cwd: this.config.rootDir,
           maxBuffer: 32 * 1024 * 1024,
@@ -294,7 +300,8 @@ export class RipgrepCodeSearch implements CodeSearch {
         .map(normalizeRelativePath)
         .filter((entry) => !matchesExcludedName(entry, ALWAYS_EXCLUDED_NAMES))
         .filter((entry) => matchesIncludedName(entry, this.config.includeNames))
-        .filter((entry) => matchesSearchableSuffix(entry, this.config.searchableSuffixes));
+        .filter((entry) => matchesSearchableSuffix(entry, this.config.searchableSuffixes))
+        .sort((left, right) => left.localeCompare(right));
 
       return { paths };
     } catch (error) {
