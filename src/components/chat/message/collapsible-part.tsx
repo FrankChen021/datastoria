@@ -97,7 +97,7 @@ export function CollapsiblePart({
         )}
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-2 py-0.5 text-[10px]">
+        <div className="flex items-center gap-2 py-0.5 text-[10px] leading-4">
           {isComplete ? (
             isError ? (
               <CircleX className="h-3 w-3 text-destructive" />
