@@ -109,7 +109,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     await this.ensureReady();
     const query = this.db()("ai_skills")
       .select({
-        id: "id",
+        id: "record_id",
         type: "type",
         skill_id: "skill_id",
         meta_text: "meta",
@@ -134,7 +134,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     await this.ensureReady();
     const query = this.db()("ai_skills")
       .select({
-        id: "id",
+        id: "record_id",
         type: "type",
         skill_id: "skill_id",
         meta_text: "meta",
@@ -147,7 +147,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
         updated_at: "updated_at",
       })
       .where({
-        id,
+        record_id: id,
         type: "skill",
       })
       .first();
@@ -163,7 +163,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     await this.ensureReady();
     const query = this.db()("ai_skills")
       .select({
-        id: "id",
+        id: "record_id",
         type: "type",
         skill_id: "skill_id",
         meta_text: "meta",
@@ -180,7 +180,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
         skill_id: skillId,
       });
     this.applyVisibility(query, visibility);
-    const rows = (await query.orderBy("id", "asc")) as PersistedSkillRecordRow[];
+    const rows = (await query.orderBy("record_id", "asc")) as PersistedSkillRecordRow[];
     return rows.map((row) => this.toPersistedSkillRecord(row));
   }
 
@@ -244,7 +244,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     );
     if (deletedResourceIds.length > 0) {
       await this.db()("ai_skills")
-        .whereIn("id", deletedResourceIds)
+        .whereIn("record_id", deletedResourceIds)
         .andWhere({
           type: "resource",
           skill_id: input.id,
@@ -288,7 +288,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     );
     if (deletedResourceIds.length > 0) {
       await this.db()("ai_skills")
-        .whereIn("id", deletedResourceIds)
+        .whereIn("record_id", deletedResourceIds)
         .andWhere({
           type: "resource",
           skill_id: input.id,
@@ -302,7 +302,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     await this.ensureReady();
     await this.db()("ai_skills")
       .where((builder) => {
-        builder.where({ id: skillId }).orWhere({ skill_id: skillId });
+        builder.where({ record_id: skillId }).orWhere({ skill_id: skillId });
       })
       .andWhere({ owner_id: ownerId })
       .del();
@@ -312,7 +312,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     await this.ensureReady();
     await this.db()("ai_skills")
       .where((builder) => {
-        builder.where({ id: skillId }).orWhere({ skill_id: skillId });
+        builder.where({ record_id: skillId }).orWhere({ skill_id: skillId });
       })
       .andWhere({ owner_id: ownerId })
       .update({
@@ -323,11 +323,14 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
 
   async upsertSkill(input: UpsertSkillRecordInput): Promise<void> {
     await this.ensureReady();
-    const existing = await this.db()("ai_skills").select("id").where({ id: input.id }).first();
+    const existing = await this.db()("ai_skills")
+      .select("record_id")
+      .where({ record_id: input.id })
+      .first();
 
     if (existing) {
       await this.db()("ai_skills")
-        .where({ id: input.id })
+        .where({ record_id: input.id })
         .update({
           type: input.type,
           skill_id: input.skill_id ?? null,
@@ -343,7 +346,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
     }
 
     await this.db()("ai_skills").insert({
-      id: input.id,
+      record_id: input.id,
       type: input.type,
       skill_id: input.skill_id ?? null,
       meta: input.meta_text ?? null,
