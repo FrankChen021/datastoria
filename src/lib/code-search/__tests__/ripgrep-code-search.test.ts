@@ -51,13 +51,17 @@ describe("RipgrepCodeSearch", () => {
 
     const provider = new RipgrepCodeSearch(createConfig(rootDir));
     const searchResult = await provider.searchFile({ query: "token" });
-    expect(searchResult).toEqual({
-      matches: [
+    expect(searchResult).toMatchObject({ hasMore: false });
+    if ("error" in searchResult) {
+      throw new Error(searchResult.error);
+    }
+    expect(searchResult.matches).toHaveLength(2);
+    expect(searchResult.matches).toEqual(
+      expect.arrayContaining([
         { path: "docs/README.md", line: 1, snippet: "# token docs" },
         { path: "src/main.ts", line: 1, snippet: "const token = 'secret';" },
-      ],
-      hasMore: false,
-    });
+      ])
+    );
 
     const fileListResult = await provider.listFiles();
     expect(fileListResult).toEqual({

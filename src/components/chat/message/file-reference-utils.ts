@@ -9,6 +9,9 @@ export interface FileReference {
 const FILE_REFERENCE_PATTERN = /\[\[\s*file\s*:\s*([^\]]+?)\s*\]\]/gi;
 const SKILL_REFERENCE_PATTERN =
   /\[\[\s*skill\s*:\s*([^\]|]+?)\s*\|\s*([^\]|]+?)(?:\s*\|\s*([^\]]+?))?\s*\]\]/gi;
+const CODE_WRAPPED_FILE_REFERENCE_PATTERN = /`(\s*\[\[\s*file\s*:\s*[^\]]+?\s*\]\]\s*)`/gi;
+const CODE_WRAPPED_SKILL_REFERENCE_PATTERN =
+  /`(\s*\[\[\s*skill\s*:\s*[^\]|]+?\s*\|\s*[^\]|]+?(?:\s*\|\s*[^\]]+?)?\s*\]\]\s*)`/gi;
 const FILE_REFERENCE_WITH_LINES_PATTERN = /^(.*?)\s*#L\s*(\d+)(?:\s*-\s*L?\s*(\d+))?$/i;
 
 export function parseFileReferenceToken(token: string): FileReference | null {
@@ -115,6 +118,25 @@ export function replaceSkillReferenceTokens(markdown: string): string {
   );
 }
 
+function unwrapCodeWrappedReferenceTokens(markdown: string): string {
+  return markdown
+    .replace(CODE_WRAPPED_FILE_REFERENCE_PATTERN, (_, token: string) => token.trim())
+    .replace(CODE_WRAPPED_SKILL_REFERENCE_PATTERN, (_, token: string) => token.trim());
+}
+
+/**
+ * Rewrites custom reference tokens into standard markdown links before rendering.
+ *
+ * Examples:
+ * - input: "See [[file:src/app/page.tsx#L12-18]]."
+ *   output: "See [page.tsx:12-18](codefile://open?path=src%2Fapp%2Fpage.tsx&startLine=12&endLine=18)."
+ * 
+ * - input: "Use [[skill:source-code-inspection|/source-code-inspection]]."
+ *   output: "Use [/source-code-inspection](skill://source-code-inspection)."
+ * 
+ * - input: "Definition: `[[file:src/app/page.tsx#L12]]`."
+ *   output: "Definition: [page.tsx:12](codefile://open?path=src%2Fapp%2Fpage.tsx&startLine=12)."
+ */
 export function replaceReferenceTokens(markdown: string): string {
-  return replaceSkillReferenceTokens(replaceFileReferenceTokens(markdown));
+  return replaceSkillReferenceTokens(replaceFileReferenceTokens(unwrapCodeWrappedReferenceTokens(markdown)));
 }

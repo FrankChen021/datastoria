@@ -86,8 +86,6 @@ async function collectRipgrepMatches(args: {
         "never",
         "--fixed-strings",
         "--ignore-case",
-        "--sort",
-        "path",
         ...buildRgFilterArgs(args.config, args.glob),
         args.query,
         ".",

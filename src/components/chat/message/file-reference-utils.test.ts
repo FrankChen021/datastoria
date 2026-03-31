@@ -64,6 +64,16 @@ describe("file-reference-utils", () => {
     );
   });
 
+  it("rewrites backtick-wrapped file tokens so markdown can render links", () => {
+    expect(
+      replaceReferenceTokens(
+        "Definition: `[[file:src/Analyzer/Resolve/QueryAnalyzer.cpp#L150]]`."
+      )
+    ).toBe(
+      "Definition: [QueryAnalyzer.cpp:150](codefile://open?path=src%2FAnalyzer%2FResolve%2FQueryAnalyzer.cpp&startLine=150)."
+    );
+  });
+
   it("rewrites skill tokens into markdown links", () => {
     expect(
       replaceSkillReferenceTokens("[[skill:source-code-inspection|/source-code-inspection]]")
@@ -74,6 +84,12 @@ describe("file-reference-utils", () => {
         "[[skill:source-code-inspection|/source-code-inspection|Inspect source code]]"
       )
     ).toBe('[/source-code-inspection](skill://source-code-inspection "Inspect source code")');
+  });
+
+  it("rewrites backtick-wrapped skill tokens so markdown can render links", () => {
+    expect(
+      replaceReferenceTokens("Use `[[skill:source-code-inspection|/source-code-inspection]]`.")
+    ).toBe("Use [/source-code-inspection](skill://source-code-inspection).");
   });
 
   it("rewrites mixed file and skill tokens", () => {
