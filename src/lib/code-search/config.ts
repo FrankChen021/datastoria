@@ -11,22 +11,55 @@ interface BaseCodeRepoConfig {
   maxFileBytes: number;
   maxReadLines: number;
   maxSearchResults: number;
-  ignoredNames: string[];
+  includeNames: string[];
+  searchableSuffixes: string[];
 }
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_MAX_FILE_BYTES = 64 * 1024;
 const DEFAULT_MAX_READ_LINES = 250;
 const DEFAULT_MAX_SEARCH_RESULTS = 20;
-const DEFAULT_IGNORED_NAMES = ["dist", "build", "coverage", ".next"];
-const HARD_CODED_IGNORED_NAMES = [".git", "node_modules"];
-
+const DEFAULT_INCLUDE_NAMES = ["src"];
+const DEFAULT_SEARCHABLE_SUFFIXES = [
+  ".c",
+  ".cc",
+  ".cpp",
+  ".cxx",
+  ".h",
+  ".hh",
+  ".hpp",
+  ".hxx",
+  ".inl",
+  ".ipp",
+];
 let cachedBaseConfig:
   | BaseCodeRepoConfig
   | Exclude<DisabledCodeSearchConfig, { reason: "materialize_failed" }>
   | null = null;
 let resolvedRootDir: string | null = null;
-let inFlightMaterialization: Promise<string> | null = null;
+let inFlightMaterialization: Promise<void> | null = null;
+let lastMaterializationFailed = false;
+let retriedMaterializationAfterFailure = false;
+let loggedMaterializingState = false;
+
+function logCodeSearchInfo(message: string, details?: Record<string, unknown>) {
+  console.info("[code-search]", message, details ?? {});
+}
+
+function logCodeSearchWarn(message: string, details?: Record<string, unknown>) {
+  console.warn("[code-search]", message, details ?? {});
+}
+
+function getErrorDetails(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+    };
+  }
+
+  return { error };
+}
 
 function parsePositiveInteger(rawValue: string | undefined, defaultValue: number): number | null {
   if (!rawValue || rawValue.trim() === "") {
@@ -40,15 +73,43 @@ function parsePositiveInteger(rawValue: string | undefined, defaultValue: number
   return value;
 }
 
-function parseIgnoredNames(rawValue: string | undefined): string[] {
-  const configured = rawValue
-    ? rawValue
+function parseIncludeNames(rawValue: string | undefined): string[] {
+  if (rawValue == null) {
+    return DEFAULT_INCLUDE_NAMES;
+  }
+
+  const trimmed = rawValue.trim();
+  if (trimmed === "" || trimmed === "*") {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      trimmed
         .split(",")
         .map((entry) => entry.trim())
         .filter(Boolean)
-    : DEFAULT_IGNORED_NAMES;
+    ),
+  ];
+}
 
-  return [...new Set([...HARD_CODED_IGNORED_NAMES, ...configured])];
+function parseSearchableSuffixes(rawValue: string | undefined): string[] {
+  if (!rawValue || rawValue.trim() === "") {
+    return DEFAULT_SEARCHABLE_SUFFIXES;
+  }
+
+  if (rawValue.trim() === "*") {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      rawValue
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+    ),
+  ].map((suffix) => (suffix.startsWith(".") ? suffix : `.${suffix}`).toLowerCase());
 }
 
 function createBaseConfigFromEnv(
@@ -84,9 +145,8 @@ function createBaseConfigFromEnv(
     maxFileBytes,
     maxReadLines,
     maxSearchResults,
-    ignoredNames: parseIgnoredNames(
-      env.CODE_ANALYSIS_IGNORE_NAMES ?? env.CODE_ANALYSIS_IGNORE_GLOBS
-    ),
+    includeNames: parseIncludeNames(env.CODE_ANALYSIS_INCLUDE_NAMES),
+    searchableSuffixes: parseSearchableSuffixes(env.CODE_ANALYSIS_SEARCH_SUFFIXES),
   };
 }
 
@@ -136,6 +196,18 @@ function resolveExistingLocalDir(localDir: string): string | DisabledCodeSearchC
   return normalizedRootDir;
 }
 
+function createCodeSearchConfig(baseConfig: BaseCodeRepoConfig, rootDir: string): CodeSearchConfig {
+  return {
+    enabled: true,
+    rootDir,
+    maxFileBytes: baseConfig.maxFileBytes,
+    maxReadLines: baseConfig.maxReadLines,
+    maxSearchResults: baseConfig.maxSearchResults,
+    includeNames: baseConfig.includeNames,
+    searchableSuffixes: baseConfig.searchableSuffixes,
+  };
+}
+
 async function cloneRepo(remote: string, localDir: string): Promise<void> {
   const parentDir = path.dirname(localDir);
   await fs.promises.mkdir(parentDir, { recursive: true });
@@ -176,23 +248,112 @@ async function materializeRepo(baseConfig: BaseCodeRepoConfig): Promise<string> 
   return clonedLocalDir;
 }
 
-async function ensureCodeRepoReady(baseConfig: BaseCodeRepoConfig): Promise<string> {
-  if (resolvedRootDir) {
-    return resolvedRootDir;
+function startMaterialization(baseConfig: BaseCodeRepoConfig) {
+  if (resolvedRootDir || inFlightMaterialization) {
+    return;
   }
 
-  if (!inFlightMaterialization) {
-    inFlightMaterialization = materializeRepo(baseConfig)
-      .then((rootDir) => {
-        resolvedRootDir = rootDir;
-        return rootDir;
-      })
-      .finally(() => {
-        inFlightMaterialization = null;
+  lastMaterializationFailed = false;
+  loggedMaterializingState = false;
+  logCodeSearchInfo("Starting background code repo clone", {
+    localDir: baseConfig.localDir,
+    remoteConfigured: Boolean(baseConfig.remote),
+  });
+  inFlightMaterialization = materializeRepo(baseConfig)
+    .then((rootDir) => {
+      resolvedRootDir = rootDir;
+      retriedMaterializationAfterFailure = false;
+      logCodeSearchInfo("Background code repo clone completed", {
+        rootDir,
       });
+    })
+    .catch((error) => {
+      lastMaterializationFailed = true;
+      logCodeSearchWarn("Background code repo clone failed", {
+        localDir: baseConfig.localDir,
+        ...getErrorDetails(error),
+      });
+    })
+    .finally(() => {
+      inFlightMaterialization = null;
+    });
+}
+
+function getReadyCodeSearchConfig(baseConfig: BaseCodeRepoConfig): CodeSearchConfigResult {
+  if (resolvedRootDir) {
+    return createCodeSearchConfig(baseConfig, resolvedRootDir);
   }
 
-  return inFlightMaterialization;
+  const existingLocalDir = resolveExistingLocalDir(baseConfig.localDir);
+  if (typeof existingLocalDir === "string") {
+    resolvedRootDir = existingLocalDir;
+    return createCodeSearchConfig(baseConfig, existingLocalDir);
+  }
+
+  if (existingLocalDir.reason !== "missing_remote") {
+    return existingLocalDir;
+  }
+
+  if (!baseConfig.remote) {
+    return { enabled: false, reason: "missing_remote" };
+  }
+
+  if (inFlightMaterialization) {
+    if (!loggedMaterializingState) {
+      loggedMaterializingState = true;
+      logCodeSearchInfo("Code search is materializing in background; request will not block", {
+        localDir: baseConfig.localDir,
+      });
+    }
+    return { enabled: false, reason: "materializing" };
+  }
+
+  // Allow exactly one automatic retry after a failed clone. retriedMaterializationAfterFailure
+  // is only reset on success, so a second consecutive failure moves permanently to
+  // "materialize_failed" until clearCodeSearchConfigCache() is called.
+  if (lastMaterializationFailed && !retriedMaterializationAfterFailure) {
+    retriedMaterializationAfterFailure = true;
+    startMaterialization(baseConfig);
+    if (!loggedMaterializingState) {
+      loggedMaterializingState = true;
+      logCodeSearchInfo("Retrying background code repo clone after previous failure", {
+        localDir: baseConfig.localDir,
+      });
+    }
+    return { enabled: false, reason: "materializing" };
+  }
+
+  if (lastMaterializationFailed) {
+    logCodeSearchWarn("Code search remains unavailable after background clone failure", {
+      localDir: baseConfig.localDir,
+    });
+    return { enabled: false, reason: "materialize_failed" };
+  }
+
+  startMaterialization(baseConfig);
+  if (!loggedMaterializingState) {
+    loggedMaterializingState = true;
+    logCodeSearchInfo("Code search is materializing in background; request will not block", {
+      localDir: baseConfig.localDir,
+    });
+  }
+  return { enabled: false, reason: "materializing" };
+}
+
+export function startCodeSearchMaterialization() {
+  const baseConfig = getBaseConfig();
+  if (isDisabledBaseConfig(baseConfig)) return;
+  if (resolvedRootDir || inFlightMaterialization) return;
+
+  const existingLocalDir = resolveExistingLocalDir(baseConfig.localDir);
+  if (typeof existingLocalDir === "string") {
+    resolvedRootDir = existingLocalDir;
+    return;
+  }
+
+  if (baseConfig.remote) {
+    startMaterialization(baseConfig);
+  }
 }
 
 export async function getCodeSearchConfig(): Promise<CodeSearchConfigResult> {
@@ -201,25 +362,16 @@ export async function getCodeSearchConfig(): Promise<CodeSearchConfigResult> {
     return baseConfig;
   }
 
-  try {
-    const rootDir = await ensureCodeRepoReady(baseConfig);
-    return {
-      enabled: true,
-      rootDir,
-      maxFileBytes: baseConfig.maxFileBytes,
-      maxReadLines: baseConfig.maxReadLines,
-      maxSearchResults: baseConfig.maxSearchResults,
-      ignoredNames: baseConfig.ignoredNames,
-    };
-  } catch {
-    return { enabled: false, reason: "materialize_failed" };
-  }
+  return getReadyCodeSearchConfig(baseConfig);
 }
 
 export function clearCodeSearchConfigCache() {
   cachedBaseConfig = null;
   resolvedRootDir = null;
   inFlightMaterialization = null;
+  lastMaterializationFailed = false;
+  retriedMaterializationAfterFailure = false;
+  loggedMaterializingState = false;
 }
 
 export function createCodeSearchEnabledConfig(

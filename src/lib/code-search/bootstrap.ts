@@ -1,5 +1,5 @@
 import "server-only";
-import { defaultCodeSearchFactory } from "./code-search-factory";
+import { startCodeSearchMaterialization } from "./config";
 
 let started = false;
 
@@ -9,7 +9,7 @@ export function startCodeSearchWarmup() {
   }
 
   started = true;
-  void defaultCodeSearchFactory.getCodeSearchContext();
+  startCodeSearchMaterialization();
 }
 
 export function resetCodeSearchWarmupForTests() {

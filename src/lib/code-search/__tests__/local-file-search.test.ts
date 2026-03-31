@@ -15,7 +15,8 @@ function createConfig(
     maxFileBytes: 1024,
     maxReadLines: 3,
     maxSearchResults: 2,
-    ignoredNames: [".git", "node_modules", "dist"],
+    includeNames: [],
+    searchableSuffixes: [".ts", ".md"],
     ...overrides,
   });
 }
@@ -86,6 +87,45 @@ describe("LocalFileCodeSearch", () => {
     });
   });
 
+  it("searches only files with allowed suffixes", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
+    tempDirs.push(rootDir);
+    fs.mkdirSync(path.join(rootDir, "src"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "src", "main.ts"), "const token = 'secret';\n");
+    fs.writeFileSync(path.join(rootDir, "src", "notes.txt"), "token in ignored suffix\n");
+
+    const result = await new LocalFileCodeSearch(
+      createConfig(rootDir, { searchableSuffixes: [".ts"] })
+    ).searchFile({
+      query: "token",
+    });
+
+    expect(result).toEqual({
+      matches: [{ path: "src/main.ts", line: 1, snippet: "const token = 'secret';" }],
+      hasMore: false,
+    });
+  });
+
+  it("searches only files inside included directories when includeNames is set", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
+    tempDirs.push(rootDir);
+    fs.mkdirSync(path.join(rootDir, "src"), { recursive: true });
+    fs.mkdirSync(path.join(rootDir, "docs"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "src", "main.ts"), "const token = 'secret';\n");
+    fs.writeFileSync(path.join(rootDir, "docs", "guide.md"), "token in docs\n");
+
+    const result = await new LocalFileCodeSearch(
+      createConfig(rootDir, { includeNames: ["src"] })
+    ).searchFile({
+      query: "token",
+    });
+
+    expect(result).toEqual({
+      matches: [{ path: "src/main.ts", line: 1, snippet: "const token = 'secret';" }],
+      hasMore: false,
+    });
+  });
+
   it("keeps glob pruning aligned with case-insensitive glob matching", async () => {
     const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
     tempDirs.push(rootDir);
@@ -112,6 +152,38 @@ describe("LocalFileCodeSearch", () => {
       new LocalFileCodeSearch(createConfig(rootDir)).readFile({ path: "../outside.ts" })
     ).resolves.toEqual({
       error: "path rejected",
+    });
+  });
+
+  it("rejects reading files outside searchable suffixes", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
+    tempDirs.push(rootDir);
+    fs.writeFileSync(path.join(rootDir, "notes.txt"), "plain text\n");
+
+    await expect(
+      new LocalFileCodeSearch(createConfig(rootDir, { searchableSuffixes: [".ts"] })).readFile({
+        path: "notes.txt",
+      })
+    ).resolves.toEqual({
+      error: "path rejected",
+    });
+  });
+
+  it("matches included directories case-insensitively", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
+    tempDirs.push(rootDir);
+    fs.mkdirSync(path.join(rootDir, "Src"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "Src", "main.ts"), "const token = 'secret';\n");
+
+    const result = await new LocalFileCodeSearch(
+      createConfig(rootDir, { includeNames: ["src"] })
+    ).searchFile({
+      query: "token",
+    });
+
+    expect(result).toEqual({
+      matches: [{ path: "Src/main.ts", line: 1, snippet: "const token = 'secret';" }],
+      hasMore: false,
     });
   });
 

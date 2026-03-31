@@ -5,7 +5,7 @@ import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory"
 import { getSessionRepositoryType } from "@/lib/ai/session/server-session-repository-factory";
 import { SkillPermissionManager } from "@/lib/ai/skills/skill-permission-manager";
 import { BasePath } from "@/lib/base-path";
-import { isCodeSearchConfigured } from "@/lib/code-search/config";
+import { getCodeSearchConfig } from "@/lib/code-search/config";
 import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "next-auth/react";
 import type { ComponentProps } from "react";
@@ -102,6 +102,10 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = (await getSession()) as SessionProviderSession;
+  const codeSearchConfig = await getCodeSearchConfig();
+  const codeAnalysisEnabled =
+    codeSearchConfig.enabled ||
+    (!codeSearchConfig.enabled && codeSearchConfig.reason === "materializing");
   let autoSelectAvailable = false;
 
   try {
@@ -216,7 +220,7 @@ export default async function RootLayout({
               sessionRepositoryType: getSessionRepositoryType(session?.user?.id ?? null),
               allowEditSkill: SkillPermissionManager.canUserEditSkill(session?.user?.email ?? null),
               autoSelectAvailable,
-              codeAnalysisEnabled: isCodeSearchConfigured(),
+              codeAnalysisEnabled,
             }}
           >
             {children}
