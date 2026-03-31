@@ -27,7 +27,8 @@ CREATE TABLE chat_messages (
 );
 
 CREATE TABLE ai_skills (
-  id VARCHAR(255) NOT NULL PRIMARY KEY,
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  record_id VARCHAR(255) NOT NULL,
   type VARCHAR(32) NOT NULL,
   skill_id VARCHAR(255) NULL,
   meta LONGTEXT NULL,
@@ -38,11 +39,9 @@ CREATE TABLE ai_skills (
   owner_id VARCHAR(255) NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-  KEY idx_ai_skills_type_state_scope (type, state, scope),
+  UNIQUE KEY uk_ai_skills_record_id (record_id),
   KEY idx_ai_skills_type_state_scope_updated_at (type, state, scope, updated_at),
-  KEY idx_ai_skills_owner_scope (owner_id, scope),
   KEY idx_ai_skills_type_state_owner_updated_at (type, state, owner_id, updated_at),
-  KEY idx_ai_skills_skill_id (skill_id),
   KEY idx_ai_skills_type_skill_state_scope (type, skill_id, state, scope),
   KEY idx_ai_skills_type_skill_state_owner (type, skill_id, state, owner_id)
 );

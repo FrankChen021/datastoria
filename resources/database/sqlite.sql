@@ -35,7 +35,8 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_user_session_sequence
   ON chat_messages (user_id, session_id, sequence);
 
 CREATE TABLE IF NOT EXISTS ai_skills (
-  id TEXT PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  record_id TEXT NOT NULL UNIQUE,
   type TEXT NOT NULL,
   skill_id TEXT NULL,
   meta TEXT NULL,
@@ -48,20 +49,11 @@ CREATE TABLE IF NOT EXISTS ai_skills (
   updated_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_ai_skills_type_state_scope
-  ON ai_skills (type, state, scope);
-
 CREATE INDEX IF NOT EXISTS idx_ai_skills_type_state_scope_updated_at
   ON ai_skills (type, state, scope, updated_at);
 
-CREATE INDEX IF NOT EXISTS idx_ai_skills_owner_scope
-  ON ai_skills (owner_id, scope);
-
 CREATE INDEX IF NOT EXISTS idx_ai_skills_type_state_owner_updated_at
   ON ai_skills (type, state, owner_id, updated_at);
-
-CREATE INDEX IF NOT EXISTS idx_ai_skills_skill_id
-  ON ai_skills (skill_id);
 
 CREATE INDEX IF NOT EXISTS idx_ai_skills_type_skill_state_scope
   ON ai_skills (type, skill_id, state, scope);

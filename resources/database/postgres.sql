@@ -35,7 +35,8 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_user_session_sequence
   ON chat_messages (user_id, session_id, sequence);
 
 CREATE TABLE IF NOT EXISTS ai_skills (
-  id VARCHAR(255) PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
+  record_id VARCHAR(255) NOT NULL UNIQUE,
   type VARCHAR(32) NOT NULL,
   skill_id VARCHAR(255) NULL,
   meta TEXT NULL,
@@ -48,20 +49,11 @@ CREATE TABLE IF NOT EXISTS ai_skills (
   updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 );
 
-CREATE INDEX IF NOT EXISTS idx_ai_skills_type_state_scope
-  ON ai_skills (type, state, scope);
-
 CREATE INDEX IF NOT EXISTS idx_ai_skills_type_state_scope_updated_at
   ON ai_skills (type, state, scope, updated_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_ai_skills_owner_scope
-  ON ai_skills (owner_id, scope);
-
 CREATE INDEX IF NOT EXISTS idx_ai_skills_type_state_owner_updated_at
   ON ai_skills (type, state, owner_id, updated_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_ai_skills_skill_id
-  ON ai_skills (skill_id);
 
 CREATE INDEX IF NOT EXISTS idx_ai_skills_type_skill_state_scope
   ON ai_skills (type, skill_id, state, scope);
