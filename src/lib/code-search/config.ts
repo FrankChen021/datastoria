@@ -11,7 +11,7 @@ interface BaseCodeRepoConfig {
   maxFileBytes: number;
   maxReadLines: number;
   maxSearchResults: number;
-  ignoredNames: string[];
+  includeNames: string[];
   searchableSuffixes: string[];
 }
 
@@ -19,42 +19,19 @@ const execFileAsync = promisify(execFile);
 const DEFAULT_MAX_FILE_BYTES = 64 * 1024;
 const DEFAULT_MAX_READ_LINES = 250;
 const DEFAULT_MAX_SEARCH_RESULTS = 20;
-const DEFAULT_IGNORED_NAMES = ["dist", "build", "coverage", ".next"];
+const DEFAULT_INCLUDE_NAMES = ["src"];
 const DEFAULT_SEARCHABLE_SUFFIXES = [
   ".c",
   ".cc",
   ".cpp",
   ".cxx",
-  ".go",
   ".h",
   ".hh",
   ".hpp",
   ".hxx",
   ".inl",
   ".ipp",
-  ".java",
-  ".js",
-  ".json",
-  ".jsx",
-  ".kt",
-  ".mjs",
-  ".md",
-  ".proto",
-  ".py",
-  ".rb",
-  ".rs",
-  ".scala",
-  ".sh",
-  ".sql",
-  ".ts",
-  ".tsx",
-  ".txt",
-  ".xml",
-  ".yaml",
-  ".yml",
 ];
-const HARD_CODED_IGNORED_NAMES = [".git", "node_modules"];
-
 let cachedBaseConfig:
   | BaseCodeRepoConfig
   | Exclude<DisabledCodeSearchConfig, { reason: "materialize_failed" }>
@@ -96,15 +73,24 @@ function parsePositiveInteger(rawValue: string | undefined, defaultValue: number
   return value;
 }
 
-function parseIgnoredNames(rawValue: string | undefined): string[] {
-  const configured = rawValue
-    ? rawValue
+function parseIncludeNames(rawValue: string | undefined): string[] {
+  if (rawValue == null) {
+    return DEFAULT_INCLUDE_NAMES;
+  }
+
+  const trimmed = rawValue.trim();
+  if (trimmed === "" || trimmed === "*") {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      trimmed
         .split(",")
         .map((entry) => entry.trim())
         .filter(Boolean)
-    : DEFAULT_IGNORED_NAMES;
-
-  return [...new Set([...HARD_CODED_IGNORED_NAMES, ...configured])];
+    ),
+  ];
 }
 
 function parseSearchableSuffixes(rawValue: string | undefined): string[] {
@@ -159,9 +145,7 @@ function createBaseConfigFromEnv(
     maxFileBytes,
     maxReadLines,
     maxSearchResults,
-    ignoredNames: parseIgnoredNames(
-      env.CODE_ANALYSIS_IGNORE_NAMES ?? env.CODE_ANALYSIS_IGNORE_GLOBS
-    ),
+    includeNames: parseIncludeNames(env.CODE_ANALYSIS_INCLUDE_NAMES),
     searchableSuffixes: parseSearchableSuffixes(env.CODE_ANALYSIS_SEARCH_SUFFIXES),
   };
 }
@@ -219,7 +203,7 @@ function createCodeSearchConfig(baseConfig: BaseCodeRepoConfig, rootDir: string)
     maxFileBytes: baseConfig.maxFileBytes,
     maxReadLines: baseConfig.maxReadLines,
     maxSearchResults: baseConfig.maxSearchResults,
-    ignoredNames: baseConfig.ignoredNames,
+    includeNames: baseConfig.includeNames,
     searchableSuffixes: baseConfig.searchableSuffixes,
   };
 }

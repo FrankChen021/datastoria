@@ -11,7 +11,7 @@ function createConfig(rootDir: string) {
     maxFileBytes: 4096,
     maxReadLines: 10,
     maxSearchResults: 5,
-    ignoredNames: [".git", "node_modules", "dist"],
+    includeNames: ["src", "docs"],
     searchableSuffixes: [".ts", ".md"],
   });
 }
@@ -43,16 +43,17 @@ describe("RipgrepCodeSearch", () => {
     const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "ripgrep-code-search-"));
     tempDirs.push(rootDir);
     fs.mkdirSync(path.join(rootDir, "src"), { recursive: true });
+    fs.mkdirSync(path.join(rootDir, "docs"), { recursive: true });
     fs.mkdirSync(path.join(rootDir, "dist"), { recursive: true });
     fs.writeFileSync(path.join(rootDir, "src", "main.ts"), "const token = 'secret';\n");
-    fs.writeFileSync(path.join(rootDir, "README.md"), "# token docs\n");
+    fs.writeFileSync(path.join(rootDir, "docs", "README.md"), "# token docs\n");
     fs.writeFileSync(path.join(rootDir, "dist", "bundle.ts"), "const token = 'ignored';\n");
 
     const provider = new RipgrepCodeSearch(createConfig(rootDir));
     const searchResult = await provider.searchFile({ query: "token" });
     expect(searchResult).toEqual({
       matches: [
-        { path: "README.md", line: 1, snippet: "# token docs" },
+        { path: "docs/README.md", line: 1, snippet: "# token docs" },
         { path: "src/main.ts", line: 1, snippet: "const token = 'secret';" },
       ],
       hasMore: false,
@@ -60,7 +61,7 @@ describe("RipgrepCodeSearch", () => {
 
     const fileListResult = await provider.listFiles();
     expect(fileListResult).toEqual({
-      paths: ["README.md", "src/main.ts"],
+      paths: ["docs/README.md", "src/main.ts"],
     });
   });
 });

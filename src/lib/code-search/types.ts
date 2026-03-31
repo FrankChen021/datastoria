@@ -4,7 +4,7 @@ export interface CodeSearchConfig {
   maxFileBytes: number;
   maxReadLines: number;
   maxSearchResults: number;
-  ignoredNames: string[];
+  includeNames: string[];
   searchableSuffixes: string[];
 }
 

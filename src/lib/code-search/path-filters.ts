@@ -1,13 +1,28 @@
 import path from "node:path";
 
+export const ALWAYS_EXCLUDED_NAMES = [".git", "node_modules"];
+
 export function normalizeRelativePath(relativePath: string): string {
-  return relativePath.split(path.sep).join("/");
+  return relativePath.split(path.sep).join("/").replace(/^\.\//, "");
 }
 
-export function shouldIgnoreRelativePath(relativePath: string, ignoredNames: string[]): boolean {
+function getPathSegments(relativePath: string): string[] {
   const normalized = normalizeRelativePath(relativePath);
-  const segments = normalized.split("/").filter(Boolean);
-  return segments.some((segment) => ignoredNames.includes(segment));
+  return normalized.split("/").filter(Boolean);
+}
+
+export function matchesExcludedName(relativePath: string, excludedNames: string[]): boolean {
+  const segments = getPathSegments(relativePath);
+  return segments.some((segment) => excludedNames.includes(segment));
+}
+
+export function matchesIncludedName(relativePath: string, includeNames: string[]): boolean {
+  if (includeNames.length === 0) {
+    return true;
+  }
+
+  const segments = getPathSegments(relativePath);
+  return segments.some((segment) => includeNames.includes(segment));
 }
 
 export function matchesSearchableSuffix(

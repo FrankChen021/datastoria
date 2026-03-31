@@ -4,9 +4,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import {
+  ALWAYS_EXCLUDED_NAMES,
+  matchesExcludedName,
+  matchesIncludedName,
   matchesSearchableSuffix,
   normalizeRelativePath,
-  shouldIgnoreRelativePath,
 } from "./path-filters";
 import type {
   CodeSearch,
@@ -105,7 +107,11 @@ async function resolveFilePath(
   }
 
   const relativeToRoot = path.relative(config.rootDir, realPath);
-  if (shouldIgnoreRelativePath(relativeToRoot, config.ignoredNames)) {
+  if (matchesExcludedName(relativeToRoot, ALWAYS_EXCLUDED_NAMES)) {
+    return { error: "path rejected" };
+  }
+
+  if (!matchesIncludedName(relativeToRoot, config.includeNames)) {
     return { error: "path rejected" };
   }
 
@@ -168,7 +174,7 @@ async function* walkFiles(
   for (const entry of entries) {
     const fullPath = path.join(normalizedDirectory, entry.name);
     const relativePath = normalizeRelativePath(path.relative(config.rootDir, fullPath));
-    if (shouldIgnoreRelativePath(relativePath, config.ignoredNames)) continue;
+    if (matchesExcludedName(relativePath, ALWAYS_EXCLUDED_NAMES)) continue;
 
     if (entry.isDirectory()) {
       if (shouldSkipDirForGlob(relativePath, globDirPrefix)) continue;
@@ -532,6 +538,7 @@ export class LocalFileCodeSearch implements CodeSearch {
         };
 
         if (matcher && !matcher.test(relativePath)) return finalize();
+        if (!matchesIncludedName(relativePath, this.config.includeNames)) return finalize();
         if (!matchesSearchableSuffix(relativePath, this.config.searchableSuffixes))
           return finalize();
 
@@ -632,6 +639,9 @@ export class LocalFileCodeSearch implements CodeSearch {
   async listFiles(): Promise<ListFilesResult> {
     const uniquePaths = new Set<string>();
     for await (const { relativePath } of walkFiles(this.config, this.config.rootDir, "")) {
+      if (!matchesIncludedName(relativePath, this.config.includeNames)) {
+        continue;
+      }
       if (!matchesSearchableSuffix(relativePath, this.config.searchableSuffixes)) {
         continue;
       }

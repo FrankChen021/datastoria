@@ -11,21 +11,29 @@ describe("getCodeSearchConfig", () => {
     CODE_ANALYSIS_MAX_FILE_BYTES: process.env.CODE_ANALYSIS_MAX_FILE_BYTES,
     CODE_ANALYSIS_MAX_READ_LINES: process.env.CODE_ANALYSIS_MAX_READ_LINES,
     CODE_ANALYSIS_MAX_SEARCH_RESULTS: process.env.CODE_ANALYSIS_MAX_SEARCH_RESULTS,
-    CODE_ANALYSIS_IGNORE_GLOBS: process.env.CODE_ANALYSIS_IGNORE_GLOBS,
-    CODE_ANALYSIS_IGNORE_NAMES: process.env.CODE_ANALYSIS_IGNORE_NAMES,
+    CODE_ANALYSIS_INCLUDE_NAMES: process.env.CODE_ANALYSIS_INCLUDE_NAMES,
     CODE_ANALYSIS_SEARCH_SUFFIXES: process.env.CODE_ANALYSIS_SEARCH_SUFFIXES,
   };
   const tempDirs: string[] = [];
 
+  const restoreEnvValue = (key: keyof typeof originalEnv) => {
+    const value = originalEnv[key];
+    if (value == null) {
+      delete process.env[key];
+      return;
+    }
+
+    process.env[key] = value;
+  };
+
   afterEach(() => {
-    process.env.CLICKHOUSE_CODE_REPO_REMOTE = originalEnv.CLICKHOUSE_CODE_REPO_REMOTE;
-    process.env.CLICKHOUSE_CODE_REPO_LOCAL = originalEnv.CLICKHOUSE_CODE_REPO_LOCAL;
-    process.env.CODE_ANALYSIS_MAX_FILE_BYTES = originalEnv.CODE_ANALYSIS_MAX_FILE_BYTES;
-    process.env.CODE_ANALYSIS_MAX_READ_LINES = originalEnv.CODE_ANALYSIS_MAX_READ_LINES;
-    process.env.CODE_ANALYSIS_MAX_SEARCH_RESULTS = originalEnv.CODE_ANALYSIS_MAX_SEARCH_RESULTS;
-    process.env.CODE_ANALYSIS_IGNORE_GLOBS = originalEnv.CODE_ANALYSIS_IGNORE_GLOBS;
-    process.env.CODE_ANALYSIS_IGNORE_NAMES = originalEnv.CODE_ANALYSIS_IGNORE_NAMES;
-    process.env.CODE_ANALYSIS_SEARCH_SUFFIXES = originalEnv.CODE_ANALYSIS_SEARCH_SUFFIXES;
+    restoreEnvValue("CLICKHOUSE_CODE_REPO_REMOTE");
+    restoreEnvValue("CLICKHOUSE_CODE_REPO_LOCAL");
+    restoreEnvValue("CODE_ANALYSIS_MAX_FILE_BYTES");
+    restoreEnvValue("CODE_ANALYSIS_MAX_READ_LINES");
+    restoreEnvValue("CODE_ANALYSIS_MAX_SEARCH_RESULTS");
+    restoreEnvValue("CODE_ANALYSIS_INCLUDE_NAMES");
+    restoreEnvValue("CODE_ANALYSIS_SEARCH_SUFFIXES");
     clearCodeSearchConfigCache();
     for (const dir of tempDirs.splice(0)) {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -48,7 +56,7 @@ describe("getCodeSearchConfig", () => {
     process.env.CODE_ANALYSIS_MAX_FILE_BYTES = "65536";
     process.env.CODE_ANALYSIS_MAX_READ_LINES = "250";
     process.env.CODE_ANALYSIS_MAX_SEARCH_RESULTS = "20";
-    process.env.CODE_ANALYSIS_IGNORE_NAMES = "dist,coverage";
+    process.env.CODE_ANALYSIS_INCLUDE_NAMES = "src,packages";
     process.env.CODE_ANALYSIS_SEARCH_SUFFIXES = ".ts,.tsx";
 
     const config = await getCodeSearchConfig();
@@ -57,10 +65,38 @@ describe("getCodeSearchConfig", () => {
       return;
     }
     expect(config.rootDir).toBe(fs.realpathSync(rootDir));
-    expect(config.ignoredNames).toEqual(
-      expect.arrayContaining([".git", "node_modules", "dist", "coverage"])
-    );
+    expect(config.includeNames).toEqual(["src", "packages"]);
     expect(config.searchableSuffixes).toEqual([".ts", ".tsx"]);
+  });
+
+  it("defaults includeNames to src when the env var is unset", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-config-"));
+    tempDirs.push(rootDir);
+    process.env.CLICKHOUSE_CODE_REPO_LOCAL = rootDir;
+    delete process.env.CODE_ANALYSIS_INCLUDE_NAMES;
+
+    const config = await getCodeSearchConfig();
+    expect(config.enabled).toBe(true);
+    if (!config.enabled) {
+      return;
+    }
+
+    expect(config.includeNames).toEqual(["src"]);
+  });
+
+  it("searches all names when includeNames is set to *", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-config-"));
+    tempDirs.push(rootDir);
+    process.env.CLICKHOUSE_CODE_REPO_LOCAL = rootDir;
+    process.env.CODE_ANALYSIS_INCLUDE_NAMES = "*";
+
+    const config = await getCodeSearchConfig();
+    expect(config.enabled).toBe(true);
+    if (!config.enabled) {
+      return;
+    }
+
+    expect(config.includeNames).toEqual([]);
   });
 
   it("disables the feature when numeric limits are invalid", async () => {

@@ -3,9 +3,11 @@ import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { LocalFileCodeSearch } from "./local-file-search";
 import {
+  ALWAYS_EXCLUDED_NAMES,
+  matchesExcludedName,
+  matchesIncludedName,
   matchesSearchableSuffix,
   normalizeRelativePath,
-  shouldIgnoreRelativePath,
 } from "./path-filters";
 import type {
   CodeSearch,
@@ -25,8 +27,13 @@ let ripgrepAvailablePromise: Promise<boolean> | null = null;
 function buildRgFilterArgs(config: CodeSearchConfig, globPattern?: string): string[] {
   const args = ["--hidden", "--follow", "--no-ignore", "--glob-case-insensitive"];
 
-  for (const ignoredName of config.ignoredNames) {
-    args.push("--glob", `!**/${ignoredName}/**`);
+  for (const excludedName of ALWAYS_EXCLUDED_NAMES) {
+    args.push("--glob", `!**/${excludedName}/**`);
+  }
+
+  for (const includeName of config.includeNames) {
+    args.push("--glob", `${includeName}/**`);
+    args.push("--glob", `**/${includeName}/**`);
   }
 
   for (const suffix of config.searchableSuffixes) {
@@ -158,7 +165,11 @@ async function collectRipgrepMatches(args: {
 
         // Belt-and-suspenders: rg globs handle most filtering, but JS-layer checks
         // guard against edge cases (e.g. top-level paths that rg patterns may miss).
-        if (shouldIgnoreRelativePath(relativePath, args.config.ignoredNames)) {
+        if (matchesExcludedName(relativePath, ALWAYS_EXCLUDED_NAMES)) {
+          continue;
+        }
+
+        if (!matchesIncludedName(relativePath, args.config.includeNames)) {
           continue;
         }
 
@@ -271,7 +282,8 @@ export class RipgrepCodeSearch implements CodeSearch {
         .map((entry) => entry.trim())
         .filter(Boolean)
         .map(normalizeRelativePath)
-        .filter((entry) => !shouldIgnoreRelativePath(entry, this.config.ignoredNames))
+        .filter((entry) => !matchesExcludedName(entry, ALWAYS_EXCLUDED_NAMES))
+        .filter((entry) => matchesIncludedName(entry, this.config.includeNames))
         .filter((entry) => matchesSearchableSuffix(entry, this.config.searchableSuffixes));
 
       return { paths };
