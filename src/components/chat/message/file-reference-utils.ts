@@ -130,13 +130,15 @@ function unwrapCodeWrappedReferenceTokens(markdown: string): string {
  * Examples:
  * - input: "See [[file:src/app/page.tsx#L12-18]]."
  *   output: "See [page.tsx:12-18](codefile://open?path=src%2Fapp%2Fpage.tsx&startLine=12&endLine=18)."
- * 
+ *
  * - input: "Use [[skill:source-code-inspection|/source-code-inspection]]."
  *   output: "Use [/source-code-inspection](skill://source-code-inspection)."
- * 
+ *
  * - input: "Definition: `[[file:src/app/page.tsx#L12]]`."
  *   output: "Definition: [page.tsx:12](codefile://open?path=src%2Fapp%2Fpage.tsx&startLine=12)."
  */
 export function replaceReferenceTokens(markdown: string): string {
-  return replaceSkillReferenceTokens(replaceFileReferenceTokens(unwrapCodeWrappedReferenceTokens(markdown)));
+  return replaceSkillReferenceTokens(
+    replaceFileReferenceTokens(unwrapCodeWrappedReferenceTokens(markdown))
+  );
 }

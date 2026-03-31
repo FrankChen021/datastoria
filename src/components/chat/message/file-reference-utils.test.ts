@@ -66,9 +66,7 @@ describe("file-reference-utils", () => {
 
   it("rewrites backtick-wrapped file tokens so markdown can render links", () => {
     expect(
-      replaceReferenceTokens(
-        "Definition: `[[file:src/Analyzer/Resolve/QueryAnalyzer.cpp#L150]]`."
-      )
+      replaceReferenceTokens("Definition: `[[file:src/Analyzer/Resolve/QueryAnalyzer.cpp#L150]]`.")
     ).toBe(
       "Definition: [QueryAnalyzer.cpp:150](codefile://open?path=src%2FAnalyzer%2FResolve%2FQueryAnalyzer.cpp&startLine=150)."
     );
