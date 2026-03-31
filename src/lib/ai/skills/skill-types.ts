@@ -28,6 +28,8 @@ export interface SkillCatalogItem {
   version?: string;
   /** Optional display author. For DB skills this is derived from owner_id. */
   author?: string;
+  /** Optional external reference URL from skill frontmatter metadata.url. */
+  url?: string;
   /** Short summary paragraph extracted from the SKILL.md body. */
   summary?: string;
   /** Whether this skill has sub-resources (rules/*.md, AGENTS.md, etc.). */

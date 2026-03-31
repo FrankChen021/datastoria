@@ -231,6 +231,7 @@ export class DiskSkillProvider implements SkillProvider {
             : typeof metadataBlock.provider === "string"
               ? metadataBlock.provider
               : undefined,
+        url: typeof metadataBlock.url === "string" ? metadataBlock.url : undefined,
         summary: this.extractSummary(parsed.content),
         hasResources: skillResources.paths.length > 0,
         disableSlashCommand,

@@ -10,9 +10,8 @@ import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markd
 import remarkGfm from "remark-gfm";
 import { buildCodeViewerUrl, replaceReferenceTokens } from "./file-reference-utils";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
-import { MessageMarkdownMermaid } from "./message-markdown-mermaid";
 import { MessageMarkdownSql } from "./message-markdown-sql";
-import { MessageMarkdownUserActions } from "./message-user-actions";
+import { MessageMarkdownVizlayer } from "./message-markdown-vizlayer";
 
 function transformMarkdownUrl(url: string) {
   if (url.startsWith("skill://")) {
@@ -41,7 +40,6 @@ interface MessageMarkdownProps {
 
 export const MessageMarkdown = memo(function MessageMarkdown({
   text,
-  messageId,
   customStyle,
   showExecuteButton = true,
   expandable = false,
@@ -80,11 +78,8 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         if (codeClassName === "language-chart-spec") {
           return <MessageMarkdownChartSpec spec={String(children)} />;
         }
-        if (codeClassName === "language-mermaid") {
-          return <MessageMarkdownMermaid chart={String(children).replace(/\n$/, "")} />;
-        }
-        if (codeClassName === "language-user_actions") {
-          return <MessageMarkdownUserActions spec={String(children)} messageId={messageId} />;
+        if (codeClassName === "language-vizlayer") {
+          return <MessageMarkdownVizlayer spec={String(children)} />;
         }
 
         // Check if inline code is a table name or database name
@@ -304,7 +299,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         </h6>
       ),
     }),
-    [customStyle, expandable, showExecuteButton, messageId]
+    [customStyle, expandable, showExecuteButton]
   );
 
   return (

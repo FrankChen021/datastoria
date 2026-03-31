@@ -22,6 +22,7 @@ type SkillMeta = {
     disableSlashCommand?: boolean;
     author?: string;
     provider?: string;
+    url?: string;
     tools?: string;
   };
 };
@@ -62,6 +63,23 @@ function resolveAuthor(
       ? ((frontmatter.metadata as { author: string }).author as string)
       : undefined)
   );
+}
+
+function resolveUrl(meta: SkillMeta, frontmatter: Record<string, unknown>): string | undefined {
+  if (typeof meta.metadata?.url === "string") {
+    return meta.metadata.url;
+  }
+
+  if (
+    typeof frontmatter.metadata === "object" &&
+    frontmatter.metadata &&
+    "url" in frontmatter.metadata &&
+    typeof (frontmatter.metadata as { url?: unknown }).url === "string"
+  ) {
+    return (frontmatter.metadata as { url: string }).url;
+  }
+
+  return undefined;
 }
 
 function resolveDisableSlashCommand(
@@ -127,6 +145,7 @@ function toSkillCatalogItem(row: PersistedSkillRecord): SkillCatalogItem {
     scope: row.scope,
     version: row.version ?? undefined,
     author: resolveAuthor(row, meta, frontmatter),
+    url: resolveUrl(meta, frontmatter),
     summary: extractSummary(row.content),
     hasResources: false,
     disableSlashCommand: resolveDisableSlashCommand(meta, frontmatter),

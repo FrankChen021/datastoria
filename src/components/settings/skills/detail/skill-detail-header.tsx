@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { SkillDetailResponse } from "@/lib/ai/skills/skill-provider";
-import { Loader2, Upload } from "lucide-react";
+import { ExternalLink, Loader2, Upload } from "lucide-react";
 import { memo } from "react";
 
 export const SkillDetailHeader = memo(function SkillDetailHeader({
@@ -35,7 +35,21 @@ export const SkillDetailHeader = memo(function SkillDetailHeader({
           </Badge>
         ) : null}
         {detail.author ? (
-          <span className="shrink-0 text-xs text-muted-foreground">author: {detail.author}</span>
+          <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+            <span>author: {detail.author}</span>
+            {detail.url ? (
+              <a
+                href={detail.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center text-muted-foreground transition-colors hover:text-foreground"
+                aria-label={`Open ${detail.name} reference URL`}
+                title={detail.url}
+              >
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            ) : null}
+          </span>
         ) : null}
       </div>
       {allowEditSkill ? (

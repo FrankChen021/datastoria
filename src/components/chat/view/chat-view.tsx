@@ -8,14 +8,13 @@ import "@/lib/number-utils"; // Ensure formatTimeDiff is available
 import { useChat, type Chat } from "@ai-sdk/react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { ChatActionProvider } from "../chat-action-context";
+import { ChatActionProvider, type UserActionInput } from "../chat-action-context";
 import { ChatContext, getDatabaseContextFromConnection } from "../chat-context";
 import { ChatFactory } from "../chat-factory";
 import { ChatCommandProvider } from "../command-context";
 import { ChatInput, type ChatInputHandle } from "../input/chat-input";
 import { getTableContextByMentions } from "../input/mention-utils";
 import { ChatMessageList } from "../message/chat-message-list";
-import type { UserActionInput } from "../message/message-user-actions";
 import { useTokenUsage } from "./use-token-usage";
 
 export type Question = { text: string; autoRun?: boolean };

@@ -2,7 +2,7 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { File } from "lucide-react";
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import type { DirNode } from "./skill-detail-tree";
 import { SkillFileTreeNode } from "./skill-file-tree-node";
 
@@ -25,21 +25,6 @@ export const SkillFileTreePanel = memo(function SkillFileTreePanel({
   onSkillMdClick: () => void;
   onFileClick: (path: string) => void;
 }) {
-  const displayTree = useMemo(() => {
-    if (!allowEditSkill || dirTree.some((node) => node.path === "references")) {
-      return dirTree;
-    }
-    return [
-      {
-        name: "references",
-        path: "references",
-        isDir: true,
-        children: [],
-      },
-      ...dirTree,
-    ];
-  }, [allowEditSkill, dirTree]);
-
   return (
     <>
       <div className="flex h-10 flex-shrink-0 items-center border-b px-3">
@@ -58,10 +43,10 @@ export const SkillFileTreePanel = memo(function SkillFileTreePanel({
             <span className="text-xs font-medium">SKILL.md</span>
           </button>
 
-          {displayTree.length === 0 ? (
+          {dirTree.length === 0 ? (
             <p className="text-xs text-muted-foreground px-1 mt-2">No additional files</p>
           ) : (
-            displayTree.map((node) => (
+            dirTree.map((node) => (
               <SkillFileTreeNode
                 key={node.path}
                 node={node}

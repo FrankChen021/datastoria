@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SkillCatalogItem } from "@/lib/ai/skills/skill-types";
+import { ExternalLink } from "lucide-react";
 
 interface SkillsCardProps {
   skill: SkillCatalogItem;
@@ -34,10 +35,23 @@ export function SkillsCard({ skill, onClick }: SkillsCardProps) {
           <p className="text-xs text-muted-foreground line-clamp-2">{skill.description}</p>
         </div>
         <p
-          className="mt-1.5 text-xs text-muted-foreground/70"
+          className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground/70"
           style={{ visibility: skill.author ? "visible" : "hidden" }}
         >
-          {skill.author ? `author: ${skill.author}` : "\u00a0"}
+          <span>{skill.author ? `author: ${skill.author}` : "\u00a0"}</span>
+          {skill.author && skill.url ? (
+            <a
+              href={skill.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center text-muted-foreground transition-colors hover:text-foreground"
+              aria-label={`Open ${skill.name} reference URL`}
+              title={skill.url}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          ) : null}
         </p>
       </CardContent>
     </Card>

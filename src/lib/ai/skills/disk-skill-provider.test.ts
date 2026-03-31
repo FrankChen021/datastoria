@@ -63,4 +63,33 @@ metadata:
     ).toBe(false);
     expect(skills.find((skill) => skill.name === "visualization")?.disableSlashCommand).toBe(true);
   });
+
+  it("loads metadata url for disk-backed skills", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "skill-manager-test-"));
+    tempDirs.push(rootDir);
+
+    writeSkill(
+      rootDir,
+      "vizlayer",
+      `---
+name: vizlayer
+description: Render diagrams.
+metadata:
+  author: Vizlayer Team
+  url: https://vizlayer.dev
+---
+
+# Vizlayer
+`
+    );
+
+    process.env.SKILLS_ROOT_DIR = rootDir;
+    clearDiskSkillProviderCache();
+
+    const skills = await provider.listSkills();
+    expect(skills.find((skill) => skill.name === "vizlayer")?.url).toBe("https://vizlayer.dev");
+
+    const detail = await provider.getSkillDetail("vizlayer");
+    expect(detail?.url).toBe("https://vizlayer.dev");
+  });
 });

@@ -48,6 +48,7 @@ name: visualization
 description: Render charts from disk.
 metadata:
   author: Disk Team
+  url: https://disk.example.com/visualization
 ---
 
 # Visualization
@@ -75,6 +76,9 @@ Database copy.
       meta_text: JSON.stringify({
         name: "visualization",
         description: "Render charts from database.",
+        metadata: {
+          url: "https://db.example.com/visualization",
+        },
       }),
       state: "published",
       scope: "global",
@@ -106,12 +110,14 @@ Database copy.
       author: "owner@example.com",
       version: "2.0.0",
       description: "Render charts from database.",
+      url: "https://db.example.com/visualization",
     });
 
     const detail = await provider.getSkillDetail("visualization");
     expect(detail?.source).toBe("database");
     expect(detail?.content).toContain("Database copy.");
     expect(detail?.resourcePaths).toEqual(["references/rules.md"]);
+    expect(detail?.url).toBe("https://db.example.com/visualization");
 
     const resource = await provider.getSkillResource("visualization", "references/rules.md");
     expect(resource).toBe("database resource");
