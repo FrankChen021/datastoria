@@ -88,6 +88,7 @@ export abstract class AbstractServerSkillRepository implements ServerSkillReposi
             : typeof metadataBlock.provider === "string"
               ? metadataBlock.provider
               : undefined,
+        url: typeof metadataBlock.url === "string" ? metadataBlock.url : undefined,
         disableSlashCommand: metadataBlock["disable-slash-command"] === true,
       },
     });
