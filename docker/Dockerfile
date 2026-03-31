@@ -17,7 +17,7 @@ COPY package*.json ./
 COPY scripts ./scripts
 COPY external ./external
 
-RUN if [ "$BUILD_FROM_SOURCE" = "1" ]; then npm install --include=dev --force; fi
+RUN if [ "$BUILD_FROM_SOURCE" = "1" ]; then npm install --include=dev; fi
 
 # Stage 2: Builder (source build only)
 FROM node:22.21-alpine3.21 AS builder

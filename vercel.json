@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run release",
-  "installCommand": "npm install --include=dev --force",
+  "installCommand": "npm install --include=dev --force --ignore-scripts",
   "framework": "nextjs",
   "git": {
     "deploymentEnabled": {
