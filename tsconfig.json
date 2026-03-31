@@ -23,6 +23,27 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@number-flow/react": [
+        "./external/number-flow/packages/react/src/index.tsx"
+      ],
+      "@vizlayer/core": [
+        "./external/vizlayer/packages/core/src/index.ts"
+      ],
+      "@vizlayer/react": [
+        "./external/vizlayer/packages/react/src/index.ts"
+      ],
+      "number-flow": [
+        "./external/number-flow/packages/number-flow/src/index.ts"
+      ],
+      "number-flow/group": [
+        "./external/number-flow/packages/number-flow/src/group.ts"
+      ],
+      "number-flow/lite": [
+        "./external/number-flow/packages/number-flow/src/lite.ts"
+      ],
+      "number-flow/plugins": [
+        "./external/number-flow/packages/number-flow/src/plugins/index.ts"
       ]
     },
     "plugins": [
