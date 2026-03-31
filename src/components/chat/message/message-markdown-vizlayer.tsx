@@ -3,19 +3,16 @@
 import useIsDarkTheme from "@/components/shared/dashboard/use-is-dark-theme";
 import { CopyButton } from "@/components/ui/copy-button";
 import { cn } from "@/lib/utils";
-import {
-  toChartSpec,
-  VizlayerDiagram,
-  VizlayerSpecParser,
-  type ParsedVizlayerSpec,
-  type VizlayerPayload as VizlayerSpec,
-} from "@vizlayer/react";
+import * as VizlayerReact from "@vizlayer/react";
+import { toChartSpec, VizlayerDiagram, type ParsedVizlayerSpec } from "@vizlayer/react";
 import { AlertCircle } from "lucide-react";
 import { useMemo } from "react";
 
 interface MessageMarkdownVizlayerProps {
   spec: string;
 }
+
+type VizlayerSpec = Parameters<typeof toChartSpec>[0];
 
 type BuiltVizlayerChart =
   | {
@@ -30,10 +27,7 @@ type BuiltVizlayerChart =
 export function MessageMarkdownVizlayer({ spec }: MessageMarkdownVizlayerProps) {
   const isDark = useIsDarkTheme();
 
-  const parsed = useMemo<ParsedVizlayerSpec>(
-    () => VizlayerSpecParser.parseVizlayerSpec(spec),
-    [spec]
-  );
+  const parsed = useMemo<ParsedVizlayerSpec>(() => parseVizlayerSpec(spec), [spec]);
 
   const chart = useMemo<BuiltVizlayerChart | null>(() => {
     if (!parsed.ok) {
@@ -105,6 +99,30 @@ export function MessageMarkdownVizlayer({ spec }: MessageMarkdownVizlayerProps) 
       })}
     </div>
   );
+}
+
+function parseVizlayerSpec(spec: string): ParsedVizlayerSpec {
+  const vizlayerModule = VizlayerReact as typeof VizlayerReact & {
+    Vizlayer?: {
+      parse: (input: string) => ParsedVizlayerSpec;
+    };
+    VizlayerSpecParser?: {
+      parseVizlayerSpec: (input: string) => ParsedVizlayerSpec;
+    };
+  };
+
+  if (vizlayerModule.Vizlayer?.parse) {
+    return vizlayerModule.Vizlayer.parse(spec);
+  }
+
+  if (vizlayerModule.VizlayerSpecParser?.parseVizlayerSpec) {
+    return vizlayerModule.VizlayerSpecParser.parseVizlayerSpec(spec);
+  }
+
+  return {
+    ok: false,
+    error: "Unable to parse Vizlayer payload.",
+  };
 }
 
 function renderDiagram({ spec, isDark }: { spec: VizlayerSpec; isDark: boolean }) {

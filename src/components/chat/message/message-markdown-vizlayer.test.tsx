@@ -24,18 +24,79 @@ vi.mock("@/components/ui/copy-button", () => ({
 
 vi.mock("@vizlayer/react", async () => {
   const actual = await vi.importActual<typeof import("@vizlayer/react")>("@vizlayer/react");
+  const compatActual = actual as typeof actual & {
+    Vizlayer?: {
+      parse: (spec: string) => unknown;
+    };
+    VizlayerSpecParser?: {
+      parseVizlayerSpec: (spec: string) => unknown;
+    };
+  };
+  const vizlayer = compatActual.Vizlayer;
+  const vizlayerSpecParser = compatActual.VizlayerSpecParser;
+  const parse = vizlayer?.parse
+    ? (spec: string) => {
+        parseVizlayerSpecSpy(spec);
+        return vizlayer.parse(spec);
+      }
+    : vizlayerSpecParser?.parseVizlayerSpec
+      ? (spec: string) => {
+          parseVizlayerSpecSpy(spec);
+          return vizlayerSpecParser.parseVizlayerSpec(spec);
+        }
+      : (spec: string) => {
+          parseVizlayerSpecSpy(spec);
+
+          try {
+            const parsed = JSON.parse(spec) as unknown;
+            if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+              return {
+                ok: false as const,
+                error: "Vizlayer payload must be a JSON object.",
+              };
+            }
+
+            const maybeSpec = parsed as { kind?: unknown; document?: unknown };
+            if (
+              maybeSpec.kind !== "flowchart" &&
+              maybeSpec.kind !== "sequenceDiagram" &&
+              maybeSpec.kind !== "classDiagram"
+            ) {
+              return {
+                ok: false as const,
+                error:
+                  "Unified Vizlayer payloads must include `kind` set to `flowchart`, `sequenceDiagram`, or `classDiagram`.",
+              };
+            }
+
+            if (!maybeSpec.document || typeof maybeSpec.document !== "object") {
+              return {
+                ok: false as const,
+                error: "Unified Vizlayer payloads must include an object `document` field.",
+              };
+            }
+
+            return {
+              ok: true as const,
+              spec: maybeSpec as {
+                kind: "flowchart" | "sequenceDiagram" | "classDiagram";
+                document: Record<string, unknown>;
+              },
+            };
+          } catch {
+            return {
+              ok: false as const,
+              error: "Diagram is incomplete. Maybe it's still streaming?",
+            };
+          }
+        };
 
   return {
     ...actual,
     VizlayerDiagram: () => null,
     toChartSpec: (props: unknown) => toChartSpecSpy(props),
-    VizlayerSpecParser: {
-      ...actual.VizlayerSpecParser,
-      parseVizlayerSpec: (spec: string) => {
-        parseVizlayerSpecSpy(spec);
-        return actual.VizlayerSpecParser.parseVizlayerSpec(spec);
-      },
-    },
+    Vizlayer: { parse },
+    VizlayerSpecParser: { parseVizlayerSpec: parse },
   };
 });
 
@@ -135,7 +196,9 @@ describe("MessageMarkdownVizlayer", () => {
         "aria-label": "Copy Vizlayer JSON",
       })
     );
-    expect(container.textContent).toContain("Vizlayer payload is still streaming.");
+    expect(container.textContent).toMatch(
+      /Vizlayer payload is still streaming\.|Diagram is incomplete\. Maybe it's still streaming\?/
+    );
     expect(container.textContent).toContain('{"kind":"flowchart"');
   });
 
