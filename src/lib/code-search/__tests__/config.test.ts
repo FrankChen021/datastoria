@@ -13,6 +13,7 @@ describe("getCodeSearchConfig", () => {
     CODE_ANALYSIS_MAX_SEARCH_RESULTS: process.env.CODE_ANALYSIS_MAX_SEARCH_RESULTS,
     CODE_ANALYSIS_IGNORE_GLOBS: process.env.CODE_ANALYSIS_IGNORE_GLOBS,
     CODE_ANALYSIS_IGNORE_NAMES: process.env.CODE_ANALYSIS_IGNORE_NAMES,
+    CODE_ANALYSIS_SEARCH_SUFFIXES: process.env.CODE_ANALYSIS_SEARCH_SUFFIXES,
   };
   const tempDirs: string[] = [];
 
@@ -24,6 +25,7 @@ describe("getCodeSearchConfig", () => {
     process.env.CODE_ANALYSIS_MAX_SEARCH_RESULTS = originalEnv.CODE_ANALYSIS_MAX_SEARCH_RESULTS;
     process.env.CODE_ANALYSIS_IGNORE_GLOBS = originalEnv.CODE_ANALYSIS_IGNORE_GLOBS;
     process.env.CODE_ANALYSIS_IGNORE_NAMES = originalEnv.CODE_ANALYSIS_IGNORE_NAMES;
+    process.env.CODE_ANALYSIS_SEARCH_SUFFIXES = originalEnv.CODE_ANALYSIS_SEARCH_SUFFIXES;
     clearCodeSearchConfigCache();
     for (const dir of tempDirs.splice(0)) {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -47,6 +49,7 @@ describe("getCodeSearchConfig", () => {
     process.env.CODE_ANALYSIS_MAX_READ_LINES = "250";
     process.env.CODE_ANALYSIS_MAX_SEARCH_RESULTS = "20";
     process.env.CODE_ANALYSIS_IGNORE_NAMES = "dist,coverage";
+    process.env.CODE_ANALYSIS_SEARCH_SUFFIXES = ".ts,.tsx";
 
     const config = await getCodeSearchConfig();
     expect(config.enabled).toBe(true);
@@ -57,6 +60,7 @@ describe("getCodeSearchConfig", () => {
     expect(config.ignoredNames).toEqual(
       expect.arrayContaining([".git", "node_modules", "dist", "coverage"])
     );
+    expect(config.searchableSuffixes).toEqual([".ts", ".tsx"]);
   });
 
   it("disables the feature when numeric limits are invalid", async () => {
@@ -71,7 +75,7 @@ describe("getCodeSearchConfig", () => {
     });
   });
 
-  it("disables the feature when the local repo is missing and no remote is configured", async () => {
+  it("reports missing remote when the local repo is missing and no remote is configured", async () => {
     const rootDir = path.join(os.tmpdir(), `code-search-config-missing-${Date.now()}`);
     process.env.CLICKHOUSE_CODE_REPO_LOCAL = rootDir;
     delete process.env.CLICKHOUSE_CODE_REPO_REMOTE;
@@ -81,7 +85,7 @@ describe("getCodeSearchConfig", () => {
 
     await expect(getCodeSearchConfig()).resolves.toEqual({
       enabled: false,
-      reason: "materialize_failed",
+      reason: "missing_remote",
     });
   });
 

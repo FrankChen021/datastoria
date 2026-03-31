@@ -5,6 +5,7 @@ export interface CodeSearchConfig {
   maxReadLines: number;
   maxSearchResults: number;
   ignoredNames: string[];
+  searchableSuffixes: string[];
 }
 
 export interface DisabledCodeSearchConfig {
@@ -16,6 +17,7 @@ export interface DisabledCodeSearchConfig {
     | "invalid_local"
     | "unreadable_local"
     | "not_directory"
+    | "materializing"
     | "materialize_failed";
 }
 

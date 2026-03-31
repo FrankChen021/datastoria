@@ -3,6 +3,11 @@ import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline";
+import {
+  matchesSearchableSuffix,
+  normalizeRelativePath,
+  shouldIgnoreRelativePath,
+} from "./path-filters";
 import type {
   CodeSearch,
   CodeSearchConfig,
@@ -28,16 +33,6 @@ function hasNullByte(buffer: Buffer): boolean {
 
 function isPathInsideRoot(rootDir: string, candidate: string): boolean {
   return candidate === rootDir || candidate.startsWith(`${rootDir}${path.sep}`);
-}
-
-function normalizeRelativePath(relativePath: string): string {
-  return relativePath.split(path.sep).join("/");
-}
-
-function shouldIgnoreRelativePath(relativePath: string, ignoredNames: string[]): boolean {
-  const normalized = normalizeRelativePath(relativePath);
-  const segments = normalized.split("/").filter(Boolean);
-  return segments.some((segment) => ignoredNames.includes(segment));
 }
 
 function buildGlobMatcher(globPattern: string): RegExp {
@@ -537,6 +532,8 @@ export class LocalFileCodeSearch implements CodeSearch {
         };
 
         if (matcher && !matcher.test(relativePath)) return finalize();
+        if (!matchesSearchableSuffix(relativePath, this.config.searchableSuffixes))
+          return finalize();
 
         // stat first (cheap metadata call) before isBinaryFile (reads 8 KB).
         try {
@@ -635,6 +632,9 @@ export class LocalFileCodeSearch implements CodeSearch {
   async listFiles(): Promise<ListFilesResult> {
     const uniquePaths = new Set<string>();
     for await (const { relativePath } of walkFiles(this.config, this.config.rootDir, "")) {
+      if (!matchesSearchableSuffix(relativePath, this.config.searchableSuffixes)) {
+        continue;
+      }
       uniquePaths.add(relativePath);
     }
     const paths = [...uniquePaths].sort((a, b) => a.localeCompare(b));

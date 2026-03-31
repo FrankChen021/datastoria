@@ -16,6 +16,7 @@ function createConfig(
     maxReadLines: 3,
     maxSearchResults: 2,
     ignoredNames: [".git", "node_modules", "dist"],
+    searchableSuffixes: [".ts", ".md"],
     ...overrides,
   });
 }
@@ -78,6 +79,25 @@ describe("LocalFileCodeSearch", () => {
     const result = await new LocalFileCodeSearch(createConfig(rootDir)).searchFile({
       query: "token",
       glob: "src/*.ts",
+    });
+
+    expect(result).toEqual({
+      matches: [{ path: "src/main.ts", line: 1, snippet: "const token = 'secret';" }],
+      hasMore: false,
+    });
+  });
+
+  it("searches only files with allowed suffixes", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "code-search-service-"));
+    tempDirs.push(rootDir);
+    fs.mkdirSync(path.join(rootDir, "src"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "src", "main.ts"), "const token = 'secret';\n");
+    fs.writeFileSync(path.join(rootDir, "src", "notes.txt"), "token in ignored suffix\n");
+
+    const result = await new LocalFileCodeSearch(
+      createConfig(rootDir, { searchableSuffixes: [".ts"] })
+    ).searchFile({
+      query: "token",
     });
 
     expect(result).toEqual({

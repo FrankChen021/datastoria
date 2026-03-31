@@ -54,7 +54,7 @@ ARG NEXT_PUBLIC_BASE_PATH
 ENV NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH}
 
 # Keep updated
-RUN apk update && apk upgrade --no-cache && apk add --no-cache curl
+RUN apk update && apk upgrade --no-cache && apk add --no-cache curl git ripgrep
 
 WORKDIR /app
 

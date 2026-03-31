@@ -26,6 +26,7 @@ describe("createCodeSearchTools", () => {
         maxReadLines: 5,
         maxSearchResults: 5,
         ignoredNames: [".git", "node_modules", "dist"],
+        searchableSuffixes: [".ts"],
       })
     );
     const tools = createCodeSearchTools({ provider, maxSearchResults: 5 });

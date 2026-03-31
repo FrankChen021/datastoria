@@ -1,0 +1,66 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { createCodeSearchEnabledConfig } from "../config";
+import { isRipgrepAvailable, RipgrepCodeSearch } from "../ripgrep-code-search";
+
+function createConfig(rootDir: string) {
+  return createCodeSearchEnabledConfig({
+    rootDir: fs.realpathSync(rootDir),
+    maxFileBytes: 4096,
+    maxReadLines: 10,
+    maxSearchResults: 5,
+    ignoredNames: [".git", "node_modules", "dist"],
+    searchableSuffixes: [".ts", ".md"],
+  });
+}
+
+describe("RipgrepCodeSearch", () => {
+  const tempDirs: string[] = [];
+  let rgAvailable = false;
+
+  beforeAll(async () => {
+    rgAvailable = await isRipgrepAvailable();
+    if (!rgAvailable) {
+      console.info(
+        "[skip] rg not found in PATH; RipgrepCodeSearch integration tests will be skipped"
+      );
+    }
+  });
+
+  afterEach(() => {
+    for (const dir of tempDirs.splice(0)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("uses ripgrep search and file listing when rg is available", async () => {
+    if (!rgAvailable) {
+      return;
+    }
+
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "ripgrep-code-search-"));
+    tempDirs.push(rootDir);
+    fs.mkdirSync(path.join(rootDir, "src"), { recursive: true });
+    fs.mkdirSync(path.join(rootDir, "dist"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "src", "main.ts"), "const token = 'secret';\n");
+    fs.writeFileSync(path.join(rootDir, "README.md"), "# token docs\n");
+    fs.writeFileSync(path.join(rootDir, "dist", "bundle.ts"), "const token = 'ignored';\n");
+
+    const provider = new RipgrepCodeSearch(createConfig(rootDir));
+    const searchResult = await provider.searchFile({ query: "token" });
+    expect(searchResult).toEqual({
+      matches: [
+        { path: "README.md", line: 1, snippet: "# token docs" },
+        { path: "src/main.ts", line: 1, snippet: "const token = 'secret';" },
+      ],
+      hasMore: false,
+    });
+
+    const fileListResult = await provider.listFiles();
+    expect(fileListResult).toEqual({
+      paths: ["README.md", "src/main.ts"],
+    });
+  });
+});
