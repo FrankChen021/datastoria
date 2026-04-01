@@ -23,6 +23,7 @@ export { replaceLeadingCommand } from "./command-utils";
 const MIN_CHAT_INPUT_HEIGHT = 116;
 const MAX_CHAT_INPUT_HEIGHT = 360;
 const TEXTAREA_MIN_HEIGHT = 80;
+// Subtract the container's 1px top + 1px bottom border from total min height.
 const CHAT_INPUT_CONTENT_MIN_HEIGHT = MIN_CHAT_INPUT_HEIGHT - 2;
 const RESIZE_DRAG_THRESHOLD = 2;
 
