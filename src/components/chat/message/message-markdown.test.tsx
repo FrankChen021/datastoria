@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MessageMarkdown } from "./message-markdown";
 
 const vizlayerSpy = vi.fn();
+const syntaxHighlighterSpy = vi.fn();
 
 vi.mock("@/components/connection/connection-context", () => ({
   useConnection: () => ({ connection: null }),
@@ -37,9 +38,11 @@ vi.mock("@/components/ui/hover-card", () => ({
   HoverCardTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("./file-reference-utils", () => ({
-  buildCodeViewerUrl: () => "#",
-  replaceReferenceTokens: (text: string) => text,
+vi.mock("@/components/shared/themed-syntax-highlighter", () => ({
+  ThemedSyntaxHighlighter: (props: unknown) => {
+    syntaxHighlighterSpy(props);
+    return null;
+  },
 }));
 
 vi.mock("./message-markdown-chat", () => ({
@@ -69,6 +72,7 @@ describe("MessageMarkdown", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     vizlayerSpy.mockReset();
+    syntaxHighlighterSpy.mockReset();
   });
 
   afterEach(() => {
@@ -86,6 +90,19 @@ describe("MessageMarkdown", () => {
     expect(vizlayerSpy).not.toHaveBeenCalled();
     expect(container.textContent).toContain("flowchart TD");
     expect(container.textContent).toContain("A --> B");
+  });
+
+  it("routes non-sql fenced code blocks to the themed syntax highlighter", () => {
+    act(() => {
+      root.render(<MessageMarkdown text={"```cpp\nint main() {}\n```"} />);
+    });
+
+    expect(syntaxHighlighterSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        language: "cpp",
+        children: "int main() {}",
+      })
+    );
   });
 
   it("routes unified vizlayer fences to the Vizlayer renderer", () => {

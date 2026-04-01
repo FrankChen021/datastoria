@@ -1,5 +1,6 @@
 import { useConnection } from "@/components/connection/connection-context";
 import { showSettingsDialog } from "@/components/settings/settings-dialog";
+import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { Button } from "@/components/ui/button";
@@ -8,10 +9,11 @@ import { cn } from "@/lib/utils";
 import { memo, useEffect, useMemo, useRef } from "react";
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { buildCodeViewerUrl, replaceReferenceTokens } from "./file-reference-utils";
+import { FileLink } from "./file-link";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 import { MessageMarkdownVizlayer } from "./message-markdown-vizlayer";
+import { remarkExtensions } from "./remark-extensions";
 
 function transformMarkdownUrl(url: string) {
   if (url.startsWith("skill://")) {
@@ -46,6 +48,16 @@ export const MessageMarkdown = memo(function MessageMarkdown({
 }: MessageMarkdownProps) {
   const { connection } = useConnection();
 
+  const codeBlockStyle = useMemo<React.CSSProperties>(
+    () => ({
+      margin: "0rem",
+      padding: "0rem",
+      fontSize: "0.85rem",
+      ...customStyle,
+    }),
+    [customStyle]
+  );
+
   // Use refs to store stable references to metadata maps to avoid infinite loops
   // The connection object may be mutated, but we only care about the map references
   const tableNamesRef = useRef(connection?.metadata?.tableNames);
@@ -56,8 +68,6 @@ export const MessageMarkdown = memo(function MessageMarkdown({
     tableNamesRef.current = connection?.metadata?.tableNames;
     databaseNamesRef.current = connection?.metadata?.databaseNames;
   }, [connection?.metadata?.tableNames, connection?.metadata?.databaseNames]);
-
-  const renderedText = useMemo(() => replaceReferenceTokens(text), [text]);
 
   const components = useMemo<Components>(
     () => ({
@@ -80,6 +90,19 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         }
         if (codeClassName === "language-vizlayer") {
           return <MessageMarkdownVizlayer spec={String(children)} />;
+        }
+
+        const languageMatch = codeClassName?.match(/language-([^\s]+)/);
+        if (languageMatch?.[1]) {
+          return (
+            <ThemedSyntaxHighlighter
+              language={languageMatch[1]}
+              customStyle={codeBlockStyle}
+              wrapLongLines={true}
+            >
+              {String(children)}
+            </ThemedSyntaxHighlighter>
+          );
         }
 
         // Check if inline code is a table name or database name
@@ -179,13 +202,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         if (href?.startsWith("codefile://")) {
           const parsed = new URL(href);
           const filePath = parsed.searchParams.get("path") ?? "";
-          const startLine = parsed.searchParams.get("startLine");
-          const endLine = parsed.searchParams.get("endLine");
-          const viewerUrl = buildCodeViewerUrl({
-            path: filePath,
-            startLine: startLine ? Number.parseInt(startLine, 10) : undefined,
-            endLine: endLine ? Number.parseInt(endLine, 10) : undefined,
-          });
+          const viewerUrl = FileLink.toViewerUrl(href);
 
           return (
             <a
@@ -299,17 +316,17 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         </h6>
       ),
     }),
-    [customStyle, expandable, showExecuteButton]
+    [codeBlockStyle, customStyle, expandable, showExecuteButton]
   );
 
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none text-sm relative">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkExtensions]}
         components={components}
         urlTransform={transformMarkdownUrl}
       >
-        {renderedText}
+        {text}
       </ReactMarkdown>
     </div>
   );

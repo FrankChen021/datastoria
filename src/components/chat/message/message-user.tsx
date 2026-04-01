@@ -3,10 +3,7 @@ import { useChatCommands } from "../command-context";
 import { getLeadingCommand } from "../input/command-utils";
 import { TABLE_MENTION_REGEX } from "../input/mention-utils";
 import { MessageMarkdown } from "./message-markdown";
-
-function escapeSkillTokenValue(value: string): string {
-  return value.replaceAll("|", "\\|").replaceAll("]", "\\]");
-}
+import { SkillLink } from "./skill-link";
 
 /**
  * Component to render user message with table mention support
@@ -45,10 +42,13 @@ export const MessageUser = memo(function MessageUser({ text }: { text: string })
       return processedBaseText;
     }
 
-    const commandText = escapeSkillTokenValue(matchedCommand.commandText);
-    const skillId = escapeSkillTokenValue(command.skillId);
-    const title = command.description ? `|${escapeSkillTokenValue(command.description)}` : "";
-    const commandLink = `[[skill:${skillId}|${commandText}${title}]]`;
+    const commandLink = SkillLink.buildToken(
+      new SkillLink({
+        skillId: command.skillId,
+        label: matchedCommand.commandText,
+        title: command.description,
+      })
+    );
 
     return processedBaseText ? `${commandLink} ${processedBaseText}` : commandLink;
   }, [command, matchedCommand, text]);
