@@ -129,6 +129,11 @@ describe("MessageMarkdown", () => {
     });
 
     expect(vizlayerSpy).not.toHaveBeenCalled();
-    expect(container.textContent).toContain('{"title":"Example"}');
+    expect(syntaxHighlighterSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        language: "vizlayer-flowchart",
+        children: '{"title":"Example"}\n',
+      })
+    );
   });
 });
