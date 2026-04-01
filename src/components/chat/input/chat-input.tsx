@@ -423,7 +423,9 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
               placeholder={`Press Enter for new line, ${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"} + Enter to send. Use @ to mention tables, / for commands.`}
               aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables, / for commands."
               className={`w-full resize-none border-0 bg-transparent py-3 pl-3 pr-10 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 overflow-y-auto ${
-                isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px] flex-1 max-h-[200px]"
+                isResizable
+                  ? "h-full min-h-0 flex-1 max-h-none"
+                  : "min-h-[80px] flex-1 max-h-[200px]"
               }`}
               style={isResizable ? { minHeight: `${TEXTAREA_MIN_HEIGHT}px` } : undefined}
               disabled={isRunning}
