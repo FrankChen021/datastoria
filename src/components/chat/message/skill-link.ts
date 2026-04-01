@@ -12,14 +12,14 @@ export class SkillLink {
   }
 
   static parse(token: string): SkillLink | null {
-    const parts = token.split("|");
+    const parts = SkillLink.splitEscaped(token, "|");
     if (parts.length < 2 || parts.length > 3) {
       return null;
     }
 
-    const skillId = parts[0]?.trim();
-    const label = parts[1]?.trim();
-    const title = parts[2]?.trim();
+    const skillId = SkillLink.unescapeTokenValue(parts[0] ?? "").trim();
+    const label = SkillLink.unescapeTokenValue(parts[1] ?? "").trim();
+    const title = SkillLink.unescapeTokenValue(parts[2] ?? "").trim();
     if (!skillId || !label) {
       return null;
     }
@@ -57,6 +57,44 @@ export class SkillLink {
   }
 
   private static escapeTokenValue(value: string): string {
-    return value.replaceAll("|", "\\|").replaceAll("]", "\\]");
+    return value.replaceAll("\\", "\\\\").replaceAll("|", "\\|").replaceAll("]", "\\]");
+  }
+
+  private static unescapeTokenValue(value: string): string {
+    return value.replace(/\\([\\|\]])/g, "$1");
+  }
+
+  private static splitEscaped(value: string, separator: string): string[] {
+    const parts: string[] = [];
+    let current = "";
+    let isEscaped = false;
+
+    for (const char of value) {
+      if (isEscaped) {
+        current += `\\${char}`;
+        isEscaped = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        isEscaped = true;
+        continue;
+      }
+
+      if (char === separator) {
+        parts.push(current);
+        current = "";
+        continue;
+      }
+
+      current += char;
+    }
+
+    if (isEscaped) {
+      current += "\\";
+    }
+
+    parts.push(current);
+    return parts;
   }
 }

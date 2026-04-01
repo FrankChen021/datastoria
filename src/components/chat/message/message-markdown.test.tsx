@@ -132,7 +132,7 @@ describe("MessageMarkdown", () => {
     expect(syntaxHighlighterSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         language: "vizlayer-flowchart",
-        children: '{"title":"Example"}\n',
+        children: '{"title":"Example"}',
       })
     );
   });

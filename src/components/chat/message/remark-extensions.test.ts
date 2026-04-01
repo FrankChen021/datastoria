@@ -94,4 +94,33 @@ describe("remarkReferenceTokens", () => {
       { type: "text", value: "." },
     ]);
   });
+
+  it("supports escaped pipes and closing brackets in skill tokens", () => {
+    const tree = transformTree({
+      type: "root",
+      children: [
+        {
+          type: "paragraph",
+          children: [
+            {
+              type: "text",
+              value:
+                "Try [[skill:source-code-inspection|/source\\|code\\]inspection|Inspect A \\| B \\] C]] now.",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(tree.children?.[0]?.children).toEqual([
+      { type: "text", value: "Try " },
+      {
+        type: "link",
+        url: "skill://source-code-inspection",
+        title: "Inspect A | B ] C",
+        children: [{ type: "text", value: "/source|code]inspection" }],
+      },
+      { type: "text", value: " now." },
+    ]);
+  });
 });

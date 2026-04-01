@@ -36,6 +36,27 @@ describe("SkillLink", () => {
     );
   });
 
+  it("round-trips escaped separators in labels and titles", () => {
+    const link = new SkillLink({
+      skillId: "source-code-inspection",
+      label: "/source|code]inspection",
+      title: "Inspect A | B ] C",
+    });
+
+    const token = SkillLink.buildToken(link);
+    expect(token).toBe(
+      "[[skill:source-code-inspection|/source\\|code\\]inspection|Inspect A \\| B \\] C]]"
+    );
+
+    expect(
+      SkillLink.parse("source-code-inspection|/source\\|code\\]inspection|Inspect A \\| B \\] C")
+    ).toMatchObject({
+      skillId: "source-code-inspection",
+      label: "/source|code]inspection",
+      title: "Inspect A | B ] C",
+    });
+  });
+
   it("creates link nodes from the instance", () => {
     const link = new SkillLink({
       skillId: "source-code-inspection",

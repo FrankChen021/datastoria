@@ -93,14 +93,14 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         }
 
         const languageMatch = codeClassName?.match(/language-([^\s]+)/);
-        if (languageMatch?.[1]) {
+        if (languageMatch?.[1] && languageMatch[1] !== "mermaid") {
           return (
             <ThemedSyntaxHighlighter
               language={languageMatch[1]}
               customStyle={codeBlockStyle}
               wrapLongLines={true}
             >
-              {String(children)}
+              {String(children).replace(/\n$/, "")}
             </ThemedSyntaxHighlighter>
           );
         }

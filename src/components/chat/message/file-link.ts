@@ -60,10 +60,12 @@ export class FileLink {
 
   static toViewerUrl(href: string): string {
     const parsed = new URL(href);
+    const startLine = FileLink.parseLineNumber(parsed.searchParams.get("startLine"));
+    const endLine = FileLink.parseLineNumber(parsed.searchParams.get("endLine"));
     return new FileLink({
       path: parsed.searchParams.get("path") ?? "",
-      startLine: FileLink.parseLineNumber(parsed.searchParams.get("startLine")),
-      endLine: FileLink.parseLineNumber(parsed.searchParams.get("endLine")),
+      startLine,
+      endLine: startLine != null && endLine != null && endLine >= startLine ? endLine : undefined,
     }).toViewerUrl();
   }
 
@@ -115,6 +117,10 @@ export class FileLink {
   }
 
   private static parseLineNumber(value: string | null): number | undefined {
-    return value ? Number.parseInt(value, 10) : undefined;
+    if (!value) {
+      return undefined;
+    }
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
   }
 }

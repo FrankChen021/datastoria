@@ -47,6 +47,16 @@ describe("FileLink", () => {
     );
   });
 
+  it("ignores invalid line numbers in viewer URLs", () => {
+    expect(
+      FileLink.toViewerUrl("codefile://open?path=src%2Fapp%2Fpage.tsx&startLine=foo&endLine=bar")
+    ).toBe("/code-viewer?path=src%2Fapp%2Fpage.tsx");
+
+    expect(
+      FileLink.toViewerUrl("codefile://open?path=src%2Fapp%2Fpage.tsx&startLine=10&endLine=4")
+    ).toBe("/code-viewer?path=src%2Fapp%2Fpage.tsx&startLine=10");
+  });
+
   it("creates link nodes from the instance", () => {
     const link = new FileLink({
       path: "src/app/page.tsx",

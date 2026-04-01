@@ -30,7 +30,7 @@ type LinkNode = MarkdownNode & {
   children: MarkdownNode[];
 };
 
-const LINKNODE_TOKEN_PATTERN = /\[\[\s*(file|skill)\s*:\s*([^\]]+?)\s*\]\]/gi;
+const LINKNODE_TOKEN_PATTERN = /\[\[\s*(file|skill)\s*:\s*((?:\\.|[^\]])+?)\s*\]\]/gi;
 
 function hasChildren(node: MarkdownNode): node is ParentNode {
   return Array.isArray(node.children);
