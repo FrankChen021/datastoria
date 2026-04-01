@@ -73,9 +73,11 @@ export const ChatMessageList = React.memo(
       }
     }, [isRunning]);
 
-    const handleWheel = React.useCallback((event: React.WheelEvent<HTMLDivElement>) => {
-      const container = scrollContainerRef.current;
-      if (!container) return;
+    const handleWheel = React.useCallback((event: WheelEvent) => {
+      const container = event.currentTarget as HTMLDivElement | null;
+      if (!container) {
+        return;
+      }
 
       const scrollingUp = event.deltaY < 0;
       const scrollingDown = event.deltaY > 0;
@@ -84,6 +86,18 @@ export const ChatMessageList = React.memo(
         event.preventDefault();
       }
     }, []);
+
+    React.useEffect(() => {
+      const container = scrollContainerRef.current;
+      if (!container) {
+        return;
+      }
+
+      container.addEventListener("wheel", handleWheel, { passive: false });
+      return () => {
+        container.removeEventListener("wheel", handleWheel);
+      };
+    }, [handleWheel]);
 
     // Auto scroll when messages, streaming state, or error change
     React.useEffect(() => {
@@ -111,7 +125,6 @@ export const ChatMessageList = React.memo(
         ref={scrollContainerRef}
         className="h-full w-full overflow-y-auto overflow-x-hidden overscroll-none"
         onScroll={handleScroll}
-        onWheel={handleWheel}
       >
         <div className="flex flex-col">
           {messages.map((message, index) => (

@@ -129,9 +129,11 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     }, [handleMouseMove]);
 
     const handleMouseUp = React.useCallback(() => {
-      const finalHeight = dragStateRef.current?.didResize ? dragStateRef.current.nextHeight : null;
+      const dragState = dragStateRef.current;
       cleanupResizeDrag();
-      setResizedHeight(finalHeight);
+      setResizedHeight((previousHeight) =>
+        dragState?.didResize ? dragState.nextHeight : previousHeight
+      );
     }, [cleanupResizeDrag]);
 
     React.useEffect(() => {
