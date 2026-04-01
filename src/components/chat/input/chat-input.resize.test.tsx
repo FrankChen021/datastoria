@@ -91,6 +91,7 @@ describe("ChatInput resize", () => {
     expect(inputContainer).not.toBeNull();
     expect(resizeHandle).not.toBeNull();
     expect(inputContainer?.style.height).toBe("");
+    expect(inputContainer?.style.minHeight).toBe("116px");
 
     vi.spyOn(inputContainer as HTMLDivElement, "getBoundingClientRect").mockReturnValue({
       x: 0,
@@ -103,6 +104,18 @@ describe("ChatInput resize", () => {
       left: 0,
       toJSON: () => ({}),
     });
+
+    act(() => {
+      resizeHandle?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientY: 200 }));
+    });
+
+    expect(inputContainer?.style.height).toBe("");
+
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    });
+
+    expect(inputContainer?.style.height).toBe("");
 
     act(() => {
       resizeHandle?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientY: 200 }));

@@ -23,6 +23,14 @@ function isNearBottom(element: HTMLDivElement) {
   );
 }
 
+function isAtTop(element: HTMLDivElement) {
+  return element.scrollTop <= 0;
+}
+
+function isAtBottom(element: HTMLDivElement) {
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= 1;
+}
+
 export const ChatMessageList = React.memo(
   ({ messages, isRunning, error }: ChatMessageListProps) => {
     const prevLastMessageKeyRef = React.useRef(
@@ -33,22 +41,20 @@ export const ChatMessageList = React.memo(
     const scrollContainerRef = React.useRef<HTMLDivElement>(null);
     const scrollPlaceholderRef = React.useRef<HTMLDivElement>(null);
 
-    // Debounced scroll function (20ms delay)
+    // Defer until after the DOM commits, but avoid extra nested frames that can
+    // cause visible edge flicker while the user is manually scrolling.
     const scrollToBottom = useDebouncedCallback(() => {
-      // Use requestAnimationFrame to ensure DOM is updated before scrolling
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (scrollPlaceholderRef.current) {
-            scrollPlaceholderRef.current.scrollIntoView({ block: "end", behavior: "auto" });
-          } else if (scrollContainerRef.current) {
-            // Fallback to direct scroll if placeholder not available
-            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-          }
+        if (scrollPlaceholderRef.current) {
+          scrollPlaceholderRef.current.scrollIntoView({ block: "end", behavior: "auto" });
+        } else if (scrollContainerRef.current) {
+          // Fallback to direct scroll if placeholder not available
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        }
 
-          if (scrollContainerRef.current) {
-            lastScrollTopRef.current = scrollContainerRef.current.scrollTop;
-          }
-        });
+        if (scrollContainerRef.current) {
+          lastScrollTopRef.current = scrollContainerRef.current.scrollTop;
+        }
       });
     }, 20);
 
@@ -66,6 +72,18 @@ export const ChatMessageList = React.memo(
         shouldAutoScrollRef.current = false;
       }
     }, [isRunning]);
+
+    const handleWheel = React.useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      const scrollingUp = event.deltaY < 0;
+      const scrollingDown = event.deltaY > 0;
+
+      if ((scrollingUp && isAtTop(container)) || (scrollingDown && isAtBottom(container))) {
+        event.preventDefault();
+      }
+    }, []);
 
     // Auto scroll when messages, streaming state, or error change
     React.useEffect(() => {
@@ -91,9 +109,9 @@ export const ChatMessageList = React.memo(
     return (
       <div
         ref={scrollContainerRef}
-        className="h-full w-full overflow-auto"
-        style={{ scrollBehavior: "smooth" }}
+        className="h-full w-full overflow-y-auto overflow-x-hidden overscroll-none"
         onScroll={handleScroll}
+        onWheel={handleWheel}
       >
         <div className="flex flex-col">
           {messages.map((message, index) => (

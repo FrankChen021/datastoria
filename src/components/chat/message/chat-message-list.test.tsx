@@ -163,4 +163,66 @@ describe("ChatMessageList", () => {
 
     expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1);
   });
+
+  it("prevents wheel overscroll at the top and bottom boundaries", () => {
+    act(() => {
+      root.render(
+        <ChatMessageList
+          messages={[
+            createMessage("user-1", "user", "hello"),
+            createMessage("assistant-1", "assistant", "world"),
+          ]}
+          isRunning={false}
+          error={null}
+        />
+      );
+    });
+
+    const scrollContainer = container.firstElementChild as HTMLDivElement;
+    let scrollTop = 0;
+
+    Object.defineProperties(scrollContainer, {
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = value;
+        },
+      },
+      scrollHeight: {
+        configurable: true,
+        get: () => 1000,
+      },
+      clientHeight: {
+        configurable: true,
+        get: () => 400,
+      },
+    });
+
+    const topWheelEvent = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaY: -10,
+    });
+
+    act(() => {
+      scrollContainer.dispatchEvent(topWheelEvent);
+    });
+
+    expect(topWheelEvent.defaultPrevented).toBe(true);
+
+    scrollTop = 600;
+
+    const bottomWheelEvent = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 10,
+    });
+
+    act(() => {
+      scrollContainer.dispatchEvent(bottomWheelEvent);
+    });
+
+    expect(bottomWheelEvent.defaultPrevented).toBe(true);
+  });
 });

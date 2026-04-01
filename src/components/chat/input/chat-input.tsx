@@ -23,6 +23,8 @@ export { replaceLeadingCommand } from "./command-utils";
 const MIN_CHAT_INPUT_HEIGHT = 116;
 const MAX_CHAT_INPUT_HEIGHT = 360;
 const TEXTAREA_MIN_HEIGHT = 80;
+const CHAT_INPUT_CONTENT_MIN_HEIGHT = MIN_CHAT_INPUT_HEIGHT - 2;
+const RESIZE_DRAG_THRESHOLD = 2;
 
 interface ChatInputProps {
   onSubmit: (text: string) => void;
@@ -52,6 +54,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       startY: number;
       startHeight: number;
       nextHeight: number;
+      didResize: boolean;
     } | null>(null);
     const resizeFrameRef = React.useRef<number | null>(null);
     const [input, setInput] = React.useState("");
@@ -77,13 +80,26 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         const dragState = dragStateRef.current;
         if (!dragState) return;
 
-        dragState.nextHeight = Math.max(
+        const nextHeight = Math.max(
           MIN_CHAT_INPUT_HEIGHT,
           Math.min(
             MAX_CHAT_INPUT_HEIGHT,
             dragState.startHeight - (moveEvent.clientY - dragState.startY)
           )
         );
+        const hasExceededThreshold =
+          Math.abs(moveEvent.clientY - dragState.startY) >= RESIZE_DRAG_THRESHOLD;
+
+        if (!dragState.didResize) {
+          if (!hasExceededThreshold) {
+            return;
+          }
+          dragState.didResize = true;
+          setResizedHeight(dragState.startHeight);
+          setIsDraggingResizeHandle(true);
+        }
+
+        dragState.nextHeight = nextHeight;
 
         if (resizeFrameRef.current !== null) {
           return;
@@ -113,7 +129,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     }, [handleMouseMove]);
 
     const handleMouseUp = React.useCallback(() => {
-      const finalHeight = dragStateRef.current?.nextHeight ?? null;
+      const finalHeight = dragStateRef.current?.didResize ? dragStateRef.current.nextHeight : null;
       cleanupResizeDrag();
       setResizedHeight(finalHeight);
     }, [cleanupResizeDrag]);
@@ -317,17 +333,15 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           startY: e.clientY,
           startHeight,
           nextHeight: startHeight,
+          didResize: false,
         };
 
-        applyContainerHeight(startHeight);
-        setResizedHeight(startHeight);
-        setIsDraggingResizeHandle(true);
         document.body.style.cursor = "ns-resize";
         document.body.style.userSelect = "none";
         window.addEventListener("mousemove", handleMouseMove, { passive: true });
         window.addEventListener("mouseup", handleMouseUp, { once: true });
       },
-      [applyContainerHeight, handleMouseMove, handleMouseUp]
+      [handleMouseMove, handleMouseUp]
     );
 
     const handleResizeReset = React.useCallback(() => {
@@ -371,6 +385,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           className={`relative group border rounded-md bg-muted/30 focus-within:bg-background focus-within:ring-1 focus-within:ring-ring ${
             isDraggingResizeHandle ? "" : "transition-all duration-200"
           }`}
+          style={{ minHeight: `${MIN_CHAT_INPUT_HEIGHT}px` }}
         >
           {/* Resize Handler */}
           <div
@@ -383,7 +398,10 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           ></div>
 
           {/* Input Container */}
-          <div className={isResizable ? "flex h-full flex-col overflow-hidden" : undefined}>
+          <div
+            className={`flex flex-col overflow-hidden ${isResizable ? "h-full" : ""}`}
+            style={{ minHeight: `${CHAT_INPUT_CONTENT_MIN_HEIGHT}px` }}
+          >
             <ChatInputSuggestions
               ref={suggestionRef}
               suggestions={tableSuggestions}
@@ -405,7 +423,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
               placeholder={`Press Enter for new line, ${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"} + Enter to send. Use @ to mention tables, / for commands.`}
               aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables, / for commands."
               className={`w-full resize-none border-0 bg-transparent py-3 pl-3 pr-10 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 overflow-y-auto ${
-                isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px] max-h-[200px]"
+                isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px] flex-1 max-h-[200px]"
               }`}
               style={isResizable ? { minHeight: `${TEXTAREA_MIN_HEIGHT}px` } : undefined}
               disabled={isRunning}
