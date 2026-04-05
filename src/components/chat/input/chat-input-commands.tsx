@@ -93,6 +93,8 @@ export const ChatInputCommands = React.memo(
             }
             if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
               if (activeCommand) {
+                e.preventDefault();
+                e.stopPropagation();
                 onSelect(activeCommand);
                 setOpen(false);
               }

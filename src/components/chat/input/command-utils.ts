@@ -26,3 +26,12 @@ export function replaceLeadingCommand(input: string, commandName: string): strin
   const existingArgs = input.slice(argsStart);
   return `/${commandName}${existingArgs || " "}`;
 }
+
+export function removeLeadingCommand(input: string): string {
+  const match = getLeadingCommand(input);
+  if (!match) {
+    return input;
+  }
+
+  return match.remainder.replace(/^ /, "");
+}
