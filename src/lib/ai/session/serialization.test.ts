@@ -55,4 +55,18 @@ describe("sanitizeMessageForPersistence", () => {
 
     expect(serializeMessageParts(message)).toBe(JSON.stringify([{ type: "text", text: "hello" }]));
   });
+
+  it("ignores malformed file parts without throwing", () => {
+    const message = createMessage([
+      { type: "text", text: "hello" },
+      {
+        type: "file",
+        mediaType: null,
+        url: null,
+        filename: "broken.png",
+      } as unknown as AppUIMessage["parts"][number],
+    ] as AppUIMessage["parts"]);
+
+    expect(sanitizeMessageForPersistence(message).parts).toEqual(message.parts);
+  });
 });

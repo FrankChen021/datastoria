@@ -3,13 +3,13 @@ import { AgentConfigurationManager } from "@/components/settings/agent/agent-man
 import { ModelManager } from "@/components/settings/models/model-manager";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import type { AppUIMessage, Message, MessageMetadata } from "@/lib/ai/chat-types";
+import { sanitizeMessageForPersistence } from "@/lib/ai/session/serialization";
 import type { StageStatus, ToolProgressCallback } from "@/lib/ai/tools/client/client-tool-types";
 import { CLIENT_TOOL_NAMES, ClientToolExecutors } from "@/lib/ai/tools/client/client-tools";
 import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { BasePath } from "@/lib/base-path";
 import { Connection, type QueryResponse } from "@/lib/connection/connection";
-import { sanitizeMessageForPersistence } from "@/lib/ai/session/serialization";
 import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { v7 as uuidv7 } from "uuid";
@@ -388,11 +388,12 @@ export class ChatFactory {
         }
 
         if (chatPersistenceMode === "local") {
+          const sanitizedMessage = sanitizeMessageForPersistence(message);
           const messageToSave: Message = {
-            id: message.id,
-            role: message.role,
-            parts: message.parts as Message["parts"],
-            metadata: message.metadata as MessageMetadata,
+            id: sanitizedMessage.id,
+            role: sanitizedMessage.role,
+            parts: sanitizedMessage.parts as Message["parts"],
+            metadata: sanitizedMessage.metadata as MessageMetadata,
             createdAt: now,
             updatedAt: now,
           };

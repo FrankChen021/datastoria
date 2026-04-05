@@ -143,6 +143,7 @@ describe("ChatInput images", () => {
           mediaType: "image/png",
           url: "data:image/png;base64,stub",
           filename: "chart.png",
+          sizeBytes: 4,
         },
       ],
     });

@@ -29,14 +29,44 @@ import { MessageUser } from "./message-user";
 
 const MESSAGE_MARKDOWN_STYLE = { fontSize: "0.9rem", lineHeight: "1.6" } as const;
 
+function getSafeFileUrl(url: string, allowRemote: boolean): string | null {
+  if (url.startsWith("data:") || url.startsWith("blob:")) {
+    return url;
+  }
+
+  if (!allowRemote) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+      return parsed.toString();
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 const MessageFilePart = memo(function MessageFilePart({ part }: { part: FilePart }) {
-  const isImage = part.mediaType.startsWith("image/");
+  const isImage = typeof part.mediaType === "string" && part.mediaType.startsWith("image/");
+  const safeUrl = getSafeFileUrl(part.url, !isImage);
+
+  if (!safeUrl) {
+    return (
+      <div className="mt-2 inline-flex rounded-md border bg-background px-3 py-2 text-xs text-muted-foreground">
+        {part.filename ?? "Attached file unavailable"}
+      </div>
+    );
+  }
 
   if (isImage) {
     return (
       <div className="mt-2 max-w-sm overflow-hidden rounded-lg border bg-background">
         <img
-          src={part.url}
+          src={safeUrl}
           alt={part.filename ?? "Uploaded image"}
           className="max-h-80 w-full object-cover"
         />
@@ -49,7 +79,7 @@ const MessageFilePart = memo(function MessageFilePart({ part }: { part: FilePart
 
   return (
     <a
-      href={part.url}
+      href={safeUrl}
       target="_blank"
       rel="noreferrer"
       className="mt-2 inline-flex rounded-md border bg-background px-3 py-2 text-xs text-foreground underline-offset-2 hover:underline"

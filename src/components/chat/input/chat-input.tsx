@@ -30,12 +30,16 @@ const CHAT_INPUT_CONTENT_MIN_HEIGHT = MIN_CHAT_INPUT_HEIGHT - 2;
 const RESIZE_DRAG_THRESHOLD = 2;
 const MAX_IMAGE_ATTACHMENTS = 4;
 const MAX_IMAGE_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+// Keep inline data URLs below the API's 10 MB JSON request limit after base64 expansion.
+const MAX_TOTAL_IMAGE_FILE_SIZE_BYTES = 7 * 1024 * 1024;
+const UNSUPPORTED_IMAGE_MODEL_MESSAGE = "Select a vision-capable model before sending images.";
 
 export type ChatInputImageAttachment = {
   id: string;
   mediaType: string;
   url: string;
   filename: string;
+  sizeBytes: number;
 };
 
 interface ChatInputProps {
@@ -73,6 +77,13 @@ type RenderSegment = { kind: "text"; text: string; start: number; end: number } 
 
 function createTextNodeSegment(documentRef: Document, text: string) {
   return documentRef.createTextNode(text);
+}
+
+function createAttachmentId(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `attachment-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+  );
 }
 
 function createTokenNodeSegment(
@@ -346,6 +357,8 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const resizeFrameRef = React.useRef<number | null>(null);
     const pendingSelectionOffsetRef = React.useRef<number | null>(null);
     const cursorOffsetRef = React.useRef(0);
+    const attachmentsRef = React.useRef<ChatInputImageAttachment[]>([]);
+    const appendQueueRef = React.useRef<Promise<void>>(Promise.resolve());
     const [input, setInput] = React.useState("");
     const [attachments, setAttachments] = React.useState<ChatInputImageAttachment[]>([]);
     const [attachmentError, setAttachmentError] = React.useState<string | null>(null);
@@ -382,8 +395,26 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const selectedModelSupportsImages =
       selectedModel == null ||
       (selectedModel.provider === "System" && selectedModel.modelId === "Auto") ||
-      selectedModelDefinition?.supportsImageInput === true;
-    const canSubmit = input.trim().length > 0 || attachments.length > 0;
+      selectedModelDefinition?.supportsImageInput !== false;
+    const canSubmit =
+      (input.trim().length > 0 || attachments.length > 0) &&
+      (attachments.length === 0 || selectedModelSupportsImages);
+
+    React.useEffect(() => {
+      attachmentsRef.current = attachments;
+    }, [attachments]);
+
+    React.useEffect(() => {
+      setAttachmentError((current) => {
+        if (attachments.length > 0 && !selectedModelSupportsImages) {
+          return UNSUPPORTED_IMAGE_MODEL_MESSAGE;
+        }
+        if (current === UNSUPPORTED_IMAGE_MODEL_MESSAGE) {
+          return null;
+        }
+        return current;
+      });
+    }, [attachments.length, selectedModelSupportsImages]);
 
     const resetFileInput = React.useCallback(() => {
       if (fileInputRef.current) {
@@ -418,47 +449,70 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           throw new Error("Only image attachments are supported.");
         }
 
-        const availableSlots = Math.max(MAX_IMAGE_ATTACHMENTS - attachments.length, 0);
+        const currentAttachments = attachmentsRef.current;
+        const availableSlots = Math.max(MAX_IMAGE_ATTACHMENTS - currentAttachments.length, 0);
         if (availableSlots === 0) {
           throw new Error(`You can attach up to ${MAX_IMAGE_ATTACHMENTS} images per message.`);
         }
 
         const nextFiles = imageFiles.slice(0, availableSlots);
+        const currentTotalBytes = currentAttachments.reduce(
+          (sum, attachment) => sum + attachment.sizeBytes,
+          0
+        );
+        const nextTotalBytes = nextFiles.reduce((sum, file) => sum + file.size, currentTotalBytes);
         for (const file of nextFiles) {
           if (file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
             throw new Error(`${file.name} exceeds the 5 MB image limit.`);
           }
         }
+        if (nextTotalBytes > MAX_TOTAL_IMAGE_FILE_SIZE_BYTES) {
+          throw new Error("Attached images exceed the total 7 MB limit per message.");
+        }
 
         return Promise.all(
           nextFiles.map(async (file) => ({
-            id: crypto.randomUUID(),
+            id: createAttachmentId(),
             mediaType: file.type,
             url: await readFileAsDataUrl(file),
             filename: file.name || "image",
+            sizeBytes: file.size,
           }))
         );
       },
-      [attachments.length, readFileAsDataUrl]
+      [readFileAsDataUrl]
     );
 
     const appendFiles = React.useCallback(
       async (incomingFiles: File[]) => {
-        try {
-          if (!selectedModelSupportsImages) {
-            throw new Error("Select a vision-capable model before adding images.");
+        const appendTask = async () => {
+          try {
+            if (!selectedModelSupportsImages) {
+              throw new Error("Select a vision-capable model before adding images.");
+            }
+            const nextAttachments = await convertFilesToAttachments(incomingFiles);
+            if (nextAttachments.length === 0) {
+              return;
+            }
+            setAttachments((current) => {
+              const updated = [...current, ...nextAttachments];
+              attachmentsRef.current = updated;
+              return updated;
+            });
+            setAttachmentError(null);
+          } catch (error) {
+            setAttachmentError(error instanceof Error ? error.message : "Failed to add images.");
+          } finally {
+            resetFileInput();
           }
-          const nextAttachments = await convertFilesToAttachments(incomingFiles);
-          if (nextAttachments.length === 0) {
-            return;
-          }
-          setAttachments((current) => [...current, ...nextAttachments]);
-          setAttachmentError(null);
-        } catch (error) {
-          setAttachmentError(error instanceof Error ? error.message : "Failed to add images.");
-        } finally {
-          resetFileInput();
-        }
+        };
+
+        const queuedTask = appendQueueRef.current.then(appendTask, appendTask);
+        appendQueueRef.current = queuedTask.then(
+          () => undefined,
+          () => undefined
+        );
+        await queuedTask;
       },
       [convertFilesToAttachments, resetFileInput, selectedModelSupportsImages]
     );
@@ -719,6 +773,10 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const handleSubmit = React.useCallback(() => {
       const message = input.trim();
       if (!message && attachments.length === 0) return;
+      if (attachments.length > 0 && !selectedModelSupportsImages) {
+        setAttachmentError(UNSUPPORTED_IMAGE_MODEL_MESSAGE);
+        return;
+      }
 
       onSubmit({ text: message, files: attachments });
       pendingSelectionOffsetRef.current = 0;
@@ -727,10 +785,21 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       setAttachmentError(null);
       updateSuggestions("", 0);
       resetFileInput();
-    }, [attachments, input, onSubmit, resetFileInput, updateSuggestions]);
+    }, [
+      attachments,
+      input,
+      onSubmit,
+      resetFileInput,
+      selectedModelSupportsImages,
+      updateSuggestions,
+    ]);
 
     const handleRemoveAttachment = React.useCallback((attachmentId: string) => {
-      setAttachments((current) => current.filter((attachment) => attachment.id !== attachmentId));
+      setAttachments((current) => {
+        const updated = current.filter((attachment) => attachment.id !== attachmentId);
+        attachmentsRef.current = updated;
+        return updated;
+      });
       setAttachmentError(null);
     }, []);
 

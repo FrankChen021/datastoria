@@ -11,7 +11,12 @@ import type { PersistedChatMessage, PersistedChatSession } from "./server-sessio
 const IMAGE_HISTORY_PLACEHOLDER = "[Image attachment omitted from saved history]";
 
 function isPersistedImagePart(part: MessagePart): part is FilePart {
-  return part.type === "file" && part.mediaType.startsWith("image/");
+  return (
+    part.type === "file" &&
+    typeof part.mediaType === "string" &&
+    typeof part.url === "string" &&
+    part.mediaType.startsWith("image/")
+  );
 }
 
 export function sanitizeMessageForPersistence(message: AppUIMessage): AppUIMessage {

@@ -79,7 +79,7 @@ function modelSupportsImageInput(model: { provider: string; modelId: string }): 
     MODELS.find(
       (candidate) => candidate.provider === model.provider && candidate.modelId === model.modelId
     );
-  return configuredModel?.supportsImageInput === true;
+  return configuredModel?.supportsImageInput !== false;
 }
 
 function getMessageIdFromMessages(messages: UIMessage[]): string {
@@ -371,10 +371,7 @@ export async function POST(req: Request) {
           incomingMessage.role === "assistant"
             ? withModelMetadata(sanitizeMessageForPersistence(incomingMessage), modelConfig)
             : sanitizeMessageForPersistence(incomingMessage);
-        const mergedMessages = replaceOrAppendMessageById(
-          persistedMessages,
-          persistedIncomingMessage
-        );
+        const mergedMessages = replaceOrAppendMessageById(persistedMessages, incomingMessage);
         await sessionRepository!.upsertMessage({
           session_id: apiRequest.sessionId,
           user_id: sessionRepositoryUserId,
@@ -476,10 +473,14 @@ export async function POST(req: Request) {
         sessionRepositoryUserId &&
         sessionRepositoryChatId
           ? async ({ responseMessage }) => {
+              const persistedResponseMessage = withModelMetadata(
+                sanitizeMessageForPersistence(responseMessage as AppUIMessage),
+                modelConfig
+              );
               await sessionRepository.upsertMessage({
                 session_id: sessionRepositoryChatId,
                 user_id: sessionRepositoryUserId,
-                message: withModelMetadata(responseMessage as AppUIMessage, modelConfig),
+                message: persistedResponseMessage,
                 allowMissingSession: sessionRepositoryAllowMissingSession,
               });
             }
