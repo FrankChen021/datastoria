@@ -79,6 +79,38 @@ function createTextNodeSegment(documentRef: Document, text: string) {
   return documentRef.createTextNode(text);
 }
 
+function createTrailingBreakSegment(documentRef: Document) {
+  return documentRef.createElement("br");
+}
+
+function scrollCaretIntoView(scrollContainer: HTMLElement) {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return;
+  }
+
+  const range = selection.getRangeAt(0).cloneRange();
+  range.collapse(true);
+
+  const clientRects =
+    typeof range.getClientRects === "function" ? Array.from(range.getClientRects()) : [];
+  const fallbackRect =
+    typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null;
+  const rect = clientRects[0] ?? fallbackRect;
+  if (!rect || (rect.height === 0 && rect.width === 0)) {
+    return;
+  }
+
+  const containerRect = scrollContainer.getBoundingClientRect();
+  const padding = 8;
+
+  if (rect.bottom > containerRect.bottom - padding) {
+    scrollContainer.scrollTop += rect.bottom - containerRect.bottom + padding;
+  } else if (rect.top < containerRect.top + padding) {
+    scrollContainer.scrollTop -= containerRect.top + padding - rect.top;
+  }
+}
+
 function createAttachmentId(): string {
   return (
     globalThis.crypto?.randomUUID?.() ??
@@ -345,6 +377,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
   ) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const editorRef = React.useRef<HTMLDivElement>(null);
+    const editorScrollRef = React.useRef<HTMLDivElement>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const suggestionRef = React.useRef<ChatInputSuggestionsType>(null);
     const commandRef = React.useRef<ChatInputCommandsType>(null);
@@ -761,14 +794,25 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         );
       }
 
+      if (input.endsWith("\n")) {
+        fragment.appendChild(createTrailingBreakSegment(document));
+      }
+
       editor.replaceChildren(fragment);
 
       const nextSelectionOffset = pendingSelectionOffsetRef.current;
       if (nextSelectionOffset !== null) {
         setCaretAtOffset(editor, nextSelectionOffset);
         pendingSelectionOffsetRef.current = null;
+        if (editorScrollRef.current) {
+          window.requestAnimationFrame(() => {
+            if (editorScrollRef.current) {
+              scrollCaretIntoView(editorScrollRef.current);
+            }
+          });
+        }
       }
-    }, [handleDismissCommand, handleDismissMention, renderSegments]);
+    }, [handleDismissCommand, handleDismissMention, input, renderSegments]);
 
     const handleSubmit = React.useCallback(() => {
       const message = input.trim();
@@ -1028,66 +1072,73 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
               }
             />
 
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <div className="relative flex min-h-full flex-col">
-                {!input && attachments.length === 0 && (
-                  <div className="text-muted-foreground pointer-events-none absolute left-3 right-10 top-3 text-sm">
-                    Press Enter for new line,{" "}
-                    {typeof navigator !== "undefined" && navigator.platform.includes("Mac")
-                      ? "Cmd"
-                      : "Ctrl"}{" "}
-                    + Enter to send. Use @ to mention tables, / for commands.
-                  </div>
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              <div
+                ref={editorScrollRef}
+                className={cn(
+                  "min-h-0 flex-1 overflow-y-auto",
+                  isResizable ? "" : "max-h-[200px]"
                 )}
-
-                <div
-                  ref={editorRef}
-                  role="textbox"
-                  aria-multiline="true"
-                  aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables, / for commands."
-                  contentEditable={!isRunning}
-                  suppressContentEditableWarning
-                  className={cn(
-                    "w-full bg-transparent py-3 pl-3 pr-10 text-sm outline-none whitespace-pre-wrap break-words",
-                    isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px]"
+              >
+                <div className="relative flex min-h-full flex-col">
+                  {!input && attachments.length === 0 && (
+                    <div className="text-muted-foreground pointer-events-none absolute left-3 right-10 top-3 text-sm">
+                      Press Enter for new line,{" "}
+                      {typeof navigator !== "undefined" && navigator.platform.includes("Mac")
+                        ? "Cmd"
+                        : "Ctrl"}{" "}
+                      + Enter to send. Use @ to mention tables, / for commands.
+                    </div>
                   )}
-                  style={isResizable ? { minHeight: `${EDITOR_MIN_HEIGHT}px` } : undefined}
-                  onInput={handleEditorInput}
-                  onKeyDown={handleKeyDown}
-                  onKeyUp={handleEditorKeyUp}
-                  onMouseUp={syncSelectionState}
-                  onFocus={syncSelectionState}
-                  onPaste={handlePaste}
-                ></div>
 
-                {attachments.length > 0 && (
-                  <div className="flex shrink-0 gap-2 overflow-x-auto px-3 pb-2">
-                    {attachments.map((attachment) => (
-                      <div
-                        key={attachment.id}
-                        className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md border bg-background"
-                      >
-                        <img
-                          src={attachment.url}
-                          alt={attachment.filename}
-                          className="h-full w-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-foreground shadow-sm"
-                          aria-label={`Remove ${attachment.filename}`}
-                          onClick={() => handleRemoveAttachment(attachment.id)}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {attachmentError && (
-                  <div className="px-3 pb-2 text-[11px] text-destructive">{attachmentError}</div>
-                )}
+                  <div
+                    ref={editorRef}
+                    role="textbox"
+                    aria-multiline="true"
+                    aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables, / for commands."
+                    contentEditable={!isRunning}
+                    suppressContentEditableWarning
+                    className={cn(
+                      "w-full bg-transparent py-3 pl-3 pr-10 text-sm outline-none whitespace-pre-wrap break-words",
+                      isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px]"
+                    )}
+                    style={isResizable ? { minHeight: `${EDITOR_MIN_HEIGHT}px` } : undefined}
+                    onInput={handleEditorInput}
+                    onKeyDown={handleKeyDown}
+                    onKeyUp={handleEditorKeyUp}
+                    onMouseUp={syncSelectionState}
+                    onFocus={syncSelectionState}
+                    onPaste={handlePaste}
+                  ></div>
+                </div>
               </div>
+              {attachments.length > 0 && (
+                <div className="flex shrink-0 gap-2 overflow-x-auto px-3 pb-2">
+                  {attachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md border bg-background"
+                    >
+                      <img
+                        src={attachment.url}
+                        alt={attachment.filename}
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-foreground shadow-sm"
+                        aria-label={`Remove ${attachment.filename}`}
+                        onClick={() => handleRemoveAttachment(attachment.id)}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {attachmentError && (
+                <div className="px-3 pb-2 text-[11px] text-destructive">{attachmentError}</div>
+              )}
             </div>
             <div className="mt-[-4px] flex shrink-0 items-center justify-between px-2 pb-2 pt-2">
               <div className="flex items-center gap-1">
