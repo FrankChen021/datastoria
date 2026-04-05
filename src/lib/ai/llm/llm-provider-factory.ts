@@ -34,6 +34,7 @@ export interface ModelProps {
   autoSelectable?: boolean;
   disabled?: boolean;
   supportedEndpoints?: string[];
+  supportsImageInput?: boolean;
   source?: ModelSource;
 }
 
@@ -392,15 +393,81 @@ export const SYSTEM_MODELS: ModelProps[] = MODELS.filter((model) =>
 
 const MODELS_WITHOUT_STRUCTURED_OUTPUTS = new Set<string>([`${PROVIDER_GITHUB_COPILOT}:gpt-4o`]);
 
+export function supportsImageInput(
+  model?: Pick<ModelProps, "provider" | "modelId"> | null
+): boolean {
+  if (!model?.provider || !model.modelId) {
+    return false;
+  }
+
+  const configuredModel = MODELS.find(
+    (candidate) => candidate.provider === model.provider && candidate.modelId === model.modelId
+  );
+  if (typeof configuredModel?.supportsImageInput === "boolean") {
+    return configuredModel.supportsImageInput;
+  }
+
+  const normalizedProvider = model.provider.toLowerCase();
+  const normalizedModelId = model.modelId.toLowerCase();
+
+  if (normalizedProvider === "google" || normalizedProvider === "anthropic") {
+    return true;
+  }
+
+  if (
+    normalizedProvider === "openai" &&
+    (normalizedModelId.startsWith("gpt-4o") ||
+      normalizedModelId.startsWith("gpt-4.1") ||
+      normalizedModelId.startsWith("gpt-5") ||
+      normalizedModelId.startsWith("o1"))
+  ) {
+    return true;
+  }
+
+  if (
+    normalizedProvider === PROVIDER_GITHUB_COPILOT.toLowerCase() &&
+    (normalizedModelId.includes("gpt-4o") ||
+      normalizedModelId.includes("gpt-4.1") ||
+      normalizedModelId.includes("gpt-5") ||
+      normalizedModelId.includes("claude") ||
+      normalizedModelId.includes("gemini"))
+  ) {
+    return true;
+  }
+
+  if (
+    normalizedProvider === "openrouter" &&
+    (normalizedModelId.includes("gpt-4o") ||
+      normalizedModelId.includes("gpt-4.1") ||
+      normalizedModelId.includes("gpt-5") ||
+      normalizedModelId.includes("claude") ||
+      normalizedModelId.includes("gemini"))
+  ) {
+    return true;
+  }
+
+  if (
+    normalizedProvider === PROVIDER_NEBIUS.toLowerCase() &&
+    (normalizedModelId.includes("kimi") || normalizedModelId.includes("glm-4.7"))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function getAvailableSystemModels(): ModelProps[] {
   return SYSTEM_MODELS.filter(
     (model) => getSystemProviderApiKey(model.provider) && model.autoSelectable !== true
   );
 }
 
-export function resolveModelConfig(model?: RequestedModelConfig): ResolvedModelConfig {
+export function resolveModelConfig(
+  model?: RequestedModelConfig,
+  requirements?: { imageInput?: boolean }
+): ResolvedModelConfig {
   if (!model?.provider || !model.modelId) {
-    return LanguageModelProviderFactory.autoSelectModel();
+    return LanguageModelProviderFactory.autoSelectModel(requirements);
   }
 
   if (model.apiKey) {
@@ -454,7 +521,11 @@ export class LanguageModelProviderFactory {
    * @returns An object with provider name, model ID, and API key
    * @throws Error if no API key is configured
    */
-  static autoSelectModel(): { provider: string; modelId: string; apiKey: string } {
+  static autoSelectModel(requirements?: { imageInput?: boolean }): {
+    provider: string;
+    modelId: string;
+    apiKey: string;
+  } {
     // Priority order: private providers first, then the built-in providers below
     const providerOrder = [
       ...Object.keys(PRIVATE_PROVIDERS),
@@ -479,6 +550,10 @@ export class LanguageModelProviderFactory {
 
           // Check if model is disabled in the model definition itself
           if (model.disabled === true) {
+            return false;
+          }
+
+          if (requirements?.imageInput && !supportsImageInput(model)) {
             return false;
           }
 

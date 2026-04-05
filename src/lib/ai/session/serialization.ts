@@ -1,11 +1,36 @@
 import type {
   AppUIMessage,
   Chat,
+  FilePart,
   Message,
   MessageMetadata,
   MessagePart,
 } from "@/lib/ai/chat-types";
 import type { PersistedChatMessage, PersistedChatSession } from "./server-session-repository";
+
+const IMAGE_HISTORY_PLACEHOLDER = "[Image attachment omitted from saved history]";
+
+function isPersistedImagePart(part: MessagePart): part is FilePart {
+  return part.type === "file" && part.mediaType.startsWith("image/");
+}
+
+export function sanitizeMessageForPersistence(message: AppUIMessage): AppUIMessage {
+  const parts = (message.parts ?? []) as MessagePart[];
+  if (!parts.some(isPersistedImagePart)) {
+    return message;
+  }
+
+  const sanitizedParts = parts.filter((part) => !isPersistedImagePart(part));
+  const nextParts =
+    sanitizedParts.length > 0
+      ? sanitizedParts
+      : ([{ type: "text", text: IMAGE_HISTORY_PLACEHOLDER }] satisfies MessagePart[]);
+
+  return {
+    ...message,
+    parts: nextParts as AppUIMessage["parts"],
+  };
+}
 
 export type ChatSessionDTO = {
   chatId: string;
@@ -26,7 +51,7 @@ export type ChatMessageDTO = {
 };
 
 export function serializeMessageParts(message: AppUIMessage): string {
-  return JSON.stringify(message.parts ?? []);
+  return JSON.stringify(sanitizeMessageForPersistence(message).parts ?? []);
 }
 
 export function serializeMessageMetadata(message: AppUIMessage): string | null {

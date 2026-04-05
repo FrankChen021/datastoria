@@ -2,10 +2,11 @@
 
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
+import { useModelConfig } from "@/hooks/use-model-config";
 import type { CommandDetail } from "@/lib/ai/commands/command-manager";
 import { cn } from "@/lib/utils";
 import type { LanguageModelUsage } from "ai";
-import { MessageSquarePlus, Send, Square } from "lucide-react";
+import { ImagePlus, MessageSquarePlus, Send, Square, X } from "lucide-react";
 import * as React from "react";
 import { useChatCommands } from "../command-context";
 import { ChatTokenStatus } from "../message/chat-token-status";
@@ -27,9 +28,18 @@ const EDITOR_MIN_HEIGHT = 80;
 // Subtract the container's 1px top + 1px bottom border from total min height.
 const CHAT_INPUT_CONTENT_MIN_HEIGHT = MIN_CHAT_INPUT_HEIGHT - 2;
 const RESIZE_DRAG_THRESHOLD = 2;
+const MAX_IMAGE_ATTACHMENTS = 4;
+const MAX_IMAGE_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+
+export type ChatInputImageAttachment = {
+  id: string;
+  mediaType: string;
+  url: string;
+  filename: string;
+};
 
 interface ChatInputProps {
-  onSubmit: (text: string) => void;
+  onSubmit: (payload: { text: string; files: ChatInputImageAttachment[] }) => void;
   onStop?: () => void;
   isRunning: boolean;
   hasMessages?: boolean;
@@ -324,6 +334,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
   ) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const editorRef = React.useRef<HTMLDivElement>(null);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
     const suggestionRef = React.useRef<ChatInputSuggestionsType>(null);
     const commandRef = React.useRef<ChatInputCommandsType>(null);
     const dragStateRef = React.useRef<{
@@ -336,6 +347,8 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const pendingSelectionOffsetRef = React.useRef<number | null>(null);
     const cursorOffsetRef = React.useRef(0);
     const [input, setInput] = React.useState("");
+    const [attachments, setAttachments] = React.useState<ChatInputImageAttachment[]>([]);
+    const [attachmentError, setAttachmentError] = React.useState<string | null>(null);
     const [resizedHeight, setResizedHeight] = React.useState<number | null>(null);
     const [isDraggingResizeHandle, setIsDraggingResizeHandle] = React.useState(false);
     const prevExternalInputRef = React.useRef<string | undefined>(undefined);
@@ -345,6 +358,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     const { connection } = useConnection();
     const { commands, commandsByName } = useChatCommands();
+    const { availableModels, selectedModel } = useModelConfig();
     const isResizable = resizedHeight !== null;
     const leadingCommand = React.useMemo(() => getLeadingCommand(input), [input]);
     const selectedCommand = React.useMemo(
@@ -354,6 +368,99 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const renderSegments = React.useMemo(
       () => buildRenderSegments(input, selectedCommand),
       [input, selectedCommand]
+    );
+    const selectedModelDefinition = React.useMemo(
+      () =>
+        selectedModel == null
+          ? undefined
+          : availableModels.find(
+              (model) =>
+                model.provider === selectedModel.provider && model.modelId === selectedModel.modelId
+            ),
+      [availableModels, selectedModel]
+    );
+    const selectedModelSupportsImages =
+      selectedModel == null ||
+      (selectedModel.provider === "System" && selectedModel.modelId === "Auto") ||
+      selectedModelDefinition?.supportsImageInput === true;
+    const canSubmit = input.trim().length > 0 || attachments.length > 0;
+
+    const resetFileInput = React.useCallback(() => {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }, []);
+
+    const readFileAsDataUrl = React.useCallback((file: File) => {
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") {
+            resolve(reader.result);
+            return;
+          }
+          reject(new Error(`Failed to read file ${file.name}`));
+        };
+        reader.onerror = () =>
+          reject(reader.error ?? new Error(`Failed to read file ${file.name}`));
+        reader.readAsDataURL(file);
+      });
+    }, []);
+
+    const convertFilesToAttachments = React.useCallback(
+      async (incomingFiles: File[]) => {
+        if (incomingFiles.length === 0) {
+          return [] as ChatInputImageAttachment[];
+        }
+
+        const imageFiles = incomingFiles.filter((file) => file.type.startsWith("image/"));
+        if (imageFiles.length === 0) {
+          throw new Error("Only image attachments are supported.");
+        }
+
+        const availableSlots = Math.max(MAX_IMAGE_ATTACHMENTS - attachments.length, 0);
+        if (availableSlots === 0) {
+          throw new Error(`You can attach up to ${MAX_IMAGE_ATTACHMENTS} images per message.`);
+        }
+
+        const nextFiles = imageFiles.slice(0, availableSlots);
+        for (const file of nextFiles) {
+          if (file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
+            throw new Error(`${file.name} exceeds the 5 MB image limit.`);
+          }
+        }
+
+        return Promise.all(
+          nextFiles.map(async (file) => ({
+            id: crypto.randomUUID(),
+            mediaType: file.type,
+            url: await readFileAsDataUrl(file),
+            filename: file.name || "image",
+          }))
+        );
+      },
+      [attachments.length, readFileAsDataUrl]
+    );
+
+    const appendFiles = React.useCallback(
+      async (incomingFiles: File[]) => {
+        try {
+          if (!selectedModelSupportsImages) {
+            throw new Error("Select a vision-capable model before adding images.");
+          }
+          const nextAttachments = await convertFilesToAttachments(incomingFiles);
+          if (nextAttachments.length === 0) {
+            return;
+          }
+          setAttachments((current) => [...current, ...nextAttachments]);
+          setAttachmentError(null);
+        } catch (error) {
+          setAttachmentError(error instanceof Error ? error.message : "Failed to add images.");
+        } finally {
+          resetFileInput();
+        }
+      },
+      [convertFilesToAttachments, resetFileInput, selectedModelSupportsImages]
     );
 
     const applyContainerHeight = React.useCallback((height: number | null) => {
@@ -611,13 +718,29 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     const handleSubmit = React.useCallback(() => {
       const message = input.trim();
-      if (!message) return;
+      if (!message && attachments.length === 0) return;
 
-      onSubmit(message);
+      onSubmit({ text: message, files: attachments });
       pendingSelectionOffsetRef.current = 0;
       setInput("");
+      setAttachments([]);
+      setAttachmentError(null);
       updateSuggestions("", 0);
-    }, [input, onSubmit, updateSuggestions]);
+      resetFileInput();
+    }, [attachments, input, onSubmit, resetFileInput, updateSuggestions]);
+
+    const handleRemoveAttachment = React.useCallback((attachmentId: string) => {
+      setAttachments((current) => current.filter((attachment) => attachment.id !== attachmentId));
+      setAttachmentError(null);
+    }, []);
+
+    const handleFileInputChange = React.useCallback(
+      async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files ?? []);
+        await appendFiles(files);
+      },
+      [appendFiles]
+    );
 
     const handleResizeStart = React.useCallback(
       (e: React.MouseEvent<HTMLDivElement>) => {
@@ -770,6 +893,19 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       [handleSubmit, input, removeTokenAtCaret, setInputAndSelection]
     );
 
+    const handlePaste = React.useCallback(
+      async (event: React.ClipboardEvent<HTMLDivElement>) => {
+        const files = Array.from(event.clipboardData.files ?? []);
+        if (files.length === 0) {
+          return;
+        }
+
+        event.preventDefault();
+        await appendFiles(files);
+      },
+      [appendFiles]
+    );
+
     React.useImperativeHandle(
       ref,
       () => ({
@@ -823,40 +959,95 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
               }
             />
 
-            <div className="relative flex-1">
-              {!input && (
-                <div className="text-muted-foreground pointer-events-none absolute left-3 right-10 top-3 text-sm">
-                  Press Enter for new line,{" "}
-                  {typeof navigator !== "undefined" && navigator.platform.includes("Mac")
-                    ? "Cmd"
-                    : "Ctrl"}{" "}
-                  + Enter to send. Use @ to mention tables, / for commands.
-                </div>
-              )}
-
-              <div
-                ref={editorRef}
-                role="textbox"
-                aria-multiline="true"
-                aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables, / for commands."
-                contentEditable={!isRunning}
-                suppressContentEditableWarning
-                className={cn(
-                  "w-full bg-transparent py-3 pl-3 pr-10 text-sm outline-none overflow-y-auto whitespace-pre-wrap break-words",
-                  isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px] max-h-[200px]"
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="relative flex min-h-full flex-col">
+                {!input && attachments.length === 0 && (
+                  <div className="text-muted-foreground pointer-events-none absolute left-3 right-10 top-3 text-sm">
+                    Press Enter for new line,{" "}
+                    {typeof navigator !== "undefined" && navigator.platform.includes("Mac")
+                      ? "Cmd"
+                      : "Ctrl"}{" "}
+                    + Enter to send. Use @ to mention tables, / for commands.
+                  </div>
                 )}
-                style={isResizable ? { minHeight: `${EDITOR_MIN_HEIGHT}px` } : undefined}
-                onInput={handleEditorInput}
-                onKeyDown={handleKeyDown}
-                onKeyUp={handleEditorKeyUp}
-                onMouseUp={syncSelectionState}
-                onFocus={syncSelectionState}
-              ></div>
+
+                <div
+                  ref={editorRef}
+                  role="textbox"
+                  aria-multiline="true"
+                  aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables, / for commands."
+                  contentEditable={!isRunning}
+                  suppressContentEditableWarning
+                  className={cn(
+                    "w-full bg-transparent py-3 pl-3 pr-10 text-sm outline-none whitespace-pre-wrap break-words",
+                    isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px]"
+                  )}
+                  style={isResizable ? { minHeight: `${EDITOR_MIN_HEIGHT}px` } : undefined}
+                  onInput={handleEditorInput}
+                  onKeyDown={handleKeyDown}
+                  onKeyUp={handleEditorKeyUp}
+                  onMouseUp={syncSelectionState}
+                  onFocus={syncSelectionState}
+                  onPaste={handlePaste}
+                ></div>
+
+                {attachments.length > 0 && (
+                  <div className="flex shrink-0 gap-2 overflow-x-auto px-3 pb-2">
+                    {attachments.map((attachment) => (
+                      <div
+                        key={attachment.id}
+                        className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md border bg-background"
+                      >
+                        <img
+                          src={attachment.url}
+                          alt={attachment.filename}
+                          className="h-full w-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-foreground shadow-sm"
+                          aria-label={`Remove ${attachment.filename}`}
+                          onClick={() => handleRemoveAttachment(attachment.id)}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {attachmentError && (
+                  <div className="px-3 pb-2 text-[11px] text-destructive">{attachmentError}</div>
+                )}
+              </div>
             </div>
 
             <div className="mt-[-4px] flex shrink-0 items-center justify-between px-2 pb-2">
               <div className="flex items-center gap-1">
                 <ModelSelector className="bg-muted" />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileInputChange}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 gap-1 px-2 text-xs"
+                  title={
+                    selectedModelSupportsImages
+                      ? "Add images"
+                      : "Select a vision-capable model to add images"
+                  }
+                  disabled={isRunning || !selectedModelSupportsImages}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <ImagePlus className="h-3 w-3" />
+                  Image
+                </Button>
                 {hasMessages && (
                   <>
                     {onNewChat && (
@@ -888,7 +1079,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
               ) : (
                 <Button
                   onClick={handleSubmit}
-                  disabled={!input.trim()}
+                  disabled={!canSubmit}
                   size="icon"
                   className="h-6 w-6 rounded-md shadow-sm"
                   title={`Send (${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"}+Enter)`}

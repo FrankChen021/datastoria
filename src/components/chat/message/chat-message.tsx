@@ -1,6 +1,6 @@
 import { AppLogo } from "@/components/app-logo";
 import { UserProfileImage } from "@/components/user-profile-image";
-import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
+import type { AppUIMessage, FilePart, ToolPart } from "@/lib/ai/chat-types";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { DateTimeExtension } from "@/lib/datetime-utils";
@@ -28,6 +28,36 @@ import { MessageToolValidateSql } from "./message-tool-validate-sql";
 import { MessageUser } from "./message-user";
 
 const MESSAGE_MARKDOWN_STYLE = { fontSize: "0.9rem", lineHeight: "1.6" } as const;
+
+const MessageFilePart = memo(function MessageFilePart({ part }: { part: FilePart }) {
+  const isImage = part.mediaType.startsWith("image/");
+
+  if (isImage) {
+    return (
+      <div className="mt-2 max-w-sm overflow-hidden rounded-lg border bg-background">
+        <img
+          src={part.url}
+          alt={part.filename ?? "Uploaded image"}
+          className="max-h-80 w-full object-cover"
+        />
+        {part.filename ? (
+          <div className="border-t px-3 py-2 text-xs text-muted-foreground">{part.filename}</div>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={part.url}
+      target="_blank"
+      rel="noreferrer"
+      className="mt-2 inline-flex rounded-md border bg-background px-3 py-2 text-xs text-foreground underline-offset-2 hover:underline"
+    >
+      {part.filename ?? "Attached file"}
+    </a>
+  );
+});
 
 /**
  * Display token usage information per message.
@@ -125,6 +155,9 @@ const ChatMessagePart = memo(
         />
       );
     }
+    if (part.type === "file") {
+      return <MessageFilePart part={part as FilePart} />;
+    }
     if (part.type === "reasoning") {
       return <MessageReasoning part={part} />;
     }
@@ -189,6 +222,13 @@ const ChatMessagePart = memo(
     if (prevProps.part.type === "text" && nextProps.part.type === "text") {
       return (
         (prevProps.part as { text: string }).text === (nextProps.part as { text: string }).text
+      );
+    }
+    if (prevProps.part.type === "file" && nextProps.part.type === "file") {
+      return (
+        (prevProps.part as FilePart).url === (nextProps.part as FilePart).url &&
+        (prevProps.part as FilePart).filename === (nextProps.part as FilePart).filename &&
+        (prevProps.part as FilePart).mediaType === (nextProps.part as FilePart).mediaType
       );
     }
     if (prevProps.part.type === "reasoning" && nextProps.part.type === "reasoning") {

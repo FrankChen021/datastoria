@@ -9,6 +9,7 @@ import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store"
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { BasePath } from "@/lib/base-path";
 import { Connection, type QueryResponse } from "@/lib/connection/connection";
+import { sanitizeMessageForPersistence } from "@/lib/ai/session/serialization";
 import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { v7 as uuidv7 } from "uuid";
@@ -339,7 +340,7 @@ export class ChatFactory {
               id: msg.id,
               chatId: sessionId,
               role: msg.role,
-              parts: msg.parts ?? [],
+              parts: sanitizeMessageForPersistence(msg).parts ?? [],
               metadata: msg.metadata,
               createdAt,
               updatedAt,

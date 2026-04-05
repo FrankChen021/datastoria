@@ -10,6 +10,7 @@ import { CommandManager } from "@/lib/ai/commands/command-manager";
 import {
   LanguageModelProviderFactory,
   resolveModelConfig,
+  supportsImageInput,
 } from "@/lib/ai/llm/llm-provider-factory";
 import { MessagePruner } from "@/lib/ai/message-pruner";
 import {
@@ -17,7 +18,10 @@ import {
   replaceOrAppendMessageById,
   validateRemoteChatRequest,
 } from "@/lib/ai/session/remote-chat-request";
-import { persistedMessageToAppUIMessage } from "@/lib/ai/session/serialization";
+import {
+  persistedMessageToAppUIMessage,
+  sanitizeMessageForPersistence,
+} from "@/lib/ai/session/serialization";
 import {
   getServerSessionRepository,
   getSessionRepositoryType,
@@ -54,6 +58,17 @@ interface ChatV2Request {
 }
 
 const TITLE_WAIT_MS = 3000;
+
+function messageHasImageParts(message: UIMessage): boolean {
+  return (message.parts ?? []).some((part) => {
+    const candidate = part as { type?: string; mediaType?: string };
+    return candidate.type === "file" && candidate.mediaType?.startsWith("image/");
+  });
+}
+
+function messagesHaveImageParts(messages: UIMessage[]): boolean {
+  return messages.some(messageHasImageParts);
+}
 
 function getMessageIdFromMessages(messages: UIMessage[]): string {
   const isContinuation =
@@ -267,7 +282,9 @@ export async function POST(req: Request) {
       }
 
       try {
-        modelConfig = resolveModelConfig(apiRequest.model);
+        modelConfig = resolveModelConfig(apiRequest.model, {
+          imageInput: messageHasImageParts(apiRequest.message as UIMessage),
+        });
       } catch (error) {
         return new Response(error instanceof Error ? error.message : "Unknown error", {
           status: 500,
@@ -282,8 +299,8 @@ export async function POST(req: Request) {
         const incomingMessage = apiRequest.message as AppUIMessage;
         const persistedIncomingMessage =
           incomingMessage.role === "assistant"
-            ? withModelMetadata(incomingMessage, modelConfig)
-            : incomingMessage;
+            ? withModelMetadata(sanitizeMessageForPersistence(incomingMessage), modelConfig)
+            : sanitizeMessageForPersistence(incomingMessage);
         await sessionRepository!.upsertMessage({
           session_id: apiRequest.sessionId,
           user_id: sessionRepositoryUserId,
@@ -340,8 +357,8 @@ export async function POST(req: Request) {
         const incomingMessage = apiRequest.message as AppUIMessage;
         const persistedIncomingMessage =
           incomingMessage.role === "assistant"
-            ? withModelMetadata(incomingMessage, modelConfig)
-            : incomingMessage;
+            ? withModelMetadata(sanitizeMessageForPersistence(incomingMessage), modelConfig)
+            : sanitizeMessageForPersistence(incomingMessage);
         const mergedMessages = replaceOrAppendMessageById(
           persistedMessages,
           persistedIncomingMessage
@@ -376,21 +393,29 @@ export async function POST(req: Request) {
         });
       }
 
+      agentContext = apiRequest.agentContext;
+      generateTitle = apiRequest.generateTitle !== false;
+      originalMessages = expandCommand(apiRequest.messages ?? [], commandManager);
+      messageId = getMessageIdFromMessages(apiRequest.messages);
       try {
-        modelConfig = resolveModelConfig(apiRequest.model);
+        modelConfig = resolveModelConfig(apiRequest.model, {
+          imageInput: messagesHaveImageParts(originalMessages),
+        });
       } catch (error) {
         return new Response(error instanceof Error ? error.message : "Unknown error", {
           status: 500,
         });
       }
-
-      agentContext = apiRequest.agentContext;
-      generateTitle = apiRequest.generateTitle !== false;
-      originalMessages = expandCommand(apiRequest.messages ?? [], commandManager);
-      messageId = getMessageIdFromMessages(apiRequest.messages);
       titlePromise = generateTitle
         ? SessionTitleGenerator.generate(originalMessages, modelConfig)
         : undefined;
+    }
+
+    if (messagesHaveImageParts(originalMessages) && !supportsImageInput(modelConfig)) {
+      return new Response(
+        `Selected model ${modelConfig.provider} | ${modelConfig.modelId} does not support image input.`,
+        { status: 400 }
+      );
     }
 
     const model = LanguageModelProviderFactory.createModel(

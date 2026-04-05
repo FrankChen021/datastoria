@@ -12,7 +12,11 @@ import { ChatActionProvider, type UserActionInput } from "../chat-action-context
 import { ChatContext, getDatabaseContextFromConnection } from "../chat-context";
 import { ChatFactory } from "../chat-factory";
 import { ChatCommandProvider } from "../command-context";
-import { ChatInput, type ChatInputHandle } from "../input/chat-input";
+import {
+  ChatInput,
+  type ChatInputHandle,
+  type ChatInputImageAttachment,
+} from "../input/chat-input";
 import { getTableContextByMentions } from "../input/mention-utils";
 import { ChatMessageList } from "../message/chat-message-list";
 import { useTokenUsage } from "./use-token-usage";
@@ -119,8 +123,8 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   }, [status, onStreamingChange]);
 
   const handleSubmit = useCallback(
-    async (text: string) => {
-      if (!chat || !text.trim()) return;
+    async ({ text, files = [] }: { text: string; files?: ChatInputImageAttachment[] }) => {
+      if (!chat || (!text.trim() && files.length === 0)) return;
 
       // Enrich context with mentioned tables
       const mentionedTables = getTableContextByMentions(text, connection!);
@@ -137,7 +141,15 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
       sendMessage({
         id: messageId,
         role: "user",
-        parts: [{ type: "text", text }],
+        parts: [
+          ...(text.trim().length > 0 ? [{ type: "text" as const, text }] : []),
+          ...files.map((file) => ({
+            type: "file" as const,
+            mediaType: file.mediaType,
+            url: file.url,
+            filename: file.filename,
+          })),
+        ],
         metadata: {
           createdAt,
         },
@@ -151,7 +163,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     ref,
     () => ({
       send: async (text: string) => {
-        await handleSubmit(text);
+        await handleSubmit({ text });
       },
       getInput: () => {
         return chatInputRef.current?.getInput() || "";
@@ -173,7 +185,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     (question: { text: string; autoRun?: boolean }) => {
       if (question.autoRun) {
         // Auto-run: send the message immediately
-        handleSubmit(question.text);
+        handleSubmit({ text: question.text });
       } else {
         // Default: set the input for user to review/edit
         setPromptInput(question.text);
@@ -185,7 +197,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   const handleUserAction = useCallback(
     (input: UserActionInput) => {
       if (input.autoRun) {
-        handleSubmit(input.text);
+        handleSubmit({ text: input.text });
         return;
       }
       setPromptInput(input.text);

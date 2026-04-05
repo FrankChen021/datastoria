@@ -45,8 +45,19 @@ vi.mock("./model-selector", () => ({
   ModelSelector: () => <div>model-selector</div>,
 }));
 
+vi.mock("@/hooks/use-model-config", () => ({
+  useModelConfig: () => ({
+    availableModels: [],
+    selectedModel: { provider: "System", modelId: "Auto" },
+  }),
+}));
+
 vi.mock("../message/chat-token-status", () => ({
   ChatTokenStatus: () => <div>token-status</div>,
+}));
+
+vi.mock("@number-flow/react", () => ({
+  default: () => null,
 }));
 
 describe("ChatInput resize", () => {
