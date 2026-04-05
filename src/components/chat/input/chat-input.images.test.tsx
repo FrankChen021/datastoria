@@ -111,18 +111,14 @@ describe("ChatInput images", () => {
       root.render(<ChatInput onSubmit={onSubmit} isRunning={false} />);
     });
 
-    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement;
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     const sendButton = container.querySelector('button[title^="Send"]') as HTMLButtonElement;
     const imageFile = new File(["stub"], "chart.png", { type: "image/png" });
-    const valueSetter = Object.getOwnPropertyDescriptor(
-      HTMLTextAreaElement.prototype,
-      "value"
-    )?.set;
 
     await act(async () => {
-      valueSetter?.call(textarea, "Explain this chart");
-      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      editor.textContent = "Explain this chart";
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
     Object.defineProperty(fileInput, "files", {
