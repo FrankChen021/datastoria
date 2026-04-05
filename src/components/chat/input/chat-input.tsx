@@ -88,12 +88,12 @@ function createTokenNodeSegment(
   label.className = "max-w-[240px] truncate font-medium";
   label.textContent = segment.label;
 
-  const remove = documentRef.createElement("span");
-  remove.setAttribute("role", "button");
+  const remove = documentRef.createElement("button");
+  remove.setAttribute("type", "button");
   remove.setAttribute("tabindex", "-1");
   remove.setAttribute("aria-label", `Remove ${segment.kind} ${segment.label}`);
   remove.className =
-    "inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-sm text-current/70 hover:bg-black/5 hover:text-current dark:hover:bg-white/10";
+    "inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-sm border-0 bg-transparent p-0 text-current/70 hover:bg-black/5 hover:text-current dark:hover:bg-white/10";
   remove.textContent = "×";
   remove.addEventListener("mousedown", (event) => event.preventDefault());
   remove.addEventListener("click", onRemove);
@@ -810,7 +810,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
               suggestions={tableSuggestions}
               onSelect={handleSelectTable}
               onInteractOutside={(target) =>
-                target instanceof Node ? !!editorRef.current?.contains(target) : false
+                target instanceof Node ? !editorRef.current?.contains(target) : false
               }
             />
 
@@ -819,7 +819,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
               commands={commands}
               onSelect={handleSelectCommand}
               onInteractOutside={(target) =>
-                target instanceof Node ? !!editorRef.current?.contains(target) : false
+                target instanceof Node ? !editorRef.current?.contains(target) : false
               }
             />
 
