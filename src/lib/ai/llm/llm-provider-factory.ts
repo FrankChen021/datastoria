@@ -122,6 +122,7 @@ export const MODELS: ModelProps[] = [
     modelId: "gpt-5",
     free: false,
     autoSelectable: false,
+    supportsImageInput: true,
     description: "Next-generation frontier model from OpenAI.",
     source: "user",
   },
@@ -130,6 +131,7 @@ export const MODELS: ModelProps[] = [
     modelId: "gpt-5.2",
     free: false,
     autoSelectable: false,
+    supportsImageInput: true,
     description: "Enhanced version of GPT-5 with improved reasoning capabilities.",
     source: "user",
   },
@@ -137,6 +139,7 @@ export const MODELS: ModelProps[] = [
     provider: "OpenAI",
     modelId: "gpt-4.1",
     free: false,
+    supportsImageInput: true,
     description: "Updated GPT-4 model with improved performance and accuracy.",
     source: "user",
   },
@@ -144,6 +147,7 @@ export const MODELS: ModelProps[] = [
     provider: "OpenAI",
     modelId: "gpt-4o",
     free: false,
+    supportsImageInput: true,
     description: "Omni model from OpenAI, designed for speed and multimodal interaction.",
     source: "user",
   },
@@ -151,6 +155,7 @@ export const MODELS: ModelProps[] = [
     provider: "OpenAI",
     modelId: "gpt-4o-mini",
     free: false,
+    supportsImageInput: true,
     description: "Lighter version of GPT-4o for faster, cost-effective tasks.",
     source: "user",
   },
@@ -158,6 +163,7 @@ export const MODELS: ModelProps[] = [
     provider: "OpenAI",
     modelId: "gpt-4",
     free: false,
+    supportsImageInput: false,
     description: "Robust high-capability model for complex reasoning and tasks.",
     source: "user",
   },
@@ -165,6 +171,7 @@ export const MODELS: ModelProps[] = [
     provider: "OpenAI",
     modelId: "o1",
     free: false,
+    supportsImageInput: true,
     description: "OpenAI's latest reasoning model, optimized for chain-of-thought.",
     source: "user",
   },
@@ -172,6 +179,7 @@ export const MODELS: ModelProps[] = [
     provider: "OpenAI",
     modelId: "o3-mini",
     free: false,
+    supportsImageInput: false,
     description: "Optimized version of OpenAI's reasoning models for fast responses.",
     source: "user",
   },
@@ -183,6 +191,7 @@ export const MODELS: ModelProps[] = [
     modelId: "gemini-3-pro-preview",
     free: false,
     autoSelectable: false,
+    supportsImageInput: true,
     description: "Google's most capable model for complex tasks and multimodal inputs.",
     source: "user",
   },
@@ -191,6 +200,7 @@ export const MODELS: ModelProps[] = [
     modelId: "gemini-3-flash-preview",
     free: false,
     autoSelectable: false,
+    supportsImageInput: true,
     description: "Fast and efficient model from Google for rapid interactions.",
     source: "user",
   },
@@ -198,6 +208,7 @@ export const MODELS: ModelProps[] = [
     provider: "Google",
     modelId: "gemini-2.5-flash",
     free: false,
+    supportsImageInput: true,
     description: "Google's flash model optimized for speed and large context windows.",
     source: "user",
   },
@@ -205,6 +216,7 @@ export const MODELS: ModelProps[] = [
     provider: "Google",
     modelId: "gemini-2.5-pro",
     free: false,
+    supportsImageInput: true,
     description: "Google's pro model with high intelligence and broad knowledge.",
     source: "user",
   },
@@ -212,6 +224,7 @@ export const MODELS: ModelProps[] = [
     provider: "Google",
     modelId: "gemini-2.0-flash",
     free: false,
+    supportsImageInput: true,
     description: "Legacy flash model from Google, efficient for simple tasks.",
     source: "user",
   },
@@ -223,6 +236,7 @@ export const MODELS: ModelProps[] = [
     modelId: "claude-opus-4-6",
     free: false,
     autoSelectable: false,
+    supportsImageInput: true,
     description: "Anthropic's most intelligent model for building agents and coding.",
     source: "user",
   },
@@ -230,6 +244,7 @@ export const MODELS: ModelProps[] = [
     provider: "Anthropic",
     modelId: "claude-opus-4-5",
     free: false,
+    supportsImageInput: true,
     description: "Anthropic's most powerful model for highly complex analysis.",
     source: "user",
   },
@@ -238,6 +253,7 @@ export const MODELS: ModelProps[] = [
     modelId: "claude-sonnet-4-5",
     free: false,
     autoSelectable: false,
+    supportsImageInput: true,
     description: "Anthropic's best combination of speed and intelligence.",
     source: "user",
   },
@@ -245,6 +261,7 @@ export const MODELS: ModelProps[] = [
     provider: "Anthropic",
     modelId: "claude-haiku-4-5",
     free: false,
+    supportsImageInput: true,
     description: "Anthropic's fastest model with near-frontier intelligence.",
     source: "user",
   },
@@ -254,6 +271,7 @@ export const MODELS: ModelProps[] = [
     provider: "OpenRouter",
     modelId: "x-ai/grok-code-fast-1",
     free: false,
+    supportsImageInput: false,
     description: "Grok code model optimized for fast and accurate code generation.",
     source: "user",
   },
@@ -262,6 +280,7 @@ export const MODELS: ModelProps[] = [
     modelId: "qwen/qwen3-coder:free",
     free: true,
     autoSelectable: true,
+    supportsImageInput: false,
     description: "Qwen 3 coder model, highly capable at writing and explaining SQL.",
     source: "user",
   },
@@ -270,6 +289,7 @@ export const MODELS: ModelProps[] = [
     modelId: "openai/gpt-oss-20b:free",
     free: true,
     autoSelectable: true,
+    supportsImageInput: false,
     description: "Open-source GPT model with large parameter count for general tasks.",
     source: "user",
   },
@@ -278,6 +298,7 @@ export const MODELS: ModelProps[] = [
     modelId: "openai/gpt-oss-120b:free",
     free: true,
     autoSelectable: true,
+    supportsImageInput: false,
     description: "Open-source GPT model with large parameter count for general tasks.",
     source: "user",
   },
@@ -289,6 +310,7 @@ export const MODELS: ModelProps[] = [
     modelId: "openai/gpt-oss-20b",
     free: false,
     autoSelectable: true,
+    supportsImageInput: false,
     description: "Fast-inference open-source model running on Groq hardware.",
     source: "user",
   },
@@ -299,6 +321,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     disabled: true,
     autoSelectable: false,
+    supportsImageInput: false,
     description: "High-performance Qwen 3 model, currently disabled due to tool call issues.",
     source: "user",
   },
@@ -310,6 +333,7 @@ export const MODELS: ModelProps[] = [
     modelId: "gpt-oss-120b",
     free: false,
     autoSelectable: true,
+    supportsImageInput: false,
     description: "Cerebras's latest model with extreme intelligence and reliability.",
     source: "user",
   },
@@ -321,6 +345,7 @@ export const MODELS: ModelProps[] = [
     modelId: "deepseek-ai/DeepSeek-V3-0324",
     free: false,
     autoSelectable: true,
+    supportsImageInput: false,
     description: "DeepSeek V3, powerful open-source model with strong reasoning.",
     source: "user",
   },
@@ -329,6 +354,7 @@ export const MODELS: ModelProps[] = [
     modelId: "deepseek-ai/DeepSeek-R1-0528",
     free: false,
     autoSelectable: true,
+    supportsImageInput: false,
     description: "DeepSeek R1, advanced reasoning model with chain-of-thought.",
     source: "user",
   },
@@ -337,6 +363,7 @@ export const MODELS: ModelProps[] = [
     modelId: "Qwen/Qwen3-235B-A22B",
     free: false,
     autoSelectable: true,
+    supportsImageInput: false,
     description: "Qwen 3 235B, largest Qwen model for complex tasks.",
     source: "user",
   },
@@ -345,6 +372,7 @@ export const MODELS: ModelProps[] = [
     modelId: "Qwen/Qwen3-Next-80B-A3B-Thinking",
     free: false,
     autoSelectable: true,
+    supportsImageInput: false,
     description: "Qwen3-Next-80B-A3B-Thinking, efficient reasoning model.",
     source: "user",
   },
@@ -353,6 +381,7 @@ export const MODELS: ModelProps[] = [
     modelId: "zai-org/GLM-4.7-FP8",
     free: false,
     autoSelectable: true,
+    supportsImageInput: true,
     description:
       "Flagship GLM model with strong multilingual reasoning, long context, and robust tool use.",
     source: "user",
@@ -362,6 +391,7 @@ export const MODELS: ModelProps[] = [
     modelId: "moonshotai/Kimi-K2.5",
     free: false,
     autoSelectable: true,
+    supportsImageInput: true,
     description: "Kimi-K2.5, 15 trillion mixed visual and text tokens atop Kimi-K2-Base",
     source: "user",
   },
@@ -370,6 +400,7 @@ export const MODELS: ModelProps[] = [
     modelId: "openai/gpt-oss-120b",
     free: false,
     autoSelectable: true,
+    supportsImageInput: false,
     description: "GPT-OSS 120B, open-source GPT model with strong general capabilities.",
     source: "user",
   },
@@ -392,69 +423,6 @@ export const SYSTEM_MODELS: ModelProps[] = MODELS.filter((model) =>
 }));
 
 const MODELS_WITHOUT_STRUCTURED_OUTPUTS = new Set<string>([`${PROVIDER_GITHUB_COPILOT}:gpt-4o`]);
-
-export function supportsImageInput(
-  model?: Pick<ModelProps, "provider" | "modelId"> | null
-): boolean {
-  if (!model?.provider || !model.modelId) {
-    return false;
-  }
-
-  const configuredModel = MODELS.find(
-    (candidate) => candidate.provider === model.provider && candidate.modelId === model.modelId
-  );
-  if (typeof configuredModel?.supportsImageInput === "boolean") {
-    return configuredModel.supportsImageInput;
-  }
-
-  const normalizedProvider = model.provider.toLowerCase();
-  const normalizedModelId = model.modelId.toLowerCase();
-
-  if (normalizedProvider === "google" || normalizedProvider === "anthropic") {
-    return true;
-  }
-
-  if (
-    normalizedProvider === "openai" &&
-    (normalizedModelId.startsWith("gpt-4o") ||
-      normalizedModelId.startsWith("gpt-4.1") ||
-      normalizedModelId.startsWith("gpt-5") ||
-      normalizedModelId.startsWith("o1"))
-  ) {
-    return true;
-  }
-
-  if (
-    normalizedProvider === PROVIDER_GITHUB_COPILOT.toLowerCase() &&
-    (normalizedModelId.includes("gpt-4o") ||
-      normalizedModelId.includes("gpt-4.1") ||
-      normalizedModelId.includes("gpt-5") ||
-      normalizedModelId.includes("claude") ||
-      normalizedModelId.includes("gemini"))
-  ) {
-    return true;
-  }
-
-  if (
-    normalizedProvider === "openrouter" &&
-    (normalizedModelId.includes("gpt-4o") ||
-      normalizedModelId.includes("gpt-4.1") ||
-      normalizedModelId.includes("gpt-5") ||
-      normalizedModelId.includes("claude") ||
-      normalizedModelId.includes("gemini"))
-  ) {
-    return true;
-  }
-
-  if (
-    normalizedProvider === PROVIDER_NEBIUS.toLowerCase() &&
-    (normalizedModelId.includes("kimi") || normalizedModelId.includes("glm-4.7"))
-  ) {
-    return true;
-  }
-
-  return false;
-}
 
 export function getAvailableSystemModels(): ModelProps[] {
   return SYSTEM_MODELS.filter(
@@ -553,7 +521,7 @@ export class LanguageModelProviderFactory {
             return false;
           }
 
-          if (requirements?.imageInput && !supportsImageInput(model)) {
+          if (requirements?.imageInput && model.supportsImageInput !== true) {
             return false;
           }
 

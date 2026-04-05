@@ -55,7 +55,7 @@ vi.mock("@number-flow/react", () => ({
 
 vi.mock("@/hooks/use-model-config", () => ({
   useModelConfig: () => ({
-    availableModels: [{ provider: "OpenAI", modelId: "gpt-4o" }],
+    availableModels: [{ provider: "OpenAI", modelId: "gpt-4o", supportsImageInput: true }],
     selectedModel: { provider: "OpenAI", modelId: "gpt-4o" },
   }),
 }));

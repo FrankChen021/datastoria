@@ -9,8 +9,9 @@ import type { AgentContext, AppUIMessage, MessageMetadata } from "@/lib/ai/chat-
 import { CommandManager } from "@/lib/ai/commands/command-manager";
 import {
   LanguageModelProviderFactory,
+  MODELS,
   resolveModelConfig,
-  supportsImageInput,
+  SYSTEM_MODELS,
 } from "@/lib/ai/llm/llm-provider-factory";
 import { MessagePruner } from "@/lib/ai/message-pruner";
 import {
@@ -68,6 +69,17 @@ function messageHasImageParts(message: UIMessage): boolean {
 
 function messagesHaveImageParts(messages: UIMessage[]): boolean {
   return messages.some(messageHasImageParts);
+}
+
+function modelSupportsImageInput(model: { provider: string; modelId: string }): boolean {
+  const configuredModel =
+    SYSTEM_MODELS.find(
+      (candidate) => candidate.provider === model.provider && candidate.modelId === model.modelId
+    ) ??
+    MODELS.find(
+      (candidate) => candidate.provider === model.provider && candidate.modelId === model.modelId
+    );
+  return configuredModel?.supportsImageInput === true;
 }
 
 function getMessageIdFromMessages(messages: UIMessage[]): string {
@@ -411,7 +423,7 @@ export async function POST(req: Request) {
         : undefined;
     }
 
-    if (messagesHaveImageParts(originalMessages) && !supportsImageInput(modelConfig)) {
+    if (messagesHaveImageParts(originalMessages) && !modelSupportsImageInput(modelConfig)) {
       return new Response(
         `Selected model ${modelConfig.provider} | ${modelConfig.modelId} does not support image input.`,
         { status: 400 }
