@@ -1020,7 +1020,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                 )}
               </div>
             </div>
-            <div className="mt-[-4px] flex shrink-0 items-center justify-between px-2 pb-2">
+            <div className="mt-[-4px] flex shrink-0 items-center justify-between px-2 pb-2 pt-2">
               <div className="flex items-center gap-1">
                 <ModelSelector className="bg-muted" />
                 <input
