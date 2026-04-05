@@ -404,7 +404,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     const { connection } = useConnection();
     const { commands, commandsByName } = useChatCommands();
-    const { availableModels, selectedModel } = useModelConfig();
+    const { selectedModel } = useModelConfig();
     const isResizable = resizedHeight !== null;
     const leadingCommand = React.useMemo(() => getLeadingCommand(input), [input]);
     const selectedCommand = React.useMemo(
@@ -415,20 +415,10 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       () => buildRenderSegments(input, selectedCommand),
       [input, selectedCommand]
     );
-    const selectedModelDefinition = React.useMemo(
-      () =>
-        selectedModel == null
-          ? undefined
-          : availableModels.find(
-              (model) =>
-                model.provider === selectedModel.provider && model.modelId === selectedModel.modelId
-            ),
-      [availableModels, selectedModel]
-    );
     const selectedModelSupportsImages =
       selectedModel == null ||
       (selectedModel.provider === "System" && selectedModel.modelId === "Auto") ||
-      selectedModelDefinition?.supportsImageInput !== false;
+      selectedModel.supportsImageInput !== false;
     const canSubmit =
       (input.trim().length > 0 || attachments.length > 0) &&
       (attachments.length === 0 || selectedModelSupportsImages);
@@ -1075,10 +1065,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             <div className="relative flex min-h-0 flex-1 flex-col">
               <div
                 ref={editorScrollRef}
-                className={cn(
-                  "min-h-0 flex-1 overflow-y-auto",
-                  isResizable ? "" : "max-h-[200px]"
-                )}
+                className={cn("min-h-0 flex-1 overflow-y-auto", isResizable ? "" : "max-h-[200px]")}
               >
                 <div className="relative flex min-h-full flex-col">
                   {!input && attachments.length === 0 && (
