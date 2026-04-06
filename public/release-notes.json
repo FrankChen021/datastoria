@@ -1,5 +1,185 @@
 [
   {
+    "id": "1f00803",
+    "date": "2026-04-06T14:26:22.320Z",
+    "notes": [
+      {
+        "text": "render slash commands as settings chips",
+        "pr": 146,
+        "type": "feature",
+        "merged_at": "2026-03-23T13:03:42Z"
+      },
+      {
+        "text": "Add ask user question chat tool",
+        "pr": 147,
+        "type": "feature",
+        "merged_at": "2026-03-23T13:21:14Z"
+      },
+      {
+        "text": "Use shared DatabaseContext for AI runtime metadata",
+        "pr": 148,
+        "type": "feature",
+        "merged_at": "2026-03-23T14:17:53Z"
+      },
+      {
+        "text": "Add auto explain feedback and continuation flow",
+        "pr": 150,
+        "type": "feature",
+        "merged_at": "2026-03-24T13:28:11Z"
+      },
+      {
+        "text": "Add database-backed skill storage and reference editing",
+        "pr": 153,
+        "type": "feature",
+        "merged_at": "2026-03-25T14:38:29Z"
+      },
+      {
+        "text": "Render execute_sql tool results in chat",
+        "pr": 155,
+        "type": "feature",
+        "merged_at": "2026-03-25T15:09:52Z"
+      },
+      {
+        "text": "Add smooth drag resize for chat input",
+        "pr": 156,
+        "type": "feature",
+        "merged_at": "2026-03-25T15:10:14Z"
+      },
+      {
+        "text": "Bump picomatch from 2.3.1 to 2.3.2 in the npm_and_yarn group across 1 directory",
+        "pr": 157,
+        "type": "feature",
+        "merged_at": "2026-03-26T11:55:56Z"
+      },
+      {
+        "text": "Add AI skill review workflow",
+        "pr": 158,
+        "type": "feature",
+        "merged_at": "2026-03-26T12:05:14Z"
+      },
+      {
+        "text": "Bump yaml from 1.10.2 to 1.10.3 in the npm_and_yarn group across 1 directory",
+        "pr": 159,
+        "type": "feature",
+        "merged_at": "2026-03-26T12:14:13Z"
+      },
+      {
+        "text": "Add MVP source code analysis and viewer",
+        "pr": 162,
+        "type": "feature",
+        "merged_at": "2026-03-28T11:08:02Z"
+      },
+      {
+        "text": "Refine skill routing for code analysis",
+        "pr": 164,
+        "type": "feature",
+        "merged_at": "2026-03-28T14:42:10Z"
+      },
+      {
+        "text": "Improve local file search throughput and read-file rendering",
+        "pr": 165,
+        "type": "feature",
+        "merged_at": "2026-03-29T03:05:42Z"
+      },
+      {
+        "text": "Improve development skill cache refresh",
+        "pr": 167,
+        "type": "feature",
+        "merged_at": "2026-03-29T05:42:30Z"
+      },
+      {
+        "text": "Bump serialize-javascript from 7.0.3 to removed in the npm_and_yarn group across 1 directory",
+        "pr": 163,
+        "type": "feature",
+        "merged_at": "2026-03-31T02:42:40Z"
+      },
+      {
+        "text": "small ui improvement on schema tree",
+        "pr": 169,
+        "type": "feature",
+        "merged_at": "2026-03-31T13:16:06Z"
+      },
+      {
+        "text": "Polish chat session tree actions",
+        "pr": 170,
+        "type": "feature",
+        "merged_at": "2026-03-31T13:27:39Z"
+      },
+      {
+        "text": "replace mermaid chat rendering with vizlayer",
+        "pr": 168,
+        "type": "feature",
+        "merged_at": "2026-03-31T13:47:01Z"
+      },
+      {
+        "text": "Improve code search with ripgrep and source citations",
+        "pr": 172,
+        "type": "feature",
+        "merged_at": "2026-03-31T13:50:10Z"
+      },
+      {
+        "text": "Refactor chat markdown reference link handling",
+        "pr": 174,
+        "type": "feature",
+        "merged_at": "2026-04-01T13:47:57Z"
+      },
+      {
+        "text": "Polish chat input sizing and boundary scroll handling",
+        "pr": 175,
+        "type": "feature",
+        "merged_at": "2026-04-01T13:55:29Z"
+      },
+      {
+        "text": "Implement inline chat input tokens",
+        "pr": 176,
+        "type": "feature",
+        "merged_at": "2026-04-05T11:23:43Z"
+      },
+      {
+        "text": "Add image support to v2 chat",
+        "pr": 177,
+        "type": "feature",
+        "merged_at": "2026-04-06T13:43:06Z"
+      },
+      {
+        "text": "Improve cross-connection chat history",
+        "pr": 178,
+        "type": "feature",
+        "merged_at": "2026-04-06T14:23:45Z"
+      },
+      {
+        "text": "bootstrap unified model catalog early",
+        "pr": 149,
+        "type": "fix",
+        "merged_at": "2026-03-24T13:28:22Z"
+      },
+      {
+        "text": "Fix inline slash command layout in chat messages",
+        "pr": 152,
+        "type": "fix",
+        "merged_at": "2026-03-25T14:27:19Z"
+      },
+      {
+        "text": "stop zookeeper retry loop on load failure",
+        "pr": 161,
+        "type": "fix",
+        "merged_at": "2026-03-26T14:42:31Z"
+      },
+      {
+        "text": "support generated ai_skills ids",
+        "pr": 171,
+        "type": "fix",
+        "merged_at": "2026-03-31T13:29:19Z"
+      },
+      {
+        "text": "Fix chat collapsed text spacing and connection dialog overlay",
+        "pr": 173,
+        "type": "fix",
+        "merged_at": "2026-03-31T14:34:48Z"
+      }
+    ]
+  },
+  {
     "id": "bd0dca8",
     "date": "2026-03-22T11:49:54.500Z",
     "notes": [
