@@ -321,7 +321,19 @@ function buildHistoryTree(
     }
   }
 
-  return Array.from(connectionGroups.entries()).map(([connectionId, connectionChats]) => {
+  const sortedConnectionGroups = Array.from(connectionGroups.entries()).sort(
+    ([leftConnectionId], [rightConnectionId]) => {
+      if (leftConnectionId === currentConnectionId) {
+        return -1;
+      }
+      if (rightConnectionId === currentConnectionId) {
+        return 1;
+      }
+      return 0;
+    }
+  );
+
+  return sortedConnectionGroups.map(([connectionId, connectionChats]) => {
     const dateGroups: Array<{ label: string; chats: ManagedSession[] }> = [];
     const dateGroupIndex = new Map<string, number>();
 
@@ -579,6 +591,23 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
       ]
     );
 
+    const initialExpandedIds = React.useMemo(() => {
+      if (!connection?.connectionId) {
+        return [];
+      }
+
+      const currentConnectionNodeId = connectionNodeId(connection.connectionId);
+      const currentConnectionNode = treeData.find((node) => node.id === currentConnectionNodeId);
+      if (!currentConnectionNode) {
+        return [];
+      }
+
+      return [
+        currentConnectionNodeId,
+        ...(currentConnectionNode.children?.map((child) => child.id) ?? []),
+      ];
+    }, [connection?.connectionId, treeData]);
+
     const hasVisibleTreeData = React.useMemo(() => {
       if (search.length === 0) {
         return treeData.length > 0;
@@ -661,7 +690,7 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
                   className="min-h-0 flex-1"
                   itemIcon={MessageSquareText}
                   showChildCount={true}
-                  expandAll
+                  initialExpandedIds={initialExpandedIds}
                   pathSeparator="/"
                   rowHeight={30}
                 />
