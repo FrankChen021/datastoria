@@ -16,6 +16,17 @@ import type {
  * This implementation includes automatic cleanup of old chats when quota is exceeded.
  */
 export class LocalSessionRepository implements SessionRepository {
+  private compareChatsDesc(
+    a: Pick<Chat, "updatedAt" | "chatId">,
+    b: Pick<Chat, "updatedAt" | "chatId">
+  ) {
+    const timeDiff = b.updatedAt.getTime() - a.updatedAt.getTime();
+    if (timeDiff !== 0) {
+      return timeDiff;
+    }
+    return b.chatId.localeCompare(a.chatId);
+  }
+
   private createCursor(chat: Pick<Chat, "updatedAt" | "chatId">): string {
     return `${chat.updatedAt.toISOString()}|${chat.chatId}`;
   }
@@ -41,15 +52,12 @@ export class LocalSessionRepository implements SessionRepository {
       return true;
     }
 
-    const chatTime = chat.updatedAt.getTime();
-    if (chatTime < parsed.updatedAt) {
-      return true;
-    }
-    if (chatTime > parsed.updatedAt) {
-      return false;
-    }
-
-    return chat.chatId < parsed.chatId;
+    return (
+      this.compareChatsDesc(chat, {
+        updatedAt: new Date(parsed.updatedAt),
+        chatId: parsed.chatId,
+      }) > 0
+    );
   }
 
   private toValidDate(value: unknown): Date | null {
@@ -104,7 +112,7 @@ export class LocalSessionRepository implements SessionRepository {
         return 0;
       }
 
-      const sortedChats = chats.sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime());
+      const sortedChats = chats.sort((a, b) => -this.compareChatsDesc(a, b));
       const chatsToConsider = excludeChatId
         ? sortedChats.filter((chat) => chat.chatId !== excludeChatId)
         : sortedChats;
@@ -308,7 +316,7 @@ export class LocalSessionRepository implements SessionRepository {
         createdAt: new Date(chat.createdAt),
         updatedAt: new Date(chat.updatedAt),
       }))
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      .sort((a, b) => this.compareChatsDesc(a, b));
   }
 
   async getSessions(input: SessionPageInput): Promise<SessionPage> {

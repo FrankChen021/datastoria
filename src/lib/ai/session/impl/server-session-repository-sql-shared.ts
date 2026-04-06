@@ -30,23 +30,34 @@ type SqlRepositoryOptions = {
 export abstract class AbstractServerSessionRepository implements ServerSessionRepository {
   constructor(private readonly options: SqlRepositoryOptions) {}
 
-  private createCursor(session: PersistedChatSession): string {
-    return `${session.updated_at.toISOString()}|${session.session_id}`;
+  private formatCursorTimestamp(date: Date): string {
+    const year = date.getUTCFullYear();
+    const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
+    const day = `${date.getUTCDate()}`.padStart(2, "0");
+    const hours = `${date.getUTCHours()}`.padStart(2, "0");
+    const minutes = `${date.getUTCMinutes()}`.padStart(2, "0");
+    const seconds = `${date.getUTCSeconds()}`.padStart(2, "0");
+    const milliseconds = `${date.getUTCMilliseconds()}`.padStart(3, "0");
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
   }
 
-  private parseCursor(cursor: string): { updatedAtIso: string; sessionId: string } | null {
+  private createCursor(session: PersistedChatSession): string {
+    return `${this.formatCursorTimestamp(session.updated_at)}|${session.session_id}`;
+  }
+
+  private parseCursor(cursor: string): { updatedAt: string; sessionId: string } | null {
     const separatorIndex = cursor.lastIndexOf("|");
     if (separatorIndex <= 0) {
       return null;
     }
 
-    const updatedAtIso = cursor.slice(0, separatorIndex);
+    const updatedAt = cursor.slice(0, separatorIndex);
     const sessionId = cursor.slice(separatorIndex + 1);
-    if (!updatedAtIso || !sessionId) {
+    if (!updatedAt || !sessionId) {
       return null;
     }
 
-    return { updatedAtIso, sessionId };
+    return { updatedAt, sessionId };
   }
 
   protected toPersistedSession(row: PersistedChatSession): PersistedChatSession {
@@ -130,9 +141,9 @@ export abstract class AbstractServerSessionRepository implements ServerSessionRe
       const parsedCursor = this.parseCursor(input.cursor);
       if (parsedCursor) {
         query.andWhere((builder) => {
-          builder.where("updated_at", "<", parsedCursor.updatedAtIso).orWhere((orBuilder) => {
+          builder.where("updated_at", "<", parsedCursor.updatedAt).orWhere((orBuilder) => {
             orBuilder
-              .where("updated_at", "=", parsedCursor.updatedAtIso)
+              .where("updated_at", "=", parsedCursor.updatedAt)
               .andWhere("session_id", "<", parsedCursor.sessionId);
           });
         });
