@@ -2,10 +2,18 @@
 
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useModelConfig } from "@/hooks/use-model-config";
 import type { CommandDetail } from "@/lib/ai/commands/command-manager";
+import { resolveModelSupportsImageInput } from "@/lib/ai/llm/llm-provider-factory";
 import { cn } from "@/lib/utils";
 import type { LanguageModelUsage } from "ai";
-import { MessageSquarePlus, Send, Square } from "lucide-react";
+import { ImagePlus, MessageSquarePlus, Plus, Send, Square, X } from "lucide-react";
 import * as React from "react";
 import { useChatCommands } from "../command-context";
 import { ChatTokenStatus } from "../message/chat-token-status";
@@ -27,9 +35,24 @@ const EDITOR_MIN_HEIGHT = 80;
 // Subtract the container's 1px top + 1px bottom border from total min height.
 const CHAT_INPUT_CONTENT_MIN_HEIGHT = MIN_CHAT_INPUT_HEIGHT - 2;
 const RESIZE_DRAG_THRESHOLD = 2;
+const MAX_IMAGE_ATTACHMENTS = 4;
+const MAX_IMAGE_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+// Keep inline data URLs below the API's 10 MB JSON request limit after base64 expansion.
+const MAX_TOTAL_IMAGE_FILE_SIZE_BYTES = 7 * 1024 * 1024;
+const UNSUPPORTED_IMAGE_MODEL_MESSAGE = "Select a vision-capable model before sending images.";
+const REMOVED_IMAGE_ATTACHMENTS_MESSAGE =
+  "Attached images were removed because the selected model does not support image input.";
+
+export type ChatInputImageAttachment = {
+  id: string;
+  mediaType: string;
+  url: string;
+  filename: string;
+  sizeBytes: number;
+};
 
 interface ChatInputProps {
-  onSubmit: (text: string) => void;
+  onSubmit: (payload: { text: string; files: ChatInputImageAttachment[] }) => void;
   onStop?: () => void;
   isRunning: boolean;
   hasMessages?: boolean;
@@ -63,6 +86,45 @@ type RenderSegment = { kind: "text"; text: string; start: number; end: number } 
 
 function createTextNodeSegment(documentRef: Document, text: string) {
   return documentRef.createTextNode(text);
+}
+
+function createTrailingBreakSegment(documentRef: Document) {
+  return documentRef.createElement("br");
+}
+
+function scrollCaretIntoView(scrollContainer: HTMLElement) {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return;
+  }
+
+  const range = selection.getRangeAt(0).cloneRange();
+  range.collapse(true);
+
+  const clientRects =
+    typeof range.getClientRects === "function" ? Array.from(range.getClientRects()) : [];
+  const fallbackRect =
+    typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null;
+  const rect = clientRects[0] ?? fallbackRect;
+  if (!rect || (rect.height === 0 && rect.width === 0)) {
+    return;
+  }
+
+  const containerRect = scrollContainer.getBoundingClientRect();
+  const padding = 8;
+
+  if (rect.bottom > containerRect.bottom - padding) {
+    scrollContainer.scrollTop += rect.bottom - containerRect.bottom + padding;
+  } else if (rect.top < containerRect.top + padding) {
+    scrollContainer.scrollTop -= containerRect.top + padding - rect.top;
+  }
+}
+
+function createAttachmentId(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `attachment-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+  );
 }
 
 function createTokenNodeSegment(
@@ -324,6 +386,8 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
   ) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const editorRef = React.useRef<HTMLDivElement>(null);
+    const editorScrollRef = React.useRef<HTMLDivElement>(null);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
     const suggestionRef = React.useRef<ChatInputSuggestionsType>(null);
     const commandRef = React.useRef<ChatInputCommandsType>(null);
     const dragStateRef = React.useRef<{
@@ -335,7 +399,11 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const resizeFrameRef = React.useRef<number | null>(null);
     const pendingSelectionOffsetRef = React.useRef<number | null>(null);
     const cursorOffsetRef = React.useRef(0);
+    const attachmentsRef = React.useRef<ChatInputImageAttachment[]>([]);
+    const appendQueueRef = React.useRef<Promise<void>>(Promise.resolve());
     const [input, setInput] = React.useState("");
+    const [attachments, setAttachments] = React.useState<ChatInputImageAttachment[]>([]);
+    const [attachmentError, setAttachmentError] = React.useState<string | null>(null);
     const [resizedHeight, setResizedHeight] = React.useState<number | null>(null);
     const [isDraggingResizeHandle, setIsDraggingResizeHandle] = React.useState(false);
     const prevExternalInputRef = React.useRef<string | undefined>(undefined);
@@ -345,6 +413,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     const { connection } = useConnection();
     const { commands, commandsByName } = useChatCommands();
+    const { selectedModel } = useModelConfig();
     const isResizable = resizedHeight !== null;
     const leadingCommand = React.useMemo(() => getLeadingCommand(input), [input]);
     const selectedCommand = React.useMemo(
@@ -354,6 +423,143 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const renderSegments = React.useMemo(
       () => buildRenderSegments(input, selectedCommand),
       [input, selectedCommand]
+    );
+    const selectedModelSupportsImages = resolveModelSupportsImageInput(selectedModel);
+    const canSubmit =
+      (input.trim().length > 0 || attachments.length > 0) &&
+      (attachments.length === 0 || selectedModelSupportsImages);
+
+    React.useEffect(() => {
+      attachmentsRef.current = attachments;
+    }, [attachments]);
+
+    const resetFileInput = React.useCallback(() => {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }, []);
+
+    React.useEffect(() => {
+      if (selectedModelSupportsImages || attachmentsRef.current.length === 0) {
+        return;
+      }
+
+      attachmentsRef.current = [];
+      setAttachments([]);
+      resetFileInput();
+      setAttachmentError(REMOVED_IMAGE_ATTACHMENTS_MESSAGE);
+    }, [resetFileInput, selectedModelSupportsImages]);
+
+    React.useEffect(() => {
+      setAttachmentError((current) => {
+        if (!selectedModelSupportsImages) {
+          return current === REMOVED_IMAGE_ATTACHMENTS_MESSAGE ? current : null;
+        }
+
+        if (
+          current === UNSUPPORTED_IMAGE_MODEL_MESSAGE ||
+          current === REMOVED_IMAGE_ATTACHMENTS_MESSAGE
+        ) {
+          return null;
+        }
+
+        return current;
+      });
+    }, [selectedModelSupportsImages]);
+
+    const readFileAsDataUrl = React.useCallback((file: File) => {
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") {
+            resolve(reader.result);
+            return;
+          }
+          reject(new Error(`Failed to read file ${file.name}`));
+        };
+        reader.onerror = () =>
+          reject(reader.error ?? new Error(`Failed to read file ${file.name}`));
+        reader.readAsDataURL(file);
+      });
+    }, []);
+
+    const convertFilesToAttachments = React.useCallback(
+      async (incomingFiles: File[]) => {
+        if (incomingFiles.length === 0) {
+          return [] as ChatInputImageAttachment[];
+        }
+
+        const imageFiles = incomingFiles.filter((file) => file.type.startsWith("image/"));
+        if (imageFiles.length === 0) {
+          throw new Error("Only image attachments are supported.");
+        }
+
+        const currentAttachments = attachmentsRef.current;
+        const availableSlots = Math.max(MAX_IMAGE_ATTACHMENTS - currentAttachments.length, 0);
+        if (availableSlots === 0) {
+          throw new Error(`You can attach up to ${MAX_IMAGE_ATTACHMENTS} images per message.`);
+        }
+
+        const nextFiles = imageFiles.slice(0, availableSlots);
+        const currentTotalBytes = currentAttachments.reduce(
+          (sum, attachment) => sum + attachment.sizeBytes,
+          0
+        );
+        const nextTotalBytes = nextFiles.reduce((sum, file) => sum + file.size, currentTotalBytes);
+        for (const file of nextFiles) {
+          if (file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
+            throw new Error(`${file.name} exceeds the 5 MB image limit.`);
+          }
+        }
+        if (nextTotalBytes > MAX_TOTAL_IMAGE_FILE_SIZE_BYTES) {
+          throw new Error("Attached images exceed the total 7 MB limit per message.");
+        }
+
+        return Promise.all(
+          nextFiles.map(async (file) => ({
+            id: createAttachmentId(),
+            mediaType: file.type,
+            url: await readFileAsDataUrl(file),
+            filename: file.name || "image",
+            sizeBytes: file.size,
+          }))
+        );
+      },
+      [readFileAsDataUrl]
+    );
+
+    const appendFiles = React.useCallback(
+      async (incomingFiles: File[]) => {
+        const appendTask = async () => {
+          try {
+            if (!selectedModelSupportsImages) {
+              throw new Error("Select a vision-capable model before adding images.");
+            }
+            const nextAttachments = await convertFilesToAttachments(incomingFiles);
+            if (nextAttachments.length === 0) {
+              return;
+            }
+            setAttachments((current) => {
+              const updated = [...current, ...nextAttachments];
+              attachmentsRef.current = updated;
+              return updated;
+            });
+            setAttachmentError(null);
+          } catch (error) {
+            setAttachmentError(error instanceof Error ? error.message : "Failed to add images.");
+          } finally {
+            resetFileInput();
+          }
+        };
+
+        const queuedTask = appendQueueRef.current.then(appendTask, appendTask);
+        appendQueueRef.current = queuedTask.then(
+          () => undefined,
+          () => undefined
+        );
+        await queuedTask;
+      },
+      [convertFilesToAttachments, resetFileInput, selectedModelSupportsImages]
     );
 
     const applyContainerHeight = React.useCallback((height: number | null) => {
@@ -600,24 +806,66 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         );
       }
 
+      if (input.endsWith("\n")) {
+        fragment.appendChild(createTrailingBreakSegment(document));
+      }
+
       editor.replaceChildren(fragment);
 
       const nextSelectionOffset = pendingSelectionOffsetRef.current;
       if (nextSelectionOffset !== null) {
         setCaretAtOffset(editor, nextSelectionOffset);
         pendingSelectionOffsetRef.current = null;
+        if (editorScrollRef.current) {
+          window.requestAnimationFrame(() => {
+            if (editorScrollRef.current) {
+              scrollCaretIntoView(editorScrollRef.current);
+            }
+          });
+        }
       }
-    }, [handleDismissCommand, handleDismissMention, renderSegments]);
+    }, [handleDismissCommand, handleDismissMention, input, renderSegments]);
 
     const handleSubmit = React.useCallback(() => {
       const message = input.trim();
-      if (!message) return;
+      if (!message && attachments.length === 0) return;
+      if (attachments.length > 0 && !selectedModelSupportsImages) {
+        setAttachmentError(UNSUPPORTED_IMAGE_MODEL_MESSAGE);
+        return;
+      }
 
-      onSubmit(message);
+      onSubmit({ text: message, files: attachments });
       pendingSelectionOffsetRef.current = 0;
       setInput("");
+      setAttachments([]);
+      setAttachmentError(null);
       updateSuggestions("", 0);
-    }, [input, onSubmit, updateSuggestions]);
+      resetFileInput();
+    }, [
+      attachments,
+      input,
+      onSubmit,
+      resetFileInput,
+      selectedModelSupportsImages,
+      updateSuggestions,
+    ]);
+
+    const handleRemoveAttachment = React.useCallback((attachmentId: string) => {
+      setAttachments((current) => {
+        const updated = current.filter((attachment) => attachment.id !== attachmentId);
+        attachmentsRef.current = updated;
+        return updated;
+      });
+      setAttachmentError(null);
+    }, []);
+
+    const handleFileInputChange = React.useCallback(
+      async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files ?? []);
+        await appendFiles(files);
+      },
+      [appendFiles]
+    );
 
     const handleResizeStart = React.useCallback(
       (e: React.MouseEvent<HTMLDivElement>) => {
@@ -770,6 +1018,19 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       [handleSubmit, input, removeTokenAtCaret, setInputAndSelection]
     );
 
+    const handlePaste = React.useCallback(
+      async (event: React.ClipboardEvent<HTMLDivElement>) => {
+        const files = Array.from(event.clipboardData.files ?? []);
+        if (files.length === 0) {
+          return;
+        }
+
+        event.preventDefault();
+        await appendFiles(files);
+      },
+      [appendFiles]
+    );
+
     React.useImperativeHandle(
       ref,
       () => ({
@@ -823,39 +1084,110 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
               }
             />
 
-            <div className="relative flex-1">
-              {!input && (
-                <div className="text-muted-foreground pointer-events-none absolute left-3 right-10 top-3 text-sm">
-                  Press Enter for new line,{" "}
-                  {typeof navigator !== "undefined" && navigator.platform.includes("Mac")
-                    ? "Cmd"
-                    : "Ctrl"}{" "}
-                  + Enter to send. Use @ to mention tables, / for commands.
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              <div
+                ref={editorScrollRef}
+                className={cn("min-h-0 flex-1 overflow-y-auto", isResizable ? "" : "max-h-[200px]")}
+              >
+                <div className="relative flex min-h-full flex-col">
+                  {!input && attachments.length === 0 && (
+                    <div className="text-muted-foreground pointer-events-none absolute left-3 right-10 top-3 text-sm">
+                      Press Enter for new line,{" "}
+                      {typeof navigator !== "undefined" && navigator.platform.includes("Mac")
+                        ? "Cmd"
+                        : "Ctrl"}{" "}
+                      + Enter to send. Use @ to mention tables, / for commands.
+                    </div>
+                  )}
+
+                  <div
+                    ref={editorRef}
+                    role="textbox"
+                    aria-multiline="true"
+                    aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables, / for commands."
+                    contentEditable={!isRunning}
+                    suppressContentEditableWarning
+                    className={cn(
+                      "w-full bg-transparent py-3 pl-3 pr-10 text-sm outline-none whitespace-pre-wrap break-words",
+                      isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px]"
+                    )}
+                    style={isResizable ? { minHeight: `${EDITOR_MIN_HEIGHT}px` } : undefined}
+                    onInput={handleEditorInput}
+                    onKeyDown={handleKeyDown}
+                    onKeyUp={handleEditorKeyUp}
+                    onMouseUp={syncSelectionState}
+                    onFocus={syncSelectionState}
+                    onPaste={handlePaste}
+                  ></div>
+                </div>
+              </div>
+              {attachments.length > 0 && (
+                <div className="flex shrink-0 gap-2 overflow-x-auto px-3 pb-2">
+                  {attachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md border bg-background"
+                    >
+                      <img
+                        src={attachment.url}
+                        alt={attachment.filename}
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-foreground shadow-sm"
+                        aria-label={`Remove ${attachment.filename}`}
+                        onClick={() => handleRemoveAttachment(attachment.id)}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
-
-              <div
-                ref={editorRef}
-                role="textbox"
-                aria-multiline="true"
-                aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables, / for commands."
-                contentEditable={!isRunning}
-                suppressContentEditableWarning
-                className={cn(
-                  "w-full bg-transparent py-3 pl-3 pr-10 text-sm outline-none overflow-y-auto whitespace-pre-wrap break-words",
-                  isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px] max-h-[200px]"
-                )}
-                style={isResizable ? { minHeight: `${EDITOR_MIN_HEIGHT}px` } : undefined}
-                onInput={handleEditorInput}
-                onKeyDown={handleKeyDown}
-                onKeyUp={handleEditorKeyUp}
-                onMouseUp={syncSelectionState}
-                onFocus={syncSelectionState}
-              ></div>
+              {attachmentError && (
+                <div className="px-3 pb-2 text-[11px] text-destructive">{attachmentError}</div>
+              )}
             </div>
-
-            <div className="mt-[-4px] flex shrink-0 items-center justify-between px-2 pb-2">
+            <div className="mt-[-4px] flex shrink-0 items-center justify-between px-2 pb-2 pt-2">
               <div className="flex items-center gap-1">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileInputChange}
+                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 rounded-md"
+                      title={
+                        selectedModelSupportsImages
+                          ? "Add attachment"
+                          : "Select a vision-capable model to add images"
+                      }
+                      aria-label="Add attachment"
+                      disabled={isRunning}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" side="top" className="w-32 p-1">
+                    <DropdownMenuItem
+                      disabled={!selectedModelSupportsImages}
+                      className="gap-1.5 px-2 py-1 text-xs"
+                      onSelect={() => fileInputRef.current?.click()}
+                    >
+                      <ImagePlus className="h-3 w-3" />
+                      Image
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <ModelSelector className="bg-muted" />
                 {hasMessages && (
                   <>
@@ -888,7 +1220,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
               ) : (
                 <Button
                   onClick={handleSubmit}
-                  disabled={!input.trim()}
+                  disabled={!canSubmit}
                   size="icon"
                   className="h-6 w-6 rounded-md shadow-sm"
                   title={`Send (${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"}+Enter)`}

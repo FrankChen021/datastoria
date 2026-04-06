@@ -1,4 +1,4 @@
-import type { ModelProps } from "@/lib/ai/llm/llm-provider-factory";
+import { resolveModelSupportsImageInput, type ModelProps } from "@/lib/ai/llm/llm-provider-factory";
 import { PROVIDER_GITHUB_COPILOT } from "@/lib/ai/llm/provider-ids";
 
 export interface GitHubModel {
@@ -77,6 +77,10 @@ export function normalizeGitHubCopilotModels(payload: unknown): ModelProps[] {
         modelId: model.id,
         description: descriptionParts.join("") || model.name || model.id,
         supportedEndpoints: model.supported_endpoints,
+        supportsImageInput: resolveModelSupportsImageInput({
+          provider: PROVIDER_GITHUB_COPILOT,
+          modelId: model.id,
+        }),
         free: multiplier === 0,
         source: "user" as const,
       };

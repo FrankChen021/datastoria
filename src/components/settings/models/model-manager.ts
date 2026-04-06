@@ -23,6 +23,16 @@ export const MODEL_CONFIG_UPDATED_EVENT = "MODEL_CONFIG_UPDATED";
 class ModelManager {
   private static instance: ModelManager;
 
+  private static createAutoModel(): ModelProps {
+    return {
+      provider: "System",
+      modelId: "Auto",
+      description: `Use the server-side default model configuration. 
+Rate limit on request/token will apply.
+If you have your API keys, you can configure your models in the settings.`,
+    };
+  }
+
   private get modelSettingsStorage() {
     return StorageManager.getInstance()
       .getStorageProvider()
@@ -121,9 +131,11 @@ class ModelManager {
    * Get the currently selected model configuration from localStorage
    * @returns The selected model configuration or undefined
    */
-  public getSelectedModel(): { provider: string; modelId: string } | undefined {
+  public getSelectedModel(): ModelProps | undefined {
     const stored = this.selectedModelStorage.getString();
     if (!stored) return undefined;
+
+    let selection: { provider: string; modelId: string } | undefined;
 
     try {
       // Try to parse as JSON (new format)
@@ -134,21 +146,33 @@ class ModelManager {
         "provider" in parsed &&
         "modelId" in parsed
       ) {
-        return parsed as { provider: string; modelId: string };
+        selection = parsed as { provider: string; modelId: string };
       }
     } catch {
       // Ignore parsing error, treat as legacy string format
     }
 
-    // Legacy format: stored value is just modelId string
-    // Try to find the provider for this modelId
-    const models = this.getAvailableModels();
-    const found = models.find((m) => m.modelId === stored);
-    if (found) {
-      return { provider: found.provider, modelId: found.modelId };
+    if (!selection) {
+      // Legacy format: stored value is just modelId string
+      // Try to find the provider for this modelId
+      const legacyMatch = this.getAllModels().find((model) => model.modelId === stored);
+      if (!legacyMatch) {
+        return undefined;
+      }
+
+      selection = {
+        provider: legacyMatch.provider,
+        modelId: legacyMatch.modelId,
+      };
     }
 
-    return undefined;
+    if (selection.provider === "System" && selection.modelId === "Auto") {
+      return ModelManager.createAutoModel();
+    }
+
+    return this.getAllModels().find(
+      (model) => model.provider === selection.provider && model.modelId === selection.modelId
+    );
   }
 
   /**
@@ -307,15 +331,7 @@ class ModelManager {
 
     // Add the special 'Auto' model at the beginning only if auto-select is available
     if (autoSelectAvailable) {
-      const autoModel: ModelProps = {
-        provider: "System",
-        modelId: "Auto",
-        description: `Use the server-side default model configuration. 
-Rate limit on request/token will apply.
-If you have your API keys, you can configure your models in the settings.`,
-      };
-
-      return [autoModel, ...userModels];
+      return [ModelManager.createAutoModel(), ...userModels];
     }
 
     return userModels;

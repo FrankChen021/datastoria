@@ -18,10 +18,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useModelConfig } from "@/hooks/use-model-config";
-import { type ModelProps } from "@/lib/ai/llm/llm-provider-factory";
+import { resolveModelSupportsImageInput, type ModelProps } from "@/lib/ai/llm/llm-provider-factory";
 import { PROVIDER_GITHUB_COPILOT } from "@/lib/ai/llm/provider-ids";
 import { TextHighlighter } from "@/lib/text-highlighter";
-import { AlertCircle, ChevronDown, ExternalLink, Eye, EyeOff, Search } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  ChevronDown,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Search,
+  X,
+} from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { GitHubLoginComponent } from "./github-login-component";
 
@@ -65,6 +74,13 @@ export function ModelsEdit() {
       return acc;
     },
     {} as Record<string, { hasSystemModels: boolean; hasUserModels: boolean }>
+  );
+  const modelCatalog = allModels.reduce(
+    (acc, model) => {
+      acc[`${model.provider}:${model.modelId}`] = model;
+      return acc;
+    },
+    {} as Record<string, ModelProps>
   );
 
   const handleModelDisabled = useCallback(
@@ -244,6 +260,9 @@ export function ModelsEdit() {
                 <TableRow className="h-9">
                   <TableHead className="w-[300px] py-2 pl-8 font-bold">Model ID</TableHead>
                   <TableHead className="w-[100px] py-2 font-bold">Free</TableHead>
+                  <TableHead className="w-[160px] py-2 font-bold text-center">
+                    Support Image Input
+                  </TableHead>
                   <TableHead className="w-[140px] py-2 font-bold">Disabled</TableHead>
                   <TableHead className="min-w-[200px] py-2 font-bold">API Key</TableHead>
                 </TableRow>
@@ -265,7 +284,7 @@ export function ModelsEdit() {
                     <React.Fragment key={provider}>
                       {/* Provider Group Header */}
                       <TableRow className="h-10 bg-muted/50 hover:bg-muted/70">
-                        <TableCell colSpan={2} className="px-1 py-2">
+                        <TableCell colSpan={3} className="px-1 py-2">
                           <button
                             type="button"
                             onClick={() => toggleProvider(provider)}
@@ -491,6 +510,23 @@ export function ModelsEdit() {
                                 <div className="text-sm text-muted-foreground">No</div>
                               )}
                             </TableCell>
+                            <TableCell className="py-1.5 text-center">
+                              <div className="flex items-center justify-center h-full text-muted-foreground">
+                                {resolveModelSupportsImageInput(
+                                  modelCatalog[`${model.provider}:${model.modelId}`] ?? model
+                                ) ? (
+                                  <Check
+                                    className="h-4 w-4 text-green-600 dark:text-green-400"
+                                    aria-label="Supports image input"
+                                  />
+                                ) : (
+                                  <X
+                                    className="h-4 w-4 text-muted-foreground"
+                                    aria-label="Does not support image input"
+                                  />
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell className="py-1.5">
                               <div className="flex items-center h-full">
                                 <Switch
@@ -510,7 +546,7 @@ export function ModelsEdit() {
                 })}
                 {providers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
                       {searchQuery.trim() ? "No models found" : "No models available"}
                     </TableCell>
                   </TableRow>

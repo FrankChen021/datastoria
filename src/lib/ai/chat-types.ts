@@ -10,11 +10,18 @@ export interface AgentContext {
 export type MessageRole = "user" | "assistant" | "system" | "data" | "tool";
 export type SessionRepositoryType = "local" | "remote";
 
-export type MessagePartType = "text" | "tool-call" | "tool-result";
+export type MessagePartType = "text" | "file" | "tool-call" | "tool-result";
 
 export interface TextPart {
   type: "text";
   text: string;
+}
+
+export interface FilePart {
+  type: "file";
+  mediaType: string;
+  url: string;
+  filename?: string;
 }
 
 export interface ToolCallPart {
@@ -31,7 +38,7 @@ export interface ToolResultPart {
   result: unknown;
 }
 
-export type MessagePart = TextPart | ToolCallPart | ToolResultPart;
+export type MessagePart = TextPart | FilePart | ToolCallPart | ToolResultPart;
 
 /**
  * Shared metadata bag for chat messages.
