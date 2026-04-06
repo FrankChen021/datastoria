@@ -3,9 +3,13 @@ import { POST } from "./route";
 
 const getAvailableSystemModelsMock = vi.fn();
 
-vi.mock("@/lib/ai/llm/llm-provider-factory", () => ({
-  getAvailableSystemModels: () => getAvailableSystemModelsMock(),
-}));
+vi.mock("@/lib/ai/llm/llm-provider-factory", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/ai/llm/llm-provider-factory")>();
+  return {
+    ...actual,
+    getAvailableSystemModels: () => getAvailableSystemModelsMock(),
+  };
+});
 
 describe("POST /api/ai/models/available", () => {
   beforeEach(() => {
