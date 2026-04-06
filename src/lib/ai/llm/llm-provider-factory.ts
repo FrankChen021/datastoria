@@ -38,6 +38,50 @@ export interface ModelProps {
   source?: ModelSource;
 }
 
+export function resolveModelSupportsImageInput(
+  model?: Pick<ModelProps, "provider" | "modelId" | "supportsImageInput"> | null
+): boolean {
+  if (!model) {
+    return true;
+  }
+
+  if (model.provider === "System" && model.modelId === "Auto") {
+    return true;
+  }
+
+  if (typeof model.supportsImageInput === "boolean") {
+    return model.supportsImageInput;
+  }
+
+  const exactMatch =
+    SYSTEM_MODELS.find(
+      (candidate) => candidate.provider === model.provider && candidate.modelId === model.modelId
+    ) ??
+    MODELS.find(
+      (candidate) => candidate.provider === model.provider && candidate.modelId === model.modelId
+    );
+  if (typeof exactMatch?.supportsImageInput === "boolean") {
+    return exactMatch.supportsImageInput;
+  }
+
+  const modelIdMatches = [...SYSTEM_MODELS, ...MODELS].filter(
+    (candidate) =>
+      candidate.modelId === model.modelId && typeof candidate.supportsImageInput === "boolean"
+  );
+  if (modelIdMatches.length === 0) {
+    return false;
+  }
+
+  const distinctSupportStates = new Set(
+    modelIdMatches.map((candidate) => candidate.supportsImageInput)
+  );
+  if (distinctSupportStates.size === 1) {
+    return modelIdMatches[0].supportsImageInput === true;
+  }
+
+  return false;
+}
+
 /**
  * Provider definitions map
  * Key: provider name (e.g., "OpenAI", "Google", "Anthropic", "OpenRouter", "Groq")

@@ -9,9 +9,8 @@ import type { AgentContext, AppUIMessage, MessageMetadata } from "@/lib/ai/chat-
 import { CommandManager } from "@/lib/ai/commands/command-manager";
 import {
   LanguageModelProviderFactory,
-  MODELS,
   resolveModelConfig,
-  SYSTEM_MODELS,
+  resolveModelSupportsImageInput,
 } from "@/lib/ai/llm/llm-provider-factory";
 import { MessagePruner } from "@/lib/ai/message-pruner";
 import {
@@ -72,14 +71,7 @@ function messagesHaveImageParts(messages: UIMessage[]): boolean {
 }
 
 function modelSupportsImageInput(model: { provider: string; modelId: string }): boolean {
-  const configuredModel =
-    SYSTEM_MODELS.find(
-      (candidate) => candidate.provider === model.provider && candidate.modelId === model.modelId
-    ) ??
-    MODELS.find(
-      (candidate) => candidate.provider === model.provider && candidate.modelId === model.modelId
-    );
-  return configuredModel?.supportsImageInput !== false;
+  return resolveModelSupportsImageInput(model);
 }
 
 function getMessageIdFromMessages(messages: UIMessage[]): string {

@@ -18,18 +18,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useModelConfig } from "@/hooks/use-model-config";
-import { type ModelProps } from "@/lib/ai/llm/llm-provider-factory";
+import { resolveModelSupportsImageInput, type ModelProps } from "@/lib/ai/llm/llm-provider-factory";
 import { PROVIDER_GITHUB_COPILOT } from "@/lib/ai/llm/provider-ids";
 import { TextHighlighter } from "@/lib/text-highlighter";
 import {
   AlertCircle,
   Check,
   ChevronDown,
-  CircleX,
   ExternalLink,
   Eye,
   EyeOff,
   Search,
+  X,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { GitHubLoginComponent } from "./github-login-component";
@@ -260,7 +260,9 @@ export function ModelsEdit() {
                 <TableRow className="h-9">
                   <TableHead className="w-[300px] py-2 pl-8 font-bold">Model ID</TableHead>
                   <TableHead className="w-[100px] py-2 font-bold">Free</TableHead>
-                  <TableHead className="w-[110px] py-2 font-bold">Images</TableHead>
+                  <TableHead className="w-[160px] py-2 font-bold text-center">
+                    Support Image Input
+                  </TableHead>
                   <TableHead className="w-[140px] py-2 font-bold">Disabled</TableHead>
                   <TableHead className="min-w-[200px] py-2 font-bold">API Key</TableHead>
                 </TableRow>
@@ -508,16 +510,17 @@ export function ModelsEdit() {
                                 <div className="text-sm text-muted-foreground">No</div>
                               )}
                             </TableCell>
-                            <TableCell className="py-1.5">
-                              <div className="flex items-center h-full text-muted-foreground">
-                                {modelCatalog[`${model.provider}:${model.modelId}`]
-                                  ?.supportsImageInput ? (
+                            <TableCell className="py-1.5 text-center">
+                              <div className="flex items-center justify-center h-full text-muted-foreground">
+                                {resolveModelSupportsImageInput(
+                                  modelCatalog[`${model.provider}:${model.modelId}`] ?? model
+                                ) ? (
                                   <Check
                                     className="h-4 w-4 text-green-600 dark:text-green-400"
                                     aria-label="Supports image input"
                                   />
                                 ) : (
-                                  <CircleX
+                                  <X
                                     className="h-4 w-4 text-muted-foreground"
                                     aria-label="Does not support image input"
                                   />

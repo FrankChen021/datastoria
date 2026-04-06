@@ -7,6 +7,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatInput } from "./chat-input";
 
+const visionModel = { provider: "OpenAI", modelId: "gpt-4o", supportsImageInput: true };
+const textOnlyModel = { provider: "OpenAI", modelId: "gpt-4", supportsImageInput: false };
+let mockSelectedModel = visionModel;
+
 vi.mock("@/components/connection/connection-context", () => ({
   useConnection: () => ({
     connection: {
@@ -55,8 +59,8 @@ vi.mock("@number-flow/react", () => ({
 
 vi.mock("@/hooks/use-model-config", () => ({
   useModelConfig: () => ({
-    availableModels: [{ provider: "OpenAI", modelId: "gpt-4o", supportsImageInput: true }],
-    selectedModel: { provider: "OpenAI", modelId: "gpt-4o", supportsImageInput: true },
+    availableModels: [visionModel, textOnlyModel],
+    selectedModel: mockSelectedModel,
   }),
 }));
 
@@ -65,6 +69,7 @@ describe("ChatInput images", () => {
   let root: Root;
 
   beforeEach(() => {
+    mockSelectedModel = visionModel;
     (
       globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -147,5 +152,70 @@ describe("ChatInput images", () => {
         },
       ],
     });
+  });
+
+  it("opens an image action from the add menu", async () => {
+    await act(async () => {
+      root.render(<ChatInput onSubmit={vi.fn()} isRunning={false} />);
+    });
+
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const fileInputClickSpy = vi.spyOn(fileInput, "click");
+    const addButton = container.querySelector(
+      'button[aria-label="Add attachment"]'
+    ) as HTMLButtonElement | null;
+
+    expect(addButton).not.toBeNull();
+
+    await act(async () => {
+      addButton?.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0 }));
+      addButton?.click();
+      await Promise.resolve();
+    });
+
+    const imageMenuItem = Array.from(document.querySelectorAll('[role="menuitem"]')).find(
+      (element) => element.textContent?.includes("Image")
+    ) as HTMLElement | undefined;
+
+    expect(imageMenuItem).toBeDefined();
+
+    await act(async () => {
+      imageMenuItem?.click();
+      await Promise.resolve();
+    });
+
+    expect(fileInputClickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes attached images when switching to a non-vision model", async () => {
+    await act(async () => {
+      root.render(<ChatInput onSubmit={vi.fn()} isRunning={false} />);
+    });
+
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const imageFile = new File(["stub"], "chart.png", { type: "image/png" });
+
+    Object.defineProperty(fileInput, "files", {
+      configurable: true,
+      value: [imageFile],
+    });
+
+    await act(async () => {
+      fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('img[alt="chart.png"]')).not.toBeNull();
+
+    mockSelectedModel = textOnlyModel;
+
+    await act(async () => {
+      root.render(<ChatInput onSubmit={vi.fn()} isRunning={false} />);
+    });
+
+    expect(container.querySelector('img[alt="chart.png"]')).toBeNull();
+    expect(container.textContent).toContain(
+      "Attached images were removed because the selected model does not support image input."
+    );
   });
 });

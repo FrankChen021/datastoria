@@ -2,11 +2,18 @@
 
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useModelConfig } from "@/hooks/use-model-config";
 import type { CommandDetail } from "@/lib/ai/commands/command-manager";
+import { resolveModelSupportsImageInput } from "@/lib/ai/llm/llm-provider-factory";
 import { cn } from "@/lib/utils";
 import type { LanguageModelUsage } from "ai";
-import { ImagePlus, MessageSquarePlus, Send, Square, X } from "lucide-react";
+import { ImagePlus, MessageSquarePlus, Plus, Send, Square, X } from "lucide-react";
 import * as React from "react";
 import { useChatCommands } from "../command-context";
 import { ChatTokenStatus } from "../message/chat-token-status";
@@ -33,6 +40,8 @@ const MAX_IMAGE_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 // Keep inline data URLs below the API's 10 MB JSON request limit after base64 expansion.
 const MAX_TOTAL_IMAGE_FILE_SIZE_BYTES = 7 * 1024 * 1024;
 const UNSUPPORTED_IMAGE_MODEL_MESSAGE = "Select a vision-capable model before sending images.";
+const REMOVED_IMAGE_ATTACHMENTS_MESSAGE =
+  "Attached images were removed because the selected model does not support image input.";
 
 export type ChatInputImageAttachment = {
   id: string;
@@ -415,10 +424,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       () => buildRenderSegments(input, selectedCommand),
       [input, selectedCommand]
     );
-    const selectedModelSupportsImages =
-      selectedModel == null ||
-      (selectedModel.provider === "System" && selectedModel.modelId === "Auto") ||
-      selectedModel.supportsImageInput !== false;
+    const selectedModelSupportsImages = resolveModelSupportsImageInput(selectedModel);
     const canSubmit =
       (input.trim().length > 0 || attachments.length > 0) &&
       (attachments.length === 0 || selectedModelSupportsImages);
@@ -427,23 +433,39 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       attachmentsRef.current = attachments;
     }, [attachments]);
 
-    React.useEffect(() => {
-      setAttachmentError((current) => {
-        if (attachments.length > 0 && !selectedModelSupportsImages) {
-          return UNSUPPORTED_IMAGE_MODEL_MESSAGE;
-        }
-        if (current === UNSUPPORTED_IMAGE_MODEL_MESSAGE) {
-          return null;
-        }
-        return current;
-      });
-    }, [attachments.length, selectedModelSupportsImages]);
-
     const resetFileInput = React.useCallback(() => {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }, []);
+
+    React.useEffect(() => {
+      if (selectedModelSupportsImages || attachmentsRef.current.length === 0) {
+        return;
+      }
+
+      attachmentsRef.current = [];
+      setAttachments([]);
+      resetFileInput();
+      setAttachmentError(REMOVED_IMAGE_ATTACHMENTS_MESSAGE);
+    }, [resetFileInput, selectedModelSupportsImages]);
+
+    React.useEffect(() => {
+      setAttachmentError((current) => {
+        if (!selectedModelSupportsImages) {
+          return current === REMOVED_IMAGE_ATTACHMENTS_MESSAGE ? current : null;
+        }
+
+        if (
+          current === UNSUPPORTED_IMAGE_MODEL_MESSAGE ||
+          current === REMOVED_IMAGE_ATTACHMENTS_MESSAGE
+        ) {
+          return null;
+        }
+
+        return current;
+      });
+    }, [selectedModelSupportsImages]);
 
     const readFileAsDataUrl = React.useCallback((file: File) => {
       return new Promise<string>((resolve, reject) => {
@@ -1129,7 +1151,6 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             </div>
             <div className="mt-[-4px] flex shrink-0 items-center justify-between px-2 pb-2 pt-2">
               <div className="flex items-center gap-1">
-                <ModelSelector className="bg-muted" />
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1138,22 +1159,36 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                   className="hidden"
                   onChange={handleFileInputChange}
                 />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 gap-1 px-2 text-xs"
-                  title={
-                    selectedModelSupportsImages
-                      ? "Add images"
-                      : "Select a vision-capable model to add images"
-                  }
-                  disabled={isRunning || !selectedModelSupportsImages}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <ImagePlus className="h-3 w-3" />
-                  Image
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 rounded-md"
+                      title={
+                        selectedModelSupportsImages
+                          ? "Add attachment"
+                          : "Select a vision-capable model to add images"
+                      }
+                      aria-label="Add attachment"
+                      disabled={isRunning}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" side="top" className="w-32 p-1">
+                    <DropdownMenuItem
+                      disabled={!selectedModelSupportsImages}
+                      className="gap-1.5 px-2 py-1 text-xs"
+                      onSelect={() => fileInputRef.current?.click()}
+                    >
+                      <ImagePlus className="h-3 w-3" />
+                      Image
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <ModelSelector className="bg-muted" />
                 {hasMessages && (
                   <>
                     {onNewChat && (

@@ -11,11 +11,11 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { useModelConfig } from "@/hooks/use-model-config";
-import type { ModelProps } from "@/lib/ai/llm/llm-provider-factory";
+import { resolveModelSupportsImageInput, type ModelProps } from "@/lib/ai/llm/llm-provider-factory";
 import { PROVIDER_GITHUB_COPILOT } from "@/lib/ai/llm/provider-ids";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Layers, Settings2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { showSettingsDialog } from "../../settings/settings-dialog";
@@ -31,6 +31,44 @@ interface ModelCommandItemProps {
 export interface ModelSelection {
   provider: string;
   modelId: string;
+}
+
+type ModelDetailField = {
+  label: string;
+  value: string;
+};
+
+function parseModelDetailFields(model: ModelProps): ModelDetailField[] {
+  const fields: ModelDetailField[] = [];
+  const rawDescription = model.description?.trim();
+
+  if (rawDescription) {
+    const metadataMatches = Array.from(
+      rawDescription.matchAll(/^- \*\*(.+?)\*\*: ([\s\S]*?)(?=\n- \*\*|$)/gm)
+    );
+
+    if (metadataMatches.length > 0) {
+      for (const match of metadataMatches) {
+        const [, label, value] = match;
+        fields.push({
+          label: label.trim(),
+          value: value.trim(),
+        });
+      }
+    } else {
+      fields.push({
+        label: "Description",
+        value: rawDescription,
+      });
+    }
+  }
+
+  fields.push({
+    label: "Support Image Input",
+    value: resolveModelSupportsImageInput(model) ? "Yes" : "No",
+  });
+
+  return fields;
 }
 
 function FreeBadge() {
@@ -121,6 +159,7 @@ export function ModelSelectorImpl({
   showConfigureAction = true,
 }: ModelSelectorImplProps = {}) {
   const [open, setOpen] = useState(false);
+  const leftPanelRef = useRef<HTMLDivElement | null>(null);
   const {
     availableModels,
     selectedModel,
@@ -137,6 +176,7 @@ export function ModelSelectorImpl({
     activeModel ? `${activeModel.provider} ${activeModel.modelId}` : undefined
   );
   const [groupByProvider, setGroupByProvider] = useState(false);
+  const [detailPaneHeight, setDetailPaneHeight] = useState<number | null>(null);
 
   // Filter out "System (Auto)" if auto-select is not available
   const filteredModels = useMemo(() => {
@@ -253,6 +293,31 @@ export function ModelSelectorImpl({
     return filteredModels.find((m) => `${m.provider} ${m.modelId}` === highlightedValue);
   }, [filteredModels, highlightedValue]);
 
+  const highlightedModelFields = useMemo(
+    () => (highlightedModel ? parseModelDetailFields(highlightedModel) : []),
+    [highlightedModel]
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setDetailPaneHeight(null);
+      return;
+    }
+
+    const node = leftPanelRef.current;
+    if (!node) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      setDetailPaneHeight(node.offsetHeight || null);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [open]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -290,15 +355,16 @@ export function ModelSelectorImpl({
         <Command
           value={highlightedValue}
           onValueChange={setHighlightedValue}
-          className="flex flex-row items-stretch max-h-[300px] overflow-visible bg-transparent shadow-none border-0"
+          className="flex flex-row items-stretch overflow-visible bg-transparent shadow-none border-0"
           filter={(value: string, search: string) => {
             return value.toLowerCase().includes(search.toLowerCase());
           }}
         >
           <div
+            ref={leftPanelRef}
             data-panel="left"
             className={cn(
-              "w-[300px] border bg-popover rounded-sm overflow-hidden shadow-md flex flex-col",
+              "flex max-h-[300px] w-[300px] flex-col overflow-hidden rounded-sm border bg-popover shadow-md",
               highlightedModel?.description ? "rounded-r-none" : ""
             )}
           >
@@ -385,14 +451,24 @@ export function ModelSelectorImpl({
             ) : null}
           </div>
 
-          {highlightedModel?.description && (
+          {highlightedModelFields.length > 0 && (
             <div
               data-panel="right"
-              className="w-[250px] overflow-y-auto p-2 bg-popover rounded-sm rounded-l-none border border-l-0 text-[10px] text-popover-foreground shadow-md"
+              className="w-[250px] overflow-y-auto rounded-sm rounded-l-none border border-l-0 bg-popover p-2 text-[10px] text-popover-foreground shadow-md"
+              style={detailPaneHeight ? { height: `${detailPaneHeight}px` } : undefined}
             >
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {highlightedModel.description}
-              </ReactMarkdown>
+              <div className="flex flex-col gap-3">
+                {highlightedModelFields.map((field) => (
+                  <div key={field.label} className="flex flex-col gap-1">
+                    <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                      {field.label}
+                    </div>
+                    <div className="text-[10px] leading-relaxed text-popover-foreground">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{field.value}</ReactMarkdown>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </Command>
