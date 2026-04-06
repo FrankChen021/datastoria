@@ -2,7 +2,12 @@ import type { Chat, Message } from "@/lib/ai/chat-types";
 import type { LocalStorage } from "@/lib/storage/local-storage-provider";
 import { StorageManager } from "@/lib/storage/storage-provider-manager";
 import { v7 as uuidv7 } from "uuid";
-import type { CreateSessionFromMessagesInput, SessionRepository } from "./session-repository";
+import type {
+  CreateSessionFromMessagesInput,
+  SessionPage,
+  SessionPageInput,
+  SessionRepository,
+} from "./session-repository";
 
 /**
  * LocalStorage-based implementation of SessionRepository for simplicity
@@ -11,6 +16,50 @@ import type { CreateSessionFromMessagesInput, SessionRepository } from "./sessio
  * This implementation includes automatic cleanup of old chats when quota is exceeded.
  */
 export class LocalSessionRepository implements SessionRepository {
+  private compareChatsDesc(
+    a: Pick<Chat, "updatedAt" | "chatId">,
+    b: Pick<Chat, "updatedAt" | "chatId">
+  ) {
+    const timeDiff = b.updatedAt.getTime() - a.updatedAt.getTime();
+    if (timeDiff !== 0) {
+      return timeDiff;
+    }
+    return b.chatId.localeCompare(a.chatId);
+  }
+
+  private createCursor(chat: Pick<Chat, "updatedAt" | "chatId">): string {
+    return `${chat.updatedAt.toISOString()}|${chat.chatId}`;
+  }
+
+  private parseCursor(cursor: string): { updatedAt: number; chatId: string } | null {
+    const separatorIndex = cursor.lastIndexOf("|");
+    if (separatorIndex <= 0) {
+      return null;
+    }
+
+    const updatedAt = new Date(cursor.slice(0, separatorIndex)).getTime();
+    const chatId = cursor.slice(separatorIndex + 1);
+    if (Number.isNaN(updatedAt) || !chatId) {
+      return null;
+    }
+
+    return { updatedAt, chatId };
+  }
+
+  private isAfterCursor(chat: Chat, cursor: string): boolean {
+    const parsed = this.parseCursor(cursor);
+    if (!parsed) {
+      return true;
+    }
+
+    return (
+      this.compareChatsDesc(chat, {
+        updatedAt: new Date(parsed.updatedAt),
+        chatId: parsed.chatId,
+      }) > 0
+    );
+  }
+
   private toValidDate(value: unknown): Date | null {
     if (value instanceof Date) {
       return Number.isNaN(value.getTime()) ? null : value;
@@ -58,12 +107,12 @@ export class LocalSessionRepository implements SessionRepository {
 
   private async removeOldestChats(count: number = 5, excludeChatId?: string): Promise<number> {
     try {
-      const chats = await this.getSessions();
+      const chats = await this.getStoredSessions();
       if (chats.length === 0) {
         return 0;
       }
 
-      const sortedChats = chats.sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime());
+      const sortedChats = chats.sort((a, b) => -this.compareChatsDesc(a, b));
       const chatsToConsider = excludeChatId
         ? sortedChats.filter((chat) => chat.chatId !== excludeChatId)
         : sortedChats;
@@ -136,7 +185,7 @@ export class LocalSessionRepository implements SessionRepository {
         if (error instanceof DOMException && error.name === "QuotaExceededError") {
           console.warn("localStorage quota exceeded, cleaning up old data...");
 
-          const allChats = await this.getSessions();
+          const allChats = await this.getStoredSessions();
           const remainingChats = currentChatIdToExclude
             ? allChats.filter((chat) => chat.chatId !== currentChatIdToExclude)
             : allChats;
@@ -258,7 +307,7 @@ export class LocalSessionRepository implements SessionRepository {
     await this.clearMessages(id);
   }
 
-  private async getSessions(): Promise<Chat[]> {
+  private async getStoredSessions(): Promise<Chat[]> {
     const chats = this.chatsStorage.getAsJSON<Record<string, Chat>>(() => ({}));
 
     return Object.values(chats)
@@ -267,12 +316,25 @@ export class LocalSessionRepository implements SessionRepository {
         createdAt: new Date(chat.createdAt),
         updatedAt: new Date(chat.updatedAt),
       }))
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      .sort((a, b) => this.compareChatsDesc(a, b));
   }
 
-  async getSessionsForConnection(connectionId: string): Promise<Chat[]> {
-    const allChats = await this.getSessions();
-    return allChats.filter((chat) => chat.databaseId === connectionId);
+  async getSessions(input: SessionPageInput): Promise<SessionPage> {
+    const allChats = await this.getStoredSessions();
+    const filteredChats = input.connectionId
+      ? allChats.filter((chat) => chat.databaseId === input.connectionId)
+      : allChats;
+    const startIndex = input.cursor
+      ? filteredChats.findIndex((chat) => this.isAfterCursor(chat, input.cursor!))
+      : 0;
+    const pageStart = startIndex === -1 ? filteredChats.length : startIndex;
+    const page = filteredChats.slice(pageStart, pageStart + input.limit);
+    const nextItem = filteredChats[pageStart + input.limit];
+
+    return {
+      sessions: page,
+      nextCursor: nextItem && page.length > 0 ? this.createCursor(page[page.length - 1]!) : null,
+    };
   }
 
   async getMessages(chatId: string): Promise<Message[]> {

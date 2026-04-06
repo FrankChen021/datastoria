@@ -13,6 +13,8 @@ import type {
   PersistedFeedbackEvent,
   RecordMessageMetadataInput,
   ServerSessionRepository,
+  SessionPage,
+  SessionPageInput,
   TouchSessionInput,
   UpsertFeedbackEventInput,
   UpsertMessageInput,
@@ -27,6 +29,36 @@ type SqlRepositoryOptions = {
 
 export abstract class AbstractServerSessionRepository implements ServerSessionRepository {
   constructor(private readonly options: SqlRepositoryOptions) {}
+
+  private formatCursorTimestamp(date: Date): string {
+    const year = date.getUTCFullYear();
+    const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
+    const day = `${date.getUTCDate()}`.padStart(2, "0");
+    const hours = `${date.getUTCHours()}`.padStart(2, "0");
+    const minutes = `${date.getUTCMinutes()}`.padStart(2, "0");
+    const seconds = `${date.getUTCSeconds()}`.padStart(2, "0");
+    const milliseconds = `${date.getUTCMilliseconds()}`.padStart(3, "0");
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+  }
+
+  private createCursor(session: PersistedChatSession): string {
+    return `${this.formatCursorTimestamp(session.updated_at)}|${session.session_id}`;
+  }
+
+  private parseCursor(cursor: string): { updatedAt: string; sessionId: string } | null {
+    const separatorIndex = cursor.lastIndexOf("|");
+    if (separatorIndex <= 0) {
+      return null;
+    }
+
+    const updatedAt = cursor.slice(0, separatorIndex);
+    const sessionId = cursor.slice(separatorIndex + 1);
+    if (!updatedAt || !sessionId) {
+      return null;
+    }
+
+    return { updatedAt, sessionId };
+  }
 
   protected toPersistedSession(row: PersistedChatSession): PersistedChatSession {
     return {
@@ -86,12 +118,9 @@ export abstract class AbstractServerSessionRepository implements ServerSessionRe
     return row ? this.toPersistedSession(row) : null;
   }
 
-  async getSessionsForConnection(
-    userId: string,
-    connectionId: string
-  ): Promise<PersistedChatSession[]> {
+  async getSessions(userId: string, input: SessionPageInput): Promise<SessionPage> {
     await this.ensureReady();
-    const rows = (await this.db()("chat_sessions")
+    const query = this.db()("chat_sessions")
       .select({
         session_id: "session_id",
         user_id: "user_id",
@@ -102,11 +131,38 @@ export abstract class AbstractServerSessionRepository implements ServerSessionRe
       })
       .where({
         user_id: userId,
-        connection_id: connectionId,
-      })
-      .orderBy("updated_at", "desc")) as PersistedChatSession[];
+      });
 
-    return rows.map((row) => this.toPersistedSession(row));
+    if (input.connectionId) {
+      query.andWhere({ connection_id: input.connectionId });
+    }
+
+    if (input.cursor) {
+      const parsedCursor = this.parseCursor(input.cursor);
+      if (parsedCursor) {
+        query.andWhere((builder) => {
+          builder.where("updated_at", "<", parsedCursor.updatedAt).orWhere((orBuilder) => {
+            orBuilder
+              .where("updated_at", "=", parsedCursor.updatedAt)
+              .andWhere("session_id", "<", parsedCursor.sessionId);
+          });
+        });
+      }
+    }
+
+    const rows = (await query
+      .orderBy("updated_at", "desc")
+      .orderBy("session_id", "desc")
+      .limit(input.limit + 1)) as PersistedChatSession[];
+    const sessions = rows.slice(0, input.limit).map((row) => this.toPersistedSession(row));
+
+    return {
+      sessions,
+      nextCursor:
+        rows.length > input.limit && sessions.length > 0
+          ? this.createCursor(sessions[sessions.length - 1]!)
+          : null,
+    };
   }
 
   async getMessages(userId: string, sessionId: string): Promise<PersistedChatMessage[]> {

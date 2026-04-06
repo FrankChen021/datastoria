@@ -15,13 +15,24 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const connectionId = url.searchParams.get("connectionId");
-  if (!connectionId) {
-    return new Response("Missing connectionId", { status: 400 });
+  const cursor = url.searchParams.get("cursor");
+  const limitParam = url.searchParams.get("limit");
+  const limit = limitParam ? Number.parseInt(limitParam, 10) : 100;
+
+  if (!Number.isFinite(limit) || limit <= 0 || limit > 500) {
+    return new Response("Invalid limit", { status: 400 });
   }
 
   const sessionRepository = getServerSessionRepository();
-  const sessions = await sessionRepository.getSessionsForConnection(userId, connectionId);
-  return Response.json(sessions.map(persistedSessionToDTO));
+  const page = await sessionRepository.getSessions(userId, {
+    connectionId: connectionId ?? undefined,
+    cursor,
+    limit,
+  });
+  return Response.json({
+    sessions: page.sessions.map(persistedSessionToDTO),
+    nextCursor: page.nextCursor,
+  });
 }
 
 type CreateSessionRequest = {

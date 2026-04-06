@@ -5,6 +5,8 @@ import type {
   PersistedFeedbackEvent,
   RecordMessageMetadataInput,
   ServerSessionRepository,
+  SessionPage,
+  SessionPageInput,
   TouchSessionInput,
   UpsertFeedbackEventInput,
   UpsertMessageInput,
@@ -15,11 +17,11 @@ export class ServerSessionRepositoryNoop implements ServerSessionRepository {
     return null;
   }
 
-  async getSessionsForConnection(
-    _userId: string,
-    _connectionId: string
-  ): Promise<PersistedChatSession[]> {
-    return [];
+  async getSessions(_userId: string, _input: SessionPageInput): Promise<SessionPage> {
+    return {
+      sessions: [],
+      nextCursor: null,
+    };
   }
 
   async getMessages(_userId: string, _sessionId: string): Promise<[]> {

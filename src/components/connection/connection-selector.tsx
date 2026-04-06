@@ -1,4 +1,5 @@
 import { useConnection } from "@/components/connection/connection-context";
+import { ConnectionDetailPanel } from "@/components/connection/connection-detail-panel";
 import { HighlightableCommandItem } from "@/components/shared/cmdk/cmdk-extension";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +13,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
 import { ConnectionManager } from "@/lib/connection/connection-manager";
 import { cn } from "@/lib/utils";
-import { Check, Eye, EyeOff, Pencil, Plus } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { showConnectionEditDialog } from "./connection-edit-component";
 
@@ -34,90 +35,6 @@ interface ConnectionSelectorProps {
    * When provided, overrides the value from connection context for initial selection.
    */
   defaultConnectionName?: string | null;
-}
-
-/**
- * Right-hand details panel for a connection.
- */
-function ConnectionDetailPanel({
-  conn,
-  onEdit,
-}: {
-  conn: ConnectionConfig | null;
-  onEdit?: (c: ConnectionConfig) => void;
-}) {
-  const [showPassword, setShowPassword] = useState(false);
-  if (!conn) {
-    return null;
-  }
-  return (
-    <div
-      data-panel="right"
-      className="w-[260px] flex-shrink-0 flex flex-col h-full p-0 bg-popover rounded-sm text-[10px] text-popover-foreground shadow-md"
-    >
-      <div className="px-2 py-3 w-full flex flex-col flex-1">
-        <div className="overflow-auto h-full">
-          <div className="flex flex-col gap-y-3">
-            <div>
-              <div className="text-xs text-muted-foreground">Name</div>
-              <div className="text-xs font-medium whitespace-nowrap">{conn.name}</div>
-            </div>
-
-            <div>
-              <div className="text-xs text-muted-foreground">URL</div>
-              <div className="text-xs whitespace-nowrap">{conn.url}</div>
-            </div>
-
-            <div>
-              <div className="text-xs text-muted-foreground">User</div>
-              <div className="text-xs whitespace-nowrap">{conn.user}</div>
-            </div>
-
-            <div>
-              <div className="text-xs text-muted-foreground">Password</div>
-              <div className="flex items-center gap-2">
-                {conn.password && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-4 w-4 p-0"
-                    onClick={() => setShowPassword((s) => !s)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="!h-3 !w-3" />
-                    ) : (
-                      <Eye className="!h-3 !w-3" />
-                    )}
-                  </Button>
-                )}
-                <div className="text-xs whitespace-nowrap">
-                  {conn.password ? (showPassword ? conn.password : "••••••") : "No password"}
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div className="text-xs text-muted-foreground">Cluster</div>
-              <div className="text-xs whitespace-nowrap">{conn.cluster || "N/A"}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="h-px bg-border" />
-      <div className="h-[36px] flex items-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="px-2 font-normal text-sm w-full h-full rounded-none"
-          onClick={() => onEdit?.(conn)}
-        >
-          <Pencil className="h-4 w-4 mr-2" />
-          Edit Connection
-        </Button>
-      </div>
-    </div>
-  );
 }
 
 /**

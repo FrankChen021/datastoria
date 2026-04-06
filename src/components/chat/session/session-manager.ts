@@ -4,7 +4,10 @@ import type { Chat, Message } from "@/lib/ai/chat-types";
 import { useMemo, useSyncExternalStore } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { toSessionRepositoryConnectionId } from "./session-connection-id";
+import type { SessionPageInput } from "./session-repository";
 import { getSessionRepository } from "./session-repository-factory";
+
+const MAX_SESSION_PAGE_LIMIT = 500;
 
 export interface ManagedSession extends Chat {
   running: boolean;
@@ -14,6 +17,10 @@ type SessionState = {
   sessionsByConnection: Record<string, Record<string, ManagedSession>>;
   runningByChatId: Record<string, boolean>;
   loadingByConnection: Record<string, Promise<ManagedSession[]>>;
+  allSessionsNextCursor: string | null;
+  hasMoreAllSessions: boolean;
+  allSessionsLoaded: boolean;
+  loadingAllSessions: Promise<ManagedSession[]> | null;
   version: number;
 };
 
@@ -21,6 +28,10 @@ const state: SessionState = {
   sessionsByConnection: {},
   runningByChatId: {},
   loadingByConnection: {},
+  allSessionsNextCursor: null,
+  hasMoreAllSessions: true,
+  allSessionsLoaded: false,
+  loadingAllSessions: null,
   version: 0,
 };
 
@@ -65,11 +76,77 @@ export const SessionManager = {
     return Object.values(bucket).sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   },
 
-  async loadSessions(connectionId?: string): Promise<ManagedSession[]> {
+  getAllSessions(): ManagedSession[] {
+    return Object.values(state.sessionsByConnection)
+      .flatMap((bucket) => Object.values(bucket))
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  },
+
+  getAllSessionsPageInfo() {
+    return {
+      hasMore: state.hasMoreAllSessions,
+      nextCursor: state.allSessionsNextCursor,
+      loaded: state.allSessionsLoaded,
+      loading: state.loadingAllSessions !== null,
+    };
+  },
+
+  async loadSessions(
+    input?: string | (SessionPageInput & { reset?: boolean })
+  ): Promise<ManagedSession[]> {
+    if (typeof input !== "string" && !input?.connectionId) {
+      const reset = input?.reset ?? false;
+      const limit = input?.limit ?? 100;
+
+      if (state.loadingAllSessions) {
+        return state.loadingAllSessions;
+      }
+
+      if (!reset && !state.hasMoreAllSessions && state.allSessionsLoaded) {
+        return this.getAllSessions();
+      }
+
+      const storage = getSessionRepository();
+      const cursor = reset ? null : (input?.cursor ?? state.allSessionsNextCursor);
+      const loadPromise = (async () => {
+        const page = await storage.getSessions({ limit, cursor });
+        const nextBuckets = reset ? {} : { ...state.sessionsByConnection };
+
+        for (const session of page.sessions) {
+          const connectionId = session.databaseId;
+          if (!connectionId) {
+            continue;
+          }
+
+          const currentBucket = nextBuckets[connectionId] ?? {};
+          nextBuckets[connectionId] = {
+            ...currentBucket,
+            [session.chatId]: toManagedSession(session, currentBucket[session.chatId]),
+          };
+        }
+
+        state.sessionsByConnection = nextBuckets;
+        state.allSessionsNextCursor = page.nextCursor;
+        state.hasMoreAllSessions = page.nextCursor !== null;
+        state.allSessionsLoaded = true;
+        emitChange();
+        return this.getAllSessions();
+      })();
+
+      state.loadingAllSessions = loadPromise;
+      try {
+        return await loadPromise;
+      } finally {
+        if (state.loadingAllSessions === loadPromise) {
+          state.loadingAllSessions = null;
+        }
+      }
+    }
+
+    const connectionId = typeof input === "string" ? input : input.connectionId;
     if (!connectionId) {
       return [];
     }
-
     const repositoryConnectionId = toSessionRepositoryConnectionId(connectionId);
     const existingLoad = state.loadingByConnection[repositoryConnectionId];
     if (existingLoad) {
@@ -78,7 +155,14 @@ export const SessionManager = {
 
     const storage = getSessionRepository();
     const loadPromise = (async () => {
-      const sessions = await storage.getSessionsForConnection(repositoryConnectionId);
+      const requestedLimit = input && typeof input !== "string" ? input.limit : undefined;
+      const sessions = (
+        await storage.getSessions({
+          connectionId: repositoryConnectionId,
+          limit: Math.min(requestedLimit ?? MAX_SESSION_PAGE_LIMIT, MAX_SESSION_PAGE_LIMIT),
+          cursor: null,
+        })
+      ).sessions;
       const bucket = getConnectionBucket(repositoryConnectionId);
       const previousChatIds = new Set(Object.keys(bucket));
 
@@ -233,14 +317,9 @@ export const SessionManager = {
     emitChange();
   },
 
-  async renameSession(connectionId: string | undefined, chatId: string, title: string) {
+  async renameSession(chatId: string, title: string) {
     const storage = getSessionRepository();
-    const repositoryConnectionId = connectionId
-      ? toSessionRepositoryConnectionId(connectionId)
-      : undefined;
-    const current =
-      (repositoryConnectionId ? getConnectionBucket(repositoryConnectionId)[chatId] : undefined) ??
-      (await storage.getSession(chatId));
+    const current = await this.getSession(chatId);
 
     if (!current) {
       return;
@@ -255,20 +334,15 @@ export const SessionManager = {
     this.upsertSession(nextSession);
   },
 
-  async deleteSessions(connectionId: string | undefined, chatIds: string[]) {
+  async deleteSessions(chatIds: string[]) {
     const storage = getSessionRepository();
     await Promise.all(chatIds.map((chatId) => storage.deleteSession(chatId)));
 
-    if (!connectionId) {
-      emitChange();
-      return;
-    }
-
-    const repositoryConnectionId = toSessionRepositoryConnectionId(connectionId);
-    const bucket = getConnectionBucket(repositoryConnectionId);
     for (const chatId of chatIds) {
+      for (const bucket of Object.values(state.sessionsByConnection)) {
+        delete bucket[chatId];
+      }
       delete state.runningByChatId[chatId];
-      delete bucket[chatId];
     }
     emitChange();
   },
@@ -293,7 +367,10 @@ export const SessionManager = {
   },
 };
 
-export function useSessions(connectionId?: string): ManagedSession[] {
+export function useSessions(
+  connectionId?: string,
+  scope: "connection" | "all" = "connection"
+): ManagedSession[] {
   const snapshotVersion = useSyncExternalStore(
     SessionManager.subscribe,
     SessionManager.getVersion,
@@ -302,6 +379,21 @@ export function useSessions(connectionId?: string): ManagedSession[] {
 
   return useMemo(() => {
     void snapshotVersion;
-    return SessionManager.getSessions(connectionId);
-  }, [connectionId, snapshotVersion]);
+    return scope === "all"
+      ? SessionManager.getAllSessions()
+      : SessionManager.getSessions(connectionId);
+  }, [connectionId, scope, snapshotVersion]);
+}
+
+export function useSessionPageInfo() {
+  const snapshotVersion = useSyncExternalStore(
+    SessionManager.subscribe,
+    SessionManager.getVersion,
+    SessionManager.getVersion
+  );
+
+  return useMemo(() => {
+    void snapshotVersion;
+    return SessionManager.getAllSessionsPageInfo();
+  }, [snapshotVersion]);
 }
