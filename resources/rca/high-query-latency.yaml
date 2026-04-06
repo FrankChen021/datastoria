@@ -122,7 +122,6 @@ candidates:
           operator: gte
           right: { threshold: avg_read_bytes_gte }
       - description: "p99 latency >= {threshold.p99_latency_ms_gte}ms"
-        required: true
         actual_template: "{query_log.p99_ms:.2f}ms"
         match:
           kind: comparison
@@ -136,7 +135,6 @@ candidates:
       - "check part churn and merge scheduler pressure on top tables"
     indicators:
       - description: "active merges > {threshold.active_merges_gt}"
-        required: true
         actual_template: "{merges.active_merges}"
         match:
           kind: comparison
@@ -162,7 +160,6 @@ candidates:
     observations: [query_log, memory_metrics]
     indicators:
       - description: "memory used >= {threshold.memory_used_percent_gte}%"
-        required: true
         actual_template: "{memory_metrics.memory_used_percent_max:.2f}%"
         match:
           kind: comparison

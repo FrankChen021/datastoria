@@ -34,9 +34,7 @@ export const handleHighPartitionCount: SymptomEvidenceCollector = async (
 ): Promise<SymptomEvidence> => {
   const context = await prepareHighPartitionCountContext(baseContext);
   const result = await executeRcaTemplate({
-    cacheKey: "high_partition_count",
-    templatePath: "high-partition-count.yaml",
-    thresholdSet: "high_partition_count",
+    templateName: "high_partition_count",
     context,
   });
 

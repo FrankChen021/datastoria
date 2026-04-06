@@ -5,29 +5,16 @@
  * They provide schema introspection and query execution capabilities.
  */
 import type { AppUIMessage } from "@/lib/ai/chat-types";
-import { tool, type InferToolInput, type InferToolOutput, type UIMessage } from "ai";
+import { tool, type UIMessage } from "ai";
 import * as z from "zod";
+import type { EvidenceContext } from "./collect-sql-optimization-evidence";
 import type { ToolExecutor } from "./client-tool-types";
-import {
-  collectSqlOptimizationEvidenceExecutor,
-  type EvidenceContext,
-} from "./collect-sql-optimization-evidence";
-import { executeSqlExecutor } from "./execute-sql";
-import { exploreSchemaExecutor } from "./explore-schema";
-import { getTablesExecutor } from "./get-tables";
 import { type RcaEvidenceInput, type RcaEvidenceOutput } from "./rca/evidence-collector-common";
-import { collectRcaEvidenceExecutor } from "./rca/tool-collect-rca-evidence";
+import { type SearchQueryLogInput, type SearchQueryLogOutput } from "./search-query-log";
 import {
-  searchQueryLogExecutor,
-  type SearchQueryLogInput,
-  type SearchQueryLogOutput,
-} from "./search-query-log";
-import {
-  getClusterStatusExecutor,
   type GetClusterStatusInput,
   type GetClusterStatusOutput,
 } from "./status/collect-cluster-status";
-import { validateSqlExecutor } from "./validate-sql";
 
 export type AskUserQuestionOption =
   | {
@@ -766,23 +753,3 @@ export const CLIENT_TOOL_NAMES = {
 export function convertToAppUIMessage(message: UIMessage): AppUIMessage {
   return message as AppUIMessage;
 }
-
-/**
- * Tool registry - maps tool names to their executor functions
- */
-export const ClientToolExecutors: {
-  [K in keyof typeof ClientTools]: ToolExecutor<
-    InferToolInput<(typeof ClientTools)[K]>,
-    InferToolOutput<(typeof ClientTools)[K]>
-  >;
-} = {
-  ask_user_question: askUserQuestionExecutor,
-  explore_schema: exploreSchemaExecutor,
-  get_tables: getTablesExecutor,
-  execute_sql: executeSqlExecutor,
-  validate_sql: validateSqlExecutor,
-  collect_sql_optimization_evidence: collectSqlOptimizationEvidenceExecutor,
-  search_query_log: searchQueryLogExecutor,
-  collect_cluster_status: getClusterStatusExecutor,
-  collect_rca_evidence: collectRcaEvidenceExecutor,
-};

@@ -18,6 +18,15 @@ type TextNode = MarkdownNode & {
   value: string;
 };
 
+type HtmlNode = MarkdownNode & {
+  type: "html";
+  value: string;
+};
+
+type BreakNode = MarkdownNode & {
+  type: "break";
+};
+
 type InlineCodeNode = MarkdownNode & {
   type: "inlineCode";
   value: string;
@@ -38,6 +47,16 @@ function hasChildren(node: MarkdownNode): node is ParentNode {
 
 function createTextNode(value: string): TextNode {
   return { type: "text", value };
+}
+
+function createBreakNode(): BreakNode {
+  return { type: "break" };
+}
+
+function isBrHtmlNode(node: MarkdownNode): node is HtmlNode {
+  return (
+    node.type === "html" && typeof node.value === "string" && /^<br\s*\/?>$/i.test(node.value.trim())
+  );
 }
 
 function createLinkNode(referenceType: string, tokenBody: string): LinkNode | null {
@@ -146,6 +165,11 @@ function transformChildren(children: MarkdownNode[]): MarkdownNode[] {
 
     if (child.type === "inlineCode" && typeof child.value === "string") {
       nextChildren.push(...transformInlineCodeValue(child.value));
+      continue;
+    }
+
+    if (isBrHtmlNode(child)) {
+      nextChildren.push(createBreakNode());
       continue;
     }
 

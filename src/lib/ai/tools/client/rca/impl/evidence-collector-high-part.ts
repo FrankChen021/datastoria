@@ -36,9 +36,7 @@ export const handleHighPartCount: SymptomEvidenceCollector = async (
 ): Promise<SymptomEvidence> => {
   const context = await prepareHighPartCountContext(baseContext);
   const result = await executeRcaTemplate({
-    cacheKey: "high_part_count",
-    templatePath: "high-part-count.yaml",
-    thresholdSet: "high_part_count",
+    templateName: "high_part_count",
     context,
   });
   await enrichPartitionKeyColumns(

@@ -123,4 +123,26 @@ describe("remarkReferenceTokens", () => {
       { type: "text", value: " now." },
     ]);
   });
+
+  it("converts br html nodes into markdown break nodes", () => {
+    const tree = transformTree({
+      type: "root",
+      children: [
+        {
+          type: "paragraph",
+          children: [
+            { type: "text", value: "line 1" },
+            { type: "html", value: "<br/>" },
+            { type: "text", value: "line 2" },
+          ],
+        },
+      ],
+    });
+
+    expect(tree.children?.[0]?.children).toEqual([
+      { type: "text", value: "line 1" },
+      { type: "break" },
+      { type: "text", value: "line 2" },
+    ]);
+  });
 });

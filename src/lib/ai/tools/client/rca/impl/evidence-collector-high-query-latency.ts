@@ -1,6 +1,5 @@
 import {
   buildQueryLogPredicate,
-  type SymptomContext,
   type SymptomEvidence,
   type SymptomEvidenceCollector,
 } from "../evidence-collector-common";
@@ -14,9 +13,7 @@ export const handleHighQueryLatency: SymptomEvidenceCollector = async (
     scopePredicate: buildQueryLogPredicate(baseContext.scope, baseContext.target),
   };
   const result = await executeRcaTemplate({
-    cacheKey: "high_query_latency",
-    templatePath: "high-query-latency.yaml",
-    thresholdSet: "high_query_latency",
+    templateName: "high_query_latency",
     context,
   });
 

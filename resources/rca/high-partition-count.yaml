@@ -122,7 +122,6 @@ candidates:
     observations: [logical_stats, partition_growth, table_meta]
     indicators:
       - description: "partition count > {threshold.partition_count_gt}"
-        required: true
         actual_template: "{logical_stats.partition_count}"
         match:
           kind: comparison
@@ -149,7 +148,6 @@ candidates:
     observations: [logical_stats, node_ratio, insert_pattern]
     indicators:
       - description: "partition count > {threshold.partition_count_gt}"
-        required: true
         actual_template: "{logical_stats.partition_count}"
         match:
           kind: comparison
@@ -157,7 +155,6 @@ candidates:
           operator: gt
           right: { threshold: partition_count_gt }
       - description: "partition/parts ratio > {threshold.partition_to_parts_ratio_gt}"
-        required: true
         actual_template: "max_node={node_ratio.max_node_partition_to_parts_ratio:.2f} avg_node={node_ratio.avg_node_partition_to_parts_ratio:.2f}"
         match:
           kind: comparison
@@ -184,7 +181,6 @@ candidates:
       - "review partition lifecycle policy and retention granularity"
     indicators:
       - description: "recent partitions > {threshold.recent_partitions_gt} in window"
-        required: true
         actual_template: "{partition_growth.recent_partitions}"
         match:
           kind: comparison

@@ -1,5 +1,4 @@
-import fs from "node:fs";
-import path from "node:path";
+import { BasePath } from "@/lib/base-path";
 import yaml from "js-yaml";
 import {
   asNumber,
@@ -18,6 +17,7 @@ import {
 } from "./evidence-collector-common";
 
 type ThresholdSetName = keyof RcaThresholds;
+type RcaTemplateSourcePath = "high_query_latency" | "high_part_count" | "high_partition_count";
 
 type ObservationMetricTemplate = {
   name: string;
@@ -73,7 +73,6 @@ type CandidateTemplate = {
 
 type IndicatorTemplate = {
   description: string;
-  required?: boolean;
   blocker?: boolean;
   actual_template?: string;
   match: ConditionTemplate;
@@ -91,6 +90,8 @@ type ComparisonCondition = {
   right: {
     threshold?: string;
     value?: number | string;
+    observation?: string;
+    metric?: string;
   };
 };
 
@@ -166,38 +167,48 @@ export type TemplateRuntimeContext = SymptomContext & {
 };
 
 const templateCache = new Map<string, RcaTemplate>();
+let templateSourcesPromise: Promise<Record<string, string>> | null = null;
 
-function getRcaTemplateRootDir(): string {
-  const prodCandidates = [
-    path.join(process.cwd(), ".next", "server", "rca"),
-    path.join(process.cwd(), ".next", "standalone", ".next", "server", "rca"),
-  ];
-  const devCandidates = [path.join(process.cwd(), "resources", "rca"), ...prodCandidates];
-  const candidates = process.env.NODE_ENV === "production" ? prodCandidates : devCandidates;
+async function loadTemplateSources(): Promise<Record<string, string>> {
+  if (!templateSourcesPromise) {
+    templateSourcesPromise = fetch(BasePath.getURL("/api/ai/rca/templates"))
+      .then(async (response) => {
+        const payload = (await response.json()) as {
+          templates?: Record<string, string>;
+          error?: string;
+        };
 
-  for (const dir of candidates) {
-    try {
-      if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
-        return dir;
-      }
-    } catch {
-      // ignore and continue
-    }
+        if (!response.ok || !payload.templates) {
+          throw new Error(payload.error ?? "Failed to fetch RCA templates");
+        }
+
+        return payload.templates;
+      })
+      .catch((error) => {
+        templateSourcesPromise = null;
+        throw error;
+      });
   }
 
-  return path.join(process.cwd(), "resources", "rca");
+  return templateSourcesPromise;
 }
 
-function loadTemplate(cacheKey: string, resourcePath: string): RcaTemplate {
-  const cached = templateCache.get(cacheKey);
+async function loadTemplate(
+  templateId: RcaTemplateSourcePath,
+  resourcePath: RcaTemplateSourcePath
+): Promise<RcaTemplate> {
+  const cached = templateCache.get(templateId);
   if (cached) {
     return cached;
   }
 
-  const fullPath = path.join(getRcaTemplateRootDir(), resourcePath);
-  const source = fs.readFileSync(fullPath, "utf-8");
+  const templateSources = await loadTemplateSources();
+  const source = templateSources[resourcePath];
+  if (!source) {
+    throw new Error(`RCA template not found: ${resourcePath}`);
+  }
   const parsed = yaml.load(source) as RcaTemplate;
-  templateCache.set(cacheKey, parsed);
+  templateCache.set(templateId, parsed);
   return parsed;
 }
 
@@ -262,6 +273,11 @@ function evaluateCondition(input: {
       const right =
         condition.right.threshold !== undefined
           ? thresholds[condition.right.threshold]
+          : condition.right.observation && condition.right.metric
+            ? getMetricValue(observationsById, {
+                observation: condition.right.observation,
+                metric: condition.right.metric,
+              })
           : condition.right.value;
       return compare(condition.operator, left, right);
     }
@@ -441,9 +457,8 @@ function resolveTemplateTarget(input: {
 }
 
 export async function executeRcaTemplate(input: {
-  cacheKey: string;
-  templatePath: string;
-  thresholdSet: ThresholdSetName;
+  templateName: RcaTemplateSourcePath;
+  thresholdSet?: ThresholdSetName;
   context: TemplateRuntimeContext;
 }): Promise<{
   observations: Observation[];
@@ -453,8 +468,9 @@ export async function executeRcaTemplate(input: {
   relatedSymptoms: CanonicalSymptom[];
   target: Target | undefined;
 }> {
-  const template = loadTemplate(input.cacheKey, input.templatePath);
-  const thresholdValues = input.context.thresholds[input.thresholdSet] as Record<string, number>;
+  const template = await loadTemplate(input.templateName, input.templateName);
+  const thresholdSet = input.thresholdSet ?? input.templateName;
+  const thresholdValues = input.context.thresholds[thresholdSet] as Record<string, number>;
 
   const rawObservations = await Promise.all(
     template.observations.map((observation, index) =>
@@ -482,7 +498,6 @@ export async function executeRcaTemplate(input: {
           : "n/a";
         return {
           description: renderTemplate(indicator.description, observationsById, thresholdValues),
-          required: indicator.required,
           blocker: indicator.blocker,
           evaluation: {
             matched: evaluateCondition({
@@ -499,6 +514,7 @@ export async function executeRcaTemplate(input: {
 
   const { candidates, excludedCandidates } = scoreCauseEvaluations(evaluations);
   const candidatesByCause = new Map(candidates.map((candidate) => [candidate.cause, candidate]));
+  const possibleActions = template.actions.filter((action) => candidatesByCause.has(action.tied_to));
   const relatedSymptoms = Array.from(
     new Set(
       (template.related_symptoms ?? [])
@@ -520,7 +536,7 @@ export async function executeRcaTemplate(input: {
     observations,
     candidates,
     excludedCandidates,
-    possibleActions: template.actions,
+    possibleActions,
     relatedSymptoms,
     target: resolveTemplateTarget({
       context: input.context,

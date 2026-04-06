@@ -152,16 +152,50 @@ observations:
       - name: partition_key
         type: string
 
+  - id: parts_limit_setting
+    source: merge_tree_settings
+    description: "Effective parts_to_throw_insert setting (table override first, then global)"
+    datasource:
+      type: clickhouse
+      sql: |
+        WITH table_settings AS (
+          SELECT
+            toUInt64OrNull(extract(any(engine_full), 'parts_to_throw_insert\\s*=\\s*([0-9]+)')) AS table_parts_to_throw_insert
+          FROM system.tables
+          WHERE database = '{resolvedTargetDatabase}'
+            AND name = '{resolvedTargetTable}'
+        ),
+        global_settings AS (
+          SELECT
+            toUInt64OrNull(any(value)) AS global_parts_to_throw_insert
+          FROM system.merge_tree_settings
+          WHERE name = 'parts_to_throw_insert'
+        )
+        SELECT
+          coalesce(table_parts_to_throw_insert, global_parts_to_throw_insert, 0) AS effective_parts_to_throw_insert,
+          multiIf(
+            table_parts_to_throw_insert IS NOT NULL,
+            'table',
+            global_parts_to_throw_insert IS NOT NULL,
+            'global',
+            'unset'
+          ) AS parts_to_throw_insert_source
+        FROM table_settings
+        CROSS JOIN global_settings
+    metrics:
+      - name: effective_parts_to_throw_insert
+        type: number
+      - name: parts_to_throw_insert_source
+        type: string
+
 candidates:
   - cause: insert_too_frequent
     observations:
       - insert_pattern
-      - node_totals
     next_checks:
       - "increase insert batch size and reduce insert frequency"
     indicators:
       - description: "inserts per minute > {threshold.inserts_per_minute_gt}"
-        required: true
         actual_template: "{insert_pattern.inserts_per_minute:.2f}"
         match:
           kind: comparison
@@ -190,17 +224,6 @@ candidates:
               operator: lt
               right:
                 threshold: avg_rows_per_insert_lt
-      - description: "max active parts per node > {threshold.total_active_parts_gt}"
-        required: true
-        actual_template: "{node_totals.max_active_parts_per_node}"
-        match:
-          kind: comparison
-          left:
-            observation: node_totals
-            metric: max_active_parts_per_node
-          operator: gt
-          right:
-            threshold: total_active_parts_gt
 
   - cause: merge_backlog
     observations:
@@ -227,17 +250,6 @@ candidates:
           operator: gt
           right:
             threshold: max_merge_elapsed_seconds_gt
-      - description: "max active parts per node > {threshold.total_active_parts_gt}"
-        required: true
-        actual_template: "{node_totals.max_active_parts_per_node}"
-        match:
-          kind: comparison
-          left:
-            observation: node_totals
-            metric: max_active_parts_per_node
-          operator: gt
-          right:
-            threshold: total_active_parts_gt
 
   - cause: partition_granularity_pressure
     observations:
@@ -248,7 +260,6 @@ candidates:
       - "run collect_rca_evidence with symptom=high_partition_count for partition-key RCA"
     indicators:
       - description: "distinct partitions > {threshold.distinct_partitions_gt}"
-        required: true
         actual_template: "{logical_partition_stats.distinct_partitions}"
         match:
           kind: comparison
@@ -275,26 +286,15 @@ candidates:
           observation: table_meta
           metric: partition_key
 
-  - cause: wrong_engine_settings
+  - cause: too_small_setting
     observations:
-      - logical_partition_stats
       - node_totals
-      - table_meta
+      - parts_limit_setting
     next_checks:
-      - "review merge-tree table settings and per-table insert patterns"
+      - "review parts_to_throw_insert on the table and global MergeTree settings"
     indicators:
-      - description: "engine is MergeTree family"
-        blocker: true
-        actual_template: "{table_meta.engine|default:unknown}"
-        match:
-          kind: regex
-          observation: table_meta
-          metric: engine
-          pattern: "MergeTree"
-          flags: "i"
-      - description: "max active parts per node > {threshold.total_active_parts_gt}"
-        required: true
-        actual_template: "{node_totals.max_active_parts_per_node}"
+      - description: "max active parts per node exceeds parts_to_throw_insert"
+        actual_template: "parts={node_totals.max_active_parts_per_node} limit={parts_limit_setting.effective_parts_to_throw_insert} source={parts_limit_setting.parts_to_throw_insert_source}"
         match:
           kind: comparison
           left:
@@ -302,18 +302,16 @@ candidates:
             metric: max_active_parts_per_node
           operator: gt
           right:
-            threshold: total_active_parts_gt
-      - description: "max parts in one partition > {threshold.max_parts_per_partition_gt}"
-        required: true
-        actual_template: "{logical_partition_stats.max_parts_per_partition}"
+            observation: parts_limit_setting
+            metric: effective_parts_to_throw_insert
+      - description: "parts_to_throw_insert is configured"
+        actual_template: "{parts_limit_setting.parts_to_throw_insert_source}={parts_limit_setting.effective_parts_to_throw_insert}"
         match:
-          kind: comparison
-          left:
-            observation: logical_partition_stats
-            metric: max_parts_per_partition
-          operator: gt
-          right:
-            threshold: max_parts_per_partition_gt
+          kind: regex
+          observation: parts_limit_setting
+          metric: parts_to_throw_insert_source
+          pattern: "table|global"
+          flags: "i"
 
 actions:
   - title: "Increase insert batch size and reduce insert frequency"
@@ -325,6 +323,9 @@ actions:
   - title: "Review partition key granularity and lifecycle alignment"
     risk: high
     tied_to: partition_granularity_pressure
+  - title: "Review and raise parts_to_throw_insert if it is lower than observed active parts"
+    risk: medium
+    tied_to: too_small_setting
 
 related_symptoms:
   - symptom: high_partition_count

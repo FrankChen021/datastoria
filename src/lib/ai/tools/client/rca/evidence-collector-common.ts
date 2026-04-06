@@ -194,7 +194,6 @@ export type RcaEvidenceOutput = {
 type IndicatorResult = {
   matched: boolean;
   description?: string;
-  required?: boolean;
   blocker?: boolean;
 };
 
@@ -488,17 +487,10 @@ export function scoreCandidate(rule: CauseEvaluation): CauseCandidate {
   const blockers = rule.indicators.filter((ind) => ind.blocker && ind.matched);
   if (blockers.length > 0) caps.push(0.29);
 
-  const missingRequired = rule.indicators.filter((ind) => ind.required && !ind.matched);
-  if (missingRequired.length > 0) caps.push(0.49);
-
   if (total < 3) caps.push(0.39);
 
   const signalStrength = Math.min(...caps);
-
-  const nextChecks = [
-    ...missingRequired.map((item) => `verify: ${item.description ?? "required indicator"}`),
-    ...(rule.next_check_hints ?? []),
-  ];
+  const nextChecks = [...(rule.next_check_hints ?? [])];
 
   return {
     cause: rule.cause,
@@ -540,7 +532,6 @@ export function evaluateCandidate(input: {
   indicators: Array<{
     description: string;
     evaluation: IndicatorMatchResult;
-    required?: boolean;
     blocker?: boolean;
   }>;
 }): CauseEvaluation {
@@ -550,7 +541,6 @@ export function evaluateCandidate(input: {
     indicators: input.indicators.map((indicator) => ({
       matched: indicator.evaluation.matched,
       description: `${indicator.description} (actual ${indicator.evaluation.actual})`,
-      required: indicator.required,
       blocker: indicator.blocker,
     })),
   };
@@ -560,23 +550,10 @@ export function scoreCauseEvaluations(evaluations: CauseEvaluation[]): {
   candidates: CauseCandidate[];
   excludedCandidates: ExcludedCandidate[];
 } {
-  const includedRules = evaluations.filter((rule) =>
-    rule.indicators.filter((ind) => ind.required).every((ind) => ind.matched)
-  );
-  const excludedCandidates: ExcludedCandidate[] = evaluations
-    .filter((rule) => rule.indicators.some((ind) => ind.required && !ind.matched))
-    .map((rule) => {
-      const scored = scoreCandidate(rule);
-      return {
-        cause: rule.cause,
-        missing_required: rule.indicators
-          .filter((ind) => ind.required && !ind.matched)
-          .map((ind) => ind.description ?? "required indicator"),
-        evidence_against: scored.evidence_against,
-      };
-    });
-  const candidates = includedRules
+  const excludedCandidates: ExcludedCandidate[] = [];
+  const candidates = evaluations
     .map(scoreCandidate)
+    .filter((candidate) => candidate.indicators_matched > 0)
     .sort((a, b) => b.support_score - a.support_score);
   return { candidates, excludedCandidates };
 }
