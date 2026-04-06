@@ -1,6 +1,11 @@
 import type { Chat, Message } from "@/lib/ai/chat-types";
 import { BasePath } from "@/lib/base-path";
-import type { CreateSessionFromMessagesInput, SessionRepository } from "./session-repository";
+import type {
+  CreateSessionFromMessagesInput,
+  SessionPage,
+  SessionPageInput,
+  SessionRepository,
+} from "./session-repository";
 
 type ChatSessionDTO = {
   chatId: string;
@@ -67,8 +72,15 @@ export class RemoteSessionRepository implements SessionRepository {
     return toChat(dto);
   }
 
-  async getSessionsForConnection(connectionId: string): Promise<Chat[]> {
-    const searchParams = new URLSearchParams({ connectionId });
+  async getSessions(input: SessionPageInput): Promise<SessionPage> {
+    const searchParams = new URLSearchParams({ limit: String(input.limit) });
+    if (input.connectionId) {
+      searchParams.set("connectionId", input.connectionId);
+    }
+    if (input.cursor) {
+      searchParams.set("cursor", input.cursor);
+    }
+
     const response = await fetch(
       BasePath.getURL(`/api/ai/chat/sessions?${searchParams.toString()}`),
       {
@@ -76,8 +88,13 @@ export class RemoteSessionRepository implements SessionRepository {
         cache: "no-store",
       }
     );
-    const sessions = await parseJson<ChatSessionDTO[]>(response);
-    return sessions.map(toChat);
+    const page = await parseJson<{ sessions: ChatSessionDTO[]; nextCursor: string | null }>(
+      response
+    );
+    return {
+      sessions: page.sessions.map(toChat),
+      nextCursor: page.nextCursor,
+    };
   }
 
   async getMessages(chatId: string): Promise<Message[]> {

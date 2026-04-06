@@ -24,7 +24,7 @@ interface ChatHeaderProps {
   onNewChat: () => void;
   onExport?: () => void;
   currentChatId: string;
-  onSelectChat?: (id: string) => void;
+  onSelectChat?: (id: string, connectionId?: string) => void;
   toggleDisplayMode?: () => void;
   displayMode?: ChatPanelDisplayMode;
   initialTitle?: string;
@@ -240,10 +240,11 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
     displayMode,
     currentChatId,
     setCurrentChatId,
-    selectedChatId,
-    clearSelectedChatId,
+    selectedChat,
+    clearSelectedChat,
     newChatRequestNonce,
     toggleDisplayMode,
+    selectChat,
   } = useChatPanel();
   const [chat, setChat] = useState<Chat<AppUIMessage> | null>(null);
   const [chatTitle, setChatTitle] = useState<string | undefined>(undefined);
@@ -317,8 +318,10 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
         | undefined;
 
       // Explicit session selection should win when opening a hidden panel.
-      if (selectedChatId) {
-        loadTarget = { id: selectedChatId, isNewSession: false };
+      if (selectedChat?.connectionId && selectedChat.connectionId !== connectionId) {
+        return;
+      } else if (selectedChat) {
+        loadTarget = { id: selectedChat.chatId, isNewSession: false };
       } else if (initialInput?.chatId) {
         // Check if initialInput has a specific chatId
         loadTarget = { id: initialInput.chatId, isNewSession: false };
@@ -338,8 +341,8 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
 
       if (loadTarget) {
         await loadChat(loadTarget.id, { isNewSession: loadTarget.isNewSession });
-        if (selectedChatId === loadTarget.id) {
-          clearSelectedChatId();
+        if (selectedChat?.chatId === loadTarget.id) {
+          clearSelectedChat();
         }
         isInitializedRef.current = true;
       }
@@ -353,8 +356,8 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
     initialInput?.chatId,
     chat,
     loadChat,
-    selectedChatId,
-    clearSelectedChatId,
+    selectedChat,
+    clearSelectedChat,
   ]);
 
   // Handle pending command when chat already exists (panel was already open)
@@ -381,11 +384,13 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
   ]);
 
   useEffect(() => {
-    if (!chat || !selectedChatId || selectedChatId === chat.id) return;
+    if (!chat || !selectedChat) return;
+    if (selectedChat.chatId === chat.id) return;
+    if (selectedChat.connectionId && selectedChat.connectionId !== connection?.connectionId) return;
 
-    void loadChat(selectedChatId);
-    clearSelectedChatId();
-  }, [chat, selectedChatId, loadChat, clearSelectedChatId]);
+    void loadChat(selectedChat.chatId);
+    clearSelectedChat();
+  }, [chat, clearSelectedChat, connection?.connectionId, loadChat, selectedChat]);
 
   // Update context builder when props change
   useEffect(() => {
@@ -484,10 +489,10 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
   }, [pendingCommand, isChatViewReady, chat, consumeCommand]);
 
   const handleSelectChat = useCallback(
-    (id: string) => {
-      loadChat(id);
+    (id: string, targetConnectionId?: string) => {
+      selectChat(id, targetConnectionId ?? connection?.connectionId);
     },
-    [loadChat]
+    [connection?.connectionId, selectChat]
   );
 
   useEffect(() => {

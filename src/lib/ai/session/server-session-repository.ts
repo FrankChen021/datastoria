@@ -79,9 +79,20 @@ export interface GetFeedbackEventsInput {
   createdAfter?: Date;
 }
 
+export interface SessionPageInput {
+  connectionId?: string;
+  limit: number;
+  cursor?: string | null;
+}
+
+export interface SessionPage<TSession = PersistedChatSession> {
+  sessions: TSession[];
+  nextCursor: string | null;
+}
+
 export interface ServerSessionRepository {
   getSession(userId: string, sessionId: string): Promise<PersistedChatSession | null>;
-  getSessionsForConnection(userId: string, connectionId: string): Promise<PersistedChatSession[]>;
+  getSessions(userId: string, input: SessionPageInput): Promise<SessionPage>;
   getMessages(userId: string, sessionId: string): Promise<PersistedChatMessage[]>;
   createSession(input: CreateSessionInput): Promise<PersistedChatSession>;
   touchSession(input: TouchSessionInput): Promise<PersistedChatSession | null>;

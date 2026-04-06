@@ -11,7 +11,7 @@ interface OpenHistoryButtonProps {
   disabled?: boolean;
   currentChatId: string;
   onNewChat: () => void;
-  onSelectChat?: (id: string) => void;
+  onSelectChat?: (id: string, connectionId?: string) => void;
   variant?: "ghost" | "outline" | "secondary";
   className?: string;
   iconClassName?: string;

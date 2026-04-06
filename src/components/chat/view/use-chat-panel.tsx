@@ -4,6 +4,10 @@ import React, { createContext, useContext, useState } from "react";
 
 export type ChatPanelDisplayMode = "hidden" | "panel" | "tabWidth" | "fullscreen";
 export type SidebarTab = "database" | "snippets" | "history";
+export type SelectedChatTarget = {
+  chatId: string;
+  connectionId?: string;
+};
 
 interface ChatPanelContextType {
   displayMode: ChatPanelDisplayMode;
@@ -13,9 +17,9 @@ interface ChatPanelContextType {
   close: () => void;
   currentChatId: string | null;
   setCurrentChatId: (chatId: string | null) => void;
-  selectChat: (chatId: string) => void;
-  selectedChatId: string | null;
-  clearSelectedChatId: () => void;
+  selectChat: (chatId: string, connectionId?: string) => void;
+  selectedChat: SelectedChatTarget | null;
+  clearSelectedChat: () => void;
   requestNewChat: () => void;
   newChatRequestNonce: number;
   activeSidebarTab: SidebarTab;
@@ -49,8 +53,8 @@ const ChatPanelContext = createContext<ChatPanelContextType>({
   selectChat: () => {
     // Default implementation
   },
-  selectedChatId: null,
-  clearSelectedChatId: () => {
+  selectedChat: null,
+  clearSelectedChat: () => {
     // Default implementation
   },
   requestNewChat: () => {
@@ -81,7 +85,7 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
   // Default to hidden
   const [displayMode, setDisplayMode] = useState<ChatPanelDisplayMode>("hidden");
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [selectedChat, setSelectedChat] = useState<SelectedChatTarget | null>(null);
   const [newChatRequestNonce, setNewChatRequestNonce] = useState(0);
   const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>("database");
   const [pendingCommand, setPendingCommand] = useState<{
@@ -116,18 +120,18 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     setDisplayMode("hidden");
   };
 
-  const selectChat = (chatId: string) => {
-    setSelectedChatId(chatId);
+  const selectChat = (chatId: string, connectionId?: string) => {
+    setSelectedChat({ chatId, connectionId });
     setActiveSidebarTab("history");
     setDisplayMode("tabWidth");
   };
 
-  const clearSelectedChatId = () => {
-    setSelectedChatId(null);
+  const clearSelectedChat = () => {
+    setSelectedChat(null);
   };
 
   const requestNewChat = () => {
-    setSelectedChatId(null);
+    setSelectedChat(null);
     setNewChatRequestNonce((prev) => prev + 1);
     setActiveSidebarTab("history");
     setDisplayMode("tabWidth");
@@ -162,8 +166,8 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
         currentChatId,
         setCurrentChatId,
         selectChat,
-        selectedChatId,
-        clearSelectedChatId,
+        selectedChat,
+        clearSelectedChat,
         requestNewChat,
         newChatRequestNonce,
         activeSidebarTab,

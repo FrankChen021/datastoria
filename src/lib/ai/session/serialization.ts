@@ -15,6 +15,11 @@ export type ChatSessionDTO = {
   updatedAt: string;
 };
 
+export type ChatSessionPageDTO = {
+  sessions: ChatSessionDTO[];
+  nextCursor: string | null;
+};
+
 export type ChatMessageDTO = {
   id: string;
   role: Message["role"];

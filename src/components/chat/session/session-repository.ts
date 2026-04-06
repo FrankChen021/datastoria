@@ -7,9 +7,20 @@ export interface CreateSessionFromMessagesInput {
   messages: Message[];
 }
 
+export interface SessionPageInput {
+  connectionId?: string;
+  limit: number;
+  cursor?: string | null;
+}
+
+export interface SessionPage<TSession = Chat> {
+  sessions: TSession[];
+  nextCursor: string | null;
+}
+
 export interface SessionRepository {
   getSession(chatId: string): Promise<Chat | null>;
-  getSessionsForConnection(connectionId: string): Promise<Chat[]>;
+  getSessions(input: SessionPageInput): Promise<SessionPage>;
   getMessages(chatId: string): Promise<Message[]>;
   createSessionFromMessages(input: CreateSessionFromMessagesInput): Promise<Chat>;
   saveSession(session: Chat): Promise<void>;
