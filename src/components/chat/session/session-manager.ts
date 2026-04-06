@@ -7,6 +7,8 @@ import { toSessionRepositoryConnectionId } from "./session-connection-id";
 import type { SessionPageInput } from "./session-repository";
 import { getSessionRepository } from "./session-repository-factory";
 
+const MAX_SESSION_PAGE_LIMIT = 500;
+
 export interface ManagedSession extends Chat {
   running: boolean;
 }
@@ -153,10 +155,11 @@ export const SessionManager = {
 
     const storage = getSessionRepository();
     const loadPromise = (async () => {
+      const requestedLimit = input && typeof input !== "string" ? input.limit : undefined;
       const sessions = (
         await storage.getSessions({
           connectionId: repositoryConnectionId,
-          limit: input && typeof input !== "string" ? input.limit : 1000,
+          limit: Math.min(requestedLimit ?? MAX_SESSION_PAGE_LIMIT, MAX_SESSION_PAGE_LIMIT),
           cursor: null,
         })
       ).sessions;

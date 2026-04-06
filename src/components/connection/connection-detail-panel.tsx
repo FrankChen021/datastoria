@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
 import { cn } from "@/lib/utils";
 import { Eye, EyeOff, Pencil } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface ConnectionDetailPanelProps {
   conn: ConnectionConfig | null;
@@ -18,6 +18,13 @@ interface ConnectionDetailContentProps {
 
 export function ConnectionDetailContent({ conn, className }: ConnectionDetailContentProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const connectionFingerprint = conn
+    ? `${conn.name}|${conn.url}|${conn.user}|${conn.cluster}|${conn.editable}`
+    : "";
+
+  useEffect(() => {
+    setShowPassword(false);
+  }, [connectionFingerprint]);
 
   if (!conn) {
     return null;
