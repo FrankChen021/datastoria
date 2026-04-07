@@ -1,4 +1,3 @@
-import { ChatPanel } from "@/components/chat/view/chat-panel";
 import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { useConnection } from "@/components/connection/connection-context";
 import { ConnectionWizard } from "@/components/connection/connection-wizard";
@@ -28,6 +27,7 @@ import { cn } from "@/lib/utils";
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { AlertCircle, CheckCircle2, Circle, Database, Loader2, RotateCcw, Zap } from "lucide-react";
 import { useSession } from "next-auth/react";
+import dynamic from "next/dynamic";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Panel,
@@ -39,6 +39,11 @@ import { AppLogo } from "./app-logo";
 import { openConnectionSelectorDialog } from "./connection/connection-selector-dialog";
 import { MainPageTabList } from "./main-page-tab-list";
 import { SchemaTreeView } from "./schema-tree/schema-tree-view";
+
+const ChatPanel = dynamic(
+  () => import("@/components/chat/view/chat-panel").then((m) => m.ChatPanel),
+  { ssr: false }
+);
 
 /**
  * Extract table names and database names from schema load result

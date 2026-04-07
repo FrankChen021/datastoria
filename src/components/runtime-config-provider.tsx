@@ -1,7 +1,7 @@
 "use client";
 
 import type { SessionRepositoryType } from "@/lib/ai/chat-types";
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useLayoutEffect, type ReactNode } from "react";
 
 export interface RuntimeConfig {
   connectionProviderEnabled: boolean;
@@ -29,7 +29,12 @@ export function RuntimeConfigProvider({
   children: ReactNode;
   value: RuntimeConfig;
 }) {
-  currentRuntimeConfig = value;
+  // Update the escape-hatch singleton only after React commits the render so
+  // that concurrent-mode double-invocations don't expose a mid-render value
+  // to non-React callers of getRuntimeConfig().
+  useLayoutEffect(() => {
+    currentRuntimeConfig = value;
+  }, [value]);
   return <RuntimeConfigContext.Provider value={value}>{children}</RuntimeConfigContext.Provider>;
 }
 
