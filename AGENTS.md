@@ -59,6 +59,10 @@ Prefer targeted checks when possible, but do not invent alternate toolchains if 
 - Avoid unnecessary client-side state duplication; prefer deriving view state from existing sources where practical.
 - For changes in chat, query, or dashboard flows, verify loading, empty, error, and success states.
 
+### Vercel / React Best Practices (apply to all frontend changes)
+
+Apply the `vercel-react-best-practices` skill when writing, reviewing, or refactoring any React or Next.js code in this repository. Follow its guidelines before marking a frontend change complete.
+
 ## API And Data Rules
 
 - Keep server-only logic in server-capable locations; do not leak secrets or provider credentials into client code.
