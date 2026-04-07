@@ -369,11 +369,6 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
     );
   };
 
-  // Stable identity key — covers all fields without paying JSON.stringify cost on every render
-  const configKey = config
-    ? `${config.url}|${config.name}|${config.user}|${config.password}|${config.cluster}`
-    : null;
-
   // Clear error and reset steps when config changes (e.g., when switching connections)
   useEffect(() => {
     setError(null);
@@ -382,7 +377,7 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
       { id: "cluster", text: "Load cluster", status: "pending" },
       { id: "schema", text: "Load schema", status: "pending" },
     ]);
-  }, [configKey]);
+  }, [config?.cluster, config?.name, config?.password, config?.url, config?.user]);
 
   useEffect(() => {
     // Prevent double execution or execution when already failed
@@ -471,7 +466,7 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
       schemaLoader.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configKey, error]); // Only re-run if config changes or we retry (clearing error)
+  }, [config?.cluster, config?.name, config?.password, config?.url, config?.user, error]); // Only re-run if config changes or we retry (clearing error)
 
   // Show executed steps (success) and the current executing step (loading/pending/error)
   const visibleSteps = steps.filter((step) => {
