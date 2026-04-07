@@ -52,8 +52,6 @@ export function ThemedSyntaxHighlighter({
   const isOverflowing = useMemo(() => sqlLines > collapseLines, [sqlLines, collapseLines]);
   const collapsedHeight = collapseLines * lineHeightPx;
   const [expanded, setExpanded] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
-
   useEffect(() => {
     const root = highlightRootRef.current;
     if (!root) {
@@ -94,7 +92,6 @@ export function ThemedSyntaxHighlighter({
   return (
     <div style={{ position: "relative" }}>
       <div
-        ref={wrapperRef}
         aria-expanded={expanded}
         style={{
           maxHeight: !expanded && isOverflowing ? `${collapsedHeight}px` : undefined,
@@ -114,21 +111,6 @@ export function ThemedSyntaxHighlighter({
             {children}
           </SyntaxHighlighter>
         </div>
-
-        {!expanded && isOverflowing && (
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: 48,
-              background: "linear-gradient(180deg, transparent 0%, var(--syntax-fade-end) 100%)",
-              pointerEvents: "none",
-            }}
-          />
-        )}
       </div>
 
       {isOverflowing && (
@@ -136,18 +118,7 @@ export function ThemedSyntaxHighlighter({
           type="button"
           aria-expanded={expanded}
           onClick={() => {
-            setExpanded((prev) => {
-              if (prev) {
-                // Current is expanded, it will be collapsed, scroll to the end to show the 'truncated'
-                requestAnimationFrame(() => {
-                  const wrapper = wrapperRef.current;
-                  if (wrapper) {
-                    wrapper.scrollIntoView({ behavior: "smooth", block: "end" });
-                  }
-                });
-              }
-              return !prev;
-            });
+            setExpanded((prev) => !prev);
           }}
           className="absolute right-2 bottom-2 z-10 text-muted-foreground text-sm rounded px-2 py-1"
           style={{ position: "absolute", right: 8, bottom: 8 }}

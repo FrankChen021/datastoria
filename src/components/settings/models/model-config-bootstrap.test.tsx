@@ -6,7 +6,7 @@ import type { ModelProps } from "@/lib/ai/llm/llm-provider-factory";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ModelConfigBootstrap } from "./model-config-bootstrap";
+import { ModelConfigBootstrap, useModelConfigBootstrap } from "./model-config-bootstrap";
 
 const setSystemModelsMock = vi.fn();
 const setDynamicModelsMock = vi.fn();
@@ -84,10 +84,19 @@ describe("ModelConfigBootstrap", () => {
     container.remove();
   });
 
-  it("loads the initial model catalog before rendering children", async () => {
+  it("renders children immediately and loads the model catalog in the background", async () => {
+    let isReadyCapture = true;
+
+    function Observer() {
+      const { isReady } = useModelConfigBootstrap();
+      isReadyCapture = isReady;
+      return null;
+    }
+
     await act(async () => {
       root.render(
         <ModelConfigBootstrap>
+          <Observer />
           <div>ready</div>
         </ModelConfigBootstrap>
       );
@@ -96,7 +105,10 @@ describe("ModelConfigBootstrap", () => {
     expect(fetchAvailableModelsMock).toHaveBeenCalledWith(undefined);
     expect(setSystemModelsMock).toHaveBeenCalledWith(systemModels, false);
     expect(setDynamicModelsMock).toHaveBeenCalledWith([]);
+    // Children are always rendered (no null gate)
     expect(container.textContent).toBe("ready");
+    // isReady is true once the fetch resolves
+    expect(isReadyCapture).toBe(true);
   });
 
   it("passes the stored Copilot token to the initial-models API", async () => {

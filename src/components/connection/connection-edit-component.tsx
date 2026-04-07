@@ -833,7 +833,7 @@ export function ConnectionEditComponent({
                   testStatus?.type === "success" ? (
                     <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-green-600 dark:text-green-400" />
                   ) : (
-                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
                   )
                 }
                 title={testStatus?.type === "success" ? "Connection Test" : "Error"}
@@ -860,9 +860,7 @@ export function ConnectionEditComponent({
                   side="top"
                   align={isMobile ? "center" : "end"}
                   sideOffset={isMobile ? 4 : undefined}
-                  icon={
-                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
-                  }
+                  icon={<AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />}
                   title="Confirm deletion"
                 >
                   <div className="text-xs mb-3">

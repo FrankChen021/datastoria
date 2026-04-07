@@ -33,6 +33,7 @@ import type { VisualizationRef } from "./dashboard-visualization-layout";
 import { DashboardVisualizationPanel } from "./dashboard-visualization-panel";
 import type { TimeSpan } from "./timespan-selector";
 import { useEcharts } from "./use-echarts";
+import useIsDarkTheme from "./use-is-dark-theme";
 
 // Safety scale used in the initial font size calculation.
 const INITIAL_SAFETY_SCALE = 0.97;
@@ -106,53 +107,38 @@ const StatMinimap = React.memo<StatMinimapProps>(function StatMinimap({
     dependencies: [hasData],
   });
   const brushHandlerRef = React.useRef<((params: unknown) => void) | null>(null);
+  const isDark = useIsDarkTheme();
   const [chartColor, setChartColor] = React.useState<string>("hsl(var(--chart-1))");
+
+  // Re-runs via isDark (singleton MutationObserver) — no per-instance observer needed
   React.useEffect(() => {
-    const updateChartColor = () => {
-      const tempEl = document.createElement("div");
-      tempEl.style.color = "var(--chart-1)";
-      tempEl.style.position = "absolute";
-      tempEl.style.visibility = "hidden";
+    const tempEl = document.createElement("div");
+    tempEl.style.color = "var(--chart-1)";
+    tempEl.style.position = "absolute";
+    tempEl.style.visibility = "hidden";
+    document.body.appendChild(tempEl);
+
+    const computedColor = getComputedStyle(tempEl).color;
+    document.body.removeChild(tempEl);
+
+    if (computedColor && computedColor !== "rgba(0, 0, 0, 0)" && computedColor !== "rgb(0, 0, 0)") {
+      setChartColor(computedColor);
+    } else {
+      tempEl.style.color = "var(--primary)";
       document.body.appendChild(tempEl);
-
-      const computedColor = getComputedStyle(tempEl).color;
+      const fallbackColor = getComputedStyle(tempEl).color;
       document.body.removeChild(tempEl);
-
       if (
-        computedColor &&
-        computedColor !== "rgba(0, 0, 0, 0)" &&
-        computedColor !== "rgb(0, 0, 0)"
+        fallbackColor &&
+        fallbackColor !== "rgba(0, 0, 0, 0)" &&
+        fallbackColor !== "rgb(0, 0, 0)"
       ) {
-        setChartColor(computedColor);
+        setChartColor(fallbackColor);
       } else {
-        tempEl.style.color = "var(--primary)";
-        document.body.appendChild(tempEl);
-        const fallbackColor = getComputedStyle(tempEl).color;
-        document.body.removeChild(tempEl);
-        if (
-          fallbackColor &&
-          fallbackColor !== "rgba(0, 0, 0, 0)" &&
-          fallbackColor !== "rgb(0, 0, 0)"
-        ) {
-          setChartColor(fallbackColor);
-        } else {
-          const dark = document.documentElement.classList.contains("dark");
-          setChartColor(dark ? "rgb(120, 200, 150)" : "rgb(50, 150, 100)");
-        }
+        setChartColor(isDark ? "rgb(149, 100, 220)" : "rgb(118, 76, 191)");
       }
-    };
-
-    updateChartColor();
-    const observer = new MutationObserver(updateChartColor);
-    if (document.documentElement) {
-      observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ["class"],
-      });
     }
-
-    return () => observer.disconnect();
-  }, []);
+  }, [isDark]);
 
   // Update chart when data changes (separate from initialization)
   React.useEffect(() => {

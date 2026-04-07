@@ -143,6 +143,7 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
                 handleCancelEdit();
               }}
               title="Cancel"
+              aria-label="Cancel edit"
             >
               <X className="!h-3 !w-3" />
             </Button>
@@ -156,6 +157,7 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
                 handleSaveEdit();
               }}
               title="Save"
+              aria-label="Save snippet"
             >
               <Check className="!h-3 !w-3" />
             </Button>
@@ -210,6 +212,7 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
               handleRun(snippet);
             }}
             title="Run in new tab"
+            aria-label="Run in new tab"
           >
             <Play className="!h-3 !w-3" />
           </Button>
@@ -222,6 +225,7 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
               handleInsert(snippet);
             }}
             title="Insert at cursor"
+            aria-label="Insert at cursor"
           >
             <ArrowRight className="!h-3 !w-3" />
           </Button>
@@ -235,6 +239,7 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
                 handleCloneClick();
               }}
               title="Clone / Edit Copy"
+              aria-label="Clone / Edit Copy"
             >
               <Copy className="!h-3 !w-3" />
             </Button>
@@ -251,6 +256,9 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
               }
             }}
             title={isBuiltin ? "Built-in snippets are read-only. Clone to edit a copy." : "Edit"}
+            aria-label={
+              isBuiltin ? "Built-in snippets are read-only. Clone to edit a copy." : "Edit snippet"
+            }
           >
             <Pencil className="!h-3 !w-3" />
           </Button>
@@ -266,6 +274,7 @@ export function SnippetTooltipContent({ snippet }: SnippetTooltipContentProps) {
               }
             }}
             title={isBuiltin ? "Built-in snippets cannot be deleted." : "Delete"}
+            aria-label={isBuiltin ? "Built-in snippets cannot be deleted." : "Delete snippet"}
           >
             <Trash2 className="!h-3 !w-3" />
           </Button>
@@ -418,6 +427,7 @@ function SnippetHoverCardContent({
                 handleCancelEdit();
               }}
               title="Cancel"
+              aria-label="Cancel edit"
             >
               <X className="!h-3 !w-3" />
             </Button>
@@ -431,6 +441,7 @@ function SnippetHoverCardContent({
                 handleSaveEdit();
               }}
               title="Save"
+              aria-label="Save snippet"
             >
               <Check className="!h-3 !w-3" />
             </Button>
@@ -463,6 +474,7 @@ function SnippetHoverCardContent({
               onRun(snippet);
             }}
             title="Run in new tab"
+            aria-label="Run in new tab"
           >
             <Play className="!h-3 !w-3" />
           </Button>
@@ -475,6 +487,7 @@ function SnippetHoverCardContent({
               onInsert(snippet);
             }}
             title="Insert at cursor"
+            aria-label="Insert at cursor"
           >
             <ArrowRight className="!h-3 !w-3" />
           </Button>
@@ -488,6 +501,7 @@ function SnippetHoverCardContent({
                 handleCloneClick();
               }}
               title="Clone / Edit Copy"
+              aria-label="Clone / Edit Copy"
             >
               <Copy className="!h-3 !w-3" />
             </Button>
@@ -503,6 +517,7 @@ function SnippetHoverCardContent({
                   handleEditClick();
                 }}
                 title="Edit"
+                aria-label="Edit snippet"
               >
                 <Pencil className="!h-3 !w-3" />
               </Button>
@@ -515,6 +530,7 @@ function SnippetHoverCardContent({
                   handleDeleteClick();
                 }}
                 title="Delete"
+                aria-label="Delete snippet"
               >
                 <Trash2 className="!h-3 !w-3" />
               </Button>
@@ -622,7 +638,7 @@ export function SnippetItem({ uiSnippet }: SnippetItemProps) {
             {isBuiltin ? (
               <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
             ) : (
-              <Code className="h-4 w-4 shrink-0 text-blue-500" />
+              <Code className="h-4 w-4 shrink-0 text-info" />
             )}
             <div className="flex flex-col overflow-hidden min-w-0">
               <span className="font-medium truncate">{captionNode}</span>

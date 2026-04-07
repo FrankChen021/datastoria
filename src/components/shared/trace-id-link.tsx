@@ -31,7 +31,7 @@ export const TraceIdLink = React.memo<TraceIdLinkProps>(
         <HoverCardTrigger asChild>
           <button
             type="button"
-            className="font-monotext-xs text-blue-500 hover:underline cursor-pointer"
+            className="font-monotext-xs text-info hover:underline cursor-pointer"
             onClick={handleClick}
           >
             {truncatedId}

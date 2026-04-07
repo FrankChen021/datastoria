@@ -778,7 +778,13 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
         style={fullscreenContainerStyle}
         onMouseEnter={this.handleMouseEnter}
         onMouseLeave={this.handleMouseLeave}
+        role="figure"
+        aria-label="Execution plan graph"
       >
+        <span className="sr-only">
+          Interactive execution plan graph. Use the zoom controls to zoom in or out. Press Escape to
+          exit fullscreen.
+        </span>
         {/* Scrollable container */}
         <div
           className="w-full h-full overflow-auto"
@@ -849,6 +855,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
             }}
             className="h-8 w-8 bg-background border border-border shadow-md hover:bg-background"
             title="Zoom In"
+            aria-label="Zoom in"
           >
             <ZoomIn className="h-4 w-4" />
           </Button>
@@ -862,6 +869,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
             }}
             className="h-8 w-8 bg-background border border-border shadow-md hover:bg-background"
             title="Zoom Out"
+            aria-label="Zoom out"
           >
             <ZoomOut className="h-4 w-4" />
           </Button>
@@ -872,6 +880,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
               onClick={this.enterFullscreen}
               className="h-8 w-8 bg-background border border-border shadow-md hover:bg-background"
               title="Enter Fullscreen"
+              aria-label="Enter fullscreen"
             >
               <Maximize className="h-4 w-4" />
             </Button>
@@ -882,6 +891,7 @@ export class GraphvizComponent extends React.PureComponent<GraphvizProps, Graphv
               onClick={this.exitFullscreen}
               className="h-8 w-8 bg-background border border-border shadow-md hover:bg-background"
               title="Exit Fullscreen (ESC)"
+              aria-label="Exit fullscreen"
             >
               <Minimize2 className="h-4 w-4" />
             </Button>

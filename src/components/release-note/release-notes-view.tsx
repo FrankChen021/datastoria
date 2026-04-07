@@ -61,8 +61,8 @@ function ReleaseNoteRow({ note, repoUrl }: { note: ReleaseNoteItem; repoUrl: str
     >
       <div className="mt-1 shrink-0">
         {note.type === "highlight" && <Zap className="h-4 w-4 text-amber-500 fill-amber-500/20" />}
-        {note.type === "feature" && <Rocket className="h-4 w-4 text-blue-500" />}
-        {note.type === "fix" && <Bug className="h-4 w-4 text-green-500" />}
+        {note.type === "feature" && <Rocket className="h-4 w-4 text-info" />}
+        {note.type === "fix" && <Bug className="h-4 w-4 text-success" />}
       </div>
       <div className="flex-1 min-w-0 space-y-0">
         <p className="text-sm text-foreground leading-relaxed">
@@ -150,7 +150,7 @@ export function ReleaseNotesView() {
                 {isLatest && (
                   <Badge
                     variant="secondary"
-                    className="text-[10px] py-0 px-1 bg-blue-500/10 text-blue-500 border-blue-500/20"
+                    className="text-[10px] py-0 px-1 bg-info/10 text-info border-info/20"
                   >
                     Latest
                   </Badge>

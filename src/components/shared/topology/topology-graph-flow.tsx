@@ -326,44 +326,44 @@ const TopologyGraphFlowInner = ({
             variant="ghost"
             size="icon"
             onClick={() => zoomIn()}
-            className="h-11 w-11 sm:h-9 sm:w-9 bg-background border border-border shadow-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="h-8 w-8 sm:h-7 sm:w-7 bg-background border border-border shadow-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40"
             title="Zoom In"
             aria-label="Zoom in graph"
           >
-            <ZoomIn className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+            <ZoomIn className="!h-3.5 !w-3.5 sm:h-3 sm:w-3" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => zoomOut()}
-            className="h-11 w-11 sm:h-9 sm:w-9 bg-background border border-border shadow-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="h-8 w-8 sm:h-7 sm:w-7 bg-background border border-border shadow-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40"
             title="Zoom Out"
             aria-label="Zoom out graph"
           >
-            <ZoomOut className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+            <ZoomOut className="!h-3.5 !w-3.5 sm:h-3 sm:w-3" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => fitView({ padding: 0.2 })}
-            className="h-11 w-11 sm:h-9 sm:w-9 bg-background border border-border shadow-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="h-8 w-8 sm:h-7 sm:w-7 bg-background border border-border shadow-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40"
             title="Fit View"
             aria-label="Fit graph to viewport"
           >
-            <Maximize2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+            <Maximize2 className="!h-3.5 !w-3.5 sm:h-3 sm:w-3" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => void handleFullscreenToggle()}
-            className="h-11 w-11 sm:h-9 sm:w-9 bg-background/90 border border-border shadow-sm backdrop-blur-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="h-8 w-8 sm:h-7 sm:w-7 bg-background/90 border border-border shadow-sm backdrop-blur-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40"
             title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             aria-label={isFullscreen ? "Exit graph fullscreen" : "Enter graph fullscreen"}
           >
             {isFullscreen ? (
-              <Minimize className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              <Minimize className="!h-3.5 !w-3.5 sm:h-3 sm:w-3" />
             ) : (
-              <Maximize className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              <Maximize className="!h-3.5 !w-3.5 sm:h-3 sm:w-3" />
             )}
           </Button>
         </div>

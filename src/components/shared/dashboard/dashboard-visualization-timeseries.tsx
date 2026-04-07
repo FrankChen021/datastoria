@@ -846,7 +846,7 @@ export const TimeseriesVisualization = React.forwardRef<
             const seriesName = valueColumns.length > 1 ? `${labelKey} (${metricCol})` : labelKey;
 
             newLegends.push({
-              color: "#5470c6", // ECharts will auto-assign colors
+              color: "var(--chart-1)", // Replaced by seriesColorMap after ECharts processes the option
               series: seriesName,
               valueFormatter: formatter,
               dimensionValues,
@@ -910,7 +910,7 @@ export const TimeseriesVisualization = React.forwardRef<
           dimensionValues[valueColumns[0] || "value"] = col;
 
           newLegends.push({
-            color: "#5470c6", // ECharts will auto-assign colors
+            color: "var(--chart-1)", // Replaced by seriesColorMap after ECharts processes the option
             series: col,
             valueFormatter: formatter,
             dimensionValues,
@@ -1179,18 +1179,24 @@ export const TimeseriesVisualization = React.forwardRef<
             const processedOption = chartInstanceRef.current.getOption();
             const processedSeries = (processedOption?.series as echarts.SeriesOption[]) || [];
 
-            // ECharts default color palette (used when no explicit color is set)
-            const defaultColors = [
-              "#5470c6",
-              "#91cc75",
-              "#fac858",
-              "#ee6666",
-              "#73c0de",
-              "#3ba272",
-              "#fc8452",
-              "#9a60b4",
-              "#ea7ccc",
-            ];
+            // Chart palette from design system CSS tokens (--chart-1 … --chart-5)
+            const defaultColors = (() => {
+              if (typeof window === "undefined")
+                return ["#5470c6", "#91cc75", "#fac858", "#ee6666", "#73c0de"];
+              const temp = document.createElement("div");
+              temp.style.position = "absolute";
+              temp.style.visibility = "hidden";
+              document.body.appendChild(temp);
+              const colors = [1, 2, 3, 4, 5].map((n) => {
+                temp.style.color = `var(--chart-${n})`;
+                const rgb = getComputedStyle(temp).color;
+                return rgb && rgb !== "rgb(0, 0, 0)"
+                  ? rgb
+                  : ["#5470c6", "#91cc75", "#fac858", "#ee6666", "#73c0de"][n - 1];
+              });
+              document.body.removeChild(temp);
+              return colors;
+            })();
 
             processedSeries.forEach((s, index) => {
               if (s.name) {

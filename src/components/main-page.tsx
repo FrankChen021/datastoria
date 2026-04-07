@@ -10,7 +10,14 @@ import {
 import { SidebarPanel } from "@/components/sidebar-panel/sidebar-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sheet, SheetOverlay, SheetPortal, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetDescription,
+  SheetOverlay,
+  SheetPortal,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -362,8 +369,10 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
     );
   };
 
-  // Create a stable key for config to avoid unnecessary resets
-  const configKey = config ? JSON.stringify(config) : null;
+  // Stable identity key — covers all fields without paying JSON.stringify cost on every render
+  const configKey = config
+    ? `${config.url}|${config.name}|${config.user}|${config.password}|${config.cluster}`
+    : null;
 
   // Clear error and reset steps when config changes (e.g., when switching connections)
   useEffect(() => {
@@ -486,8 +495,8 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
             cluster diagnostics
           </CardDescription>
         </CardHeader>
-        {/* px-14 makes it alignt to above description */}
-        <CardContent className="space-y-3 px-14">
+        {/* px-14 aligns steps with the description above; fall back to px-4 on narrow viewports */}
+        <CardContent className="space-y-3 px-4 sm:px-14">
           <div>
             {visibleSteps.map((step) => (
               <div key={step.id} className="flex items-center gap-3 text-sm w-full py-1">
@@ -495,7 +504,7 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
                   {step.status === "loading" && (
                     <Loader2 className="h-4 w-4 animate-spin text-primary" />
                   )}
-                  {step.status === "success" && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                  {step.status === "success" && <CheckCircle2 className="h-4 w-4 text-success" />}
                   {step.status === "error" && <AlertCircle className="h-4 w-4 text-destructive" />}
                   {step.status === "pending" && (
                     <Circle className="h-3 w-3 text-muted-foreground/30" />
@@ -555,25 +564,25 @@ function NewReleaseBanner() {
   if (!hasNewRelease) return null;
 
   return (
-    <div className="bg-blue-600 text-white  rounded-none px-4 py-1 flex items-center justify-between shadow-md z-20 animate-in fade-in slide-in-from-top duration-300">
-      <div className="flex items-center gap-3">
-        <Zap className="h-4 w-4 animate-pulse" />
-        <span className="text-sm font-medium">
+    <div className="bg-primary text-primary-foreground rounded-none px-4 py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shadow-md z-20 animate-in fade-in slide-in-from-top duration-300">
+      <div className="flex items-center gap-2 min-w-0">
+        <Zap className="h-4 w-4 animate-pulse shrink-0" />
+        <span className="text-sm font-medium truncate">
           A new version is available with exciting updates!
         </span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
         <Button
           variant="outline"
           size="sm"
-          className="h-7 text-xs bg-white/10 border-white/20 hover:bg-white/20 text-white border-none ml-2"
+          className="h-7 text-xs bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20 text-primary-foreground border-none"
           onClick={openReleaseNotes}
         >
-          See what's new
+          See what&apos;s new
         </Button>
-      </div>
-      <div className="flex items-center gap-2">
         <Button
           size="sm"
-          className="h-7 text-xs bg-white text-blue-600 hover:bg-white/90"
+          className="h-7 text-xs bg-primary-foreground text-primary hover:bg-primary-foreground/90"
           onClick={() => window.location.reload()}
         >
           Update Now
@@ -706,8 +715,11 @@ export function MainPage() {
                   "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
                   "w-[min(320px,85vw)] p-0 flex flex-col overflow-hidden"
                 )}
-                aria-describedby={undefined}
               >
+                <SheetTitle className="sr-only">Schema Browser</SheetTitle>
+                <SheetDescription className="sr-only">
+                  Browse databases, tables, and columns. Use the search field to filter by name.
+                </SheetDescription>
                 <div className="flex-1 min-h-0 overflow-auto p-2">
                   <SchemaTreeView initialSchemaData={loadedSchemaData} />
                 </div>

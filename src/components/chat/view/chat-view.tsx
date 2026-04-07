@@ -96,6 +96,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   const { connection } = useConnection();
   const chatInputRef = useRef<ChatInputHandle | null>(null);
 
+  const [greeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
   const [promptInput, setPromptInput] = useState<string | undefined>(externalInput);
 
   // Update promptInput when externalInput changes
@@ -230,14 +231,12 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
                 <div className="mb-0">
                   <AppLogo width={64} height={64} />
                 </div>
-                <p className="text-xl text-center font-medium mb-4 mt-0">
-                  {GREETINGS[Math.floor(Math.random() * GREETINGS.length)]}
-                </p>
+                <p className="text-xl text-center font-medium mb-4 mt-0">{greeting}</p>
                 {questions && questions.length > 0 && (
                   <div className="w-full flex flex-col items-center space-y-2">
-                    {questions.map((question, index) => (
+                    {questions.map((question) => (
                       <button
-                        key={index}
+                        key={question.text}
                         type="button"
                         className="w-max max-w-full text-left px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg border border-border/50 whitespace-normal hover:border-border transition-colors"
                         onClick={() => handleQuestionClick(question)}

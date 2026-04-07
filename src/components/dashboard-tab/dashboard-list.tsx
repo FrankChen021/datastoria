@@ -174,9 +174,7 @@ const DashboardListComponent = ({ onClose, connection }: DashboardListProps) => 
             }
             side="left"
             align="end"
-            icon={
-              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
-            }
+            icon={<AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />}
             title="Confirm deletion"
           >
             <div className="text-xs mb-3">

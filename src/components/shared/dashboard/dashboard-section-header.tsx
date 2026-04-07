@@ -149,6 +149,7 @@ export function SectionHeader({
                 className="h-6 w-6 text-destructive hover:text-destructive"
                 onClick={handleDelete}
                 title="Confirm delete"
+                aria-label="Confirm delete section"
               >
                 <Check className="h-3.5 w-3.5" />
               </Button>
@@ -158,6 +159,7 @@ export function SectionHeader({
                 className="h-6 w-6"
                 onClick={handleCancelDelete}
                 title="Cancel"
+                aria-label="Cancel delete"
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
@@ -173,6 +175,7 @@ export function SectionHeader({
                   setIsEditing(true);
                 }}
                 title="Rename section"
+                aria-label={`Rename section ${title}`}
               >
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
@@ -185,6 +188,7 @@ export function SectionHeader({
                   handleDelete();
                 }}
                 title="Delete section"
+                aria-label={`Delete section ${title}`}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
@@ -202,6 +206,7 @@ export function SectionHeader({
             className="h-6 w-6"
             onClick={handleSaveRename}
             title="Save"
+            aria-label="Save section name"
           >
             <Check className="h-3.5 w-3.5" />
           </Button>
@@ -211,6 +216,7 @@ export function SectionHeader({
             className="h-6 w-6"
             onClick={handleCancelRename}
             title="Cancel"
+            aria-label="Cancel rename"
           >
             <X className="h-3.5 w-3.5" />
           </Button>
