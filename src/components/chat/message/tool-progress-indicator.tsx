@@ -30,10 +30,10 @@ export const ToolProgressIndicator = memo(function ToolProgressIndicator({
         <div key={i} className="flex items-center gap-2 px-2 text-[10px]">
           {stage.status === "started" && <Loader2 className="h-3 w-3 animate-spin" />}
           {stage.status === "success" && <span className="text-green-600">✓</span>}
-          {stage.status === "failed" && <span className="text-red-600">✗</span>}
+          {stage.status === "failed" && <span className="text-destructive">✗</span>}
           {stage.status === "skipped" && <span className="text-muted-foreground">⊘</span>}
           <span className="flex-shrink-0">{stage.stage}</span>
-          {stage.error && <span className="text-red-600 text-[9px]">{stage.error}</span>}
+          {stage.error && <span className="text-destructive text-[9px]">{stage.error}</span>}
         </div>
       ))}
     </div>

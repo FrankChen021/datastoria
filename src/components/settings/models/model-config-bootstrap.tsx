@@ -4,7 +4,21 @@ import { useAppStorage } from "@/components/app-storage-provider";
 import { ModelManager } from "@/components/settings/models/model-manager";
 import { fetchAvailableModels } from "@/lib/ai/llm/available-models-client";
 import { PROVIDER_GITHUB_COPILOT } from "@/lib/ai/llm/provider-ids";
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+
+interface ModelConfigBootstrapContextValue {
+  /** True once the initial model catalog fetch has completed (or failed). */
+  isReady: boolean;
+}
+
+const ModelConfigBootstrapContext = createContext<ModelConfigBootstrapContextValue>({
+  isReady: false,
+});
+
+/** Returns whether the initial model catalog has been bootstrapped. */
+export function useModelConfigBootstrap(): ModelConfigBootstrapContextValue {
+  return useContext(ModelConfigBootstrapContext);
+}
 
 export function ModelConfigBootstrap({ children }: { children: ReactNode }) {
   const { isStorageReady, storageUserId } = useAppStorage();
@@ -48,9 +62,9 @@ export function ModelConfigBootstrap({ children }: { children: ReactNode }) {
     };
   }, [isStorageReady, storageUserId]);
 
-  if (!isReady) {
-    return null;
-  }
-
-  return <>{children}</>;
+  return (
+    <ModelConfigBootstrapContext.Provider value={{ isReady }}>
+      {children}
+    </ModelConfigBootstrapContext.Provider>
+  );
 }

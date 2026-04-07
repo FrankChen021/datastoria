@@ -10,10 +10,10 @@ export const formatQueryLogType = (value: unknown) => {
     <span
       className={`text-xs px-2 py-1 rounded whitespace-nowrap ${
         value === "QueryFinish"
-          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+          ? "bg-success/10 text-success"
           : value === "QueryStart"
-            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-            : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+            ? "bg-info/10 text-info"
+            : "bg-destructive/10 text-destructive"
       }`}
     >
       {String(value)}
@@ -87,7 +87,7 @@ export function QueryLogInspectorTableView({ queryLogs, meta }: QueryLogInspecto
         align: "center",
         format: (value: any) => {
           if (value !== undefined && value !== 0) {
-            return <span className="text-red-600 dark:text-red-400">{value}</span>;
+            return <span className="text-destructive">{value}</span>;
           }
           return "N/A";
         },

@@ -708,30 +708,30 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
                         styles={{
                           variables: {
                             dark: {
-                              diffViewerBackground: "hsl(var(--background))",
-                              diffViewerTitleBackground: "hsl(var(--background))",
-                              diffViewerTitleColor: "hsl(var(--foreground))",
-                              diffViewerColor: "hsl(var(--foreground))",
-                              diffViewerTitleBorderColor: "hsl(var(--border))",
+                              diffViewerBackground: "var(--background)",
+                              diffViewerTitleBackground: "var(--background)",
+                              diffViewerTitleColor: "var(--foreground)",
+                              diffViewerColor: "var(--foreground)",
+                              diffViewerTitleBorderColor: "var(--border)",
                               addedBackground: "rgba(34, 197, 94, 0.16)",
                               removedBackground: "rgba(248, 113, 113, 0.16)",
                               wordAddedBackground: "rgba(34, 197, 94, 0.28)",
                               wordRemovedBackground: "rgba(248, 113, 113, 0.28)",
-                              addedColor: "hsl(var(--foreground))",
-                              removedColor: "hsl(var(--foreground))",
+                              addedColor: "var(--foreground)",
+                              removedColor: "var(--foreground)",
                             },
                             light: {
-                              diffViewerBackground: "hsl(var(--background))",
-                              diffViewerTitleBackground: "hsl(var(--background))",
-                              diffViewerTitleColor: "hsl(var(--foreground))",
-                              diffViewerColor: "hsl(var(--foreground))",
-                              diffViewerTitleBorderColor: "hsl(var(--border))",
+                              diffViewerBackground: "var(--background)",
+                              diffViewerTitleBackground: "var(--background)",
+                              diffViewerTitleColor: "var(--foreground)",
+                              diffViewerColor: "var(--foreground)",
+                              diffViewerTitleBorderColor: "var(--border)",
                               addedBackground: "rgba(34, 197, 94, 0.08)",
                               removedBackground: "rgba(248, 113, 113, 0.08)",
                               wordAddedBackground: "rgba(34, 197, 94, 0.16)",
                               wordRemovedBackground: "rgba(248, 113, 113, 0.16)",
-                              addedColor: "hsl(var(--foreground))",
-                              removedColor: "hsl(var(--foreground))",
+                              addedColor: "var(--foreground)",
+                              removedColor: "var(--foreground)",
                             },
                           },
                           diffContainer: {
@@ -740,20 +740,20 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
                           },
                           marker: {
                             minWidth: "2.5rem",
-                            color: "hsl(var(--muted-foreground))",
+                            color: "var(--muted-foreground)",
                           },
                           lineNumber: {
-                            color: "hsl(var(--muted-foreground))",
+                            color: "var(--muted-foreground)",
                           },
                           gutter: {
-                            background: "hsl(var(--muted))",
-                            borderColor: "hsl(var(--border))",
+                            background: "var(--muted)",
+                            borderColor: "var(--border)",
                           },
                           highlightedGutter: {
-                            background: "hsl(var(--muted))",
+                            background: "var(--muted)",
                           },
                           codeFoldGutter: {
-                            background: "hsl(var(--muted))",
+                            background: "var(--muted)",
                           },
                           content: {
                             width: "50%",
@@ -761,7 +761,7 @@ export function SkillsDetailView({ skillId, onBack }: SkillsDetailViewProps) {
                           contentText: {
                             fontSize: "12px",
                             lineHeight: 1.5,
-                            color: "hsl(var(--foreground))",
+                            color: "var(--foreground)",
                             fontFamily:
                               'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
                           },

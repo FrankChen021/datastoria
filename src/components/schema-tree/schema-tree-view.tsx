@@ -371,6 +371,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
             className="absolute right-8 h-6 w-6 shrink-0"
             onClick={() => setSearch("")}
             title="Clear search"
+            aria-label="Clear search"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -382,6 +383,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
           onClick={() => loadDatabases()}
           disabled={isLoading || !connection}
           title="Refresh schema"
+          aria-label="Refresh schema"
         >
           <RotateCw className="h-4 w-4" />
         </Button>

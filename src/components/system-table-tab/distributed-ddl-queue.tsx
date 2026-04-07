@@ -57,13 +57,13 @@ interface GroupedDDLEntry {
 const StatusIcon = ({ status, className }: { status: string; className?: string }) => {
   switch (status) {
     case "Finished":
-      return <CheckCircle2 className={cn("h-4 w-4 text-green-500", className)} />;
+      return <CheckCircle2 className={cn("h-4 w-4 text-success", className)} />;
     case "Active":
-      return <PlayCircle className={cn("h-4 w-4 text-blue-500", className)} />;
+      return <PlayCircle className={cn("h-4 w-4 text-info", className)} />;
     case "Queued":
       return <Clock className={cn("h-4 w-4 text-amber-500", className)} />;
     case "Failed":
-      return <XCircle className={cn("h-4 w-4 text-red-500", className)} />;
+      return <XCircle className={cn("h-4 w-4 text-destructive", className)} />;
     default:
       return <AlertCircle className={cn("h-4 w-4 text-muted-foreground", className)} />;
   }
@@ -170,10 +170,10 @@ const DDLDistributedQueueHostLogTable = memo(
                     </div>
                   </TooltipTrigger>
                   {row?.exception_code !== 0 && (
-                    <TooltipContent className="max-w-[400px] p-3 border-red-500/20 shadow-lg">
+                    <TooltipContent className="max-w-[400px] p-3 border-destructive/20 shadow-lg">
                       <div className="flex flex-col gap-1.5">
                         <div className="flex items-center justify-between gap-4">
-                          <span className="font-bold uppercase tracking-wider text-red-500">
+                          <span className="font-bold uppercase tracking-wider text-destructive">
                             Exception Code {row.exception_code}
                           </span>
                         </div>
@@ -554,7 +554,7 @@ ORDER BY entry, host`
 
   if (error) {
     return (
-      <div className="p-4 text-red-500 text-center flex-1 flex items-center justify-center">
+      <div className="p-4 text-destructive text-center flex-1 flex items-center justify-center">
         Error: {error}
       </div>
     );

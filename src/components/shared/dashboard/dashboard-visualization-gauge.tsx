@@ -101,53 +101,39 @@ export const GaugeVisualization = React.forwardRef<GaugeVisualizationRef, GaugeV
       });
     }, [descriptor.drilldown, selectedTimeSpan]);
 
-    // Get chart color from CSS variable
+    // Get chart color from CSS variable — re-runs via isDark (singleton MutationObserver)
     useEffect(() => {
-      const updateChartColor = () => {
-        const tempEl = document.createElement("div");
-        tempEl.style.color = "var(--chart-1)";
-        tempEl.style.position = "absolute";
-        tempEl.style.visibility = "hidden";
+      const tempEl = document.createElement("div");
+      tempEl.style.color = "var(--chart-1)";
+      tempEl.style.position = "absolute";
+      tempEl.style.visibility = "hidden";
+      document.body.appendChild(tempEl);
+
+      const computedColor = getComputedStyle(tempEl).color;
+      document.body.removeChild(tempEl);
+
+      if (
+        computedColor &&
+        computedColor !== "rgba(0, 0, 0, 0)" &&
+        computedColor !== "rgb(0, 0, 0)"
+      ) {
+        setChartColor(computedColor);
+      } else {
+        tempEl.style.color = "var(--primary)";
         document.body.appendChild(tempEl);
-
-        const computedColor = getComputedStyle(tempEl).color;
+        const fallbackColor = getComputedStyle(tempEl).color;
         document.body.removeChild(tempEl);
-
         if (
-          computedColor &&
-          computedColor !== "rgba(0, 0, 0, 0)" &&
-          computedColor !== "rgb(0, 0, 0)"
+          fallbackColor &&
+          fallbackColor !== "rgba(0, 0, 0, 0)" &&
+          fallbackColor !== "rgb(0, 0, 0)"
         ) {
-          setChartColor(computedColor);
+          setChartColor(fallbackColor);
         } else {
-          tempEl.style.color = "var(--primary)";
-          document.body.appendChild(tempEl);
-          const fallbackColor = getComputedStyle(tempEl).color;
-          document.body.removeChild(tempEl);
-          if (
-            fallbackColor &&
-            fallbackColor !== "rgba(0, 0, 0, 0)" &&
-            fallbackColor !== "rgb(0, 0, 0)"
-          ) {
-            setChartColor(fallbackColor);
-          } else {
-            const dark = document.documentElement.classList.contains("dark");
-            setChartColor(dark ? "rgb(120, 200, 150)" : "rgb(50, 150, 100)");
-          }
+          setChartColor(isDark ? "rgb(149, 100, 220)" : "rgb(118, 76, 191)");
         }
-      };
-
-      updateChartColor();
-      const observer = new MutationObserver(updateChartColor);
-      if (document.documentElement) {
-        observer.observe(document.documentElement, {
-          attributes: true,
-          attributeFilter: ["class"],
-        });
       }
-
-      return () => observer.disconnect();
-    }, []);
+    }, [isDark]);
 
     // Update chart when data changes
     useEffect(() => {

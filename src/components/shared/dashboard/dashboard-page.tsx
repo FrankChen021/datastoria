@@ -6,8 +6,8 @@ import type { JSONCompactFormatResponse } from "@/lib/connection/connection";
 import React, {
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
 } from "react";
@@ -273,16 +273,12 @@ const DashboardPage = forwardRef<DashboardPageRef, DashboardPageProps>(
       []
     );
 
-    useEffect(() => {
-      const timer = setTimeout(() => {
-        if (filterRef.current) {
-          const timeSpan = filterRef.current.getSelectedTimeSpan();
-          const filter = filterRef.current.getSelectedFilter();
-          refreshPanels(timeSpan, filter);
-        }
-      }, 0);
-
-      return () => clearTimeout(timer);
+    useLayoutEffect(() => {
+      if (filterRef.current) {
+        const timeSpan = filterRef.current.getSelectedTimeSpan();
+        const filter = filterRef.current.getSelectedFilter();
+        refreshPanels(timeSpan, filter);
+      }
     }, [refreshPanels]);
 
     const handleSelectionFilterChange = useCallback(

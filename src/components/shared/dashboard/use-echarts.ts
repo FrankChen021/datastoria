@@ -4,6 +4,17 @@ import * as echarts from "echarts";
 import { useEffect, useRef } from "react";
 import useIsDarkTheme from "./use-is-dark-theme";
 
+// Produces a stable string key from initOptions.
+// Used as a dep-array value so the effect reruns only when the options'
+// serialized content changes, not on every new object reference.
+function serializeInitOptions(opts: echarts.EChartsInitOpts | undefined): string {
+  try {
+    return JSON.stringify(opts) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export interface UseEchartsOptions {
   /**
    * Whether to use explicit dimensions for resizing.
@@ -30,6 +41,17 @@ export function useEcharts(options: UseEchartsOptions = {}) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartInstanceRef = useRef<echarts.ECharts | null>(null);
 
+  // Compute the serialized snapshot on every render.  When content genuinely
+  // changes, this produces a different string and triggers the effect to rerun.
+  // When the caller passes a structurally identical object (e.g. a new literal
+  // each render), the string stays the same and no unnecessary re-init fires.
+  const initOptionsSnapshot = serializeInitOptions(initOptions);
+
+  // Keep a ref so the latest initOptions value is accessible inside the effect
+  // without needing to list the object reference itself in the dep array.
+  const initOptionsRef = useRef(initOptions);
+  initOptionsRef.current = initOptions;
+
   useEffect(() => {
     const container = chartContainerRef.current;
     if (!container) {
@@ -49,13 +71,13 @@ export function useEcharts(options: UseEchartsOptions = {}) {
       const chartTheme = isDark ? "dark" : undefined;
       const instance = echarts.init(container, chartTheme, {
         useCoarsePointer: true,
-        ...initOptions,
+        ...initOptionsRef.current,
       });
       chartInstanceRef.current = instance;
       return instance;
     };
 
-    // Dispose existing instance if theme or fundamental options changed
+    // Dispose existing instance when theme or init options changed
     if (chartInstanceRef.current) {
       chartInstanceRef.current.dispose();
       chartInstanceRef.current = null;
@@ -138,7 +160,7 @@ export function useEcharts(options: UseEchartsOptions = {}) {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- caller provides additional dynamic dependencies for chart lifecycle
-  }, [isDark, useExplicitSize, JSON.stringify(initOptions), ...dependencies]);
+  }, [isDark, useExplicitSize, initOptionsSnapshot, ...dependencies]);
 
   return {
     chartContainerRef,

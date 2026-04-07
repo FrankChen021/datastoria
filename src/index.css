@@ -28,6 +28,8 @@
     --chart-3: oklch(0.4568 0.2146 277.0229);
     --chart-4: oklch(0.3984 0.1773 277.3662);
     --chart-5: oklch(0.3588 0.1354 278.6973);
+    --color-success: oklch(0.723 0.191 149.579);
+    --color-info: oklch(0.623 0.214 259.815);
     --sidebar: oklch(0.967 0.0029 264.5419);
     --sidebar-foreground: oklch(0.2795 0.0368 260.031);
     --sidebar-primary: oklch(0.5854 0.2041 277.1173);
@@ -56,7 +58,6 @@
     --shadow-2xl: 0px 4px 8px -1px hsl(0 0% 0% / 0.25);
     --tracking-normal: 0em;
     --spacing: 0.25rem;
-    --syntax-fade-end: color-mix(in oklch, var(--foreground) 20%, transparent);
     --highlight-bg: oklch(0.85 0.15 95 / 0.42);
     --code-block-bg: color-mix(in oklch, var(--muted-foreground) 12%, transparent);
     --ace-tooltip-bg: var(--card);
@@ -89,6 +90,8 @@
     --chart-3: oklch(0.5106 0.2301 276.9656);
     --chart-4: oklch(0.4568 0.2146 277.0229);
     --chart-5: oklch(0.3984 0.1773 277.3662);
+    --color-success: oklch(0.762 0.172 149.579);
+    --color-info: oklch(0.672 0.184 259.815);
     --sidebar: oklch(0.2795 0.0368 260.031);
     --sidebar-foreground: oklch(0.9288 0.0126 255.5078);
     --sidebar-primary: oklch(0.6801 0.1583 276.9349);
@@ -115,7 +118,6 @@
     --shadow-lg: 0px 4px 8px -1px hsl(0 0% 0% / 0.1), 0px 4px 6px -2px hsl(0 0% 0% / 0.1);
     --shadow-xl: 0px 4px 8px -1px hsl(0 0% 0% / 0.1), 0px 8px 10px -2px hsl(0 0% 0% / 0.1);
     --shadow-2xl: 0px 4px 8px -1px hsl(0 0% 0% / 0.25);
-    --syntax-fade-end: color-mix(in oklch, var(--foreground) 25%, transparent);
     --highlight-bg: oklch(0.85 0.15 95 / 0.28);
     --code-block-bg: color-mix(in oklch, var(--muted-foreground) 12%, transparent);
     --ace-tooltip-bg: var(--card);

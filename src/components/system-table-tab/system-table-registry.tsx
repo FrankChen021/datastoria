@@ -1,11 +1,5 @@
-import { Dashboards } from "./dashboards";
-import { DistributedDDLQueue } from "./distributed-ddl-queue";
-import { OpenTelemetrySpanLog } from "./opentelemetry-span-log";
-import { PartLog } from "./part-log";
-import { Processes } from "./processes";
-import { QueryLog } from "./query-log";
-import { QueryViewsLog } from "./query-views-log";
-import { Zookeeper } from "./zookeeper";
+import dynamic from "next/dynamic";
+import type React from "react";
 
 /**
  * Type definition for a system table tab entry
@@ -15,19 +9,80 @@ export type SystemTableTabEntry = {
 };
 
 /**
- * Registry for custom system table rendering components
+ * Registry for custom system table rendering components.
+ * Each entry is lazily loaded via next/dynamic so that heavy dependencies
+ * (ECharts, @xyflow/react, etc.) are excluded from the initial bundle and
+ * are only fetched when the user actually opens the relevant system table tab.
+ *
  * Key: table name (without database, e.g., "dashboards" not "system.dashboards")
- * Value: tab entry
  */
 export const SYSTEM_TABLE_REGISTRY = new Map<string, SystemTableTabEntry>([
-  ["dashboards", { component: Dashboards }],
-  ["distributed_ddl_queue", { component: DistributedDDLQueue }],
-  ["opentelemetry_span_log", { component: OpenTelemetrySpanLog }],
-  ["query_log", { component: QueryLog }],
-  ["query_views_log", { component: QueryViewsLog }],
-  ["part_log", { component: PartLog }],
-  ["processes", { component: Processes }],
-  ["zookeeper", { component: Zookeeper }],
+  [
+    "dashboards",
+    {
+      component: dynamic(() => import("./dashboards").then((m) => m.Dashboards), {
+        ssr: false,
+      }),
+    },
+  ],
+  [
+    "distributed_ddl_queue",
+    {
+      component: dynamic(
+        () => import("./distributed-ddl-queue").then((m) => m.DistributedDDLQueue),
+        { ssr: false }
+      ),
+    },
+  ],
+  [
+    "opentelemetry_span_log",
+    {
+      component: dynamic(
+        () => import("./opentelemetry-span-log").then((m) => m.OpenTelemetrySpanLog),
+        { ssr: false }
+      ),
+    },
+  ],
+  [
+    "query_log",
+    {
+      component: dynamic(() => import("./query-log").then((m) => m.QueryLog), {
+        ssr: false,
+      }),
+    },
+  ],
+  [
+    "query_views_log",
+    {
+      component: dynamic(() => import("./query-views-log").then((m) => m.QueryViewsLog), {
+        ssr: false,
+      }),
+    },
+  ],
+  [
+    "part_log",
+    {
+      component: dynamic(() => import("./part-log").then((m) => m.PartLog), {
+        ssr: false,
+      }),
+    },
+  ],
+  [
+    "processes",
+    {
+      component: dynamic(() => import("./processes").then((m) => m.Processes), {
+        ssr: false,
+      }),
+    },
+  ],
+  [
+    "zookeeper",
+    {
+      component: dynamic(() => import("./zookeeper").then((m) => m.Zookeeper), {
+        ssr: false,
+      }),
+    },
+  ],
 ]);
 
 function normalizeSystemTableName(tableName: string): string {

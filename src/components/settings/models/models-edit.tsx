@@ -351,7 +351,7 @@ export function ModelsEdit() {
                                     align="center"
                                     sideOffset={4}
                                     icon={
-                                      <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
+                                      <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
                                     }
                                     title="Confirm logout"
                                   >
@@ -450,7 +450,7 @@ export function ModelsEdit() {
                                         align="end"
                                         sideOffset={4}
                                         icon={
-                                          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
+                                          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
                                         }
                                         title="Clear API key"
                                       >

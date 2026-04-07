@@ -81,7 +81,7 @@ function FreeBadge() {
 
 function SystemBadge() {
   return (
-    <Badge className="rounded-sm bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-none hover:bg-blue-100 dark:hover:bg-blue-900/30 text-[9px]">
+    <Badge className="rounded-sm bg-info/10 text-info border-none hover:bg-info/10 text-[9px]">
       System
     </Badge>
   );

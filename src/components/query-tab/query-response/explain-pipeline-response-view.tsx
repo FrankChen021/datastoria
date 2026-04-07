@@ -9,61 +9,28 @@ import type { QueryResponseViewProps } from "../query-view-model";
 import { QueryResponseErrorView } from "./query-response-error-view";
 import { QueryResponseHttpHeaderView } from "./query-response-http-header-view";
 
-// Convert HSL color (from CSS variable) to hex
-function hslToHex(hsl: string): string {
-  // Parse HSL string like "222.2 84% 9%"
-  const match = hsl.match(/(\d+(?:\.\d+)?)\s+(\d+)%\s+(\d+(?:\.\d+)?)%/);
-  if (!match) return "#000000";
-
-  const h = parseFloat(match[1]);
-  const s = parseFloat(match[2]) / 100;
-  const l = parseFloat(match[3]) / 100;
-
-  const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const m = l - c / 2;
-
-  let r = 0,
-    g = 0,
-    b = 0;
-
-  if (0 <= h && h < 60) {
-    r = c;
-    g = x;
-    b = 0;
-  } else if (60 <= h && h < 120) {
-    r = x;
-    g = c;
-    b = 0;
-  } else if (120 <= h && h < 180) {
-    r = 0;
-    g = c;
-    b = x;
-  } else if (180 <= h && h < 240) {
-    r = 0;
-    g = x;
-    b = c;
-  } else if (240 <= h && h < 300) {
-    r = x;
-    g = 0;
-    b = c;
-  } else if (300 <= h && h < 360) {
-    r = c;
-    g = 0;
-    b = x;
-  }
-
-  r = Math.round((r + m) * 255);
-  g = Math.round((g + m) * 255);
-  b = Math.round((b + m) * 255);
-
-  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+/** Convert an rgb() string from getComputedStyle to a hex color string. */
+function rgbStringToHex(rgb: string): string {
+  const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+  if (!match) return "";
+  return `#${parseInt(match[1]).toString(16).padStart(2, "0")}${parseInt(match[2]).toString(16).padStart(2, "0")}${parseInt(match[3]).toString(16).padStart(2, "0")}`;
 }
 
-// Get computed CSS variable value
-function getCSSVariable(name: string): string {
+/**
+ * Resolve a CSS custom property as a hex color by letting the browser apply
+ * the value via a hidden DOM element. Works for any color format the browser
+ * supports (OKLCH, HSL, hex, etc.).
+ */
+function getCSSColorAsHex(cssVar: string): string {
   if (typeof window === "undefined") return "";
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const el = document.createElement("div");
+  el.style.backgroundColor = `var(${cssVar})`;
+  el.style.position = "absolute";
+  el.style.visibility = "hidden";
+  document.body.appendChild(el);
+  const computed = getComputedStyle(el).backgroundColor;
+  document.body.removeChild(el);
+  return rgbStringToHex(computed);
 }
 
 /**
@@ -242,13 +209,9 @@ const ExplainPipeCompleteGraphView = memo(
         (typeof window !== "undefined" && document.documentElement.classList.contains("dark"));
 
       if (isDark) {
-        // Dark mode
-        const bgHsl = getCSSVariable("--background");
-        setBgColor(bgHsl ? hslToHex(bgHsl) : "#1a1a2e");
+        setBgColor(getCSSColorAsHex("--background") || "#1a1a2e");
       } else {
-        // Light mode
-        const bgHsl = getCSSVariable("--background");
-        setBgColor(bgHsl ? hslToHex(bgHsl) : "#ffffff");
+        setBgColor(getCSSColorAsHex("--background") || "#ffffff");
       }
     }, [theme]);
 
@@ -452,13 +415,9 @@ const ExplainPipelineResponseViewComponent = ({
       (typeof window !== "undefined" && document.documentElement.classList.contains("dark"));
 
     if (isDark) {
-      // Dark mode
-      const bgHsl = getCSSVariable("--background");
-      setBgColor(bgHsl ? hslToHex(bgHsl) : "#1a1a2e");
+      setBgColor(getCSSColorAsHex("--background") || "#1a1a2e");
     } else {
-      // Light mode
-      const bgHsl = getCSSVariable("--background");
-      setBgColor(bgHsl ? hslToHex(bgHsl) : "#ffffff");
+      setBgColor(getCSSColorAsHex("--background") || "#ffffff");
     }
   }, [theme]);
 

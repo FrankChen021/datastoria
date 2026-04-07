@@ -35,13 +35,14 @@ export const QueryIdLink = React.memo<QueryIdLinkProps>(
     return (
       <HoverCard>
         <HoverCardTrigger asChild>
-          <span
-            className="font-monotext-xs text-blue-500 hover:underline cursor-pointer inline-flex items-center gap-1"
+          <button
+            type="button"
+            className="font-monotext-xs text-info hover:underline cursor-pointer inline-flex items-center gap-1"
             onClick={handleClick}
           >
             {truncatedId}
             {showIcon && <ExternalLink className="h-3 w-3 shrink-0" />}
-          </span>
+          </button>
         </HoverCardTrigger>
         <HoverCardContent className="p-2 max-w-[400px]">
           <div className="flex items-center gap-2">

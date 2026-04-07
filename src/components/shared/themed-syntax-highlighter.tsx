@@ -1,4 +1,4 @@
-import { useTheme } from "@/components/shared/theme-provider";
+import useIsDarkTheme from "@/components/shared/dashboard/use-is-dark-theme";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Prism as SyntaxHighlighter, type SyntaxHighlighterProps } from "react-syntax-highlighter";
 import {
@@ -38,52 +38,9 @@ export function ThemedSyntaxHighlighter({
   lineHeightPx = 20,
   ...props
 }: ThemedSyntaxHighlighterProps) {
-  const { theme } = useTheme();
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.document.documentElement.classList.contains("dark");
-    }
-    return false;
-  });
-
-  useEffect(() => {
-    // Check if dark mode is active by looking at the DOM
-    const checkTheme = () => {
-      const root = window.document.documentElement;
-      const darkMode = root.classList.contains("dark");
-      setIsDark(darkMode);
-    };
-
-    // Initial check
-    checkTheme();
-
-    // Watch for theme changes via DOM class changes
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(window.document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-
-    // Also update when theme context changes
-    if (theme === "dark") {
-      setIsDark(true);
-    } else if (theme === "light") {
-      setIsDark(false);
-    } else if (theme === "system") {
-      // For system theme, check the actual rendered theme
-      const root = window.document.documentElement;
-      setIsDark(root.classList.contains("dark"));
-    }
-
-    return () => observer.disconnect();
-  }, [theme]);
-
-  // Read theme directly from DOM on every render to ensure accuracy
-  // This handles cases where state might not be in sync yet
-  const currentDarkMode =
-    typeof window !== "undefined"
-      ? window.document.documentElement.classList.contains("dark")
-      : isDark;
+  // Delegate all theme-detection logic to the shared hook which uses a
+  // module-level singleton MutationObserver (one observer for all instances).
+  const currentDarkMode = useIsDarkTheme();
 
   // Use memoized style that updates when theme actually changes
   const syntaxStyle = useMemo(() => {
@@ -95,8 +52,6 @@ export function ThemedSyntaxHighlighter({
   const isOverflowing = useMemo(() => sqlLines > collapseLines, [sqlLines, collapseLines]);
   const collapsedHeight = collapseLines * lineHeightPx;
   const [expanded, setExpanded] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
-
   useEffect(() => {
     const root = highlightRootRef.current;
     if (!root) {
@@ -122,7 +77,7 @@ export function ThemedSyntaxHighlighter({
     return (
       <div ref={highlightRootRef}>
         <SyntaxHighlighter
-          key={`${currentDarkMode ? "dark" : "light"}-${theme}`}
+          key={currentDarkMode ? "dark" : "light"}
           customStyle={{ background: "transparent", ...customStyle }}
           language={language}
           style={syntaxStyle}
@@ -137,7 +92,6 @@ export function ThemedSyntaxHighlighter({
   return (
     <div style={{ position: "relative" }}>
       <div
-        ref={wrapperRef}
         aria-expanded={expanded}
         style={{
           maxHeight: !expanded && isOverflowing ? `${collapsedHeight}px` : undefined,
@@ -148,7 +102,7 @@ export function ThemedSyntaxHighlighter({
       >
         <div ref={highlightRootRef}>
           <SyntaxHighlighter
-            key={`${currentDarkMode ? "dark" : "light"}-${theme}`}
+            key={currentDarkMode ? "dark" : "light"}
             customStyle={{ background: "transparent", ...customStyle }}
             language={language}
             style={syntaxStyle}
@@ -157,21 +111,6 @@ export function ThemedSyntaxHighlighter({
             {children}
           </SyntaxHighlighter>
         </div>
-
-        {!expanded && isOverflowing && (
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: 48,
-              background: "linear-gradient(180deg, transparent 0%, var(--syntax-fade-end) 100%)",
-              pointerEvents: "none",
-            }}
-          />
-        )}
       </div>
 
       {isOverflowing && (
@@ -179,18 +118,7 @@ export function ThemedSyntaxHighlighter({
           type="button"
           aria-expanded={expanded}
           onClick={() => {
-            setExpanded((prev) => {
-              if (prev) {
-                // Current is expanded, it will be collapsed, scroll to the end to show the 'truncated'
-                requestAnimationFrame(() => {
-                  const wrapper = wrapperRef.current;
-                  if (wrapper) {
-                    wrapper.scrollIntoView({ behavior: "smooth", block: "end" });
-                  }
-                });
-              }
-              return !prev;
-            });
+            setExpanded((prev) => !prev);
           }}
           className="absolute right-2 bottom-2 z-10 text-muted-foreground text-sm rounded px-2 py-1"
           style={{ position: "absolute", right: 8, bottom: 8 }}

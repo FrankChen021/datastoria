@@ -183,7 +183,7 @@ function HistoryNodeDeleteButton({
       side="bottom"
       align="end"
       className="w-72"
-      icon={<AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />}
+      icon={<AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />}
       title={title}
     >
       <p className="mb-3 text-xs text-muted-foreground">{description}</p>

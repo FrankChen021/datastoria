@@ -136,9 +136,7 @@ export function QueryHistorySheet({ open, onOpenChange, onRun }: QueryHistoryShe
             }
             side="left"
             align="end"
-            icon={
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
-            }
+            icon={<AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />}
             title="Confirm clear all"
           >
             <div className="mb-3 text-xs">
@@ -310,9 +308,7 @@ function QueryHistoryEntryCard({
             }
             side="left"
             align="start"
-            icon={
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
-            }
+            icon={<AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />}
             title="Confirm deletion"
           >
             <div className="mb-3 text-xs">
