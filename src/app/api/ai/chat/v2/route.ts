@@ -432,7 +432,9 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model,
-      system: buildOrchestratorSystemPrompt(context),
+      system: buildOrchestratorSystemPrompt(context, {
+        responseLanguage: agentContext?.responseLanguage,
+      }),
       messages: modelMessages,
       tools: {
         [SERVER_TOOL_NAMES.SKILL]: serverTools.skill,

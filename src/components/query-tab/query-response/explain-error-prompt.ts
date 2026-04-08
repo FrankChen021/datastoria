@@ -2,11 +2,7 @@ import {
   DEFAULT_AUTO_EXPLAIN_LANGUAGE,
   type AutoExplainLanguage,
 } from "@/components/settings/agent/agent-manager";
-
-function isEnglishLanguageTag(tag: string): boolean {
-  const t = tag.trim().toLowerCase();
-  return t === "en" || t.startsWith("en-");
-}
+import { isEnglishLanguageTag } from "@/lib/ai/language-utils";
 
 export function buildExplainErrorPrompt({
   errorMessage,

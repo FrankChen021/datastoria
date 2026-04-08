@@ -29,4 +29,12 @@ describe("buildOrchestratorSystemPrompt", () => {
 
     expect(prompt).not.toContain("## Diagnosis Context");
   });
+
+  it("adds response language policy for non-English language", () => {
+    const prompt = buildOrchestratorSystemPrompt({}, { responseLanguage: "zh-CN" });
+
+    expect(prompt).toContain("## Response Language Policy");
+    expect(prompt).toContain("Response language (BCP-47): zh-CN");
+    expect(prompt).toContain("You MUST write all explanatory prose and headings in this language.");
+  });
 });

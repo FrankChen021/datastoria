@@ -5,6 +5,8 @@ import type { InferUITools, LanguageModelUsage, UIDataTypes, UIMessage } from "a
 export interface AgentContext {
   /** Whether to prune successful validate_sql tool calls from history. Default: true. */
   pruneValidateSql?: boolean;
+  /** Optional response language (BCP-47) enforced by system prompt for this chat flow only. */
+  responseLanguage?: string;
 }
 
 export type MessageRole = "user" | "assistant" | "system" | "data" | "tool";
