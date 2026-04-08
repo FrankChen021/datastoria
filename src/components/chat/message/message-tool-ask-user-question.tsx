@@ -195,12 +195,12 @@ export const MessageToolAskUserQuestion = memo(function MessageToolAskUserQuesti
         ) : (
           <HelpCircle className="mt-0.5 h-3 w-3 text-muted-foreground" />
         )}
-        <div className="text-xs font-medium text-foreground">{question.header}</div>
+        <div className="text-sm font-medium text-foreground">{question.header}</div>
       </div>
       <div className={cn("mt-1 space-y-2", output && "pl-5")}>
         {output ? (
           <div className="rounded-md border border-border/50 bg-background/70 px-3 py-2 text-sm">
-            <div className="whitespace-pre-wrap break-all font-mono text-xs text-muted-foreground">
+            <div className="whitespace-pre-wrap break-all font-mono text-sm text-muted-foreground">
               {previewValue(output.value)}
             </div>
           </div>
@@ -229,7 +229,7 @@ export const MessageToolAskUserQuestion = memo(function MessageToolAskUserQuesti
                         value={option.id}
                         className="data-[state=checked]:border-transparent h-3 w-3"
                       />
-                      <Label htmlFor={itemId} className="cursor-pointer text-xs font-normal">
+                      <Label htmlFor={itemId} className="cursor-pointer text-sm font-normal">
                         {option.label}
                       </Label>
                     </div>
