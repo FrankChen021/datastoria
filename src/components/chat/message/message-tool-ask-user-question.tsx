@@ -25,7 +25,7 @@ function isAskUserQuestionInput(value: unknown): value is AskUserQuestionInput {
   if (!value || typeof value !== "object") return false;
 
   const maybeQuestions = (value as { questions?: unknown }).questions;
-  if (!Array.isArray(maybeQuestions) || maybeQuestions.length === 0) return false;
+  if (!Array.isArray(maybeQuestions) || maybeQuestions.length !== 1) return false;
 
   return maybeQuestions.every((question) => {
     if (!question || typeof question !== "object") return false;
@@ -48,7 +48,11 @@ function isAskUserQuestionInput(value: unknown): value is AskUserQuestionInput {
 
       if (input === "select") {
         const choices = (option as { choices?: unknown }).choices;
-        return Array.isArray(choices) && choices.every((choice) => typeof choice === "string");
+        return (
+          Array.isArray(choices) &&
+          choices.length > 0 &&
+          choices.every((choice) => typeof choice === "string")
+        );
       }
 
       return false;
@@ -141,7 +145,8 @@ export const MessageToolAskUserQuestion = memo(function MessageToolAskUserQuesti
   const handleSubmitSelectedOption = async () => {
     if (!selectedOption || !question) return;
 
-    const normalizedValue = shouldShowTypedInput ? draftValue.trim() : selectedOption.label;
+    const normalizedValue =
+      selectedOption.input === "none" ? selectedOption.label : draftValue.trim();
     if (!normalizedValue) {
       setSubmitError("Please enter a value before submitting.");
       return;

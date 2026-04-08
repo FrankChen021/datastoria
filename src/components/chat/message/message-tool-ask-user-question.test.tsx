@@ -40,6 +40,29 @@ function createToolPart(
   } as unknown as AppUIMessage["parts"][0];
 }
 
+function createSelectToolPart(
+  overrides: Partial<Record<string, unknown>> = {}
+): AppUIMessage["parts"][0] {
+  return createToolPart({
+    input: {
+      questions: [
+        {
+          header: "Which metric should I use to find expensive queries?",
+          options: [
+            {
+              id: "find_expensive_query",
+              label: "Find expensive query",
+              input: "select",
+              choices: ["duration", "cpu"],
+            },
+          ],
+        },
+      ],
+    },
+    ...overrides,
+  });
+}
+
 function clickText(container: HTMLElement, text: string) {
   const element = [...container.querySelectorAll("*")].find(
     (node) => node.textContent?.trim() === text
@@ -149,5 +172,33 @@ describe("MessageToolAskUserQuestion", () => {
 
     expect(onToolOutputMock).not.toHaveBeenCalled();
     expect(container.textContent).toContain("Please enter a value before submitting.");
+  });
+
+  it("submits the selected choice for select options", async () => {
+    act(() => {
+      root.render(
+        <MessageToolAskUserQuestion part={createSelectToolPart()} isRunning={false} />
+      );
+    });
+
+    expect(container.querySelector("textarea")).toBeNull();
+
+    clickText(container, "duration");
+
+    await act(async () => {
+      clickText(container, "Submit");
+      await Promise.resolve();
+    });
+
+    expect(onToolOutputMock).toHaveBeenCalledWith({
+      tool: "ask_user_question",
+      toolCallId: "ask-user-question-1",
+      output: {
+        optionId: "find_expensive_query",
+        label: "Find expensive query",
+        input: "select",
+        value: "duration",
+      },
+    });
   });
 });
