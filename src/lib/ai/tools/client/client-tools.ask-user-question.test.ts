@@ -15,12 +15,13 @@ describe("ask_user_question tool schema", () => {
         {
           header: "Optimize",
           options: [
-            { id: "provide_sql", label: "Provide SQL", type: "text" },
-            { id: "provide_query_id", label: "Provide query_id", type: "text" },
+            { id: "use_history", label: "Use recent query", input: "none" },
+            { id: "provide_sql", label: "Provide SQL", input: "text" },
+            { id: "provide_query_id", label: "Provide query_id", input: "text" },
             {
               id: "find_expensive_query",
               label: "Find expensive query",
-              type: "select",
+              input: "select",
               choices: ["duration", "cpu"],
             },
           ],
@@ -31,16 +32,36 @@ describe("ask_user_question tool schema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("rejects unexpected choices for non-select options", () => {
+    const result = inputSchema.safeParse({
+      questions: [
+        {
+          header: "Optimize",
+          options: [
+            {
+              id: "use_history",
+              label: "Use recent query",
+              input: "none",
+              choices: ["unexpected"],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("rejects multiple questions in v1", () => {
     const result = inputSchema.safeParse({
       questions: [
         {
           header: "One",
-          options: [{ id: "a", label: "A", type: "text" }],
+          options: [{ id: "a", label: "A", input: "text" }],
         },
         {
           header: "Two",
-          options: [{ id: "b", label: "B", type: "text" }],
+          options: [{ id: "b", label: "B", input: "text" }],
         },
       ],
     });
@@ -52,7 +73,7 @@ describe("ask_user_question tool schema", () => {
     const result = outputSchema.safeParse({
       optionId: "provide_sql",
       label: "Provide SQL",
-      type: "text",
+      input: "text",
       value: "SELECT 1",
     });
 
