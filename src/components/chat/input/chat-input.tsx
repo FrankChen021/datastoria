@@ -324,6 +324,10 @@ function serializeEditor(root: HTMLElement): string {
     .join("");
 }
 
+function isKeyboardEventComposing(event: React.KeyboardEvent<HTMLDivElement>) {
+  return event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229;
+}
+
 function buildRenderSegments(input: string, command: CommandDetail | null): RenderSegment[] {
   const tokenSegments: TokenSegment[] = [];
 
@@ -401,6 +405,8 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const cursorOffsetRef = React.useRef(0);
     const attachmentsRef = React.useRef<ChatInputImageAttachment[]>([]);
     const appendQueueRef = React.useRef<Promise<void>>(Promise.resolve());
+    const [isComposing, setIsComposing] = React.useState(false);
+    const isComposingRef = React.useRef(false);
     const [input, setInput] = React.useState("");
     const [attachments, setAttachments] = React.useState<ChatInputImageAttachment[]>([]);
     const [attachmentError, setAttachmentError] = React.useState<string | null>(null);
@@ -785,6 +791,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     React.useLayoutEffect(() => {
       const editor = editorRef.current;
       if (!editor) return;
+      if (isComposing) return;
 
       const fragment = document.createDocumentFragment();
 
@@ -824,7 +831,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           });
         }
       }
-    }, [handleDismissCommand, handleDismissMention, input, renderSegments]);
+    }, [handleDismissCommand, handleDismissMention, input, isComposing, renderSegments]);
 
     const handleSubmit = React.useCallback(() => {
       const message = input.trim();
@@ -907,6 +914,31 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         const selection = getSelectionOffsets(editor);
         const nextOffset = selection?.end ?? nextText.length;
 
+        if (isComposingRef.current) {
+          setInput(nextText);
+          return;
+        }
+
+        setInputAndSelection(nextText, nextOffset);
+      },
+      [setInputAndSelection]
+    );
+
+    const handleCompositionStart = React.useCallback(() => {
+      isComposingRef.current = true;
+      setIsComposing(true);
+    }, []);
+
+    const handleCompositionEnd = React.useCallback(
+      (event: React.CompositionEvent<HTMLDivElement>) => {
+        isComposingRef.current = false;
+        setIsComposing(false);
+
+        const editor = event.currentTarget;
+        const nextText = serializeEditor(editor);
+        const selection = getSelectionOffsets(editor);
+        const nextOffset = selection?.end ?? nextText.length;
+
         setInputAndSelection(nextText, nextOffset);
       },
       [setInputAndSelection]
@@ -924,6 +956,10 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     const handleEditorKeyUp = React.useCallback(
       (event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (isKeyboardEventComposing(event)) {
+          return;
+        }
+
         if (
           event.key === "ArrowUp" ||
           event.key === "ArrowDown" ||
@@ -986,6 +1022,10 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     const handleKeyDown = React.useCallback(
       (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (isKeyboardEventComposing(e)) {
+          return;
+        }
+
         if (commandRef.current?.handleKeyDown(e)) return;
         if (suggestionRef.current?.handleKeyDown(e)) return;
 
@@ -1112,6 +1152,8 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                       isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px]"
                     )}
                     style={isResizable ? { minHeight: `${EDITOR_MIN_HEIGHT}px` } : undefined}
+                    onCompositionStart={handleCompositionStart}
+                    onCompositionEnd={handleCompositionEnd}
                     onInput={handleEditorInput}
                     onKeyDown={handleKeyDown}
                     onKeyUp={handleEditorKeyUp}

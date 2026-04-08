@@ -72,8 +72,19 @@ vi.mock("./model-selector", () => ({
   ModelSelector: () => React.createElement("div", null, "model-selector"),
 }));
 
+vi.mock("@/hooks/use-model-config", () => ({
+  useModelConfig: () => ({
+    availableModels: [],
+    selectedModel: { provider: "System", modelId: "Auto" },
+  }),
+}));
+
 vi.mock("../message/chat-token-status", () => ({
   ChatTokenStatus: () => React.createElement("div", null, "token-status"),
+}));
+
+vi.mock("@number-flow/react", () => ({
+  default: () => null,
 }));
 
 describe("replaceLeadingCommand", () => {
@@ -174,5 +185,82 @@ describe("ChatInput inline tokens", () => {
     expect(editor?.textContent).toContain("check");
     expect(editor?.textContent).toContain("now");
     expect(editor?.textContent).not.toContain("system.query_log");
+  });
+
+  it("does not intercept Enter while IME composition is active", () => {
+    act(() => {
+      root.render(
+        React.createElement(ChatInput, {
+          onSubmit: vi.fn(),
+          isRunning: false,
+          externalInput: "ni",
+        })
+      );
+    });
+
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement | null;
+    expect(editor).not.toBeNull();
+
+    act(() => {
+      editor?.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+    });
+
+    act(() => {
+      const enterEvent = new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      });
+      Object.defineProperty(enterEvent, "isComposing", {
+        configurable: true,
+        value: true,
+      });
+      editor?.dispatchEvent(enterEvent);
+    });
+
+    expect(editor?.innerHTML).not.toContain("<br");
+
+    act(() => {
+      if (!editor) {
+        return;
+      }
+
+      editor.textContent = "你";
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+      editor.dispatchEvent(new Event("compositionend", { bubbles: true }));
+    });
+
+    expect(editor?.textContent).toBe("你");
+  });
+
+  it("keeps placeholder state in sync during IME composition", () => {
+    act(() => {
+      root.render(
+        React.createElement(ChatInput, {
+          onSubmit: vi.fn(),
+          isRunning: false,
+        })
+      );
+    });
+
+    expect(container.textContent).toContain("Press Enter for new line");
+
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement | null;
+    expect(editor).not.toBeNull();
+
+    act(() => {
+      editor?.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+    });
+
+    act(() => {
+      if (!editor) {
+        return;
+      }
+
+      editor.textContent = "ni";
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(container.textContent).not.toContain("Press Enter for new line");
   });
 });
