@@ -909,12 +909,15 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     const handleEditorInput = React.useCallback(
       (event: React.FormEvent<HTMLDivElement>) => {
-        if (isComposingRef.current) return;
-
         const editor = event.currentTarget;
         const nextText = serializeEditor(editor);
         const selection = getSelectionOffsets(editor);
         const nextOffset = selection?.end ?? nextText.length;
+
+        if (isComposingRef.current) {
+          setInput(nextText);
+          return;
+        }
 
         setInputAndSelection(nextText, nextOffset);
       },

@@ -232,4 +232,35 @@ describe("ChatInput inline tokens", () => {
 
     expect(editor?.textContent).toBe("你");
   });
+
+  it("keeps placeholder state in sync during IME composition", () => {
+    act(() => {
+      root.render(
+        React.createElement(ChatInput, {
+          onSubmit: vi.fn(),
+          isRunning: false,
+        })
+      );
+    });
+
+    expect(container.textContent).toContain("Press Enter for new line");
+
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement | null;
+    expect(editor).not.toBeNull();
+
+    act(() => {
+      editor?.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+    });
+
+    act(() => {
+      if (!editor) {
+        return;
+      }
+
+      editor.textContent = "ni";
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(container.textContent).not.toContain("Press Enter for new line");
+  });
 });
