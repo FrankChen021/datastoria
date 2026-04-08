@@ -3,6 +3,7 @@ import type { ToolExecutor, ToolProgressCallback } from "../client-tool-types";
 import {
   buildTimeFilter,
   createCachedRcaConnection,
+  getDefaultSupportedScopes,
   isStatusContextReusable,
   resolveRcaThresholds,
   resolveScope,
@@ -13,6 +14,7 @@ import {
   type SymptomContext,
 } from "./evidence-collector-common";
 import { createRcaEvidenceProvider } from "./evidence-collector-factory";
+import { getRcaTemplateMetadata } from "./template-runtime";
 
 const RCA_EVIDENCE_PROVIDER = createRcaEvidenceProvider();
 
@@ -23,10 +25,18 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
 ) => {
   const gaps: EvidenceGap[] = [];
   const requestedScope: Scope = input.scope ?? "cluster";
-  const resolvedScope = resolveScope(input.symptom, requestedScope, gaps);
   const { filter, minutes } = buildTimeFilter(input);
+  let resolvedScope: Scope = requestedScope;
 
   try {
+    const metadata = await getRcaTemplateMetadata(input.symptom);
+    resolvedScope = resolveScope(
+      requestedScope,
+      metadata?.scopes ?? getDefaultSupportedScopes(input.symptom),
+      input.symptom,
+      gaps
+    );
+
     if (
       input.symptom === "unknown" &&
       (!input.symptom_text || input.symptom_text.trim().length === 0)

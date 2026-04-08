@@ -17,7 +17,10 @@ import {
 } from "./evidence-collector-common";
 
 type ThresholdSetName = keyof RcaThresholds;
-type RcaTemplateSourcePath = "high_query_latency" | "high_part_count" | "high_partition_count";
+type RcaTemplateSourcePath = string;
+type TemplateResolvedTarget = "table";
+type TemplatePredicateHook = "parts_table" | "query_log_table" | "node" | "scope_query_log";
+type TemplateEnrichmentHook = "partition_key_columns";
 
 type ObservationMetricTemplate = {
   name: string;
@@ -150,12 +153,29 @@ type OutputTemplate = {
 };
 
 export type RcaTemplate = {
+  version?: number;
   symptom: CanonicalSymptom;
+  description?: string;
+  scopes?: Scope[];
+  threshold_set?: ThresholdSetName;
+  requires?: {
+    resolved_target?: TemplateResolvedTarget;
+    predicates?: TemplatePredicateHook[];
+    enrichments?: TemplateEnrichmentHook[];
+  };
   observations: ObservationTemplate[];
   candidates: CandidateTemplate[];
   actions: PossibleAction[];
   related_symptoms?: RelatedSymptomTemplate[];
   output?: OutputTemplate;
+};
+
+export type RcaTemplateMetadata = {
+  templateId: string;
+  symptom: CanonicalSymptom;
+  scopes: Scope[];
+  thresholdSet: ThresholdSetName;
+  requires?: RcaTemplate["requires"];
 };
 
 export type TemplateRuntimeContext = SymptomContext & {
@@ -207,9 +227,58 @@ async function loadTemplate(
   if (!source) {
     throw new Error(`RCA template not found: ${resourcePath}`);
   }
-  const parsed = yaml.load(source) as RcaTemplate;
+  const parsed = validateRcaTemplate(templateId, yaml.load(source) as RcaTemplate);
   templateCache.set(templateId, parsed);
   return parsed;
+}
+
+function validateRcaTemplate(templateId: string, template: RcaTemplate): RcaTemplate {
+  if (!template || typeof template !== "object") {
+    throw new Error(`Invalid RCA template '${templateId}': expected object`);
+  }
+  if (!template.symptom) {
+    throw new Error(`Invalid RCA template '${templateId}': missing symptom`);
+  }
+  if (!Array.isArray(template.observations) || template.observations.length === 0) {
+    throw new Error(`Invalid RCA template '${templateId}': missing observations`);
+  }
+  if (!Array.isArray(template.candidates)) {
+    throw new Error(`Invalid RCA template '${templateId}': missing candidates`);
+  }
+  if (!Array.isArray(template.actions)) {
+    throw new Error(`Invalid RCA template '${templateId}': missing actions`);
+  }
+
+  return {
+    ...template,
+    version: template.version ?? 1,
+    scopes: template.scopes ?? ["cluster"],
+    threshold_set: template.threshold_set ?? (template.symptom as ThresholdSetName),
+  };
+}
+
+export async function getRcaTemplateMetadata(
+  symptom: CanonicalSymptom
+): Promise<RcaTemplateMetadata | undefined> {
+  const templateSources = await loadTemplateSources();
+  const entry = Object.entries(templateSources).find(([, source]) => {
+    const parsed = validateRcaTemplate(symptom, yaml.load(source) as RcaTemplate);
+    return parsed.symptom === symptom;
+  });
+
+  if (!entry) {
+    return undefined;
+  }
+
+  const [templateId, source] = entry;
+  const template = validateRcaTemplate(templateId, yaml.load(source) as RcaTemplate);
+  return {
+    templateId,
+    symptom: template.symptom,
+    scopes: template.scopes ?? ["cluster"],
+    thresholdSet: template.threshold_set ?? (template.symptom as ThresholdSetName),
+    requires: template.requires,
+  };
 }
 
 function renderTemplate(
@@ -278,7 +347,7 @@ function evaluateCondition(input: {
                 observation: condition.right.observation,
                 metric: condition.right.metric,
               })
-          : condition.right.value;
+            : condition.right.value;
       return compare(condition.operator, left, right);
     }
     case "regex": {
@@ -469,7 +538,8 @@ export async function executeRcaTemplate(input: {
   target: Target | undefined;
 }> {
   const template = await loadTemplate(input.templateName, input.templateName);
-  const thresholdSet = input.thresholdSet ?? input.templateName;
+  const thresholdSet =
+    input.thresholdSet ?? template.threshold_set ?? (template.symptom as ThresholdSetName);
   const thresholdValues = input.context.thresholds[thresholdSet] as Record<string, number>;
 
   const rawObservations = await Promise.all(
@@ -514,7 +584,9 @@ export async function executeRcaTemplate(input: {
 
   const { candidates, excludedCandidates } = scoreCauseEvaluations(evaluations);
   const candidatesByCause = new Map(candidates.map((candidate) => [candidate.cause, candidate]));
-  const possibleActions = template.actions.filter((action) => candidatesByCause.has(action.tied_to));
+  const possibleActions = template.actions.filter((action) =>
+    candidatesByCause.has(action.tied_to)
+  );
   const relatedSymptoms = Array.from(
     new Set(
       (template.related_symptoms ?? [])

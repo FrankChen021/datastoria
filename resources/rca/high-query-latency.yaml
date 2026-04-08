@@ -1,4 +1,11 @@
+version: 1
 symptom: high_query_latency
+description: Diagnose elevated query latency across cluster, node, table, or query pattern scopes.
+scopes: [cluster, node, table, query_pattern]
+threshold_set: high_query_latency
+requires:
+  predicates:
+    - scope_query_log
 
 observations:
   - id: query_log

@@ -602,7 +602,7 @@ LIMIT 1`);
   };
 }
 
-const SUPPORTED_SCOPES: Record<CanonicalSymptom, Scope[]> = {
+const DEFAULT_SUPPORTED_SCOPES: Record<CanonicalSymptom, Scope[]> = {
   high_query_latency: ["cluster", "node", "table", "query_pattern"],
   high_part_count: ["cluster", "node", "table"],
   high_partition_count: ["cluster", "table"],
@@ -619,16 +619,20 @@ const SCOPE_FALLBACK_ORDER: Record<Scope, Scope[]> = {
   cluster: [],
 };
 
+export function getDefaultSupportedScopes(symptom: CanonicalSymptom): Scope[] {
+  return DEFAULT_SUPPORTED_SCOPES[symptom] ?? ["cluster"];
+}
+
 export function resolveScope(
-  symptom: CanonicalSymptom,
   requestedScope: Scope,
+  supportedScopes: Scope[],
+  symptom: CanonicalSymptom,
   gaps: EvidenceGap[]
 ): Scope {
-  const supported = SUPPORTED_SCOPES[symptom];
-  if (supported.includes(requestedScope)) return requestedScope;
+  if (supportedScopes.includes(requestedScope)) return requestedScope;
 
   for (const candidate of SCOPE_FALLBACK_ORDER[requestedScope]) {
-    if (supported.includes(candidate)) {
+    if (supportedScopes.includes(candidate)) {
       gaps.push({
         description: "scope downgraded",
         reason: `symptom=${symptom} does not support scope=${requestedScope}; downgraded to ${candidate}`,
@@ -637,7 +641,7 @@ export function resolveScope(
     }
   }
 
-  const fallback = supported[0] ?? "cluster";
+  const fallback = supportedScopes[0] ?? "cluster";
   gaps.push({
     description: "scope downgraded",
     reason: `symptom=${symptom} does not support scope=${requestedScope}; downgraded to ${fallback}`,

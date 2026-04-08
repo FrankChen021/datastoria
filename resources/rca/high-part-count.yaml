@@ -1,6 +1,16 @@
 version: 1
 symptom: high_part_count
 description: Diagnose excessive active part count for a cluster, node, or table.
+scopes: [cluster, node, table]
+threshold_set: high_part_count
+requires:
+  resolved_target: table
+  predicates:
+    - parts_table
+    - query_log_table
+    - node
+  enrichments:
+    - partition_key_columns
 
 observations:
   - id: logical_partition_stats

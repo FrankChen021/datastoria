@@ -1,4 +1,15 @@
+version: 1
 symptom: high_partition_count
+description: Diagnose excessive partition count for cluster or table scope.
+scopes: [cluster, table]
+threshold_set: high_partition_count
+requires:
+  resolved_target: table
+  predicates:
+    - parts_table
+    - query_log_table
+  enrichments:
+    - partition_key_columns
 
 observations:
   - id: logical_stats

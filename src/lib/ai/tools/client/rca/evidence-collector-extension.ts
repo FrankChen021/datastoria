@@ -1,4 +1,5 @@
 import type { RcaContextExtension } from "./evidence-collector-common";
+import { getPrivateRcaContextExtension } from "./evidence-collector-private";
 
 /**
  * OSS default: no optional RCA context extension is available.
@@ -32,5 +33,5 @@ import type { RcaContextExtension } from "./evidence-collector-common";
  * ```
  */
 export function getRcaContextExtension(): RcaContextExtension | undefined {
-  return undefined;
+  return getPrivateRcaContextExtension();
 }
