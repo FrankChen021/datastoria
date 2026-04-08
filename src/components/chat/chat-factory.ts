@@ -2,7 +2,7 @@ import { getRuntimeConfig } from "@/components/runtime-config-provider";
 import { AgentConfigurationManager } from "@/components/settings/agent/agent-manager";
 import { ModelManager } from "@/components/settings/models/model-manager";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
-import type { AppUIMessage, Message, MessageMetadata } from "@/lib/ai/chat-types";
+import type { AgentContext, AppUIMessage, Message, MessageMetadata } from "@/lib/ai/chat-types";
 import { sanitizeMessageForPersistence } from "@/lib/ai/session/serialization";
 import type { StageStatus, ToolProgressCallback } from "@/lib/ai/tools/client/client-tool-types";
 import { CLIENT_TOOL_NAMES, ClientToolExecutors } from "@/lib/ai/tools/client/client-tools";
@@ -30,6 +30,7 @@ type ChatFactoryCreateOptions = {
   connection: Connection;
   apiEndpoint?: string;
   context?: DatabaseContext;
+  agentContext?: Partial<AgentContext>;
   ephemeral?: boolean;
   initialMessages: AppUIMessage[];
   model?: {
@@ -71,6 +72,7 @@ type SendMessagesRequestPayloadArgs = {
   generateTitle: boolean;
   ephemeral?: boolean;
   pruneValidateSql: boolean;
+  agentContext?: Partial<AgentContext>;
   chatPersistenceMode: "local" | "remote";
 };
 
@@ -139,6 +141,7 @@ export function buildSendMessagesRequestPayload({
   generateTitle,
   ephemeral,
   pruneValidateSql,
+  agentContext,
   chatPersistenceMode,
 }: SendMessagesRequestPayloadArgs): Record<string, unknown> {
   if (chatPersistenceMode === "remote") {
@@ -153,6 +156,7 @@ export function buildSendMessagesRequestPayload({
       ...(!continuation ? { generateTitle } : {}),
       ...(ephemeral ? { ephemeral: true } : {}),
       agentContext: {
+        ...(agentContext ?? {}),
         pruneValidateSql,
       },
       ...(requestContext ? { context: requestContext } : {}),
@@ -166,6 +170,7 @@ export function buildSendMessagesRequestPayload({
     trigger,
     messageId,
     agentContext: {
+      ...(agentContext ?? {}),
       pruneValidateSql,
     },
     generateTitle,
@@ -474,6 +479,7 @@ export class ChatFactory {
               ephemeral: options.ephemeral,
               pruneValidateSql:
                 AgentConfigurationManager.getConfiguration().pruneValidateSql ?? true,
+              agentContext: options.agentContext,
               chatPersistenceMode,
             }),
             headers,

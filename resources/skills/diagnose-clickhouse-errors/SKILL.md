@@ -29,10 +29,13 @@ In those cases, prefer `source-code-inspection`. Do not start this skill's error
 
 ## Response format
 
-- **## Cause** — One short sentence explaining why the error occurred.
-- **## Fix** — Bullet list of concrete steps.
-- **## Example** — A single fenced SQL block with the corrected query; omit if not applicable.
+- **Section 1 (Cause)** — One short sentence explaining why the error occurred.
+- **Section 2 (Fix)** — Bullet list of concrete steps.
+- **Section 3 (Example)** — A single fenced SQL block with the corrected query; omit if not applicable.
 
-If the user message includes `Response language (BCP-47): …`, respond in that language. Keep SQL, codes, and identifiers as-is.
+Heading rules:
+- Default (English): use headings `## Cause`, `## Fix`, and optional `## Example`.
+- If a response language is specified by system policy or user message (`Response language (BCP-47): …`), localize the heading text to that language while keeping the same 3-section structure.
+- Keep SQL, codes, and identifiers as-is.
 
 Keep answers brief and action-first. Do not repeat the raw error verbatim. Do not add extra headings.

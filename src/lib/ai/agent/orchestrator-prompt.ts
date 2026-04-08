@@ -2,6 +2,7 @@ import {
   formatDatabaseContextFacts,
   hasDatabaseContextFacts,
 } from "@/components/chat/chat-context";
+import { isEnglishLanguageTag, sanitizeLanguageTag } from "@/lib/ai/language-utils";
 import type { ServerDatabaseContext } from "./common-types";
 
 /**
@@ -18,14 +19,24 @@ const ORCHESTRATOR_SYSTEM_PROMPT_BASE = `You are a ClickHouse Expert with access
 4. **Retry**: On tool error, consult the loaded skill instructions, fix, and retry. Do not give up after one failure.
 5. **Time context**: Reuse the most recent explicit time range from the conversation. Default to the last 60 minutes only when none exists.
 6. **Output**: Respond in markdown. Follow the loaded skill's output instructions exactly.`;
-export function buildOrchestratorSystemPrompt(context?: ServerDatabaseContext): string {
+
+export function buildOrchestratorSystemPrompt(
+  context?: ServerDatabaseContext,
+  options?: { responseLanguage?: string }
+): string {
+  const responseLanguage = sanitizeLanguageTag(options?.responseLanguage);
+  const languagePolicy =
+    responseLanguage && !isEnglishLanguageTag(responseLanguage)
+      ? `\n\n## Response Language Policy\n- Response language (BCP-47): ${responseLanguage}\n- You MUST write all explanatory prose and headings in this language.\n- Keep SQL, code, error codes, identifiers, and setting names unchanged.`
+      : "";
+
   if (!hasDatabaseContextFacts(context)) {
-    return ORCHESTRATOR_SYSTEM_PROMPT_BASE;
+    return `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}${languagePolicy}`;
   }
 
   return `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}
 
 ## Diagnosis Context
 ${formatDatabaseContextFacts(context)}
-`;
+${languagePolicy}`;
 }

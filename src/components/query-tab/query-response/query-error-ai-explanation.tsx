@@ -417,49 +417,117 @@ const AutoExplainFeedback = memo(function AutoExplainFeedback({
   );
 });
 
-const InlineAutoExplainChat = memo(function InlineAutoExplainChat({
-  chat,
-  prompt,
+export const QueryErrorAIExplanation = memo(function QueryErrorAIExplanation({
   queryId,
+  errorMessage,
+  errorCode,
+  sql,
+}: QueryErrorAIExplanationProps) {
+  const { connection } = useConnection();
+  const [chat, setChat] = useState<Chat<AppUIMessage> | null>(null);
+  const chatQueryIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!connection?.metadata.internalUser) {
+      setChat(null);
+      chatQueryIdRef.current = null;
+      return;
+    }
+
+    void (async () => {
+      const autoExplainLanguage = normalizeAutoExplainLanguage(
+        AgentConfigurationManager.getConfiguration().autoExplainLanguage
+      );
+      const createdChat = await ChatFactory.createEphemeral({
+        connection,
+        initialMessages: [],
+        context: getDatabaseContextFromConnection(connection),
+        agentContext: { responseLanguage: autoExplainLanguage },
+      });
+
+      if (cancelled) {
+        ChatFactory.stopClientTools(createdChat.id);
+        return;
+      }
+
+      chatQueryIdRef.current = queryId;
+      setChat(createdChat);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [connection, queryId, sql]);
+
+  if (!connection || !chat || chatQueryIdRef.current !== queryId) {
+    return null;
+  }
+
+  return (
+    <QueryErrorAIExplanationContent
+      chat={chat}
+      queryId={queryId}
+      errorMessage={errorMessage}
+      errorCode={errorCode}
+      sql={sql}
+      connectionId={connection.connectionId}
+    />
+  );
+});
+
+const QueryErrorAIExplanationContent = memo(function QueryErrorAIExplanationContent({
+  chat,
+  queryId,
+  errorMessage,
   errorCode,
   sql,
   connectionId,
-}: {
+}: QueryErrorAIExplanationProps & {
   chat: Chat<AppUIMessage>;
-  prompt: string;
-  queryId: string;
-  errorCode?: string;
-  sql?: string;
   connectionId: string;
 }) {
-  const { messages, error, sendMessage, status, stop } = useChat({ chat });
+  const { messages, error, sendMessage, status, stop } = useChat({
+    chat,
+  });
   const sentKeyRef = useRef<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [hasRequested, setHasRequested] = useState(false);
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
 
   useEffect(() => {
-    if (sentKeyRef.current === queryId) {
+    const key = `${chat.id}:${queryId}`;
+    if (sentKeyRef.current === key) {
       return;
     }
 
-    sentKeyRef.current = queryId;
+    sentKeyRef.current = key;
     setHasRequested(true);
     setFeedbackDismissed(false);
+    const autoExplainLanguage = normalizeAutoExplainLanguage(
+      AgentConfigurationManager.getConfiguration().autoExplainLanguage
+    );
+    const prompt = buildExplainErrorPrompt({
+      errorMessage,
+      errorCode,
+      sql,
+      language: autoExplainLanguage,
+    });
     sendMessage({
       id: uuidv7(),
       role: "user",
       parts: [{ type: "text", text: prompt }],
       metadata: { createdAt: Date.now() },
     });
-  }, [prompt, queryId, sendMessage]);
+  }, [chat, errorCode, errorMessage, queryId, sendMessage, sql]);
 
   useEffect(() => {
     return () => {
       ChatFactory.stopClientTools(chat.id);
       stop();
     };
-  }, [chat.id, stop]);
+  }, [chat, stop]);
 
   const assistantMessages = useMemo(() => {
     const responseMessages = messages.filter((message) => message.role === "assistant");
@@ -510,7 +578,6 @@ const InlineAutoExplainChat = memo(function InlineAutoExplainChat({
           />
         </div>
       ))}
-
       {error && (
         <div className="mt-3 p-3 bg-destructive/10 border border-destructive rounded-md flex items-start gap-2">
           <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
@@ -531,73 +598,5 @@ const InlineAutoExplainChat = memo(function InlineAutoExplainChat({
       )}
       <div ref={bottomRef} className="h-px" />
     </div>
-  );
-});
-
-export const QueryErrorAIExplanation = memo(function QueryErrorAIExplanation({
-  queryId,
-  errorMessage,
-  errorCode,
-  sql,
-}: QueryErrorAIExplanationProps) {
-  const { connection } = useConnection();
-  const [chat, setChat] = useState<Chat<AppUIMessage> | null>(null);
-
-  const autoExplainLanguage = normalizeAutoExplainLanguage(
-    AgentConfigurationManager.getConfiguration().autoExplainLanguage
-  );
-
-  const prompt = useMemo(
-    () =>
-      buildExplainErrorPrompt({
-        errorMessage,
-        errorCode,
-        sql,
-        language: autoExplainLanguage,
-      }),
-    [errorCode, errorMessage, sql, autoExplainLanguage]
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!connection?.metadata.internalUser) {
-      setChat(null);
-      return;
-    }
-
-    void (async () => {
-      const createdChat = await ChatFactory.createEphemeral({
-        connection,
-        initialMessages: [],
-        context: getDatabaseContextFromConnection(connection),
-      });
-
-      if (cancelled) {
-        ChatFactory.stopClientTools(createdChat.id);
-        return;
-      }
-
-      setChat(createdChat);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [connection, queryId, sql]);
-
-  if (!chat || !connection) {
-    return null;
-  }
-
-  return (
-    <InlineAutoExplainChat
-      chat={chat}
-      prompt={prompt}
-      queryId={queryId}
-      errorCode={errorCode}
-      sql={sql}
-      connectionId={connection.connectionId}
-    />
   );
 });

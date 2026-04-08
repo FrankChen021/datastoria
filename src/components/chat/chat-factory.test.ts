@@ -92,4 +92,32 @@ describe("buildSendMessagesRequestPayload", () => {
       continuation: true,
     });
   });
+
+  it("keeps pruneValidateSql authoritative over agentContext overrides", () => {
+    const payload = buildSendMessagesRequestPayload({
+      sessionId: "session-1",
+      connectionId: "default@https://example.com",
+      messages: [createMessage({})],
+      trigger: "submit-message",
+      messageId: "message-1",
+      body: {},
+      requestContext: diagnosisContext,
+      currentModel: undefined,
+      generateTitle: false,
+      ephemeral: true,
+      pruneValidateSql: true,
+      agentContext: {
+        pruneValidateSql: false,
+        responseLanguage: "zh-CN",
+      },
+      chatPersistenceMode: "remote",
+    });
+
+    expect(payload).toMatchObject({
+      agentContext: {
+        pruneValidateSql: true,
+        responseLanguage: "zh-CN",
+      },
+    });
+  });
 });
