@@ -156,8 +156,8 @@ export function buildSendMessagesRequestPayload({
       ...(!continuation ? { generateTitle } : {}),
       ...(ephemeral ? { ephemeral: true } : {}),
       agentContext: {
-        pruneValidateSql,
         ...(agentContext ?? {}),
+        pruneValidateSql,
       },
       ...(requestContext ? { context: requestContext } : {}),
       ...(currentModel ? { model: currentModel } : {}),
@@ -170,8 +170,8 @@ export function buildSendMessagesRequestPayload({
     trigger,
     messageId,
     agentContext: {
-      pruneValidateSql,
       ...(agentContext ?? {}),
+      pruneValidateSql,
     },
     generateTitle,
     ...(requestContext ? { context: requestContext } : {}),

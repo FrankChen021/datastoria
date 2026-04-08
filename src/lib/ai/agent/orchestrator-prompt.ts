@@ -2,7 +2,7 @@ import {
   formatDatabaseContextFacts,
   hasDatabaseContextFacts,
 } from "@/components/chat/chat-context";
-import { isEnglishLanguageTag } from "@/lib/ai/language-utils";
+import { isEnglishLanguageTag, sanitizeLanguageTag } from "@/lib/ai/language-utils";
 import type { ServerDatabaseContext } from "./common-types";
 
 /**
@@ -24,8 +24,7 @@ export function buildOrchestratorSystemPrompt(
   context?: ServerDatabaseContext,
   options?: { responseLanguage?: string }
 ): string {
-  const rawLang = options?.responseLanguage;
-  const responseLanguage = typeof rawLang === "string" ? rawLang.trim() : undefined;
+  const responseLanguage = sanitizeLanguageTag(options?.responseLanguage);
   const languagePolicy =
     responseLanguage && !isEnglishLanguageTag(responseLanguage)
       ? `\n\n## Response Language Policy\n- Response language (BCP-47): ${responseLanguage}\n- You MUST write all explanatory prose and headings in this language.\n- Keep SQL, code, error codes, identifiers, and setting names unchanged.`
