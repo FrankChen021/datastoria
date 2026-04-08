@@ -31,12 +31,17 @@ export type AskUserQuestionOption =
   | {
       id: string;
       label: string;
-      type: "text";
+      input: "none";
     }
   | {
       id: string;
       label: string;
-      type: "select";
+      input: "text";
+    }
+  | {
+      id: string;
+      label: string;
+      input: "select";
       choices: string[];
     };
 
@@ -50,7 +55,7 @@ export type AskUserQuestionInput = {
 export type AskUserQuestionOutput = {
   optionId: string;
   label: string;
-  type: "text" | "select";
+  input: "none" | "text" | "select";
   value: string;
 };
 
@@ -70,18 +75,29 @@ const askUserQuestionExecutor: ToolExecutor<
   throw new Error("ask_user_question is interactive and must not be eagerly executed.");
 };
 
-const askUserQuestionOptionSchema = z.discriminatedUnion("type", [
-  z.object({
-    id: z.string(),
-    label: z.string(),
-    type: z.literal("text"),
-  }),
-  z.object({
-    id: z.string(),
-    label: z.string(),
-    type: z.literal("select"),
-    choices: z.array(z.string()).min(1),
-  }),
+const askUserQuestionOptionSchema = z.discriminatedUnion("input", [
+  z
+    .object({
+      id: z.string(),
+      label: z.string(),
+      input: z.literal("none"),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string(),
+      label: z.string(),
+      input: z.literal("text"),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string(),
+      label: z.string(),
+      input: z.literal("select"),
+      choices: z.array(z.string()).min(1),
+    })
+    .strict(),
 ]);
 
 export const ClientTools = {
@@ -103,7 +119,7 @@ export const ClientTools = {
     outputSchema: z.object({
       optionId: z.string(),
       label: z.string(),
-      type: z.enum(["text", "select"]),
+      input: z.enum(["none", "text", "select"]),
       value: z.string(),
     }) satisfies z.ZodType<AskUserQuestionOutput>,
   }),

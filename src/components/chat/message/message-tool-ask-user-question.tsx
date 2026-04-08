@@ -21,6 +21,52 @@ function previewValue(value: string) {
   return `${trimmed.slice(0, 117)}...`;
 }
 
+function isAskUserQuestionInput(value: unknown): value is AskUserQuestionInput {
+  if (!value || typeof value !== "object") return false;
+
+  const maybeQuestions = (value as { questions?: unknown }).questions;
+  if (!Array.isArray(maybeQuestions) || maybeQuestions.length === 0) return false;
+
+  return maybeQuestions.every((question) => {
+    if (!question || typeof question !== "object") return false;
+
+    const header = (question as { header?: unknown }).header;
+    const options = (question as { options?: unknown }).options;
+    if (typeof header !== "string" || !Array.isArray(options) || options.length === 0) return false;
+
+    return options.every((option) => {
+      if (!option || typeof option !== "object") return false;
+
+      const id = (option as { id?: unknown }).id;
+      const label = (option as { label?: unknown }).label;
+      const input = (option as { input?: unknown }).input;
+      if (typeof id !== "string" || typeof label !== "string") return false;
+
+      if (input === "none" || input === "text") {
+        return !("choices" in option);
+      }
+
+      if (input === "select") {
+        const choices = (option as { choices?: unknown }).choices;
+        return Array.isArray(choices) && choices.every((choice) => typeof choice === "string");
+      }
+
+      return false;
+    });
+  });
+}
+
+function extractAskUserQuestionInput(toolPart: ToolPart): AskUserQuestionInput | undefined {
+  const candidates = [
+    toolPart.input,
+    (toolPart as { args?: unknown }).args,
+    (toolPart as { toolCall?: { input?: unknown; args?: unknown } }).toolCall?.input,
+    (toolPart as { toolCall?: { input?: unknown; args?: unknown } }).toolCall?.args,
+  ];
+
+  return candidates.find(isAskUserQuestionInput);
+}
+
 export const MessageToolAskUserQuestion = memo(function MessageToolAskUserQuestion({
   part,
   isRunning = true,
@@ -34,7 +80,7 @@ export const MessageToolAskUserQuestion = memo(function MessageToolAskUserQuesti
     (toolPart as { id?: string }).id ||
     (toolPart as unknown as { toolCall?: { toolCallId?: string } }).toolCall?.toolCallId ||
     "";
-  const input = toolPart.input as AskUserQuestionInput | undefined;
+  const input = extractAskUserQuestionInput(toolPart);
   const output = toolPart.output as AskUserQuestionOutput | undefined;
   const { onToolOutput } = useChatAction();
   const [selectedOptionId, setSelectedOptionId] = useState("");
@@ -53,6 +99,7 @@ export const MessageToolAskUserQuestion = memo(function MessageToolAskUserQuesti
         : question?.options.find((option) => option.id === selectedOptionId),
     [question?.options, selectedOptionId, singleOption]
   );
+  const shouldShowTypedInput = selectedOption?.input === "text";
 
   const submitAnswer = async (
     answer: AskUserQuestionOutput
@@ -94,7 +141,7 @@ export const MessageToolAskUserQuestion = memo(function MessageToolAskUserQuesti
   const handleSubmitSelectedOption = async () => {
     if (!selectedOption || !question) return;
 
-    const normalizedValue = draftValue.trim();
+    const normalizedValue = shouldShowTypedInput ? draftValue.trim() : selectedOption.label;
     if (!normalizedValue) {
       setSubmitError("Please enter a value before submitting.");
       return;
@@ -103,7 +150,7 @@ export const MessageToolAskUserQuestion = memo(function MessageToolAskUserQuesti
     const result = await submitAnswer({
       optionId: selectedOption.id,
       label: selectedOption.label,
-      type: selectedOption.type,
+      input: selectedOption.input,
       value: normalizedValue,
     });
 
@@ -188,7 +235,7 @@ export const MessageToolAskUserQuestion = memo(function MessageToolAskUserQuesti
 
             {selectedOption && (
               <>
-                {selectedOption.type === "select" ? (
+                {selectedOption.input === "select" ? (
                   <div className="flex flex-wrap gap-2">
                     {selectedOption.choices.map((choice) => {
                       const isSelected = draftValue === choice;
@@ -210,7 +257,7 @@ export const MessageToolAskUserQuestion = memo(function MessageToolAskUserQuesti
                       );
                     })}
                   </div>
-                ) : (
+                ) : shouldShowTypedInput ? (
                   <Textarea
                     className="min-h-[150px] font-mono text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-input"
                     placeholder={selectedOption.label}
@@ -221,6 +268,10 @@ export const MessageToolAskUserQuestion = memo(function MessageToolAskUserQuesti
                     }}
                     disabled={isSubmitting || hasSubmitted}
                   />
+                ) : (
+                  <div className="rounded-md border border-border/50 bg-background/70 px-3 py-2 text-sm">
+                    {selectedOption.label}
+                  </div>
                 )}
 
                 <div className="flex items-center gap-2">
