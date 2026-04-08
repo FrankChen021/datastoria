@@ -176,9 +176,7 @@ describe("MessageToolAskUserQuestion", () => {
 
   it("submits the selected choice for select options", async () => {
     act(() => {
-      root.render(
-        <MessageToolAskUserQuestion part={createSelectToolPart()} isRunning={false} />
-      );
+      root.render(<MessageToolAskUserQuestion part={createSelectToolPart()} isRunning={false} />);
     });
 
     expect(container.querySelector("textarea")).toBeNull();
