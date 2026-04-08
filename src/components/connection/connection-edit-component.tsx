@@ -38,6 +38,7 @@ import {
   useState,
   type ComponentPropsWithoutRef,
   type ReactNode,
+  type WheelEvent,
 } from "react";
 
 // Type for test status
@@ -440,8 +441,9 @@ export function ConnectionEditComponent({
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 z-[10010]">
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 z-[10010] overflow-hidden">
               <Command
+                className="h-auto max-h-[360px]"
                 filter={(value: string, search: string) => {
                   const query = search.trim().toLowerCase();
                   if (query.length === 0) {
@@ -451,7 +453,12 @@ export function ConnectionEditComponent({
                 }}
               >
                 <CommandInput placeholder="Search templates..." className="h-9" />
-                <CommandList>
+                <CommandList
+                  className="max-h-[320px] overflow-y-auto overscroll-contain [&_[cmdk-list-sizer]]:max-h-none"
+                  onWheelCapture={(event: WheelEvent<HTMLDivElement>) => {
+                    event.stopPropagation();
+                  }}
+                >
                   <CommandEmpty>No template found.</CommandEmpty>
                   {connectionTemplates.map((conn) => (
                     <CommandItem
@@ -719,9 +726,19 @@ export function ConnectionEditComponent({
     >
       {hasProvider ? (
         <Tabs defaultValue="template" className="pt-2 w-full mb-4 sm:mb-4">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="template">From Template</TabsTrigger>
-            <TabsTrigger value="custom">Custom Connection</TabsTrigger>
+          <TabsList className="mb-4 grid w-full grid-cols-2">
+            <TabsTrigger
+              value="template"
+              className="border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:rounded-b-none data-[state=active]:bg-transparent"
+            >
+              From Template
+            </TabsTrigger>
+            <TabsTrigger
+              value="custom"
+              className="border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:rounded-b-none data-[state=active]:bg-transparent"
+            >
+              Custom Connection
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="template" className="mt-0">
             <FieldGroup className="space-y-5 sm:space-y-4">
