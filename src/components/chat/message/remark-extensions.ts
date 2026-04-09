@@ -55,7 +55,9 @@ function createBreakNode(): BreakNode {
 
 function isBrHtmlNode(node: MarkdownNode): node is HtmlNode {
   return (
-    node.type === "html" && typeof node.value === "string" && /^<br\s*\/?>$/i.test(node.value.trim())
+    node.type === "html" &&
+    typeof node.value === "string" &&
+    /^<br\s*\/?>$/i.test(node.value.trim())
   );
 }
 

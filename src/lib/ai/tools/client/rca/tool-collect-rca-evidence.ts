@@ -13,10 +13,10 @@ import {
   type Scope,
   type SymptomContext,
 } from "./evidence-collector-common";
-import { createRcaEvidenceProvider } from "./evidence-collector-factory";
-import { getRcaTemplateMetadata } from "./template-runtime";
+import { EvidenceCollectorFactory } from "./evidence-collector-factory";
+import { getRcaTemplateMetadata } from "./impl/template-based-collector";
 
-const RCA_EVIDENCE_PROVIDER = createRcaEvidenceProvider();
+const RCA_EVIDENCE_PROVIDER = EvidenceCollectorFactory.create();
 
 export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvidenceOutput> = async (
   input,

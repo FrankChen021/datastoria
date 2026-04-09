@@ -293,6 +293,10 @@ export type SymptomEvidence = {
   related_symptoms?: CanonicalSymptom[];
 };
 
+export interface RcaEvidenceCollector {
+  collect(symptom: CanonicalSymptom, context: SymptomContext): Promise<SymptomEvidence | undefined>;
+}
+
 export type RcaContextExtension = {
   name: string;
   resolve(input: {
