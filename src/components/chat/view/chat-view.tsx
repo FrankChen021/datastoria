@@ -82,7 +82,7 @@ export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
   },
 };
 
-export function DefaultQuestions({
+export function SampleQuestions({
   onQuestionClick,
 }: {
   onQuestionClick: (question: Question) => void;
@@ -326,7 +326,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
                   <AppLogo width={64} height={64} />
                 </div>
                 <p className="text-xl text-center font-medium mb-0 mt-0">{greeting}</p>
-                <DefaultQuestions onQuestionClick={handleQuestionClick} />
+                <SampleQuestions onQuestionClick={handleQuestionClick} />
               </div>
             </div>
           ) : (
