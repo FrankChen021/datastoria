@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const streamTextMock = vi.fn();
+const streamObjectMock = vi.fn();
 const createModelMock = vi.fn();
 const resolveModelConfigMock = vi.fn();
 const getDefaultTemperatureMock = vi.fn();
@@ -8,9 +9,10 @@ const supportsStructuredOutputsMock = vi.fn();
 
 vi.mock("ai", () => ({
   streamText: streamTextMock,
-  Output: {
-    object: ({ schema }: { schema: unknown }) => ({ schema }),
-  },
+}));
+
+vi.mock("@/lib/ai/stream-utils", () => ({
+  streamObject: streamObjectMock,
 }));
 
 vi.mock("@/lib/ai/llm/llm-provider-factory", () => ({
@@ -67,21 +69,19 @@ describe("POST /api/ai/skills/actions/review", () => {
       modelId: "gpt-5",
       apiKey: "secret",
     });
-    createModelMock.mockReturnValue({ model: "fake" });
+    createModelMock.mockReturnValue({ model: "fake", specificationVersion: "v3" });
     getDefaultTemperatureMock.mockReturnValue(0.1);
     supportsStructuredOutputsMock.mockReturnValue(true);
-    streamTextMock.mockReturnValue({
-      output: Promise.resolve({
-        findings:
-          "## Findings\n\n- The remediation section does not explain how to verify the setting name.",
-        proposals: [
-          {
-            path: "references/115.md",
-            reason: "Add concrete verification and remediation steps.",
-            updatedContent: "# Code 115\n\nRevised content",
-          },
-        ],
-      }),
+    streamObjectMock.mockResolvedValue({
+      findings:
+        "## Findings\n\n- The remediation section does not explain how to verify the setting name.",
+      proposals: [
+        {
+          path: "references/115.md",
+          reason: "Add concrete verification and remediation steps.",
+          updatedContent: "# Code 115\n\nRevised content",
+        },
+      ],
     });
 
     const { POST } = await import("./route");
@@ -117,11 +117,13 @@ describe("POST /api/ai/skills/actions/review", () => {
     });
     expect(createModelMock).toHaveBeenCalledWith("OpenAI", "gpt-5", "secret");
     expect(supportsStructuredOutputsMock).toHaveBeenCalledWith("OpenAI", "gpt-5");
-    expect(streamTextMock).toHaveBeenCalledWith(
+    expect(streamObjectMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: { model: "fake" },
+        model: { model: "fake", specificationVersion: "v3" },
         temperature: 0.1,
         prompt: expect.stringContaining("<<<FILE_CONTENT_START>>>"),
+        schema: expect.anything(),
+        supportsStructuredOutputs: true,
       })
     );
     await expect(response.json()).resolves.toEqual({
@@ -143,13 +145,11 @@ describe("POST /api/ai/skills/actions/review", () => {
       modelId: "gpt-4o",
       apiKey: "secret",
     });
-    createModelMock.mockReturnValue({ model: "fake" });
+    createModelMock.mockReturnValue({ model: "fake", specificationVersion: "v3" });
     getDefaultTemperatureMock.mockReturnValue(0.1);
     supportsStructuredOutputsMock.mockReturnValue(true);
-    streamTextMock.mockReturnValue({
-      output: Promise.resolve({
-        proposals: [],
-      }),
+    streamObjectMock.mockResolvedValue({
+      proposals: [],
     });
 
     const { POST } = await import("./route");
@@ -185,6 +185,59 @@ describe("POST /api/ai/skills/actions/review", () => {
     });
   });
 
+  it("passes structured-output support to the stream helper", async () => {
+    resolveModelConfigMock.mockReturnValue({
+      provider: "Anthropic",
+      modelId: "claude-opus-4-6",
+      apiKey: "secret",
+    });
+    createModelMock.mockReturnValue({ model: "fake", specificationVersion: "v3" });
+    getDefaultTemperatureMock.mockReturnValue(0.1);
+    supportsStructuredOutputsMock.mockReturnValue(true);
+    streamObjectMock.mockResolvedValue({
+      findings: "## Findings\n\n- Clarify the remediation step.",
+      proposals: [],
+    });
+
+    const { POST } = await import("./route");
+
+    const response = await POST(
+      new Request("http://localhost/api/ai/skills/actions/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scope: "file",
+          skillId: "diagnose-clickhouse-errors",
+          model: {
+            provider: "Anthropic",
+            modelId: "claude-opus-4-6",
+          },
+          target: {
+            primaryPath: "references/115.md",
+            files: [
+              {
+                path: "references/115.md",
+                content: "# Code 115\n\nCurrent content",
+              },
+            ],
+          },
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(streamObjectMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: { model: "fake", specificationVersion: "v3" },
+        supportsStructuredOutputs: true,
+      })
+    );
+    await expect(response.json()).resolves.toEqual({
+      findings: "## Findings\n\n- Clarify the remediation step.",
+      proposals: [],
+    });
+  });
+
   it("falls back to plain streamed text when structured outputs are not supported", async () => {
     resolveModelConfigMock.mockReturnValue({
       provider: "GitHub Copilot",
@@ -194,17 +247,15 @@ describe("POST /api/ai/skills/actions/review", () => {
     createModelMock.mockReturnValue({ model: "fake" });
     getDefaultTemperatureMock.mockReturnValue(0.1);
     supportsStructuredOutputsMock.mockReturnValue(false);
-    streamTextMock.mockReturnValue({
-      text: Promise.resolve(`{
-        "findings": "## Findings\\n\\n- Clarify the remediation step.",
-        "proposals": [
-          {
-            "path": "references/115.md",
-            "reason": "Tighten the instructions.",
-            "updatedContent": "# Code 115\\n\\nUpdated content"
-          }
-        ]
-      }`),
+    streamObjectMock.mockResolvedValue({
+      findings: "## Findings\n\n- Clarify the remediation step.",
+      proposals: [
+        {
+          path: "references/115.md",
+          reason: "Tighten the instructions.",
+          updatedContent: "# Code 115\n\nUpdated content",
+        },
+      ],
     });
 
     const { POST } = await import("./route");
@@ -235,9 +286,10 @@ describe("POST /api/ai/skills/actions/review", () => {
 
     expect(response.status).toBe(200);
     expect(supportsStructuredOutputsMock).toHaveBeenCalledWith("GitHub Copilot", "gpt-4o");
-    expect(streamTextMock).toHaveBeenCalledWith(
-      expect.not.objectContaining({
-        output: expect.anything(),
+    expect(streamObjectMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: { model: "fake" },
+        supportsStructuredOutputs: false,
       })
     );
     await expect(response.json()).resolves.toEqual({

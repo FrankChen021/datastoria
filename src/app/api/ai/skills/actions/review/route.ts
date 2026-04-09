@@ -7,11 +7,10 @@ import { SkillPermissionManager } from "@/lib/ai/skills/skill-permission-manager
 import {
   buildSkillFileReviewPrompt,
   normalizeSkillReviewResponse,
-  parseSkillReviewTextResponse,
   skillReviewModelOutputSchema,
   skillReviewRequestSchema,
 } from "@/lib/ai/skills/skill-review";
-import { Output, streamText } from "ai";
+import { streamObject } from "@/lib/ai/stream-utils";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -63,32 +62,19 @@ export async function POST(req: Request) {
       content: reviewedFile.content,
     });
 
-    if (
-      LanguageModelProviderFactory.supportsStructuredOutputs(
-        modelConfig.provider,
-        modelConfig.modelId
-      )
-    ) {
-      const result = streamText({
-        model,
-        prompt,
-        output: Output.object({
-          schema: skillReviewModelOutputSchema,
-        }),
-        temperature,
-      });
-
-      return NextResponse.json(normalizeSkillReviewResponse(await result.output));
-    }
-
-    const result = streamText({
-      model,
-      prompt,
-      temperature,
-    });
-
     return NextResponse.json(
-      normalizeSkillReviewResponse(parseSkillReviewTextResponse(await result.text))
+      normalizeSkillReviewResponse(
+        await streamObject({
+          model,
+          prompt,
+          schema: skillReviewModelOutputSchema,
+          supportsStructuredOutputs: LanguageModelProviderFactory.supportsStructuredOutputs(
+            modelConfig.provider,
+            modelConfig.modelId
+          ),
+          temperature,
+        })
+      )
     );
   } catch (error) {
     console.error("[/api/ai/skills/actions/review] Failed to review skill file", error);
