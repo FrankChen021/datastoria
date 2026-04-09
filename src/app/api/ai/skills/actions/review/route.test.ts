@@ -185,7 +185,7 @@ describe("POST /api/ai/skills/actions/review", () => {
     });
   });
 
-  it("wraps structured output models with JSON extraction middleware", async () => {
+  it("passes structured-output support to the stream helper", async () => {
     resolveModelConfigMock.mockReturnValue({
       provider: "Anthropic",
       modelId: "claude-opus-4-6",

@@ -1,4 +1,5 @@
 import type { LanguageModelV3 } from "@ai-sdk/provider";
+import { stripMarkdownCodeFence } from "@/lib/ai/skills/skill-review";
 import {
   extractJsonMiddleware,
   Output,
@@ -8,12 +9,6 @@ import {
   type InferSchema,
   type LanguageModel,
 } from "ai";
-
-function stripMarkdownCodeFence(value: string): string {
-  const trimmed = value.trim();
-  const fencedMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return fencedMatch?.[1]?.trim() ?? trimmed;
-}
 
 function parseTextObjectResponse<SCHEMA extends FlexibleSchema<unknown>>(
   text: string,

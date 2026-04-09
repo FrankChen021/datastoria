@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 const streamTextMock = vi.fn();
-const wrapLanguageModelMock = vi.fn(({ model }: { model: unknown }) => model);
+const wrapLanguageModelMock = vi.fn(
+  ({ model }: { model: unknown }) => ({ wrappedModel: model }) as const
+);
 const extractJsonMiddlewareMock = vi.fn(() => "extract-json-middleware");
 
 vi.mock("ai", () => ({
@@ -46,7 +48,7 @@ describe("streamObject", () => {
     });
     expect(streamTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model,
+        model: { wrappedModel: model },
         prompt: "hello",
         temperature: 0.2,
         output: expect.objectContaining({
