@@ -297,8 +297,6 @@ candidates:
       - logical_partition_stats
       - node_partition_ratio
       - table_meta
-    next_checks:
-      - "run collect_rca_evidence with symptom=high_partition_count for partition-key RCA"
     indicators:
       - description: "distinct partitions > {threshold.distinct_partitions_gt}"
         actual_template: "{logical_partition_stats.distinct_partitions}"
@@ -359,21 +357,6 @@ actions:
   - title: "Review and raise parts_to_throw_insert if it is lower than observed per-partition active parts"
     risk: medium
     tied_to: too_small_setting
-
-related_symptoms:
-  - symptom: high_partition_count
-    when_any:
-      - kind: comparison
-        left:
-          observation: logical_partition_stats
-          metric: distinct_partitions
-        operator: gte
-        right:
-          threshold: related_symptom_distinct_partitions_gte
-      - kind: candidate_score
-        cause: partition_granularity_pressure
-        operator: gte
-        threshold: related_symptom_signal_strength_gte
 
 output:
   target:

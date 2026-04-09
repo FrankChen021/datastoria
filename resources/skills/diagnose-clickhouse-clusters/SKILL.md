@@ -7,7 +7,7 @@ description: Diagnose ClickHouse cluster health and provide concrete remediation
 
 - Call `collect_cluster_status` before health conclusions about current cluster health.
 - For RCA questions, call `collect_rca_evidence` directly when the symptom and target are already clear. Use `collect_cluster_status` first only when you need current health context, severity/outliers, or help choosing the RCA symptom/scope.
-- Use only supported Phase 1 RCA symptoms: `high_query_latency`, `high_part_count`, `high_partition_count`, and `unknown`.
+- Use only supported Phase 1 RCA symptoms: `high_part_count` and `unknown`.
 - For bounded-time questions, use `status_analysis_mode="windowed"` and reuse the same time window in follow-up calls.
 - If user asks for a chart, use the `visualization` skill. Do not emit chart specs directly from this skill.
 - Do not invent custom health-check SQL. Use tool outputs as the source of truth.
@@ -94,7 +94,6 @@ RCA brevity limits:
 - If best candidate is weak (`0.30-0.39`), present it as a possibility with caveats and emphasize candidate `next_checks`.
 - Never fabricate or merge evidence lines across candidates. Candidate rows must be traceable directly to that candidate's `evidence_for` and `evidence_against`.
 - If `collect_rca_evidence.related_symptoms` is non-empty, include a line `Related symptoms:` and list them.
-- If `related_symptoms` contains `high_partition_count`, explicitly state that partition explosion may be a contributing factor and suggest running RCA with `symptom=high_partition_count`.
 - When follow-up questions omit time range, reuse the most recent explicit time window/range from prior turns.
 - Never assume schema or table names; use only what tools return.
 - Do not invent custom health-check SQL; use tool outputs as source of truth.

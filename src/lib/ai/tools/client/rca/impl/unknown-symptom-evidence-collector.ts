@@ -86,7 +86,7 @@ WHERE active`);
         evidence_for: ["generic probes detected broad pressure signals"],
         evidence_against: ["symptom did not map cleanly to a canonical RCA module"],
         next_checks: [
-          "refine symptom using one of: high_query_latency, high_part_count, high_partition_count",
+          "refine symptom using one of: high_part_count",
           "run collect_cluster_status with focused checks before RCA",
         ],
       },
