@@ -511,15 +511,7 @@ export const ClientTools = {
     description:
       "Collect root-cause analysis evidence for a cluster symptom. This tool returns observations, ranked cause candidates, possible actions, evidence gaps, and optional related symptoms. It is an evidence collector only; final conclusions must be produced by the cluster-diagnostics skill.",
     inputSchema: z.object({
-      symptom: z.enum([
-        "high_query_latency",
-        "high_part_count",
-        "high_partition_count",
-        "replication_lag",
-        "merge_backlog",
-        "mutation_backlog",
-        "unknown",
-      ]),
+      symptom: z.enum(["high_part_count", "unknown"]),
       scope: z.enum(["cluster", "node", "table", "query_pattern"]).optional(),
       target: z
         .object({
@@ -550,18 +542,6 @@ export const ClientTools = {
         .describe("Absolute time range. If provided, takes precedence over time_window."),
       thresholds: z
         .object({
-          high_query_latency: z
-            .object({
-              avg_read_rows_gte: z.number().optional(),
-              avg_read_bytes_gte: z.number().optional(),
-              p99_latency_ms_gte: z.number().optional(),
-              active_merges_gt: z.number().optional(),
-              max_merge_elapsed_seconds_gt: z.number().optional(),
-              p95_latency_ms_gte: z.number().optional(),
-              memory_used_percent_gte: z.number().optional(),
-              avg_query_memory_bytes_gte: z.number().optional(),
-            })
-            .optional(),
           high_part_count: z
             .object({
               inserts_per_minute_gt: z.number().optional(),
@@ -574,15 +554,6 @@ export const ClientTools = {
               max_parts_per_partition_gt: z.number().optional(),
               related_symptom_distinct_partitions_gte: z.number().optional(),
               related_symptom_signal_strength_gte: z.number().optional(),
-            })
-            .optional(),
-          high_partition_count: z
-            .object({
-              partition_count_gt: z.number().optional(),
-              recent_partitions_gt: z.number().optional(),
-              partition_to_parts_ratio_gt: z.number().optional(),
-              avg_rows_per_insert_lt: z.number().optional(),
-              unbounded_growth_partition_count_gt: z.number().optional(),
             })
             .optional(),
         })
@@ -614,15 +585,7 @@ export const ClientTools = {
     outputSchema: z.object({
       schema_version: z.literal(1),
       success: z.boolean(),
-      symptom: z.enum([
-        "high_query_latency",
-        "high_part_count",
-        "high_partition_count",
-        "replication_lag",
-        "merge_backlog",
-        "mutation_backlog",
-        "unknown",
-      ]),
+      symptom: z.enum(["high_part_count", "unknown"]),
       scope: z.enum(["cluster", "node", "table", "query_pattern"]),
       target: z
         .object({
@@ -632,19 +595,7 @@ export const ClientTools = {
           query_hash: z.string().optional(),
         })
         .optional(),
-      related_symptoms: z
-        .array(
-          z.enum([
-            "high_query_latency",
-            "high_part_count",
-            "high_partition_count",
-            "replication_lag",
-            "merge_backlog",
-            "mutation_backlog",
-            "unknown",
-          ])
-        )
-        .optional(),
+      related_symptoms: z.array(z.enum(["high_part_count", "unknown"])).optional(),
       observations: z.array(
         z.object({
           source: z.string(),

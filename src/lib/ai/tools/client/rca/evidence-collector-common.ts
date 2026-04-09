@@ -6,14 +6,7 @@ import {
 import { escapeSqlString, type ToolProgressCallback } from "../client-tool-types";
 import type { HealthCategorySummary } from "../status/collect-cluster-status";
 
-export type CanonicalSymptom =
-  | "high_query_latency"
-  | "high_part_count"
-  | "high_partition_count"
-  | "replication_lag"
-  | "merge_backlog"
-  | "mutation_backlog"
-  | "unknown";
+export type CanonicalSymptom = "high_part_count" | "unknown";
 
 export type Scope = "cluster" | "node" | "table" | "query_pattern";
 type StatusContextScope = "single_node" | "cluster";
@@ -32,16 +25,6 @@ type TimeRange = {
 };
 
 export type RcaThresholds = {
-  high_query_latency: {
-    avg_read_rows_gte: number;
-    avg_read_bytes_gte: number;
-    p99_latency_ms_gte: number;
-    active_merges_gt: number;
-    max_merge_elapsed_seconds_gt: number;
-    p95_latency_ms_gte: number;
-    memory_used_percent_gte: number;
-    avg_query_memory_bytes_gte: number;
-  };
   high_part_count: {
     inserts_per_minute_gt: number;
     avg_rows_per_insert_lt: number;
@@ -54,32 +37,13 @@ export type RcaThresholds = {
     related_symptom_distinct_partitions_gte: number;
     related_symptom_signal_strength_gte: number;
   };
-  high_partition_count: {
-    partition_count_gt: number;
-    recent_partitions_gt: number;
-    partition_to_parts_ratio_gt: number;
-    avg_rows_per_insert_lt: number;
-    unbounded_growth_partition_count_gt: number;
-  };
 };
 
 export type RcaThresholdOverrides = {
-  high_query_latency?: Partial<RcaThresholds["high_query_latency"]>;
   high_part_count?: Partial<RcaThresholds["high_part_count"]>;
-  high_partition_count?: Partial<RcaThresholds["high_partition_count"]>;
 };
 
 export const DEFAULT_RCA_THRESHOLDS: RcaThresholds = {
-  high_query_latency: {
-    avg_read_rows_gte: 1_000_000,
-    avg_read_bytes_gte: 1_000_000_000,
-    p99_latency_ms_gte: 2000,
-    active_merges_gt: 10,
-    max_merge_elapsed_seconds_gt: 600,
-    p95_latency_ms_gte: 1000,
-    memory_used_percent_gte: 85,
-    avg_query_memory_bytes_gte: 1_000_000_000,
-  },
   high_part_count: {
     inserts_per_minute_gt: 10,
     avg_rows_per_insert_lt: 10_000,
@@ -91,13 +55,6 @@ export const DEFAULT_RCA_THRESHOLDS: RcaThresholds = {
     max_parts_per_partition_gt: 1000,
     related_symptom_distinct_partitions_gte: 100,
     related_symptom_signal_strength_gte: 0.3,
-  },
-  high_partition_count: {
-    partition_count_gt: 1000,
-    recent_partitions_gt: 100,
-    partition_to_parts_ratio_gt: 0.3,
-    avg_rows_per_insert_lt: 10_000,
-    unbounded_growth_partition_count_gt: 500,
   },
 };
 
@@ -607,12 +564,7 @@ LIMIT 1`);
 }
 
 const DEFAULT_SUPPORTED_SCOPES: Record<CanonicalSymptom, Scope[]> = {
-  high_query_latency: ["cluster", "node", "table", "query_pattern"],
   high_part_count: ["cluster", "node", "table"],
-  high_partition_count: ["cluster", "table"],
-  replication_lag: ["cluster", "node", "table"],
-  merge_backlog: ["cluster", "node", "table"],
-  mutation_backlog: ["cluster", "node", "table"],
   unknown: ["cluster", "node", "table", "query_pattern"],
 };
 
@@ -686,17 +638,9 @@ export function buildTimeFilter(input: RcaEvidenceInput): { filter: TimeFilter; 
 
 export function resolveRcaThresholds(overrides?: RcaThresholdOverrides): RcaThresholds {
   return {
-    high_query_latency: {
-      ...DEFAULT_RCA_THRESHOLDS.high_query_latency,
-      ...(overrides?.high_query_latency ?? {}),
-    },
     high_part_count: {
       ...DEFAULT_RCA_THRESHOLDS.high_part_count,
       ...(overrides?.high_part_count ?? {}),
-    },
-    high_partition_count: {
-      ...DEFAULT_RCA_THRESHOLDS.high_partition_count,
-      ...(overrides?.high_partition_count ?? {}),
     },
   };
 }
