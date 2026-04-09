@@ -121,6 +121,9 @@ export interface ConnectionMetadata {
   tableNames?: Map<string, TableInfo>;
   databaseNames?: Map<string, DatabaseInfo>;
 
+  // hostName() from all nodes
+  hostNames?: Set<string>;
+
   // Cached dependency data - loaded on demand and cached here
   dependencyData?: {
     tables: Map<string, DependencyTableInfo>;

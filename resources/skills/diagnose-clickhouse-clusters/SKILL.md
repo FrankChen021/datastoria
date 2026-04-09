@@ -5,8 +5,8 @@ description: Diagnose ClickHouse cluster health and provide concrete remediation
 
 # Tool Usage Rules
 
-- Always call `collect_cluster_status` before health conclusions.
-- For RCA questions, call `collect_rca_evidence` after status collection.
+- Call `collect_cluster_status` before health conclusions about current cluster health.
+- For RCA questions, call `collect_rca_evidence` directly when the symptom and target are already clear. Use `collect_cluster_status` first only when you need current health context, severity/outliers, or help choosing the RCA symptom/scope.
 - Use only supported Phase 1 RCA symptoms: `high_query_latency`, `high_part_count`, `high_partition_count`, and `unknown`.
 - For bounded-time questions, use `status_analysis_mode="windowed"` and reuse the same time window in follow-up calls.
 - If user asks for a chart, use the `visualization` skill. Do not emit chart specs directly from this skill.
@@ -15,7 +15,7 @@ description: Diagnose ClickHouse cluster health and provide concrete remediation
 # Workflow (MANDATORY)
 
 1. Determine whether the user asks for status only, or root cause ("why", "root cause", "reason", "caused by", "explain").
-2. For RCA questions, pick one supported canonical symptom key based on user wording and worst-severity status findings.
+2. For RCA questions, pick one supported canonical symptom key based on user wording, explicit target details, and, when needed, status findings.
 3. Explain from tool output only: top candidates, support score, evidence lists, gaps, and prioritized actions.
 
 # Severity Thresholds (Guidance)
@@ -66,8 +66,16 @@ Use compact structure only:
 2. **Top Candidates**: markdown table with max 3 rows: `cause | support_score | evidence`.
    In `evidence`, render up to 3 `evidence_for` items prefixed with `✓` and up to 2 `evidence_against` items prefixed with `✗`, separated by `<br/>`.
    When `excluded_candidates` is non-empty, include at least one excluded reason as a `✗` item for the most relevant row.
+   Evidence fidelity rules:
+   - Use only `candidate.evidence_for` and `candidate.evidence_against` from `collect_rca_evidence` for that row.
+   - Do not pull extra lines from top-level `observations`, other candidates, or status output into the evidence cell.
+   - Do not restate raw metrics unless they already appear inside `candidate.evidence_for` or `candidate.evidence_against`.
+   - Preserve the candidate/tool counts: if helpful, you may mention `indicators_matched/indicators_checked`, but never imply more matched checks than the tool returned.
 3. **Possible Actions**: max 3 numbered items, sorted by impact.
+   Formatting rule: print the line `3. **Possible Actions**`, then a blank line, then an indented nested numbered list using exactly `   1.`, `   2.`, `   3.`.
+   Do not continue the outer top-level numbering for action items.
 4. **Gaps / Next Checks**: max 2 bullets.
+   Formatting rule: print the line `4. **Gaps / Next Checks**`, then a blank line, then indented bullets using exactly `   -`.
 
 RCA brevity limits:
 
@@ -79,11 +87,12 @@ RCA brevity limits:
 
 - ALWAYS call `collect_cluster_status` before giving any opinion on current health.
 - Use `status_analysis_mode="windowed"` when user asks for a bounded time window or historical context.
-- For RCA questions, MUST call `collect_rca_evidence` after status check.
+- For RCA questions, MUST call `collect_rca_evidence`. `collect_cluster_status` is optional unless current health context is needed.
 - Do NOT state root causes without RCA evidence output.
 - If `gaps[]` is non-empty, explicitly state what evidence is missing.
 - If all candidates have `support_score < 0.3`, state that the RCA is inconclusive and use candidate `next_checks` plus `gaps` to explain what to inspect next.
 - If best candidate is weak (`0.30-0.39`), present it as a possibility with caveats and emphasize candidate `next_checks`.
+- Never fabricate or merge evidence lines across candidates. Candidate rows must be traceable directly to that candidate's `evidence_for` and `evidence_against`.
 - If `collect_rca_evidence.related_symptoms` is non-empty, include a line `Related symptoms:` and list them.
 - If `related_symptoms` contains `high_partition_count`, explicitly state that partition explosion may be a contributing factor and suggest running RCA with `symptom=high_partition_count`.
 - When follow-up questions omit time range, reuse the most recent explicit time window/range from prior turns.

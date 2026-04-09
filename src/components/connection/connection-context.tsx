@@ -129,6 +129,14 @@ export function ConnectionProvider({
         metadataUpdates.databaseNames = mergedDatabaseNames;
       }
 
+      if (metadataUpdates.hostNames && connection.metadata.hostNames) {
+        const mergedNodeNames = connection.metadata.hostNames;
+        for (const value of metadataUpdates.hostNames) {
+          mergedNodeNames.add(value);
+        }
+        metadataUpdates.hostNames = mergedNodeNames;
+      }
+
       // Mutate the metadata in place
       Object.assign(connection.metadata, metadataUpdates);
     },

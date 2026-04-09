@@ -277,6 +277,22 @@ const templateCache = new Map<string, RcaTemplate>();
 let templateSourcesPromise: Promise<Record<string, string>> | null = null;
 
 async function loadTemplateSources(): Promise<Record<string, string>> {
+  if (process.env.NODE_ENV === "development") {
+    const response = await fetch(BasePath.getURL("/api/ai/rca/templates"), {
+      cache: "no-store",
+    });
+    const payload = (await response.json()) as {
+      templates?: Record<string, string>;
+      error?: string;
+    };
+
+    if (!response.ok || !payload.templates) {
+      throw new Error(payload.error ?? "Failed to fetch RCA templates");
+    }
+
+    return payload.templates;
+  }
+
   if (!templateSourcesPromise) {
     templateSourcesPromise = fetch(BasePath.getURL("/api/ai/rca/templates"))
       .then(async (response) => {
@@ -304,6 +320,15 @@ async function loadTemplate(
   templateId: RcaTemplateSourcePath,
   resourcePath: RcaTemplateSourcePath
 ): Promise<RcaTemplate> {
+  if (process.env.NODE_ENV === "development") {
+    const templateSources = await loadTemplateSources();
+    const source = templateSources[resourcePath];
+    if (!source) {
+      throw new Error(`RCA template not found: ${resourcePath}`);
+    }
+    return validateRcaTemplate(templateId, yaml.load(source) as RcaTemplate);
+  }
+
   const cached = templateCache.get(templateId);
   if (cached) {
     return cached;

@@ -9,9 +9,15 @@ import { MessageMarkdown } from "./message-markdown";
 
 const vizlayerSpy = vi.fn();
 const syntaxHighlighterSpy = vi.fn();
+const openNodeTabButtonSpy = vi.fn();
+const mockConnectionState: {
+  connection: { metadata?: { nodeNames?: Set<string> } } | null;
+} = {
+  connection: null,
+};
 
 vi.mock("@/components/connection/connection-context", () => ({
-  useConnection: () => ({ connection: null }),
+  useConnection: () => mockConnectionState,
 }));
 
 vi.mock("@/components/settings/settings-dialog", () => ({
@@ -24,6 +30,13 @@ vi.mock("@/components/table-tab/open-database-tab-button", () => ({
 
 vi.mock("@/components/table-tab/open-table-tab-button", () => ({
   OpenTableTabButton: () => null,
+}));
+
+vi.mock("@/components/node-tab/open-node-tab-button", () => ({
+  OpenNodeTabButton: (props: unknown) => {
+    openNodeTabButtonSpy(props);
+    return null;
+  },
 }));
 
 vi.mock("@/components/ui/button", () => ({
@@ -73,6 +86,8 @@ describe("MessageMarkdown", () => {
     root = createRoot(container);
     vizlayerSpy.mockReset();
     syntaxHighlighterSpy.mockReset();
+    openNodeTabButtonSpy.mockReset();
+    mockConnectionState.connection = null;
   });
 
   afterEach(() => {
@@ -133,6 +148,24 @@ describe("MessageMarkdown", () => {
       expect.objectContaining({
         language: "vizlayer-flowchart",
         children: '{"title":"Example"}',
+      })
+    );
+  });
+
+  it("routes inline node names to the open node tab button", () => {
+    mockConnectionState.connection = {
+      metadata: {
+        nodeNames: new Set(["node-a"]),
+      },
+    };
+
+    act(() => {
+      root.render(<MessageMarkdown text={"Node `node-a` is hot"} />);
+    });
+
+    expect(openNodeTabButtonSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: "node-a",
       })
     );
   });

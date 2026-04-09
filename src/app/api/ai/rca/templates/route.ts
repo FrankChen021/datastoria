@@ -57,7 +57,13 @@ function loadTemplateSources(): Record<string, string> {
 
 export async function GET() {
   try {
-    return NextResponse.json({ templates: loadTemplateSources() });
+    return NextResponse.json(
+      { templates: loadTemplateSources() },
+      {
+        headers:
+          process.env.NODE_ENV === "development" ? { "Cache-Control": "no-store" } : undefined,
+      }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load RCA templates";
     return NextResponse.json({ error: message }, { status: 500 });

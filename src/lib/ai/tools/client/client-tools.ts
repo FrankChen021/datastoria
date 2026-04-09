@@ -8,7 +8,6 @@ import type { AppUIMessage } from "@/lib/ai/chat-types";
 import { tool, type UIMessage } from "ai";
 import * as z from "zod";
 import type { EvidenceContext } from "./collect-sql-optimization-evidence";
-import type { ToolExecutor } from "./client-tool-types";
 import { type RcaEvidenceInput, type RcaEvidenceOutput } from "./rca/evidence-collector-common";
 import { type SearchQueryLogInput, type SearchQueryLogOutput } from "./search-query-log";
 import {
@@ -55,13 +54,6 @@ export type ValidateSqlToolInput = {
 export type ValidateSqlToolOutput = {
   success: boolean;
   error?: string;
-};
-
-const askUserQuestionExecutor: ToolExecutor<
-  AskUserQuestionInput,
-  AskUserQuestionOutput
-> = async () => {
-  throw new Error("ask_user_question is interactive and must not be eagerly executed.");
 };
 
 const askUserQuestionOptionSchema = z.discriminatedUnion("input", [

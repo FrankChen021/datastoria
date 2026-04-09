@@ -98,6 +98,37 @@ observations:
       - name: top_parts_node
         type: string
 
+  - id: node_partition_hotspot
+    source: system.parts
+    description: "Hottest single partition by active parts on a node"
+    datasource:
+      type: clickhouse
+      sql: |
+        SELECT
+          max(node_partition_active_parts) AS max_active_parts_in_partition_per_node,
+          avg(node_partition_active_parts) AS avg_active_parts_in_partition_per_node,
+          ifNull(argMax(host_name, node_partition_active_parts), '') AS top_partition_node,
+          ifNull(argMax(partition, node_partition_active_parts), '') AS top_partition_id
+        FROM (
+          SELECT
+            hostName() AS host_name,
+            partition,
+            count() AS node_partition_active_parts
+          FROM {clusterAllReplicas:system.parts}
+          WHERE active AND {partsTableFilterExpression}
+          GROUP BY host_name, partition
+        )
+    metrics:
+      - name: max_active_parts_in_partition_per_node
+        type: number
+      - name: avg_active_parts_in_partition_per_node
+        type: number
+        decimals: 2
+      - name: top_partition_node
+        type: string
+      - name: top_partition_id
+        type: string
+
   - id: merges
     source: system.merges
     description: "Merge pressure around target scope"
@@ -298,30 +329,22 @@ candidates:
 
   - cause: too_small_setting
     observations:
-      - node_totals
+      - node_partition_hotspot
       - parts_limit_setting
     next_checks:
-      - "review parts_to_throw_insert on the table and global MergeTree settings"
+      - "review parts_to_throw_insert on the table and global MergeTree settings against the hottest partition on a single node"
     indicators:
-      - description: "max active parts per node exceeds parts_to_throw_insert"
-        actual_template: "parts={node_totals.max_active_parts_per_node} limit={parts_limit_setting.effective_parts_to_throw_insert} source={parts_limit_setting.parts_to_throw_insert_source}"
+      - description: "max active parts in a single partition on a node exceeds parts_to_throw_insert"
+        actual_template: "parts={node_partition_hotspot.max_active_parts_in_partition_per_node} limit={parts_limit_setting.effective_parts_to_throw_insert} node={node_partition_hotspot.top_partition_node} partition={node_partition_hotspot.top_partition_id} source={parts_limit_setting.parts_to_throw_insert_source}"
         match:
           kind: comparison
           left:
-            observation: node_totals
-            metric: max_active_parts_per_node
+            observation: node_partition_hotspot
+            metric: max_active_parts_in_partition_per_node
           operator: gt
           right:
             observation: parts_limit_setting
             metric: effective_parts_to_throw_insert
-      - description: "parts_to_throw_insert is configured"
-        actual_template: "{parts_limit_setting.parts_to_throw_insert_source}={parts_limit_setting.effective_parts_to_throw_insert}"
-        match:
-          kind: regex
-          observation: parts_limit_setting
-          metric: parts_to_throw_insert_source
-          pattern: "table|global"
-          flags: "i"
 
 actions:
   - title: "Increase insert batch size and reduce insert frequency"
@@ -333,7 +356,7 @@ actions:
   - title: "Review partition key granularity and lifecycle alignment"
     risk: high
     tied_to: partition_granularity_pressure
-  - title: "Review and raise parts_to_throw_insert if it is lower than observed active parts"
+  - title: "Review and raise parts_to_throw_insert if it is lower than observed per-partition active parts"
     risk: medium
     tied_to: too_small_setting
 
