@@ -50,7 +50,10 @@ const GREETINGS = [
 export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
   Diagnostics: {
     icon: <Activity className="w-4 h-4 text-blue-500" />,
-    questions: [{ text: "What's the status of the current cluster", autoRun: true }],
+    questions: [
+      { text: "What's the status of the current cluster?", autoRun: true },
+      { text: "Which table has the largest number of parts and what's the cause?", autoRun: true },
+    ],
   },
   "Data Exploration": {
     icon: <Globe className="w-4 h-4 text-green-500" />,
@@ -60,7 +63,7 @@ export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
         autoRun: true,
       },
       {
-        text: "How many INSERT queries as well as insert rows, insert bytes were executed in the last 1 hour from @system.query_log",
+        text: "How many INSERT queries as well as insert rows, insert bytes were executed in the last 1 hour from @system.query_log?",
         autoRun: true,
       },
     ],
