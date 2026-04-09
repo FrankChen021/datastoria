@@ -11,11 +11,34 @@ import {
   skillReviewModelOutputSchema,
   skillReviewRequestSchema,
 } from "@/lib/ai/skills/skill-review";
-import { Output, streamText } from "ai";
+import type { LanguageModelV3 } from "@ai-sdk/provider";
+import {
+  extractJsonMiddleware,
+  Output,
+  streamText,
+  wrapLanguageModel,
+  type LanguageModel,
+} from "ai";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function maybeWrapWithJsonExtraction(model: LanguageModel): LanguageModel {
+  if (
+    model &&
+    typeof model === "object" &&
+    "specificationVersion" in model &&
+    model.specificationVersion === "v3"
+  ) {
+    return wrapLanguageModel({
+      model: model as LanguageModelV3,
+      middleware: extractJsonMiddleware(),
+    });
+  }
+
+  return model;
+}
 
 export async function POST(req: Request) {
   const userId = getAuthenticatedUserEmail(req) ?? null;
@@ -70,7 +93,7 @@ export async function POST(req: Request) {
       )
     ) {
       const result = streamText({
-        model,
+        model: maybeWrapWithJsonExtraction(model),
         prompt,
         output: Output.object({
           schema: skillReviewModelOutputSchema,

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const streamTextMock = vi.fn();
+const wrapLanguageModelMock = vi.fn(({ model }: { model: unknown }) => model);
+const extractJsonMiddlewareMock = vi.fn(() => "extract-json-middleware");
 const createModelMock = vi.fn();
 const resolveModelConfigMock = vi.fn();
 const getDefaultTemperatureMock = vi.fn();
@@ -8,6 +10,8 @@ const supportsStructuredOutputsMock = vi.fn();
 
 vi.mock("ai", () => ({
   streamText: streamTextMock,
+  wrapLanguageModel: wrapLanguageModelMock,
+  extractJsonMiddleware: extractJsonMiddlewareMock,
   Output: {
     object: ({ schema }: { schema: unknown }) => ({ schema }),
   },
@@ -67,7 +71,7 @@ describe("POST /api/ai/skills/actions/review", () => {
       modelId: "gpt-5",
       apiKey: "secret",
     });
-    createModelMock.mockReturnValue({ model: "fake" });
+    createModelMock.mockReturnValue({ model: "fake", specificationVersion: "v3" });
     getDefaultTemperatureMock.mockReturnValue(0.1);
     supportsStructuredOutputsMock.mockReturnValue(true);
     streamTextMock.mockReturnValue({
@@ -117,11 +121,19 @@ describe("POST /api/ai/skills/actions/review", () => {
     });
     expect(createModelMock).toHaveBeenCalledWith("OpenAI", "gpt-5", "secret");
     expect(supportsStructuredOutputsMock).toHaveBeenCalledWith("OpenAI", "gpt-5");
+    expect(extractJsonMiddlewareMock).toHaveBeenCalledWith();
+    expect(wrapLanguageModelMock).toHaveBeenCalledWith({
+      model: { model: "fake", specificationVersion: "v3" },
+      middleware: "extract-json-middleware",
+    });
     expect(streamTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: { model: "fake" },
+        model: { model: "fake", specificationVersion: "v3" },
         temperature: 0.1,
         prompt: expect.stringContaining("<<<FILE_CONTENT_START>>>"),
+        output: expect.objectContaining({
+          schema: expect.anything(),
+        }),
       })
     );
     await expect(response.json()).resolves.toEqual({
@@ -143,7 +155,7 @@ describe("POST /api/ai/skills/actions/review", () => {
       modelId: "gpt-4o",
       apiKey: "secret",
     });
-    createModelMock.mockReturnValue({ model: "fake" });
+    createModelMock.mockReturnValue({ model: "fake", specificationVersion: "v3" });
     getDefaultTemperatureMock.mockReturnValue(0.1);
     supportsStructuredOutputsMock.mockReturnValue(true);
     streamTextMock.mockReturnValue({
@@ -181,6 +193,60 @@ describe("POST /api/ai/skills/actions/review", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       findings: "## Review Notes\n\nNo major issues found in this file.",
+      proposals: [],
+    });
+  });
+
+  it("wraps structured output models with JSON extraction middleware", async () => {
+    resolveModelConfigMock.mockReturnValue({
+      provider: "Anthropic",
+      modelId: "claude-opus-4-6",
+      apiKey: "secret",
+    });
+    createModelMock.mockReturnValue({ model: "fake", specificationVersion: "v3" });
+    getDefaultTemperatureMock.mockReturnValue(0.1);
+    supportsStructuredOutputsMock.mockReturnValue(true);
+    streamTextMock.mockReturnValue({
+      output: Promise.resolve({
+        findings: "## Findings\n\n- Clarify the remediation step.",
+        proposals: [],
+      }),
+    });
+
+    const { POST } = await import("./route");
+
+    const response = await POST(
+      new Request("http://localhost/api/ai/skills/actions/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scope: "file",
+          skillId: "diagnose-clickhouse-errors",
+          model: {
+            provider: "Anthropic",
+            modelId: "claude-opus-4-6",
+          },
+          target: {
+            primaryPath: "references/115.md",
+            files: [
+              {
+                path: "references/115.md",
+                content: "# Code 115\n\nCurrent content",
+              },
+            ],
+          },
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(extractJsonMiddlewareMock).toHaveBeenCalledWith();
+    expect(wrapLanguageModelMock).toHaveBeenCalledWith({
+      model: { model: "fake", specificationVersion: "v3" },
+      middleware: "extract-json-middleware",
+    });
+    await expect(response.json()).resolves.toEqual({
+      findings: "## Findings\n\n- Clarify the remediation step.",
       proposals: [],
     });
   });
