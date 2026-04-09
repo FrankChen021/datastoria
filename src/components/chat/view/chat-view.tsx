@@ -47,15 +47,16 @@ export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
   "Data Exploration": {
     icon: <Globe className="w-4 h-4 text-green-500" />,
     questions: [
-      { text: "What's the top 3 SELECT queries that consumes the most CPU time over the past 3 hours", autoRun: true },
+      { text: "What're the top 3 SELECT queries that consume the most CPU time over the past 3 hours", autoRun: true },
       { text: "How many INSERT queries as well as insert rows, insert bytes were executed in the last 1 hour from @system.query_log", autoRun: true },
     ],
   },
   Visualization: {
     icon: <BarChart className="w-4 h-4 text-purple-500" />,
     questions: [
-      { text: "Show me the number of error queries by hour from @system.query_log over the past 3 hours in line chart", autoRun: true },
+      { text: "Show me the number of SELECT queries by minute from @system.query_log over the past 3 hours in bar chart", autoRun: true },
       { text: "Visualize the trend of ProfileEvent_DistributedConnectionFailTry from the @system.metric_log by hour in the last 12 hours", autoRun: true },
+      { text: "Show the distribution of query kind from the @system.query_log in the last 12 hours in pie chart", autoRun: true },
     ],
   },
   "SQL Optimization": {
@@ -110,16 +111,21 @@ export function DefaultQuestions({
             <h3 className="text-sm font-medium text-foreground/80">{group}</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-1 px-1 py-0">
-            {questions.map((question) => (
-              <button
-                key={question.text}
-                type="button"
-                className="text-left px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors border border-transparent hover:border-border/50"
-                onClick={() => onQuestionClick(question)}
-              >
-                {question.text}
-              </button>
-            ))}
+            {questions.map((question, index) => {
+              const isLastOdd = questions.length % 2 !== 0 && index === questions.length - 1;
+              return (
+                <button
+                  key={question.text}
+                  type="button"
+                  className={`text-left px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors border border-transparent hover:border-border/50 ${
+                    isLastOdd ? "md:col-span-2" : ""
+                  }`}
+                  onClick={() => onQuestionClick(question)}
+                >
+                  {question.text}
+                </button>
+              );
+            })}
           </div>
         </div>
       ))}
