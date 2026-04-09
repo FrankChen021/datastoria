@@ -193,10 +193,11 @@ function EmptyTabPlaceholderComponent() {
 
   const openNodeTab = useCallback(() => {
     if (!connection) return;
+    const shortHostName = hostNameManager.getShortHostname(connection.metadata.displayName);
     TabManager.openTab({
-      id: `node:${connection.metadata.displayName}`,
+      id: `node:${shortHostName}`,
       type: "node",
-      host: hostNameManager.getShortHostname(connection.metadata.displayName),
+      host: shortHostName,
     });
   }, [connection]);
 
@@ -385,13 +386,13 @@ export const MainPageTabList = memo(function MainPageTabList({
 
         // Open node tab
         openTabs.push({
-          id: `node:${hostName}`,
+          id: `node:${shortHostName}`,
           type: "node",
           host: shortHostName,
         });
 
         // If node tab opens, always activate the node tab
-        activeTabId = `node:${hostName}`;
+        activeTabId = `node:${shortHostName}`;
       }
       setTabs(openTabs);
       setActiveTab(activeTabId);

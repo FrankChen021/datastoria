@@ -75,10 +75,11 @@ const DashboardListComponent = ({ onClose, connection }: DashboardListProps) => 
 
   const handleOpenNode = useCallback(() => {
     if (!connection) return;
+    const shortHostName = hostNameManager.getShortHostname(connection.metadata.displayName);
     TabManager.openTab({
-      id: `node:${connection.metadata.displayName}`,
+      id: `node:${shortHostName}`,
       type: "node",
-      host: hostNameManager.getShortHostname(connection.metadata.displayName),
+      host: shortHostName,
     });
     onClose?.();
   }, [connection, onClose]);

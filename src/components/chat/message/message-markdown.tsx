@@ -1,4 +1,5 @@
 import { useConnection } from "@/components/connection/connection-context";
+import { OpenNodeTabButton } from "@/components/node-tab/open-node-tab-button";
 import { showSettingsDialog } from "@/components/settings/settings-dialog";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
@@ -62,12 +63,18 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   // The connection object may be mutated, but we only care about the map references
   const tableNamesRef = useRef(connection?.metadata?.tableNames);
   const databaseNamesRef = useRef(connection?.metadata?.databaseNames);
+  const nodeNamesRef = useRef(connection?.metadata?.hostNames);
 
   // Update refs when connection metadata changes
   useEffect(() => {
     tableNamesRef.current = connection?.metadata?.tableNames;
     databaseNamesRef.current = connection?.metadata?.databaseNames;
-  }, [connection?.metadata?.tableNames, connection?.metadata?.databaseNames]);
+    nodeNamesRef.current = connection?.metadata?.hostNames;
+  }, [
+    connection?.metadata?.tableNames,
+    connection?.metadata?.databaseNames,
+    connection?.metadata?.hostNames,
+  ]);
 
   const components = useMemo<Components>(
     () => ({
@@ -142,6 +149,20 @@ export const MessageMarkdown = memo(function MessageMarkdown({
                   className="underline decoration-dotted underline-offset-2 font-normal text-sm"
                   showLinkIcon={true}
                   // Use a large number to make sure name is completely displayed
+                  maxLength={512}
+                />
+              );
+            }
+          }
+
+          const nodeNames = nodeNamesRef.current;
+          if (nodeNames && codeText) {
+            if (nodeNames.has(codeText)) {
+              return (
+                <OpenNodeTabButton
+                  host={codeText}
+                  className="underline decoration-dotted underline-offset-2 font-normal text-sm"
+                  showLinkIcon={true}
                   maxLength={512}
                 />
               );

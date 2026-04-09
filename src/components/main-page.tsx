@@ -121,6 +121,7 @@ function extractTableNames(result: SchemaLoadResult): {
 // Initialize cluster info on a temporary connection and update metadata directly
 async function getConnectionMetadata(connection: Connection): Promise<void> {
   let remoteHostName: string | undefined;
+  const isCluster = Boolean(connection.cluster && connection.cluster.length > 0);
 
   // Use FQDN instead of hostname is that the hostname returns short name on k8s,
   // which fails to resolve in remote function
@@ -128,6 +129,7 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
     .query(
       `SELECT currentUser(), 
       timezone(),
+      hostName(),
       FQDN(),
       version()`,
       { default_format: "JSONCompact" }
@@ -137,16 +139,20 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
         const data = metadataResponse.data.json<JSONCompactFormatResponse>();
         const internalUser = data.data[0][0];
         const timezone = data.data[0][1];
-        const hostname = data.data[0][2] as string;
-        const serverVersion = data.data[0][3] as string;
+        const hostName = data.data[0][2] as string;
+        const hostname = data.data[0][3] as string;
+        const serverVersion = data.data[0][4] as string;
         // Index mapping for JSONCompact row:
         // 0: currentUser()
         // 1: timezone()
-        // 2: FQDN()
-        // 3: version()
+        // 2: hostName()
+        // 3: FQDN()
+        // 4: version()
 
-        const isCluster = connection.cluster && connection.cluster.length > 0;
         remoteHostName = isCluster ? hostname : undefined;
+        if (!isCluster) {
+          hostNameManager.shortenHostnames([hostname]);
+        }
         connection.metadata = {
           ...connection.metadata,
           displayName: hostname,
@@ -154,9 +160,49 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
           serverVersion,
           internalUser: internalUser as string,
           timezone: timezone as string,
+          hostNames:
+            !isCluster && hostName.length > 0 ? new Set([hostName]) : connection.metadata.hostNames,
         };
       }
     });
+
+  const nodeNamesQuery = isCluster
+    ? connection
+        .query(
+          `SELECT DISTINCT hostName(), FQDN() FROM clusterAllReplicas('${SqlUtils.escapeSqlString(connection.cluster!)}', system.one)`,
+          { default_format: "JSONCompact" }
+        )
+        .response.then((response) => {
+          if (response.httpStatus === 200) {
+            const data = response.data.json<JSONCompactFormatResponse>();
+            const nodeNames = new Set<string>();
+            const fqdnValues = new Set<string>();
+
+            for (const row of data.data) {
+              const hostName = row[0];
+              const fqdn = row[1];
+              if (typeof hostName === "string" && hostName.length > 0) {
+                nodeNames.add(hostName);
+              }
+              if (typeof fqdn === "string" && fqdn.length > 0) {
+                fqdnValues.add(fqdn);
+              }
+            }
+
+            if (fqdnValues.size > 0) {
+              hostNameManager.shortenHostnames([...fqdnValues]);
+            }
+
+            connection.metadata = {
+              ...connection.metadata,
+              hostNames: nodeNames,
+            };
+          }
+        })
+        .catch((e) => {
+          console.warn("Failed to load node names:", e);
+        })
+    : Promise.resolve();
 
   // Separate queries for column checks - each query is independent and failures are ignored
   const functionTableQuery = connection
@@ -252,33 +298,6 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
       console.warn("Failed to check part_log_table_has_node_name_column:", e);
     });
 
-  // Pre-load hostnames for shortening if cluster is configured
-  const clusterTableQuery = connection.cluster
-    ? connection
-        .query(
-          `SELECT host_name, host_address, shard_num FROM system.clusters WHERE cluster = '${SqlUtils.escapeSqlString(connection.cluster)}'`,
-          {
-            default_format: "JSONCompact",
-          }
-        )
-        .response.then((clusterHostResponse) => {
-          if (clusterHostResponse.httpStatus === 200) {
-            const data = clusterHostResponse.data.json<JSONCompactFormatResponse>();
-            if (data && Array.isArray(data.data)) {
-              const hostNames = data.data.map((row) => row[0] as string);
-              hostNameManager.shortenHostnames(hostNames);
-              connection.metadata = {
-                ...connection.metadata,
-                remoteHostName: remoteHostName ?? connection.metadata.remoteHostName,
-              };
-            }
-          }
-        })
-        .catch((e) => {
-          console.warn("Failed to load cluster hosts for shortening:", e);
-        })
-    : Promise.resolve();
-
   const settingsQuery = connection
     .query(
       `SELECT name, value, readonly FROM system.settings WHERE name in ('skip_unavailable_shards')`,
@@ -319,7 +338,7 @@ async function getConnectionMetadata(connection: Connection): Promise<void> {
 
   await Promise.all([
     metadataQuery,
-    clusterTableQuery,
+    nodeNamesQuery,
     settingsQuery,
     profileEventsQuery,
     functionTableQuery,

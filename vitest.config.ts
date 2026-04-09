@@ -1,5 +1,9 @@
 import path from "node:path";
+import { existsSync } from "node:fs";
 import { configDefaults, defineConfig } from "vitest/config";
+
+const vizlayerCorePath = path.resolve(__dirname, "external/vizlayer/packages/core/src/index.ts");
+const vizlayerReactPath = path.resolve(__dirname, "external/vizlayer/packages/react/src/index.ts");
 
 export default defineConfig({
   resolve: {
@@ -9,8 +13,12 @@ export default defineConfig({
         __dirname,
         "external/number-flow/packages/react/src/index.tsx"
       ),
-      "@vizlayer/core": path.resolve(__dirname, "external/vizlayer/packages/core/src/index.ts"),
-      "@vizlayer/react": path.resolve(__dirname, "external/vizlayer/packages/react/src/index.ts"),
+      "@vizlayer/core": existsSync(vizlayerCorePath)
+        ? vizlayerCorePath
+        : path.resolve(__dirname, "src/test/vizlayer-core-stub.ts"),
+      "@vizlayer/react": existsSync(vizlayerReactPath)
+        ? vizlayerReactPath
+        : path.resolve(__dirname, "src/test/vizlayer-react-stub.tsx"),
       "number-flow": path.resolve(
         __dirname,
         "external/number-flow/packages/number-flow/src/index.ts"

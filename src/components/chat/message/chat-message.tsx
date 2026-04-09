@@ -235,7 +235,12 @@ const ChatMessagePart = memo(
       return (
         <MessageToolGeneral toolName={"Collect Cluster Status"} part={part} isRunning={isRunning} />
       );
-    } // GENERAL TOOLS
+    } else if (toolName === CLIENT_TOOL_NAMES.COLLECT_RCA_EVIDENCE) {
+      return (
+        <MessageToolGeneral toolName={"Collect RCA Evidence"} part={part} isRunning={isRunning} />
+      );
+    }
+    // GENERAL TOOLS
     else if (toolName) {
       return <MessageToolGeneral toolName={toolName} part={part} isRunning={isRunning} />;
     }

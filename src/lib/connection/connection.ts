@@ -121,6 +121,9 @@ export interface ConnectionMetadata {
   tableNames?: Map<string, TableInfo>;
   databaseNames?: Map<string, DatabaseInfo>;
 
+  // hostName() from all nodes
+  hostNames?: Set<string>;
+
   // Cached dependency data - loaded on demand and cached here
   dependencyData?: {
     tables: Map<string, DependencyTableInfo>;
@@ -410,6 +413,15 @@ export class Connection {
     })();
 
     return { response, abortController };
+  }
+
+  /**
+   * Execute a query with JSONCompact format and return parsed response.
+   */
+  public async queryJsonCompact(sql: string): Promise<JSONCompactFormatResponse> {
+    const { response } = this.query(sql, { default_format: "JSONCompact" });
+    const apiResponse = await response;
+    return apiResponse.data.json<JSONCompactFormatResponse>();
   }
 
   public queryOnNode(
