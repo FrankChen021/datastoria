@@ -8,7 +8,16 @@ import "@/lib/number-utils"; // Ensure formatTimeDiff is available
 
 import { useChat, type Chat } from "@ai-sdk/react";
 import { Activity, BarChart, Code2, Globe, Lightbulb, Zap } from "lucide-react";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { v7 as uuidv7 } from "uuid";
 import { ChatActionProvider, type UserActionInput } from "../chat-action-context";
 import { ChatContext, getDatabaseContextFromConnection } from "../chat-context";
@@ -23,10 +32,10 @@ import { getTableContextByMentions } from "../input/mention-utils";
 import { ChatMessageList } from "../message/chat-message-list";
 import { useTokenUsage } from "./use-token-usage";
 
-export type Question = { text: string; autoRun?: boolean; requiredSkill?: string };
+export type Question = { text: string; autoRun?: boolean; requiredSkillId?: string };
 
 export type QuestionGroupData = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   questions: Question[];
 };
 
@@ -42,7 +51,7 @@ export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
   Diagnostics: {
     icon: <Activity className="w-4 h-4 text-blue-500" />,
     questions: [
-      { text: "What's the status of current cluster", autoRun: true },
+      { text: "What's the status of the current cluster", autoRun: true },
     ],
   },
   "Data Exploration": {
@@ -77,7 +86,11 @@ export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
     icon: <Lightbulb className="w-4 h-4 text-yellow-500" />,
     questions: [
       { text: "What are the best practices for partitioning?", autoRun: true },
-      { text: "How does async_insert work from the source code? Will data be lost if the server is restarted when this setting is enabled?", autoRun: true, requiredSkill: "source-code-inspection" },
+      {
+        text: "How does async_insert work from the source code? Will data be lost if the server is restarted when this setting is enabled?",
+        autoRun: true,
+        requiredSkillId: "source-code-inspection",
+      },
     ],
   },
 };
@@ -87,7 +100,10 @@ export function SampleQuestions({
 }: {
   onQuestionClick: (question: Question) => void;
 }) {
-  const { commandsByName, loading } = useChatCommands();
+  const { commands, loading } = useChatCommands();
+  const availableSkillIds = useMemo(() => {
+    return new Set(commands.map((command) => command.skillId));
+  }, [commands]);
 
   // Wait until commands are loaded so we don't flash empty groups
   if (loading) {
@@ -118,7 +134,7 @@ export function SampleQuestions({
   const filteredGroups = Object.entries(DEFAULT_CHAT_QUESTION_GROUPS)
     .map(([group, data]) => {
       const filteredQuestions = data.questions.filter(
-        (q) => !q.requiredSkill || commandsByName.has(q.requiredSkill)
+        (q) => !q.requiredSkillId || availableSkillIds.has(q.requiredSkillId)
       );
       return [group, { ...data, questions: filteredQuestions }] as const;
     })
