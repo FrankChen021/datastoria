@@ -50,23 +50,36 @@ const GREETINGS = [
 export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
   Diagnostics: {
     icon: <Activity className="w-4 h-4 text-blue-500" />,
-    questions: [
-      { text: "What's the status of the current cluster", autoRun: true },
-    ],
+    questions: [{ text: "What's the status of the current cluster", autoRun: true }],
   },
   "Data Exploration": {
     icon: <Globe className="w-4 h-4 text-green-500" />,
     questions: [
-      { text: "What're the top 3 SELECT queries that consume the most CPU time over the past 3 hours", autoRun: true },
-      { text: "How many INSERT queries as well as insert rows, insert bytes were executed in the last 1 hour from @system.query_log", autoRun: true },
+      {
+        text: "What're the top 3 SELECT queries that consume the most CPU time over the past 3 hours",
+        autoRun: true,
+      },
+      {
+        text: "How many INSERT queries as well as insert rows, insert bytes were executed in the last 1 hour from @system.query_log",
+        autoRun: true,
+      },
     ],
   },
   Visualization: {
     icon: <BarChart className="w-4 h-4 text-purple-500" />,
     questions: [
-      { text: "Show me the number of SELECT queries by minute from @system.query_log over the past 3 hours in bar chart", autoRun: true },
-      { text: "Visualize the trend of ProfileEvent_DistributedConnectionFailTry from the @system.metric_log by hour in the last 12 hours", autoRun: true },
-      { text: "Show the distribution of query kind from the @system.query_log in the last 12 hours in pie chart", autoRun: true },
+      {
+        text: "Show me the number of SELECT queries by minute from @system.query_log over the past 3 hours in bar chart",
+        autoRun: true,
+      },
+      {
+        text: "Visualize the trend of ProfileEvent_DistributedConnectionFailTry from the @system.metric_log by hour in the last 12 hours",
+        autoRun: true,
+      },
+      {
+        text: "Show the distribution of query kind from the @system.query_log in the last 12 hours in pie chart",
+        autoRun: true,
+      },
     ],
   },
   "SQL Optimization": {
@@ -79,10 +92,13 @@ export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
   "SQL Generation": {
     icon: <Code2 className="w-4 h-4 text-green-500" />,
     questions: [
-      { text: "Generate a SELECT query to get the slowest query from the query log in the last 1 hour", autoRun: true },
+      {
+        text: "Generate a SELECT query to get the slowest query from the query log in the last 1 hour",
+        autoRun: true,
+      },
     ],
   },
-  "General": {
+  General: {
     icon: <Lightbulb className="w-4 h-4 text-yellow-500" />,
     questions: [
       { text: "What are the best practices for partitioning?", autoRun: true },
@@ -110,7 +126,10 @@ export function SampleQuestions({
     return (
       <div className="w-full flex flex-col space-y-3 max-w-3xl mx-auto mt-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="flex flex-col border border-border/50 rounded-xl overflow-hidden bg-card shadow-sm">
+          <div
+            key={i}
+            className="flex flex-col border border-border/50 rounded-xl overflow-hidden bg-card shadow-sm"
+          >
             <div className="flex items-center space-x-2 px-4 py-2.5 bg-muted/30 border-b border-border/50">
               <Skeleton className="w-4 h-4 rounded-full" />
               <Skeleton className="h-4 w-32" />
@@ -145,7 +164,10 @@ export function SampleQuestions({
   return (
     <div className="w-full flex flex-col space-y-3 max-w-3xl mx-auto mt-4">
       {filteredGroups.map(([group, { icon, questions }]) => (
-        <div key={group} className="flex flex-col border border-border/50 rounded-xl overflow-hidden bg-card shadow-sm">
+        <div
+          key={group}
+          className="flex flex-col border border-border/50 rounded-xl overflow-hidden bg-card shadow-sm"
+        >
           <div className="flex items-center space-x-2 px-4 py-2.5 bg-muted/30 border-b border-border/50">
             {icon}
             <h3 className="text-sm font-medium text-foreground/80">{group}</h3>
@@ -193,14 +215,7 @@ export interface ChatViewHandle {
 }
 
 export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatView(
-  {
-    chat,
-    onNewChat,
-    currentDatabase,
-    availableTables,
-    externalInput,
-    onStreamingChange,
-  },
+  { chat, onNewChat, currentDatabase, availableTables, externalInput, onStreamingChange },
   ref
 ) {
   const { connection } = useConnection();
