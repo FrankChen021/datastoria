@@ -7,38 +7,14 @@ import { SkillPermissionManager } from "@/lib/ai/skills/skill-permission-manager
 import {
   buildSkillFileReviewPrompt,
   normalizeSkillReviewResponse,
-  parseSkillReviewTextResponse,
   skillReviewModelOutputSchema,
   skillReviewRequestSchema,
 } from "@/lib/ai/skills/skill-review";
-import type { LanguageModelV3 } from "@ai-sdk/provider";
-import {
-  extractJsonMiddleware,
-  Output,
-  streamText,
-  wrapLanguageModel,
-  type LanguageModel,
-} from "ai";
+import { streamObject } from "@/lib/ai/stream-utils";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function maybeWrapWithJsonExtraction(model: LanguageModel): LanguageModel {
-  if (
-    model &&
-    typeof model === "object" &&
-    "specificationVersion" in model &&
-    model.specificationVersion === "v3"
-  ) {
-    return wrapLanguageModel({
-      model: model as LanguageModelV3,
-      middleware: extractJsonMiddleware(),
-    });
-  }
-
-  return model;
-}
 
 export async function POST(req: Request) {
   const userId = getAuthenticatedUserEmail(req) ?? null;
@@ -86,32 +62,19 @@ export async function POST(req: Request) {
       content: reviewedFile.content,
     });
 
-    if (
-      LanguageModelProviderFactory.supportsStructuredOutputs(
-        modelConfig.provider,
-        modelConfig.modelId
-      )
-    ) {
-      const result = streamText({
-        model: maybeWrapWithJsonExtraction(model),
-        prompt,
-        output: Output.object({
-          schema: skillReviewModelOutputSchema,
-        }),
-        temperature,
-      });
-
-      return NextResponse.json(normalizeSkillReviewResponse(await result.output));
-    }
-
-    const result = streamText({
-      model,
-      prompt,
-      temperature,
-    });
-
     return NextResponse.json(
-      normalizeSkillReviewResponse(parseSkillReviewTextResponse(await result.text))
+      normalizeSkillReviewResponse(
+        await streamObject({
+          model,
+          prompt,
+          schema: skillReviewModelOutputSchema,
+          supportsStructuredOutputs: LanguageModelProviderFactory.supportsStructuredOutputs(
+            modelConfig.provider,
+            modelConfig.modelId
+          ),
+          temperature,
+        })
+      )
     );
   } catch (error) {
     console.error("[/api/ai/skills/actions/review] Failed to review skill file", error);

@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const streamTextMock = vi.fn();
-const wrapLanguageModelMock = vi.fn(({ model }: { model: unknown }) => model);
-const extractJsonMiddlewareMock = vi.fn(() => "extract-json-middleware");
+const streamObjectMock = vi.fn();
 const createModelMock = vi.fn();
 const resolveModelConfigMock = vi.fn();
 const getDefaultTemperatureMock = vi.fn();
@@ -10,11 +9,10 @@ const supportsStructuredOutputsMock = vi.fn();
 
 vi.mock("ai", () => ({
   streamText: streamTextMock,
-  wrapLanguageModel: wrapLanguageModelMock,
-  extractJsonMiddleware: extractJsonMiddlewareMock,
-  Output: {
-    object: ({ schema }: { schema: unknown }) => ({ schema }),
-  },
+}));
+
+vi.mock("@/lib/ai/stream-utils", () => ({
+  streamObject: streamObjectMock,
 }));
 
 vi.mock("@/lib/ai/llm/llm-provider-factory", () => ({
@@ -74,18 +72,16 @@ describe("POST /api/ai/skills/actions/review", () => {
     createModelMock.mockReturnValue({ model: "fake", specificationVersion: "v3" });
     getDefaultTemperatureMock.mockReturnValue(0.1);
     supportsStructuredOutputsMock.mockReturnValue(true);
-    streamTextMock.mockReturnValue({
-      output: Promise.resolve({
-        findings:
-          "## Findings\n\n- The remediation section does not explain how to verify the setting name.",
-        proposals: [
-          {
-            path: "references/115.md",
-            reason: "Add concrete verification and remediation steps.",
-            updatedContent: "# Code 115\n\nRevised content",
-          },
-        ],
-      }),
+    streamObjectMock.mockResolvedValue({
+      findings:
+        "## Findings\n\n- The remediation section does not explain how to verify the setting name.",
+      proposals: [
+        {
+          path: "references/115.md",
+          reason: "Add concrete verification and remediation steps.",
+          updatedContent: "# Code 115\n\nRevised content",
+        },
+      ],
     });
 
     const { POST } = await import("./route");
@@ -121,19 +117,13 @@ describe("POST /api/ai/skills/actions/review", () => {
     });
     expect(createModelMock).toHaveBeenCalledWith("OpenAI", "gpt-5", "secret");
     expect(supportsStructuredOutputsMock).toHaveBeenCalledWith("OpenAI", "gpt-5");
-    expect(extractJsonMiddlewareMock).toHaveBeenCalledWith();
-    expect(wrapLanguageModelMock).toHaveBeenCalledWith({
-      model: { model: "fake", specificationVersion: "v3" },
-      middleware: "extract-json-middleware",
-    });
-    expect(streamTextMock).toHaveBeenCalledWith(
+    expect(streamObjectMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: { model: "fake", specificationVersion: "v3" },
         temperature: 0.1,
         prompt: expect.stringContaining("<<<FILE_CONTENT_START>>>"),
-        output: expect.objectContaining({
-          schema: expect.anything(),
-        }),
+        schema: expect.anything(),
+        supportsStructuredOutputs: true,
       })
     );
     await expect(response.json()).resolves.toEqual({
@@ -158,10 +148,8 @@ describe("POST /api/ai/skills/actions/review", () => {
     createModelMock.mockReturnValue({ model: "fake", specificationVersion: "v3" });
     getDefaultTemperatureMock.mockReturnValue(0.1);
     supportsStructuredOutputsMock.mockReturnValue(true);
-    streamTextMock.mockReturnValue({
-      output: Promise.resolve({
-        proposals: [],
-      }),
+    streamObjectMock.mockResolvedValue({
+      proposals: [],
     });
 
     const { POST } = await import("./route");
@@ -206,11 +194,9 @@ describe("POST /api/ai/skills/actions/review", () => {
     createModelMock.mockReturnValue({ model: "fake", specificationVersion: "v3" });
     getDefaultTemperatureMock.mockReturnValue(0.1);
     supportsStructuredOutputsMock.mockReturnValue(true);
-    streamTextMock.mockReturnValue({
-      output: Promise.resolve({
-        findings: "## Findings\n\n- Clarify the remediation step.",
-        proposals: [],
-      }),
+    streamObjectMock.mockResolvedValue({
+      findings: "## Findings\n\n- Clarify the remediation step.",
+      proposals: [],
     });
 
     const { POST } = await import("./route");
@@ -240,11 +226,12 @@ describe("POST /api/ai/skills/actions/review", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(extractJsonMiddlewareMock).toHaveBeenCalledWith();
-    expect(wrapLanguageModelMock).toHaveBeenCalledWith({
-      model: { model: "fake", specificationVersion: "v3" },
-      middleware: "extract-json-middleware",
-    });
+    expect(streamObjectMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: { model: "fake", specificationVersion: "v3" },
+        supportsStructuredOutputs: true,
+      })
+    );
     await expect(response.json()).resolves.toEqual({
       findings: "## Findings\n\n- Clarify the remediation step.",
       proposals: [],
@@ -260,17 +247,15 @@ describe("POST /api/ai/skills/actions/review", () => {
     createModelMock.mockReturnValue({ model: "fake" });
     getDefaultTemperatureMock.mockReturnValue(0.1);
     supportsStructuredOutputsMock.mockReturnValue(false);
-    streamTextMock.mockReturnValue({
-      text: Promise.resolve(`{
-        "findings": "## Findings\\n\\n- Clarify the remediation step.",
-        "proposals": [
-          {
-            "path": "references/115.md",
-            "reason": "Tighten the instructions.",
-            "updatedContent": "# Code 115\\n\\nUpdated content"
-          }
-        ]
-      }`),
+    streamObjectMock.mockResolvedValue({
+      findings: "## Findings\n\n- Clarify the remediation step.",
+      proposals: [
+        {
+          path: "references/115.md",
+          reason: "Tighten the instructions.",
+          updatedContent: "# Code 115\n\nUpdated content",
+        },
+      ],
     });
 
     const { POST } = await import("./route");
@@ -301,9 +286,10 @@ describe("POST /api/ai/skills/actions/review", () => {
 
     expect(response.status).toBe(200);
     expect(supportsStructuredOutputsMock).toHaveBeenCalledWith("GitHub Copilot", "gpt-4o");
-    expect(streamTextMock).toHaveBeenCalledWith(
-      expect.not.objectContaining({
-        output: expect.anything(),
+    expect(streamObjectMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: { model: "fake" },
+        supportsStructuredOutputs: false,
       })
     );
     await expect(response.json()).resolves.toEqual({
