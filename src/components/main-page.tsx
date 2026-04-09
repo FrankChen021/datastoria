@@ -9,7 +9,7 @@ import {
 } from "@/components/schema-tree/schema-tree-loader";
 import { SidebarPanel } from "@/components/sidebar-panel/sidebar-panel";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Sheet,
   SheetDescription,
