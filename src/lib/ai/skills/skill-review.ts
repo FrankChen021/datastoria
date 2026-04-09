@@ -88,12 +88,6 @@ export function normalizeSkillReviewResponse(
   });
 }
 
-export function stripMarkdownCodeFence(value: string): string {
-  const trimmed = value.trim();
-  const fencedMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return fencedMatch?.[1]?.trim() ?? trimmed;
-}
-
 export function buildSkillFileReviewPrompt(input: {
   skillId: string;
   path: string;
