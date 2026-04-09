@@ -11,7 +11,7 @@ const vizlayerSpy = vi.fn();
 const syntaxHighlighterSpy = vi.fn();
 const openNodeTabButtonSpy = vi.fn();
 const mockConnectionState: {
-  connection: { metadata?: { nodeNames?: Set<string> } } | null;
+  connection: { metadata?: { hostNames?: Set<string> } } | null;
 } = {
   connection: null,
 };
@@ -155,7 +155,7 @@ describe("MessageMarkdown", () => {
   it("routes inline node names to the open node tab button", () => {
     mockConnectionState.connection = {
       metadata: {
-        nodeNames: new Set(["node-a"]),
+        hostNames: new Set(["node-a"]),
       },
     };
 

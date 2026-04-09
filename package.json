@@ -6,7 +6,7 @@
   "scripts": {
     "prebuild": "npm run build:deps",
     "predev": "npm run sync:skills",
-    "postbuild": "node scripts/copy-skills.mjs",
+    "postbuild": "node scripts/copy-resources.mjs",
     "sync:skills": "node scripts/sync-skills.mjs",
     "build:deps": "npm run sync:skills && npm run build:number-flow-core && npm run build:number-flow-react && npm run build:vizlayer-core && npm run build:vizlayer-react && npm run build:cmdk",
     "build:number-flow-core": "cd external/number-flow/packages/number-flow && npm run build",

@@ -31,8 +31,8 @@ const assetGroups = [
       const base = path.basename(relPath);
       return base.endsWith(".md") || base.endsWith(".json");
     },
-    missingWarning: "copy-skills: skills source missing",
-    emptyWarning: "copy-skills: no skill files found",
+    missingWarning: "copy-resources: skills source missing",
+    emptyWarning: "copy-resources: no skill files found",
   },
   {
     sourceRoot: path.join(projectRoot, "resources", "rca"),
@@ -43,8 +43,8 @@ const assetGroups = [
     isAllowedFile(relPath) {
       return path.basename(relPath).endsWith(".yaml");
     },
-    missingWarning: "copy-skills: rca source missing",
-    emptyWarning: "copy-skills: no rca files found",
+    missingWarning: "copy-resources: rca source missing",
+    emptyWarning: "copy-resources: no rca files found",
   },
 ];
 
@@ -108,7 +108,7 @@ function main() {
 
   if (activeGroups.length === 0) {
     // If build output doesn't exist yet, this script was invoked too early.
-    console.warn("copy-skills: build output not found; run after next build");
+    console.warn("copy-resources: build output not found; run after next build");
     return;
   }
 
@@ -127,7 +127,7 @@ function main() {
   }
 
   console.log(
-    `copy-skills: copied ${copiedCount} file(s) to ${destinationCount} destination(s)`
+    `copy-resources: copied ${copiedCount} file(s) to ${destinationCount} destination(s)`
   );
 }
 
