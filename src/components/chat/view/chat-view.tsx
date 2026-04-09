@@ -6,12 +6,13 @@ import type { AppUIMessage } from "@/lib/ai/chat-types";
 import "@/lib/number-utils"; // Ensure formatTimeDiff is available
 
 import { useChat, type Chat } from "@ai-sdk/react";
+import { Activity, BarChart, Code2, Globe, Lightbulb, Zap } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { ChatActionProvider, type UserActionInput } from "../chat-action-context";
 import { ChatContext, getDatabaseContextFromConnection } from "../chat-context";
 import { ChatFactory } from "../chat-factory";
-import { ChatCommandProvider } from "../command-context";
+import { ChatCommandProvider, useChatCommands } from "../command-context";
 import {
   ChatInput,
   type ChatInputHandle,
@@ -21,7 +22,12 @@ import { getTableContextByMentions } from "../input/mention-utils";
 import { ChatMessageList } from "../message/chat-message-list";
 import { useTokenUsage } from "./use-token-usage";
 
-export type Question = { text: string; autoRun?: boolean };
+export type Question = { text: string; autoRun?: boolean; requiredSkill?: string };
+
+export type QuestionGroupData = {
+  icon: React.ReactNode;
+  questions: Question[];
+};
 
 const GREETINGS = [
   "Hello there! How can I help you today?",
@@ -31,41 +37,100 @@ const GREETINGS = [
   "Hello and welcome! Let's explore your ClickHouse cluster and data!",
 ];
 
-export const DEFAULT_CHAT_QUESTIONS: Question[] = [
-  {
-    text: "What's the status of current cluster",
-    autoRun: true,
+export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
+  Diagnostics: {
+    icon: <Activity className="w-4 h-4 text-blue-500" />,
+    questions: [
+      { text: "What's the status of current cluster", autoRun: true },
+    ],
   },
-  {
-    text: "Help me optimize a query",
-    autoRun: true,
+  "Data Exploration": {
+    icon: <Globe className="w-4 h-4 text-green-500" />,
+    questions: [
+      { text: "What's the top 3 SELECT queries that consumes the most CPU time over the past 3 hours", autoRun: true },
+      { text: "How many INSERT queries as well as insert rows, insert bytes were executed in the last 1 hour from @system.query_log", autoRun: true },
+    ],
   },
-  {
-    text: "Show me the number of error queries by hour from @system.query_log over the past 3 hours in line chart",
-    autoRun: true,
+  Visualization: {
+    icon: <BarChart className="w-4 h-4 text-purple-500" />,
+    questions: [
+      { text: "Show me the number of error queries by hour from @system.query_log over the past 3 hours in line chart", autoRun: true },
+      { text: "Visualize the trend of ProfileEvent_DistributedConnectionFailTry from the @system.metric_log by hour in the last 12 hours", autoRun: true },
+    ],
   },
-  {
-    text: "How many INSERT queries as well as insert rows, insert bytes were executed in the last 1 hour from @system.query_log",
-    autoRun: true,
+  "SQL Optimization": {
+    icon: <Zap className="w-4 h-4 text-amber-500" />,
+    questions: [
+      { text: "Help me optimize a query", autoRun: true },
+      { text: "Find the top 1 slowest query in the last 1 day and optimize it", autoRun: true },
+    ],
   },
-  {
-    text: "What's the top 3 SELECT queries that consumes the most CPU time over the past 3 hours",
-    autoRun: true,
+  "SQL Generation": {
+    icon: <Code2 className="w-4 h-4 text-green-500" />,
+    questions: [
+      { text: "Generate a SELECT query to get the slowest query from the query log in the last 1 hour", autoRun: true },
+    ],
   },
-  {
-    text: "Visualize the trend of ProfileEvent_DistributedConnectionFailTry from the @system.metric_log by hour in the last 12 hours",
-    autoRun: true,
+  "General": {
+    icon: <Lightbulb className="w-4 h-4 text-yellow-500" />,
+    questions: [
+      { text: "What are the best practices for partitioning?", autoRun: true },
+      { text: "How does async_insert work from the source code? Will data be lost if the server is restarted when this setting is enabled?", autoRun: true, requiredSkill: "source-code-inspection" },
+    ],
   },
-  { text: "Find the top 1 slowest query in the last 1 day and optimize it", autoRun: true },
-  { text: "Help me write a JOIN query", autoRun: false },
-  { text: "What are the best practices for partitioning?", autoRun: true },
-];
+};
+
+export function DefaultQuestions({
+  onQuestionClick,
+}: {
+  onQuestionClick: (question: Question) => void;
+}) {
+  const { commandsByName, loading } = useChatCommands();
+
+  // Wait until commands are loaded so we don't flash empty groups
+  if (loading) return null;
+
+  const filteredGroups = Object.entries(DEFAULT_CHAT_QUESTION_GROUPS)
+    .map(([group, data]) => {
+      const filteredQuestions = data.questions.filter(
+        (q) => !q.requiredSkill || commandsByName.has(q.requiredSkill)
+      );
+      return [group, { ...data, questions: filteredQuestions }] as const;
+    })
+    .filter(([_, data]) => data.questions.length > 0);
+
+  if (filteredGroups.length === 0) return null;
+
+  return (
+    <div className="w-full flex flex-col space-y-3 max-w-3xl mx-auto mt-4">
+      {filteredGroups.map(([group, { icon, questions }]) => (
+        <div key={group} className="flex flex-col border border-border/50 rounded-xl overflow-hidden bg-card shadow-sm">
+          <div className="flex items-center space-x-2 px-4 py-2.5 bg-muted/30 border-b border-border/50">
+            {icon}
+            <h3 className="text-sm font-medium text-foreground/80">{group}</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-1 px-1 py-0">
+            {questions.map((question) => (
+              <button
+                key={question.text}
+                type="button"
+                className="text-left px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors border border-transparent hover:border-border/50"
+                onClick={() => onQuestionClick(question)}
+              >
+                {question.text}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface ChatViewProps {
   chat: Chat<AppUIMessage>;
   onClose?: () => void;
   onNewChat?: () => void;
-  questions?: Question[];
   currentDatabase?: string;
   availableTables?: Array<{
     name: string;
@@ -85,7 +150,6 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   {
     chat,
     onNewChat,
-    questions,
     currentDatabase,
     availableTables,
     externalInput,
@@ -227,25 +291,12 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         <div className="flex flex-col h-full bg-background overflow-hidden relative">
           {isEmpty ? (
             <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 flex flex-col">
-              <div className="flex flex-col items-center w-full max-w-full my-auto pb-8 pt-6">
+              <div className="flex flex-col items-center w-full max-w-full my-auto pb-8 pt-4">
                 <div className="mb-0">
                   <AppLogo width={64} height={64} />
                 </div>
-                <p className="text-xl text-center font-medium mb-4 mt-0">{greeting}</p>
-                {questions && questions.length > 0 && (
-                  <div className="w-full flex flex-col items-center space-y-2">
-                    {questions.map((question) => (
-                      <button
-                        key={question.text}
-                        type="button"
-                        className="w-max max-w-full text-left px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg border border-border/50 whitespace-normal hover:border-border transition-colors"
-                        onClick={() => handleQuestionClick(question)}
-                      >
-                        {question.text}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <p className="text-xl text-center font-medium mb-0 mt-0">{greeting}</p>
+                <DefaultQuestions onQuestionClick={handleQuestionClick} />
               </div>
             </div>
           ) : (

@@ -16,7 +16,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { OpenSessionListButton } from "../session/open-session-list-button";
 import { SqlExecutionProvider } from "../sql-execution-context";
-import { ChatView, DEFAULT_CHAT_QUESTIONS, type ChatViewHandle } from "./chat-view";
+import { ChatView, type ChatViewHandle } from "./chat-view";
 import { useChatPanel, type ChatPanelDisplayMode } from "./use-chat-panel";
 
 interface ChatHeaderProps {
@@ -565,7 +565,6 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
           chat={chat}
           onClose={onClose}
           onNewChat={handleNewChat}
-          questions={DEFAULT_CHAT_QUESTIONS}
           currentDatabase={currentDatabase}
           availableTables={availableTables}
           externalInput={
