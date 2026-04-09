@@ -23,6 +23,10 @@ const DETERMINISTIC_SYMPTOM_COLLECTORS: Partial<Record<CanonicalSymptom, RcaEvid
   unknown: UnknownSymptomEvidenceCollector,
 };
 
+export function isDeterministicRcaSymptom(symptom: CanonicalSymptom): boolean {
+  return symptom in DETERMINISTIC_SYMPTOM_COLLECTORS;
+}
+
 export class EvidenceCollectorFactory {
   static create(): RcaEvidenceCollector {
     const baseCollector: RcaEvidenceCollector = {

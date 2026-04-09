@@ -13,7 +13,7 @@ import {
   type Scope,
   type SymptomContext,
 } from "./evidence-collector-common";
-import { EvidenceCollectorFactory } from "./evidence-collector-factory";
+import { EvidenceCollectorFactory, isDeterministicRcaSymptom } from "./evidence-collector-factory";
 import { getRcaTemplateMetadata } from "./impl/template-based-collector";
 
 const RCA_EVIDENCE_PROVIDER = EvidenceCollectorFactory.create();
@@ -29,7 +29,9 @@ export const collectRcaEvidenceExecutor: ToolExecutor<RcaEvidenceInput, RcaEvide
   let resolvedScope: Scope = requestedScope;
 
   try {
-    const metadata = await getRcaTemplateMetadata(input.symptom);
+    const metadata = isDeterministicRcaSymptom(input.symptom)
+      ? undefined
+      : await getRcaTemplateMetadata(input.symptom);
     resolvedScope = resolveScope(
       requestedScope,
       metadata?.scopes ?? getDefaultSupportedScopes(input.symptom),
