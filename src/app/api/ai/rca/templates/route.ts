@@ -39,7 +39,7 @@ function loadTemplateSources(): Record<string, string> {
   const templates: Record<string, string> = {};
 
   for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".yaml")) {
+    if (!entry.isFile() || !/\.ya?ml$/i.test(entry.name)) {
       continue;
     }
     templates[toTemplateId(entry.name)] = fs.readFileSync(

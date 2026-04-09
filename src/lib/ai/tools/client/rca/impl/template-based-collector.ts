@@ -203,13 +203,21 @@ export class TemplateBasedEvidenceCollector implements RcaEvidenceCollector {
     });
 
     if (runtime.enrichments.includes("partition_key_columns")) {
-      await enrichPartitionKeyColumns(
-        runtime.context,
-        runtime.context.resolvedTarget ?? runtime.context.target,
-        result.observations,
-        `rca ${symptom}: partition_key_columns`,
-        60
-      );
+      try {
+        await enrichPartitionKeyColumns(
+          runtime.context,
+          runtime.context.resolvedTarget ?? runtime.context.target,
+          result.observations,
+          `rca ${symptom}: partition_key_columns`,
+          60
+        );
+      } catch (error) {
+        runtime.context.gaps.push({
+          description: "partition key enrichment unavailable",
+          reason:
+            error instanceof Error ? error.message : "Failed to load partition key column samples.",
+        });
+      }
     }
 
     return {

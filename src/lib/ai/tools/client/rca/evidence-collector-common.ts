@@ -534,18 +534,25 @@ export async function discoverTargetTableByParts(
 
   const data = await connection.queryJsonCompact(`
 SELECT
-  ifNull(any(database), '') AS database,
-  ifNull(any(table), '') AS table,
-  max(parts) AS parts
+  ifNull(database, '') AS database,
+  ifNull(table, '') AS table,
+  parts
 FROM (
   SELECT
-    hostName() AS host_name,
     database,
     table,
-    count() AS parts
-  FROM {clusterAllReplicas:system.parts}
-  WHERE ${whereClause}
-  GROUP BY host_name, database, table
+    sum(parts) AS parts
+  FROM (
+    SELECT
+      hostName() AS host_name,
+      database,
+      table,
+      count() AS parts
+    FROM {clusterAllReplicas:system.parts}
+    WHERE ${whereClause}
+    GROUP BY host_name, database, table
+  )
+  GROUP BY database, table
 )
 ORDER BY parts DESC
 LIMIT 1`);

@@ -3,7 +3,7 @@
  *
  * We copy:
  * - all .md and .json files under resources/skills/ (recursive)
- * - all .yaml files under resources/rca/ (recursive)
+ * - all .yaml/.yml files under resources/rca/ (recursive)
  * preserving relative paths under separate destination roots.
  *
  * Destinations (if present):
@@ -41,7 +41,7 @@ const assetGroups = [
       path.join(projectRoot, ".next", "standalone", ".next", "server", "rca"),
     ],
     isAllowedFile(relPath) {
-      return path.basename(relPath).endsWith(".yaml");
+      return /\.ya?ml$/i.test(path.basename(relPath));
     },
     missingWarning: "copy-resources: rca source missing",
     emptyWarning: "copy-resources: no rca files found",
