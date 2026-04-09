@@ -2,6 +2,7 @@
 
 import { AppLogo } from "@/components/app-logo";
 import { useConnection } from "@/components/connection/connection-context";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { AppUIMessage } from "@/lib/ai/chat-types";
 import "@/lib/number-utils"; // Ensure formatTimeDiff is available
 
@@ -89,7 +90,30 @@ export function DefaultQuestions({
   const { commandsByName, loading } = useChatCommands();
 
   // Wait until commands are loaded so we don't flash empty groups
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="w-full flex flex-col space-y-3 max-w-3xl mx-auto mt-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex flex-col border border-border/50 rounded-xl overflow-hidden bg-card shadow-sm">
+            <div className="flex items-center space-x-2 px-4 py-2.5 bg-muted/30 border-b border-border/50">
+              <Skeleton className="w-4 h-4 rounded-full" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-1 px-1 py-0">
+              <div className="px-3 py-2.5">
+                <Skeleton className="h-4 w-full mb-1" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+              <div className="px-3 py-2.5">
+                <Skeleton className="h-4 w-5/6 mb-1" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   const filteredGroups = Object.entries(DEFAULT_CHAT_QUESTION_GROUPS)
     .map(([group, data]) => {
