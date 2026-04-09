@@ -512,10 +512,27 @@ export function scoreCauseEvaluations(evaluations: CauseEvaluation[]): {
   excludedCandidates: ExcludedCandidate[];
 } {
   const excludedCandidates: ExcludedCandidate[] = [];
-  const candidates = evaluations
-    .map(scoreCandidate)
-    .filter((candidate) => candidate.indicators_matched > 0)
-    .sort((a, b) => b.support_score - a.support_score);
+  const candidates: CauseCandidate[] = [];
+
+  for (const evaluation of evaluations) {
+    const candidate = scoreCandidate(evaluation);
+    if (candidate.indicators_matched > 0) {
+      candidates.push(candidate);
+      continue;
+    }
+
+    excludedCandidates.push({
+      cause: evaluation.cause,
+      missing_required: evaluation.indicators
+        .filter((indicator) => indicator.blocker && !indicator.matched)
+        .map((indicator) => indicator.description ?? "required indicator missing"),
+      evidence_against: evaluation.indicators
+        .filter((indicator) => !indicator.matched)
+        .map((indicator) => indicator.description ?? "unmatched indicator"),
+    });
+  }
+
+  candidates.sort((a, b) => b.support_score - a.support_score);
   return { candidates, excludedCandidates };
 }
 

@@ -37,7 +37,7 @@ export const OpenNodeTabButton = memo(
 
     const handleClick = () => {
       TabManager.openTab({
-        id: `node:${host}`,
+        id: `node:${shortHost}`,
         type: "node",
         host: shortHost,
       });

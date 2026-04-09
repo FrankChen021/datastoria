@@ -322,7 +322,7 @@ export function SchemaTreeView({ initialSchemaData }: SchemaTreeViewProps) {
     if (data.type === "host") {
       const hostData = data as HostNodeData;
       TabManager.openTab({
-        id: `node:${hostData.fullName}`,
+        id: `node:${hostData.shortName}`,
         type: "node",
         host: hostData.shortName,
       });
