@@ -10,9 +10,17 @@ import { MessageMarkdownVizlayer } from "./message-markdown-vizlayer";
 const copyButtonSpy = vi.fn();
 const toChartSpecSpy = vi.fn();
 const parseVizlayerSpecSpy = vi.fn();
+const vizlayerDiagramSpy = vi.fn();
+const toastSpy = vi.fn();
 
 vi.mock("@/components/shared/dashboard/use-is-dark-theme", () => ({
   default: () => false,
+}));
+
+vi.mock("@/lib/toast", () => ({
+  toastManager: {
+    show: (...args: unknown[]) => toastSpy(...args),
+  },
 }));
 
 vi.mock("@/components/ui/copy-button", () => ({
@@ -93,7 +101,14 @@ vi.mock("@vizlayer/react", async () => {
 
   return {
     ...actual,
-    VizlayerDiagram: () => null,
+    VizlayerDiagram: (props: unknown) => {
+      vizlayerDiagramSpy(props);
+      return (
+        <svg data-testid="vizlayer-diagram" xmlns="http://www.w3.org/2000/svg">
+          <text>vizlayer-diagram</text>
+        </svg>
+      );
+    },
     toChartSpec: (props: unknown) => toChartSpecSpy(props),
     Vizlayer: { parse },
     VizlayerSpecParser: { parseVizlayerSpec: parse },
@@ -114,6 +129,13 @@ describe("MessageMarkdownVizlayer", () => {
     copyButtonSpy.mockReset();
     toChartSpecSpy.mockReset();
     parseVizlayerSpecSpy.mockReset();
+    vizlayerDiagramSpy.mockReset();
+    toastSpy.mockReset();
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      writable: true,
+      value: null,
+    });
   });
 
   afterEach(() => {
@@ -180,6 +202,82 @@ describe("MessageMarkdownVizlayer", () => {
         title: "Copy Mermaid code",
       })
     );
+    expect(vizlayerDiagramSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "sequenceDiagram",
+        document: {
+          participants: [
+            { id: "user", label: "User" },
+            { id: "agent", label: "Agent" },
+          ],
+          messages: [{ from: "user", to: "agent", text: "request" }],
+        },
+      })
+    );
+  });
+
+  it("requests browser fullscreen from the fullscreen button", () => {
+    toChartSpecSpy.mockReturnValue("flowchart TD\n  a --> b");
+
+    act(() => {
+      root.render(
+        <MessageMarkdownVizlayer spec='{"kind":"flowchart","document":{"direction":"TD","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b"}]}}' />
+      );
+    });
+
+    const fullscreenTarget = container.querySelector(
+      '[data-testid="vizlayer-diagram"]'
+    )?.parentElement;
+    expect(fullscreenTarget).not.toBeNull();
+    Object.defineProperty(fullscreenTarget as HTMLDivElement, "requestFullscreen", {
+      configurable: true,
+      value: vi.fn().mockResolvedValue(undefined),
+    });
+    const requestFullscreenSpy = vi.mocked(
+      (fullscreenTarget as HTMLDivElement & { requestFullscreen: () => Promise<void> })
+        .requestFullscreen
+    );
+
+    const expandTrigger = container.querySelector(
+      'button[aria-label="Open diagram in fullscreen"]'
+    );
+    expect(expandTrigger).not.toBeNull();
+
+    act(() => {
+      expandTrigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(requestFullscreenSpy).toHaveBeenCalledOnce();
+
+    requestFullscreenSpy.mockRestore();
+  });
+
+  it("downloads the rendered diagram as svg", () => {
+    toChartSpecSpy.mockReturnValue("flowchart TD\n  a --> b");
+    const createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:diagram");
+    const revokeObjectURLSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    act(() => {
+      root.render(
+        <MessageMarkdownVizlayer spec='{"kind":"flowchart","document":{"direction":"TD","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b"}]}}' />
+      );
+    });
+
+    const downloadButton = container.querySelector('button[aria-label="Download diagram as SVG"]');
+    expect(downloadButton).not.toBeNull();
+
+    act(() => {
+      downloadButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(createObjectURLSpy).toHaveBeenCalledOnce();
+    expect(clickSpy).toHaveBeenCalledOnce();
+    expect(revokeObjectURLSpy).toHaveBeenCalledWith("blob:diagram");
+
+    createObjectURLSpy.mockRestore();
+    revokeObjectURLSpy.mockRestore();
+    clickSpy.mockRestore();
   });
 
   it("keeps copying raw Vizlayer JSON when parsing fails", () => {
