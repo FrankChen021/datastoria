@@ -136,6 +136,11 @@ describe("MessageMarkdownVizlayer", () => {
       writable: true,
       value: null,
     });
+    Object.defineProperty(document, "webkitFullscreenElement", {
+      configurable: true,
+      writable: true,
+      value: null,
+    });
   });
 
   afterEach(() => {
@@ -250,6 +255,47 @@ describe("MessageMarkdownVizlayer", () => {
     expect(requestFullscreenSpy).toHaveBeenCalledOnce();
 
     requestFullscreenSpy.mockRestore();
+  });
+
+  it("falls back to prefixed fullscreen methods when standard APIs are unavailable", () => {
+    toChartSpecSpy.mockReturnValue("flowchart TD\n  a --> b");
+
+    act(() => {
+      root.render(
+        <MessageMarkdownVizlayer spec='{"kind":"flowchart","document":{"direction":"TD","nodes":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"edges":[{"from":"a","to":"b"}]}}' />
+      );
+    });
+
+    const fullscreenTarget = container.querySelector(
+      '[data-testid="vizlayer-diagram"]'
+    )?.parentElement;
+    expect(fullscreenTarget).not.toBeNull();
+    Object.defineProperty(fullscreenTarget as HTMLDivElement, "requestFullscreen", {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(fullscreenTarget as HTMLDivElement, "webkitRequestFullscreen", {
+      configurable: true,
+      value: vi.fn().mockResolvedValue(undefined),
+    });
+    const webkitRequestFullscreenSpy = vi.mocked(
+      (
+        fullscreenTarget as HTMLDivElement & {
+          webkitRequestFullscreen: () => Promise<void>;
+        }
+      ).webkitRequestFullscreen
+    );
+
+    const expandTrigger = container.querySelector(
+      'button[aria-label="Open diagram in fullscreen"]'
+    );
+    expect(expandTrigger).not.toBeNull();
+
+    act(() => {
+      expandTrigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(webkitRequestFullscreenSpy).toHaveBeenCalledOnce();
   });
 
   it("downloads the rendered diagram as svg", () => {

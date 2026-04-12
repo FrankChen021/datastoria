@@ -26,6 +26,21 @@ type BuiltVizlayerChart =
       error: string;
     };
 
+type FullscreenTarget = HTMLDivElement & {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+  mozRequestFullScreen?: () => Promise<void> | void;
+  msRequestFullscreen?: () => Promise<void> | void;
+};
+
+type FullscreenDocument = Document & {
+  webkitFullscreenElement?: Element | null;
+  mozFullScreenElement?: Element | null;
+  msFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void> | void;
+  mozCancelFullScreen?: () => Promise<void> | void;
+  msExitFullscreen?: () => Promise<void> | void;
+};
+
 export function MessageMarkdownVizlayer({ spec }: MessageMarkdownVizlayerProps) {
   const isDark = useIsDarkTheme();
   const inlineViewportRef = useRef<HTMLDivElement>(null);
@@ -56,26 +71,64 @@ export function MessageMarkdownVizlayer({ spec }: MessageMarkdownVizlayerProps) 
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(document.fullscreenElement === inlineViewportRef.current);
+      const fullscreenDocument = document as FullscreenDocument;
+      const fullscreenElement =
+        fullscreenDocument.fullscreenElement ??
+        fullscreenDocument.webkitFullscreenElement ??
+        fullscreenDocument.mozFullScreenElement ??
+        fullscreenDocument.msFullscreenElement ??
+        null;
+
+      setIsFullscreen(fullscreenElement === inlineViewportRef.current);
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
     };
   }, []);
 
   const handleFullscreenToggle = useCallback(async () => {
-    const container = inlineViewportRef.current;
+    const container = inlineViewportRef.current as FullscreenTarget | null;
     if (!container) {
       return;
     }
 
     try {
-      if (document.fullscreenElement === container) {
-        await document.exitFullscreen();
-      } else {
+      const fullscreenDocument = document as FullscreenDocument;
+      const fullscreenElement =
+        fullscreenDocument.fullscreenElement ??
+        fullscreenDocument.webkitFullscreenElement ??
+        fullscreenDocument.mozFullScreenElement ??
+        fullscreenDocument.msFullscreenElement ??
+        null;
+
+      if (fullscreenElement === container) {
+        if (fullscreenDocument.exitFullscreen) {
+          await fullscreenDocument.exitFullscreen();
+        } else if (fullscreenDocument.webkitExitFullscreen) {
+          await fullscreenDocument.webkitExitFullscreen();
+        } else if (fullscreenDocument.mozCancelFullScreen) {
+          await fullscreenDocument.mozCancelFullScreen();
+        } else if (fullscreenDocument.msExitFullscreen) {
+          await fullscreenDocument.msExitFullscreen();
+        }
+      } else if (container.requestFullscreen) {
         await container.requestFullscreen();
+      } else if (container.webkitRequestFullscreen) {
+        await container.webkitRequestFullscreen();
+      } else if (container.mozRequestFullScreen) {
+        await container.mozRequestFullScreen();
+      } else if (container.msRequestFullscreen) {
+        await container.msRequestFullscreen();
+      } else {
+        throw new Error("Fullscreen API unavailable");
       }
     } catch {
       toastManager.show("Failed to open diagram in fullscreen.", "error");
@@ -212,7 +265,7 @@ function renderDiagram({ spec, isDark }: { spec: VizlayerSpec; isDark: boolean }
     <VizlayerDiagram
       {...spec}
       className={cn(
-        "flex min-w-max justify-center",
+        "flex min-w-max justify-center overflow-x-auto",
         "[&_.edgeLabel]:fill-foreground [&_.label]:fill-foreground [&_.node_label]:fill-foreground"
       )}
       loadingFallback={<DiagramLoadingState />}
