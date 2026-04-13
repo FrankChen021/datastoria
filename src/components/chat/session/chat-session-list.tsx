@@ -371,6 +371,7 @@ function buildHistoryTree(
       ),
       search: connectionSearchTerms,
       icon: Database,
+      iconClassName: !meta.isCurrent ? "text-muted-foreground" : undefined,
       type: "folder",
       data: {
         kind: "connection",
@@ -393,6 +394,7 @@ function buildHistoryTree(
         ),
         search: `${label.toLowerCase()} ${connectionSearchTerms}`,
         icon: CalendarDays,
+        iconClassName: !meta.isCurrent ? "text-muted-foreground" : undefined,
         type: "folder",
         data: {
           kind: "group",
@@ -427,7 +429,10 @@ function buildHistoryTree(
           ),
           search: `${getChatTitle(chat).toLowerCase()} ${connectionSearchTerms} ${label.toLowerCase()}`,
           icon: chat.running ? Loader2 : MessageSquareText,
-          iconClassName: chat.running ? "animate-spin" : undefined,
+          iconClassName: cn(
+            chat.running && "animate-spin",
+            !meta.isCurrent && "text-muted-foreground"
+          ),
           type: "leaf",
           data: {
             kind: "chat",
