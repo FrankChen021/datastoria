@@ -233,8 +233,8 @@ export function SampleQuestions({
     return null;
   }
 
-  const questionItemClassName =
-    "group w-full rounded-lg px-1 py-2 text-left transition-colors hover:bg-muted/20";
+  const questionCardClassName =
+    "group relative w-full rounded-2xl border border-border/50 bg-card px-4 py-3 text-left shadow-sm transition-colors duration-150 hover:border-primary/40 hover:bg-accent/60 hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-0 active:bg-accent/70";
 
   const renderGroupSection = (
     [group, { icon, questions }]: readonly [string, QuestionGroupData],
@@ -246,9 +246,9 @@ export function SampleQuestions({
         sectionRefs.current[group] = element;
       }}
       data-group-name={group}
-      className={cn("space-y-2.5", index > 0 && "pt-1")}
+      className={cn("space-y-1.5", index > 0 && "pt-1")}
     >
-      <div className="space-y-2">
+      <div className="space-y-1">
         <div className="flex items-center gap-2 px-1">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/40">
             {icon}
@@ -257,20 +257,16 @@ export function SampleQuestions({
         </div>
         <div className="h-px bg-border/60" />
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {questions.map((question) => (
           <button
             key={question.text}
             type="button"
-            className={questionItemClassName}
+            className={questionCardClassName}
             onClick={() => onQuestionClick(question)}
           >
-            <span className="flex items-start gap-3">
-              <span
-                aria-hidden="true"
-                className="mt-2 h-2 w-2 shrink-0 rounded-full bg-foreground/50 transition-colors group-hover:bg-primary"
-              />
-              <span className="block text-sm leading-6 text-foreground">{question.text}</span>
+            <span className="block text-sm font-medium leading-6 text-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary">
+              {question.text}
             </span>
           </button>
         ))}
