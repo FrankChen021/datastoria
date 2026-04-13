@@ -94,22 +94,22 @@ function SampleQuestionsShell({ greeting, children }: { greeting: string; childr
   return (
     <div
       data-sample-questions-scroll-root="true"
-      className="w-full shrink-0 overflow-x-hidden px-3 pt-4"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-4"
     >
-      <div className="mb-0 flex w-full max-w-full flex-col items-center pb-0">
+      <div className="mb-0 flex shrink-0 w-full max-w-full flex-col items-center pb-0">
         <div className="mb-0">
           <AppLogo width={64} height={64} />
         </div>
         <p className="mt-0 mb-0 text-center text-xl font-medium">{greeting}</p>
-        {children}
       </div>
+      {children}
     </div>
   );
 }
 
 function LoadingSkeleton() {
   return (
-    <div className="mt-6 grid w-full max-w-5xl gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
+    <div className="mx-auto mt-6 grid w-full max-w-5xl gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
       <div className="hidden flex-col gap-2 md:flex">
         {[1, 2, 3, 4].map((i) => (
           <Skeleton key={i} className="h-8 w-36 rounded-lg" />
@@ -233,8 +233,8 @@ export function SampleQuestions({
     return null;
   }
 
-  const questionCardClassName =
-    "group relative w-full rounded-2xl border border-border/50 bg-card px-4 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-border hover:bg-muted/20";
+  const questionItemClassName =
+    "group w-full rounded-lg px-1 py-2 text-left transition-colors hover:bg-muted/20";
 
   const renderGroupSection = (
     [group, { icon, questions }]: readonly [string, QuestionGroupData],
@@ -257,12 +257,12 @@ export function SampleQuestions({
         </div>
         <div className="h-px bg-border/60" />
       </div>
-      <div className="space-y-2.5">
+      <div className="space-y-1.5">
         {questions.map((question) => (
           <button
             key={question.text}
             type="button"
-            className={questionCardClassName}
+            className={questionItemClassName}
             onClick={() => onQuestionClick(question)}
           >
             <span className="flex items-start gap-3">
@@ -270,9 +270,7 @@ export function SampleQuestions({
                 aria-hidden="true"
                 className="mt-2 h-2 w-2 shrink-0 rounded-full bg-foreground/50 transition-colors group-hover:bg-primary"
               />
-              <span className="block text-sm font-medium leading-6 text-foreground">
-                {question.text}
-              </span>
+              <span className="block text-sm leading-6 text-foreground">{question.text}</span>
             </span>
           </button>
         ))}
@@ -283,7 +281,7 @@ export function SampleQuestions({
   if (isMobile) {
     return (
       <SampleQuestionsShell greeting={greeting}>
-        <div className="mt-6 w-full max-w-3xl space-y-6">
+        <div className="mx-auto mt-6 w-full max-w-3xl flex-1 overflow-y-auto space-y-6">
           {filteredGroups.map(renderGroupSection)}
         </div>
       </SampleQuestionsShell>
@@ -292,8 +290,8 @@ export function SampleQuestions({
 
   return (
     <SampleQuestionsShell greeting={greeting}>
-      <div className="mt-6 grid w-full max-w-5xl items-start gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
-        <nav className="hidden h-fit md:block">
+      <div className="mx-auto mt-6 grid min-h-0 flex-1 w-full max-w-5xl gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
+        <nav className="hidden self-start md:block">
           <div className="space-y-1 pr-2">
             {filteredGroups.map(([group, { icon }]) => {
               const isActive = group === activeGroup;
@@ -338,7 +336,7 @@ export function SampleQuestions({
         <div
           ref={rightPaneRef}
           data-sample-questions-right-pane="true"
-          className="space-y-6 md:max-h-[min(56vh,38rem)] md:overflow-y-auto md:pr-2"
+          className="min-h-0 self-stretch space-y-6 overflow-y-auto md:pr-2"
         >
           {filteredGroups.map(renderGroupSection)}
           <div aria-hidden="true" className="hidden md:block md:h-[min(18rem,40vh)]" />
