@@ -336,7 +336,7 @@ export function SampleQuestions({
         >
           {filteredGroups.map(renderGroupSection)}
 
-          {/* 24rem = 384px padding for scroll */} 
+          {/* 24rem = 384px padding for scroll */}
           <div aria-hidden="true" className="hidden md:block md:h-[24rem]" />
         </div>
       </div>
