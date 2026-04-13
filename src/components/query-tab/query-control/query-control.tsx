@@ -159,11 +159,8 @@ export function QueryControl({ onOpenHistory }: { onOpenHistory: () => void }) {
     ],
     [sqlEditorCommands]
   );
-  const hasSqlEditorCommands = sqlEditorCommands.length > 0;
-
   const hasEditorText = text.trim().length > 0;
   const hasSelectedText = selectedText.trim().length > 0;
-  const hasSqlInput = hasSelectedText || hasEditorText;
   const isRunPrimaryDisabled = isSqlExecuting || (!hasSelectedText && !hasEditorText);
   const isRunBatchDisabled = isSqlExecuting || !hasEditorText;
   const isExplainDisabled = isSqlExecuting || !hasEditorText;
