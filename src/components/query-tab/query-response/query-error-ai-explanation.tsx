@@ -8,7 +8,7 @@ import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { useConnection } from "@/components/connection/connection-context";
 import {
   AgentConfigurationManager,
-  normalizeAutoExplainLanguage,
+  normalizeAIResponseLanguage,
 } from "@/components/settings/agent/agent-manager";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -437,8 +437,8 @@ export const QueryErrorAIExplanation = memo(function QueryErrorAIExplanation({
     }
 
     void (async () => {
-      const autoExplainLanguage = normalizeAutoExplainLanguage(
-        AgentConfigurationManager.getConfiguration().autoExplainLanguage
+      const autoExplainLanguage = normalizeAIResponseLanguage(
+        AgentConfigurationManager.getConfiguration().aiResponseLanguage
       );
       const createdChat = await ChatFactory.createEphemeral({
         connection,
@@ -505,8 +505,8 @@ const QueryErrorAIExplanationContent = memo(function QueryErrorAIExplanationCont
     sentKeyRef.current = key;
     setHasRequested(true);
     setFeedbackDismissed(false);
-    const autoExplainLanguage = normalizeAutoExplainLanguage(
-      AgentConfigurationManager.getConfiguration().autoExplainLanguage
+    const autoExplainLanguage = normalizeAIResponseLanguage(
+      AgentConfigurationManager.getConfiguration().aiResponseLanguage
     );
     const prompt = buildExplainErrorPrompt({
       errorMessage,

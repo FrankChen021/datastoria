@@ -1,6 +1,6 @@
 import {
-  DEFAULT_AUTO_EXPLAIN_LANGUAGE,
-  type AutoExplainLanguage,
+  DEFAULT_AI_RESPONSE_LANGUAGE,
+  type AIResponseLanguage,
 } from "@/components/settings/agent/agent-manager";
 import { isEnglishLanguageTag } from "@/lib/ai/language-utils";
 
@@ -8,13 +8,13 @@ export function buildExplainErrorPrompt({
   errorMessage,
   errorCode,
   sql,
-  language = DEFAULT_AUTO_EXPLAIN_LANGUAGE,
+  language = DEFAULT_AI_RESPONSE_LANGUAGE,
 }: {
   errorMessage: string;
   errorCode?: string | number;
   sql?: string;
   /** BCP-47 language for prose and headings; English adds no extra instructions. */
-  language?: AutoExplainLanguage;
+  language?: AIResponseLanguage;
 }): string {
   const parts: string[] = [];
   const hasErrorCode = errorCode !== undefined;

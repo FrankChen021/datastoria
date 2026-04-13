@@ -64,6 +64,33 @@ metadata:
     expect(skills.find((skill) => skill.name === "visualization")?.disableSlashCommand).toBe(true);
   });
 
+  it("loads sql editor quick action metadata for disk-backed skills", async () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "skill-manager-test-"));
+    tempDirs.push(rootDir);
+
+    writeSkill(
+      rootDir,
+      "review-sql",
+      `---
+name: review-sql
+description: Review SQL.
+metadata:
+  show-in-sql-editor-quick-action: true
+---
+
+# Review SQL
+`
+    );
+
+    process.env.SKILLS_ROOT_DIR = rootDir;
+    clearDiskSkillProviderCache();
+
+    const skills = await provider.listSkills();
+    expect(skills.find((skill) => skill.name === "review-sql")?.showInSqlEditorQuickAction).toBe(
+      true
+    );
+  });
+
   it("loads metadata url for disk-backed skills", async () => {
     const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "skill-manager-test-"));
     tempDirs.push(rootDir);

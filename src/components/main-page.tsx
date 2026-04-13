@@ -1,3 +1,4 @@
+import { AgentCommandProvider } from "@/components/chat/agent-command-context";
 import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { useConnection } from "@/components/connection/connection-context";
 import { ConnectionWizard } from "@/components/connection/connection-wizard";
@@ -696,55 +697,59 @@ export function MainPage() {
   if (isMobile) {
     if (displayMode !== "hidden") {
       return (
-        <div className="relative h-full w-full flex min-w-0 overflow-hidden">
-          <ChatPanel onClose={closeChatPanel} />
-        </div>
+        <AgentCommandProvider>
+          <div className="relative h-full w-full flex min-w-0 overflow-hidden">
+            <ChatPanel onClose={closeChatPanel} />
+          </div>
+        </AgentCommandProvider>
       );
     }
     return (
-      <div className="relative h-full w-full flex flex-col min-w-0 overflow-hidden">
-        <div className="shrink-0 flex items-center gap-2 border-b bg-background px-2 py-1.5">
-          <SidebarTrigger className="h-8 w-8" />
-          <Sheet open={schemaSheetOpen} onOpenChange={setSchemaSheetOpen}>
-            <SheetTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                aria-label="Open schema browser"
-              >
-                <Database className="h-4 w-4" />
-                Schema
-              </Button>
-            </SheetTrigger>
-            <SheetPortal>
-              <SheetOverlay />
-              <SheetPrimitive.Content
-                className={cn(
-                  "fixed z-50 gap-4 bg-background shadow-lg transition ease-in-out",
-                  "data-[state=open]:animate-in data-[state=closed]:animate-out",
-                  "data-[state=closed]:duration-300 data-[state=open]:duration-500",
-                  "inset-y-0 left-0 h-full w-3/4 border-r",
-                  "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
-                  "w-[min(320px,85vw)] p-0 flex flex-col overflow-hidden"
-                )}
-              >
-                <SheetTitle className="sr-only">Schema Browser</SheetTitle>
-                <SheetDescription className="sr-only">
-                  Browse databases, tables, and columns. Use the search field to filter by name.
-                </SheetDescription>
-                <div className="flex-1 min-h-0 overflow-auto p-2">
-                  <SchemaTreeView initialSchemaData={loadedSchemaData} />
-                </div>
-              </SheetPrimitive.Content>
-            </SheetPortal>
-          </Sheet>
+      <AgentCommandProvider>
+        <div className="relative h-full w-full flex flex-col min-w-0 overflow-hidden">
+          <div className="shrink-0 flex items-center gap-2 border-b bg-background px-2 py-1.5">
+            <SidebarTrigger className="h-8 w-8" />
+            <Sheet open={schemaSheetOpen} onOpenChange={setSchemaSheetOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  aria-label="Open schema browser"
+                >
+                  <Database className="h-4 w-4" />
+                  Schema
+                </Button>
+              </SheetTrigger>
+              <SheetPortal>
+                <SheetOverlay />
+                <SheetPrimitive.Content
+                  className={cn(
+                    "fixed z-50 gap-4 bg-background shadow-lg transition ease-in-out",
+                    "data-[state=open]:animate-in data-[state=closed]:animate-out",
+                    "data-[state=closed]:duration-300 data-[state=open]:duration-500",
+                    "inset-y-0 left-0 h-full w-3/4 border-r",
+                    "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
+                    "w-[min(320px,85vw)] p-0 flex flex-col overflow-hidden"
+                  )}
+                >
+                  <SheetTitle className="sr-only">Schema Browser</SheetTitle>
+                  <SheetDescription className="sr-only">
+                    Browse databases, tables, and columns. Use the search field to filter by name.
+                  </SheetDescription>
+                  <div className="flex-1 min-h-0 overflow-auto p-2">
+                    <SchemaTreeView initialSchemaData={loadedSchemaData} />
+                  </div>
+                </SheetPrimitive.Content>
+              </SheetPortal>
+            </Sheet>
+          </div>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <MainPageTabList selectedConnection={connection} />
+          </div>
         </div>
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <MainPageTabList selectedConnection={connection} />
-        </div>
-      </div>
+      </AgentCommandProvider>
     );
   }
 
@@ -753,78 +758,80 @@ export function MainPage() {
   const showChatPanel = displayMode !== "hidden";
 
   return (
-    <div className="relative h-full w-full flex flex-col min-w-0 overflow-hidden">
-      <NewReleaseBanner />
-      <div className="flex-1 relative flex min-w-0 overflow-hidden">
-        <PanelGroup direction="horizontal" className="h-full w-full min-w-0">
-          {/* Left Panel: Schema Tree View - always mounted, hidden in fullscreen */}
-          <Panel
-            id="schema-panel"
-            order={1}
-            ref={schemaPanelRef}
-            defaultSize={showSchemaTree ? DEFAULT_SCHEMA_PANEL_SIZE : 0}
-            minSize={0}
-            className={`bg-background ${!showSchemaTree ? "hidden" : ""}`}
-          >
-            <SidebarPanel initialSchemaData={loadedSchemaData} />
-          </Panel>
+    <AgentCommandProvider>
+      <div className="relative h-full w-full flex flex-col min-w-0 overflow-hidden">
+        <NewReleaseBanner />
+        <div className="flex-1 relative flex min-w-0 overflow-hidden">
+          <PanelGroup direction="horizontal" className="h-full w-full min-w-0">
+            {/* Left Panel: Schema Tree View - always mounted, hidden in fullscreen */}
+            <Panel
+              id="schema-panel"
+              order={1}
+              ref={schemaPanelRef}
+              defaultSize={showSchemaTree ? DEFAULT_SCHEMA_PANEL_SIZE : 0}
+              minSize={0}
+              className={`bg-background ${!showSchemaTree ? "hidden" : ""}`}
+            >
+              <SidebarPanel initialSchemaData={loadedSchemaData} />
+            </Panel>
 
-          <PanelResizeHandle
-            className={`w-0.5 transition-colors ${
-              showSchemaTree
-                ? "bg-border hover:bg-border/80 cursor-col-resize"
-                : "bg-transparent hover:bg-transparent cursor-default pointer-events-none"
-            }`}
-          />
+            <PanelResizeHandle
+              className={`w-0.5 transition-colors ${
+                showSchemaTree
+                  ? "bg-border hover:bg-border/80 cursor-col-resize"
+                  : "bg-transparent hover:bg-transparent cursor-default pointer-events-none"
+              }`}
+            />
 
-          {/* Right Panel: Contains both Tabs and Chat in a nested layout */}
-          <Panel
-            id="main-content-panel"
-            order={2}
-            defaultSize={100 - DEFAULT_SCHEMA_PANEL_SIZE}
-            minSize={20}
-            className="bg-background"
-          >
-            {/* Nested PanelGroup for Tabs and Chat */}
-            <PanelGroup direction="horizontal" className="h-full w-full">
-              {/* Tabs Panel - always mounted, visibility controlled by CSS */}
-              <Panel
-                id="tabs-panel"
-                order={1}
-                ref={tabsPanelRef}
-                defaultSize={showTabsVisible ? (showChatPanel ? 60 : 100) : 0}
-                minSize={0}
-                className={`bg-background ${!showTabsVisible ? "!w-0 !min-w-0 !max-w-0 overflow-hidden" : ""}`}
-              >
-                <div className={!showTabsVisible ? "hidden" : "h-full"}>
-                  <MainPageTabList selectedConnection={connection} />
-                </div>
-              </Panel>
+            {/* Right Panel: Contains both Tabs and Chat in a nested layout */}
+            <Panel
+              id="main-content-panel"
+              order={2}
+              defaultSize={100 - DEFAULT_SCHEMA_PANEL_SIZE}
+              minSize={20}
+              className="bg-background"
+            >
+              {/* Nested PanelGroup for Tabs and Chat */}
+              <PanelGroup direction="horizontal" className="h-full w-full">
+                {/* Tabs Panel - always mounted, visibility controlled by CSS */}
+                <Panel
+                  id="tabs-panel"
+                  order={1}
+                  ref={tabsPanelRef}
+                  defaultSize={showTabsVisible ? (showChatPanel ? 60 : 100) : 0}
+                  minSize={0}
+                  className={`bg-background ${!showTabsVisible ? "!w-0 !min-w-0 !max-w-0 overflow-hidden" : ""}`}
+                >
+                  <div className={!showTabsVisible ? "hidden" : "h-full"}>
+                    <MainPageTabList selectedConnection={connection} />
+                  </div>
+                </Panel>
 
-              {/* Resize Handle between Tabs and Chat */}
-              <PanelResizeHandle
-                className={`w-0.5 transition-colors ${
-                  showTabsVisible && showChatPanel
-                    ? "bg-border hover:bg-border/80 cursor-col-resize"
-                    : "bg-transparent hover:bg-transparent cursor-default pointer-events-none"
-                }`}
-              />
+                {/* Resize Handle between Tabs and Chat */}
+                <PanelResizeHandle
+                  className={`w-0.5 transition-colors ${
+                    showTabsVisible && showChatPanel
+                      ? "bg-border hover:bg-border/80 cursor-col-resize"
+                      : "bg-transparent hover:bg-transparent cursor-default pointer-events-none"
+                  }`}
+                />
 
-              {/* Chat Panel - always mounted, visibility controlled by CSS */}
-              <Panel
-                id="chat-panel"
-                order={2}
-                ref={chatPanelRef}
-                defaultSize={showChatPanel ? (showTabsVisible ? 40 : 100) : 0}
-                minSize={showChatPanel ? 20 : 0}
-                className={`bg-background ${!showChatPanel ? "!w-0 !min-w-0 !max-w-0 overflow-hidden" : ""}`}
-              >
-                {showChatPanel && <ChatPanel onClose={closeChatPanel} />}
-              </Panel>
-            </PanelGroup>
-          </Panel>
-        </PanelGroup>
+                {/* Chat Panel - always mounted, visibility controlled by CSS */}
+                <Panel
+                  id="chat-panel"
+                  order={2}
+                  ref={chatPanelRef}
+                  defaultSize={showChatPanel ? (showTabsVisible ? 40 : 100) : 0}
+                  minSize={showChatPanel ? 20 : 0}
+                  className={`bg-background ${!showChatPanel ? "!w-0 !min-w-0 !max-w-0 overflow-hidden" : ""}`}
+                >
+                  {showChatPanel && <ChatPanel onClose={closeChatPanel} />}
+                </Panel>
+              </PanelGroup>
+            </Panel>
+          </PanelGroup>
+        </div>
       </div>
-    </div>
+    </AgentCommandProvider>
   );
 }

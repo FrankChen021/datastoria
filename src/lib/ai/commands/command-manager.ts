@@ -8,6 +8,8 @@ export interface CommandCatalogItem {
   description: string;
   /** Stable skill folder id this command belongs to. */
   skillId: string;
+  /** Whether this command should be shown as a SQL editor quick action. */
+  showInSqlEditorQuickAction?: boolean;
 }
 
 export interface CommandDetail extends CommandCatalogItem {
@@ -40,6 +42,7 @@ export class CommandManager {
             name,
             description: skill.description,
             skillId: skill.id,
+            showInSqlEditorQuickAction: skill.showInSqlEditorQuickAction,
             template: CommandManager.buildSkillCommandTemplate(skill.name),
           } satisfies CommandDetail,
         ];

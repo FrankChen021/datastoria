@@ -11,10 +11,10 @@ const testGlobal = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
 };
 
-const useChatCommandsMock = vi.fn();
+const useAgentCommandsMock = vi.fn();
 
-vi.mock("../command-context", () => ({
-  useChatCommands: () => useChatCommandsMock(),
+vi.mock("../agent-command-context", () => ({
+  useAgentCommands: () => useAgentCommandsMock(),
 }));
 
 describe("SampleQuestions", () => {
@@ -60,7 +60,7 @@ describe("SampleQuestions", () => {
   });
 
   it("filters questions that require unavailable skills", () => {
-    useChatCommandsMock.mockReturnValue({
+    useAgentCommandsMock.mockReturnValue({
       commands: [],
       loading: false,
     });
@@ -74,7 +74,7 @@ describe("SampleQuestions", () => {
   });
 
   it("scrolls to the selected group section from the desktop sidebar", () => {
-    useChatCommandsMock.mockReturnValue({
+    useAgentCommandsMock.mockReturnValue({
       commands: [{ skillId: "source-code-inspection" }],
       loading: false,
     });
@@ -97,7 +97,7 @@ describe("SampleQuestions", () => {
   });
 
   it("marks the first visible group active near the bottom of the pane", () => {
-    useChatCommandsMock.mockReturnValue({
+    useAgentCommandsMock.mockReturnValue({
       commands: [{ skillId: "source-code-inspection" }],
       loading: false,
     });
@@ -176,7 +176,7 @@ describe("SampleQuestions", () => {
   });
 
   it("marks SQL Generation active when it becomes the first visible group", () => {
-    useChatCommandsMock.mockReturnValue({
+    useAgentCommandsMock.mockReturnValue({
       commands: [{ skillId: "source-code-inspection" }],
       loading: false,
     });

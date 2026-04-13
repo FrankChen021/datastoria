@@ -21,8 +21,8 @@ vi.mock("@/components/connection/connection-context", () => ({
   }),
 }));
 
-vi.mock("../command-context", () => ({
-  useChatCommands: () => ({
+vi.mock("../agent-command-context", () => ({
+  useAgentCommands: () => ({
     commands: [],
   }),
 }));

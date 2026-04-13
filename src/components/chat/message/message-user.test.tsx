@@ -9,8 +9,8 @@ import { MessageUser } from "./message-user";
 
 const messageMarkdownSpy = vi.fn();
 
-vi.mock("../command-context", () => ({
-  useChatCommands: () => ({
+vi.mock("../agent-command-context", () => ({
+  useAgentCommands: () => ({
     commandsByName: new Map([
       [
         "review",

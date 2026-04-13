@@ -36,6 +36,8 @@ export interface SkillCatalogItem {
   hasResources?: boolean;
   /** Whether this skill is excluded from slash command registration. */
   disableSlashCommand?: boolean;
+  /** Whether this skill should be shown as a SQL editor quick action. */
+  showInSqlEditorQuickAction?: boolean;
   /** Tool names required for this skill to be usable at runtime. */
   requiredTools?: string[];
 }

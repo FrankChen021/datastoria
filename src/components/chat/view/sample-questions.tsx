@@ -1,7 +1,7 @@
 "use client";
 
 import { AppLogo } from "@/components/app-logo";
-import { useChatCommands } from "@/components/chat/command-context";
+import { useAgentCommands } from "@/components/chat/agent-command-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -138,7 +138,7 @@ export function SampleQuestions({
 }: {
   onQuestionClick: (question: Question) => void;
 }) {
-  const { commands, loading } = useChatCommands();
+  const { commands, loading } = useAgentCommands();
   const isMobile = useIsMobile();
   const rightPaneRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});

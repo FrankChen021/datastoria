@@ -10,7 +10,6 @@ import { v7 as uuidv7 } from "uuid";
 import { ChatActionProvider, type UserActionInput } from "../chat-action-context";
 import { ChatContext, getDatabaseContextFromConnection } from "../chat-context";
 import { ChatFactory } from "../chat-factory";
-import { ChatCommandProvider } from "../command-context";
 import {
   ChatInput,
   type ChatInputHandle,
@@ -172,29 +171,27 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
       }
       chatId={chat.id}
     >
-      <ChatCommandProvider>
-        <div className="flex flex-col h-full bg-background overflow-hidden relative">
-          {isEmpty ? (
-            <SampleQuestions onQuestionClick={handleQuestionClick} />
-          ) : (
-            <ChatMessageList
-              messages={messages as AppUIMessage[]}
-              isRunning={isRunning}
-              error={error || null}
-            />
-          )}
-          <ChatInput
-            ref={chatInputRef}
-            onSubmit={handleSubmit}
-            onStop={handleStop}
+      <div className="flex flex-col h-full bg-background overflow-hidden relative">
+        {isEmpty ? (
+          <SampleQuestions onQuestionClick={handleQuestionClick} />
+        ) : (
+          <ChatMessageList
+            messages={messages as AppUIMessage[]}
             isRunning={isRunning}
-            hasMessages={messages.length > 0}
-            tokenUsage={tokenUsage}
-            onNewChat={onNewChat}
-            externalInput={promptInput}
+            error={error || null}
           />
-        </div>
-      </ChatCommandProvider>
+        )}
+        <ChatInput
+          ref={chatInputRef}
+          onSubmit={handleSubmit}
+          onStop={handleStop}
+          isRunning={isRunning}
+          hasMessages={messages.length > 0}
+          tokenUsage={tokenUsage}
+          onNewChat={onNewChat}
+          externalInput={promptInput}
+        />
+      </div>
     </ChatActionProvider>
   );
 });

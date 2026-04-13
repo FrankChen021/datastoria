@@ -1,17 +1,13 @@
 "use client";
 
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+  AgentCommandBrowserPanel,
+  type AgentCommandBrowserPanelRef,
+} from "@/components/chat/agent-command-browser-panel";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import type { CommandDetail } from "@/lib/ai/commands/command-manager";
 import { StringUtils } from "@/lib/string-utils";
 import { TextHighlighter } from "@/lib/text-highlighter";
-import { cn } from "@/lib/utils";
 import * as React from "react";
 
 export interface ChatInputCommandsType {
@@ -32,9 +28,8 @@ export const ChatInputCommands = React.memo(
   React.forwardRef<ChatInputCommandsType, ChatInputCommandsProps>(
     ({ commands, onSelect, onInteractOutside }, ref) => {
       const [open, setOpen] = React.useState(false);
-      const [activeIndex, setActiveIndex] = React.useState(0);
       const [query, setQuery] = React.useState("");
-      const activeItemRef = React.useRef<HTMLDivElement>(null);
+      const commandBrowserRef = React.useRef<AgentCommandBrowserPanelRef>(null);
 
       const filtered = React.useMemo(() => {
         if (!query) {
@@ -50,26 +45,26 @@ export const ChatInputCommands = React.memo(
           .filter((c) => c.matchStart >= 0);
       }, [commands, query]);
 
-      const activeCommand = filtered[activeIndex] ?? null;
-
-      const description: React.ReactNode | null = activeCommand?.description ? (
-        <div className="text-xs">
-          <div className="text-muted-foreground mb-0.5">Description</div>
-          <div className="text-foreground whitespace-pre-wrap break-all">
-            {activeCommand.description}
-          </div>
-        </div>
-      ) : null;
+      React.useEffect(() => {
+        if (open) {
+          commandBrowserRef.current?.setActiveIndex(0);
+        }
+      }, [open, query, filtered.length]);
 
       React.useImperativeHandle(ref, () => ({
         open: (searchQuery: string) => {
           setQuery(searchQuery.toLowerCase());
-          setActiveIndex(0);
           setOpen(true);
         },
         close: () => setOpen(false),
         isOpen: () => open,
-        getSelected: () => activeCommand,
+        getSelected: () => {
+          const activeItem = commandBrowserRef.current?.getActiveItem();
+          if (!activeItem) {
+            return null;
+          }
+          return filtered.find((cmd) => cmd.name === activeItem.key) ?? null;
+        },
         handleKeyDown: (e: React.KeyboardEvent) => {
           if (!open) return false;
 
@@ -80,22 +75,26 @@ export const ChatInputCommands = React.memo(
 
           if (filtered.length > 0) {
             if (e.key === "ArrowDown") {
-              setActiveIndex((prev) => (prev + 1) % filtered.length);
+              commandBrowserRef.current?.moveActiveIndex(1);
               e.preventDefault();
               e.stopPropagation();
               return true;
             }
             if (e.key === "ArrowUp") {
-              setActiveIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+              commandBrowserRef.current?.moveActiveIndex(-1);
               e.preventDefault();
               e.stopPropagation();
               return true;
             }
             if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-              if (activeCommand) {
+              const activeItem = commandBrowserRef.current?.getActiveItem();
+              const selected = activeItem
+                ? (filtered.find((cmd) => cmd.name === activeItem.key) ?? null)
+                : null;
+              if (selected) {
                 e.preventDefault();
                 e.stopPropagation();
-                onSelect(activeCommand);
+                onSelect(selected);
                 setOpen(false);
               }
               return true;
@@ -105,12 +104,6 @@ export const ChatInputCommands = React.memo(
           return false;
         },
       }));
-
-      React.useEffect(() => {
-        if (open && activeItemRef.current) {
-          activeItemRef.current.scrollIntoView({ block: "nearest" });
-        }
-      }, [activeIndex, open]);
 
       const handleSelect = React.useCallback(
         (command: CommandDetail) => {
@@ -137,67 +130,30 @@ export const ChatInputCommands = React.memo(
               }
             }}
           >
-            <div className="flex items-stretch max-h-[300px]">
-              <div
-                data-panel="left"
-                className={cn(
-                  "flex flex-col border shadow-md w-[350px] bg-popover rounded-sm",
-                  description && "rounded-r-none"
-                )}
-              >
-                <Command
-                  className="flex-1 rounded-none border-0 shadow-none bg-transparent"
-                  value={activeCommand?.name}
-                  shouldFilter={false}
-                >
-                  <CommandList className="flex-1 overflow-y-auto pt-1">
-                    <CommandEmpty>No commands found</CommandEmpty>
-                    {filtered.length > 0 && (
-                      <CommandGroup
-                        heading="Commands"
-                        className="py-0 [&_[cmdk-group-heading]]:py-1"
-                      >
-                        {filtered.map((cmd, index) => {
-                          const isSelected = index === activeIndex;
-                          return (
-                            <CommandItem
-                              key={cmd.name}
-                              value={cmd.name}
-                              onSelect={() => handleSelect(cmd)}
-                              onMouseEnter={() => setActiveIndex(index)}
-                              className={cn(
-                                "py-1 pl-6 flex w-full items-center gap-2 cursor-pointer hover:bg-accent hover:text-accent-foreground",
-                                isSelected && "bg-accent text-accent-foreground"
-                              )}
-                              ref={isSelected ? activeItemRef : null}
-                            >
-                              <span className="flex-1 min-w-0 truncate font-mono text-xs">
-                                /
-                                {TextHighlighter.highlight2(
-                                  cmd.name,
-                                  cmd.matchStart,
-                                  cmd.matchStart >= 0 ? cmd.matchStart + cmd.matchLength : -1,
-                                  "text-yellow-500"
-                                )}
-                              </span>
-                            </CommandItem>
-                          );
-                        })}
-                      </CommandGroup>
+            <AgentCommandBrowserPanel
+              ref={commandBrowserRef}
+              items={filtered.map((cmd) => ({
+                key: cmd.name,
+                label: (
+                  <>
+                    /
+                    {TextHighlighter.highlight2(
+                      cmd.name,
+                      cmd.matchStart,
+                      cmd.matchStart >= 0 ? cmd.matchStart + cmd.matchLength : -1,
+                      "text-yellow-500"
                     )}
-                  </CommandList>
-                </Command>
-              </div>
-
-              {description && (
-                <div
-                  data-panel="right"
-                  className="w-[350px] overflow-y-auto overflow-x-hidden p-2 bg-popover border border-l-0 shadow-md rounded-md rounded-l-none"
-                >
-                  {description}
-                </div>
-              )}
-            </div>
+                  </>
+                ),
+                description: cmd.description,
+              }))}
+              onSelectItem={(item) => {
+                const selected = filtered.find((cmd) => cmd.name === item.key);
+                if (selected) {
+                  handleSelect(selected);
+                }
+              }}
+            />
           </PopoverContent>
         </Popover>
       );

@@ -1,8 +1,9 @@
 ---
-name: optimize-clickhouse-queries
+name: optimize-clickhouse-sql
 description: Optimize slow queries, analyze SQL performance, and collect evidence for expensive workloads.
 metadata:
   author: System
+  show-in-sql-editor-quick-action: true
 ---
 
 # SQL Optimization Skill
