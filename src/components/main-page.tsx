@@ -675,13 +675,11 @@ export function MainPage() {
       (!connection || connection.name !== pendingConfig.name || !isConnectionAvailable));
   if (showInitializer) {
     return (
-      <AgentCommandProvider>
-        <div className="relative h-full w-full flex min-w-0 overflow-hidden">
-          <div className="fixed inset-0 z-50 bg-background/95 flex items-start justify-center pt-[20vh] px-8 pb-8">
-            <ConnectionInitializer config={pendingConfig || null} onReady={handleReady} />
-          </div>
+      <div className="relative h-full w-full flex min-w-0 overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-background/95 flex items-start justify-center pt-[20vh] px-8 pb-8">
+          <ConnectionInitializer config={pendingConfig || null} onReady={handleReady} />
         </div>
-      </AgentCommandProvider>
+      </div>
     );
   }
 
@@ -692,11 +690,7 @@ export function MainPage() {
   // 4. No active connection (fresh state)
   const showWizard = isInitialized && sessionStatus !== "loading" && !pendingConfig && !connection;
   if (showWizard) {
-    return (
-      <AgentCommandProvider>
-        <ConnectionWizard />
-      </AgentCommandProvider>
-    );
+    return <ConnectionWizard />;
   }
 
   // Mobile: one view at a time — chat full-screen when open, else tabs + schema in a sheet

@@ -167,7 +167,7 @@ export function QueryControl({ onOpenHistory }: { onOpenHistory: () => void }) {
   const isRunPrimaryDisabled = isSqlExecuting || (!hasSelectedText && !hasEditorText);
   const isRunBatchDisabled = isSqlExecuting || !hasEditorText;
   const isExplainDisabled = isSqlExecuting || !hasEditorText;
-  const isSqlEditorActionDisabled = isSqlExecuting || (hasSqlEditorCommands && !hasSqlInput);
+  const isSqlEditorActionDisabled = isSqlExecuting;
   const isSaveDisabled = isSqlExecuting || !hasEditorText;
 
   return (
