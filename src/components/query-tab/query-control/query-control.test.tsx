@@ -415,6 +415,7 @@ describe("QueryControl", () => {
       description: "Review SQL.",
       skillId: "review-sql",
       template: "Use review-sql: $ARGUMENTS",
+      showInSqlEditorQuickAction: false,
     });
 
     await act(async () => {
