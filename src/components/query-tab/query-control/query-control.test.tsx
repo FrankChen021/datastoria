@@ -68,8 +68,8 @@ vi.mock("@/components/chat/view/use-chat-panel", () => ({
   }),
 }));
 
-vi.mock("@/components/chat/agent-command-browser-panel", () => {
-  const React = require("react") as typeof import("react");
+vi.mock("@/components/chat/agent-command-browser-panel", async () => {
+  const React = await vi.importActual<typeof import("react")>("react");
 
   return {
     AgentCommandBrowserPanel: ({
