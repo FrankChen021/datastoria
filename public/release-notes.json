@@ -1,5 +1,89 @@
 [
   {
+    "id": "476b969",
+    "date": "2026-04-13T16:11:53.081Z",
+    "notes": [
+      {
+        "text": "RCA template runtime and high part count workflow",
+        "pr": 188,
+        "type": "highlight",
+        "merged_at": "2026-04-09T15:02:58Z"
+      },
+      {
+        "text": "Improve frontend performance, accessibility, and theming consistency",
+        "pr": 179,
+        "type": "feature",
+        "merged_at": "2026-04-07T13:25:12Z"
+      },
+      {
+        "text": "Bump lodash from 4.17.23 to 4.18.1 in the npm_and_yarn group across 1 directory",
+        "pr": 181,
+        "type": "feature",
+        "merged_at": "2026-04-08T12:39:56Z"
+      },
+      {
+        "text": "Improve connection template selector interactions",
+        "pr": 182,
+        "type": "feature",
+        "merged_at": "2026-04-08T12:40:07Z"
+      },
+      {
+        "text": "Respect inline error explain language and sanitize response tag",
+        "pr": 185,
+        "type": "feature",
+        "merged_at": "2026-04-08T12:55:11Z"
+      },
+      {
+        "text": "improve default questions layout and filter by skill availability",
+        "pr": 187,
+        "type": "feature",
+        "merged_at": "2026-04-09T12:21:57Z"
+      },
+      {
+        "text": "Add Vizlayer fullscreen and SVG download controls",
+        "pr": 191,
+        "type": "feature",
+        "merged_at": "2026-04-12T13:45:56Z"
+      },
+      {
+        "text": "Refine chat sessions sidebar and sample question layout",
+        "pr": 192,
+        "type": "feature",
+        "merged_at": "2026-04-13T13:27:04Z"
+      },
+      {
+        "text": "Generalize SQL editor AI actions",
+        "pr": 193,
+        "type": "feature",
+        "merged_at": "2026-04-13T15:57:19Z"
+      },
+      {
+        "text": "Fix Dependabot alerts for vite and lodash-es",
+        "pr": 180,
+        "type": "fix",
+        "merged_at": "2026-04-07T14:06:05Z"
+      },
+      {
+        "text": "Fix chat input IME composition handling",
+        "pr": 184,
+        "type": "fix",
+        "merged_at": "2026-04-08T12:40:57Z"
+      },
+      {
+        "text": "Avoid text input for options only",
+        "pr": 183,
+        "type": "fix",
+        "merged_at": "2026-04-08T12:54:53Z"
+      },
+      {
+        "text": "Fix review endpoint parsing for fenced JSON output",
+        "pr": 189,
+        "type": "fix",
+        "merged_at": "2026-04-09T15:15:51Z"
+      }
+    ]
+  },
+  {
     "id": "1f00803",
     "date": "2026-04-06T14:26:22.320Z",
     "notes": [
