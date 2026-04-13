@@ -19,7 +19,7 @@ import {
   type ReactNode,
 } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { AgentCommandProvider, useAgentCommands } from "../agent-command-context";
+import { useAgentCommands } from "../agent-command-context";
 import { ChatActionProvider, type UserActionInput } from "../chat-action-context";
 import { ChatContext, getDatabaseContextFromConnection } from "../chat-context";
 import { ChatFactory } from "../chat-factory";
@@ -351,37 +351,35 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
       }
       chatId={chat.id}
     >
-      <AgentCommandProvider>
-        <div className="flex flex-col h-full bg-background overflow-hidden relative">
-          {isEmpty ? (
-            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 flex flex-col">
-              <div className="flex flex-col items-center w-full max-w-full my-auto pb-8 pt-4">
-                <div className="mb-0">
-                  <AppLogo width={64} height={64} />
-                </div>
-                <p className="text-xl text-center font-medium mb-0 mt-0">{greeting}</p>
-                <SampleQuestions onQuestionClick={handleQuestionClick} />
+      <div className="flex flex-col h-full bg-background overflow-hidden relative">
+        {isEmpty ? (
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 flex flex-col">
+            <div className="flex flex-col items-center w-full max-w-full my-auto pb-8 pt-4">
+              <div className="mb-0">
+                <AppLogo width={64} height={64} />
               </div>
+              <p className="text-xl text-center font-medium mb-0 mt-0">{greeting}</p>
+              <SampleQuestions onQuestionClick={handleQuestionClick} />
             </div>
-          ) : (
-            <ChatMessageList
-              messages={messages as AppUIMessage[]}
-              isRunning={isRunning}
-              error={error || null}
-            />
-          )}
-          <ChatInput
-            ref={chatInputRef}
-            onSubmit={handleSubmit}
-            onStop={handleStop}
+          </div>
+        ) : (
+          <ChatMessageList
+            messages={messages as AppUIMessage[]}
             isRunning={isRunning}
-            hasMessages={messages.length > 0}
-            tokenUsage={tokenUsage}
-            onNewChat={onNewChat}
-            externalInput={promptInput}
+            error={error || null}
           />
-        </div>
-      </AgentCommandProvider>
+        )}
+        <ChatInput
+          ref={chatInputRef}
+          onSubmit={handleSubmit}
+          onStop={handleStop}
+          isRunning={isRunning}
+          hasMessages={messages.length > 0}
+          tokenUsage={tokenUsage}
+          onNewChat={onNewChat}
+          externalInput={promptInput}
+        />
+      </div>
     </ChatActionProvider>
   );
 });

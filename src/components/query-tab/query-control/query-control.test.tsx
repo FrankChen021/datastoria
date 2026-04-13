@@ -145,19 +145,31 @@ describe("QueryControl", () => {
     container.remove();
   });
 
-  it("renders a direct button when exactly one sql editor command is available", async () => {
+  it("renders a single popover trigger when exactly one sql editor command is available", async () => {
     await act(async () => {
       root.render(<QueryControl onOpenHistory={vi.fn()} />);
     });
 
-    const button = Array.from(container.querySelectorAll("button")).find((candidate) =>
-      candidate.textContent?.includes("review-sql")
+    const trigger = Array.from(container.querySelectorAll("button")).find((candidate) =>
+      candidate.textContent?.includes("AI Actions")
     );
 
-    expect(button).toBeTruthy();
+    expect(trigger).toBeTruthy();
 
     await act(async () => {
-      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      trigger?.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+      trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const reviewItem = Array.from(document.querySelectorAll("[cmdk-item]")).find((candidate) =>
+      candidate.textContent?.includes("/review-sql")
+    );
+    expect(reviewItem).toBeTruthy();
+    const items = Array.from(document.querySelectorAll("[cmdk-item]"));
+    expect(items.at(-1)?.textContent ?? "").toContain("Toggle Agent");
+
+    await act(async () => {
+      reviewItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(postMessageMock).toHaveBeenCalledWith(
@@ -258,12 +270,21 @@ describe("QueryControl", () => {
       root.render(<QueryControl onOpenHistory={vi.fn()} />);
     });
 
-    const button = Array.from(container.querySelectorAll("button")).find((candidate) =>
-      candidate.textContent?.includes("review-sql")
+    const trigger = Array.from(container.querySelectorAll("button")).find((candidate) =>
+      candidate.textContent?.includes("AI Actions")
     );
 
     await act(async () => {
-      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      trigger?.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+      trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const reviewItem = Array.from(document.querySelectorAll("[cmdk-item]")).find((candidate) =>
+      candidate.textContent?.includes("/review-sql")
+    );
+
+    await act(async () => {
+      reviewItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(postMessageMock).not.toHaveBeenCalled();
@@ -281,12 +302,21 @@ describe("QueryControl", () => {
       root.render(<QueryControl onOpenHistory={vi.fn()} />);
     });
 
-    const button = Array.from(container.querySelectorAll("button")).find((candidate) =>
-      candidate.textContent?.includes("review-sql")
+    const trigger = Array.from(container.querySelectorAll("button")).find((candidate) =>
+      candidate.textContent?.includes("AI Actions")
     );
 
     await act(async () => {
-      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      trigger?.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+      trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const reviewItem = Array.from(document.querySelectorAll("[cmdk-item]")).find((candidate) =>
+      candidate.textContent?.includes("/review-sql")
+    );
+
+    await act(async () => {
+      reviewItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(postMessageMock).not.toHaveBeenCalled();
@@ -304,12 +334,21 @@ describe("QueryControl", () => {
       root.render(<QueryControl onOpenHistory={vi.fn()} />);
     });
 
-    const button = Array.from(container.querySelectorAll("button")).find((candidate) =>
-      candidate.textContent?.includes("review-sql")
+    const trigger = Array.from(container.querySelectorAll("button")).find((candidate) =>
+      candidate.textContent?.includes("AI Actions")
     );
 
     await act(async () => {
-      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      trigger?.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+      trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const reviewItem = Array.from(document.querySelectorAll("[cmdk-item]")).find((candidate) =>
+      candidate.textContent?.includes("/review-sql")
+    );
+
+    await act(async () => {
+      reviewItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(postMessageMock).toHaveBeenCalledWith(
@@ -322,7 +361,7 @@ describe("QueryControl", () => {
     );
   });
 
-  it("does not show commands without a sql editor quick action flag", async () => {
+  it("shows Toggle Agent even when no sql editor quick action commands are available", async () => {
     mockCommands.splice(0, mockCommands.length, {
       name: "review-sql",
       description: "Review SQL.",
@@ -334,15 +373,25 @@ describe("QueryControl", () => {
       root.render(<QueryControl onOpenHistory={vi.fn()} />);
     });
 
-    expect(
-      Array.from(container.querySelectorAll("button")).find((candidate) =>
-        candidate.textContent?.includes("review-sql")
-      )
-    ).toBeFalsy();
-    expect(
-      Array.from(container.querySelectorAll("button")).find((candidate) =>
-        candidate.textContent?.includes("AI Actions")
-      )
-    ).toBeFalsy();
+    const trigger = Array.from(container.querySelectorAll("button")).find((candidate) =>
+      candidate.textContent?.includes("AI Actions")
+    );
+    expect(trigger).toBeTruthy();
+
+    await act(async () => {
+      trigger?.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+      trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const items = Array.from(document.querySelectorAll("[cmdk-item]"));
+    expect(items).toHaveLength(1);
+    expect(items[0]?.textContent ?? "").toContain("Toggle Agent");
+
+    await act(async () => {
+      items[0]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(setDisplayModeMock).toHaveBeenCalledWith("panel");
+    expect(postMessageMock).not.toHaveBeenCalled();
   });
 });

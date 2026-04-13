@@ -1,4 +1,3 @@
-import { AgentCommandProvider } from "@/components/chat/agent-command-context";
 import { useConnection } from "@/components/connection/connection-context";
 import { QueryListView } from "@/components/query-tab/query-list-view";
 import { TabManager } from "@/components/tab-manager";
@@ -177,8 +176,6 @@ const QueryTabContent = ({ initialQuery, initialMode, initialExecute, active }: 
 
 export const QueryTab = memo((props: QueryTabProps) => (
   <QueryExecutionProvider>
-    <AgentCommandProvider>
-      <QueryTabContent {...props} />
-    </AgentCommandProvider>
+    <QueryTabContent {...props} />
   </QueryExecutionProvider>
 ));

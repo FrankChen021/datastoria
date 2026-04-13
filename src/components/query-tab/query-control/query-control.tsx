@@ -159,6 +159,7 @@ export function QueryControl({ onOpenHistory }: { onOpenHistory: () => void }) {
     ],
     [sqlEditorCommands]
   );
+  const hasSqlEditorCommands = sqlEditorCommands.length > 0;
 
   const hasEditorText = text.trim().length > 0;
   const hasSelectedText = selectedText.trim().length > 0;
@@ -166,7 +167,7 @@ export function QueryControl({ onOpenHistory }: { onOpenHistory: () => void }) {
   const isRunPrimaryDisabled = isSqlExecuting || (!hasSelectedText && !hasEditorText);
   const isRunBatchDisabled = isSqlExecuting || !hasEditorText;
   const isExplainDisabled = isSqlExecuting || !hasEditorText;
-  const isSqlEditorActionDisabled = isSqlExecuting || !hasSqlInput;
+  const isSqlEditorActionDisabled = isSqlExecuting || (hasSqlEditorCommands && !hasSqlInput);
   const isSaveDisabled = isSqlExecuting || !hasEditorText;
 
   return (
@@ -229,61 +230,45 @@ export function QueryControl({ onOpenHistory }: { onOpenHistory: () => void }) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {sqlEditorCommands.length > 0 && (
-          <>
-            <Separator orientation="vertical" className="h-4" />
-
-            {sqlEditorCommands.length === 1 ? (
+        <>
+          <Separator orientation="vertical" className="h-4" />
+          <Popover open={isAgentActionsOpen} onOpenChange={setIsAgentActionsOpen}>
+            <PopoverTrigger asChild>
               <Button
                 disabled={isSqlEditorActionDisabled}
                 size="sm"
                 variant="ghost"
                 className="h-6 gap-1 px-2 text-xs rounded-sm"
-                onClick={() => handleSqlEditorCommand(sqlEditorCommands[0])}
               >
                 <Sparkles className="h-3 w-3" />
-                {sqlEditorCommands[0].name}
+                AI Actions
+                <ChevronDown className="h-3 w-3" />
               </Button>
-            ) : (
-              <Popover open={isAgentActionsOpen} onOpenChange={setIsAgentActionsOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    disabled={isSqlEditorActionDisabled}
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 gap-1 px-2 text-xs rounded-sm"
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    AI Actions
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  align="start"
-                  className="p-0 w-auto flex items-stretch z-50 bg-transparent border-0 pointer-events-auto"
-                  onOpenAutoFocus={(e) => e.preventDefault()}
-                >
-                  <AgentCommandBrowserPanel
-                    items={sqlEditorActionItems}
-                    onSelectItem={(item) => {
-                      setIsAgentActionsOpen(false);
-                      if (item.key === "__toggle-agent__") {
-                        handleOpenAgent();
-                        return;
-                      }
-                      const command = sqlEditorCommands.find(
-                        (candidate) => candidate.name === item.key
-                      );
-                      if (command) {
-                        handleSqlEditorCommand(command);
-                      }
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
-          </>
-        )}
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="p-0 w-auto flex items-stretch z-50 bg-transparent border-0 pointer-events-auto"
+              onOpenAutoFocus={(e) => e.preventDefault()}
+            >
+              <AgentCommandBrowserPanel
+                items={sqlEditorActionItems}
+                onSelectItem={(item) => {
+                  setIsAgentActionsOpen(false);
+                  if (item.key === "__toggle-agent__") {
+                    handleOpenAgent();
+                    return;
+                  }
+                  const command = sqlEditorCommands.find(
+                    (candidate) => candidate.name === item.key
+                  );
+                  if (command) {
+                    handleSqlEditorCommand(command);
+                  }
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+        </>
 
         <Separator orientation="vertical" className="h-4" />
 
