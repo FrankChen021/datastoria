@@ -198,6 +198,9 @@ export class DiskSkillProvider implements SkillProvider {
       const metaName = typeof data.name === "string" ? data.name : dirName;
       const disableSlashCommand =
         data["disable-slash-command"] === true || metadataBlock["disable-slash-command"] === true;
+      const showInSqlEditorQuickAction =
+        data["show-in-sql-editor-quick-action"] === true ||
+        metadataBlock["show-in-sql-editor-quick-action"] === true;
       const requiredTools = parseRequiredTools(metadataBlock.tools);
       const meta: SkillMetadata = {
         name: metaName,
@@ -235,6 +238,7 @@ export class DiskSkillProvider implements SkillProvider {
         summary: this.extractSummary(parsed.content),
         hasResources: skillResources.paths.length > 0,
         disableSlashCommand,
+        showInSqlEditorQuickAction,
         requiredTools,
       };
       catalog.set(catalogItem.id, catalogItem);

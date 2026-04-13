@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import type { LanguageModelUsage } from "ai";
 import { ImagePlus, MessageSquarePlus, Plus, Send, Square, X } from "lucide-react";
 import * as React from "react";
-import { useChatCommands } from "../command-context";
+import { useAgentCommands } from "../agent-command-context";
 import { ChatTokenStatus } from "../message/chat-token-status";
 import { ChatInputCommands, type ChatInputCommandsType } from "./chat-input-commands";
 import {
@@ -418,7 +418,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const [suggestionStartPos, setSuggestionStartPos] = React.useState(0);
 
     const { connection } = useConnection();
-    const { commands, commandsByName } = useChatCommands();
+    const { commands, commandsByName } = useAgentCommands();
     const { selectedModel } = useModelConfig();
     const isResizable = resizedHeight !== null;
     const leadingCommand = React.useMemo(() => getLeadingCommand(input), [input]);

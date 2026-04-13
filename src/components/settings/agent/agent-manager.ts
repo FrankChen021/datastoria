@@ -11,8 +11,8 @@ export const DEFAULT_AUTO_EXPLAIN_BLACKLIST = [
   "194", // REQUIRED_PASSWORD
 ];
 
-/** BCP-47 tags for inline error AI explanations only (default: English). */
-export const AUTO_EXPLAIN_LANGUAGE_OPTIONS = [
+/** BCP-47 tags supported by AI response-language settings (default: English). */
+export const AI_RESPONSE_LANGUAGE_OPTIONS = [
   { value: "en", label: "English" },
   { value: "zh-CN", label: "简体中文" },
   { value: "zh-TW", label: "繁體中文" },
@@ -23,17 +23,21 @@ export const AUTO_EXPLAIN_LANGUAGE_OPTIONS = [
   { value: "de", label: "Deutsch" },
 ] as const;
 
-export type AutoExplainLanguage = (typeof AUTO_EXPLAIN_LANGUAGE_OPTIONS)[number]["value"];
+export type ResponseLanguage = (typeof AI_RESPONSE_LANGUAGE_OPTIONS)[number]["value"];
+export type AIResponseLanguage = ResponseLanguage;
 
-export const DEFAULT_AUTO_EXPLAIN_LANGUAGE: AutoExplainLanguage = "en";
+export const DEFAULT_AI_RESPONSE_LANGUAGE: AIResponseLanguage = "en";
 
-export function normalizeAutoExplainLanguage(raw: string | undefined): AutoExplainLanguage {
+export function normalizeAIResponseLanguage(raw: string | undefined): AIResponseLanguage {
   if (!raw) {
-    return DEFAULT_AUTO_EXPLAIN_LANGUAGE;
+    return DEFAULT_AI_RESPONSE_LANGUAGE;
   }
-  const option = AUTO_EXPLAIN_LANGUAGE_OPTIONS.find((o) => o.value === raw);
-  return option ? option.value : DEFAULT_AUTO_EXPLAIN_LANGUAGE;
+  const option = AI_RESPONSE_LANGUAGE_OPTIONS.find((o) => o.value === raw);
+  return option ? option.value : DEFAULT_AI_RESPONSE_LANGUAGE;
 }
+
+export const normalizeAutoExplainLanguage = normalizeAIResponseLanguage;
+export const normalizeSqlReviewLanguage = normalizeAIResponseLanguage;
 
 export type AgentConfiguration = {
   mode: AgentMode;
@@ -43,8 +47,12 @@ export type AgentConfiguration = {
   autoExplainClickHouseErrors?: boolean;
   /** ClickHouse error codes that should never auto-trigger inline explanation. */
   autoExplainBlacklist?: string[];
-  /** Language for automatic inline error explanations only (BCP-47). Default English. */
-  autoExplainLanguage?: AutoExplainLanguage;
+  /** Language for AI responses in SQL editor actions (BCP-47). Default English. */
+  aiResponseLanguage?: AIResponseLanguage;
+  /** @deprecated use aiResponseLanguage */
+  autoExplainLanguage?: ResponseLanguage;
+  /** @deprecated use aiResponseLanguage */
+  sqlReviewLanguage?: ResponseLanguage;
 };
 
 export class AgentConfigurationManager {
@@ -57,21 +65,34 @@ export class AgentConfigurationManager {
   public static getConfiguration(): AgentConfiguration {
     if (!this.configuration) {
       const storage = this.getStorage();
-      this.configuration = storage.getAsJSON<AgentConfiguration>(() => {
-        return {
-          mode: "v2",
-          pruneValidateSql: true,
-          autoExplainClickHouseErrors: true,
-          autoExplainBlacklist: DEFAULT_AUTO_EXPLAIN_BLACKLIST,
-          autoExplainLanguage: DEFAULT_AUTO_EXPLAIN_LANGUAGE,
-        };
-      });
+      const stored = storage.getAsJSON<AgentConfiguration>(() => ({
+        mode: "v2",
+        pruneValidateSql: true,
+        autoExplainClickHouseErrors: true,
+        autoExplainBlacklist: DEFAULT_AUTO_EXPLAIN_BLACKLIST,
+        aiResponseLanguage: DEFAULT_AI_RESPONSE_LANGUAGE,
+      }));
+      this.configuration = {
+        ...stored,
+        aiResponseLanguage: normalizeAIResponseLanguage(
+          stored.aiResponseLanguage ?? stored.sqlReviewLanguage ?? stored.autoExplainLanguage
+        ),
+      };
     }
     return this.configuration!;
   }
 
   public static setConfiguration(cfg: AgentConfiguration) {
-    this.configuration = cfg;
-    this.getStorage().setJSON(cfg);
+    const {
+      autoExplainLanguage: _legacyAutoExplain,
+      sqlReviewLanguage: _legacySqlReview,
+      ...rest
+    } = cfg;
+    const normalized = {
+      ...rest,
+      aiResponseLanguage: normalizeAIResponseLanguage(cfg.aiResponseLanguage),
+    };
+    this.configuration = normalized;
+    this.getStorage().setJSON(normalized);
   }
 }

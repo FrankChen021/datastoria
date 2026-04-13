@@ -28,8 +28,8 @@ Use the available skill names and descriptions below to choose the best matching
 
 Usage:
   - Pass skill name(s) in the 'names' array.
-  - Example: { "names": ["optimize-clickhouse-queries"] }
-  - Example: { "names": ["optimize-clickhouse-queries", "visualization"] }
+  - Example: { "names": ["optimize-clickhouse-sql"] }
+  - Example: { "names": ["optimize-clickhouse-sql", "visualization"] }
 
 After loading a manual, if it tells you to "read rules/...md" or other reference files, use the separate 'skill_resource' tool to load them. Do NOT call this tool again for the same skill.
 

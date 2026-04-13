@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import { useChatCommands } from "../command-context";
+import { useAgentCommands } from "../agent-command-context";
 import { getLeadingCommand } from "../input/command-utils";
 import { TABLE_MENTION_REGEX } from "../input/mention-utils";
 import { MessageMarkdown } from "./message-markdown";
@@ -12,7 +12,7 @@ import { SkillLink } from "./skill-link";
  * But some places given markdown text, like using ``` code blocks, in this case, we should not do the replacement.
  */
 export const MessageUser = memo(function MessageUser({ text }: { text: string }) {
-  const { commandsByName } = useChatCommands();
+  const { commandsByName } = useAgentCommands();
   const matchedCommand = text ? getLeadingCommand(text) : null;
   const command = matchedCommand ? commandsByName.get(matchedCommand.commandName) : null;
 

@@ -4,19 +4,19 @@ import type { CommandDetail } from "@/lib/ai/commands/command-manager";
 import { BasePath } from "@/lib/base-path";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-interface CommandContextValue {
+interface AgentCommandContextValue {
   commands: CommandDetail[];
   commandsByName: Map<string, CommandDetail>;
   loading: boolean;
 }
 
-const CommandContext = createContext<CommandContextValue>({
+const AgentCommandContext = createContext<AgentCommandContextValue>({
   commands: [],
   commandsByName: new Map<string, CommandDetail>(),
   loading: false,
 });
 
-export function ChatCommandProvider({ children }: { children: React.ReactNode }) {
+export function AgentCommandProvider({ children }: { children: React.ReactNode }) {
   const [commands, setCommands] = useState<CommandDetail[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +48,7 @@ export function ChatCommandProvider({ children }: { children: React.ReactNode })
     };
   }, []);
 
-  const value = useMemo<CommandContextValue>(() => {
+  const value = useMemo<AgentCommandContextValue>(() => {
     return {
       commands,
       commandsByName: new Map(commands.map((command) => [command.name, command])),
@@ -56,9 +56,9 @@ export function ChatCommandProvider({ children }: { children: React.ReactNode })
     };
   }, [commands, loading]);
 
-  return <CommandContext.Provider value={value}>{children}</CommandContext.Provider>;
+  return <AgentCommandContext.Provider value={value}>{children}</AgentCommandContext.Provider>;
 }
 
-export function useChatCommands() {
-  return useContext(CommandContext);
+export function useAgentCommands() {
+  return useContext(AgentCommandContext);
 }

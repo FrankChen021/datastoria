@@ -1,5 +1,6 @@
 "use client";
 
+import type { AgentContext } from "@/lib/ai/chat-types";
 import React, { createContext, useContext, useState } from "react";
 
 export type ChatPanelDisplayMode = "hidden" | "panel" | "tabWidth" | "fullscreen";
@@ -24,8 +25,16 @@ interface ChatPanelContextType {
   newChatRequestNonce: number;
   activeSidebarTab: SidebarTab;
   setActiveSidebarTab: (tab: SidebarTab) => void;
-  postMessage: (text: string, options?: { forceNewChat?: boolean }) => void;
-  pendingCommand: { text: string; timestamp: number; forceNewChat?: boolean } | null;
+  postMessage: (
+    text: string,
+    options?: { forceNewChat?: boolean; agentContext?: Partial<AgentContext> }
+  ) => void;
+  pendingCommand: {
+    text: string;
+    timestamp: number;
+    forceNewChat?: boolean;
+    agentContext?: Partial<AgentContext>;
+  } | null;
   consumeCommand: () => void;
   setInitialInput: (text: string, chatId?: string) => void;
   initialInput: { text: string; chatId?: string } | null;
@@ -92,6 +101,7 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     text: string;
     timestamp: number;
     forceNewChat?: boolean;
+    agentContext?: Partial<AgentContext>;
   } | null>(null);
   const [initialInput, setInitialInputState] = useState<{ text: string; chatId?: string } | null>(
     null
@@ -137,8 +147,16 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     setDisplayMode("tabWidth");
   };
 
-  const postMessage = (text: string, options?: { forceNewChat?: boolean }) => {
-    setPendingCommand({ text, timestamp: Date.now(), forceNewChat: options?.forceNewChat });
+  const postMessage = (
+    text: string,
+    options?: { forceNewChat?: boolean; agentContext?: Partial<AgentContext> }
+  ) => {
+    setPendingCommand({
+      text,
+      timestamp: Date.now(),
+      forceNewChat: options?.forceNewChat,
+      agentContext: options?.agentContext,
+    });
     setDisplayMode((prev) => (prev === "hidden" ? "panel" : prev));
   };
 

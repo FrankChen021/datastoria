@@ -19,10 +19,10 @@ import {
   type ReactNode,
 } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { AgentCommandProvider, useAgentCommands } from "../agent-command-context";
 import { ChatActionProvider, type UserActionInput } from "../chat-action-context";
 import { ChatContext, getDatabaseContextFromConnection } from "../chat-context";
 import { ChatFactory } from "../chat-factory";
-import { ChatCommandProvider, useChatCommands } from "../command-context";
 import {
   ChatInput,
   type ChatInputHandle,
@@ -119,7 +119,7 @@ export function SampleQuestions({
 }: {
   onQuestionClick: (question: Question) => void;
 }) {
-  const { commands, loading } = useChatCommands();
+  const { commands, loading } = useAgentCommands();
   const availableSkillIds = useMemo(() => {
     return new Set(commands.map((command) => command.skillId));
   }, [commands]);
@@ -351,7 +351,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
       }
       chatId={chat.id}
     >
-      <ChatCommandProvider>
+      <AgentCommandProvider>
         <div className="flex flex-col h-full bg-background overflow-hidden relative">
           {isEmpty ? (
             <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 flex flex-col">
@@ -381,7 +381,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
             externalInput={promptInput}
           />
         </div>
-      </ChatCommandProvider>
+      </AgentCommandProvider>
     </ChatActionProvider>
   );
 });

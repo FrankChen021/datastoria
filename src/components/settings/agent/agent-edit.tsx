@@ -1,11 +1,11 @@
 import {
   AgentConfigurationManager,
-  AUTO_EXPLAIN_LANGUAGE_OPTIONS,
+  AI_RESPONSE_LANGUAGE_OPTIONS,
   DEFAULT_AUTO_EXPLAIN_BLACKLIST,
-  normalizeAutoExplainLanguage,
+  normalizeAIResponseLanguage,
   type AgentConfiguration,
   type AgentMode,
-  type AutoExplainLanguage,
+  type AIResponseLanguage,
 } from "@/components/settings/agent/agent-manager";
 import { Button } from "@/components/ui/button";
 import {
@@ -211,17 +211,20 @@ export function AgentEdit() {
       ...configuration,
       autoExplainClickHouseErrors: checked,
       autoExplainBlacklist: configuration.autoExplainBlacklist ?? DEFAULT_AUTO_EXPLAIN_BLACKLIST,
-      autoExplainLanguage:
-        configuration.autoExplainLanguage ?? normalizeAutoExplainLanguage(undefined),
+      aiResponseLanguage:
+        configuration.aiResponseLanguage ??
+        normalizeAIResponseLanguage(
+          configuration.sqlReviewLanguage ?? configuration.autoExplainLanguage
+        ),
     };
     setConfiguration(newConfig);
     AgentConfigurationManager.setConfiguration(newConfig);
   };
 
-  const handleAutoExplainLanguageChange = (value: string) => {
+  const handleAIResponseLanguageChange = (value: string) => {
     const newConfig = {
       ...configuration,
-      autoExplainLanguage: value as AutoExplainLanguage,
+      aiResponseLanguage: value as AIResponseLanguage,
     };
     setConfiguration(newConfig);
     AgentConfigurationManager.setConfiguration(newConfig);
@@ -332,6 +335,52 @@ export function AgentEdit() {
 
           <TableRow className="h-12 hover:bg-transparent">
             <TableCell className="px-0 pl-4 py-1 align-middle">
+              <Label>AI Response Language</Label>
+            </TableCell>
+            <TableCell className="px-0 py-1 align-middle">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-9 w-[300px] justify-between">
+                    {
+                      AI_RESPONSE_LANGUAGE_OPTIONS.find(
+                        (o) =>
+                          o.value ===
+                          normalizeAIResponseLanguage(
+                            configuration.aiResponseLanguage ??
+                              configuration.sqlReviewLanguage ??
+                              configuration.autoExplainLanguage
+                          )
+                      )?.label
+                    }
+                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent container={dropdownContainer} className="w-[300px] z-[10000]">
+                  <DropdownMenuRadioGroup
+                    value={normalizeAIResponseLanguage(
+                      configuration.aiResponseLanguage ??
+                        configuration.sqlReviewLanguage ??
+                        configuration.autoExplainLanguage
+                    )}
+                    onValueChange={handleAIResponseLanguageChange}
+                  >
+                    {AI_RESPONSE_LANGUAGE_OPTIONS.map((opt) => (
+                      <DropdownMenuRadioItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+            <TableCell className="px-0 py-1 align-middle text-sm text-muted-foreground">
+              Controls the response language for AI actions in the SQL editor, including auto
+              explain and other quick actions.
+            </TableCell>
+          </TableRow>
+
+          <TableRow className="h-12 hover:bg-transparent">
+            <TableCell className="px-0 pl-4 py-1 align-middle">
               <Label>Auto Explain Errors</Label>
             </TableCell>
             <TableCell className="px-0 py-1 align-middle">
@@ -344,44 +393,6 @@ export function AgentEdit() {
             </TableCell>
             <TableCell className="px-0 py-1 align-middle text-sm text-muted-foreground">
               Automatically ask AI to explain eligible ClickHouse errors inline in query results.
-            </TableCell>
-          </TableRow>
-
-          <TableRow className="h-12 hover:bg-transparent">
-            <TableCell className="px-0 pl-4 py-1 align-middle">
-              <Label className="pl-6">Explanation Language</Label>
-            </TableCell>
-            <TableCell className="px-0 py-1 align-middle">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="h-9 w-[300px] justify-between">
-                    {
-                      AUTO_EXPLAIN_LANGUAGE_OPTIONS.find(
-                        (o) =>
-                          o.value ===
-                          normalizeAutoExplainLanguage(configuration.autoExplainLanguage)
-                      )?.label
-                    }
-                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent container={dropdownContainer} className="w-[300px] z-[10000]">
-                  <DropdownMenuRadioGroup
-                    value={normalizeAutoExplainLanguage(configuration.autoExplainLanguage)}
-                    onValueChange={handleAutoExplainLanguageChange}
-                  >
-                    {AUTO_EXPLAIN_LANGUAGE_OPTIONS.map((opt) => (
-                      <DropdownMenuRadioItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </TableCell>
-            <TableCell className="px-0 py-1 align-middle text-sm text-muted-foreground">
-              Language for automatic inline error explanations only. Does not change the main AI
-              chat.
             </TableCell>
           </TableRow>
 

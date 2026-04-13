@@ -33,6 +33,7 @@ interface ChatHeaderProps {
 
 type LoadChatOptions = {
   isNewSession?: boolean;
+  agentContext?: Partial<import("@/lib/ai/chat-types").AgentContext>;
 };
 
 function sanitizeFileName(input: string): string {
@@ -156,9 +157,14 @@ const ChatHeader = React.memo(
     }, []);
 
     return (
-      <div className="h-9 border-b flex items-center justify-between px-2 shrink-0 bg-background z-10">
-        <h2 className="text-sm font-semibold">{title || "Work with AI"}</h2>
-        <div className="flex items-center">
+      <div className="h-9 border-b flex items-center gap-2 px-2 shrink-0 bg-background z-10">
+        <h2
+          className="min-w-0 flex-1 truncate text-sm font-semibold"
+          title={title || "Work with AI"}
+        >
+          {title || "Work with AI"}
+        </h2>
+        <div className="flex items-center shrink-0">
           <Button
             variant="ghost"
             size="icon"
@@ -279,6 +285,7 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
         sessionId: chatIdToLoad,
         connection: connection!,
         initialMessages,
+        agentContext: options?.agentContext,
       });
       setChat(newChat);
       chatViewRef.current = null;
@@ -314,6 +321,7 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
         | {
             id: string;
             isNewSession: boolean;
+            agentContext?: Partial<import("@/lib/ai/chat-types").AgentContext>;
           }
         | undefined;
 
@@ -326,21 +334,32 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
         // Check if initialInput has a specific chatId
         loadTarget = { id: initialInput.chatId, isNewSession: false };
       } else if (currentPendingCommand?.forceNewChat) {
-        loadTarget = { id: createDraftSession().id, isNewSession: true };
+        loadTarget = {
+          id: createDraftSession().id,
+          isNewSession: true,
+          agentContext: currentPendingCommand.agentContext,
+        };
         previousChatIdRef.current = null;
         // Mark this command as processed to prevent duplicate handling
         const commandKey = `${currentPendingCommand.timestamp}-${currentPendingCommand.forceNewChat}`;
         processedPendingCommandRef.current = commandKey;
       } else if (currentPendingCommand?.text) {
         // If there's a pending command (but not forcing new chat), create a fresh session.
-        loadTarget = { id: createDraftSession().id, isNewSession: true };
+        loadTarget = {
+          id: createDraftSession().id,
+          isNewSession: true,
+          agentContext: currentPendingCommand.agentContext,
+        };
       } else {
         // Default to a fresh session when opening chat without an existing selection.
         loadTarget = { id: createDraftSession().id, isNewSession: true };
       }
 
       if (loadTarget) {
-        await loadChat(loadTarget.id, { isNewSession: loadTarget.isNewSession });
+        await loadChat(loadTarget.id, {
+          isNewSession: loadTarget.isNewSession,
+          agentContext: loadTarget.agentContext,
+        });
         if (selectedChat?.chatId === loadTarget.id) {
           clearSelectedChat();
         }
@@ -372,9 +391,13 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
       const chatId = createDraftSession().id;
       previousChatIdRef.current = chat.id;
       processedPendingCommandRef.current = commandKey;
-      await loadChat(chatId, { isNewSession: true });
+      await loadChat(chatId, {
+        isNewSession: true,
+        agentContext: pendingCommand.agentContext,
+      });
     })();
   }, [
+    pendingCommand?.agentContext,
     pendingCommand?.forceNewChat,
     pendingCommand?.timestamp,
     connection,

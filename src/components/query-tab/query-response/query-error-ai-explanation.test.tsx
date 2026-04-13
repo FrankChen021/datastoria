@@ -11,7 +11,7 @@ const { createEphemeralMock, sendMessageMock, stopMock, mockAgentSettings } = vi
   createEphemeralMock: vi.fn(),
   sendMessageMock: vi.fn(),
   stopMock: vi.fn(),
-  mockAgentSettings: { autoExplainLanguage: "en" },
+  mockAgentSettings: { aiResponseLanguage: "en" },
 }));
 const testGlobal = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -32,10 +32,10 @@ vi.mock("@/components/connection/connection-context", () => ({
 vi.mock("@/components/settings/agent/agent-manager", () => ({
   AgentConfigurationManager: {
     getConfiguration: () => ({
-      autoExplainLanguage: mockAgentSettings.autoExplainLanguage,
+      aiResponseLanguage: mockAgentSettings.aiResponseLanguage,
     }),
   },
-  normalizeAutoExplainLanguage: (language: string) => language,
+  normalizeAIResponseLanguage: (language: string) => language,
 }));
 
 vi.mock("@/components/chat/chat-factory", () => ({
@@ -69,7 +69,7 @@ describe("QueryErrorAIExplanation", () => {
 
   beforeEach(() => {
     testGlobal.IS_REACT_ACT_ENVIRONMENT = true;
-    mockAgentSettings.autoExplainLanguage = "en";
+    mockAgentSettings.aiResponseLanguage = "en";
     createEphemeralMock.mockReset();
     createEphemeralMock.mockResolvedValue({ id: "chat-1" });
     sendMessageMock.mockReset();
@@ -115,7 +115,7 @@ describe("QueryErrorAIExplanation", () => {
   });
 
   it("passes non-English response language into agentContext", async () => {
-    mockAgentSettings.autoExplainLanguage = "zh-CN";
+    mockAgentSettings.aiResponseLanguage = "zh-CN";
 
     await act(async () => {
       root.render(
