@@ -95,7 +95,7 @@ function SidebarTabHeader() {
             className="shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-full px-3 whitespace-nowrap"
           >
             <MessagesSquare className="h-4 w-4 mr-2" />
-            Chats
+            Sessions
           </TabsTrigger>
         </TabsList>
       </div>

@@ -1,25 +1,12 @@
 "use client";
 
-import { AppLogo } from "@/components/app-logo";
 import { useConnection } from "@/components/connection/connection-context";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { AppUIMessage } from "@/lib/ai/chat-types";
 import "@/lib/number-utils"; // Ensure formatTimeDiff is available
 
 import { useChat, type Chat } from "@ai-sdk/react";
-import { Activity, BarChart, Code2, Globe, Lightbulb, Zap } from "lucide-react";
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { useAgentCommands } from "../agent-command-context";
 import { ChatActionProvider, type UserActionInput } from "../chat-action-context";
 import { ChatContext, getDatabaseContextFromConnection } from "../chat-context";
 import { ChatFactory } from "../chat-factory";
@@ -30,173 +17,8 @@ import {
 } from "../input/chat-input";
 import { getTableContextByMentions } from "../input/mention-utils";
 import { ChatMessageList } from "../message/chat-message-list";
+import { SampleQuestions } from "./sample-questions";
 import { useTokenUsage } from "./use-token-usage";
-
-export type Question = { text: string; autoRun?: boolean; requiredSkillId?: string };
-
-export type QuestionGroupData = {
-  icon: ReactNode;
-  questions: Question[];
-};
-
-const GREETINGS = [
-  "Hello there! How can I help you today?",
-  "Hi there! What would you like to explore?",
-  "Good to see you! Ready to dive into your data?",
-  "Nice to meet you! What can I help you analyze?",
-  "Hello and welcome! Let's explore your ClickHouse cluster and data!",
-];
-
-export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
-  Diagnostics: {
-    icon: <Activity className="w-4 h-4 text-blue-500" />,
-    questions: [
-      { text: "What's the status of the current cluster?", autoRun: true },
-      { text: "Which table has the largest number of parts and what's the cause?", autoRun: true },
-    ],
-  },
-  "Data Exploration": {
-    icon: <Globe className="w-4 h-4 text-green-500" />,
-    questions: [
-      {
-        text: "What're the top 3 SELECT queries that consume the most CPU time over the past 3 hours",
-        autoRun: true,
-      },
-      {
-        text: "How many INSERT queries as well as insert rows, insert bytes were executed in the last 1 hour from @system.query_log?",
-        autoRun: true,
-      },
-    ],
-  },
-  Visualization: {
-    icon: <BarChart className="w-4 h-4 text-purple-500" />,
-    questions: [
-      {
-        text: "Show me the number of SELECT queries by minute from @system.query_log over the past 3 hours in bar chart",
-        autoRun: true,
-      },
-      {
-        text: "Visualize the trend of ProfileEvent_DistributedConnectionFailTry from the @system.metric_log by hour in the last 12 hours",
-        autoRun: true,
-      },
-      {
-        text: "Show the distribution of query kind from the @system.query_log in the last 12 hours in pie chart",
-        autoRun: true,
-      },
-    ],
-  },
-  "SQL Optimization": {
-    icon: <Zap className="w-4 h-4 text-amber-500" />,
-    questions: [
-      { text: "Help me optimize a query", autoRun: true },
-      { text: "Find the top 1 slowest query in the last 1 day and optimize it", autoRun: true },
-    ],
-  },
-  "SQL Generation": {
-    icon: <Code2 className="w-4 h-4 text-green-500" />,
-    questions: [
-      {
-        text: "Generate a SELECT query to get the slowest query from the query log in the last 1 hour",
-        autoRun: true,
-      },
-    ],
-  },
-  General: {
-    icon: <Lightbulb className="w-4 h-4 text-yellow-500" />,
-    questions: [
-      { text: "What are the best practices for partitioning?", autoRun: true },
-      {
-        text: "How does async_insert work from the source code? Will data be lost if the server is restarted when this setting is enabled?",
-        autoRun: true,
-        requiredSkillId: "source-code-inspection",
-      },
-    ],
-  },
-};
-
-export function SampleQuestions({
-  onQuestionClick,
-}: {
-  onQuestionClick: (question: Question) => void;
-}) {
-  const { commands, loading } = useAgentCommands();
-  const availableSkillIds = useMemo(() => {
-    return new Set(commands.map((command) => command.skillId));
-  }, [commands]);
-
-  // Wait until commands are loaded so we don't flash empty groups
-  if (loading) {
-    return (
-      <div className="w-full flex flex-col space-y-3 max-w-3xl mx-auto mt-4">
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="flex flex-col border border-border/50 rounded-xl overflow-hidden bg-card shadow-sm"
-          >
-            <div className="flex items-center space-x-2 px-4 py-2.5 bg-muted/30 border-b border-border/50">
-              <Skeleton className="w-4 h-4 rounded-full" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-1 px-1 py-0">
-              <div className="px-3 py-2.5">
-                <Skeleton className="h-4 w-full mb-1" />
-                <Skeleton className="h-4 w-2/3" />
-              </div>
-              <div className="px-3 py-2.5">
-                <Skeleton className="h-4 w-5/6 mb-1" />
-                <Skeleton className="h-4 w-1/2" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  const filteredGroups = Object.entries(DEFAULT_CHAT_QUESTION_GROUPS)
-    .map(([group, data]) => {
-      const filteredQuestions = data.questions.filter(
-        (q) => !q.requiredSkillId || availableSkillIds.has(q.requiredSkillId)
-      );
-      return [group, { ...data, questions: filteredQuestions }] as const;
-    })
-    .filter(([_, data]) => data.questions.length > 0);
-
-  if (filteredGroups.length === 0) return null;
-
-  return (
-    <div className="w-full flex flex-col space-y-3 max-w-3xl mx-auto mt-4">
-      {filteredGroups.map(([group, { icon, questions }]) => (
-        <div
-          key={group}
-          className="flex flex-col border border-border/50 rounded-xl overflow-hidden bg-card shadow-sm"
-        >
-          <div className="flex items-center space-x-2 px-4 py-2.5 bg-muted/30 border-b border-border/50">
-            {icon}
-            <h3 className="text-sm font-medium text-foreground/80">{group}</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-1 px-1 py-0">
-            {questions.map((question, index) => {
-              const isLastOdd = questions.length % 2 !== 0 && index === questions.length - 1;
-              return (
-                <button
-                  key={question.text}
-                  type="button"
-                  className={`text-left px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors border border-transparent hover:border-border/50 ${
-                    isLastOdd ? "md:col-span-2" : ""
-                  }`}
-                  onClick={() => onQuestionClick(question)}
-                >
-                  {question.text}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 interface ChatViewProps {
   chat: Chat<AppUIMessage>;
@@ -223,8 +45,6 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
 ) {
   const { connection } = useConnection();
   const chatInputRef = useRef<ChatInputHandle | null>(null);
-
-  const [greeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
   const [promptInput, setPromptInput] = useState<string | undefined>(externalInput);
 
   // Update promptInput when externalInput changes
@@ -353,15 +173,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     >
       <div className="flex flex-col h-full bg-background overflow-hidden relative">
         {isEmpty ? (
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 flex flex-col">
-            <div className="flex flex-col items-center w-full max-w-full my-auto pb-8 pt-4">
-              <div className="mb-0">
-                <AppLogo width={64} height={64} />
-              </div>
-              <p className="text-xl text-center font-medium mb-0 mt-0">{greeting}</p>
-              <SampleQuestions onQuestionClick={handleQuestionClick} />
-            </div>
-          </div>
+          <SampleQuestions onQuestionClick={handleQuestionClick} />
         ) : (
           <ChatMessageList
             messages={messages as AppUIMessage[]}
