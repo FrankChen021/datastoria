@@ -27,11 +27,11 @@ export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
     icon: <Globe className="h-4 w-4 text-green-500" />,
     questions: [
       {
-        text: "What're the top 3 SELECT queries that consume the most CPU time over the past 3 hours",
+        text: "What're the top 3 SELECT queries that consume the most CPU time over the past 3 hours?",
         autoRun: true,
       },
       {
-        text: "How many INSERT queries as well as insert rows, insert bytes were executed in the last 1 hour from @system.query_log?",
+        text: "How many INSERT queries, insert rows, insert bytes were executed in the last 1 hour from @system.query_log ?",
         autoRun: true,
       },
     ],
@@ -94,7 +94,7 @@ function SampleQuestionsShell({ greeting, children }: { greeting: string; childr
   return (
     <div
       data-sample-questions-scroll-root="true"
-      className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-4"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-2"
     >
       <div className="mb-0 flex shrink-0 w-full max-w-full flex-col items-center pb-0">
         <div className="mb-0">
@@ -234,7 +234,7 @@ export function SampleQuestions({
   }
 
   const questionCardClassName =
-    "group relative w-full rounded-2xl border border-border/50 bg-card px-4 py-3 text-left shadow-sm transition-colors duration-150 hover:border-primary/40 hover:bg-accent/60 hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-0 active:bg-accent/70";
+    "group relative w-full rounded-xl border border-border/50 bg-card px-3 py-3 text-left shadow-sm transition-colors duration-150 hover:border-primary/40 hover:bg-accent/60 hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-0 active:bg-accent/70";
 
   const renderGroupSection = (
     [group, { icon, questions }]: readonly [string, QuestionGroupData],
@@ -249,7 +249,7 @@ export function SampleQuestions({
       className={cn("space-y-1.5", index > 0 && "pt-1")}
     >
       <div className="space-y-1">
-        <div className="flex items-center gap-2 px-1">
+        <div className="flex items-center gap-1 px-1">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/40">
             {icon}
           </div>
@@ -265,7 +265,7 @@ export function SampleQuestions({
             className={questionCardClassName}
             onClick={() => onQuestionClick(question)}
           >
-            <span className="block text-sm font-medium leading-6 text-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary">
+            <span className="block break-words [overflow-wrap:anywhere] text-sm font-medium leading-6 text-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary">
               {question.text}
             </span>
           </button>
@@ -286,9 +286,9 @@ export function SampleQuestions({
 
   return (
     <SampleQuestionsShell greeting={greeting}>
-      <div className="mx-auto mt-6 grid min-h-0 flex-1 w-full max-w-5xl gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
+      <div className="mx-auto mt-6 grid min-h-0 flex-1 w-full max-w-5xl gap-0 md:grid-cols-[200px_minmax(0,1fr)]">
         <nav className="hidden self-start md:block">
-          <div className="space-y-1 pr-2">
+          <div className="space-y-1">
             {filteredGroups.map(([group, { icon }]) => {
               const isActive = group === activeGroup;
               return (
@@ -335,7 +335,9 @@ export function SampleQuestions({
           className="min-h-0 self-stretch space-y-6 overflow-y-auto md:pr-2"
         >
           {filteredGroups.map(renderGroupSection)}
-          <div aria-hidden="true" className="hidden md:block md:h-[min(18rem,40vh)]" />
+
+          {/* 24rem = 384px padding for scroll */} 
+          <div aria-hidden="true" className="hidden md:block md:h-[24rem]" />
         </div>
       </div>
     </SampleQuestionsShell>
