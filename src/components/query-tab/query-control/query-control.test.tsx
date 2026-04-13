@@ -68,6 +68,54 @@ vi.mock("@/components/chat/view/use-chat-panel", () => ({
   }),
 }));
 
+vi.mock("@/components/chat/agent-command-browser-panel", () => {
+  const React = require("react") as typeof import("react");
+
+  return {
+    AgentCommandBrowserPanel: ({
+      items,
+      onSelectItem,
+    }: {
+      items: Array<{
+        key: string;
+        label: React.ReactNode;
+        description?: string;
+        separatorBefore?: boolean;
+      }>;
+      onSelectItem: (item: {
+        key: string;
+        label: React.ReactNode;
+        description?: string;
+        separatorBefore?: boolean;
+      }) => void;
+    }) => {
+      const [activeIndex, setActiveIndex] = React.useState(0);
+      const activeItem = items[activeIndex];
+
+      return (
+        <div>
+          <div>
+            {items.map((item, index) => (
+              <React.Fragment key={item.key}>
+                {item.separatorBefore ? <div cmdk-separator="" /> : null}
+                <button
+                  type="button"
+                  cmdk-item=""
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={() => onSelectItem(item)}
+                >
+                  {item.label}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
+          {activeItem?.description ? <div>{activeItem.description}</div> : null}
+        </div>
+      );
+    },
+  };
+});
+
 vi.mock("@/components/shared/use-dialog", () => ({
   Dialog: {
     alert: alertDialogMock,
