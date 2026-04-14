@@ -903,6 +903,12 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       }
     }, []);
 
+    const clearHoveredCodeTokenState = React.useCallback(() => {
+      clearHoveredCodeTokenOpenTimeout();
+      clearHoveredCodeTokenCloseTimeout();
+      setHoveredCodeToken(null);
+    }, [clearHoveredCodeTokenCloseTimeout, clearHoveredCodeTokenOpenTimeout]);
+
     const scheduleHoveredCodeTokenClose = React.useCallback(() => {
       clearHoveredCodeTokenCloseTimeout();
       hoveredCodeTokenCloseTimeoutRef.current = window.setTimeout(() => {
@@ -913,20 +919,13 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     const handleDismissSqlSnippet = React.useCallback(
       (start: number, end: number) => {
-        clearHoveredCodeTokenOpenTimeout();
-        clearHoveredCodeTokenCloseTimeout();
-        setHoveredCodeToken(null);
+        clearHoveredCodeTokenState();
         const newText = sqlSnippetTokenCodec.removeAt(input, start, end);
         suggestionRef.current?.close();
         setInputAndSelection(newText, Math.min(start, newText.length));
         editorRef.current?.focus();
       },
-      [
-        clearHoveredCodeTokenCloseTimeout,
-        clearHoveredCodeTokenOpenTimeout,
-        input,
-        setInputAndSelection,
-      ]
+      [clearHoveredCodeTokenState, input, setInputAndSelection]
     );
 
     const handleCodeTokenHoverStart = React.useCallback(
@@ -1059,6 +1058,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       }
 
       onSubmit({ text: message, files: attachments });
+      clearHoveredCodeTokenState();
       pendingSelectionOffsetRef.current = 0;
       setInput("");
       setAttachments([]);
@@ -1067,6 +1067,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       resetFileInput();
     }, [
       attachments,
+      clearHoveredCodeTokenState,
       input,
       onSubmit,
       resetFileInput,
@@ -1202,6 +1203,12 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         if (!selection) return false;
 
         if (selection.start !== selection.end) {
+          const removedSqlSnippet = sqlSnippetTokenCodec
+            .getMatches(input)
+            .some((snippet) => snippet.start < selection.end && snippet.end > selection.start);
+          if (removedSqlSnippet) {
+            clearHoveredCodeTokenState();
+          }
           const newText = input.slice(0, selection.start) + input.slice(selection.end);
           setInputAndSelection(newText, selection.start);
           return true;
@@ -1237,6 +1244,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             (key === "Backspace" && snippet.end === selection.start) ||
             (key === "Delete" && snippet.start === selection.start)
           ) {
+            clearHoveredCodeTokenState();
             const newText = sqlSnippetTokenCodec.removeAt(input, snippet.start, snippet.end);
             setInputAndSelection(newText, Math.min(snippet.start, newText.length));
             return true;
@@ -1245,7 +1253,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
         return false;
       },
-      [input, leadingCommand, selectedCommand, setInputAndSelection]
+      [clearHoveredCodeTokenState, input, leadingCommand, selectedCommand, setInputAndSelection]
     );
 
     const handleKeyDown = React.useCallback(

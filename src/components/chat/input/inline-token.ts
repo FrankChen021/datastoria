@@ -52,6 +52,14 @@ export abstract class InlineToken<TPayload, TMatch extends InlineTokenMatch = In
       return before;
     }
 
+    if (before.endsWith("\n") && after.startsWith("\n")) {
+      return `${before}${after.slice(1)}`;
+    }
+
+    if (before.endsWith("\n") || after.startsWith("\n")) {
+      return `${before}${after}`;
+    }
+
     return `${before} ${after}`;
   }
 

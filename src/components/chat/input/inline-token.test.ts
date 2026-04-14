@@ -51,4 +51,10 @@ describe("token utils", () => {
 
     expect(testToken.removeAt(`Use ${token} now`, 4, 4 + token.length)).toBe("Use now");
   });
+
+  it("removes inline tokens without inserting stray spaces between lines", () => {
+    const token = testToken.createToken("hello world");
+
+    expect(testToken.removeAt(`Use\n${token}\nnow`, 4, 4 + token.length)).toBe("Use\nnow");
+  });
 });
