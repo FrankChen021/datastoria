@@ -8,6 +8,25 @@ state_dir="$repo_root/.codex/tmp"
 stamp_file="$state_dir/after-change.sha256"
 mkdir -p "$state_dir"
 
+collect_candidate_files() {
+  {
+    git diff --name-only HEAD -- .
+    git ls-files --others --exclude-standard
+  } | awk 'NF' | sort -u
+}
+
+run_direct_tool_for_files() {
+  local tool="$1"
+  shift
+  local -a files=("$@")
+
+  if [ "${#files[@]}" -eq 0 ]; then
+    return 0
+  fi
+
+  npx "$tool" "${files[@]}"
+}
+
 hash_stream() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum | awk '{print $1}'
@@ -58,6 +77,7 @@ compute_fingerprint() {
 
 current_fingerprint="$(compute_fingerprint)"
 untracked_listing="$(git ls-files --others --exclude-standard)"
+mapfile -t candidate_files < <(collect_candidate_files)
 
 if git diff --quiet && git diff --cached --quiet && [ -z "$untracked_listing" ]; then
   rm -f "$stamp_file"
@@ -70,9 +90,23 @@ if [ -f "$stamp_file" ] && [ "$(cat "$stamp_file")" = "$current_fingerprint" ]; 
   exit 0
 fi
 
-npm run format
+format_files=()
+lint_files=()
+for path in "${candidate_files[@]}"; do
+  case "$path" in
+    src/*.ts|src/*.tsx|src/**/*.ts|src/**/*.tsx)
+      format_files+=("$path")
+      lint_files+=("$path")
+      ;;
+    *.js|*.jsx|*.mjs|*.cjs|*.ts|*.tsx)
+      lint_files+=("$path")
+      ;;
+  esac
+done
+
+run_direct_tool_for_files prettier --write "${format_files[@]}"
 npm run typecheck
-npm run lint
+run_direct_tool_for_files eslint "${lint_files[@]}"
 
 if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
   rm -f "$stamp_file"

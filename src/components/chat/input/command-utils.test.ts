@@ -31,4 +31,10 @@ describe("command-utils", () => {
       "/review keep this suffix"
     );
   });
+
+  it("replaces the full partially typed command when the cursor is inside it", () => {
+    expect(replaceLeadingCommand("/revw keep this suffix", "review", 4)).toBe(
+      "/review keep this suffix"
+    );
+  });
 });
