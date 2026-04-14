@@ -27,8 +27,6 @@ Primary areas:
 - Always work on a git worktree for any fix/features
 - Before editing, inspect nearby files to match the local style, naming, and data flow.
 - When behavior changes, update or add tests where practical instead of relying on explanation alone.
-- After code changes, run `npm run format`.
-- After TypeScript or TSX changes, run `npm run typecheck`.
 - After code changes, run the narrowest relevant validation first, then broaden only if needed.
 - Mention any validation you could not run and any assumptions that remain unverified.
 
@@ -78,9 +76,6 @@ Apply the `vercel-react-best-practices` skill when writing, reviewing, or refact
 
 ## Testing Guidance
 
-- After code changes, run `npm run format`.
-- For TypeScript or TSX changes, run `npm run typecheck`.
-- For changes to `src/**/*.ts` or `src/**/*.tsx`, run `npm run lint`.
 - For non-`src` changes, run `npm run lint` whenever the touched files or config can affect ESLint behavior or results.
 - For behavior changes with test coverage, run `npm run test` or the narrowest Vitest target available.
 - For docs changes that affect the manual, run `npm run docs:build` when practical.
