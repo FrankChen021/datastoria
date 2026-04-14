@@ -47,6 +47,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   const { connection } = useConnection();
   const chatInputRef = useRef<ChatInputHandle | null>(null);
   const [promptInput, setPromptInput] = useState<ChatComposerInput | undefined>(externalInput);
+  const promptInputNonceRef = useRef(0);
 
   // Update promptInput when externalInput changes
   useEffect(() => {
@@ -131,6 +132,10 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
 
   const isEmpty = !messages || messages.length === 0;
 
+  const createPromptInput = useCallback((text: string): ChatComposerInput => {
+    return { text, mode: "replace", nonce: ++promptInputNonceRef.current };
+  }, []);
+
   const handleQuestionClick = useCallback(
     (question: { text: string; autoRun?: boolean }) => {
       if (question.autoRun) {
@@ -138,10 +143,10 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         handleSubmit({ text: question.text });
       } else {
         // Default: set the input for user to review/edit
-        setPromptInput({ text: question.text, mode: "replace", nonce: Date.now() });
+        setPromptInput(createPromptInput(question.text));
       }
     },
-    [handleSubmit]
+    [createPromptInput, handleSubmit]
   );
 
   const handleUserAction = useCallback(
@@ -150,9 +155,9 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         handleSubmit({ text: input.text });
         return;
       }
-      setPromptInput({ text: input.text, mode: "replace", nonce: Date.now() });
+      setPromptInput(createPromptInput(input.text));
     },
-    [handleSubmit]
+    [createPromptInput, handleSubmit]
   );
 
   const handleStop = useCallback(() => {

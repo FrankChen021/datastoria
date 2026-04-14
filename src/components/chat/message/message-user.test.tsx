@@ -87,6 +87,18 @@ describe("MessageUser", () => {
       text: string;
     };
 
-    expect(props.text).toBe("what's the type of this column\n\n```sql\nselect version()\n\n```");
+    expect(props.text).toBe("what's the type of this column\n\n```sql\nselect version()\n```");
+  });
+
+  it("does not rewrite content inside fenced code blocks", () => {
+    act(() => {
+      root.render(<MessageUser text={"```sql\nselect\nfrom system.query_log\n```"} />);
+    });
+
+    const props = messageMarkdownSpy.mock.calls[0]?.[0] as {
+      text: string;
+    };
+
+    expect(props.text).toBe("```sql\nselect\nfrom system.query_log\n```");
   });
 });

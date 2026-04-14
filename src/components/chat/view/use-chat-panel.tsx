@@ -1,7 +1,7 @@
 "use client";
 
 import type { AgentContext } from "@/lib/ai/chat-types";
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useRef, useState } from "react";
 
 export type ChatPanelDisplayMode = "hidden" | "panel" | "tabWidth" | "fullscreen";
 export type SidebarTab = "database" | "snippets" | "history";
@@ -112,6 +112,7 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     agentContext?: Partial<AgentContext>;
   } | null>(null);
   const [initialInput, setInitialInputState] = useState<ChatComposerInput | null>(null);
+  const initialInputNonceRef = useRef(0);
 
   const toggleDisplayMode = () => {
     setDisplayMode((prev) => {
@@ -175,7 +176,7 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     chatId?: string,
     mode: ChatComposerInputMode = "replace"
   ) => {
-    setInitialInputState({ text, chatId, mode, nonce: Date.now() });
+    setInitialInputState({ text, chatId, mode, nonce: ++initialInputNonceRef.current });
     setDisplayMode((prev) => (prev === "hidden" ? "panel" : prev));
   };
 

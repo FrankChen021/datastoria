@@ -84,7 +84,6 @@ type SelectionActionState = {
   sql: string;
   top: number;
   left: number;
-  placement: "above" | "below";
   align: "start" | "center" | "end";
 };
 
@@ -365,7 +364,6 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
       const lineHeight = editor.renderer.lineHeight ?? 16;
       const anchorTop = startCoords.pageY - window.scrollY - containerRect.top;
       const canRenderAbove = anchorTop >= FLOATING_ACTION_HEIGHT + FLOATING_ACTION_GAP + 4;
-      const placement = canRenderAbove ? "above" : "below";
       const top = canRenderAbove
         ? anchorTop - FLOATING_ACTION_HEIGHT - FLOATING_ACTION_GAP
         : anchorTop + lineHeight + FLOATING_ACTION_GAP;
@@ -387,7 +385,6 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
         sql: selectedSql,
         top: Math.max(top, 8),
         left,
-        placement,
         align,
       });
     }, []);
