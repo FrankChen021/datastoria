@@ -20,10 +20,17 @@ export function getLeadingCommand(text: string): LeadingCommandMatch | null {
   };
 }
 
-export function replaceLeadingCommand(input: string, commandName: string): string {
-  const match = LEADING_COMMAND_PREFIX_RE.exec(input);
-  const argsStart = match ? match[0].length : input.length;
-  const existingArgs = input.slice(argsStart);
+export function replaceLeadingCommand(
+  input: string,
+  commandName: string,
+  cursorOffset: number = input.length
+): string {
+  const safeCursorOffset = Math.max(0, Math.min(cursorOffset, input.length));
+  const beforeCursor = input.slice(0, safeCursorOffset);
+  const leadingCommand = getLeadingCommand(input);
+  const match = LEADING_COMMAND_PREFIX_RE.exec(beforeCursor);
+  const commandEnd = leadingCommand?.commandText.length ?? match?.[0].length ?? beforeCursor.length;
+  const existingArgs = input.slice(commandEnd);
   return `/${commandName}${existingArgs || " "}`;
 }
 

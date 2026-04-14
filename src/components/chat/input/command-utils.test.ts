@@ -25,4 +25,16 @@ describe("command-utils", () => {
       "/diagnose-clickhouse-errors error code: 115"
     );
   });
+
+  it("preserves text after the cursor when replacing the leading command", () => {
+    expect(replaceLeadingCommand("/rev keep this suffix", "review", 4)).toBe(
+      "/review keep this suffix"
+    );
+  });
+
+  it("replaces the full partially typed command when the cursor is inside it", () => {
+    expect(replaceLeadingCommand("/revw keep this suffix", "review", 4)).toBe(
+      "/review keep this suffix"
+    );
+  });
 });

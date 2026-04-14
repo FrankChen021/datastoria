@@ -1,7 +1,29 @@
+import {
+  AgentCommandBrowserPanel,
+  type AgentCommandBrowserItem,
+} from "@/components/chat/agent-command-browser-panel";
+import { useAgentCommands } from "@/components/chat/agent-command-context";
+import { sqlSnippetTokenCodec } from "@/components/chat/input/sql-snippet-token";
+import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { useConnection } from "@/components/connection/connection-context";
+import {
+  AgentConfigurationManager,
+  normalizeAIResponseLanguage,
+} from "@/components/settings/agent/agent-manager";
 import { useTheme } from "@/components/shared/theme-provider";
+import { Dialog } from "@/components/shared/use-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { CommandDetail } from "@/lib/ai/commands/command-manager";
 import { SqlUtils } from "@/lib/sql-utils";
 import type { Ace } from "ace-builds";
+import { ChevronDown, Play, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 import {
   forwardRef,
@@ -13,6 +35,7 @@ import {
   useState,
 } from "react";
 import { useDebouncedCallback } from "use-debounce";
+import { useQueryExecutor } from "../query-execution/query-executor";
 import { QueryInputLocalStorage } from "../query-input/query-input-local-storage";
 import { QuerySuggestionManager } from "./completion/query-suggestion-manager";
 import "./query-input-view.css";
@@ -56,6 +79,17 @@ interface QueryInputViewProps {
   language?: string;
   onRun?: (sql: string) => void;
 }
+
+type SelectionActionState = {
+  sql: string;
+  top: number;
+  left: number;
+  align: "start" | "center" | "end";
+};
+
+const FLOATING_ACTION_HEIGHT = 28;
+const FLOATING_ACTION_GAP = 8;
+const FLOATING_ACTION_ESTIMATED_WIDTH = 420;
 
 // Logic to apply query to editor
 const applyQueryToEditor = (
@@ -124,13 +158,20 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
     ref
   ) => {
     const { connection } = useConnection();
+    const { postMessage, setDisplayMode, setInitialInput } = useChatPanel();
+    const { commands } = useAgentCommands();
+    const { isSqlExecuting, executeQuery } = useQueryExecutor();
     const { theme } = useTheme();
     const editorRef = useRef<ExtendedEditor | undefined>(undefined);
     const containerRef = useRef<HTMLDivElement>(null);
     const [editorHeight, setEditorHeight] = useState(200);
     const [editorWidth, setEditorWidth] = useState(800);
+    const [selectionAction, setSelectionAction] = useState<SelectionActionState | null>(null);
+    const [isAgentActionsOpen, setIsAgentActionsOpen] = useState(false);
     const lastConnectionRef = useRef<string | null>(null);
     const latestOnRun = useRef(onRun);
+    const isMouseSelectingRef = useRef(false);
+    const sqlEditorCommands = commands.filter((command) => command.showInSqlEditorQuickAction);
 
     useEffect(() => {
       latestOnRun.current = onRun;
@@ -280,6 +321,74 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
       };
     }, []);
 
+    const updateSelectionAction = useCallback(() => {
+      if (isMouseSelectingRef.current) {
+        setSelectionAction(null);
+        return;
+      }
+
+      const editor = editorRef.current;
+      const container = containerRef.current;
+
+      if (!editor || !container) {
+        setSelectionAction(null);
+        return;
+      }
+
+      const selectedSql = editor.getSelectedText().trim();
+      if (selectedSql.length === 0) {
+        setSelectionAction(null);
+        return;
+      }
+
+      const range = editor.getSelectionRange();
+      if (
+        !range ||
+        (range.start.row === range.end.row && range.start.column === range.end.column)
+      ) {
+        setSelectionAction(null);
+        return;
+      }
+
+      const startCoords = editor.renderer.textToScreenCoordinates(
+        range.start.row,
+        range.start.column
+      );
+      const endCoords =
+        range.start.row === range.end.row
+          ? editor.renderer.textToScreenCoordinates(range.end.row, range.end.column)
+          : startCoords;
+      const containerRect = container.getBoundingClientRect();
+      const rawLeft =
+        (startCoords.pageX + endCoords.pageX) / 2 - window.scrollX - containerRect.left;
+      const lineHeight = editor.renderer.lineHeight ?? 16;
+      const anchorTop = startCoords.pageY - window.scrollY - containerRect.top;
+      const canRenderAbove = anchorTop >= FLOATING_ACTION_HEIGHT + FLOATING_ACTION_GAP + 4;
+      const top = canRenderAbove
+        ? anchorTop - FLOATING_ACTION_HEIGHT - FLOATING_ACTION_GAP
+        : anchorTop + lineHeight + FLOATING_ACTION_GAP;
+      const minCenteredLeft = FLOATING_ACTION_ESTIMATED_WIDTH / 2 + 8;
+      const maxCenteredLeft = containerRect.width - FLOATING_ACTION_ESTIMATED_WIDTH / 2 - 8;
+      const align =
+        rawLeft < minCenteredLeft ? "start" : rawLeft > maxCenteredLeft ? "end" : "center";
+      const left =
+        align === "start"
+          ? Math.max(startCoords.pageX - window.scrollX - containerRect.left, 8)
+          : align === "end"
+            ? Math.min(
+                endCoords.pageX - window.scrollX - containerRect.left,
+                containerRect.width - 8
+              )
+            : rawLeft;
+
+      setSelectionAction({
+        sql: selectedSql,
+        top: Math.max(top, 8),
+        left,
+        align,
+      });
+    }, []);
+
     // Cleanup scroll event listeners when component unmounts
     useEffect(() => {
       return () => {
@@ -295,6 +404,7 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
     const handleEditorLoad = useCallback(
       (editor: Ace.Editor) => {
         const extendedEditor = editor as ExtendedEditor;
+        const session = editor.getSession();
         editor.setValue(QueryInputLocalStorage.getInput(storageKey));
         editor.renderer.setScrollMargin(5, 10, 0, 0);
 
@@ -335,12 +445,45 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
         const existingDivs = document.querySelectorAll(".ace-tooltip-scrollable");
         existingDivs.forEach((div) => attachScrollPrevention(div as HTMLElement));
 
+        const syncSelectionAction = () => {
+          updateSelectionAction();
+        };
+
+        const handleMouseDown = (event: MouseEvent) => {
+          if (event.button !== 0) {
+            return;
+          }
+
+          isMouseSelectingRef.current = true;
+          setSelectionAction(null);
+        };
+
+        const handleMouseUp = () => {
+          if (!isMouseSelectingRef.current) {
+            return;
+          }
+
+          isMouseSelectingRef.current = false;
+          requestAnimationFrame(() => {
+            updateSelectionAction();
+          });
+        };
+
+        session.on("changeScrollTop", syncSelectionAction);
+        session.on("changeScrollLeft", syncSelectionAction);
+        extendedEditor.selection.on("changeSelection", syncSelectionAction);
+        editor.container.addEventListener("mousedown", handleMouseDown);
+        window.addEventListener("mouseup", handleMouseUp);
+
         // Store cleanup function
         (extendedEditor as { __scrollCleanup?: () => void }).__scrollCleanup = () => {
           observer.disconnect();
+          session.off("changeScrollTop", syncSelectionAction);
+          session.off("changeScrollLeft", syncSelectionAction);
+          extendedEditor.selection.off("changeSelection", syncSelectionAction);
+          editor.container.removeEventListener("mousedown", handleMouseDown);
+          window.removeEventListener("mouseup", handleMouseUp);
         };
-
-        const session = editor.getSession();
 
         // Only valid for SQL
         if (language === "dsql") {
@@ -406,8 +549,9 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
         // });
 
         editorRef.current = extendedEditor;
+        updateSelectionAction();
       },
-      [initialQuery, initialMode, language, storageKey]
+      [initialQuery, initialMode, language, storageKey, updateSelectionAction]
     );
 
     // Handle switching modes (storage key / language changes) without unmounting
@@ -475,8 +619,9 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           cursorRow: cursor.row,
           cursorColumn: cursor.column,
         });
+        updateSelectionAction();
       }
-    }, []);
+    }, [updateSelectionAction]);
 
     const handleCursorChange = useCallback(() => {
       if (editorRef.current) {
@@ -489,8 +634,105 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           cursorRow: cursor.row,
           cursorColumn: cursor.column,
         });
+        updateSelectionAction();
       }
-    }, []);
+    }, [updateSelectionAction]);
+
+    const handleAddSelectionToChat = useCallback(() => {
+      if (!selectionAction?.sql) {
+        return;
+      }
+
+      setSelectionAction(null);
+      setInitialInput(
+        `${sqlSnippetTokenCodec.createToken(selectionAction.sql)} `,
+        undefined,
+        "append"
+      );
+      setDisplayMode("panel");
+    }, [selectionAction, setDisplayMode, setInitialInput]);
+
+    const handleRunSelectedText = useCallback(() => {
+      const sql = selectionAction?.sql?.trim();
+      if (!sql) {
+        return;
+      }
+      setSelectionAction(null);
+      executeQuery(sql);
+    }, [executeQuery, selectionAction?.sql]);
+
+    const handleExplain = useCallback(
+      (type: string) => {
+        const sql = selectionAction?.sql?.trim();
+        if (!sql) {
+          return;
+        }
+
+        const { explainSQL, rawSQL } = SqlUtils.toExplainSQL(type, sql);
+        if (rawSQL.length === 0) {
+          return;
+        }
+
+        const viewType = type === "plan" ? "plan" : type;
+        setSelectionAction(null);
+        executeQuery(explainSQL, rawSQL, { view: viewType });
+      },
+      [executeQuery, selectionAction?.sql]
+    );
+
+    const handleSqlEditorCommand = useCallback(
+      (command: CommandDetail) => {
+        const sql = selectionAction?.sql?.trim();
+        if (!sql) {
+          Dialog.alert({
+            title: "No SQL To Send",
+            description: "Select a SQL statement before running an AI action.",
+          });
+          return;
+        }
+
+        const normalizedSql = SqlUtils.removeComments(sql);
+        if (normalizedSql.length === 0) {
+          Dialog.alert({
+            title: "No SQL To Send",
+            description: "Select a SQL statement before running an AI action.",
+          });
+          return;
+        }
+
+        const statements = SqlUtils.splitSqlStatements(normalizedSql);
+        if (statements.length !== 1) {
+          Dialog.alert({
+            title: "Single Statement Required",
+            description:
+              "AI actions from the SQL editor currently support exactly one SQL statement at a time.",
+          });
+          return;
+        }
+
+        const reviewLanguage = normalizeAIResponseLanguage(
+          AgentConfigurationManager.getConfiguration().aiResponseLanguage
+        );
+
+        setSelectionAction(null);
+        setIsAgentActionsOpen(false);
+        postMessage(`/${command.name}\n\n\`\`\`sql\n${statements[0]}\n\`\`\``, {
+          forceNewChat: true,
+          agentContext: { responseLanguage: reviewLanguage },
+        });
+      },
+      [postMessage, selectionAction?.sql]
+    );
+
+    const sqlEditorActionItems = useMemo<AgentCommandBrowserItem[]>(
+      () =>
+        sqlEditorCommands.map((command) => ({
+          key: command.name,
+          label: `/${command.name}`,
+          description: command.description,
+        })),
+      [sqlEditorCommands]
+    );
 
     // Get OS-specific key bindings
     const keyBindings = useMemo(() => getKeyBindings(), []);
@@ -503,7 +745,120 @@ Press ${keyBindings.autocomplete} to show suggestions.
     }
 
     return (
-      <div ref={containerRef} className="query-editor-container h-full w-full">
+      <div ref={containerRef} className="query-editor-container relative h-full w-full">
+        {selectionAction ? (
+          <div
+            className="pointer-events-none absolute z-20"
+            style={{
+              top: selectionAction.top,
+              left: selectionAction.left,
+              transform:
+                selectionAction.align === "start"
+                  ? "translateX(0)"
+                  : selectionAction.align === "end"
+                    ? "translateX(-100%)"
+                    : "translateX(-50%)",
+            }}
+          >
+            <div className="pointer-events-auto flex items-center gap-0 rounded-sm border border-border bg-background/95 px-1 py-1 shadow-md backdrop-blur supports-[backdrop-filter]:bg-background/85">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-6 rounded-sm px-2 text-[11px]"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={handleRunSelectedText}
+                disabled={isSqlExecuting}
+              >
+                <Play className="h-3 w-3" />
+                Run
+              </Button>
+              <div className="mx-1 h-4 w-px bg-border" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 gap-0.5 rounded-sm px-2 text-[11px]"
+                    onMouseDown={(event) => event.preventDefault()}
+                    disabled={isSqlExecuting}
+                  >
+                    Explain
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => handleExplain("ast")}>
+                    Explain AST
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExplain("syntax")}>
+                    Explain Syntax
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExplain("plan")}>
+                    Explain Plan
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExplain("pipeline")}>
+                    Explain Pipeline
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExplain("estimate")}>
+                    Explain Estimate
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <div className="mx-1 h-4 w-px bg-border" />
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-6 rounded-sm px-2 text-[11px]"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={handleAddSelectionToChat}
+              >
+                Add to Chat
+              </Button>
+              {sqlEditorActionItems.length > 0 ? (
+                <>
+                  <div className="mx-1 h-4 w-px bg-border" />
+                  <Popover open={isAgentActionsOpen} onOpenChange={setIsAgentActionsOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 gap-0.5 rounded-sm px-2 text-[11px]"
+                        onMouseDown={(event) => event.preventDefault()}
+                        disabled={isSqlExecuting}
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        AI Commands
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      className="z-30 w-auto border-0 bg-transparent p-0"
+                      onOpenAutoFocus={(event) => event.preventDefault()}
+                    >
+                      <AgentCommandBrowserPanel
+                        items={sqlEditorActionItems}
+                        onSelectItem={(item) => {
+                          setIsAgentActionsOpen(false);
+                          const command = sqlEditorCommands.find(
+                            (candidate) => candidate.name === item.key
+                          );
+                          if (command) {
+                            handleSqlEditorCommand(command);
+                          }
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
         <AceEditor
           mode={language}
           theme={aceTheme}

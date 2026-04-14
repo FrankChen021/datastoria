@@ -75,4 +75,30 @@ describe("MessageUser", () => {
 
     expect(props.text).toBe("/unknown check this query");
   });
+
+  it("keeps fenced sql blocks separated from leading prose", () => {
+    act(() => {
+      root.render(
+        <MessageUser text={"what's the type of this column\n```sql\nselect version()\n```"} />
+      );
+    });
+
+    const props = messageMarkdownSpy.mock.calls[0]?.[0] as {
+      text: string;
+    };
+
+    expect(props.text).toBe("what's the type of this column\n\n```sql\nselect version()\n```");
+  });
+
+  it("does not rewrite content inside fenced code blocks", () => {
+    act(() => {
+      root.render(<MessageUser text={"```sql\nselect\nfrom system.query_log\n```"} />);
+    });
+
+    const props = messageMarkdownSpy.mock.calls[0]?.[0] as {
+      text: string;
+    };
+
+    expect(props.text).toBe("```sql\nselect\nfrom system.query_log\n```");
+  });
 });

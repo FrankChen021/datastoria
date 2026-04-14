@@ -592,7 +592,7 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
           availableTables={availableTables}
           externalInput={
             initialInput && (!initialInput.chatId || initialInput.chatId === chat.id)
-              ? initialInput.text
+              ? initialInput
               : undefined
           }
           onStreamingChange={setIsRunning}

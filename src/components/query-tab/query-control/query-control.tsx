@@ -1,15 +1,5 @@
-import {
-  AgentCommandBrowserPanel,
-  type AgentCommandBrowserItem,
-} from "@/components/chat/agent-command-browser-panel";
-import { useAgentCommands } from "@/components/chat/agent-command-context";
 import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { useConnection } from "@/components/connection/connection-context";
-import {
-  AgentConfigurationManager,
-  normalizeAIResponseLanguage,
-} from "@/components/settings/agent/agent-manager";
-import { Dialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,13 +7,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { CommandDetail } from "@/lib/ai/commands/command-manager";
 import { SqlUtils } from "@/lib/sql-utils";
-import { Bookmark, ChevronDown, History, MessageSquare, Play, Sparkles } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { Bookmark, ChevronDown, History, MessageSquare, Play } from "lucide-react";
+import { useCallback } from "react";
 import { useQueryExecutor } from "../query-execution/query-executor";
 import { useQueryInput } from "../query-input/use-query-input";
 import { openSaveSnippetDialog } from "../snippet/save-snippet-dialog";
@@ -32,11 +20,8 @@ import { showMultipleStatementsConfirmDialog } from "./multiple-statements-confi
 export function QueryControl({ onOpenHistory }: { onOpenHistory: () => void }) {
   const { isSqlExecuting, executeQuery, executeBatch } = useQueryExecutor();
   const { connection } = useConnection();
-  const { postMessage, setDisplayMode } = useChatPanel();
-  const { commands } = useAgentCommands();
+  const { displayMode, setDisplayMode } = useChatPanel();
   const { selectedText, text, cursorRow, cursorColumn } = useQueryInput();
-  const sqlEditorCommands = commands.filter((command) => command.showInSqlEditorQuickAction);
-  const [isAgentActionsOpen, setIsAgentActionsOpen] = useState(false);
 
   const handleRunCurrentLine = useCallback(() => {
     const sql = SqlUtils.resolveExecutionSql({
@@ -99,72 +84,11 @@ export function QueryControl({ onOpenHistory }: { onOpenHistory: () => void }) {
     });
   }, [selectedText, text, executeBatch]);
 
-  const handleSqlEditorCommand = useCallback(
-    (command: CommandDetail) => {
-      const sql = SqlUtils.resolveExecutionSql({
-        selectedText,
-        text,
-        cursorRow,
-        cursorColumn,
-      });
-      const normalizedSql = SqlUtils.removeComments(sql);
-      if (normalizedSql.length === 0) {
-        Dialog.alert({
-          title: "No SQL To Send",
-          description: "Select a SQL statement or place the cursor on a runnable SQL line first.",
-        });
-        return;
-      }
-
-      const statements = SqlUtils.splitSqlStatements(normalizedSql);
-      if (statements.length !== 1) {
-        Dialog.alert({
-          title: "Single Statement Required",
-          description:
-            "AI actions from the SQL editor currently support exactly one SQL statement at a time.",
-        });
-        return;
-      }
-
-      const reviewLanguage = normalizeAIResponseLanguage(
-        AgentConfigurationManager.getConfiguration().aiResponseLanguage
-      );
-
-      postMessage(`/${command.name}\n\n\`\`\`sql\n${statements[0]}\n\`\`\``, {
-        forceNewChat: true,
-        agentContext: { responseLanguage: reviewLanguage },
-      });
-    },
-    [cursorColumn, cursorRow, postMessage, selectedText, text]
-  );
-
-  const handleOpenAgent = useCallback(() => {
-    setDisplayMode("panel");
-  }, [setDisplayMode]);
-
-  const sqlEditorActionItems = useMemo<AgentCommandBrowserItem[]>(
-    () => [
-      ...sqlEditorCommands.map((command) => ({
-        key: command.name,
-        label: `/${command.name}`,
-        description: command.description,
-      })),
-      {
-        key: "__toggle-agent__",
-        label: "Toggle Agent",
-        icon: <MessageSquare className="!h-3.5 !w-3.5" />,
-        separatorBefore: true,
-        itemClassName: "py-1 my-1",
-      },
-    ],
-    [sqlEditorCommands]
-  );
   const hasEditorText = text.trim().length > 0;
   const hasSelectedText = selectedText.trim().length > 0;
   const isRunPrimaryDisabled = isSqlExecuting || (!hasSelectedText && !hasEditorText);
   const isRunBatchDisabled = isSqlExecuting || !hasEditorText;
   const isExplainDisabled = isSqlExecuting || !hasEditorText;
-  const isSqlEditorActionDisabled = isSqlExecuting;
   const isSaveDisabled = isSqlExecuting || !hasEditorText;
 
   return (
@@ -227,46 +151,6 @@ export function QueryControl({ onOpenHistory }: { onOpenHistory: () => void }) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <>
-          <Separator orientation="vertical" className="h-4" />
-          <Popover open={isAgentActionsOpen} onOpenChange={setIsAgentActionsOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                disabled={isSqlEditorActionDisabled}
-                size="sm"
-                variant="ghost"
-                className="h-6 gap-1 px-2 text-xs rounded-sm"
-              >
-                <Sparkles className="h-3 w-3" />
-                AI Actions
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="start"
-              className="p-0 w-auto flex items-stretch z-50 bg-transparent border-0 pointer-events-auto"
-              onOpenAutoFocus={(e) => e.preventDefault()}
-            >
-              <AgentCommandBrowserPanel
-                items={sqlEditorActionItems}
-                onSelectItem={(item) => {
-                  setIsAgentActionsOpen(false);
-                  if (item.key === "__toggle-agent__") {
-                    handleOpenAgent();
-                    return;
-                  }
-                  const command = sqlEditorCommands.find(
-                    (candidate) => candidate.name === item.key
-                  );
-                  if (command) {
-                    handleSqlEditorCommand(command);
-                  }
-                }}
-              />
-            </PopoverContent>
-          </Popover>
-        </>
-
         <Separator orientation="vertical" className="h-4" />
 
         <Button
@@ -290,6 +174,20 @@ export function QueryControl({ onOpenHistory }: { onOpenHistory: () => void }) {
         >
           <History className="h-3 w-3" />
           History
+        </Button>
+
+        <Separator orientation="vertical" className="h-4" />
+
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 gap-1 px-2 text-xs rounded-sm"
+          onClick={() => {
+            setDisplayMode(displayMode === "hidden" ? "panel" : "hidden");
+          }}
+        >
+          <MessageSquare className="h-3 w-3" />
+          Toggle Agent
         </Button>
       </div>
     </TooltipProvider>

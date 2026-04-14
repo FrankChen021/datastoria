@@ -1,13 +1,21 @@
 "use client";
 
 import type { AgentContext } from "@/lib/ai/chat-types";
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useRef, useState } from "react";
 
 export type ChatPanelDisplayMode = "hidden" | "panel" | "tabWidth" | "fullscreen";
 export type SidebarTab = "database" | "snippets" | "history";
 export type SelectedChatTarget = {
   chatId: string;
   connectionId?: string;
+};
+
+export type ChatComposerInputMode = "replace" | "append";
+export type ChatComposerInput = {
+  text: string;
+  chatId?: string;
+  mode: ChatComposerInputMode;
+  nonce: number;
 };
 
 interface ChatPanelContextType {
@@ -36,8 +44,8 @@ interface ChatPanelContextType {
     agentContext?: Partial<AgentContext>;
   } | null;
   consumeCommand: () => void;
-  setInitialInput: (text: string, chatId?: string) => void;
-  initialInput: { text: string; chatId?: string } | null;
+  setInitialInput: (text: string, chatId?: string, mode?: ChatComposerInputMode) => void;
+  initialInput: ChatComposerInput | null;
   clearInitialInput: () => void;
 }
 
@@ -103,9 +111,8 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     forceNewChat?: boolean;
     agentContext?: Partial<AgentContext>;
   } | null>(null);
-  const [initialInput, setInitialInputState] = useState<{ text: string; chatId?: string } | null>(
-    null
-  );
+  const [initialInput, setInitialInputState] = useState<ChatComposerInput | null>(null);
+  const initialInputNonceRef = useRef(0);
 
   const toggleDisplayMode = () => {
     setDisplayMode((prev) => {
@@ -164,8 +171,12 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     setPendingCommand(null);
   };
 
-  const setInitialInput = (text: string, chatId?: string) => {
-    setInitialInputState({ text, chatId });
+  const setInitialInput = (
+    text: string,
+    chatId?: string,
+    mode: ChatComposerInputMode = "replace"
+  ) => {
+    setInitialInputState({ text, chatId, mode, nonce: ++initialInputNonceRef.current });
     setDisplayMode((prev) => (prev === "hidden" ? "panel" : prev));
   };
 

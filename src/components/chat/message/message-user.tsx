@@ -5,6 +5,16 @@ import { TABLE_MENTION_REGEX } from "../input/mention-utils";
 import { MessageMarkdown } from "./message-markdown";
 import { SkillLink } from "./skill-link";
 
+const FENCED_CODE_BLOCK_RE = /(```[\s\S]*?```)/g;
+
+function processUserMessageProse(text: string) {
+  return text
+    .replace(TABLE_MENTION_REGEX, (match) => {
+      return `@\`${match.substring(1)}\``;
+    })
+    .replace(/\n/g, "\n\n");
+}
+
 /**
  * Component to render user message with table mention support
  * We use markdown component to render the user message.
@@ -21,22 +31,9 @@ export const MessageUser = memo(function MessageUser({ text }: { text: string })
 
     const baseText = command && matchedCommand ? matchedCommand.remainder.replace(/^ /, "") : text;
     const processedBaseText = baseText
-      // Replace @xxx.yyy with @`xxx.yyy` so markdown treats it as inline code
-      // This allows MessageMarkdown to detect and render it as a table button
-      // Uses the shared TABLE_MENTION_REGEX to match table mentions including
-      // those followed by punctuation (e.g., @system.query_log?)
-      .replace(TABLE_MENTION_REGEX, (match) => {
-        // Keep the @ symbol and wrap the rest in backticks
-        return `@\`${match.substring(1)}\``;
-      })
-      // Replace newlines with double newlines for proper paragraph breaks,
-      // but skip content inside fenced code blocks (```...```)
-      .replace(/(```[\s\S]*?```)|(\n)/g, (_match, codeBlock, _newline) => {
-        // If it's a code block, return it unchanged
-        if (codeBlock) return codeBlock;
-        // If it's a newline outside code block, double it
-        return "\n\n";
-      });
+      .split(FENCED_CODE_BLOCK_RE)
+      .map((segment) => (segment.startsWith("```") ? segment : processUserMessageProse(segment)))
+      .join("");
 
     if (!command || !matchedCommand) {
       return processedBaseText;
@@ -50,7 +47,13 @@ export const MessageUser = memo(function MessageUser({ text }: { text: string })
       })
     );
 
-    return processedBaseText ? `${commandLink} ${processedBaseText}` : commandLink;
+    if (!processedBaseText) {
+      return commandLink;
+    }
+
+    // Fenced blocks must start on their own line or markdown will render the backticks inline.
+    const separator = processedBaseText.startsWith("```") ? "\n\n" : " ";
+    return `${commandLink}${separator}${processedBaseText}`;
   }, [command, matchedCommand, text]);
 
   return (
