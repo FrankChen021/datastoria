@@ -155,7 +155,7 @@ WHERE
         AND table = '${escapedTable}'
         AND active = 1
 `,
-            }
+            },
           } as StatDescriptor,
           {
             type: "stat",
@@ -246,70 +246,70 @@ LIMIT 1
           //
           ...(isClusterMode
             ? [
-              {
-                title: "Cluster",
-                collapsed: true,
-                charts: [
-                  {
-                    type: "stat",
-                    titleOption: {
-                      title: "Total Rows",
-                    },
-                    gridPos: { w: 3, h: 3 },
-                    datasource: {
-                      sql: `
+                {
+                  title: "Cluster",
+                  collapsed: true,
+                  charts: [
+                    {
+                      type: "stat",
+                      titleOption: {
+                        title: "Total Rows",
+                      },
+                      gridPos: { w: 3, h: 3 },
+                      datasource: {
+                        sql: `
 SELECT sum(total_rows) as total_bytes
 FROM cluster('{cluster}', system.tables)
 WHERE database = '${escapedDatabase}' AND name = '${escapedTable}'
 `,
-                    },
-                    valueOption: {
-                      format: "comma_number",
-                    },
-                  } as StatDescriptor,
-                  {
-                    type: "stat",
-                    titleOption: {
-                      title: "Cluster Size",
-                    },
-                    gridPos: { w: 3, h: 3 },
-                    datasource: {
-                      sql: `
+                      },
+                      valueOption: {
+                        format: "comma_number",
+                      },
+                    } as StatDescriptor,
+                    {
+                      type: "stat",
+                      titleOption: {
+                        title: "Cluster Size",
+                      },
+                      gridPos: { w: 3, h: 3 },
+                      datasource: {
+                        sql: `
 SELECT sum(total_bytes) as total_bytes
 FROM cluster('{cluster}', system.tables)
 WHERE database = '${escapedDatabase}' AND name = '${escapedTable}'
 `,
-                    },
-                    valueOption: {
-                      format: "binary_size",
-                    },
-                  } as StatDescriptor,
-                  {
-                    type: "stat",
-                    titleOption: {
-                      title: "Cluster Size(All Replicas)",
-                    },
-                    gridPos: { w: 3, h: 3 },
-                    datasource: {
-                      sql: `
+                      },
+                      valueOption: {
+                        format: "binary_size",
+                      },
+                    } as StatDescriptor,
+                    {
+                      type: "stat",
+                      titleOption: {
+                        title: "Cluster Size(All Replicas)",
+                      },
+                      gridPos: { w: 3, h: 3 },
+                      datasource: {
+                        sql: `
 SELECT sum(total_bytes) as total_bytes
 FROM clusterAllReplicas('{cluster}', system.tables)
 WHERE database = '${escapedDatabase}' AND name = '${escapedTable}'
 `,
-                    },
-                    valueOption: {
-                      format: "binary_size",
-                    },
-                  } as StatDescriptor,
-                  {
-                    type: "table",
-                    titleOption: {
-                      title: "Table Size Per Node",
-                      align: "center",
-                    },
-                    gridPos: { w: 24, h: 6 },
-                    datasource: {
-                      sql: `
+                      },
+                      valueOption: {
+                        format: "binary_size",
+                      },
+                    } as StatDescriptor,
+                    {
+                      type: "table",
+                      titleOption: {
+                        title: "Table Size Per Node",
+                        align: "center",
+                      },
+                      gridPos: { w: 24, h: 6 },
+                      datasource: {
+                        sql: `
 SELECT
   FQDN() as host, 
   count() as part_count, 
@@ -321,28 +321,28 @@ AND active
 GROUP BY host
 ORDER BY host
 `,
-                    },
-                    miscOption: {
-                      enableIndexColumn: true,
-                    },
-                    fieldOptions: {
-                      bytes_on_disk: {
-                        format: "binary_size",
                       },
-                      rows: {
-                        format: "comma_number",
+                      miscOption: {
+                        enableIndexColumn: true,
                       },
-                    },
-                    sortOption: {
-                      initialSort: {
-                        column: "host",
-                        direction: "asc",
+                      fieldOptions: {
+                        bytes_on_disk: {
+                          format: "binary_size",
+                        },
+                        rows: {
+                          format: "comma_number",
+                        },
                       },
-                    },
-                  } as TableDescriptor,
-                ],
-              } as DashboardGroup,
-            ]
+                      sortOption: {
+                        initialSort: {
+                          column: "host",
+                          direction: "asc",
+                        },
+                      },
+                    } as TableDescriptor,
+                  ],
+                } as DashboardGroup,
+              ]
             : []),
 
           {
@@ -384,7 +384,7 @@ ORDER BY 1
               } as TableDescriptor,
             ],
           } as DashboardGroup,
-          
+
           //
           // Sizes
           //
