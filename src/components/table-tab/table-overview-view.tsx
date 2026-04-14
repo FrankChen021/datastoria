@@ -71,11 +71,33 @@ const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOvervi
           {
             type: "stat",
             titleOption: {
+              title: "Total Rows",
+              align: "center",
+            },
+            collapsed: false,
+            gridPos: { w: 3, h: 3 },
+            valueOption: {
+              format: "comma_number",
+            },
+            datasource: {
+              sql: `
+SELECT sum(total_rows) as total_rows
+FROM
+    system.tables
+WHERE 
+    database = '${escapedDatabase}' 
+    AND name = '${escapedTable}'
+`,
+            },
+          } as StatDescriptor,
+          {
+            type: "stat",
+            titleOption: {
               title: "Total Size",
               align: "center",
             },
             collapsed: false,
-            gridPos: { w: 5, h: 4 },
+            gridPos: { w: 3, h: 3 },
             datasource: {
               sql: `
 SELECT sum(total_bytes) as total_bytes
@@ -83,7 +105,7 @@ FROM
     system.tables
 WHERE 
     database = '${escapedDatabase}' 
-    AND table = '${escapedTable}'
+    AND name = '${escapedTable}'
 `,
             },
             valueOption: {
@@ -93,25 +115,76 @@ WHERE
           {
             type: "stat",
             titleOption: {
-              title: "Total Rows",
+              title: "Uncompressed Size",
               align: "center",
             },
             collapsed: false,
-            gridPos: { w: 5, h: 4 },
-            valueOption: {
-              format: "comma_number",
-            },
+            gridPos: { w: 3, h: 3 },
             datasource: {
               sql: `
-SELECT sum(total_rows) as total_bytes
-FROM
-    system.tables
-WHERE 
-    database = '${escapedDatabase}' 
-    AND table = '${escapedTable}'
+    SELECT 
+        sum(data_uncompressed_bytes)
+    FROM
+        system.parts
+    WHERE 
+        database = '${escapedDatabase}' 
+        AND table = '${escapedTable}'
+        AND active = 1
+`,
+            },
+            valueOption: {
+              format: "binary_size",
+            },
+          },
+          {
+            type: "stat",
+            titleOption: {
+              title: "Compress Ratio",
+              align: "center",
+            },
+            collapsed: false,
+            gridPos: { w: 3, h: 3 },
+            datasource: {
+              sql: `
+    SELECT 
+        if(
+            sum(data_compressed_bytes) = 0,
+            '-',
+            toString(round(sum(data_uncompressed_bytes) / nullIf(sum(data_compressed_bytes), 0), 0)) || ' : 1'
+        ) AS compress_ratio
+    FROM
+        system.parts
+    WHERE 
+        database = '${escapedDatabase}' 
+        AND table = '${escapedTable}'
+        AND active = 1
 `,
             },
           } as StatDescriptor,
+          {
+            type: "stat",
+            titleOption: {
+              title: "Avg Row Size",
+              align: "center",
+            },
+            collapsed: false,
+            gridPos: { w: 3, h: 3 },
+            datasource: {
+              sql: `
+    SELECT 
+        round(sum(bytes_on_disk) / nullIf(sum(rows), 0), 0) AS avg_row_size
+    FROM
+        system.parts
+    WHERE 
+        database = '${escapedDatabase}' 
+        AND table = '${escapedTable}'
+        AND active = 1
+`,
+            },
+            valueOption: {
+              format: "binary_size",
+            },
+          },
           {
             type: "stat",
             titleOption: {
@@ -119,7 +192,7 @@ WHERE
               align: "center",
             },
             collapsed: false,
-            gridPos: { w: 5, h: 4 },
+            gridPos: { w: 3, h: 3 },
             valueOption: {
               format: "comma_number",
             },
@@ -143,25 +216,21 @@ WHERE
           {
             type: "stat",
             titleOption: {
-              title: "Size Percentage of All Disks",
+              title: "Replication Queue",
               align: "center",
             },
-            collapsed: false,
-            gridPos: { w: 5, h: 4 },
+            gridPos: { w: 3, h: 3 },
+            valueOption: {
+              format: "comma_number",
+            },
             datasource: {
               sql: `
-SELECT sum(total_bytes) / (SELECT sum(total_space - keep_free_space) from system.disks) as bytes_on_disk
-FROM
-    system.tables
-WHERE 
-    database = '${escapedDatabase}' 
-    AND table = '${escapedTable}'
+SELECT count(*)
+FROM system.replication_queue
+WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
 `,
             },
-            valueOption: {
-              format: "percentage_0_1",
-            },
-          },
+          } as StatDescriptor,
           {
             type: "stat",
             titleOption: {
@@ -169,7 +238,7 @@ WHERE
               align: "center",
             },
             collapsed: false,
-            gridPos: { w: 4, h: 4 },
+            gridPos: { w: 3, h: 3 },
             datasource: {
               sql: `
 SELECT modification_time
@@ -188,13 +257,31 @@ LIMIT 1
             ? [
                 {
                   title: "Cluster",
+                  collapsed: true,
                   charts: [
+                    {
+                      type: "stat",
+                      titleOption: {
+                        title: "Total Rows",
+                      },
+                      gridPos: { w: 3, h: 3 },
+                      datasource: {
+                        sql: `
+SELECT sum(total_rows) as total_rows
+FROM cluster('{cluster}', system.tables)
+WHERE database = '${escapedDatabase}' AND name = '${escapedTable}'
+`,
+                      },
+                      valueOption: {
+                        format: "comma_number",
+                      },
+                    } as StatDescriptor,
                     {
                       type: "stat",
                       titleOption: {
                         title: "Cluster Size",
                       },
-                      gridPos: { w: 5, h: 4 },
+                      gridPos: { w: 3, h: 3 },
                       datasource: {
                         sql: `
 SELECT sum(total_bytes) as total_bytes
@@ -211,7 +298,7 @@ WHERE database = '${escapedDatabase}' AND name = '${escapedTable}'
                       titleOption: {
                         title: "Cluster Size(All Replicas)",
                       },
-                      gridPos: { w: 5, h: 4 },
+                      gridPos: { w: 3, h: 3 },
                       datasource: {
                         sql: `
 SELECT sum(total_bytes) as total_bytes
@@ -224,29 +311,12 @@ WHERE database = '${escapedDatabase}' AND name = '${escapedTable}'
                       },
                     } as StatDescriptor,
                     {
-                      type: "stat",
-                      titleOption: {
-                        title: "Total Rows",
-                      },
-                      gridPos: { w: 5, h: 4 },
-                      datasource: {
-                        sql: `
-SELECT sum(total_rows) as total_bytes
-FROM cluster('{cluster}', system.tables)
-WHERE database = '${escapedDatabase}' AND name = '${escapedTable}'
-`,
-                      },
-                      valueOption: {
-                        format: "comma_number",
-                      },
-                    } as StatDescriptor,
-                    {
                       type: "table",
                       titleOption: {
-                        title: "Table Size On Cluster",
+                        title: "Table Size Per Node",
                         align: "center",
                       },
-                      gridPos: { w: 24, h: 12 },
+                      gridPos: { w: 24, h: 6 },
                       datasource: {
                         sql: `
 SELECT
@@ -284,107 +354,62 @@ ORDER BY host
               ]
             : []),
 
-          //
-          // Sizes
-          //
           {
-            title: "Sizes",
+            title: "Replication Queue",
             collapsed: true,
             charts: [
               {
                 type: "table",
                 titleOption: {
-                  title: "Overall Size",
+                  title: "",
                   align: "center",
                 },
-                gridPos: {
-                  w: 24,
-                  h: 4,
-                },
+                gridPos: { w: 24, h: 6 },
                 datasource: {
                   sql: `
-SELECT 
-    count(1) as part_count,
-    sum(rows) as rows,
-    sum(bytes_on_disk) AS disk_size,
-    sum(data_uncompressed_bytes) AS uncompressed_size,
-    round(sum(data_uncompressed_bytes) / sum(data_compressed_bytes), 2) AS compress_ratio,
-    round(disk_size / rows, 2) AS avg_row_size
-FROM
-    system.parts
-WHERE 
-    database = '${escapedDatabase}' 
-    AND table = '${escapedTable}'
-    AND active = 1
-ORDER BY 
-    disk_size DESC`,
+SELECT
+hostName() as host, 
+count() as queued_count
+FROM {clusterAllReplicas:system.replication_queue}
+WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'
+GROUP BY 1
+ORDER BY 1
+`,
+                },
+                miscOption: {
+                  enableIndexColumn: true,
+                },
+                fieldOptions: {
+                  queued_count: {
+                    format: "comma_number",
+                  },
                 },
                 sortOption: {
                   initialSort: {
-                    column: "disk_size",
-                    direction: "desc",
-                  },
-                  serverSideSorting: true,
-                },
-                fieldOptions: {
-                  part_count: {
-                    title: "Part Count",
-                    sortable: true,
-                    align: "center",
-                    format: "comma_number",
-                    position: 3,
-                  },
-                  rows: {
-                    title: "Rows",
-                    sortable: true,
-                    align: "center",
-                    format: "comma_number",
-                    position: 4,
-                  },
-                  avg_row_size: {
-                    title: "Avg Row Size",
-                    sortable: true,
-                    align: "center",
-                    format: "binary_size",
-                    position: 5,
-                  },
-                  disk_size: {
-                    title: "On Disk Size",
-                    sortable: true,
-                    align: "center",
-                    format: "binary_size",
-                    position: 6,
-                  },
-                  uncompressed_size: {
-                    title: "Uncompressed Size",
-                    sortable: true,
-                    align: "center",
-                    format: "binary_size",
-                    position: 7,
-                  },
-                  compress_ratio: {
-                    title: "Compress Ratio",
-                    sortable: true,
-                    align: "center",
-                    position: 8,
-                    format: (value: unknown) => {
-                      if (value === null || value === undefined) {
-                        return "-";
-                      }
-                      return `${value} : 1`;
-                    },
+                    column: "host",
+                    direction: "asc",
                   },
                 },
               } as TableDescriptor,
+            ],
+          } as DashboardGroup,
+
+          //
+          // Sizes
+          //
+          {
+            title: "Column Size",
+            collapsed: true,
+            charts: [
               {
                 type: "table",
                 titleOption: {
-                  title: "Column Size",
+                  title: "",
                   align: "center",
                 },
                 gridPos: {
                   w: 24,
-                  h: 18,
+                  h: 6,
                 },
                 datasource: {
                   sql: `
@@ -463,13 +488,19 @@ ORDER BY
                   },
                 },
               } as TableDescriptor,
+            ],
+          } as DashboardGroup,
+          {
+            title: "Index Size",
+            collapsed: true,
+            charts: [
               {
                 type: "table",
                 titleOption: {
-                  title: "Index Size",
+                  title: "",
                   align: "center",
                 },
-                gridPos: { w: 24, h: 10 },
+                gridPos: { w: 24, h: 6 },
                 fieldOptions: {
                   database: {
                     position: -1,
@@ -490,11 +521,11 @@ ORDER BY
                 },
                 datasource: {
                   sql: `
-SELECT *
-FROM system.data_skipping_indices
-WHERE
-    database = '${escapedDatabase}'
-    AND table = '${escapedTable}'`,
+    SELECT *
+    FROM system.data_skipping_indices
+    WHERE
+        database = '${escapedDatabase}'
+        AND table = '${escapedTable}'`,
                 },
                 sortOption: {
                   initialSort: {
@@ -503,47 +534,53 @@ WHERE
                   },
                 },
               } as TableDescriptor,
+            ],
+          } as DashboardGroup,
+          {
+            title: "Projection Size",
+            collapsed: true,
+            charts: [
               {
                 type: "table",
                 titleOption: {
-                  title: "Projection Size",
+                  title: "",
                   align: "center",
                 },
-                gridPos: { w: 24, h: 10 },
+                gridPos: { w: 24, h: 6 },
                 datasource: {
                   sql: `
-SELECT A.database, 
-  A.table, 
-  A.name, 
-  A.type,
-  B.part_count, 
-  B.rows, 
-  B.bytes_on_disk,
-  B.parent_bytes_on_disk,
-  B.bytes_on_disk * 100 / B.parent_bytes_on_disk as percentage_of_parent,
-  B.last_modified_time,
-  A.query
-FROM (
-    SELECT * FROM system.projections WHERE database = '${escapedDatabase}' AND table = '${escapedTable}' 
-) AS A
-LEFT JOIN
-(
-    SELECT 
-        name, 
-        count() as part_count, 
-        sum(bytes_on_disk) as bytes_on_disk,
-        sum(rows) as rows,
-        sum(parent_bytes_on_disk) as  parent_bytes_on_disk,
-        max(modification_time)  as last_modified_time
-    FROM system.projection_parts
-    WHERE
-        database = '${escapedDatabase}'
-        AND table = '${escapedTable}'
-        AND active
-    GROUP BY name
-) AS B
-ON A.name = B.name
-ORDER BY 1, 2, 3`,
+    SELECT A.database, 
+      A.table, 
+      A.name, 
+      A.type,
+      B.part_count, 
+      B.rows, 
+      B.bytes_on_disk,
+      B.parent_bytes_on_disk,
+      B.bytes_on_disk * 100 / B.parent_bytes_on_disk as percentage_of_parent,
+      B.last_modified_time,
+      A.query
+    FROM (
+        SELECT * FROM system.projections WHERE database = '${escapedDatabase}' AND table = '${escapedTable}' 
+    ) AS A
+    LEFT JOIN
+    (
+        SELECT 
+            name, 
+            count() as part_count, 
+            sum(bytes_on_disk) as bytes_on_disk,
+            sum(rows) as rows,
+            sum(parent_bytes_on_disk) as  parent_bytes_on_disk,
+            max(modification_time)  as last_modified_time
+        FROM system.projection_parts
+        WHERE
+            database = '${escapedDatabase}'
+            AND table = '${escapedTable}'
+            AND active
+        GROUP BY name
+    ) AS B
+    ON A.name = B.name
+    ORDER BY 1, 2, 3`,
                 },
                 sortOption: {
                   initialSort: {

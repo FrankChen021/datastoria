@@ -95,13 +95,7 @@ export function SectionHeader({
   }, []);
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-2 py-1.5 bg-muted/30 select-none group",
-        className,
-        isCollapsed && "border-b"
-      )}
-    >
+    <div className={cn("flex items-center gap-2 py-1.5 bg-muted/30 select-none group", className)}>
       {/* Collapse toggle */}
       <button
         type="button"
