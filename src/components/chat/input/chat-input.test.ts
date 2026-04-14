@@ -200,7 +200,7 @@ describe("ChatInput inline tokens", () => {
     expect(removeCommandButton).not.toBeNull();
 
     act(() => {
-      removeCommandButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      removeCommandButton?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     });
 
     expect(editor?.textContent).not.toContain("review");
@@ -213,7 +213,7 @@ describe("ChatInput inline tokens", () => {
     expect(removeMentionButton).not.toBeNull();
 
     act(() => {
-      removeMentionButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      removeMentionButton?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     });
 
     expect(editor?.textContent).toContain("check");

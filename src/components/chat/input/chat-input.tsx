@@ -1498,6 +1498,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                   size="icon"
                   variant="destructive"
                   className="h-6 w-6 rounded-md shadow-sm"
+                  aria-label="Stop generating"
                   title="Stop generating"
                 >
                   <Square className="h-3.5 w-3.5" />
@@ -1508,6 +1509,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                   disabled={!canSubmit}
                   size="icon"
                   className="h-6 w-6 rounded-md shadow-sm"
+                  aria-label="Send message"
                   title={`Send (${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"}+Enter)`}
                 >
                   <Send className="h-3.5 w-3.5" />
