@@ -18,6 +18,7 @@ import {
 import { getTableContextByMentions } from "../input/mention-utils";
 import { ChatMessageList } from "../message/chat-message-list";
 import { SampleQuestions } from "./sample-questions";
+import { type ChatComposerInput } from "./use-chat-panel";
 import { useTokenUsage } from "./use-token-usage";
 
 interface ChatViewProps {
@@ -29,7 +30,7 @@ interface ChatViewProps {
     name: string;
     columns: Array<{ name: string; type: string }> | string[];
   }>;
-  externalInput?: string;
+  externalInput?: ChatComposerInput;
   onStreamingChange?: (isRunning: boolean) => void;
 }
 
@@ -45,7 +46,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
 ) {
   const { connection } = useConnection();
   const chatInputRef = useRef<ChatInputHandle | null>(null);
-  const [promptInput, setPromptInput] = useState<string | undefined>(externalInput);
+  const [promptInput, setPromptInput] = useState<ChatComposerInput | undefined>(externalInput);
 
   // Update promptInput when externalInput changes
   useEffect(() => {
@@ -54,7 +55,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
       return;
     }
     setPromptInput(undefined);
-  }, [externalInput, chat.id]);
+  }, [chat.id, externalInput]);
   const { messages, error, sendMessage, status, stop } = useChat({ chat });
 
   // Focus input when ChatView is mounted
@@ -137,7 +138,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         handleSubmit({ text: question.text });
       } else {
         // Default: set the input for user to review/edit
-        setPromptInput(question.text);
+        setPromptInput({ text: question.text, mode: "replace", nonce: Date.now() });
       }
     },
     [handleSubmit]
@@ -149,7 +150,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         handleSubmit({ text: input.text });
         return;
       }
-      setPromptInput(input.text);
+      setPromptInput({ text: input.text, mode: "replace", nonce: Date.now() });
     },
     [handleSubmit]
   );

@@ -17,6 +17,7 @@ import { ImagePlus, MessageSquarePlus, Plus, Send, Square, X } from "lucide-reac
 import * as React from "react";
 import { useAgentCommands } from "../agent-command-context";
 import { ChatTokenStatus } from "../message/chat-token-status";
+import type { ChatComposerInput } from "../view/use-chat-panel";
 import { ChatInputCommands, type ChatInputCommandsType } from "./chat-input-commands";
 import {
   ChatInputSuggestions,
@@ -26,6 +27,7 @@ import {
 import { getLeadingCommand, removeLeadingCommand, replaceLeadingCommand } from "./command-utils";
 import { getTableMentionMatches, removeTableMentionAt } from "./mention-utils";
 import { ModelSelector } from "./model-selector";
+import { sqlSnippetTokenCodec } from "./sql-snippet-token";
 
 export { replaceLeadingCommand } from "./command-utils";
 
@@ -42,7 +44,8 @@ const MAX_TOTAL_IMAGE_FILE_SIZE_BYTES = 7 * 1024 * 1024;
 const UNSUPPORTED_IMAGE_MODEL_MESSAGE = "Select a vision-capable model before sending images.";
 const REMOVED_IMAGE_ATTACHMENTS_MESSAGE =
   "Attached images were removed because the selected model does not support image input.";
-
+const TOKEN_HOVER_CARD_OPEN_DELAY_MS = 180;
+const TOKEN_HOVER_CARD_CLOSE_DELAY_MS = 120;
 export type ChatInputImageAttachment = {
   id: string;
   mediaType: string;
@@ -58,7 +61,7 @@ interface ChatInputProps {
   hasMessages?: boolean;
   tokenUsage?: LanguageModelUsage;
   onNewChat?: () => void;
-  externalInput?: string;
+  externalInput?: ChatComposerInput;
 }
 
 export interface ChatInputHandle {
@@ -80,9 +83,21 @@ type TokenSegment =
       start: number;
       end: number;
       label: string;
+    }
+  | {
+      kind: "sqlSnippet";
+      rawText: string;
+      start: number;
+      end: number;
+      label: string;
+      sql: string;
     };
 
 type RenderSegment = { kind: "text"; text: string; start: number; end: number } | TokenSegment;
+type HoveredCodeToken = {
+  code: string;
+  rect: { top: number; left: number; width: number; height: number };
+};
 
 function createTextNodeSegment(documentRef: Document, text: string) {
   return documentRef.createTextNode(text);
@@ -130,7 +145,11 @@ function createAttachmentId(): string {
 function createTokenNodeSegment(
   documentRef: Document,
   segment: TokenSegment,
-  onRemove: () => void
+  onRemove: () => void,
+  options?: {
+    onHoverStart?: (element: HTMLElement, segment: TokenSegment) => void;
+    onHoverEnd?: (segment: TokenSegment) => void;
+  }
 ) {
   const token = documentRef.createElement("span");
   token.dataset.rawText = segment.rawText;
@@ -139,12 +158,15 @@ function createTokenNodeSegment(
     "mx-[1px] inline-flex max-w-full items-center gap-1 rounded-md border px-1.5 py-0.5 align-baseline text-xs",
     segment.kind === "command"
       ? "border-cyan-200 bg-cyan-50 text-cyan-900 dark:border-cyan-900/60 dark:bg-cyan-950/50 dark:text-cyan-100"
-      : "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-100"
+      : segment.kind === "sqlSnippet"
+        ? "border-slate-200 bg-slate-100 text-slate-900 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100"
+        : "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-100"
   );
 
   const icon = documentRef.createElement("span");
   icon.className = "shrink-0";
-  icon.textContent = segment.kind === "command" ? "/" : "@";
+  icon.textContent =
+    segment.kind === "command" ? "/" : segment.kind === "sqlSnippet" ? "SQL:" : "@";
 
   const label = documentRef.createElement("span");
   label.className = "max-w-[240px] truncate font-medium";
@@ -153,12 +175,27 @@ function createTokenNodeSegment(
   const remove = documentRef.createElement("button");
   remove.setAttribute("type", "button");
   remove.setAttribute("tabindex", "-1");
-  remove.setAttribute("aria-label", `Remove ${segment.kind} ${segment.label}`);
+  remove.setAttribute(
+    "aria-label",
+    `Remove ${segment.kind === "sqlSnippet" ? "SQL selection" : segment.kind} ${segment.label}`
+  );
   remove.className =
     "inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-sm border-0 bg-transparent p-0 text-current/70 hover:bg-black/5 hover:text-current dark:hover:bg-white/10";
   remove.textContent = "×";
-  remove.addEventListener("mousedown", (event) => event.preventDefault());
-  remove.addEventListener("click", onRemove);
+  remove.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onRemove();
+  });
+  remove.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+
+  if (segment.kind === "sqlSnippet" && options?.onHoverStart && options?.onHoverEnd) {
+    token.addEventListener("pointerenter", () => options.onHoverStart?.(token, segment));
+    token.addEventListener("pointerleave", () => options.onHoverEnd?.(segment));
+  }
 
   token.append(icon, label, remove);
   return token;
@@ -328,6 +365,45 @@ function isKeyboardEventComposing(event: React.KeyboardEvent<HTMLDivElement>) {
   return event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229;
 }
 
+function TokenHoverCard({
+  hoveredToken,
+  containerWidth,
+  onPointerEnter,
+  onPointerLeave,
+}: {
+  hoveredToken: HoveredCodeToken | null;
+  containerWidth: number | undefined;
+  onPointerEnter: () => void;
+  onPointerLeave: () => void;
+}) {
+  if (!hoveredToken) {
+    return null;
+  }
+
+  const hoverCardWidth = 360;
+  const hoverCardLeft = Math.max(
+    12,
+    Math.min(hoveredToken.rect.left, (containerWidth ?? hoverCardWidth + 24) - hoverCardWidth - 12)
+  );
+
+  return (
+    <div
+      className="absolute z-30 w-[360px] rounded-md border bg-popover p-3 text-popover-foreground shadow-md"
+      style={{
+        top: Math.max(hoveredToken.rect.top - 8, 8),
+        left: hoverCardLeft,
+        transform: "translateY(-100%)",
+      }}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
+    >
+      <pre className="max-h-48 overflow-auto rounded-sm bg-muted/50 p-2 text-xs text-foreground">
+        <code>{hoveredToken.code}</code>
+      </pre>
+    </div>
+  );
+}
+
 function buildRenderSegments(input: string, command: CommandDetail | null): RenderSegment[] {
   const tokenSegments: TokenSegment[] = [];
 
@@ -349,6 +425,17 @@ function buildRenderSegments(input: string, command: CommandDetail | null): Rend
       start: mention.start,
       end: mention.end,
       label: mention.value,
+    });
+  }
+
+  for (const snippet of sqlSnippetTokenCodec.getMatches(input)) {
+    tokenSegments.push({
+      kind: "sqlSnippet",
+      rawText: snippet.text,
+      start: snippet.start,
+      end: snippet.end,
+      label: snippet.label,
+      sql: snippet.sql,
     });
   }
 
@@ -412,7 +499,11 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const [attachmentError, setAttachmentError] = React.useState<string | null>(null);
     const [resizedHeight, setResizedHeight] = React.useState<number | null>(null);
     const [isDraggingResizeHandle, setIsDraggingResizeHandle] = React.useState(false);
-    const prevExternalInputRef = React.useRef<string | undefined>(undefined);
+    const [hoveredCodeToken, setHoveredCodeToken] = React.useState<HoveredCodeToken | null>(null);
+    const hoveredCodeTokenOpenTimeoutRef = React.useRef<number | null>(null);
+    const hoveredCodeTokenCloseTimeoutRef = React.useRef<number | null>(null);
+    const prevExternalInputNonceRef = React.useRef<number | undefined>(undefined);
+    const inputRef = React.useRef(input);
 
     // Mention state
     const [suggestionStartPos, setSuggestionStartPos] = React.useState(0);
@@ -438,6 +529,10 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     React.useEffect(() => {
       attachmentsRef.current = attachments;
     }, [attachments]);
+
+    React.useEffect(() => {
+      inputRef.current = input;
+    }, [input]);
 
     const resetFileInput = React.useCallback(() => {
       if (fileInputRef.current) {
@@ -679,15 +774,19 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     }, [cleanupResizeDrag]);
 
     React.useEffect(() => {
-      if (externalInput && externalInput !== prevExternalInputRef.current) {
-        prevExternalInputRef.current = externalInput;
-        pendingSelectionOffsetRef.current = externalInput.length;
-        setInput(externalInput);
-        updateSuggestions(externalInput, externalInput.length);
-        if (editorRef.current) {
-          editorRef.current.focus();
-        }
+      if (!externalInput || externalInput.nonce === prevExternalInputNonceRef.current) {
+        return;
       }
+
+      prevExternalInputNonceRef.current = externalInput.nonce;
+      const nextText =
+        externalInput.mode === "append" && inputRef.current.trim().length > 0
+          ? `${inputRef.current}${/\s$/.test(inputRef.current) ? "" : " "}${externalInput.text}`
+          : externalInput.text;
+      pendingSelectionOffsetRef.current = nextText.length;
+      setInput(nextText);
+      updateSuggestions(nextText, nextText.length);
+      editorRef.current?.focus();
     }, [externalInput, updateSuggestions]);
 
     const handleNewChat = React.useCallback(() => {
@@ -763,9 +862,11 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     const handleSelectCommand = React.useCallback(
       (command: CommandDetail) => {
-        const newText = replaceLeadingCommand(input, command.name);
+        const newText = replaceLeadingCommand(input, command.name, cursorOffsetRef.current);
         commandRef.current?.close();
-        setInputAndSelection(newText, newText.length);
+        const nextCursor =
+          newText === `/${command.name} ` ? newText.length : `/${command.name}`.length;
+        setInputAndSelection(newText, nextCursor);
         editorRef.current?.focus();
       },
       [input, setInputAndSelection]
@@ -788,6 +889,100 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       [input, setInputAndSelection]
     );
 
+    const clearHoveredCodeTokenOpenTimeout = React.useCallback(() => {
+      if (hoveredCodeTokenOpenTimeoutRef.current !== null) {
+        window.clearTimeout(hoveredCodeTokenOpenTimeoutRef.current);
+        hoveredCodeTokenOpenTimeoutRef.current = null;
+      }
+    }, []);
+
+    const clearHoveredCodeTokenCloseTimeout = React.useCallback(() => {
+      if (hoveredCodeTokenCloseTimeoutRef.current !== null) {
+        window.clearTimeout(hoveredCodeTokenCloseTimeoutRef.current);
+        hoveredCodeTokenCloseTimeoutRef.current = null;
+      }
+    }, []);
+
+    const scheduleHoveredCodeTokenClose = React.useCallback(() => {
+      clearHoveredCodeTokenCloseTimeout();
+      hoveredCodeTokenCloseTimeoutRef.current = window.setTimeout(() => {
+        setHoveredCodeToken(null);
+        hoveredCodeTokenCloseTimeoutRef.current = null;
+      }, TOKEN_HOVER_CARD_CLOSE_DELAY_MS);
+    }, [clearHoveredCodeTokenCloseTimeout]);
+
+    const handleDismissSqlSnippet = React.useCallback(
+      (start: number, end: number) => {
+        clearHoveredCodeTokenOpenTimeout();
+        clearHoveredCodeTokenCloseTimeout();
+        setHoveredCodeToken(null);
+        const newText = sqlSnippetTokenCodec.removeAt(input, start, end);
+        suggestionRef.current?.close();
+        setInputAndSelection(newText, Math.min(start, newText.length));
+        editorRef.current?.focus();
+      },
+      [
+        clearHoveredCodeTokenCloseTimeout,
+        clearHoveredCodeTokenOpenTimeout,
+        input,
+        setInputAndSelection,
+      ]
+    );
+
+    const handleCodeTokenHoverStart = React.useCallback(
+      (element: HTMLElement, segment: TokenSegment) => {
+        if (segment.kind !== "sqlSnippet" || !containerRef.current) {
+          return;
+        }
+
+        clearHoveredCodeTokenOpenTimeout();
+        clearHoveredCodeTokenCloseTimeout();
+        const tokenRect = element.getBoundingClientRect();
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const nextHoveredCodeToken = {
+          code: segment.sql,
+          rect: {
+            top: tokenRect.top - containerRect.top,
+            left: tokenRect.left - containerRect.left,
+            width: tokenRect.width,
+            height: tokenRect.height,
+          },
+        };
+
+        hoveredCodeTokenOpenTimeoutRef.current = window.setTimeout(() => {
+          setHoveredCodeToken(nextHoveredCodeToken);
+          hoveredCodeTokenOpenTimeoutRef.current = null;
+        }, TOKEN_HOVER_CARD_OPEN_DELAY_MS);
+      },
+      [clearHoveredCodeTokenCloseTimeout, clearHoveredCodeTokenOpenTimeout]
+    );
+
+    const handleCodeTokenHoverEnd = React.useCallback(
+      (_segment: TokenSegment) => {
+        clearHoveredCodeTokenOpenTimeout();
+        if (!hoveredCodeToken) {
+          return;
+        }
+        scheduleHoveredCodeTokenClose();
+      },
+      [clearHoveredCodeTokenOpenTimeout, hoveredCodeToken, scheduleHoveredCodeTokenClose]
+    );
+
+    const handleHoverCardPointerEnter = React.useCallback(() => {
+      clearHoveredCodeTokenCloseTimeout();
+    }, [clearHoveredCodeTokenCloseTimeout]);
+
+    const handleHoverCardPointerLeave = React.useCallback(() => {
+      scheduleHoveredCodeTokenClose();
+    }, [scheduleHoveredCodeTokenClose]);
+
+    React.useEffect(() => {
+      return () => {
+        clearHoveredCodeTokenOpenTimeout();
+        clearHoveredCodeTokenCloseTimeout();
+      };
+    }, [clearHoveredCodeTokenCloseTimeout, clearHoveredCodeTokenOpenTimeout]);
+
     React.useLayoutEffect(() => {
       const editor = editorRef.current;
       if (!editor) return;
@@ -802,14 +997,27 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         }
 
         fragment.appendChild(
-          createTokenNodeSegment(document, segment, () => {
-            if (segment.kind === "command") {
-              handleDismissCommand();
-              return;
-            }
+          createTokenNodeSegment(
+            document,
+            segment,
+            () => {
+              if (segment.kind === "command") {
+                handleDismissCommand();
+                return;
+              }
 
-            handleDismissMention(segment.start, segment.end);
-          })
+              if (segment.kind === "mention") {
+                handleDismissMention(segment.start, segment.end);
+                return;
+              }
+
+              handleDismissSqlSnippet(segment.start, segment.end);
+            },
+            {
+              onHoverStart: handleCodeTokenHoverStart,
+              onHoverEnd: handleCodeTokenHoverEnd,
+            }
+          )
         );
       }
 
@@ -831,10 +1039,19 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           });
         }
       }
-    }, [handleDismissCommand, handleDismissMention, input, isComposing, renderSegments]);
+    }, [
+      handleDismissCommand,
+      handleDismissMention,
+      handleDismissSqlSnippet,
+      handleCodeTokenHoverEnd,
+      handleCodeTokenHoverStart,
+      input,
+      isComposing,
+      renderSegments,
+    ]);
 
     const handleSubmit = React.useCallback(() => {
-      const message = input.trim();
+      const message = sqlSnippetTokenCodec.expand(input).trim();
       if (!message && attachments.length === 0) return;
       if (attachments.length > 0 && !selectedModelSupportsImages) {
         setAttachmentError(UNSUPPORTED_IMAGE_MODEL_MESSAGE);
@@ -1015,6 +1232,17 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           }
         }
 
+        for (const snippet of sqlSnippetTokenCodec.getMatches(input)) {
+          if (
+            (key === "Backspace" && snippet.end === selection.start) ||
+            (key === "Delete" && snippet.start === selection.start)
+          ) {
+            const newText = sqlSnippetTokenCodec.removeAt(input, snippet.start, snippet.end);
+            setInputAndSelection(newText, Math.min(snippet.start, newText.length));
+            return true;
+          }
+        }
+
         return false;
       },
       [input, leadingCommand, selectedCommand, setInputAndSelection]
@@ -1101,6 +1329,13 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             onMouseDown={handleResizeStart}
             onDoubleClick={handleResizeReset}
           ></div>
+
+          <TokenHoverCard
+            hoveredToken={hoveredCodeToken}
+            containerWidth={containerRef.current?.clientWidth}
+            onPointerEnter={handleHoverCardPointerEnter}
+            onPointerLeave={handleHoverCardPointerLeave}
+          />
 
           <div
             className={cn("flex flex-col overflow-hidden", isResizable ? "h-full" : "")}

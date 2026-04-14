@@ -10,6 +10,14 @@ export type SelectedChatTarget = {
   connectionId?: string;
 };
 
+export type ChatComposerInputMode = "replace" | "append";
+export type ChatComposerInput = {
+  text: string;
+  chatId?: string;
+  mode: ChatComposerInputMode;
+  nonce: number;
+};
+
 interface ChatPanelContextType {
   displayMode: ChatPanelDisplayMode;
   setDisplayMode: (mode: ChatPanelDisplayMode) => void;
@@ -36,8 +44,8 @@ interface ChatPanelContextType {
     agentContext?: Partial<AgentContext>;
   } | null;
   consumeCommand: () => void;
-  setInitialInput: (text: string, chatId?: string) => void;
-  initialInput: { text: string; chatId?: string } | null;
+  setInitialInput: (text: string, chatId?: string, mode?: ChatComposerInputMode) => void;
+  initialInput: ChatComposerInput | null;
   clearInitialInput: () => void;
 }
 
@@ -103,9 +111,7 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     forceNewChat?: boolean;
     agentContext?: Partial<AgentContext>;
   } | null>(null);
-  const [initialInput, setInitialInputState] = useState<{ text: string; chatId?: string } | null>(
-    null
-  );
+  const [initialInput, setInitialInputState] = useState<ChatComposerInput | null>(null);
 
   const toggleDisplayMode = () => {
     setDisplayMode((prev) => {
@@ -164,8 +170,12 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     setPendingCommand(null);
   };
 
-  const setInitialInput = (text: string, chatId?: string) => {
-    setInitialInputState({ text, chatId });
+  const setInitialInput = (
+    text: string,
+    chatId?: string,
+    mode: ChatComposerInputMode = "replace"
+  ) => {
+    setInitialInputState({ text, chatId, mode, nonce: Date.now() });
     setDisplayMode((prev) => (prev === "hidden" ? "panel" : prev));
   };
 

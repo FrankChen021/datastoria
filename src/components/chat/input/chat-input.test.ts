@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatInput } from "./chat-input";
 import { removeLeadingCommand, replaceLeadingCommand } from "./command-utils";
 import { getTableMentionMatches, removeTableMentionAt } from "./mention-utils";
+import { sqlSnippetTokenCodec } from "./sql-snippet-token";
 
 vi.mock("@/components/connection/connection-context", () => ({
   useConnection: () => ({
@@ -120,6 +121,39 @@ describe("table mention helpers", () => {
   });
 });
 
+describe("SQL snippet token helpers", () => {
+  it("creates and expands SQL snippet tokens", () => {
+    const token = sqlSnippetTokenCodec.createToken("SELECT *\nFROM system.query_log");
+
+    expect(sqlSnippetTokenCodec.getMatches(`Explain ${token}`)).toEqual([
+      expect.objectContaining({
+        text: token,
+        sql: "SELECT *\nFROM system.query_log",
+        start: 8,
+        end: 8 + token.length,
+      }),
+    ]);
+    expect(sqlSnippetTokenCodec.expand(token)).toBe("```sql\nSELECT *\nFROM system.query_log\n```");
+  });
+
+  it("expands SQL snippet tokens into fenced blocks separated from surrounding prose", () => {
+    const token = sqlSnippetTokenCodec.createToken(
+      "admin_de_presto_prod_.presto_alb_jdbc_access_log_view.big_data_account"
+    );
+
+    expect(sqlSnippetTokenCodec.expand(`what's the type of this column ${token}`)).toBe(
+      "what's the type of this column\n\n```sql\nadmin_de_presto_prod_.presto_alb_jdbc_access_log_view.big_data_account\n```"
+    );
+  });
+
+  it("removes SQL snippet tokens without leaving double spaces behind", () => {
+    const token = sqlSnippetTokenCodec.createToken("SELECT 1");
+    expect(sqlSnippetTokenCodec.removeAt(`Explain ${token} now`, 8, 8 + token.length)).toBe(
+      "Explain now"
+    );
+  });
+});
+
 describe("ChatInput inline tokens", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -146,7 +180,7 @@ describe("ChatInput inline tokens", () => {
         React.createElement(ChatInput, {
           onSubmit: vi.fn(),
           isRunning: false,
-          externalInput: "/review check @system.query_log now",
+          externalInput: { text: "/review check @system.query_log now", mode: "replace", nonce: 1 },
         })
       );
     });
@@ -187,13 +221,79 @@ describe("ChatInput inline tokens", () => {
     expect(editor?.textContent).not.toContain("system.query_log");
   });
 
+  it("renders SQL snippet tokens inline and expands them on submit", () => {
+    const onSubmit = vi.fn();
+    const externalInput = sqlSnippetTokenCodec.createToken("SELECT 1");
+
+    act(() => {
+      root.render(
+        React.createElement(ChatInput, {
+          onSubmit,
+          isRunning: false,
+          externalInput: { text: externalInput, mode: "replace", nonce: 1 },
+        })
+      );
+    });
+
+    expect(container.textContent).toContain("SELECT 1");
+
+    const removeSnippetButton = container.querySelector(
+      'button[aria-label="Remove SQL selection SELECT 1"]'
+    ) as HTMLButtonElement | null;
+    expect(removeSnippetButton).not.toBeNull();
+
+    const sendButton = Array.from(container.querySelectorAll("button")).find((candidate) =>
+      candidate.getAttribute("aria-label")?.includes("Send")
+    );
+    expect(sendButton).toBeTruthy();
+
+    act(() => {
+      sendButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      text: "```sql\nSELECT 1\n```",
+      files: [],
+    });
+  });
+
+  it("appends external input chips to the existing composer content", () => {
+    act(() => {
+      root.render(
+        React.createElement(ChatInput, {
+          onSubmit: vi.fn(),
+          isRunning: false,
+          externalInput: { text: "Explain", mode: "replace", nonce: 1 },
+        })
+      );
+    });
+
+    act(() => {
+      root.render(
+        React.createElement(ChatInput, {
+          onSubmit: vi.fn(),
+          isRunning: false,
+          externalInput: {
+            text: sqlSnippetTokenCodec.createToken("SELECT count() FROM events"),
+            mode: "append",
+            nonce: 2,
+          },
+        })
+      );
+    });
+
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement | null;
+    expect(editor?.textContent).toContain("Explain");
+    expect(editor?.textContent).toContain("SELECT count() FROM events");
+  });
+
   it("does not intercept Enter while IME composition is active", () => {
     act(() => {
       root.render(
         React.createElement(ChatInput, {
           onSubmit: vi.fn(),
           isRunning: false,
-          externalInput: "ni",
+          externalInput: { text: "ni", mode: "replace", nonce: 1 },
         })
       );
     });

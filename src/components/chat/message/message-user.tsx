@@ -36,7 +36,10 @@ export const MessageUser = memo(function MessageUser({ text }: { text: string })
         if (codeBlock) return codeBlock;
         // If it's a newline outside code block, double it
         return "\n\n";
-      });
+      })
+      // Fenced code blocks must start after a blank line, otherwise markdown may render
+      // the opening backticks inline when prose appears immediately before the fence.
+      .replace(/([^\n])\n(```)/g, "$1\n\n$2");
 
     if (!command || !matchedCommand) {
       return processedBaseText;
@@ -50,7 +53,13 @@ export const MessageUser = memo(function MessageUser({ text }: { text: string })
       })
     );
 
-    return processedBaseText ? `${commandLink} ${processedBaseText}` : commandLink;
+    if (!processedBaseText) {
+      return commandLink;
+    }
+
+    // Fenced blocks must start on their own line or markdown will render the backticks inline.
+    const separator = processedBaseText.startsWith("```") ? "\n\n" : " ";
+    return `${commandLink}${separator}${processedBaseText}`;
   }, [command, matchedCommand, text]);
 
   return (
