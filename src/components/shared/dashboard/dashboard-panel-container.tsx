@@ -436,8 +436,11 @@ const DashboardPanelContainer = forwardRef<
         <div className="h-full flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
             {sections.map((section) => {
-              // Use local state for collapse only (no persistence)
-              const isCollapsed = sectionCollapseStates.get(section.sectionIndex) ?? false;
+              // Default to the group's configured state until the user toggles locally.
+              const isCollapsed =
+                sectionCollapseStates.get(section.sectionIndex) ??
+                section.group?.collapsed ??
+                false;
 
               return (
                 <DashboardSection
