@@ -92,7 +92,12 @@ export function ReleaseNotesView() {
   useEffect(() => {
     fetch(BasePath.getURL("/release-notes.json"))
       .then(async (res) => {
-        if (res.status !== 200) {
+        if (res.status === 204 || res.status === 205) {
+          return [];
+        }
+
+        if (!res.ok) {
+          console.error(`Failed to load release notes: ${res.status} ${res.statusText}`);
           return [];
         }
 
