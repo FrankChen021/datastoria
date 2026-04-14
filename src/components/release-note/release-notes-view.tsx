@@ -91,9 +91,15 @@ export function ReleaseNotesView() {
 
   useEffect(() => {
     fetch(BasePath.getURL("/release-notes.json"))
-      .then((res) => res.json())
-      .then((data) => {
-        const list = Array.isArray(data) ? data : [data];
+      .then(async (res) => {
+        if (res.status !== 200) {
+          return [];
+        }
+
+        const data = await res.json();
+        return Array.isArray(data) ? data : [data];
+      })
+      .then((list: Release[]) => {
         setReleases(list);
         if (list.length > 0) setExpandedId(list[0].id);
         setLoading(false);
