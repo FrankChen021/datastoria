@@ -81,12 +81,12 @@ const TableOverviewViewComponent = forwardRef<RefreshableTabViewRef, TableOvervi
             },
             datasource: {
               sql: `
-SELECT sum(total_rows) as total_bytes
+SELECT sum(total_rows) as total_rows
 FROM
     system.tables
 WHERE 
     database = '${escapedDatabase}' 
-    AND table = '${escapedTable}'
+    AND name = '${escapedTable}'
 `,
             },
           } as StatDescriptor,
@@ -105,7 +105,7 @@ FROM
     system.tables
 WHERE 
     database = '${escapedDatabase}' 
-    AND table = '${escapedTable}'
+    AND name = '${escapedTable}'
 `,
             },
             valueOption: {
@@ -147,7 +147,11 @@ WHERE
             datasource: {
               sql: `
     SELECT 
-        toString(round(sum(data_uncompressed_bytes) / sum(data_compressed_bytes), 0)) || ' : 1' AS compress_ratio
+        if(
+            sum(data_compressed_bytes) = 0,
+            '-',
+            toString(round(sum(data_uncompressed_bytes) / nullIf(sum(data_compressed_bytes), 0), 0)) || ' : 1'
+        ) AS compress_ratio
     FROM
         system.parts
     WHERE 
@@ -168,7 +172,7 @@ WHERE
             datasource: {
               sql: `
     SELECT 
-        round(sum(bytes_on_disk) / sum(rows), 0) AS avg_row_size
+        round(sum(bytes_on_disk) / nullIf(sum(rows), 0), 0) AS avg_row_size
     FROM
         system.parts
     WHERE 
@@ -176,6 +180,9 @@ WHERE
         AND table = '${escapedTable}'
         AND active = 1
 `,
+            },
+            valueOption: {
+              format: "binary_size",
             },
           },
           {
@@ -212,8 +219,10 @@ WHERE
               title: "Replication Queue",
               align: "center",
             },
-            collapsed: true,
             gridPos: { w: 3, h: 3 },
+            valueOption: {
+              format: "comma_number",
+            },
             datasource: {
               sql: `
 SELECT count(*)
@@ -258,7 +267,7 @@ LIMIT 1
                       gridPos: { w: 3, h: 3 },
                       datasource: {
                         sql: `
-SELECT sum(total_rows) as total_bytes
+SELECT sum(total_rows) as total_rows
 FROM cluster('{cluster}', system.tables)
 WHERE database = '${escapedDatabase}' AND name = '${escapedTable}'
 `,
