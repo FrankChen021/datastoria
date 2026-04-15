@@ -5,6 +5,7 @@ import type {
 import DashboardPanelContainer, {
   type DashboardPanelContainerRef,
 } from "@/components/shared/dashboard/dashboard-panel-container";
+import { SqlUtils } from "@/lib/sql-utils";
 import { forwardRef, useMemo } from "react";
 
 export interface DatabaseMetadataProps {
@@ -13,6 +14,7 @@ export interface DatabaseMetadataProps {
 
 export const DatabaseMetadata = forwardRef<DashboardPanelContainerRef, DatabaseMetadataProps>(
   ({ database }, ref) => {
+    const escapedDatabase = useMemo(() => SqlUtils.escapeSqlString(database), [database]);
     const dashboard = useMemo<Dashboard>(
       () => ({
         version: 3,
@@ -37,13 +39,13 @@ export const DatabaseMetadata = forwardRef<DashboardPanelContainerRef, DatabaseM
 select 
   *
 from system.databases
-where database = '${database}'
+where database = '${escapedDatabase}'
 `,
             },
           } as TransposeTableDescriptor,
         ],
       }),
-      [database]
+      [escapedDatabase]
     );
 
     return <DashboardPanelContainer ref={ref} dashboard={dashboard} />;

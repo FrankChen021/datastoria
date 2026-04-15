@@ -174,10 +174,10 @@ WHERE
     SELECT 
       COALESCE(
         round(
-            sum(bytes_on_disk) / NULLIF(sum(rows), 0), 
-            2
-        ), 
-        2
+          sum(bytes_on_disk) / NULLIF(sum(rows), 0), 
+          2
+        ),
+        0
       ) AS avg_row_size
     FROM
         system.parts

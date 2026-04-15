@@ -184,7 +184,7 @@ const DatabaseTabComponent = ({ database }: DatabaseTabProps) => {
             role="tabpanel"
             aria-hidden={activeTab !== "metadata"}
           >
-            {tabsMetadata.get("metadata")?.loaded && (
+            {(tabsMetadata.get("metadata")?.loaded || activeTab === "metadata") && (
               <DatabaseMetadata ref={metadataRef} database={database} />
             )}
           </div>
