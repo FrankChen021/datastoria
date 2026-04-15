@@ -760,7 +760,7 @@ Press ${keyBindings.autocomplete} to show suggestions.
                     : "translateX(-50%)",
             }}
           >
-            <div className="pointer-events-auto flex items-center gap-0 rounded-sm border border-border bg-background/95 px-1 py-1 shadow-md backdrop-blur supports-[backdrop-filter]:bg-background/85">
+            <div className="pointer-events-auto flex items-center gap-0 rounded-sm border border-border bg-background px-1 py-1 shadow-md">
               <Button
                 type="button"
                 size="sm"

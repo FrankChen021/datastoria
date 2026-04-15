@@ -18,13 +18,21 @@ collect_candidate_files() {
 run_direct_tool_for_files() {
   local tool="$1"
   shift
+  local -a tool_args=()
+  while [ "$#" -gt 0 ] && [ "$1" != "--" ]; do
+    tool_args+=("$1")
+    shift
+  done
+  if [ "$#" -gt 0 ] && [ "$1" = "--" ]; then
+    shift
+  fi
   local -a files=("$@")
 
   if [ "${#files[@]}" -eq 0 ]; then
     return 0
   fi
 
-  npx "$tool" "${files[@]}"
+  npx "$tool" "${tool_args[@]}" "${files[@]}"
 }
 
 hash_stream() {
@@ -104,9 +112,9 @@ for path in "${candidate_files[@]}"; do
   esac
 done
 
-run_direct_tool_for_files prettier --write "${format_files[@]}"
+run_direct_tool_for_files prettier --write -- "${format_files[@]}"
 npm run typecheck
-run_direct_tool_for_files eslint "${lint_files[@]}"
+run_direct_tool_for_files eslint -- "${lint_files[@]}"
 
 if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
   rm -f "$stamp_file"

@@ -1079,7 +1079,7 @@ export const DataTable = forwardRef<DataTableRef, DataTableProps>(function DataT
       </div>
       {isNoData && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center pt-10 text-muted-foreground">
-          No data found
+          No data
         </div>
       )}
     </div>

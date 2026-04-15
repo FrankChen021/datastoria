@@ -125,7 +125,7 @@ const TableMetadataViewComponent = forwardRef<RefreshableTabViewRef, TableMetada
             collapsed: false,
             gridPos: {
               w: 24,
-              h: 24,
+              h: 16,
             },
             datasource: {
               sql: `
@@ -144,11 +144,10 @@ SELECT * FROM system.tables WHERE database = '${escapedDatabase}' AND name = '${
               title: "Table Columns",
               align: "center",
             },
-            collapsed: true,
             miscOption: { enableIndexColumn: true },
             gridPos: {
               w: 24,
-              h: 12,
+              h: 8,
             },
             datasource: {
               sql: `SELECT * FROM system.columns WHERE database = '${escapedDatabase}' AND table = '${escapedTable}'`,
@@ -170,11 +169,10 @@ SELECT * FROM system.tables WHERE database = '${escapedDatabase}' AND name = '${
             title: "Table Metadata On Cluster",
             align: "center",
           },
-          collapsed: true,
           miscOption: { enableIndexColumn: true },
           gridPos: {
             w: 24,
-            h: 12,
+            h: 8,
           },
           sortOption: {
             initialSort: {

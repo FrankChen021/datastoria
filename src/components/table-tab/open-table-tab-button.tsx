@@ -80,7 +80,7 @@ export const OpenTableTabButton = memo(
     return (
       <Button
         variant="link"
-        className={`font-semibold h-auto p-0 text-left inline-flex items-center ${className}`}
+        className={`gap-1 font-normal h-auto p-0 text-left inline-flex items-center ${className}`}
         onClick={handleClick}
         title={title}
       >

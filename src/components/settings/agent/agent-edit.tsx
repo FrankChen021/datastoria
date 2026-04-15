@@ -374,8 +374,8 @@ export function AgentEdit() {
               </DropdownMenu>
             </TableCell>
             <TableCell className="px-0 py-1 align-middle text-sm text-muted-foreground">
-              Controls the response language for AI actions in the SQL editor, including auto
-              explain and other quick actions.
+              Controls the response language for AI commands in the SQL editor, including auto
+              explain and other quick commands.
             </TableCell>
           </TableRow>
 

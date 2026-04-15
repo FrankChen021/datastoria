@@ -10,6 +10,7 @@ import { RefreshCw } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DependencyView } from "../dependency-view/dependency-view";
 import type { RefreshableTabViewRef } from "../table-tab/table-tab";
+import { DatabaseMetadata } from "./database-metadata";
 import { DatabaseOverview } from "./database-overview";
 
 export interface DatabaseTabProps {
@@ -34,6 +35,7 @@ const DatabaseTabComponent = ({ database }: DatabaseTabProps) => {
 
   // Refs for each tab view
   const overviewRef = useRef<DashboardPanelContainerRef>(null);
+  const metadataRef = useRef<DashboardPanelContainerRef>(null);
   const dependencyRef = useRef<RefreshableTabViewRef>(null);
 
   // Helper function to get the current ref based on active tab
@@ -44,6 +46,8 @@ const DatabaseTabComponent = ({ database }: DatabaseTabProps) => {
     switch (activeTab) {
       case "overview":
         return overviewRef.current;
+      case "metadata":
+        return metadataRef.current;
       case "dependency":
         return dependencyRef.current;
       default:
@@ -123,6 +127,12 @@ const DatabaseTabComponent = ({ database }: DatabaseTabProps) => {
               Database Overview
             </TabsTrigger>
             <TabsTrigger
+              value="metadata"
+              className="border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:rounded-b-none data-[state=active]:bg-transparent"
+            >
+              Metadata
+            </TabsTrigger>
+            <TabsTrigger
               value="dependency"
               className="border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:rounded-b-none data-[state=active]:bg-transparent"
             >
@@ -166,6 +176,16 @@ const DatabaseTabComponent = ({ database }: DatabaseTabProps) => {
                 database={database}
                 selectedTimeSpan={calculatedTimeSpan}
               />
+            )}
+          </div>
+          {/* Metadata tab */}
+          <div
+            className={`absolute inset-0 overflow-auto px-2 ${activeTab === "metadata" ? "block" : "hidden"}`}
+            role="tabpanel"
+            aria-hidden={activeTab !== "metadata"}
+          >
+            {tabsMetadata.get("metadata")?.loaded && (
+              <DatabaseMetadata ref={metadataRef} database={database} />
             )}
           </div>
           {/* Database Dependency tab */}
