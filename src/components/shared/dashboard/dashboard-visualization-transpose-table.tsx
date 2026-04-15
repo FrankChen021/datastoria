@@ -157,7 +157,7 @@ export const TransposeTableVisualization = React.forwardRef<
     return (
       <TableRow>
         <TableCell colSpan={2} className="text-center text-muted-foreground p-8">
-          <div className="flex items-center justify-center h-[72px]">No data found</div>
+          <div className="flex items-center justify-center h-[72px]">No data</div>
         </TableCell>
       </TableRow>
     );

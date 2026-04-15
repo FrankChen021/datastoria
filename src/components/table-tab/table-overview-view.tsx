@@ -172,7 +172,13 @@ WHERE
             datasource: {
               sql: `
     SELECT 
-        round(sum(bytes_on_disk) / nullIf(sum(rows), 0), 0) AS avg_row_size
+      COALESCE(
+        round(
+          sum(bytes_on_disk) / NULLIF(sum(rows), 0), 
+          2
+        ),
+        0
+      ) AS avg_row_size
     FROM
         system.parts
     WHERE 

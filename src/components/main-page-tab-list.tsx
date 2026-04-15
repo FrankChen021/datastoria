@@ -343,9 +343,12 @@ export const MainPageTabList = memo(function MainPageTabList({
     }
 
     if (!activeTab) {
+      // Notify listeners after commit when the last tab closes to avoid setState-during-render.
+      TabManager.sendActiveTabChange("", null);
       return;
     }
 
+    // Dispatch from an effect so cross-component listeners update after React finishes rendering.
     const tabInfo = tabs.find((t) => t.id === activeTab) || null;
     TabManager.sendActiveTabChange(activeTab, tabInfo);
   }, [activeTab, tabs, pendingTabId]);
@@ -451,8 +454,6 @@ export const MainPageTabList = memo(function MainPageTabList({
         setTabs((prevTabs) => {
           // Find the next/previous tab before removing the closed tab
           const nextTabId = getNextOrPreviousTabId(tabId, prevTabs);
-          // Emit event for tab closure (tabInfo: null) - SchemaTreeView will ignore this
-          TabManager.sendActiveTabChange(tabId, null);
           if (nextTabId) {
             setActiveTab(nextTabId);
           } else {
@@ -554,8 +555,6 @@ export const MainPageTabList = memo(function MainPageTabList({
     // Close all tabs including the query tab
     setTabs([]);
     setActiveTab("");
-    // Emit event for tab closure (tabInfo: null) - SchemaTreeView will ignore this
-    TabManager.sendActiveTabChange("", null);
 
     // If chat panel is visible (panel mode), switch to tabWidth mode when all tabs are closed
     if (displayMode === "panel") {

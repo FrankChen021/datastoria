@@ -4,7 +4,6 @@ import type {
   DashboardGroup,
   StatDescriptor,
   TableDescriptor,
-  TransposeTableDescriptor,
 } from "@/components/shared/dashboard/dashboard-model";
 import DashboardPanelContainer, {
   type DashboardPanelContainerRef,
@@ -43,29 +42,6 @@ export const DatabaseOverview = forwardRef<DashboardPanelContainerRef, DatabaseO
         },
         charts: [
           //
-          // Database metadata
-          //
-          {
-            type: "transpose-table",
-            titleOption: {
-              title: "Database Metadata",
-              align: "left",
-            },
-            gridPos: {
-              w: 24,
-              h: 9,
-            },
-            datasource: {
-              sql: `
-select 
-  *
-from system.databases
-where database = '${database}'
-`,
-            },
-          } as TransposeTableDescriptor,
-
-          //
           // Node overview section
           //
           {
@@ -80,12 +56,12 @@ where database = '${database}'
                 collapsed: false,
                 gridPos: {
                   w: 4,
-                  h: 4,
+                  h: 3,
                 },
                 datasource: {
                   sql: `
 SELECT
-  sum(total_bytes)
+  COALESCE(sum(total_bytes), 0)
 FROM
   system.tables 
 WHERE
@@ -107,7 +83,7 @@ WHERE
                 collapsed: false,
                 gridPos: {
                   w: 4,
-                  h: 4,
+                  h: 3,
                 },
                 datasource: {
                   sql: `
@@ -131,7 +107,7 @@ WHERE
                 collapsed: false,
                 gridPos: {
                   w: 4,
-                  h: 4,
+                  h: 3,
                 },
                 datasource: {
                   sql: `
@@ -158,7 +134,7 @@ WHERE
                 collapsed: false,
                 gridPos: {
                   w: 4,
-                  h: 4,
+                  h: 3,
                 },
                 datasource: {
                   sql: `
@@ -185,7 +161,7 @@ FROM (
                 },
                 gridPos: {
                   w: 4,
-                  h: 4,
+                  h: 3,
                 },
                 description: "The number of ongoing merges",
                 datasource: {
@@ -288,7 +264,7 @@ ORDER BY elapsed DESC`,
                 },
                 gridPos: {
                   w: 4,
-                  h: 4,
+                  h: 3,
                 },
                 description: "The number of ongoing mutations",
                 datasource: {
@@ -357,10 +333,9 @@ ORDER BY create_time DESC`,
                   title: "Size by Tables",
                   align: "left",
                 },
-                collapsed: true,
                 gridPos: {
                   w: 24,
-                  h: 12,
+                  h: 9,
                 },
                 headOption: {
                   isSticky: true,
@@ -396,7 +371,7 @@ WHERE database = '${database}'
 AND active
 GROUP BY table
 ) AS part
-ON T.table = part.table
+ON T.name = part.table
 WHERE T.database = '${database}' AND endsWith(T.engine , 'MergeTree')
 ORDER BY on_disk_size DESC
     `,
@@ -494,9 +469,9 @@ ORDER BY on_disk_size DESC
                 datasource: {
                   sql: `
 SELECT
-  sum(total_bytes)
+  COALESCE(sum(total_bytes), 0)
 FROM
-  clusterAllReplicas('{cluster}', system.tables) 
+  {clusterAllReplicas:system.tables} 
 WHERE
   database = '${database}'
     `,
@@ -518,7 +493,7 @@ WHERE
                 collapsed: false,
                 gridPos: {
                   w: 24,
-                  h: 12,
+                  h: 9,
                 },
                 miscOption: { enableIndexColumn: true },
                 headOption: {
@@ -559,7 +534,7 @@ SELECT
     sum(data_compressed_bytes) AS compressed_size,
     sum(data_uncompressed_bytes) AS uncompressed_size,
     round(uncompressed_size / compressed_size, 0) AS compressed_ratio
-FROM clusterAllReplicas('${connection?.cluster}', system.parts)
+FROM {clusterAllReplicas:system.parts}
 WHERE database = '${database}'
 AND active
 GROUP BY host
