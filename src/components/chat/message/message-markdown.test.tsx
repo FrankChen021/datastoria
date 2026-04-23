@@ -137,6 +137,97 @@ describe("MessageMarkdown", () => {
     expect(container.textContent).toContain("A --> B");
   });
 
+  it("renders LaTeX inline math from backslash delimiters", () => {
+    act(() => {
+      root.render(
+        <MessageMarkdown text={"Average is \\(\\text{sum(bytes_on_disk)} / \\text{sum(rows)}\\)"} />
+      );
+    });
+
+    expect(container.querySelector(".katex")).not.toBeNull();
+    expect(container.querySelector(".katex-display")).toBeNull();
+  });
+
+  it("renders LaTeX display math from backslash delimiters", () => {
+    act(() => {
+      root.render(
+        <MessageMarkdown
+          text={
+            "\\[\n\\text{avg_row_size} = \\frac{\\text{sum(bytes_on_disk)}}{\\text{sum(rows)}}\n\\]"
+          }
+        />
+      );
+    });
+
+    expect(container.querySelector(".katex-display")).not.toBeNull();
+    expect(container.querySelector(".katex")).not.toBeNull();
+  });
+
+  it("preserves surrounding list structure when display math appears inside a bullet", () => {
+    act(() => {
+      root.render(
+        <MessageMarkdown
+          text={`2. **Calculates Metrics**:
+- **\`avg_row_size\`**: The average size of a single row in bytes, calculated as:
+  \\[
+  \\text{avg_row_size} = \\frac{\\text{sum(bytes_on_disk)}}{\\text{sum(rows)}}
+  \\]
+- **\`sum(bytes_on_disk)\`**: The total disk space used by the active parts of the table.
+- **\`sum(rows)\`**: The total number of rows in the active parts of the table.`}
+        />
+      );
+    });
+
+    expect(container.querySelector(".katex-display")).not.toBeNull();
+    expect(container.querySelector(".katex-error")).toBeNull();
+    expect(container.textContent).toContain(
+      "The total disk space used by the active parts of the table."
+    );
+    expect(container.textContent).toContain(
+      "The total number of rows in the active parts of the table."
+    );
+    expect(container.textContent).not.toContain("undefined");
+  });
+
+  it("normalizes display math in lists into a standalone markdown block", async () => {
+    const { normalizeMathMarkdown } = await import("./message-markdown-math");
+    const normalized = normalizeMathMarkdown(`- item:
+  \\[
+  x = y
+  \\]
+- next`);
+
+    expect(normalized).toContain(`- item:\n\n  $$\n  x = y\n  $$\n\n- next`);
+  });
+
+  it("does not parse LaTeX delimiters inside fenced code blocks", () => {
+    act(() => {
+      root.render(<MessageMarkdown text={"```text\n\\[\n\\text{avg_row_size}\n\\]\n```"} />);
+    });
+
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(syntaxHighlighterSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        language: "text",
+        children: "\\[\n\\text{avg_row_size}\n\\]",
+      })
+    );
+  });
+
+  it("does not parse LaTeX delimiters inside tilde-fenced code blocks", () => {
+    act(() => {
+      root.render(<MessageMarkdown text={"~~~text\n\\[\n\\text{avg_row_size}\n\\]\n~~~"} />);
+    });
+
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(syntaxHighlighterSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        language: "text",
+        children: "\\[\n\\text{avg_row_size}\n\\]",
+      })
+    );
+  });
+
   it("routes non-sql fenced code blocks to the themed syntax highlighter", () => {
     act(() => {
       root.render(<MessageMarkdown text={"```cpp\nint main() {}\n```"} />);

@@ -22,6 +22,7 @@ interface MessageMarkdownSqlProps {
   className?: string;
   customStyle?: React.CSSProperties;
   showExecuteButton?: boolean;
+  showActions?: boolean;
   showLineNumbers?: boolean;
   expandable?: boolean;
 }
@@ -32,6 +33,7 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
   className,
   customStyle,
   showExecuteButton = false,
+  showActions = true,
   showLineNumbers,
   expandable = false,
 }: MessageMarkdownSqlProps) {
@@ -115,51 +117,52 @@ export const MessageMarkdownSql = memo(function MessageMarkdownSql({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        {/* Floating Actions */}
-        <div
-          className={`absolute top-1 right-2 flex items-center gap-1 z-10 transition-opacity duration-200`}
-        >
-          {showExecuteButton && (
+        {showActions && (
+          <div
+            className={`absolute top-1 right-2 flex items-center gap-1 z-10 transition-opacity duration-200`}
+          >
+            {showExecuteButton && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-5 w-5 opacity-60 hover:opacity-100 transition-all",
+                  isHovered || isExecuting ? "opacity-100" : "opacity-0 pointer-events-none"
+                )}
+                onClick={handleRun}
+                title={executionMode === "inline" ? "Run in place" : "Run in Query Tab"}
+                disabled={isExecuting}
+              >
+                {isExecuting ? (
+                  <Loader2 className="!h-3 !w-3 animate-spin" />
+                ) : (
+                  <Play className="!h-3 !w-3" />
+                )}
+              </Button>
+            )}
+            <CopyButton
+              value={code}
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "relative !top-auto !right-auto h-5 w-5 opacity-60 hover:opacity-100 transition-all",
+                isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+              )}
+            />
             <Button
               variant="ghost"
               size="icon"
               className={cn(
                 "h-5 w-5 opacity-60 hover:opacity-100 transition-all",
-                isHovered || isExecuting ? "opacity-100" : "opacity-0 pointer-events-none"
+                isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
               )}
-              onClick={handleRun}
-              title={executionMode === "inline" ? "Run in place" : "Run in Query Tab"}
-              disabled={isExecuting}
+              onClick={() => openSaveSnippetDialog({ initialSql: code })}
+              title="Save as snippet"
             >
-              {isExecuting ? (
-                <Loader2 className="!h-3 !w-3 animate-spin" />
-              ) : (
-                <Play className="!h-3 !w-3" />
-              )}
+              <Bookmark className="!h-3 !w-3" />
             </Button>
-          )}
-          <CopyButton
-            value={code}
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "relative !top-auto !right-auto h-5 w-5 opacity-60 hover:opacity-100 transition-all",
-              isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
-            )}
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "h-5 w-5 opacity-60 hover:opacity-100 transition-all",
-              isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
-            )}
-            onClick={() => openSaveSnippetDialog({ initialSql: code })}
-            title="Save as snippet"
-          >
-            <Bookmark className="!h-3 !w-3" />
-          </Button>
-        </div>
+          </div>
+        )}
 
         <ThemedSyntaxHighlighter
           language={language}

@@ -351,6 +351,20 @@
   }
 }
 
+@layer components {
+  .prose .katex-display {
+    text-align: left;
+    margin: 0.5rem 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0.125rem;
+  }
+
+  .prose .katex {
+    color: inherit;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

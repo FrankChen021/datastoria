@@ -9,14 +9,24 @@ import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
-import { memo, useEffect, useMemo, useRef } from "react";
+import katex from "katex";
+import { Children, isValidElement, memo, useEffect, useMemo, useRef } from "react";
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import { FileLink } from "./file-link";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
+import { normalizeMathMarkdown } from "./message-markdown-math";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 import { MessageMarkdownVizlayer } from "./message-markdown-vizlayer";
 import { remarkExtensions } from "./remark-extensions";
+
+function normalizeKatexInput(math: string) {
+  return math.replace(/\\text\{([^{}]*)\}/g, (_, textContent: string) => {
+    const escapedText = textContent.replaceAll("_", "\\_");
+    return `\\text{${escapedText}}`;
+  });
+}
 
 function transformMarkdownUrl(url: string) {
   if (url.startsWith("skill://")) {
@@ -37,6 +47,8 @@ interface MessageMarkdownProps {
   messageId?: string;
   customStyle?: React.CSSProperties;
   showExecuteButton?: boolean;
+  showSqlActions?: boolean;
+  resolveMetadataLinks?: boolean;
   /**
    * Allow expandable SQL blocks inside markdown. Default: false.
    */
@@ -101,10 +113,13 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   text,
   customStyle,
   showExecuteButton = true,
+  showSqlActions = true,
+  resolveMetadataLinks = true,
   expandable = false,
 }: MessageMarkdownProps) {
   const { connection } = useConnection();
   const { settingsByName: clickHouseSettingsByName } = useClickHouseSettings();
+  const normalizedText = useMemo(() => normalizeMathMarkdown(text), [text]);
 
   const codeBlockStyle = useMemo<React.CSSProperties>(
     () => ({
@@ -136,6 +151,25 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   const components = useMemo<Components>(
     () => ({
       code: ({ className: codeClassName, children, ...props }: React.ComponentProps<"code">) => {
+        if (codeClassName?.includes("language-math")) {
+          const math = normalizeKatexInput(String(children).replace(/\n$/, ""));
+          const displayMode = codeClassName.includes("math-display");
+
+          return (
+            <span
+              data-math-display={displayMode ? "true" : undefined}
+              dangerouslySetInnerHTML={{
+                __html: katex.renderToString(math, {
+                  displayMode,
+                  output: "htmlAndMathml",
+                  strict: "ignore",
+                  throwOnError: false,
+                }),
+              }}
+            />
+          );
+        }
+
         if (codeClassName === "language-sql" || codeClassName === "language-clickhouse") {
           return (
             <MessageMarkdownSql
@@ -143,6 +177,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
               language="sql"
               customStyle={customStyle}
               showExecuteButton={showExecuteButton}
+              showActions={showSqlActions}
               showLineNumbers={false}
               expandable={expandable}
             />
@@ -175,7 +210,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
           const codeText = String(children).trim();
 
           // First check if it's a table name
-          const tableNames = tableNamesRef.current;
+          const tableNames = resolveMetadataLinks ? tableNamesRef.current : undefined;
           if (tableNames && codeText) {
             const tableInfo = tableNames.get(codeText);
             if (tableInfo) {
@@ -195,7 +230,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
           }
 
           // Then check if it's a database name
-          const databaseNames = databaseNamesRef.current;
+          const databaseNames = resolveMetadataLinks ? databaseNamesRef.current : undefined;
           if (databaseNames && codeText) {
             const databaseInfo = databaseNames.get(codeText);
             if (databaseInfo) {
@@ -212,7 +247,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
             }
           }
 
-          const nodeNames = nodeNamesRef.current;
+          const nodeNames = resolveMetadataLinks ? nodeNamesRef.current : undefined;
           if (nodeNames && codeText) {
             if (nodeNames.has(codeText)) {
               return (
@@ -251,6 +286,18 @@ export const MessageMarkdown = memo(function MessageMarkdown({
             {children}
           </code>
         );
+      },
+      pre: ({ children, ...props }: React.HTMLAttributes<HTMLPreElement>) => {
+        const child = Children.count(children) === 1 ? Children.only(children) : null;
+        const childProps =
+          isValidElement<{ "data-math-display"?: string }>(child) && child.props
+            ? child.props
+            : null;
+        if (childProps !== null && childProps["data-math-display"] === "true") {
+          return <>{child}</>;
+        }
+
+        return <pre {...props}>{children}</pre>;
       },
       a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
         if (href?.startsWith("skill://")) {
@@ -407,17 +454,25 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         </h6>
       ),
     }),
-    [clickHouseSettingsByName, codeBlockStyle, customStyle, expandable, showExecuteButton]
+    [
+      clickHouseSettingsByName,
+      codeBlockStyle,
+      customStyle,
+      expandable,
+      resolveMetadataLinks,
+      showExecuteButton,
+      showSqlActions,
+    ]
   );
 
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none text-sm relative">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkExtensions]}
+        remarkPlugins={[remarkGfm, remarkMath, remarkExtensions]}
         components={components}
         urlTransform={transformMarkdownUrl}
       >
-        {text}
+        {normalizedText}
       </ReactMarkdown>
     </div>
   );

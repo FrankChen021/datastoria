@@ -1,6 +1,7 @@
 import { getSession } from "@/auth";
 import { RuntimeConfigProvider } from "@/components/runtime-config-provider";
 import "@/index.css";
+import "katex/dist/katex.min.css";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
 import { getSessionRepositoryType } from "@/lib/ai/session/server-session-repository-factory";
 import { SkillPermissionManager } from "@/lib/ai/skills/skill-permission-manager";

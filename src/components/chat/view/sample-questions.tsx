@@ -2,10 +2,11 @@
 
 import { AppLogo } from "@/components/app-logo";
 import { useAgentCommands } from "@/components/chat/agent-command-context";
+import { MessageMarkdown } from "@/components/chat/message/message-markdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { Activity, BarChart, Code2, Globe, Lightbulb, Zap } from "lucide-react";
+import { Activity, BarChart, Brain, Code, Code2, Globe, Lightbulb, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export type Question = { text: string; autoRun?: boolean; requiredSkillId?: string };
@@ -69,16 +70,35 @@ export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
       },
     ],
   },
-  General: {
-    icon: <Lightbulb className="h-4 w-4 text-yellow-500" />,
+  "SQL Explanation": {
+    icon: <Brain className="h-4 w-4 text-yellow-500" />,
     questions: [
-      { text: "What are the best practices for partitioning?", autoRun: true },
+      {
+        text: `Explain what the following query does, and show the execution plan in a flowchart.
+\`\`\`sql
+SELECT toStartOfDay(event_time), count()
+FROM system.query_log
+WHERE event_date >= yesterday() AND event_time >= now() - INTERVAL 1 hour
+AND query_kind = 'Select'
+GROUP BY 1
+\`\`\``,
+        autoRun: true,
+      },
+    ],
+  },
+  "Source Code Inspection": {
+    icon: <Code className="h-4 w-4 text-green-500" />,
+    questions: [
       {
         text: "How does async_insert work from the source code? Will data be lost if the server is restarted when this setting is enabled?",
         autoRun: true,
         requiredSkillId: "source-code-inspection",
       },
     ],
+  },
+  Others: {
+    icon: <Lightbulb className="h-4 w-4 text-yellow-500" />,
+    questions: [{ text: "What are the best practices for partitioning?", autoRun: true }],
   },
 };
 
@@ -89,6 +109,8 @@ const GREETINGS = [
   "Nice to meet you! What can I help you analyze?",
   "Hello and welcome! Let's explore your ClickHouse cluster and data!",
 ];
+
+const DESKTOP_GRID_CLASS_NAME = "md:grid-cols-[240px_minmax(0,1fr)]";
 
 function SampleQuestionsShell({ greeting, children }: { greeting: string; children: ReactNode }) {
   return (
@@ -109,7 +131,7 @@ function SampleQuestionsShell({ greeting, children }: { greeting: string; childr
 
 function LoadingSkeleton() {
   return (
-    <div className="mx-auto mt-6 grid w-full max-w-5xl gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
+    <div className={cn("mx-auto mt-6 grid w-full max-w-5xl gap-6", DESKTOP_GRID_CLASS_NAME)}>
       <div className="hidden flex-col gap-2 md:flex">
         {[1, 2, 3, 4].map((i) => (
           <Skeleton key={i} className="h-8 w-36 rounded-lg" />
@@ -234,7 +256,7 @@ export function SampleQuestions({
   }
 
   const questionCardClassName =
-    "group relative w-full rounded-xl border border-border/50 bg-card px-3 py-3 text-left shadow-sm transition-colors duration-150 hover:border-primary/40 hover:bg-accent/60 hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-0 active:bg-accent/70";
+    "group relative w-full rounded-xl border border-border/50 bg-card px-3 py-3 text-left shadow-sm transition-colors duration-150 hover:border-primary/40 hover:bg-accent/60 hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] focus-within:ring-1 focus-within:ring-primary/40 focus-within:ring-offset-0 active:bg-accent/70";
 
   const renderGroupSection = (
     [group, { icon, questions }]: readonly [string, QuestionGroupData],
@@ -259,16 +281,23 @@ export function SampleQuestions({
       </div>
       <div className="space-y-2">
         {questions.map((question) => (
-          <button
-            key={question.text}
-            type="button"
-            className={questionCardClassName}
-            onClick={() => onQuestionClick(question)}
-          >
-            <span className="block break-words [overflow-wrap:anywhere] text-sm font-medium leading-6 text-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary">
-              {question.text}
-            </span>
-          </button>
+          <div key={question.text} className={questionCardClassName}>
+            <button
+              type="button"
+              aria-label={question.text}
+              className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none"
+              onClick={() => onQuestionClick(question)}
+            />
+            <div className="pointer-events-none break-words text-sm leading-6 text-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary [&_.prose]:text-inherit [&_.prose]:leading-6 [&_.prose]:max-w-none [&_.prose]:text-sm [&_.prose_code]:text-inherit [&_.prose_p]:mb-0 [&_.prose_pre]:my-2 [&_.prose_ul]:mb-0 [&_.prose_ol]:mb-0">
+              <MessageMarkdown
+                text={question.text}
+                showExecuteButton={false}
+                showSqlActions={false}
+                resolveMetadataLinks={false}
+                customStyle={{ backgroundColor: "transparent" }}
+              />
+            </div>
+          </div>
         ))}
       </div>
     </section>
@@ -286,7 +315,12 @@ export function SampleQuestions({
 
   return (
     <SampleQuestionsShell greeting={greeting}>
-      <div className="mx-auto mt-6 grid min-h-0 flex-1 w-full max-w-5xl gap-0 md:grid-cols-[200px_minmax(0,1fr)]">
+      <div
+        className={cn(
+          "mx-auto mt-6 grid min-h-0 flex-1 w-full max-w-5xl gap-0",
+          DESKTOP_GRID_CLASS_NAME
+        )}
+      >
         <nav className="hidden self-start md:block">
           <div className="space-y-1">
             {filteredGroups.map(([group, { icon }]) => {
@@ -323,7 +357,9 @@ export function SampleQuestions({
                   >
                     {icon}
                   </span>
-                  <span className="truncate font-medium">{group}</span>
+                  <span className="min-w-0 whitespace-normal break-words font-medium leading-5">
+                    {group}
+                  </span>
                 </button>
               );
             })}
