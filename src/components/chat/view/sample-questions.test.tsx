@@ -12,9 +12,17 @@ const testGlobal = globalThis as typeof globalThis & {
 };
 
 const useAgentCommandsMock = vi.fn();
+const messageMarkdownSpy = vi.fn();
 
 vi.mock("../agent-command-context", () => ({
   useAgentCommands: () => useAgentCommandsMock(),
+}));
+
+vi.mock("../message/message-markdown", () => ({
+  MessageMarkdown: (props: { text: string }) => {
+    messageMarkdownSpy(props);
+    return <pre data-testid="sample-question-markdown">{props.text}</pre>;
+  },
 }));
 
 describe("SampleQuestions", () => {
@@ -48,6 +56,7 @@ describe("SampleQuestions", () => {
     container.setAttribute("data-sample-questions-scroll-root", "true");
     document.body.appendChild(container);
     root = createRoot(container);
+    messageMarkdownSpy.mockReset();
   });
 
   afterEach(() => {
@@ -251,5 +260,77 @@ describe("SampleQuestions", () => {
     );
 
     expect(sqlGenerationButton?.className).toContain("bg-muted/40");
+  });
+
+  it("renders sample questions through MessageMarkdown without flattening fenced SQL", () => {
+    useAgentCommandsMock.mockReturnValue({
+      commands: [{ skillId: "source-code-inspection" }],
+      loading: false,
+    });
+
+    act(() => {
+      root.render(<SampleQuestions onQuestionClick={vi.fn()} />);
+    });
+
+    const markdownCall = messageMarkdownSpy.mock.calls.find(
+      ([props]) => typeof props?.text === "string" && props.text.includes("```sql")
+    )?.[0];
+
+    expect(markdownCall).toEqual(
+      expect.objectContaining({
+        showExecuteButton: false,
+        resolveMetadataLinks: false,
+        customStyle: expect.objectContaining({
+          backgroundColor: "transparent",
+        }),
+        text: expect.stringContaining("flowchart.\n```sql\nSELECT"),
+      })
+    );
+  });
+
+  it("activates a sample question card and preserves the original markdown", () => {
+    useAgentCommandsMock.mockReturnValue({
+      commands: [{ skillId: "source-code-inspection" }],
+      loading: false,
+    });
+    const onQuestionClick = vi.fn();
+
+    act(() => {
+      root.render(<SampleQuestions onQuestionClick={onQuestionClick} />);
+    });
+
+    const markdownCard = Array.from(container.querySelectorAll("[role='button']")).find((element) =>
+      element.textContent?.includes("Explain what the following query does.")
+    );
+
+    expect(markdownCard).toBeTruthy();
+
+    act(() => {
+      markdownCard?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onQuestionClick).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining("flowchart.\n```sql\nSELECT"),
+      })
+    );
+  });
+
+  it("shows long desktop group titles without truncating them", () => {
+    useAgentCommandsMock.mockReturnValue({
+      commands: [{ skillId: "source-code-inspection" }],
+      loading: false,
+    });
+
+    act(() => {
+      root.render(<SampleQuestions onQuestionClick={vi.fn()} />);
+    });
+
+    const sourceCodeNavButton = Array.from(container.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Source Code Inspection")
+    );
+
+    expect(sourceCodeNavButton).toBeTruthy();
+    expect(sourceCodeNavButton?.textContent).toContain("Source Code Inspection");
   });
 });

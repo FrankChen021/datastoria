@@ -35,6 +35,7 @@ interface MessageMarkdownProps {
   messageId?: string;
   customStyle?: React.CSSProperties;
   showExecuteButton?: boolean;
+  resolveMetadataLinks?: boolean;
   /**
    * Allow expandable SQL blocks inside markdown. Default: false.
    */
@@ -45,6 +46,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   text,
   customStyle,
   showExecuteButton = true,
+  resolveMetadataLinks = true,
   expandable = false,
 }: MessageMarkdownProps) {
   const { connection } = useConnection();
@@ -118,7 +120,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
           const codeText = String(children).trim();
 
           // First check if it's a table name
-          const tableNames = tableNamesRef.current;
+          const tableNames = resolveMetadataLinks ? tableNamesRef.current : undefined;
           if (tableNames && codeText) {
             const tableInfo = tableNames.get(codeText);
             if (tableInfo) {
@@ -138,7 +140,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
           }
 
           // Then check if it's a database name
-          const databaseNames = databaseNamesRef.current;
+          const databaseNames = resolveMetadataLinks ? databaseNamesRef.current : undefined;
           if (databaseNames && codeText) {
             const databaseInfo = databaseNames.get(codeText);
             if (databaseInfo) {
@@ -155,7 +157,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
             }
           }
 
-          const nodeNames = nodeNamesRef.current;
+          const nodeNames = resolveMetadataLinks ? nodeNamesRef.current : undefined;
           if (nodeNames && codeText) {
             if (nodeNames.has(codeText)) {
               return (
