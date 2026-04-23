@@ -18,7 +18,7 @@ vi.mock("../agent-command-context", () => ({
   useAgentCommands: () => useAgentCommandsMock(),
 }));
 
-vi.mock("../message/message-markdown", () => ({
+vi.mock("@/components/chat/message/message-markdown", () => ({
   MessageMarkdown: (props: { text: string }) => {
     messageMarkdownSpy(props);
     return <pre data-testid="sample-question-markdown">{props.text}</pre>;
@@ -279,6 +279,7 @@ describe("SampleQuestions", () => {
     expect(markdownCall).toEqual(
       expect.objectContaining({
         showExecuteButton: false,
+        showSqlActions: false,
         resolveMetadataLinks: false,
         customStyle: expect.objectContaining({
           backgroundColor: "transparent",
@@ -299,8 +300,8 @@ describe("SampleQuestions", () => {
       root.render(<SampleQuestions onQuestionClick={onQuestionClick} />);
     });
 
-    const markdownCard = Array.from(container.querySelectorAll("[role='button']")).find((element) =>
-      element.textContent?.includes("Explain what the following query does.")
+    const markdownCard = Array.from(container.querySelectorAll("button")).find((element) =>
+      element.getAttribute("aria-label")?.includes("Explain what the following query does")
     );
 
     expect(markdownCard).toBeTruthy();

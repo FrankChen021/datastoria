@@ -35,6 +35,7 @@ interface MessageMarkdownProps {
   messageId?: string;
   customStyle?: React.CSSProperties;
   showExecuteButton?: boolean;
+  showSqlActions?: boolean;
   resolveMetadataLinks?: boolean;
   /**
    * Allow expandable SQL blocks inside markdown. Default: false.
@@ -46,6 +47,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   text,
   customStyle,
   showExecuteButton = true,
+  showSqlActions = true,
   resolveMetadataLinks = true,
   expandable = false,
 }: MessageMarkdownProps) {
@@ -88,6 +90,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
               language="sql"
               customStyle={customStyle}
               showExecuteButton={showExecuteButton}
+              showActions={showSqlActions}
               showLineNumbers={false}
               expandable={expandable}
             />
@@ -339,7 +342,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         </h6>
       ),
     }),
-    [codeBlockStyle, customStyle, expandable, showExecuteButton]
+    [codeBlockStyle, customStyle, expandable, resolveMetadataLinks, showExecuteButton, showSqlActions]
   );
 
   return (
