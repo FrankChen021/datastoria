@@ -37,17 +37,23 @@ export function normalizeMathMarkdown(text: string) {
   let inlineCodeDelimiterLength = 0;
 
   while (index < text.length) {
-    if (atLineStart && text[index] === "`") {
-      const backtickCount = countRepeatedCharacter(text, index, "`");
-      if (backtickCount >= 3) {
-        const marker = "`".repeat(backtickCount);
+    if (atLineStart && (text[index] === "`" || text[index] === "~")) {
+      const fenceCharacter = text[index]!;
+      const fenceCount = countRepeatedCharacter(text, index, fenceCharacter);
+      const canCloseExistingFence =
+        fenceMarker !== null &&
+        fenceMarker[0] === fenceCharacter &&
+        fenceCount >= fenceMarker.length;
+
+      if (fenceCount >= 3) {
+        const marker = fenceCharacter.repeat(fenceCount);
         if (fenceMarker === null) {
           fenceMarker = marker;
-        } else if (fenceMarker === marker) {
+        } else if (canCloseExistingFence) {
           fenceMarker = null;
         }
         normalized += marker;
-        index += backtickCount;
+        index += fenceCount;
         atLineStart = false;
         continue;
       }

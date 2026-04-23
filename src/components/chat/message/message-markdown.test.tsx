@@ -184,6 +184,20 @@ describe("MessageMarkdown", () => {
     );
   });
 
+  it("does not parse LaTeX delimiters inside tilde-fenced code blocks", () => {
+    act(() => {
+      root.render(<MessageMarkdown text={"~~~text\n\\[\n\\text{avg_row_size}\n\\]\n~~~"} />);
+    });
+
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(syntaxHighlighterSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        language: "text",
+        children: "\\[\n\\text{avg_row_size}\n\\]",
+      })
+    );
+  });
+
   it("routes non-sql fenced code blocks to the themed syntax highlighter", () => {
     act(() => {
       root.render(<MessageMarkdown text={"```cpp\nint main() {}\n```"} />);
