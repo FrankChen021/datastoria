@@ -281,10 +281,7 @@ export function SampleQuestions({
       </div>
       <div className="space-y-2">
         {questions.map((question) => (
-          <div
-            key={question.text}
-            className={questionCardClassName}
-          >
+          <div key={question.text} className={questionCardClassName}>
             <button
               type="button"
               aria-label={question.text}
@@ -318,7 +315,12 @@ export function SampleQuestions({
 
   return (
     <SampleQuestionsShell greeting={greeting}>
-      <div className={cn("mx-auto mt-6 grid min-h-0 flex-1 w-full max-w-5xl gap-0", DESKTOP_GRID_CLASS_NAME)}>
+      <div
+        className={cn(
+          "mx-auto mt-6 grid min-h-0 flex-1 w-full max-w-5xl gap-0",
+          DESKTOP_GRID_CLASS_NAME
+        )}
+      >
         <nav className="hidden self-start md:block">
           <div className="space-y-1">
             {filteredGroups.map(([group, { icon }]) => {

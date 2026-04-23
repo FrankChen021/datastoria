@@ -342,7 +342,14 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         </h6>
       ),
     }),
-    [codeBlockStyle, customStyle, expandable, resolveMetadataLinks, showExecuteButton, showSqlActions]
+    [
+      codeBlockStyle,
+      customStyle,
+      expandable,
+      resolveMetadataLinks,
+      showExecuteButton,
+      showSqlActions,
+    ]
   );
 
   return (
