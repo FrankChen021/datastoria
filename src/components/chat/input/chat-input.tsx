@@ -110,9 +110,18 @@ type TokenSegment =
 
 type RenderSegment = { kind: "text"; text: string; start: number; end: number } | TokenSegment;
 type HoveredCodeToken = {
-  code: string;
+  kind: "sqlSnippet" | "setting";
   rect: { top: number; left: number; width: number; height: number };
-};
+} & (
+  | {
+      kind: "sqlSnippet";
+      code: string;
+    }
+  | {
+      kind: "setting";
+      setting: ClickHouseSettingInfo;
+    }
+);
 
 function createTextNodeSegment(documentRef: Document, text: string) {
   return documentRef.createTextNode(text);
@@ -175,9 +184,7 @@ function createTokenNodeSegment(
       ? "border-cyan-200 bg-cyan-50 text-cyan-900 dark:border-cyan-900/60 dark:bg-cyan-950/50 dark:text-cyan-100"
       : segment.kind === "sqlSnippet"
         ? "border-slate-200 bg-slate-100 text-slate-900 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100"
-        : segment.kind === "setting"
-          ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/50 dark:text-amber-100"
-          : "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-100"
+        : "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-100"
   );
 
   const icon = documentRef.createElement("span");
@@ -187,9 +194,7 @@ function createTokenNodeSegment(
       ? "/"
       : segment.kind === "sqlSnippet"
         ? "SQL:"
-        : segment.kind === "setting"
-          ? "S:"
-          : "@";
+        : "@";
 
   const label = documentRef.createElement("span");
   label.className = "max-w-[240px] truncate font-medium";
@@ -215,7 +220,11 @@ function createTokenNodeSegment(
     event.stopPropagation();
   });
 
-  if (segment.kind === "sqlSnippet" && options?.onHoverStart && options?.onHoverEnd) {
+  if (
+    (segment.kind === "sqlSnippet" || segment.kind === "setting") &&
+    options?.onHoverStart &&
+    options?.onHoverEnd
+  ) {
     token.addEventListener("pointerenter", () => options.onHoverStart?.(token, segment));
     token.addEventListener("pointerleave", () => options.onHoverEnd?.(segment));
   }
@@ -420,9 +429,49 @@ function TokenHoverCard({
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
     >
-      <pre className="max-h-48 overflow-auto rounded-sm bg-muted/50 p-2 text-xs text-foreground">
-        <code>{hoveredToken.code}</code>
-      </pre>
+      {hoveredToken.kind === "sqlSnippet" ? (
+        <pre className="max-h-48 overflow-auto rounded-sm bg-muted/50 p-2 text-xs text-foreground">
+          <code>{hoveredToken.code}</code>
+        </pre>
+      ) : (
+        <div className="space-y-2 text-[11px]">
+          <div>
+            <div className="text-muted-foreground mb-0.5">Setting</div>
+            <div className="text-foreground whitespace-pre-wrap break-all">
+              {hoveredToken.setting.name}
+            </div>
+          </div>
+          <div>
+            <div className="text-muted-foreground mb-0.5">Type</div>
+            <div className="text-foreground whitespace-pre-wrap break-all">
+              {hoveredToken.setting.type}
+            </div>
+          </div>
+          <div>
+            <div className="text-muted-foreground mb-0.5">Current value</div>
+            <div className="text-foreground whitespace-pre-wrap break-all">
+              {hoveredToken.setting.value}
+            </div>
+          </div>
+          <div>
+            <div className="text-muted-foreground mb-0.5">ReadOnly</div>
+            <div className="text-foreground whitespace-pre-wrap break-all">
+              {hoveredToken.setting.readonly === null
+                ? "-"
+                : hoveredToken.setting.readonly
+                  ? "Yes"
+                  : "No"}
+            </div>
+          </div>
+          <div>
+            <div className="text-muted-foreground mb-0.5">Description</div>
+            <ClickHouseSettingDescription
+              descriptionMarkdown={hoveredToken.setting.description}
+              className="text-[11px] [&_.admonition]:my-1 [&_p]:mb-1 [&_ul]:mb-1 [&_ol]:mb-1"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -940,7 +989,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           type: "database",
           description,
           search: `${databaseInfo.name} ${databaseInfo.engine} ${databaseInfo.comment ?? ""}`,
-          group: databaseInfo.engine,
+          group: "",
         } satisfies ChatInputSuggestionItem;
       });
     }, [connection?.metadata?.databaseNames]);
@@ -1085,7 +1134,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     const handleCodeTokenHoverStart = React.useCallback(
       (element: HTMLElement, segment: TokenSegment) => {
-        if (segment.kind !== "sqlSnippet" || !containerRef.current) {
+        if (!containerRef.current) {
           return;
         }
 
@@ -1093,22 +1142,42 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         clearHoveredCodeTokenCloseTimeout();
         const tokenRect = element.getBoundingClientRect();
         const containerRect = containerRef.current.getBoundingClientRect();
-        const nextHoveredCodeToken = {
-          code: segment.sql,
-          rect: {
-            top: tokenRect.top - containerRect.top,
-            left: tokenRect.left - containerRect.left,
-            width: tokenRect.width,
-            height: tokenRect.height,
-          },
+        const rect = {
+          top: tokenRect.top - containerRect.top,
+          left: tokenRect.left - containerRect.left,
+          width: tokenRect.width,
+          height: tokenRect.height,
         };
+        const nextHoveredCodeToken =
+          segment.kind === "sqlSnippet"
+            ? {
+                kind: "sqlSnippet" as const,
+                code: segment.sql,
+                rect,
+              }
+            : segment.kind === "setting"
+              ? (() => {
+                  const setting = clickHouseSettingsByName.get(segment.label);
+                  return setting
+                    ? ({
+                        kind: "setting" as const,
+                        setting,
+                        rect,
+                      } satisfies HoveredCodeToken)
+                    : null;
+                })()
+              : null;
+
+        if (!nextHoveredCodeToken) {
+          return;
+        }
 
         hoveredCodeTokenOpenTimeoutRef.current = window.setTimeout(() => {
           setHoveredCodeToken(nextHoveredCodeToken);
           hoveredCodeTokenOpenTimeoutRef.current = null;
         }, TOKEN_HOVER_CARD_OPEN_DELAY_MS);
       },
-      [clearHoveredCodeTokenCloseTimeout, clearHoveredCodeTokenOpenTimeout]
+      [clickHouseSettingsByName, clearHoveredCodeTokenCloseTimeout, clearHoveredCodeTokenOpenTimeout]
     );
 
     const handleCodeTokenHoverEnd = React.useCallback(
@@ -1340,6 +1409,8 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         }
 
         if (
+          event.key === "ArrowLeft" ||
+          event.key === "ArrowRight" ||
           event.key === "ArrowUp" ||
           event.key === "ArrowDown" ||
           event.key === "PageUp" ||

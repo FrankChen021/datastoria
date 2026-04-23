@@ -89,8 +89,17 @@ describe("ChatInputSuggestions", () => {
     });
 
     expect(document.body.textContent).toContain("Databases");
-    expect(document.body.textContent).toContain("Browse database tables");
-    expect(document.body.textContent).toContain("Insert ClickHouse settings");
+    expect(document.body.textContent).toContain("Tables");
+    expect(document.body.textContent).toContain("ClickHouse Settings");
+    expect(ref.current?.getSelectedIndex()).toBe(-1);
+
+    act(() => {
+      ref.current?.handleKeyDown({
+        key: "ArrowDown",
+        preventDefault() {},
+        stopPropagation() {},
+      } as React.KeyboardEvent);
+    });
 
     act(() => {
       ref.current?.handleKeyDown({
@@ -117,6 +126,16 @@ describe("ChatInputSuggestions", () => {
     });
 
     expect(document.body.textContent).toContain("max_threads");
+    expect(document.body.textContent).not.toContain("setting description");
+
+    act(() => {
+      ref.current?.handleKeyDown({
+        key: "ArrowDown",
+        preventDefault() {},
+        stopPropagation() {},
+      } as React.KeyboardEvent);
+    });
+
     expect(document.body.textContent).toContain("setting description");
   });
 
@@ -144,23 +163,10 @@ describe("ChatInputSuggestions", () => {
     });
 
     act(() => {
-      ref.current?.open("filter");
+      ref.current?.open("max");
     });
 
-    expect(document.body.textContent).toContain("Settings");
-
-    act(() => {
-      ref.current?.handleKeyDown({
-        key: "ArrowDown",
-        preventDefault() {},
-        stopPropagation() {},
-      } as React.KeyboardEvent);
-      ref.current?.handleKeyDown({
-        key: "ArrowDown",
-        preventDefault() {},
-        stopPropagation() {},
-      } as React.KeyboardEvent);
-    });
+    expect(document.body.textContent).toContain("ClickHouse Settings");
 
     act(() => {
       ref.current?.handleKeyDown({
@@ -171,6 +177,89 @@ describe("ChatInputSuggestions", () => {
     });
 
     expect(document.body.textContent).not.toContain("apply_deleted_mask");
-    expect(document.body.textContent).toContain("No settings found");
+    expect(document.body.textContent).toContain("max_threads");
+  });
+
+  it("uses ArrowRight to enter the matched group when query narrows the group list", () => {
+    act(() => {
+      root.render(
+        <ChatInputSuggestions
+          ref={ref}
+          onSelect={vi.fn()}
+          suggestions={{
+            databases: [databaseSuggestion],
+            tables: [tableSuggestion],
+            settings: [settingSuggestion],
+          }}
+        />
+      );
+    });
+
+    act(() => {
+      ref.current?.open("thread");
+    });
+
+    expect(document.body.textContent).toContain("ClickHouse Settings");
+    expect(document.body.textContent).not.toContain("Databases");
+
+    act(() => {
+      ref.current?.handleKeyDown({
+        key: "ArrowRight",
+        preventDefault() {},
+        stopPropagation() {},
+      } as React.KeyboardEvent);
+    });
+
+    expect(document.body.textContent).toContain("max_threads");
+    expect(document.body.textContent).not.toContain("setting description");
+
+    act(() => {
+      ref.current?.handleKeyDown({
+        key: "ArrowDown",
+        preventDefault() {},
+        stopPropagation() {},
+      } as React.KeyboardEvent);
+    });
+
+    expect(document.body.textContent).toContain("setting description");
+  });
+
+  it("keeps the current group open when the query updates while suggestions are open", () => {
+    act(() => {
+      root.render(
+        <ChatInputSuggestions
+          ref={ref}
+          onSelect={vi.fn()}
+          suggestions={{
+            databases: [databaseSuggestion],
+            tables: [tableSuggestion],
+            settings: [settingSuggestion],
+          }}
+        />
+      );
+    });
+
+    act(() => {
+      ref.current?.open("max");
+    });
+
+    act(() => {
+      ref.current?.handleKeyDown({
+        key: "ArrowRight",
+        preventDefault() {},
+        stopPropagation() {},
+      } as React.KeyboardEvent);
+    });
+
+    expect(document.body.textContent).toContain("max_threads");
+    expect(document.body.textContent).not.toContain("Databases");
+
+    act(() => {
+      ref.current?.open("max_t");
+    });
+
+    expect(document.body.textContent).toContain("max_threads");
+    expect(document.body.textContent).not.toContain("Databases");
+    expect(document.body.textContent).not.toContain("Tables803");
   });
 });

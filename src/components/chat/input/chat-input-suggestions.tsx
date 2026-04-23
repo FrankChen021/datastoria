@@ -46,6 +46,22 @@ export interface ChatInputSuggestionsType {
   handleKeyDown: (e: React.KeyboardEvent) => boolean;
 }
 
+function scrollItemIntoViewport(viewport: HTMLElement, item: HTMLElement) {
+  const itemTop = item.offsetTop;
+  const itemBottom = itemTop + item.offsetHeight;
+  const viewportTop = viewport.scrollTop;
+  const viewportBottom = viewportTop + viewport.clientHeight;
+
+  if (itemTop < viewportTop) {
+    viewport.scrollTop = itemTop;
+    return;
+  }
+
+  if (itemBottom > viewportBottom) {
+    viewport.scrollTop = itemBottom - viewport.clientHeight;
+  }
+}
+
 interface ChatInputSuggestionsProps {
   onSelect: (item: ChatInputSuggestionItem) => void;
   onInteractOutside?: (target: EventTarget | null) => boolean;
@@ -59,9 +75,9 @@ interface ChatInputSuggestionsProps {
 interface SuggestionGroupItem {
   mode: Exclude<SuggestionMode, "groups">;
   title: string;
-  subtitle: string;
   icon: React.ComponentType<{ className?: string }>;
   count: number;
+  matchCount?: number;
 }
 
 function filterTableSuggestions(
@@ -168,35 +184,66 @@ export const ChatInputSuggestions = React.memo(
       const [open, setOpen] = React.useState(false);
       const [mode, setMode] = React.useState<SuggestionMode>("groups");
       const [query, setQuery] = React.useState("");
-      const [activeIndex, setActiveIndex] = React.useState(0);
-      const activeItemRef = React.useRef<HTMLDivElement>(null);
+      const [activeIndex, setActiveIndex] = React.useState<number | null>(null);
+      const activeItemRef = React.useRef<HTMLElement | null>(null);
+      const listViewportRef = React.useRef<HTMLElement | null>(null);
+      const openRef = React.useRef(open);
+
+      React.useEffect(() => {
+        openRef.current = open;
+      }, [open]);
 
       const groupItems = React.useMemo<SuggestionGroupItem[]>(
         () => [
           {
             mode: "databases",
             title: "Databases",
-            subtitle: "Browse databases",
             icon: Database,
             count: suggestions.databases.length,
           },
           {
             mode: "tables",
             title: "Tables",
-            subtitle: "Browse database tables",
             icon: Table2,
             count: suggestions.tables.length,
           },
           {
             mode: "settings",
-            title: "Settings",
-            subtitle: "Insert ClickHouse settings",
+            title: "ClickHouse Settings",
             icon: Settings2,
             count: suggestions.settings.length,
           },
         ],
         [suggestions.databases.length, suggestions.settings.length, suggestions.tables.length]
       );
+
+      const visibleGroupItems = React.useMemo<SuggestionGroupItem[]>(() => {
+        const normalizedQuery = query.trim().toLowerCase();
+        return groupItems
+          .map((item) => {
+            const matchCount =
+              item.mode === "databases"
+                ? filterNameSuggestions(suggestions.databases, query).flatSuggestions.length
+                : item.mode === "tables"
+                  ? filterTableSuggestions(suggestions.tables, query).flatSuggestions.length
+                  : filterNameSuggestions(suggestions.settings, query).flatSuggestions.length;
+
+            return {
+              ...item,
+              matchCount,
+            };
+          })
+          .filter((item) => {
+            if (!normalizedQuery) {
+              return true;
+            }
+
+            return (
+              StringUtils.indexOfIgnoreCase(item.title, normalizedQuery) >= 0 ||
+              (item.matchCount ?? 0) > 0
+            );
+          });
+      }, [groupItems, query, suggestions.databases, suggestions.settings, suggestions.tables]);
 
       const currentSuggestions = React.useMemo(() => {
         if (mode === "databases") {
@@ -216,21 +263,27 @@ export const ChatInputSuggestions = React.memo(
 
       const flatSuggestions = currentSuggestions.flatSuggestions;
       const groupedSuggestions = currentSuggestions.groupedSuggestions;
+      const resolvedGroupIndex =
+        activeIndex ?? (visibleGroupItems.length === 1 ? 0 : null);
+      const resolvedSuggestionIndex =
+        activeIndex ?? (flatSuggestions.length === 1 ? 0 : null);
 
       React.useImperativeHandle(ref, () => ({
         open: (searchQuery: string) => {
           setQuery(searchQuery);
-          setActiveIndex(0);
-          setMode("groups");
+          setActiveIndex(null);
+          if (!openRef.current) {
+            setMode("groups");
+          }
           setOpen(true);
         },
         close: () => {
           setOpen(false);
           setMode("groups");
-          setActiveIndex(0);
+          setActiveIndex(null);
         },
         isOpen: () => open,
-        getSelectedIndex: () => activeIndex,
+        getSelectedIndex: () => activeIndex ?? -1,
         getSuggestions: () => flatSuggestions,
         handleKeyDown: (e: React.KeyboardEvent) => {
           if (!open) return false;
@@ -244,31 +297,43 @@ export const ChatInputSuggestions = React.memo(
           }
 
           if (mode === "groups") {
-            if (groupItems.length > 0) {
+            if (visibleGroupItems.length > 0) {
               if (e.key === "ArrowDown") {
-                setActiveIndex((prev) => (prev + 1) % groupItems.length);
+                setActiveIndex((prev) =>
+                  prev === null ? 0 : (prev + 1) % visibleGroupItems.length
+                );
                 e.preventDefault();
                 e.stopPropagation();
                 return true;
               }
               if (e.key === "ArrowUp") {
-                setActiveIndex((prev) => (prev - 1 + groupItems.length) % groupItems.length);
+                setActiveIndex(
+                  (prev) =>
+                    prev === null
+                      ? visibleGroupItems.length - 1
+                      : (prev - 1 + visibleGroupItems.length) % visibleGroupItems.length
+                );
                 e.preventDefault();
                 e.stopPropagation();
                 return true;
               }
-              if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey && !e.metaKey) {
+              if (
+                (e.key === "Enter" || e.key === "Tab") &&
+                !e.shiftKey &&
+                !e.metaKey &&
+                resolvedGroupIndex !== null
+              ) {
                 e.preventDefault();
                 e.stopPropagation();
-                setMode(groupItems[activeIndex].mode);
-                setActiveIndex(0);
+                setMode(visibleGroupItems[resolvedGroupIndex].mode);
+                setActiveIndex(null);
                 return true;
               }
-              if (e.key === "ArrowRight") {
+              if (e.key === "ArrowRight" && resolvedGroupIndex !== null) {
                 e.preventDefault();
                 e.stopPropagation();
-                setMode(groupItems[activeIndex].mode);
-                setActiveIndex(0);
+                setMode(visibleGroupItems[resolvedGroupIndex].mode);
+                setActiveIndex(null);
                 return true;
               }
             }
@@ -279,41 +344,54 @@ export const ChatInputSuggestions = React.memo(
             e.preventDefault();
             e.stopPropagation();
             setMode("groups");
-            setActiveIndex(0);
+            setActiveIndex(null);
             return true;
           }
 
           if (flatSuggestions.length > 0) {
             if (e.key === "ArrowDown") {
-              setActiveIndex((prev) => (prev + 1) % flatSuggestions.length);
+              setActiveIndex((prev) => (prev === null ? 0 : (prev + 1) % flatSuggestions.length));
               e.preventDefault();
               e.stopPropagation();
               return true;
             }
             if (e.key === "ArrowUp") {
               setActiveIndex(
-                (prev) => (prev - 1 + flatSuggestions.length) % flatSuggestions.length
+                (prev) =>
+                  prev === null
+                    ? flatSuggestions.length - 1
+                    : (prev - 1 + flatSuggestions.length) % flatSuggestions.length
               );
               e.preventDefault();
               e.stopPropagation();
               return true;
             }
             if (e.key === "PageDown") {
-              setActiveIndex((prev) => Math.min(prev + 8, flatSuggestions.length - 1));
+              setActiveIndex((prev) =>
+                prev === null ? 0 : Math.min(prev + 8, flatSuggestions.length - 1)
+              );
               e.preventDefault();
               e.stopPropagation();
               return true;
             }
             if (e.key === "PageUp") {
-              setActiveIndex((prev) => Math.max(prev - 8, 0));
+              setActiveIndex((prev) =>
+                prev === null ? flatSuggestions.length - 1 : Math.max(prev - 8, 0)
+              );
               e.preventDefault();
               e.stopPropagation();
               return true;
             }
-            if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+            if (
+              (e.key === "Enter" || e.key === "Tab") &&
+              !e.shiftKey &&
+              !e.metaKey &&
+              !e.ctrlKey &&
+              resolvedSuggestionIndex !== null
+            ) {
               e.preventDefault();
               e.stopPropagation();
-              onSelect(flatSuggestions[activeIndex]);
+              onSelect(flatSuggestions[resolvedSuggestionIndex]);
               return true;
             }
           }
@@ -323,14 +401,28 @@ export const ChatInputSuggestions = React.memo(
       }));
 
       React.useEffect(() => {
-        if (open && activeItemRef.current) {
-          activeItemRef.current.scrollIntoView({ block: "nearest" });
+        if (open && activeItemRef.current && listViewportRef.current) {
+          scrollItemIntoViewport(listViewportRef.current, activeItemRef.current);
         }
       }, [activeIndex, open, mode]);
 
       React.useEffect(() => {
-        setActiveIndex(0);
+        setActiveIndex(null);
       }, [mode, query]);
+
+      React.useEffect(() => {
+        if (mode !== "groups") {
+          return;
+        }
+
+        setActiveIndex((currentIndex) => {
+          if (visibleGroupItems.length === 0 || currentIndex === null) {
+            return currentIndex;
+          }
+
+          return Math.min(currentIndex, visibleGroupItems.length - 1);
+        });
+      }, [mode, visibleGroupItems.length]);
 
       const handleSelect = React.useCallback(
         (item: ChatInputSuggestionItem) => {
@@ -342,11 +434,45 @@ export const ChatInputSuggestions = React.memo(
       );
 
       const detailHeaderLabel =
-        mode === "settings" ? "Settings" : mode === "databases" ? "Databases" : "Tables";
+        mode === "settings" ? "ClickHouse Settings" : mode === "databases" ? "Databases" : "Tables";
       const description =
-        mode === "groups"
+        mode === "groups" || activeIndex === null
           ? null
           : flatSuggestions[Math.min(activeIndex, flatSuggestions.length - 1)]?.description;
+      const renderSuggestionItem = (item: FilteredSuggestionItem) => {
+        const isSelected = item.globalIndex === activeIndex;
+        return (
+          <CommandItem
+            key={`${item.type}.${item.group}.${item.name}`}
+            value={item.name}
+            onSelect={() => handleSelect(item)}
+            onMouseEnter={() => setActiveIndex(item.globalIndex)}
+            className={cn(
+              "flex w-full items-center gap-2 py-1 text-sm",
+              "pl-6 pr-2",
+              isSelected && "bg-accent text-accent-foreground"
+            )}
+            ref={isSelected ? activeItemRef : null}
+          >
+            <span className="min-w-0 flex-1 truncate">
+              {TextHighlighter.highlight2(
+                item.name,
+                item.matchStart,
+                item.matchStart >= 0 ? item.matchStart + item.matchLength : -1,
+                "text-yellow-500"
+              )}
+            </span>
+            {item.badge && (
+              <Badge
+                variant="outline"
+                className="border-0 px-1 py-0 text-[10px] text-muted-foreground"
+              >
+                {item.badge}
+              </Badge>
+            )}
+          </CommandItem>
+        );
+      };
 
       return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -389,56 +515,64 @@ export const ChatInputSuggestions = React.memo(
                 )}
 
                 {mode === "groups" ? (
-                  <Command
-                    className="flex-1 rounded-none border-0 bg-transparent shadow-none"
-                    shouldFilter={false}
-                  >
-                    <CommandList className="flex-1 overflow-y-auto py-1">
-                      {groupItems.map((item, index) => {
-                        const Icon = item.icon;
-                        const isSelected = index === activeIndex;
+                  <div ref={listViewportRef as React.RefObject<HTMLDivElement>} className="flex-1 overflow-y-auto py-1">
+                    {visibleGroupItems.map((item, index) => {
+                      const Icon = item.icon;
+                      const isSelected = index === activeIndex;
 
-                        return (
-                          <CommandItem
-                            key={item.mode}
-                            value={item.title}
-                            onSelect={() => {
-                              setMode(item.mode);
-                              setActiveIndex(0);
-                            }}
-                            onMouseEnter={() => setActiveIndex(index)}
-                            className={cn(
-                              "mx-1 flex items-center gap-2.5 px-2.5 py-1.5",
-                              isSelected && "bg-accent text-accent-foreground"
-                            )}
-                            ref={isSelected ? activeItemRef : null}
+                      return (
+                        <button
+                          key={item.mode}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setMode(item.mode);
+                            setActiveIndex(null);
+                          }}
+                          onMouseEnter={() => setActiveIndex(index)}
+                          className={cn(
+                            "mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2 rounded-sm px-2 py-1 text-left",
+                            isSelected && "bg-accent text-accent-foreground"
+                          )}
+                          ref={
+                            isSelected
+                              ? (node) => {
+                                  activeItemRef.current = node;
+                                }
+                              : undefined
+                          }
+                        >
+                          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                          <div className="min-w-0 flex-1 truncate text-sm font-medium">
+                            {item.title}
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className="border-0 px-1 py-0 text-[10px] text-muted-foreground"
                           >
-                            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate text-xs font-medium">{item.title}</div>
-                              <div className="truncate text-[11px] text-muted-foreground">
-                                {item.subtitle}
-                              </div>
-                            </div>
-                            <Badge
-                              variant="outline"
-                              className="border-0 px-1 py-0 text-[9px] text-muted-foreground"
-                            >
-                              {item.count}
-                            </Badge>
-                            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                          </CommandItem>
-                        );
-                      })}
-                    </CommandList>
-                  </Command>
+                            {query.trim() ? item.matchCount : item.count}
+                          </Badge>
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      );
+                    })}
+                    {visibleGroupItems.length === 0 ? (
+                      <div className="py-3 text-center text-sm text-muted-foreground">
+                        No suggestion groups found
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
-                  <Command
-                    className="flex-1 rounded-none border-0 bg-transparent shadow-none"
-                    value={flatSuggestions[activeIndex]?.name}
-                    shouldFilter={false}
-                  >
-                    <CommandList className="flex-1 overflow-y-auto pt-1">
+                    <Command
+                      className="flex-1 rounded-none border-0 bg-transparent shadow-none"
+                      value={
+                        resolvedSuggestionIndex === null
+                          ? undefined
+                          : flatSuggestions[resolvedSuggestionIndex]?.name
+                      }
+                      shouldFilter={false}
+                    >
+                    <CommandList ref={listViewportRef as React.RefObject<HTMLDivElement>} className="flex-1 overflow-y-auto pt-1">
                       <CommandEmpty>
                         {mode === "settings"
                           ? "No settings found"
@@ -446,49 +580,16 @@ export const ChatInputSuggestions = React.memo(
                             ? "No databases found"
                             : "No tables found"}
                       </CommandEmpty>
-                      {flatSuggestions.length > 0 &&
+                      {mode === "databases"
+                        ? flatSuggestions.map((item) => renderSuggestionItem(item))
+                        : flatSuggestions.length > 0 &&
                         Object.entries(groupedSuggestions).map(([group, items]) => (
                           <CommandGroup
                             key={group}
                             heading={group}
                             className="py-0 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[11px]"
                           >
-                            {items.map((item) => {
-                              const isSelected = item.globalIndex === activeIndex;
-                              return (
-                                <CommandItem
-                                  key={`${item.type}.${group}.${item.name}`}
-                                  value={item.name}
-                                  onSelect={() => handleSelect(item)}
-                                  onMouseEnter={() => setActiveIndex(item.globalIndex)}
-                                  className={cn(
-                                    "flex w-full items-center gap-2 py-1 text-sm",
-                                    mode === "settings" ? "pl-6 pr-2" : "pl-6 pr-2",
-                                    isSelected && "bg-accent text-accent-foreground"
-                                  )}
-                                  ref={isSelected ? activeItemRef : null}
-                                >
-                                  <span className="min-w-0 flex-1 truncate">
-                                    {TextHighlighter.highlight2(
-                                      item.name,
-                                      item.matchStart,
-                                      item.matchStart >= 0
-                                        ? item.matchStart + item.matchLength
-                                        : -1,
-                                      "text-yellow-500"
-                                    )}
-                                  </span>
-                                  {item.badge && (
-                                    <Badge
-                                      variant="outline"
-                                      className="border-0 px-1 py-0 text-[10px] text-muted-foreground"
-                                    >
-                                      {item.badge}
-                                    </Badge>
-                                  )}
-                                </CommandItem>
-                              );
-                            })}
+                            {items.map((item) => renderSuggestionItem(item))}
                           </CommandGroup>
                         ))}
                     </CommandList>
