@@ -1,5 +1,7 @@
+import { useClickHouseSettings } from "@/components/chat/use-clickhouse-settings";
 import { useConnection } from "@/components/connection/connection-context";
 import { OpenNodeTabButton } from "@/components/node-tab/open-node-tab-button";
+import { ClickHouseSettingDescription } from "@/components/settings/query-context/settings-description";
 import { showSettingsDialog } from "@/components/settings/settings-dialog";
 import { ThemedSyntaxHighlighter } from "@/components/shared/themed-syntax-highlighter";
 import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-button";
@@ -41,6 +43,60 @@ interface MessageMarkdownProps {
   expandable?: boolean;
 }
 
+function SettingInlineCode({
+  name,
+  type,
+  description,
+  currentValue,
+  readonly,
+}: {
+  name: string;
+  type: string;
+  description: string;
+  currentValue: string;
+  readonly: boolean | null;
+}) {
+  const readonlyLabel = readonly === null ? "-" : readonly ? "Yes" : "No";
+  const trigger = (
+    <code className="bg-muted/30 rounded px-1 py-0.5 text-[0.8em] font-mono whitespace-pre-wrap break-all underline decoration-dotted underline-offset-2">
+      {name}
+    </code>
+  );
+
+  return (
+    <HoverCard openDelay={150} closeDelay={100}>
+      <HoverCardTrigger asChild>{trigger}</HoverCardTrigger>
+      <HoverCardContent side="bottom" align="start" className="w-80 p-3">
+        <div className="space-y-2 text-[11px]">
+          <div>
+            <div className="text-muted-foreground mb-0.5">Setting</div>
+            <div className="text-foreground whitespace-pre-wrap break-all">{name}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground mb-0.5">Type</div>
+            <div className="text-foreground whitespace-pre-wrap break-all">{type}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground mb-0.5">Current value</div>
+            <div className="text-foreground whitespace-pre-wrap break-all">{currentValue}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground mb-0.5">ReadOnly</div>
+            <div className="text-foreground whitespace-pre-wrap break-all">{readonlyLabel}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground mb-0.5">Description</div>
+            <ClickHouseSettingDescription
+              descriptionMarkdown={description}
+              className="text-[11px] [&_.admonition]:my-1 [&_p]:mb-1 [&_ul]:mb-1 [&_ol]:mb-1"
+            />
+          </div>
+        </div>
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
 export const MessageMarkdown = memo(function MessageMarkdown({
   text,
   customStyle,
@@ -48,6 +104,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   expandable = false,
 }: MessageMarkdownProps) {
   const { connection } = useConnection();
+  const { settingsByName: clickHouseSettingsByName } = useClickHouseSettings();
 
   const codeBlockStyle = useMemo<React.CSSProperties>(
     () => ({
@@ -167,6 +224,19 @@ export const MessageMarkdown = memo(function MessageMarkdown({
                 />
               );
             }
+          }
+
+          const settingInfo = clickHouseSettingsByName.get(codeText);
+          if (settingInfo) {
+            return (
+              <SettingInlineCode
+                name={settingInfo.name}
+                type={settingInfo.type}
+                description={settingInfo.description}
+                currentValue={settingInfo.value}
+                readonly={settingInfo.readonly}
+              />
+            );
           }
         }
 
@@ -337,7 +407,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         </h6>
       ),
     }),
-    [codeBlockStyle, customStyle, expandable, showExecuteButton]
+    [clickHouseSettingsByName, codeBlockStyle, customStyle, expandable, showExecuteButton]
   );
 
   return (

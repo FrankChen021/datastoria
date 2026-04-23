@@ -1,0 +1,161 @@
+/**
+ * @vitest-environment jsdom
+ */
+
+import React, { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  ChatInputSuggestions,
+  type ChatInputSuggestionItem,
+  type ChatInputSuggestionsType,
+} from "./chat-input-suggestions";
+
+describe("ChatInputSuggestions", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  let ref: React.RefObject<ChatInputSuggestionsType | null>;
+
+  const tableSuggestion: ChatInputSuggestionItem = {
+    name: "query_log",
+    type: "table",
+    description: <div>table description</div>,
+    search: "query_log",
+    group: "system",
+    badge: "MergeTree",
+  };
+
+  const settingSuggestion: ChatInputSuggestionItem = {
+    name: "max_threads",
+    type: "setting",
+    description: <div>setting description</div>,
+    search: "max_threads Controls query threads",
+    group: "settings",
+  };
+
+  beforeEach(() => {
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class ResizeObserver {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    vi.stubGlobal("HTMLElement", HTMLElement);
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    ref = React.createRef<ChatInputSuggestionsType>();
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    vi.unstubAllGlobals();
+    container.remove();
+  });
+
+  it("opens in the tables view by default and can navigate to settings", () => {
+    act(() => {
+      root.render(
+        <ChatInputSuggestions
+          ref={ref}
+          onSelect={vi.fn()}
+          suggestions={{
+            tables: [tableSuggestion],
+            settings: [settingSuggestion],
+          }}
+        />
+      );
+    });
+
+    act(() => {
+      ref.current?.open("");
+    });
+
+    expect(document.body.textContent).toContain("Tables");
+    expect(document.body.textContent).toContain("query_log");
+
+    const backButton = document.body.querySelector(
+      'button[aria-label="Show suggestion groups"]'
+    ) as HTMLButtonElement | null;
+    expect(backButton).not.toBeNull();
+
+    act(() => {
+      backButton?.click();
+    });
+
+    expect(document.body.textContent).toContain("Browse database tables");
+    expect(document.body.textContent).toContain("Insert ClickHouse settings");
+
+    const settingsItem = Array.from(document.body.querySelectorAll("[cmdk-item]")).find((node) =>
+      node.textContent?.includes("Settings")
+    ) as HTMLElement | undefined;
+    expect(settingsItem).toBeDefined();
+
+    act(() => {
+      settingsItem?.dispatchEvent(new Event("select", { bubbles: true }));
+      settingsItem?.click();
+    });
+
+    expect(document.body.textContent).toContain("max_threads");
+    expect(document.body.textContent).toContain("setting description");
+  });
+
+  it("filters settings by name instead of description keywords", () => {
+    const unrelatedSetting: ChatInputSuggestionItem = {
+      name: "apply_deleted_mask",
+      type: "setting",
+      description: <div>description mentioning filter</div>,
+      search: "apply_deleted_mask description mentioning filter",
+      group: "server_settings",
+    };
+
+    act(() => {
+      root.render(
+        <ChatInputSuggestions
+          ref={ref}
+          onSelect={vi.fn()}
+          suggestions={{
+            tables: [tableSuggestion],
+            settings: [settingSuggestion, unrelatedSetting],
+          }}
+        />
+      );
+    });
+
+    act(() => {
+      ref.current?.open("");
+    });
+
+    const backButton = document.body.querySelector(
+      'button[aria-label="Show suggestion groups"]'
+    ) as HTMLButtonElement | null;
+
+    act(() => {
+      backButton?.click();
+    });
+
+    const settingsItem = Array.from(document.body.querySelectorAll("[cmdk-item]")).find((node) =>
+      node.textContent?.includes("Settings")
+    ) as HTMLElement | undefined;
+
+    act(() => {
+      settingsItem?.dispatchEvent(new Event("select", { bubbles: true }));
+      settingsItem?.click();
+    });
+
+    act(() => {
+      ref.current?.open("filter");
+    });
+
+    expect(document.body.textContent).not.toContain("apply_deleted_mask");
+    expect(document.body.textContent).toContain("No settings found");
+  });
+});

@@ -1,6 +1,7 @@
 "use client";
 
 import { useConnection } from "@/components/connection/connection-context";
+import { ClickHouseSettingDescription } from "@/components/settings/query-context/settings-description";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,12 +12,14 @@ import {
 import { useModelConfig } from "@/hooks/use-model-config";
 import type { CommandDetail } from "@/lib/ai/commands/command-manager";
 import { resolveModelSupportsImageInput } from "@/lib/ai/llm/llm-provider-factory";
+import type { ClickHouseSettingInfo } from "@/lib/clickhouse/clickhouse-settings";
 import { cn } from "@/lib/utils";
 import type { LanguageModelUsage } from "ai";
 import { ImagePlus, MessageSquarePlus, Plus, Send, Square, X } from "lucide-react";
 import * as React from "react";
 import { useAgentCommands } from "../agent-command-context";
 import { ChatTokenStatus } from "../message/chat-token-status";
+import { useClickHouseSettings } from "../use-clickhouse-settings";
 import type { ChatComposerInput } from "../view/use-chat-panel";
 import { ChatInputCommands, type ChatInputCommandsType } from "./chat-input-commands";
 import {
@@ -27,6 +30,7 @@ import {
 import { getLeadingCommand, removeLeadingCommand, replaceLeadingCommand } from "./command-utils";
 import { getTableMentionMatches, removeTableMentionAt } from "./mention-utils";
 import { ModelSelector } from "./model-selector";
+import { getSettingTokenMatches, removeSettingTokenAt } from "./setting-token-utils";
 import { sqlSnippetTokenCodec } from "./sql-snippet-token";
 
 export { replaceLeadingCommand } from "./command-utils";
@@ -79,6 +83,13 @@ type TokenSegment =
     }
   | {
       kind: "mention";
+      rawText: string;
+      start: number;
+      end: number;
+      label: string;
+    }
+  | {
+      kind: "setting";
       rawText: string;
       start: number;
       end: number;
@@ -160,13 +171,21 @@ function createTokenNodeSegment(
       ? "border-cyan-200 bg-cyan-50 text-cyan-900 dark:border-cyan-900/60 dark:bg-cyan-950/50 dark:text-cyan-100"
       : segment.kind === "sqlSnippet"
         ? "border-slate-200 bg-slate-100 text-slate-900 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100"
-        : "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-100"
+        : segment.kind === "setting"
+          ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/50 dark:text-amber-100"
+          : "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-100"
   );
 
   const icon = documentRef.createElement("span");
   icon.className = "shrink-0";
   icon.textContent =
-    segment.kind === "command" ? "/" : segment.kind === "sqlSnippet" ? "SQL:" : "@";
+    segment.kind === "command"
+      ? "/"
+      : segment.kind === "sqlSnippet"
+        ? "SQL:"
+        : segment.kind === "setting"
+          ? "S:"
+          : "@";
 
   const label = documentRef.createElement("span");
   label.className = "max-w-[240px] truncate font-medium";
@@ -404,7 +423,11 @@ function TokenHoverCard({
   );
 }
 
-function buildRenderSegments(input: string, command: CommandDetail | null): RenderSegment[] {
+function buildRenderSegments(
+  input: string,
+  command: CommandDetail | null,
+  settingsByName: Map<string, ClickHouseSettingInfo>
+): RenderSegment[] {
   const tokenSegments: TokenSegment[] = [];
 
   const leadingCommand = getLeadingCommand(input);
@@ -425,6 +448,16 @@ function buildRenderSegments(input: string, command: CommandDetail | null): Rend
       start: mention.start,
       end: mention.end,
       label: mention.value,
+    });
+  }
+
+  for (const setting of getSettingTokenMatches(input, settingsByName)) {
+    tokenSegments.push({
+      kind: "setting",
+      rawText: setting.text,
+      start: setting.start,
+      end: setting.end,
+      label: setting.value,
     });
   }
 
@@ -509,6 +542,8 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const [suggestionStartPos, setSuggestionStartPos] = React.useState(0);
 
     const { connection } = useConnection();
+    const { settings: clickHouseSettings, settingsByName: clickHouseSettingsByName } =
+      useClickHouseSettings();
     const { commands, commandsByName } = useAgentCommands();
     const { selectedModel } = useModelConfig();
     const isResizable = resizedHeight !== null;
@@ -518,8 +553,8 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       [commandsByName, leadingCommand]
     );
     const renderSegments = React.useMemo(
-      () => buildRenderSegments(input, selectedCommand),
-      [input, selectedCommand]
+      () => buildRenderSegments(input, selectedCommand, clickHouseSettingsByName),
+      [clickHouseSettingsByName, input, selectedCommand]
     );
     const selectedModelSupportsImages = resolveModelSupportsImageInput(selectedModel);
     const canSubmit =
@@ -844,14 +879,58 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       });
     }, [connection?.metadata?.tableNames]);
 
-    const handleSelectTable = React.useCallback(
-      (group: string, tableName: string) => {
-        const fullName = `${group}.${tableName}`;
+    const settingSuggestions = React.useMemo((): ChatInputSuggestionItem[] => {
+      return clickHouseSettings.map((setting) => {
+        const readonlyLabel = setting.readonly === null ? "-" : setting.readonly ? "Yes" : "No";
+        const description = (
+          <div className="space-y-2 text-[11px]">
+            <div>
+              <div className="text-muted-foreground mb-0.5">Setting</div>
+              <div className="text-foreground whitespace-pre-wrap break-all">{setting.name}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground mb-0.5">Type</div>
+              <div className="text-foreground whitespace-pre-wrap break-all">{setting.type}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground mb-0.5">Current value</div>
+              <div className="text-foreground whitespace-pre-wrap break-all">{setting.value}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground mb-0.5">ReadOnly</div>
+              <div className="text-foreground whitespace-pre-wrap break-all">{readonlyLabel}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground mb-0.5">Description</div>
+              <ClickHouseSettingDescription
+                descriptionMarkdown={setting.description}
+                className="text-[11px] [&_.admonition]:my-1 [&_p]:mb-1 [&_ul]:mb-1 [&_ol]:mb-1"
+              />
+            </div>
+          </div>
+        );
+
+        return {
+          name: setting.name,
+          type: "setting",
+          description,
+          search: `${setting.name} ${setting.type} ${setting.description}`,
+          group: setting.source,
+        } satisfies ChatInputSuggestionItem;
+      });
+    }, [clickHouseSettings]);
+
+    const handleSelectSuggestion = React.useCallback(
+      (suggestion: ChatInputSuggestionItem) => {
         const selectionOffset = cursorOffsetRef.current;
         const beforeMention = input.substring(0, suggestionStartPos);
         const afterMention = input.substring(selectionOffset);
-        const newText = beforeMention + `@${fullName} ` + afterMention;
-        const newCursorPos = suggestionStartPos + fullName.length + 2;
+        const insertText =
+          suggestion.type === "table"
+            ? `@${suggestion.group}.${suggestion.name} `
+            : `\`${suggestion.name}\` `;
+        const newText = beforeMention + insertText + afterMention;
+        const newCursorPos = suggestionStartPos + insertText.length;
 
         suggestionRef.current?.close();
         setInputAndSelection(newText, newCursorPos);
@@ -882,6 +961,16 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const handleDismissMention = React.useCallback(
       (start: number, end: number) => {
         const newText = removeTableMentionAt(input, start, end);
+        suggestionRef.current?.close();
+        setInputAndSelection(newText, Math.min(start, newText.length));
+        editorRef.current?.focus();
+      },
+      [input, setInputAndSelection]
+    );
+
+    const handleDismissSetting = React.useCallback(
+      (start: number, end: number) => {
+        const newText = removeSettingTokenAt(input, start, end);
         suggestionRef.current?.close();
         setInputAndSelection(newText, Math.min(start, newText.length));
         editorRef.current?.focus();
@@ -1010,6 +1099,11 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                 return;
               }
 
+              if (segment.kind === "setting") {
+                handleDismissSetting(segment.start, segment.end);
+                return;
+              }
+
               handleDismissSqlSnippet(segment.start, segment.end);
             },
             {
@@ -1041,6 +1135,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     }, [
       handleDismissCommand,
       handleDismissMention,
+      handleDismissSetting,
       handleDismissSqlSnippet,
       handleCodeTokenHoverEnd,
       handleCodeTokenHoverStart,
@@ -1351,8 +1446,11 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           >
             <ChatInputSuggestions
               ref={suggestionRef}
-              suggestions={tableSuggestions}
-              onSelect={handleSelectTable}
+              suggestions={{
+                tables: tableSuggestions,
+                settings: settingSuggestions,
+              }}
+              onSelect={handleSelectSuggestion}
               onInteractOutside={(target) =>
                 target instanceof Node ? !editorRef.current?.contains(target) : false
               }
@@ -1379,7 +1477,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                       {typeof navigator !== "undefined" && navigator.platform.includes("Mac")
                         ? "Cmd"
                         : "Ctrl"}{" "}
-                      + Enter to send. Use @ to mention tables, / for commands.
+                      + Enter to send. Use @ to mention tables or settings, / for commands.
                     </div>
                   )}
 
@@ -1387,7 +1485,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                     ref={editorRef}
                     role="textbox"
                     aria-multiline="true"
-                    aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables, / for commands."
+                    aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables or settings, / for commands."
                     contentEditable={!isRunning}
                     suppressContentEditableWarning
                     className={cn(

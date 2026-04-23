@@ -23,6 +23,14 @@ vi.mock("../agent-command-context", () => ({
   }),
 }));
 
+vi.mock("../use-clickhouse-settings", () => ({
+  useClickHouseSettings: () => ({
+    settings: [],
+    settingsByName: new Map(),
+    isLoading: false,
+  }),
+}));
+
 vi.mock("./chat-input-suggestions", async () => {
   const React = await import("react");
   return {

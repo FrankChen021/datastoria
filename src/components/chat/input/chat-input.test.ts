@@ -10,6 +10,8 @@ import { removeLeadingCommand, replaceLeadingCommand } from "./command-utils";
 import { getTableMentionMatches, removeTableMentionAt } from "./mention-utils";
 import { sqlSnippetTokenCodec } from "./sql-snippet-token";
 
+const mockSettingsByName = new Map();
+
 vi.mock("@/components/connection/connection-context", () => ({
   useConnection: () => ({
     connection: {
@@ -48,6 +50,14 @@ vi.mock("../agent-command-context", () => ({
         },
       ],
     ]),
+  }),
+}));
+
+vi.mock("../use-clickhouse-settings", () => ({
+  useClickHouseSettings: () => ({
+    settings: [],
+    settingsByName: mockSettingsByName,
+    isLoading: false,
   }),
 }));
 
@@ -159,6 +169,7 @@ describe("ChatInput inline tokens", () => {
   let root: Root;
 
   beforeEach(() => {
+    mockSettingsByName.clear();
     (
       globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -255,6 +266,45 @@ describe("ChatInput inline tokens", () => {
       text: "```sql\nSELECT 1\n```",
       files: [],
     });
+  });
+
+  it("renders selected settings as inline tokens and removes them when dismissed", () => {
+    mockSettingsByName.set("max_threads", {
+      name: "max_threads",
+      type: "UInt64",
+      description: "Maximum number of execution threads.",
+      value: "8",
+      readonly: false,
+      source: "settings",
+    });
+
+    act(() => {
+      root.render(
+        React.createElement(ChatInput, {
+          onSubmit: vi.fn(),
+          isRunning: false,
+          externalInput: { text: "Use `max_threads` now", mode: "replace", nonce: 2 },
+        })
+      );
+    });
+
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement | null;
+    expect(editor?.textContent).toContain("Use");
+    expect(editor?.textContent).toContain("max_threads");
+    expect(editor?.textContent).toContain("now");
+
+    const removeSettingButton = container.querySelector(
+      'button[aria-label="Remove setting max_threads"]'
+    ) as HTMLButtonElement | null;
+    expect(removeSettingButton).not.toBeNull();
+
+    act(() => {
+      removeSettingButton?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+
+    expect(editor?.textContent).toContain("Use");
+    expect(editor?.textContent).toContain("now");
+    expect(editor?.textContent).not.toContain("max_threads");
   });
 
   it("appends external input chips to the existing composer content", () => {

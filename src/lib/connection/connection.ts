@@ -1,5 +1,6 @@
 import type { DependencyTableInfo } from "@/components/dependency-view/dependency-types";
 import { QueryContextManager } from "@/components/settings/query-context/query-context-manager";
+import type { ClickHouseSettingInfo } from "@/lib/clickhouse/clickhouse-settings";
 import type { ConnectionConfig } from "./connection-config";
 import { getAuthUser } from "./connection-private";
 
@@ -133,6 +134,10 @@ export interface ConnectionMetadata {
   // Cached ProfileEvents from system.events - used for SQL validation
   // If it fails to get events, validation will be skipped
   profileEvents?: Set<string>;
+
+  // Cached ClickHouse settings metadata used by chat suggestions and markdown hovers
+  clickhouseSettings?: Map<string, ClickHouseSettingInfo>;
+  clickhouseSettingsCacheVersion?: number;
 }
 
 const USER_CANCELLED_ERROR_MESSAGE = "User cancelled";

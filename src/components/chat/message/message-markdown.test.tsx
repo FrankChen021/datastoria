@@ -3,6 +3,7 @@
  */
 
 import { act } from "react";
+import { createPortal } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MessageMarkdown } from "./message-markdown";
@@ -15,6 +16,28 @@ const mockConnectionState: {
 } = {
   connection: null,
 };
+const mockSettingsState = {
+  settings: [] as Array<{
+    name: string;
+    type: string;
+    description: string;
+    value: string;
+    readonly: boolean | null;
+    source: string;
+  }>,
+  settingsByName: new Map<
+    string,
+    {
+      name: string;
+      type: string;
+      description: string;
+      value: string;
+      readonly: boolean | null;
+      source: string;
+    }
+  >(),
+  isLoading: false,
+};
 
 vi.mock("@/components/connection/connection-context", () => ({
   useConnection: () => mockConnectionState,
@@ -22,6 +45,10 @@ vi.mock("@/components/connection/connection-context", () => ({
 
 vi.mock("@/components/settings/settings-dialog", () => ({
   showSettingsDialog: vi.fn(),
+}));
+
+vi.mock("@/components/chat/use-clickhouse-settings", () => ({
+  useClickHouseSettings: () => mockSettingsState,
 }));
 
 vi.mock("@/components/table-tab/open-database-tab-button", () => ({
@@ -47,7 +74,8 @@ vi.mock("@/components/ui/button", () => ({
 
 vi.mock("@/components/ui/hover-card", () => ({
   HoverCard: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-  HoverCardContent: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  HoverCardContent: ({ children }: { children?: React.ReactNode }) =>
+    createPortal(<>{children}</>, document.body),
   HoverCardTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
@@ -88,6 +116,8 @@ describe("MessageMarkdown", () => {
     syntaxHighlighterSpy.mockReset();
     openNodeTabButtonSpy.mockReset();
     mockConnectionState.connection = null;
+    mockSettingsState.settings = [];
+    mockSettingsState.settingsByName = new Map();
   });
 
   afterEach(() => {
@@ -168,5 +198,31 @@ describe("MessageMarkdown", () => {
         host: "node-a",
       })
     );
+  });
+
+  it("renders known ClickHouse settings as hoverable inline code", () => {
+    const setting = {
+      name: "max_threads",
+      type: "UInt64",
+      description: "Controls the maximum number of query execution threads.",
+      value: "8",
+      readonly: false,
+      source: "settings",
+    };
+    mockSettingsState.settings = [setting];
+    mockSettingsState.settingsByName = new Map([["max_threads", setting]]);
+
+    act(() => {
+      root.render(<MessageMarkdown text={"Use `max_threads` for this query"} />);
+    });
+
+    expect(container.textContent).toContain("max_threads");
+    expect(document.body.textContent).toContain("UInt64");
+    expect(document.body.textContent).toContain("ReadOnly");
+    expect(document.body.textContent).toContain("No");
+    expect(document.body.textContent).toContain(
+      "Controls the maximum number of query execution threads."
+    );
+    expect(document.body.textContent).toContain("8");
   });
 });
