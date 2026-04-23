@@ -1,5 +1,6 @@
 import { streamText, type ModelMessage } from "ai";
 import { LanguageModelProviderFactory } from "../llm/llm-provider-factory";
+import { logLlmPrompt } from "../llm/prompt-debug";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "../tools/server/server-tool-names";
 import type { ServerDatabaseContext } from "./common-types";
@@ -66,7 +67,7 @@ e) **Default limit**: The tool defaults to limit=100 to prevent token overflow. 
 f) **Detailed Schema**: Once you identify relevant tables, use 'explore_schema' to get full column details.
 
 **Data Retrieval Workflow (STRICT)**:
-If the user asks for data or metadata (e.g., "how many rows in @table", "partition distribution of @table", "list active queries"):
+If the user asks for data or metadata (e.g., "how many rows in \`db.table\`", "partition distribution of \`db.table\`", "list active queries"):
 a) **Schema Discovery**: If you don't know the table schema, use 'get_tables' with filters, then 'explore_schema' for details.
 b) **SQL Generation**: Use the 'generate_sql' tool with the schema context to get a valid ClickHouse query.
 c) **Validation**: ALWAYS call 'validate_sql' with the generated SQL before executing it.
@@ -86,10 +87,17 @@ b) Load the appropriate skills and generate SQL for the visualization flow inste
 Guidelines:
 - Extract keywords from user queries to build name_pattern filters
 - For metadata queries (partition, engine, etc.), use the appropriate filter parameters
-- If a user mentions a table (e.g., @table_name), call 'explore_schema' to see its structure before answering.
+- If a user mentions a table (e.g., \`db.table\`), call 'explore_schema' to see its structure before answering.
 - For complex SQL generation (new analytics) or optimization, the orchestrator might route those to specialized agents, but you are the primary entry point for general questions.
 - Respond in a professional, helpful tone. Use markdown for formatting.
 `;
+
+  logLlmPrompt({
+    label: "general-agent",
+    provider: modelConfig.provider,
+    modelId: modelConfig.modelId,
+    messages: [{ role: "system", content: systemPrompt }, ...messages],
+  });
 
   return streamText({
     model,

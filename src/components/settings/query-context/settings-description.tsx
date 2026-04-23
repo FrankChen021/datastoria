@@ -1,6 +1,7 @@
 import { preprocessAdmonitions } from "@/lib/clickhouse/admonition-preprocessor";
 import { transformMarkdownLink } from "@/lib/clickhouse/clickhouse-docs-link";
 import { cn } from "@/lib/utils";
+import type { HTMLAttributes, ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 
@@ -18,9 +19,115 @@ export function transformSettingMarkdownLinks(description: string): string {
   });
 }
 
-export function normalizeSettingDescriptionMarkdown(description: string): string {
-  return preprocessAdmonitions(transformSettingMarkdownLinks(description));
+const ALLOWED_RAW_TAGS = new Set([
+  "a",
+  "abbr",
+  "b",
+  "blockquote",
+  "br",
+  "code",
+  "dd",
+  "del",
+  "details",
+  "div",
+  "dl",
+  "dt",
+  "em",
+  "i",
+  "img",
+  "kbd",
+  "li",
+  "ol",
+  "p",
+  "pre",
+  "s",
+  "section",
+  "small",
+  "span",
+  "strong",
+  "sub",
+  "summary",
+  "sup",
+  "table",
+  "tbody",
+  "td",
+  "th",
+  "thead",
+  "tr",
+  "u",
+  "ul",
+]);
+
+function sanitizeUnknownInlineTags(description: string): string {
+  if (!description.includes("<")) {
+    return description;
+  }
+
+  return description
+    .replace(/<([a-z][a-z0-9_-]*)>([^<]+)<\/\1>/gi, (match, tagName, innerText) => {
+      const normalizedTagName = String(tagName).toLowerCase();
+      if (ALLOWED_RAW_TAGS.has(normalizedTagName)) {
+        return match;
+      }
+      return `\`${innerText.trim()}\``;
+    })
+    .replace(/<([a-z][a-z0-9_-]*)>/gi, (match, tagName) => {
+      const normalizedTagName = String(tagName).toLowerCase();
+      if (ALLOWED_RAW_TAGS.has(normalizedTagName)) {
+        return match;
+      }
+      return `\`${normalizedTagName}\``;
+    })
+    .replace(/<\/([a-z][a-z0-9_-]*)>/gi, (match, tagName) => {
+      const normalizedTagName = String(tagName).toLowerCase();
+      return ALLOWED_RAW_TAGS.has(normalizedTagName) ? match : "";
+    });
 }
+
+export function normalizeSettingDescriptionMarkdown(description: string): string {
+  return preprocessAdmonitions(sanitizeUnknownInlineTags(transformSettingMarkdownLinks(description)));
+}
+
+function SettingInlineTag({
+  children,
+  className,
+  ...props
+}: {
+  children?: ReactNode;
+  className?: string;
+} & HTMLAttributes<HTMLElement>) {
+  return (
+    <code
+      {...props}
+      className={cn("bg-muted px-1 py-0.5 rounded text-xs font-mono", className)}
+    >
+      {children}
+    </code>
+  );
+}
+
+function InlineTagComponent({
+  children,
+  className,
+  ...props
+}: HTMLAttributes<HTMLElement> & { children?: ReactNode }) {
+  return (
+    <SettingInlineTag className={className} {...props}>
+      {children}
+    </SettingInlineTag>
+  );
+}
+
+const markdownComponents = {
+  a: ({ className: anchorClassName, ...props }: HTMLAttributes<HTMLAnchorElement>) => (
+    <a
+      {...props}
+      className={cn("text-primary underline", anchorClassName)}
+      target="_blank"
+      rel="noopener noreferrer"
+    />
+  ),
+} as never;
 
 /* Match query-input-view.css admonition styles (query-suggestion-manager ACE editor) */
 const admonitionStyles =
@@ -50,16 +157,7 @@ export function ClickHouseSettingDescription({
     >
       <ReactMarkdown
         rehypePlugins={[rehypeRaw]}
-        components={{
-          a: ({ className: anchorClassName, ...props }) => (
-            <a
-              {...props}
-              className={cn("text-primary underline", anchorClassName)}
-              target="_blank"
-              rel="noopener noreferrer"
-            />
-          ),
-        }}
+        components={markdownComponents}
       >
         {descriptionMarkdown || "No description available."}
       </ReactMarkdown>

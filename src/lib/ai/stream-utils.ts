@@ -8,6 +8,7 @@ import {
   type InferSchema,
   type LanguageModel,
 } from "ai";
+import { logLlmPrompt } from "./llm/prompt-debug";
 
 export function stripMarkdownCodeFence(value: string): string {
   const trimmed = value.trim();
@@ -64,6 +65,10 @@ export async function streamObject<SCHEMA extends FlexibleSchema<unknown>>(input
   temperature?: number;
   supportsStructuredOutputs: boolean;
 }): Promise<InferSchema<SCHEMA>> {
+  logLlmPrompt({
+    label: "stream-object",
+    prompt: input.prompt,
+  });
   const result = streamText({
     model: maybeWrapWithJsonExtraction(input.model, input.supportsStructuredOutputs),
     prompt: input.prompt,

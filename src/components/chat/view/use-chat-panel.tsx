@@ -1,6 +1,6 @@
 "use client";
 
-import type { AgentContext } from "@/lib/ai/chat-types";
+import type { AgentContext } from "@/lib/ai/ai-types";
 import React, { createContext, useContext, useRef, useState } from "react";
 
 export type ChatPanelDisplayMode = "hidden" | "panel" | "tabWidth" | "fullscreen";

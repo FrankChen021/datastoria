@@ -1,4 +1,4 @@
-import type { AppUIMessage } from "@/lib/ai/chat-types";
+import type { AppUIMessage } from "@/lib/ai/ai-types";
 import { describe, expect, it } from "vitest";
 import { buildSendMessagesRequestPayload } from "./chat-factory";
 
@@ -117,6 +117,43 @@ describe("buildSendMessagesRequestPayload", () => {
       agentContext: {
         pruneValidateSql: true,
         responseLanguage: "zh-CN",
+      },
+    });
+  });
+
+  it("preserves mention metadata on remote user messages", () => {
+    const message = createMessage({
+      metadata: {
+        mentionMetadata: {
+          version: 1,
+          mentions: [{ kind: "setting", name: "max_threads", type: "UInt64" }],
+        },
+      },
+    });
+
+    const payload = buildSendMessagesRequestPayload({
+      sessionId: "session-1",
+      connectionId: "default@https://example.com",
+      messages: [message],
+      trigger: "submit-message",
+      messageId: "message-1",
+      body: {},
+      requestContext: diagnosisContext,
+      currentModel: undefined,
+      generateTitle: false,
+      ephemeral: true,
+      pruneValidateSql: true,
+      chatPersistenceMode: "remote",
+    });
+
+    expect(payload).toMatchObject({
+      message: {
+        metadata: {
+          mentionMetadata: {
+            version: 1,
+            mentions: [{ kind: "setting", name: "max_threads", type: "UInt64" }],
+          },
+        },
       },
     });
   });

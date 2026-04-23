@@ -5,7 +5,7 @@ import type {
   Message,
   MessageMetadata,
   MessagePart,
-} from "@/lib/ai/chat-types";
+} from "@/lib/ai/ai-types";
 import type { PersistedChatMessage, PersistedChatSession } from "./server-session-repository";
 
 const IMAGE_HISTORY_PLACEHOLDER = "[Image attachment omitted from saved history]";

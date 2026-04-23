@@ -1,4 +1,4 @@
-import type { Chat, Message } from "@/lib/ai/chat-types";
+import type { Chat, Message } from "@/lib/ai/ai-types";
 import type { LocalStorage } from "@/lib/storage/local-storage-provider";
 import { StorageManager } from "@/lib/storage/storage-provider-manager";
 import { v7 as uuidv7 } from "uuid";

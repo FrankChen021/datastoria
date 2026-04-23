@@ -25,6 +25,14 @@ describe("ChatInputSuggestions", () => {
     badge: "MergeTree",
   };
 
+  const databaseSuggestion: ChatInputSuggestionItem = {
+    name: "analytics",
+    type: "database",
+    description: <div>database description</div>,
+    search: "analytics Atomic",
+    group: "Atomic",
+  };
+
   const settingSuggestion: ChatInputSuggestionItem = {
     name: "max_threads",
     type: "setting",
@@ -61,13 +69,14 @@ describe("ChatInputSuggestions", () => {
     container.remove();
   });
 
-  it("opens in the tables view by default and can navigate to settings", () => {
+  it("opens in the groups view by default and can navigate with ArrowRight", () => {
     act(() => {
       root.render(
         <ChatInputSuggestions
           ref={ref}
           onSelect={vi.fn()}
           suggestions={{
+            databases: [databaseSuggestion],
             tables: [tableSuggestion],
             settings: [settingSuggestion],
           }}
@@ -79,29 +88,32 @@ describe("ChatInputSuggestions", () => {
       ref.current?.open("");
     });
 
-    expect(document.body.textContent).toContain("Tables");
-    expect(document.body.textContent).toContain("query_log");
-
-    const backButton = document.body.querySelector(
-      'button[aria-label="Show suggestion groups"]'
-    ) as HTMLButtonElement | null;
-    expect(backButton).not.toBeNull();
-
-    act(() => {
-      backButton?.click();
-    });
-
+    expect(document.body.textContent).toContain("Databases");
     expect(document.body.textContent).toContain("Browse database tables");
     expect(document.body.textContent).toContain("Insert ClickHouse settings");
 
-    const settingsItem = Array.from(document.body.querySelectorAll("[cmdk-item]")).find((node) =>
-      node.textContent?.includes("Settings")
-    ) as HTMLElement | undefined;
-    expect(settingsItem).toBeDefined();
+    act(() => {
+      ref.current?.handleKeyDown({
+        key: "ArrowDown",
+        preventDefault() {},
+        stopPropagation() {},
+      } as React.KeyboardEvent);
+    });
 
     act(() => {
-      settingsItem?.dispatchEvent(new Event("select", { bubbles: true }));
-      settingsItem?.click();
+      ref.current?.handleKeyDown({
+        key: "ArrowDown",
+        preventDefault() {},
+        stopPropagation() {},
+      } as React.KeyboardEvent);
+    });
+
+    act(() => {
+      ref.current?.handleKeyDown({
+        key: "ArrowRight",
+        preventDefault() {},
+        stopPropagation() {},
+      } as React.KeyboardEvent);
     });
 
     expect(document.body.textContent).toContain("max_threads");
@@ -123,6 +135,7 @@ describe("ChatInputSuggestions", () => {
           ref={ref}
           onSelect={vi.fn()}
           suggestions={{
+            databases: [databaseSuggestion],
             tables: [tableSuggestion],
             settings: [settingSuggestion, unrelatedSetting],
           }}
@@ -131,28 +144,30 @@ describe("ChatInputSuggestions", () => {
     });
 
     act(() => {
-      ref.current?.open("");
-    });
-
-    const backButton = document.body.querySelector(
-      'button[aria-label="Show suggestion groups"]'
-    ) as HTMLButtonElement | null;
-
-    act(() => {
-      backButton?.click();
-    });
-
-    const settingsItem = Array.from(document.body.querySelectorAll("[cmdk-item]")).find((node) =>
-      node.textContent?.includes("Settings")
-    ) as HTMLElement | undefined;
-
-    act(() => {
-      settingsItem?.dispatchEvent(new Event("select", { bubbles: true }));
-      settingsItem?.click();
-    });
-
-    act(() => {
       ref.current?.open("filter");
+    });
+
+    expect(document.body.textContent).toContain("Settings");
+
+    act(() => {
+      ref.current?.handleKeyDown({
+        key: "ArrowDown",
+        preventDefault() {},
+        stopPropagation() {},
+      } as React.KeyboardEvent);
+      ref.current?.handleKeyDown({
+        key: "ArrowDown",
+        preventDefault() {},
+        stopPropagation() {},
+      } as React.KeyboardEvent);
+    });
+
+    act(() => {
+      ref.current?.handleKeyDown({
+        key: "ArrowRight",
+        preventDefault() {},
+        stopPropagation() {},
+      } as React.KeyboardEvent);
     });
 
     expect(document.body.textContent).not.toContain("apply_deleted_mask");

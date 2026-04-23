@@ -42,6 +42,32 @@ export interface ToolResultPart {
 
 export type MessagePart = TextPart | FilePart | ToolCallPart | ToolResultPart;
 
+export type Mention = DatabaseMention | TableMention | SettingMention;
+
+export interface DatabaseMention {
+  kind: "database";
+  name: string;
+  engine: string;
+  comment?: string;
+}
+
+export interface TableMention {
+  kind: "table";
+  name: string;
+  engine: string;
+}
+
+export interface SettingMention {
+  kind: "setting";
+  name: string;
+  type: string;
+}
+
+export interface MentionMetadata {
+  version: 1;
+  mentions: Mention[];
+}
+
 /**
  * Shared metadata bag for chat messages.
  *
@@ -65,6 +91,7 @@ export type MessageMetadata = {
     text: string;
     usage: LanguageModelUsage;
   };
+  mentionMetadata?: MentionMetadata;
   // Allow arbitrary extra metadata fields coming from the SDK or future agents
   [key: string]: unknown;
 };

@@ -1,4 +1,4 @@
-import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/ai-types";
 import dynamic from "next/dynamic";
 import { memo } from "react";
 import { CollapsiblePart } from "./collapsible-part";

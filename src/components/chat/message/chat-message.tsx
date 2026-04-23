@@ -1,6 +1,6 @@
 import { AppLogo } from "@/components/app-logo";
 import { UserProfileImage } from "@/components/user-profile-image";
-import type { AppUIMessage, FilePart, ToolPart } from "@/lib/ai/chat-types";
+import type { AppUIMessage, FilePart, ToolPart } from "@/lib/ai/ai-types";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { DateTimeExtension } from "@/lib/datetime-utils";

@@ -5,7 +5,7 @@
  * - SkillResourceTool: loads additional reference files (rules/*.md, AGENTS.md) for
  *   skills whose manuals are already in context.
  */
-import type { SkillResourceToolInput, SkillToolInput } from "@/lib/ai/chat-types";
+import type { SkillResourceToolInput, SkillToolInput } from "@/lib/ai/ai-types";
 import { findSkillByLookup, type SkillProvider } from "@/lib/ai/skills/skill-provider";
 import type { SkillCatalogItem } from "@/lib/ai/skills/skill-types";
 import matter from "gray-matter";

@@ -8,6 +8,7 @@ import {
   type SubAgent,
 } from "@/lib/ai/agent/plan/sub-agent-registry";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
+import { logLlmPrompt } from "@/lib/ai/llm/prompt-debug";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import type { SseStreamer } from "@/lib/sse-streamer";
 import { generateText, Output, type UIMessage } from "ai";
@@ -203,6 +204,12 @@ async function classifyByLLM(input: InputMessages, modelConfig: InputModel): Pro
     .conversations(input.messages)
     .lastIntent(input.previousIntent)
     .build();
+  logLlmPrompt({
+    label: "planning-agent",
+    provider: modelConfig.provider,
+    modelId: modelConfig.modelId,
+    prompt: plannerPrompt,
+  });
 
   try {
     const { output: llmOutput, usage } = await generateText({

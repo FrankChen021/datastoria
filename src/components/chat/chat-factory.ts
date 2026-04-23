@@ -2,7 +2,7 @@ import { getRuntimeConfig } from "@/components/runtime-config-provider";
 import { AgentConfigurationManager } from "@/components/settings/agent/agent-manager";
 import { ModelManager } from "@/components/settings/models/model-manager";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
-import type { AgentContext, AppUIMessage, Message, MessageMetadata } from "@/lib/ai/chat-types";
+import type { AgentContext, AppUIMessage, Message, MessageMetadata } from "@/lib/ai/ai-types";
 import { sanitizeMessageForPersistence } from "@/lib/ai/session/serialization";
 import { ClientToolExecutors } from "@/lib/ai/tools/client/client-tool-executors";
 import type { StageStatus, ToolProgressCallback } from "@/lib/ai/tools/client/client-tool-types";

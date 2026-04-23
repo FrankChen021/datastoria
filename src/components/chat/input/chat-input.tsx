@@ -28,7 +28,11 @@ import {
   type ChatInputSuggestionsType,
 } from "./chat-input-suggestions";
 import { getLeadingCommand, removeLeadingCommand, replaceLeadingCommand } from "./command-utils";
-import { getTableMentionMatches, removeTableMentionAt } from "./mention-utils";
+import {
+  getDatabaseMentionMatches,
+  getTableMentionMatches,
+  removeTableMentionAt,
+} from "./mention-utils";
 import { ModelSelector } from "./model-selector";
 import { getSettingTokenMatches, removeSettingTokenAt } from "./setting-token-utils";
 import { sqlSnippetTokenCodec } from "./sql-snippet-token";
@@ -426,6 +430,9 @@ function TokenHoverCard({
 function buildRenderSegments(
   input: string,
   command: CommandDetail | null,
+  databaseNames:
+    | Map<string, { name: string; engine: string; comment?: string | null }>
+    | undefined,
   settingsByName: Map<string, ClickHouseSettingInfo>
 ): RenderSegment[] {
   const tokenSegments: TokenSegment[] = [];
@@ -451,7 +458,22 @@ function buildRenderSegments(
     });
   }
 
+  for (const mention of getDatabaseMentionMatches(input, databaseNames)) {
+    tokenSegments.push({
+      kind: "mention",
+      rawText: mention.text,
+      start: mention.start,
+      end: mention.end,
+      label: mention.value,
+    });
+  }
+
   for (const setting of getSettingTokenMatches(input, settingsByName)) {
+    if (
+      tokenSegments.some((segment) => segment.start === setting.start && segment.end === setting.end)
+    ) {
+      continue;
+    }
     tokenSegments.push({
       kind: "setting",
       rawText: setting.text,
@@ -553,8 +575,14 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       [commandsByName, leadingCommand]
     );
     const renderSegments = React.useMemo(
-      () => buildRenderSegments(input, selectedCommand, clickHouseSettingsByName),
-      [clickHouseSettingsByName, input, selectedCommand]
+      () =>
+        buildRenderSegments(
+          input,
+          selectedCommand,
+          connection?.metadata?.databaseNames,
+          clickHouseSettingsByName
+        ),
+      [clickHouseSettingsByName, connection?.metadata?.databaseNames, input, selectedCommand]
     );
     const selectedModelSupportsImages = resolveModelSupportsImageInput(selectedModel);
     const canSubmit =
@@ -879,6 +907,44 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       });
     }, [connection?.metadata?.tableNames]);
 
+    const databaseSuggestions = React.useMemo((): ChatInputSuggestionItem[] => {
+      if (!connection?.metadata?.databaseNames) return [];
+      return Array.from(connection.metadata.databaseNames.values()).map((databaseInfo) => {
+        const description = (
+          <div className="space-y-3 text-xs">
+            <div>
+              <div className="text-muted-foreground mb-0.5">Database</div>
+              <div className="text-foreground whitespace-pre-wrap break-all">
+                {databaseInfo.name}
+              </div>
+            </div>
+            <div>
+              <div className="text-muted-foreground mb-0.5">Engine</div>
+              <div className="text-foreground whitespace-pre-wrap break-all">
+                {databaseInfo.engine}
+              </div>
+            </div>
+            {databaseInfo.comment ? (
+              <div>
+                <div className="text-muted-foreground mb-0.5">Comment</div>
+                <div className="text-foreground whitespace-pre-wrap break-all">
+                  {databaseInfo.comment}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        );
+
+        return {
+          name: databaseInfo.name,
+          type: "database",
+          description,
+          search: `${databaseInfo.name} ${databaseInfo.engine} ${databaseInfo.comment ?? ""}`,
+          group: databaseInfo.engine,
+        } satisfies ChatInputSuggestionItem;
+      });
+    }, [connection?.metadata?.databaseNames]);
+
     const settingSuggestions = React.useMemo((): ChatInputSuggestionItem[] => {
       return clickHouseSettings.map((setting) => {
         const readonlyLabel = setting.readonly === null ? "-" : setting.readonly ? "Yes" : "No";
@@ -927,7 +993,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         const afterMention = input.substring(selectionOffset);
         const insertText =
           suggestion.type === "table"
-            ? `@${suggestion.group}.${suggestion.name} `
+            ? `\`${suggestion.group}.${suggestion.name}\` `
             : `\`${suggestion.name}\` `;
         const newText = beforeMention + insertText + afterMention;
         const newCursorPos = suggestionStartPos + insertText.length;
@@ -1323,7 +1389,10 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           return true;
         }
 
-        for (const mention of getTableMentionMatches(input)) {
+        for (const mention of [
+          ...getTableMentionMatches(input),
+          ...getDatabaseMentionMatches(input, connection?.metadata?.databaseNames),
+        ]) {
           if (
             (key === "Backspace" && mention.end === selection.start) ||
             (key === "Delete" && mention.start === selection.start)
@@ -1447,6 +1516,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
             <ChatInputSuggestions
               ref={suggestionRef}
               suggestions={{
+                databases: databaseSuggestions,
                 tables: tableSuggestions,
                 settings: settingSuggestions,
               }}
@@ -1477,7 +1547,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                       {typeof navigator !== "undefined" && navigator.platform.includes("Mac")
                         ? "Cmd"
                         : "Ctrl"}{" "}
-                      + Enter to send. Use @ to mention tables or settings, / for commands.
+                      + Enter to send. Use @ to open table or setting suggestions, / for commands.
                     </div>
                   )}
 
@@ -1485,7 +1555,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                     ref={editorRef}
                     role="textbox"
                     aria-multiline="true"
-                    aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables or settings, / for commands."
+                    aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to open table or setting suggestions, / for commands."
                     contentEditable={!isRunning}
                     suppressContentEditableWarning
                     className={cn(

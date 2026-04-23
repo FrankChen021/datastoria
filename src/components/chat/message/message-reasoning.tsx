@@ -1,4 +1,4 @@
-import type { AppUIMessage } from "@/lib/ai/chat-types";
+import type { AppUIMessage } from "@/lib/ai/ai-types";
 import { memo } from "react";
 import { CollapsiblePart } from "./collapsible-part";
 

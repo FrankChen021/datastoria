@@ -1,5 +1,5 @@
 import { DashboardVisualizationPanel } from "@/components/shared/dashboard/dashboard-visualization-panel";
-import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/ai-types";
 import { memo, useMemo } from "react";
 import type { PanelDescriptor } from "../../shared/dashboard/dashboard-model";
 import { CollapsiblePart } from "./collapsible-part";

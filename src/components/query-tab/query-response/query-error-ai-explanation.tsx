@@ -12,7 +12,7 @@ import {
 } from "@/components/settings/agent/agent-manager";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { AppUIMessage, Message } from "@/lib/ai/chat-types";
+import type { AppUIMessage, Message } from "@/lib/ai/ai-types";
 import type { AutoExplainNegativeReasonCode } from "@/lib/ai/session/feedback-events";
 import { BasePath } from "@/lib/base-path";
 import { useChat, type Chat } from "@ai-sdk/react";

@@ -120,14 +120,14 @@ describe("removeLeadingCommand", () => {
 
 describe("table mention helpers", () => {
   it("finds all mention ranges in the input text", () => {
-    expect(getTableMentionMatches("compare @system.query_log and @system.query_log?")).toEqual([
-      { value: "system.query_log", text: "@system.query_log", start: 8, end: 25 },
-      { value: "system.query_log", text: "@system.query_log", start: 30, end: 47 },
+    expect(getTableMentionMatches("compare `system.query_log` and `system.query_log`?")).toEqual([
+      { value: "system.query_log", text: "`system.query_log`", start: 8, end: 26 },
+      { value: "system.query_log", text: "`system.query_log`", start: 31, end: 49 },
     ]);
   });
 
   it("removes a mention without leaving double spaces behind", () => {
-    expect(removeTableMentionAt("compare @system.query_log now", 8, 25)).toBe("compare now");
+    expect(removeTableMentionAt("compare `system.query_log` now", 8, 26)).toBe("compare now");
   });
 });
 
@@ -191,7 +191,11 @@ describe("ChatInput inline tokens", () => {
         React.createElement(ChatInput, {
           onSubmit: vi.fn(),
           isRunning: false,
-          externalInput: { text: "/review check @system.query_log now", mode: "replace", nonce: 1 },
+          externalInput: {
+            text: "/review check `system.query_log` now",
+            mode: "replace",
+            nonce: 1,
+          },
         })
       );
     });

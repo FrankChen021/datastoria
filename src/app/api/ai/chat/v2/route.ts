@@ -5,14 +5,16 @@ import {
   SessionTitleGenerator,
   type SessionTitleGenerationResponse,
 } from "@/lib/ai/agent/session-title-generator";
-import type { AgentContext, AppUIMessage, MessageMetadata } from "@/lib/ai/chat-types";
+import type { AgentContext, AppUIMessage, MessageMetadata } from "@/lib/ai/ai-types";
 import { CommandManager } from "@/lib/ai/commands/command-manager";
 import {
   LanguageModelProviderFactory,
   resolveModelConfig,
   resolveModelSupportsImageInput,
 } from "@/lib/ai/llm/llm-provider-factory";
+import { logLlmPrompt } from "@/lib/ai/llm/prompt-debug";
 import { MessagePruner } from "@/lib/ai/message-pruner";
+import { MentionContext } from "@/lib/ai/mention-context";
 import {
   hasCompletedToolOutputs,
   replaceOrAppendMessageById,
@@ -426,15 +428,24 @@ export async function POST(req: Request) {
     );
     const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
     const requestUsage = getRequestUsage(originalMessages, messageId);
-    const modelMessages = await convertToModelMessages(
+    const messagesWithSystemAddedContext = MentionContext.inject(
       MessagePruner.prune(originalMessages, agentContext)
     );
+    const modelMessages = await convertToModelMessages(messagesWithSystemAddedContext);
+    const orchestratorSystemPrompt = buildOrchestratorSystemPrompt(context, {
+      responseLanguage: agentContext?.responseLanguage,
+    });
+    logLlmPrompt({
+      label: "chat-v2-orchestrator",
+      provider: modelConfig.provider,
+      modelId: modelConfig.modelId,
+      system: orchestratorSystemPrompt,
+      messages: modelMessages,
+    });
 
     const result = streamText({
       model,
-      system: buildOrchestratorSystemPrompt(context, {
-        responseLanguage: agentContext?.responseLanguage,
-      }),
+      system: orchestratorSystemPrompt,
       messages: modelMessages,
       tools: {
         [SERVER_TOOL_NAMES.SKILL]: serverTools.skill,

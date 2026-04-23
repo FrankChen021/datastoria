@@ -61,6 +61,7 @@ export interface TableInfo {
 
 export interface DatabaseInfo {
   name: string;
+  engine: string;
   comment?: string | null;
 }
 

@@ -1,4 +1,4 @@
-import type { SessionRepositoryType } from "../chat-types";
+import type { SessionRepositoryType } from "../ai-types";
 import { ServerSessionRepositoryMySql } from "./impl/server-session-repository-mysql";
 import { ServerSessionRepositoryNoop } from "./impl/server-session-repository-noop";
 import { ServerSessionRepositoryPg } from "./impl/server-session-repository-pg";

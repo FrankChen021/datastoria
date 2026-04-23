@@ -1,7 +1,8 @@
 "use client";
 
 import { useConnection } from "@/components/connection/connection-context";
-import type { AppUIMessage } from "@/lib/ai/chat-types";
+import type { AppUIMessage } from "@/lib/ai/ai-types";
+import { MentionContext } from "@/lib/ai/mention-context";
 import "@/lib/number-utils"; // Ensure formatTimeDiff is available
 
 import { useChat, type Chat } from "@ai-sdk/react";
@@ -15,7 +16,6 @@ import {
   type ChatInputHandle,
   type ChatInputImageAttachment,
 } from "../input/chat-input";
-import { getTableContextByMentions } from "../input/mention-utils";
 import { ChatMessageList } from "../message/chat-message-list";
 import { SampleQuestions } from "./sample-questions";
 import { type ChatComposerInput } from "./use-chat-panel";
@@ -26,10 +26,6 @@ interface ChatViewProps {
   onClose?: () => void;
   onNewChat?: () => void;
   currentDatabase?: string;
-  availableTables?: Array<{
-    name: string;
-    columns: Array<{ name: string; type: string }> | string[];
-  }>;
   externalInput?: ChatComposerInput;
   onStreamingChange?: (isRunning: boolean) => void;
 }
@@ -41,7 +37,7 @@ export interface ChatViewHandle {
 }
 
 export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatView(
-  { chat, onNewChat, currentDatabase, availableTables, externalInput, onStreamingChange },
+  { chat, onNewChat, currentDatabase, externalInput, onStreamingChange },
   ref
 ) {
   const { connection } = useConnection();
@@ -77,15 +73,14 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     async ({ text, files = [] }: { text: string; files?: ChatInputImageAttachment[] }) => {
       if (!chat || (!text.trim() && files.length === 0)) return;
 
-      // Enrich context with mentioned tables
-      const mentionedTables = getTableContextByMentions(text, connection!);
+      const mentionMetadata = connection
+        ? MentionContext.toMetadata(text, connection)
+        : undefined;
       const createdAt = Date.now();
       const messageId = uuidv7();
 
-      // Update context builder to include mentioned tables
       ChatContext.setBuilder(() => ({
         database: currentDatabase,
-        tables: [...(availableTables || []), ...(mentionedTables || [])],
         ...getDatabaseContextFromConnection(connection),
       }));
 
@@ -103,10 +98,11 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         ],
         metadata: {
           createdAt,
+          ...(mentionMetadata ? { mentionMetadata } : {}),
         },
       });
     },
-    [chat, sendMessage, connection, currentDatabase, availableTables]
+    [chat, sendMessage, connection, currentDatabase]
   );
 
   // Expose send and getInput to parent component via imperative handle

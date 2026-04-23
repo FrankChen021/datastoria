@@ -6,7 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/ai-types";
 import type { GetTablesInput, GetTablesOutput } from "@/lib/ai/tools/client/get-tables";
 import { memo } from "react";
 import { CollapsiblePart } from "./collapsible-part";

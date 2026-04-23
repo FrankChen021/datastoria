@@ -1,6 +1,7 @@
 import { uiMessageToText } from "@/lib/ai/agent/plan/planning-prompt-builder";
 import type { InputModel } from "@/lib/ai/agent/plan/sub-agent-registry";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
+import { logLlmPrompt } from "@/lib/ai/llm/prompt-debug";
 import { generateText, Output, type LanguageModelUsage, type UIMessage } from "ai";
 import { z } from "zod";
 import { PrivateSessionTitleGenerator } from "./session-title-generator-private";
@@ -63,13 +64,21 @@ export class SessionTitleGenerator {
       const temperature = LanguageModelProviderFactory.getDefaultTemperature(
         titleModelConfig.modelId
       );
+      const titleSystemPrompt = `You generate short chat session titles.
+Return JSON with exactly one field: "title".
+The title must be 3 to 10 words and at most ${TITLE_MAX_LENGTH} characters.
+Use plain words only. Do not include quotes, punctuation, emojis, or explanations.`;
+      logLlmPrompt({
+        label: "session-title-generator",
+        provider: titleModelConfig.provider,
+        modelId: titleModelConfig.modelId,
+        system: titleSystemPrompt,
+        prompt: titleInput,
+      });
 
       const { output, usage } = await generateText({
         model,
-        system: `You generate short chat session titles.
-Return JSON with exactly one field: "title".
-The title must be 3 to 10 words and at most ${TITLE_MAX_LENGTH} characters.
-Use plain words only. Do not include quotes, punctuation, emojis, or explanations.`,
+        system: titleSystemPrompt,
         prompt: titleInput,
         output: Output.object({
           schema: z.object({

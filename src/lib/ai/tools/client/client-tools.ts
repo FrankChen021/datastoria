@@ -4,7 +4,7 @@
  * These tools are executed on the client via the onToolCall callback.
  * They provide schema introspection and query execution capabilities.
  */
-import type { AppUIMessage } from "@/lib/ai/chat-types";
+import type { AppUIMessage } from "@/lib/ai/ai-types";
 import { tool, type UIMessage } from "ai";
 import * as z from "zod";
 import type { EvidenceContext } from "./collect-sql-optimization-evidence";

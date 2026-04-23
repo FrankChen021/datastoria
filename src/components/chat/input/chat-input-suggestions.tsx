@@ -12,19 +12,19 @@ import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { StringUtils } from "@/lib/string-utils";
 import { TextHighlighter } from "@/lib/text-highlighter";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ChevronRight, Settings2, Table2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, Database, Settings2, Table2 } from "lucide-react";
 import * as React from "react";
 
 export interface ChatInputSuggestionItem {
   name: string;
-  type: "table" | "setting";
+  type: "database" | "table" | "setting";
   description: React.ReactNode;
   search: string;
   badge?: string;
   group: string;
 }
 
-type SuggestionMode = "groups" | "tables" | "settings";
+type SuggestionMode = "groups" | "databases" | "tables" | "settings";
 
 interface FilteredSuggestionItem extends ChatInputSuggestionItem {
   globalIndex: number;
@@ -50,6 +50,7 @@ interface ChatInputSuggestionsProps {
   onSelect: (item: ChatInputSuggestionItem) => void;
   onInteractOutside?: (target: EventTarget | null) => boolean;
   suggestions: {
+    databases: ChatInputSuggestionItem[];
     tables: ChatInputSuggestionItem[];
     settings: ChatInputSuggestionItem[];
   };
@@ -119,7 +120,7 @@ function filterTableSuggestions(
   return { flatSuggestions, groupedSuggestions };
 }
 
-function filterSettingSuggestions(
+function filterNameSuggestions(
   suggestions: ChatInputSuggestionItem[],
   query: string
 ): FilteredSuggestions {
@@ -149,7 +150,7 @@ function filterSettingSuggestions(
     flatSuggestions,
     groupedSuggestions: flatSuggestions.reduce<Record<string, FilteredSuggestionItem[]>>(
       (result, item) => {
-        const group = item.group || "settings";
+        const group = item.group || "default";
         if (!result[group]) {
           result[group] = [];
         }
@@ -165,13 +166,20 @@ export const ChatInputSuggestions = React.memo(
   React.forwardRef<ChatInputSuggestionsType, ChatInputSuggestionsProps>(
     ({ onSelect, onInteractOutside, suggestions }, ref) => {
       const [open, setOpen] = React.useState(false);
-      const [mode, setMode] = React.useState<SuggestionMode>("tables");
+      const [mode, setMode] = React.useState<SuggestionMode>("groups");
       const [query, setQuery] = React.useState("");
       const [activeIndex, setActiveIndex] = React.useState(0);
       const activeItemRef = React.useRef<HTMLDivElement>(null);
 
       const groupItems = React.useMemo<SuggestionGroupItem[]>(
         () => [
+          {
+            mode: "databases",
+            title: "Databases",
+            subtitle: "Browse databases",
+            icon: Database,
+            count: suggestions.databases.length,
+          },
           {
             mode: "tables",
             title: "Tables",
@@ -187,21 +195,24 @@ export const ChatInputSuggestions = React.memo(
             count: suggestions.settings.length,
           },
         ],
-        [suggestions.settings.length, suggestions.tables.length]
+        [suggestions.databases.length, suggestions.settings.length, suggestions.tables.length]
       );
 
       const currentSuggestions = React.useMemo(() => {
+        if (mode === "databases") {
+          return filterNameSuggestions(suggestions.databases, query);
+        }
         if (mode === "tables") {
           return filterTableSuggestions(suggestions.tables, query);
         }
         if (mode === "settings") {
-          return filterSettingSuggestions(suggestions.settings, query);
+          return filterNameSuggestions(suggestions.settings, query);
         }
         return {
           flatSuggestions: [],
           groupedSuggestions: {},
         } satisfies FilteredSuggestions;
-      }, [mode, query, suggestions.settings, suggestions.tables]);
+      }, [mode, query, suggestions.databases, suggestions.settings, suggestions.tables]);
 
       const flatSuggestions = currentSuggestions.flatSuggestions;
       const groupedSuggestions = currentSuggestions.groupedSuggestions;
@@ -210,14 +221,12 @@ export const ChatInputSuggestions = React.memo(
         open: (searchQuery: string) => {
           setQuery(searchQuery);
           setActiveIndex(0);
-          if (!open) {
-            setMode("tables");
-          }
+          setMode("groups");
           setOpen(true);
         },
         close: () => {
           setOpen(false);
-          setMode("tables");
+          setMode("groups");
           setActiveIndex(0);
         },
         isOpen: () => open,
@@ -249,6 +258,13 @@ export const ChatInputSuggestions = React.memo(
                 return true;
               }
               if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey && !e.metaKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                setMode(groupItems[activeIndex].mode);
+                setActiveIndex(0);
+                return true;
+              }
+              if (e.key === "ArrowRight") {
                 e.preventDefault();
                 e.stopPropagation();
                 setMode(groupItems[activeIndex].mode);
@@ -320,12 +336,13 @@ export const ChatInputSuggestions = React.memo(
         (item: ChatInputSuggestionItem) => {
           onSelect(item);
           setOpen(false);
-          setMode("tables");
+          setMode("groups");
         },
         [onSelect]
       );
 
-      const detailHeaderLabel = mode === "settings" ? "Settings" : "Tables";
+      const detailHeaderLabel =
+        mode === "settings" ? "Settings" : mode === "databases" ? "Databases" : "Tables";
       const description =
         mode === "groups"
           ? null
@@ -423,7 +440,11 @@ export const ChatInputSuggestions = React.memo(
                   >
                     <CommandList className="flex-1 overflow-y-auto pt-1">
                       <CommandEmpty>
-                        {mode === "settings" ? "No settings found" : "No tables found"}
+                        {mode === "settings"
+                          ? "No settings found"
+                          : mode === "databases"
+                            ? "No databases found"
+                            : "No tables found"}
                       </CommandEmpty>
                       {flatSuggestions.length > 0 &&
                         Object.entries(groupedSuggestions).map(([group, items]) => (

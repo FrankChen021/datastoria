@@ -1,5 +1,5 @@
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
-import type { AgentContext, AppUIMessage } from "@/lib/ai/chat-types";
+import type { AgentContext, AppUIMessage } from "@/lib/ai/ai-types";
 
 export interface ChatRequestBase {
   sessionId: string;

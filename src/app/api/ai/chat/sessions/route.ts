@@ -1,5 +1,5 @@
 import { getAuthenticatedUserEmail } from "@/auth";
-import type { AppUIMessage } from "@/lib/ai/chat-types";
+import type { AppUIMessage } from "@/lib/ai/ai-types";
 import { validateSessionId } from "@/lib/ai/session/remote-chat-request";
 import { persistedSessionToDTO } from "@/lib/ai/session/serialization";
 import { getServerSessionRepository } from "@/lib/ai/session/server-session-repository-factory";
