@@ -548,7 +548,7 @@ ORDER BY host
       }
 
       return def;
-    }, [database, connection?.cluster, isClusterMode]);
+    }, [database, isClusterMode]);
 
     return (
       <DashboardPanelContainer ref={ref} dashboard={dashboard} initialTimeSpan={selectedTimeSpan} />

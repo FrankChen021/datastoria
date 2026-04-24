@@ -203,7 +203,6 @@ async function classifyByLLM(input: InputMessages, modelConfig: InputModel): Pro
     .conversations(input.messages)
     .lastIntent(input.previousIntent)
     .build();
-
   try {
     const { output: llmOutput, usage } = await generateText({
       model,

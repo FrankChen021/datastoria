@@ -106,13 +106,10 @@ function buildSqlGenerationPrompt({
     truncated: table.truncated ?? false,
   });
 
-  // Build schema context from schemaHints (for backward compatibility) or context
+  // Build schema context from explicit schema hints only.
   const schemaContext = [];
   const database = context?.database;
-  // Use schemaHints if available (has type info), otherwise fall back to context tables
-  const tables = schemaHints
-    ? schemaHints.map(normalizeTable)
-    : (context?.tables as Array<TableSchemaOutput> | undefined)?.map(normalizeTable);
+  const tables = schemaHints?.map(normalizeTable);
 
   if (database) {
     schemaContext.push(`Current database: ${database}`);
@@ -269,23 +266,10 @@ export function createGenerateSqlTool(inputModel: InputModel, context?: ServerDa
       context: z
         .object({
           database: z.string().optional(),
-          tables: z
-            .array(
-              z.object({
-                name: z.string(),
-                columns: z.array(
-                  z.object({
-                    name: z.string(),
-                    type: z.string(),
-                  })
-                ),
-              })
-            )
-            .optional(),
           clickHouseUser: z.string().optional(),
         })
         .optional()
-        .describe("Full database context including database, tables, and shared runtime metadata"),
+        .describe("Database context including current database and shared runtime metadata"),
     }),
     execute: async ({
       userQuestion,
@@ -294,8 +278,6 @@ export function createGenerateSqlTool(inputModel: InputModel, context?: ServerDa
       context: providedContext,
     }) => {
       // Merge provided context with the one from tool creation (provided context takes precedence)
-      // Note: providedContext may have new format with column types, but ServerDatabaseContext expects string[]
-      // We'll pass it through and handle the conversion in buildSqlGenerationPrompt
       const mergedContext = providedContext
         ? ({ ...context, ...providedContext } as ServerDatabaseContext)
         : context;
@@ -404,7 +386,6 @@ export async function sqlGenerationAgent(
 
     // Build base messages for processing
     const messages = [{ role: "user" as const, content: userQuestion }];
-
     // Generate SQL directly without validation (no validate_sql tool)
     const result = streamText({
       model,

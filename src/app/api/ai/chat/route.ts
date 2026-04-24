@@ -3,8 +3,9 @@ import type { DatabaseContext } from "@/components/chat/chat-context";
 import type { ServerDatabaseContext } from "@/lib/ai/agent/common-types";
 import { PlanningAgent } from "@/lib/ai/agent/plan/planning-agent";
 import type { PlannerMetadata } from "@/lib/ai/agent/plan/planning-types";
-import type { MessageMetadata } from "@/lib/ai/chat-types";
+import type { MessageMetadata } from "@/lib/ai/ai-types";
 import { resolveModelConfig } from "@/lib/ai/llm/llm-provider-factory";
+import { MentionContext } from "@/lib/ai/mention-context";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { SseStreamer } from "@/lib/sse-streamer";
@@ -202,7 +203,7 @@ export async function POST(req: Request) {
           });
 
           // 2. Delegate to Expert Sub-Agent
-          const modelMessages = await convertToModelMessages(prunedMessages);
+          const modelMessages = await convertToModelMessages(MentionContext.inject(prunedMessages));
           const subAgentResult = await agent.stream({
             messages: modelMessages,
             modelConfig,

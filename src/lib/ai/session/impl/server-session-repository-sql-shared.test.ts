@@ -1,4 +1,4 @@
-import type { AppUIMessage } from "@/lib/ai/chat-types";
+import type { AppUIMessage } from "@/lib/ai/ai-types";
 import { describe, expect, it } from "vitest";
 import { buildFeedbackReport } from "../feedback-report";
 import { ServerSessionRepositorySqlite } from "./server-session-repository-sqlite";

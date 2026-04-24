@@ -32,7 +32,7 @@ export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
         autoRun: true,
       },
       {
-        text: "How many INSERT queries, insert rows, insert bytes were executed in the last 1 hour from @system.query_log ?",
+        text: "How many INSERT queries, insert rows, insert bytes were executed in the last 1 hour from `system.query_log` ?",
         autoRun: true,
       },
     ],
@@ -41,15 +41,15 @@ export const DEFAULT_CHAT_QUESTION_GROUPS: Record<string, QuestionGroupData> = {
     icon: <BarChart className="h-4 w-4 text-purple-500" />,
     questions: [
       {
-        text: "Show me the number of SELECT queries by minute from @system.query_log over the past 3 hours in bar chart",
+        text: "Show me the number of SELECT queries by minute from `system.query_log` over the past 3 hours in bar chart",
         autoRun: true,
       },
       {
-        text: "Visualize the trend of ProfileEvent_DistributedConnectionFailTry from the @system.metric_log by hour in the last 12 hours",
+        text: "Visualize the trend of ProfileEvent_DistributedConnectionFailTry from the `system.metric_log` by hour in the last 12 hours",
         autoRun: true,
       },
       {
-        text: "Show the distribution of query kind from the @system.query_log in the last 12 hours in pie chart",
+        text: "Show the distribution of query kind from the `system.query_log` in the last 12 hours in pie chart",
         autoRun: true,
       },
     ],

@@ -18,69 +18,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { preprocessAdmonitions } from "@/lib/clickhouse/admonition-preprocessor";
-import { transformMarkdownLink } from "@/lib/clickhouse/clickhouse-docs-link";
+import { normalizeSettingDescriptionMarkdown } from "@/lib/clickhouse/admonition-preprocessor";
 import { type JSONCompactFormatResponse, type QueryError } from "@/lib/connection/connection";
 import { toastManager } from "@/lib/toast";
-import { cn } from "@/lib/utils";
 import { AlertCircle, Check, Info, Plus, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import rehypeRaw from "rehype-raw";
-
-/**
- * Transforms markdown links in descriptions from relative URLs to absolute ClickHouse documentation URLs.
- */
-function transformMarkdownLinks(description: string): string {
-  if (!description) return description;
-
-  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-
-  return description.replace(markdownLinkRegex, (match, linkText, url) => {
-    const absoluteUrl = transformMarkdownLink("setting", url);
-    return absoluteUrl !== url ? `[${linkText}](${absoluteUrl})` : match;
-  });
-}
-
-/* Match query-input-view.css admonition styles (query-suggestion-manager ACE editor) */
-const admonitionStyles =
-  "[&_.admonition]:my-2 [&_.admonition]:py-2 [&_.admonition]:px-3 [&_.admonition]:text-xs [&_.admonition]:border-l [&_.admonition]:border-l-border [&_.admonition]:rounded-r [&_.admonition]:rounded-l-none " +
-  "[&_.admonition-title]:font-bold [&_.admonition-title]:mb-1 [&_.admonition-title]:uppercase [&_.admonition-title]:text-[11px] [&_.admonition-title]:opacity-90 " +
-  "[&_.admonition-content]:whitespace-normal [&_.admonition-content_p]:mb-2 [&_.admonition-content_p:last-child]:mb-0 " +
-  "[&_.admonition.note]:border-l-blue-400 [&_.admonition.note]:bg-blue-400/10 dark:[&_.admonition.note]:border-l-blue-500 dark:[&_.admonition.note]:bg-blue-500/15 " +
-  "[&_.admonition.warning]:border-l-amber-500 [&_.admonition.warning]:bg-amber-500/15 dark:[&_.admonition.warning]:border-l-amber-400 dark:[&_.admonition.warning]:bg-amber-400/20 " +
-  "[&_.admonition.tip]:border-l-emerald-500 [&_.admonition.tip]:bg-emerald-500/15 dark:[&_.admonition.tip]:border-l-emerald-400 dark:[&_.admonition.tip]:bg-emerald-400/20 " +
-  "[&_.admonition.danger]:border-l-red-500 [&_.admonition.danger]:bg-red-500/15 dark:[&_.admonition.danger]:border-l-red-400 dark:[&_.admonition.danger]:bg-red-400/20 " +
-  "[&_.admonition.important]:border-l-violet-500 [&_.admonition.important]:bg-violet-500/15 dark:[&_.admonition.important]:border-l-violet-400 dark:[&_.admonition.important]:bg-violet-400/20";
-
-/** Description render with admonition support. Used for SuggestionList and HoverCard. Expects descriptionMarkdown to be preprocessed (transformMarkdownLinks + preprocessAdmonitions) at load time. */
-function SettingsDescriptionWithAdmonition({
-  descriptionMarkdown,
-}: {
-  descriptionMarkdown: string;
-}) {
-  return (
-    <div
-      className={`text-sm text-foreground [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:ml-4 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:ml-4 [&_ol]:mb-2 [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:rounded [&_pre]:overflow-x-auto [&_pre]:mb-2 [&_pre_code]:block [&_pre_code]:p-0 [&_pre_code]:bg-transparent [&_pre_code]:m-0 [&_strong]:font-semibold [&_em]:italic ${admonitionStyles}`}
-    >
-      <ReactMarkdown
-        rehypePlugins={[rehypeRaw]}
-        components={{
-          a: ({ className, ...props }) => (
-            <a
-              {...props}
-              className={cn("text-primary underline", className)}
-              target="_blank"
-              rel="noopener noreferrer"
-            />
-          ),
-        }}
-      >
-        {descriptionMarkdown || "No description available."}
-      </ReactMarkdown>
-    </div>
-  );
-}
+import { ClickHouseSettingDescription } from "./settings-description";
 
 interface SettingRow {
   name: string;
@@ -213,7 +156,7 @@ function SettingNameInputWithSuggestions({
             handleSelectSetting(setting);
           }
         }}
-        descriptionRender={(md) => <SettingsDescriptionWithAdmonition descriptionMarkdown={md} />}
+        descriptionRender={(md) => <ClickHouseSettingDescription descriptionMarkdown={md} />}
         initialValue={row.name}
         onValueChange={(value) => {
           if (onNameChange) {
@@ -245,7 +188,7 @@ function SettingNameInputWithSuggestions({
           align="start"
           side="left"
         >
-          <SettingsDescriptionWithAdmonition descriptionMarkdown={row.description} />
+          <ClickHouseSettingDescription descriptionMarkdown={row.description} />
         </HoverCardContent>
       </HoverCard>
     );
@@ -457,7 +400,7 @@ export function QueryContextEdit() {
           const settings: SystemSetting[] = data.data.map((row) => ({
             name: row[0] as string,
             type: row[1] as string,
-            description: preprocessAdmonitions(transformMarkdownLinks(row[2] as string)),
+            description: normalizeSettingDescriptionMarkdown(row[2] as string),
             default: row[3] as string,
             readonly: (row[4] as number) === 1,
           }));

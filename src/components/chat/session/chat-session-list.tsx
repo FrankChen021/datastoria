@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tree, type TreeDataItem } from "@/components/ui/tree";
-import type { Chat } from "@/lib/ai/chat-types";
+import type { Chat } from "@/lib/ai/ai-types";
 import { Connection } from "@/lib/connection/connection";
 import type { ConnectionConfig } from "@/lib/connection/connection-config";
 import { ConnectionManager } from "@/lib/connection/connection-manager";

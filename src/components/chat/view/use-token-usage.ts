@@ -1,6 +1,6 @@
 "use client";
 
-import type { AppUIMessage } from "@/lib/ai/chat-types";
+import type { AppUIMessage } from "@/lib/ai/ai-types";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import type { LanguageModelUsage } from "ai";
 import { useMemo } from "react";

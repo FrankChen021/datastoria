@@ -39,6 +39,7 @@ function extractTableNames(result: SchemaLoadResult): {
       if (!databaseNames.has(row.database)) {
         databaseNames.set(row.database, {
           name: row.database,
+          engine: row.dbEngine || "Unknown",
           comment: row.dbComment || null,
         });
       }

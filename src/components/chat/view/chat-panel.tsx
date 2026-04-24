@@ -7,7 +7,7 @@ import { SessionManager } from "@/components/chat/session/session-manager";
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
-import type { AppUIMessage, Message } from "@/lib/ai/chat-types";
+import type { AppUIMessage, Message } from "@/lib/ai/ai-types";
 import type { Chat } from "@ai-sdk/react";
 import { Download, Loader2, Maximize2, Minimize2, Plus, Square, X } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -33,7 +33,7 @@ interface ChatHeaderProps {
 
 type LoadChatOptions = {
   isNewSession?: boolean;
-  agentContext?: Partial<import("@/lib/ai/chat-types").AgentContext>;
+  agentContext?: Partial<import("@/lib/ai/ai-types").AgentContext>;
 };
 
 function sanitizeFileName(input: string): string {
@@ -230,14 +230,10 @@ ChatHeader.displayName = "ChatHeader";
 interface ChatPanelProps {
   // Optional: Pass in context from your app
   currentDatabase?: string;
-  availableTables?: Array<{
-    name: string;
-    columns: Array<{ name: string; type: string }> | string[];
-  }>;
   onClose?: () => void;
 }
 
-export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPanelProps) {
+export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
   const {
     pendingCommand,
     consumeCommand,
@@ -321,7 +317,7 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
         | {
             id: string;
             isNewSession: boolean;
-            agentContext?: Partial<import("@/lib/ai/chat-types").AgentContext>;
+            agentContext?: Partial<import("@/lib/ai/ai-types").AgentContext>;
           }
         | undefined;
 
@@ -419,10 +415,9 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
   useEffect(() => {
     ChatContext.setBuilder(() => ({
       database: currentDatabase,
-      tables: availableTables,
       ...getDatabaseContextFromConnection(connection),
     }));
-  }, [currentDatabase, availableTables, connection]);
+  }, [currentDatabase, connection]);
 
   // Clear initialInput after it's been used
   useEffect(() => {
@@ -589,7 +584,6 @@ export function ChatPanel({ currentDatabase, availableTables, onClose }: ChatPan
           onClose={onClose}
           onNewChat={handleNewChat}
           currentDatabase={currentDatabase}
-          availableTables={availableTables}
           externalInput={
             initialInput && (!initialInput.chatId || initialInput.chatId === chat.id)
               ? initialInput

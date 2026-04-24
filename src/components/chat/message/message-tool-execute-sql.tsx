@@ -1,5 +1,5 @@
 import { DataTable } from "@/components/shared/dashboard/data-table";
-import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/ai-types";
 import { memo } from "react";
 import { CollapsiblePart } from "./collapsible-part";
 import { MessageMarkdownSql } from "./message-markdown-sql";

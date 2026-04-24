@@ -1,4 +1,4 @@
-import type { Chat, Message } from "@/lib/ai/chat-types";
+import type { Chat, Message } from "@/lib/ai/ai-types";
 
 export interface CreateSessionFromMessagesInput {
   connectionId: string;

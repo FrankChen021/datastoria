@@ -1,4 +1,4 @@
-import type { MessageMetadata } from "@/lib/ai/chat-types";
+import type { MessageMetadata } from "@/lib/ai/ai-types";
 import type { Knex } from "knex";
 import {
   persistedMessageToAppUIMessage,

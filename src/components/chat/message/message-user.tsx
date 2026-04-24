@@ -1,18 +1,13 @@
 import { memo, useMemo } from "react";
 import { useAgentCommands } from "../agent-command-context";
 import { getLeadingCommand } from "../input/command-utils";
-import { TABLE_MENTION_REGEX } from "../input/mention-utils";
 import { MessageMarkdown } from "./message-markdown";
 import { SkillLink } from "./skill-link";
 
 const FENCED_CODE_BLOCK_RE = /(```[\s\S]*?```)/g;
 
 function processUserMessageProse(text: string) {
-  return text
-    .replace(TABLE_MENTION_REGEX, (match) => {
-      return `@\`${match.substring(1)}\``;
-    })
-    .replace(/\n/g, "\n\n");
+  return text.replace(/\n/g, "\n\n");
 }
 
 /**

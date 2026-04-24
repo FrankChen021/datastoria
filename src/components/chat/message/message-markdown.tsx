@@ -1,3 +1,4 @@
+import { SettingDescription } from "@/components/chat/mention-descriptions";
 import { useConnection } from "@/components/connection/connection-context";
 import { OpenNodeTabButton } from "@/components/node-tab/open-node-tab-button";
 import { showSettingsDialog } from "@/components/settings/settings-dialog";
@@ -6,6 +7,7 @@ import { OpenDatabaseTabButton } from "@/components/table-tab/open-database-tab-
 import { OpenTableTabButton } from "@/components/table-tab/open-table-tab-button";
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import type { ClickHouseSettingCategory } from "@/lib/clickhouse/clickhouse-setting-loader";
 import { cn } from "@/lib/utils";
 import katex from "katex";
 import { Children, isValidElement, memo, useEffect, useMemo, useRef } from "react";
@@ -53,6 +55,46 @@ interface MessageMarkdownProps {
   expandable?: boolean;
 }
 
+function SettingInlineCode({
+  name,
+  category,
+  type,
+  description,
+  currentValue,
+  readonly,
+}: {
+  name: string;
+  category: ClickHouseSettingCategory;
+  type: string;
+  description: string;
+  currentValue: string;
+  readonly: boolean | null;
+}) {
+  const trigger = (
+    <code className="bg-muted/30 rounded px-1 py-0.5 text-[0.8em] font-mono whitespace-pre-wrap break-all underline decoration-dotted underline-offset-2">
+      {name}
+    </code>
+  );
+
+  return (
+    <HoverCard openDelay={150} closeDelay={100}>
+      <HoverCardTrigger asChild>{trigger}</HoverCardTrigger>
+      <HoverCardContent side="bottom" align="start" className="w-80 p-3">
+        <SettingDescription
+          setting={{
+            name,
+            category,
+            type,
+            description,
+            value: currentValue,
+            readonly,
+          }}
+        />
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
 export const MessageMarkdown = memo(function MessageMarkdown({
   text,
   customStyle,
@@ -78,16 +120,19 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   // The connection object may be mutated, but we only care about the map references
   const tableNamesRef = useRef(connection?.metadata?.tableNames);
   const databaseNamesRef = useRef(connection?.metadata?.databaseNames);
+  const clickHouseSettingsRef = useRef(connection?.metadata?.clickhouseSettings);
   const nodeNamesRef = useRef(connection?.metadata?.hostNames);
 
   // Update refs when connection metadata changes
   useEffect(() => {
     tableNamesRef.current = connection?.metadata?.tableNames;
     databaseNamesRef.current = connection?.metadata?.databaseNames;
+    clickHouseSettingsRef.current = connection?.metadata?.clickhouseSettings;
     nodeNamesRef.current = connection?.metadata?.hostNames;
   }, [
     connection?.metadata?.tableNames,
     connection?.metadata?.databaseNames,
+    connection?.metadata?.clickhouseSettings,
     connection?.metadata?.hostNames,
   ]);
 
@@ -202,6 +247,22 @@ export const MessageMarkdown = memo(function MessageMarkdown({
                 />
               );
             }
+          }
+
+          const settingInfo = resolveMetadataLinks
+            ? clickHouseSettingsRef.current?.get(codeText)
+            : undefined;
+          if (settingInfo) {
+            return (
+              <SettingInlineCode
+                name={settingInfo.name}
+                category={settingInfo.category}
+                type={settingInfo.type}
+                description={settingInfo.description}
+                currentValue={settingInfo.value}
+                readonly={settingInfo.readonly}
+              />
+            );
           }
         }
 

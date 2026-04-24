@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/sheet";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ClickHouseSettingLoader } from "@/lib/clickhouse/clickhouse-setting-loader";
 import {
   Connection,
   QueryError,
@@ -70,6 +71,7 @@ function extractTableNames(result: SchemaLoadResult): {
       if (!databaseNames.has(row.database)) {
         databaseNames.set(row.database, {
           name: row.database,
+          engine: row.dbEngine || "Unknown",
           comment: row.dbComment || null,
         });
       }
@@ -439,6 +441,12 @@ function ConnectionInitializer({ config, onReady }: ConnectionInitializerProps) 
           tableNames,
           databaseNames,
         };
+
+        try {
+          await ClickHouseSettingLoader.load(newConnection);
+        } catch (settingsError) {
+          console.error("Failed to load ClickHouse settings metadata:", settingsError);
+        }
 
         // Small delay for UX if it loads too fast
         // Finish

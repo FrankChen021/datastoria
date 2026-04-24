@@ -63,13 +63,13 @@ export class SessionTitleGenerator {
       const temperature = LanguageModelProviderFactory.getDefaultTemperature(
         titleModelConfig.modelId
       );
-
-      const { output, usage } = await generateText({
-        model,
-        system: `You generate short chat session titles.
+      const titleSystemPrompt = `You generate short chat session titles.
 Return JSON with exactly one field: "title".
 The title must be 3 to 10 words and at most ${TITLE_MAX_LENGTH} characters.
-Use plain words only. Do not include quotes, punctuation, emojis, or explanations.`,
+Use plain words only. Do not include quotes, punctuation, emojis, or explanations.`;
+      const { output, usage } = await generateText({
+        model,
+        system: titleSystemPrompt,
         prompt: titleInput,
         output: Output.object({
           schema: z.object({

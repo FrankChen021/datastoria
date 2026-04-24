@@ -1,6 +1,6 @@
 "use client";
 
-import type { SessionRepositoryType } from "@/lib/ai/chat-types";
+import type { SessionRepositoryType } from "@/lib/ai/ai-types";
 import { createContext, useContext, useLayoutEffect, type ReactNode } from "react";
 
 export interface RuntimeConfig {

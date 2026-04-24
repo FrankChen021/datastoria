@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/ai-types";
 import {
   CLIENT_TOOL_NAMES,
   type AskUserQuestionInput,

@@ -3,6 +3,7 @@
  */
 
 import { act } from "react";
+import { createPortal } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MessageMarkdown } from "./message-markdown";
@@ -11,7 +12,22 @@ const vizlayerSpy = vi.fn();
 const syntaxHighlighterSpy = vi.fn();
 const openNodeTabButtonSpy = vi.fn();
 const mockConnectionState: {
-  connection: { metadata?: { hostNames?: Set<string> } } | null;
+  connection: {
+    metadata?: {
+      hostNames?: Set<string>;
+      clickhouseSettings?: Map<
+        string,
+        {
+          name: string;
+          type: string;
+          description: string;
+          value: string;
+          readonly: boolean | null;
+          category: string;
+        }
+      >;
+    };
+  } | null;
 } = {
   connection: null,
 };
@@ -47,7 +63,8 @@ vi.mock("@/components/ui/button", () => ({
 
 vi.mock("@/components/ui/hover-card", () => ({
   HoverCard: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-  HoverCardContent: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  HoverCardContent: ({ children }: { children?: React.ReactNode }) =>
+    createPortal(<>{children}</>, document.body),
   HoverCardTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
@@ -259,5 +276,34 @@ describe("MessageMarkdown", () => {
         host: "node-a",
       })
     );
+  });
+
+  it("renders known ClickHouse settings as hoverable inline code", () => {
+    const setting = {
+      name: "max_threads",
+      type: "UInt64",
+      description: "Controls the maximum number of query execution threads.",
+      value: "8",
+      readonly: false,
+      category: "settings",
+    };
+    mockConnectionState.connection = {
+      metadata: {
+        clickhouseSettings: new Map([["max_threads", setting]]),
+      },
+    };
+
+    act(() => {
+      root.render(<MessageMarkdown text={"Use `max_threads` for this query"} />);
+    });
+
+    expect(container.textContent).toContain("max_threads");
+    expect(document.body.textContent).toContain("UInt64");
+    expect(document.body.textContent).toContain("ReadOnly");
+    expect(document.body.textContent).toContain("No");
+    expect(document.body.textContent).toContain(
+      "Controls the maximum number of query execution threads."
+    );
+    expect(document.body.textContent).toContain("8");
   });
 });

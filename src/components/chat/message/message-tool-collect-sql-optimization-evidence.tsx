@@ -1,4 +1,4 @@
-import type { AppUIMessage, ToolPart } from "@/lib/ai/chat-types";
+import type { AppUIMessage, ToolPart } from "@/lib/ai/ai-types";
 import type {
   CollectSqlOptimizationEvidenceInput,
   EvidenceContext,

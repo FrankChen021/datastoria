@@ -246,22 +246,23 @@ When type is "pie":
       modelConfig.apiKey
     );
 
+    const planningMessages = [
+      { role: "system" as const, content: systemPrompt },
+      {
+        role: "user" as const,
+        content: `User question: "${userQuestion}"
+
+SQL to visualize:
+${sql}`,
+      },
+    ];
     // Use streamText instead of generateText to avoid proxy timeouts
     const result = streamText({
       model,
       output: Output.object({
         schema: visualizationAgentOutputSchema,
       }),
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: `User question: "${userQuestion}"
-
-SQL to visualize:
-${sql}`,
-        },
-      ],
+      messages: planningMessages,
       temperature,
     });
 

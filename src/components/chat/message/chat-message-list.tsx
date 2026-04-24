@@ -2,7 +2,7 @@
 
 import { AppLogo } from "@/components/app-logo";
 import { TypingDots } from "@/components/ui/typing-dots";
-import type { AppUIMessage } from "@/lib/ai/chat-types";
+import type { AppUIMessage } from "@/lib/ai/ai-types";
 import { cn } from "@/lib/utils";
 import { AlertCircle } from "lucide-react";
 import * as React from "react";

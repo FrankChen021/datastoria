@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 
-import type { AppUIMessage } from "@/lib/ai/chat-types";
+import type { AppUIMessage } from "@/lib/ai/ai-types";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

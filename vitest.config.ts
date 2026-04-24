@@ -1,5 +1,5 @@
-import path from "node:path";
 import { existsSync } from "node:fs";
+import path from "node:path";
 import { configDefaults, defineConfig } from "vitest/config";
 
 const vizlayerCorePath = path.resolve(__dirname, "external/vizlayer/packages/core/src/index.ts");
@@ -35,6 +35,7 @@ export default defineConfig({
         __dirname,
         "external/number-flow/packages/number-flow/src/plugins/index.ts"
       ),
+      cmdk: path.resolve(__dirname, "src/test/cmdk-stub.tsx"),
       "server-only": path.resolve(__dirname, "src/test/server-only.ts"),
     },
   },

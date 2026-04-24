@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  DatabaseDescription,
+  SettingDescription,
+  TableDescription,
+} from "@/components/chat/mention-descriptions";
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +16,8 @@ import {
 import { useModelConfig } from "@/hooks/use-model-config";
 import type { CommandDetail } from "@/lib/ai/commands/command-manager";
 import { resolveModelSupportsImageInput } from "@/lib/ai/llm/llm-provider-factory";
+import type { ClickHouseSetting } from "@/lib/clickhouse/clickhouse-setting-loader";
+import type { DatabaseInfo, TableInfo } from "@/lib/connection/connection";
 import { cn } from "@/lib/utils";
 import type { LanguageModelUsage } from "ai";
 import { ImagePlus, MessageSquarePlus, Plus, Send, Square, X } from "lucide-react";
@@ -25,8 +32,13 @@ import {
   type ChatInputSuggestionsType,
 } from "./chat-input-suggestions";
 import { getLeadingCommand, removeLeadingCommand, replaceLeadingCommand } from "./command-utils";
-import { getTableMentionMatches, removeTableMentionAt } from "./mention-utils";
+import {
+  getDatabaseMentionMatches,
+  getTableMentionMatches,
+  removeTableMentionAt,
+} from "./mention-utils";
 import { ModelSelector } from "./model-selector";
+import { getSettingTokenMatches, removeSettingTokenAt } from "./setting-token-utils";
 import { sqlSnippetTokenCodec } from "./sql-snippet-token";
 
 export { replaceLeadingCommand } from "./command-utils";
@@ -85,6 +97,13 @@ type TokenSegment =
       label: string;
     }
   | {
+      kind: "setting";
+      rawText: string;
+      start: number;
+      end: number;
+      label: string;
+    }
+  | {
       kind: "sqlSnippet";
       rawText: string;
       start: number;
@@ -95,9 +114,26 @@ type TokenSegment =
 
 type RenderSegment = { kind: "text"; text: string; start: number; end: number } | TokenSegment;
 type HoveredCodeToken = {
-  code: string;
+  kind: "sqlSnippet" | "setting" | "database" | "table";
   rect: { top: number; left: number; width: number; height: number };
-};
+} & (
+  | {
+      kind: "sqlSnippet";
+      code: string;
+    }
+  | {
+      kind: "setting";
+      setting: ClickHouseSetting;
+    }
+  | {
+      kind: "database";
+      database: DatabaseInfo;
+    }
+  | {
+      kind: "table";
+      table: TableInfo;
+    }
+);
 
 function createTextNodeSegment(documentRef: Document, text: string) {
   return documentRef.createTextNode(text);
@@ -192,7 +228,11 @@ function createTokenNodeSegment(
     event.stopPropagation();
   });
 
-  if (segment.kind === "sqlSnippet" && options?.onHoverStart && options?.onHoverEnd) {
+  if (
+    (segment.kind === "sqlSnippet" || segment.kind === "setting" || segment.kind === "mention") &&
+    options?.onHoverStart &&
+    options?.onHoverEnd
+  ) {
     token.addEventListener("pointerenter", () => options.onHoverStart?.(token, segment));
     token.addEventListener("pointerleave", () => options.onHoverEnd?.(segment));
   }
@@ -397,14 +437,27 @@ function TokenHoverCard({
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
     >
-      <pre className="max-h-48 overflow-auto rounded-sm bg-muted/50 p-2 text-xs text-foreground">
-        <code>{hoveredToken.code}</code>
-      </pre>
+      {hoveredToken.kind === "sqlSnippet" ? (
+        <pre className="max-h-48 overflow-auto rounded-sm bg-muted/50 p-2 text-xs text-foreground">
+          <code>{hoveredToken.code}</code>
+        </pre>
+      ) : hoveredToken.kind === "table" ? (
+        <TableDescription table={hoveredToken.table} className="space-y-2 text-[11px]" />
+      ) : hoveredToken.kind === "database" ? (
+        <DatabaseDescription database={hoveredToken.database} className="space-y-2 text-[11px]" />
+      ) : (
+        <SettingDescription setting={hoveredToken.setting} />
+      )}
     </div>
   );
 }
 
-function buildRenderSegments(input: string, command: CommandDetail | null): RenderSegment[] {
+function buildRenderSegments(
+  input: string,
+  command: CommandDetail | null,
+  databaseNames: Map<string, { name: string; engine: string; comment?: string | null }> | undefined,
+  settingsByName: Map<string, ClickHouseSetting>
+): RenderSegment[] {
   const tokenSegments: TokenSegment[] = [];
 
   const leadingCommand = getLeadingCommand(input);
@@ -425,6 +478,33 @@ function buildRenderSegments(input: string, command: CommandDetail | null): Rend
       start: mention.start,
       end: mention.end,
       label: mention.value,
+    });
+  }
+
+  for (const mention of getDatabaseMentionMatches(input, databaseNames)) {
+    tokenSegments.push({
+      kind: "mention",
+      rawText: mention.text,
+      start: mention.start,
+      end: mention.end,
+      label: mention.value,
+    });
+  }
+
+  for (const setting of getSettingTokenMatches(input, settingsByName)) {
+    if (
+      tokenSegments.some(
+        (segment) => segment.start === setting.start && segment.end === setting.end
+      )
+    ) {
+      continue;
+    }
+    tokenSegments.push({
+      kind: "setting",
+      rawText: setting.text,
+      start: setting.start,
+      end: setting.end,
+      label: setting.value,
     });
   }
 
@@ -489,6 +569,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     } | null>(null);
     const resizeFrameRef = React.useRef<number | null>(null);
     const pendingSelectionOffsetRef = React.useRef<number | null>(null);
+    const pendingFocusEditorRef = React.useRef(false);
     const cursorOffsetRef = React.useRef(0);
     const attachmentsRef = React.useRef<ChatInputImageAttachment[]>([]);
     const appendQueueRef = React.useRef<Promise<void>>(Promise.resolve());
@@ -509,6 +590,14 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const [suggestionStartPos, setSuggestionStartPos] = React.useState(0);
 
     const { connection } = useConnection();
+    const clickHouseSettingsByName = React.useMemo(
+      () => connection?.metadata.clickhouseSettings ?? new Map<string, ClickHouseSetting>(),
+      [connection?.metadata?.clickhouseSettings]
+    );
+    const clickHouseSettings = React.useMemo(
+      () => Array.from(clickHouseSettingsByName.values()),
+      [clickHouseSettingsByName]
+    );
     const { commands, commandsByName } = useAgentCommands();
     const { selectedModel } = useModelConfig();
     const isResizable = resizedHeight !== null;
@@ -518,8 +607,14 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       [commandsByName, leadingCommand]
     );
     const renderSegments = React.useMemo(
-      () => buildRenderSegments(input, selectedCommand),
-      [input, selectedCommand]
+      () =>
+        buildRenderSegments(
+          input,
+          selectedCommand,
+          connection?.metadata?.databaseNames,
+          clickHouseSettingsByName
+        ),
+      [clickHouseSettingsByName, connection?.metadata?.databaseNames, input, selectedCommand]
     );
     const selectedModelSupportsImages = resolveModelSupportsImageInput(selectedModel);
     const canSubmit =
@@ -698,8 +793,15 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     }, []);
 
     const setInputAndSelection = React.useCallback(
-      (nextText: string, nextSelectionOffset: number) => {
+      (
+        nextText: string,
+        nextSelectionOffset: number,
+        options?: {
+          focusEditor?: boolean;
+        }
+      ) => {
         pendingSelectionOffsetRef.current = nextSelectionOffset;
+        pendingFocusEditorRef.current = options?.focusEditor ?? false;
         setInput(nextText);
         updateSuggestions(nextText, nextSelectionOffset);
       },
@@ -805,57 +907,63 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const tableSuggestions = React.useMemo((): ChatInputSuggestionItem[] => {
       if (!connection?.metadata?.tableNames) return [];
       return Array.from(connection.metadata.tableNames.values()).map((tableInfo) => {
-        const database = tableInfo.database || "";
         const table = tableInfo.table || "";
-        const engine = tableInfo.engine || "";
 
-        const description = (
-          <div className="space-y-3 text-xs">
-            <div>
-              <div className="text-muted-foreground mb-0.5">Database</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">{database || "-"}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground mb-0.5">Table</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">{table}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground mb-0.5">Engine</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">{engine || "-"}</div>
-            </div>
-            {tableInfo.comment ? (
-              <div>
-                <div className="text-muted-foreground mb-0.5">Comment</div>
-                <div className="text-foreground whitespace-pre-wrap break-all">
-                  {tableInfo.comment}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        );
+        const description = <TableDescription table={tableInfo} />;
 
         return {
           name: table,
           type: "table",
           description,
           search: table,
-          group: database || "Global",
+          group: tableInfo.database || "Global",
         } satisfies ChatInputSuggestionItem;
       });
     }, [connection?.metadata?.tableNames]);
 
-    const handleSelectTable = React.useCallback(
-      (group: string, tableName: string) => {
-        const fullName = `${group}.${tableName}`;
+    const databaseSuggestions = React.useMemo((): ChatInputSuggestionItem[] => {
+      if (!connection?.metadata?.databaseNames) return [];
+      return Array.from(connection.metadata.databaseNames.values()).map((databaseInfo) => {
+        const description = <DatabaseDescription database={databaseInfo} />;
+
+        return {
+          name: databaseInfo.name,
+          type: "database",
+          description,
+          search: `${databaseInfo.name} ${databaseInfo.engine} ${databaseInfo.comment ?? ""}`,
+          group: "",
+        } satisfies ChatInputSuggestionItem;
+      });
+    }, [connection?.metadata?.databaseNames]);
+
+    const settingSuggestions = React.useMemo((): ChatInputSuggestionItem[] => {
+      return clickHouseSettings.map((setting) => {
+        const description = <SettingDescription setting={setting} />;
+
+        return {
+          name: setting.name,
+          type: "setting",
+          description,
+          search: `${setting.name} ${setting.type} ${setting.description}`,
+          group: setting.category,
+        } satisfies ChatInputSuggestionItem;
+      });
+    }, [clickHouseSettings]);
+
+    const handleSelectSuggestion = React.useCallback(
+      (suggestion: ChatInputSuggestionItem) => {
         const selectionOffset = cursorOffsetRef.current;
         const beforeMention = input.substring(0, suggestionStartPos);
         const afterMention = input.substring(selectionOffset);
-        const newText = beforeMention + `@${fullName} ` + afterMention;
-        const newCursorPos = suggestionStartPos + fullName.length + 2;
+        const insertText =
+          suggestion.type === "table"
+            ? `\`${suggestion.group}.${suggestion.name}\` `
+            : `\`${suggestion.name}\` `;
+        const newText = beforeMention + insertText + afterMention;
+        const newCursorPos = suggestionStartPos + insertText.length;
 
         suggestionRef.current?.close();
-        setInputAndSelection(newText, newCursorPos);
-        editorRef.current?.focus();
+        setInputAndSelection(newText, newCursorPos, { focusEditor: true });
       },
       [input, setInputAndSelection, suggestionStartPos]
     );
@@ -866,8 +974,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         commandRef.current?.close();
         const nextCursor =
           newText === `/${command.name} ` ? newText.length : `/${command.name}`.length;
-        setInputAndSelection(newText, nextCursor);
-        editorRef.current?.focus();
+        setInputAndSelection(newText, nextCursor, { focusEditor: true });
       },
       [input, setInputAndSelection]
     );
@@ -875,19 +982,8 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const handleDismissCommand = React.useCallback(() => {
       const newText = removeLeadingCommand(input);
       commandRef.current?.close();
-      setInputAndSelection(newText, 0);
-      editorRef.current?.focus();
+      setInputAndSelection(newText, 0, { focusEditor: true });
     }, [input, setInputAndSelection]);
-
-    const handleDismissMention = React.useCallback(
-      (start: number, end: number) => {
-        const newText = removeTableMentionAt(input, start, end);
-        suggestionRef.current?.close();
-        setInputAndSelection(newText, Math.min(start, newText.length));
-        editorRef.current?.focus();
-      },
-      [input, setInputAndSelection]
-    );
 
     const clearHoveredCodeTokenOpenTimeout = React.useCallback(() => {
       if (hoveredCodeTokenOpenTimeoutRef.current !== null) {
@@ -909,6 +1005,26 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       setHoveredCodeToken(null);
     }, [clearHoveredCodeTokenCloseTimeout, clearHoveredCodeTokenOpenTimeout]);
 
+    const handleDismissMention = React.useCallback(
+      (start: number, end: number) => {
+        clearHoveredCodeTokenState();
+        const newText = removeTableMentionAt(input, start, end);
+        suggestionRef.current?.close();
+        setInputAndSelection(newText, Math.min(start, newText.length), { focusEditor: true });
+      },
+      [clearHoveredCodeTokenState, input, setInputAndSelection]
+    );
+
+    const handleDismissSetting = React.useCallback(
+      (start: number, end: number) => {
+        clearHoveredCodeTokenState();
+        const newText = removeSettingTokenAt(input, start, end);
+        suggestionRef.current?.close();
+        setInputAndSelection(newText, Math.min(start, newText.length), { focusEditor: true });
+      },
+      [clearHoveredCodeTokenState, input, setInputAndSelection]
+    );
+
     const scheduleHoveredCodeTokenClose = React.useCallback(() => {
       clearHoveredCodeTokenCloseTimeout();
       hoveredCodeTokenCloseTimeoutRef.current = window.setTimeout(() => {
@@ -922,15 +1038,14 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         clearHoveredCodeTokenState();
         const newText = sqlSnippetTokenCodec.removeAt(input, start, end);
         suggestionRef.current?.close();
-        setInputAndSelection(newText, Math.min(start, newText.length));
-        editorRef.current?.focus();
+        setInputAndSelection(newText, Math.min(start, newText.length), { focusEditor: true });
       },
       [clearHoveredCodeTokenState, input, setInputAndSelection]
     );
 
     const handleCodeTokenHoverStart = React.useCallback(
       (element: HTMLElement, segment: TokenSegment) => {
-        if (segment.kind !== "sqlSnippet" || !containerRef.current) {
+        if (!containerRef.current) {
           return;
         }
 
@@ -938,22 +1053,68 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         clearHoveredCodeTokenCloseTimeout();
         const tokenRect = element.getBoundingClientRect();
         const containerRect = containerRef.current.getBoundingClientRect();
-        const nextHoveredCodeToken = {
-          code: segment.sql,
-          rect: {
-            top: tokenRect.top - containerRect.top,
-            left: tokenRect.left - containerRect.left,
-            width: tokenRect.width,
-            height: tokenRect.height,
-          },
+        const rect = {
+          top: tokenRect.top - containerRect.top,
+          left: tokenRect.left - containerRect.left,
+          width: tokenRect.width,
+          height: tokenRect.height,
         };
+        const nextHoveredCodeToken =
+          segment.kind === "sqlSnippet"
+            ? {
+                kind: "sqlSnippet" as const,
+                code: segment.sql,
+                rect,
+              }
+            : segment.kind === "mention"
+              ? (() => {
+                  const table = connection?.metadata?.tableNames?.get(segment.label);
+                  if (table) {
+                    return {
+                      kind: "table" as const,
+                      table,
+                      rect,
+                    } satisfies HoveredCodeToken;
+                  }
+
+                  const database = connection?.metadata?.databaseNames?.get(segment.label);
+                  return database
+                    ? ({
+                        kind: "database" as const,
+                        database,
+                        rect,
+                      } satisfies HoveredCodeToken)
+                    : null;
+                })()
+              : segment.kind === "setting"
+                ? (() => {
+                    const setting = clickHouseSettingsByName.get(segment.label);
+                    return setting
+                      ? ({
+                          kind: "setting" as const,
+                          setting,
+                          rect,
+                        } satisfies HoveredCodeToken)
+                      : null;
+                  })()
+                : null;
+
+        if (!nextHoveredCodeToken) {
+          return;
+        }
 
         hoveredCodeTokenOpenTimeoutRef.current = window.setTimeout(() => {
           setHoveredCodeToken(nextHoveredCodeToken);
           hoveredCodeTokenOpenTimeoutRef.current = null;
         }, TOKEN_HOVER_CARD_OPEN_DELAY_MS);
       },
-      [clearHoveredCodeTokenCloseTimeout, clearHoveredCodeTokenOpenTimeout]
+      [
+        clickHouseSettingsByName,
+        clearHoveredCodeTokenCloseTimeout,
+        clearHoveredCodeTokenOpenTimeout,
+        connection?.metadata?.databaseNames,
+        connection?.metadata?.tableNames,
+      ]
     );
 
     const handleCodeTokenHoverEnd = React.useCallback(
@@ -1010,6 +1171,11 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                 return;
               }
 
+              if (segment.kind === "setting") {
+                handleDismissSetting(segment.start, segment.end);
+                return;
+              }
+
               handleDismissSqlSnippet(segment.start, segment.end);
             },
             {
@@ -1028,8 +1194,12 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
       const nextSelectionOffset = pendingSelectionOffsetRef.current;
       if (nextSelectionOffset !== null) {
+        if (pendingFocusEditorRef.current && document.activeElement !== editor) {
+          editor.focus();
+        }
         setCaretAtOffset(editor, nextSelectionOffset);
         pendingSelectionOffsetRef.current = null;
+        pendingFocusEditorRef.current = false;
         if (editorScrollRef.current) {
           window.requestAnimationFrame(() => {
             if (editorScrollRef.current) {
@@ -1041,6 +1211,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     }, [
       handleDismissCommand,
       handleDismissMention,
+      handleDismissSetting,
       handleDismissSqlSnippet,
       handleCodeTokenHoverEnd,
       handleCodeTokenHoverStart,
@@ -1060,6 +1231,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       onSubmit({ text: message, files: attachments });
       clearHoveredCodeTokenState();
       pendingSelectionOffsetRef.current = 0;
+      pendingFocusEditorRef.current = false;
       setInput("");
       setAttachments([]);
       setAttachmentError(null);
@@ -1179,6 +1351,8 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         }
 
         if (
+          event.key === "ArrowLeft" ||
+          event.key === "ArrowRight" ||
           event.key === "ArrowUp" ||
           event.key === "ArrowDown" ||
           event.key === "PageUp" ||
@@ -1228,7 +1402,10 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           return true;
         }
 
-        for (const mention of getTableMentionMatches(input)) {
+        for (const mention of [
+          ...getTableMentionMatches(input),
+          ...getDatabaseMentionMatches(input, connection?.metadata?.databaseNames),
+        ]) {
           if (
             (key === "Backspace" && mention.end === selection.start) ||
             (key === "Delete" && mention.start === selection.start)
@@ -1253,7 +1430,14 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
         return false;
       },
-      [clearHoveredCodeTokenState, input, leadingCommand, selectedCommand, setInputAndSelection]
+      [
+        clearHoveredCodeTokenState,
+        connection?.metadata?.databaseNames,
+        input,
+        leadingCommand,
+        selectedCommand,
+        setInputAndSelection,
+      ]
     );
 
     const handleKeyDown = React.useCallback(
@@ -1351,8 +1535,12 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           >
             <ChatInputSuggestions
               ref={suggestionRef}
-              suggestions={tableSuggestions}
-              onSelect={handleSelectTable}
+              suggestions={{
+                databases: databaseSuggestions,
+                tables: tableSuggestions,
+                settings: settingSuggestions,
+              }}
+              onSelect={handleSelectSuggestion}
               onInteractOutside={(target) =>
                 target instanceof Node ? !editorRef.current?.contains(target) : false
               }
@@ -1379,7 +1567,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                       {typeof navigator !== "undefined" && navigator.platform.includes("Mac")
                         ? "Cmd"
                         : "Ctrl"}{" "}
-                      + Enter to send. Use @ to mention tables, / for commands.
+                      + Enter to send. Use @ to open table or setting suggestions, / for commands.
                     </div>
                   )}
 
@@ -1387,7 +1575,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                     ref={editorRef}
                     role="textbox"
                     aria-multiline="true"
-                    aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to mention tables, / for commands."
+                    aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to open table or setting suggestions, / for commands."
                     contentEditable={!isRunning}
                     suppressContentEditableWarning
                     className={cn(

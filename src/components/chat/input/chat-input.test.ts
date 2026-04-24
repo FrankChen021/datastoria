@@ -10,6 +10,8 @@ import { removeLeadingCommand, replaceLeadingCommand } from "./command-utils";
 import { getTableMentionMatches, removeTableMentionAt } from "./mention-utils";
 import { sqlSnippetTokenCodec } from "./sql-snippet-token";
 
+const mockSettingsByName = new Map();
+
 vi.mock("@/components/connection/connection-context", () => ({
   useConnection: () => ({
     connection: {
@@ -24,6 +26,7 @@ vi.mock("@/components/connection/connection-context", () => ({
             },
           ],
         ]),
+        clickhouseSettings: mockSettingsByName,
       },
     },
   }),
@@ -110,14 +113,14 @@ describe("removeLeadingCommand", () => {
 
 describe("table mention helpers", () => {
   it("finds all mention ranges in the input text", () => {
-    expect(getTableMentionMatches("compare @system.query_log and @system.query_log?")).toEqual([
-      { value: "system.query_log", text: "@system.query_log", start: 8, end: 25 },
-      { value: "system.query_log", text: "@system.query_log", start: 30, end: 47 },
+    expect(getTableMentionMatches("compare `system.query_log` and `system.query_log`?")).toEqual([
+      { value: "system.query_log", text: "`system.query_log`", start: 8, end: 26 },
+      { value: "system.query_log", text: "`system.query_log`", start: 31, end: 49 },
     ]);
   });
 
   it("removes a mention without leaving double spaces behind", () => {
-    expect(removeTableMentionAt("compare @system.query_log now", 8, 25)).toBe("compare now");
+    expect(removeTableMentionAt("compare `system.query_log` now", 8, 26)).toBe("compare now");
   });
 });
 
@@ -159,6 +162,7 @@ describe("ChatInput inline tokens", () => {
   let root: Root;
 
   beforeEach(() => {
+    mockSettingsByName.clear();
     (
       globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -180,7 +184,11 @@ describe("ChatInput inline tokens", () => {
         React.createElement(ChatInput, {
           onSubmit: vi.fn(),
           isRunning: false,
-          externalInput: { text: "/review check @system.query_log now", mode: "replace", nonce: 1 },
+          externalInput: {
+            text: "/review check `system.query_log` now",
+            mode: "replace",
+            nonce: 1,
+          },
         })
       );
     });
@@ -255,6 +263,45 @@ describe("ChatInput inline tokens", () => {
       text: "```sql\nSELECT 1\n```",
       files: [],
     });
+  });
+
+  it("renders selected settings as inline tokens and removes them when dismissed", () => {
+    mockSettingsByName.set("max_threads", {
+      name: "max_threads",
+      type: "UInt64",
+      description: "Maximum number of execution threads.",
+      value: "8",
+      readonly: false,
+      category: "settings",
+    });
+
+    act(() => {
+      root.render(
+        React.createElement(ChatInput, {
+          onSubmit: vi.fn(),
+          isRunning: false,
+          externalInput: { text: "Use `max_threads` now", mode: "replace", nonce: 2 },
+        })
+      );
+    });
+
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement | null;
+    expect(editor?.textContent).toContain("Use");
+    expect(editor?.textContent).toContain("max_threads");
+    expect(editor?.textContent).toContain("now");
+
+    const removeSettingButton = container.querySelector(
+      'button[aria-label="Remove setting max_threads"]'
+    ) as HTMLButtonElement | null;
+    expect(removeSettingButton).not.toBeNull();
+
+    act(() => {
+      removeSettingButton?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+
+    expect(editor?.textContent).toContain("Use");
+    expect(editor?.textContent).toContain("now");
+    expect(editor?.textContent).not.toContain("max_threads");
   });
 
   it("appends external input chips to the existing composer content", () => {

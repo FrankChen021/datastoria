@@ -1,4 +1,4 @@
-import type { AppUIMessage, MessageMetadata, MessageRole } from "@/lib/ai/chat-types";
+import type { AppUIMessage, MessageMetadata, MessageRole } from "@/lib/ai/ai-types";
 
 export interface PersistedChatSession {
   session_id: string;

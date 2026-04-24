@@ -1,6 +1,6 @@
 "use client";
 
-import type { Chat, Message } from "@/lib/ai/chat-types";
+import type { Chat, Message } from "@/lib/ai/ai-types";
 import { useMemo, useSyncExternalStore } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { toSessionRepositoryConnectionId } from "./session-connection-id";

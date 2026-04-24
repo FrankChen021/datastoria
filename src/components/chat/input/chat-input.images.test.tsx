@@ -16,6 +16,7 @@ vi.mock("@/components/connection/connection-context", () => ({
     connection: {
       metadata: {
         tableNames: new Map(),
+        clickhouseSettings: new Map(),
       },
     },
   }),

@@ -3,7 +3,7 @@ import type {
   SkillResourceToolInput,
   SkillToolInput,
   ToolPart,
-} from "@/lib/ai/chat-types";
+} from "@/lib/ai/ai-types";
 import { memo } from "react";
 import { CollapsiblePart } from "./collapsible-part";
 

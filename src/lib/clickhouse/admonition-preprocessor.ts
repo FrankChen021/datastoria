@@ -3,6 +3,7 @@
  * Used by marked extension (query-suggestion-manager) and preprocessor (ReactMarkdown).
  */
 import { marked, type Token } from "marked";
+import { transformMarkdownLink } from "./clickhouse-docs-link";
 
 type MarkedInlineToken = Token & { text?: string };
 
@@ -97,4 +98,86 @@ export function preprocessAdmonitions(markdown: string): string {
     const title = formatAdmonitionTitle(type);
     return buildAdmonitionHtml(type, title, htmlContent);
   });
+}
+
+const ALLOWED_RAW_TAGS = new Set([
+  "a",
+  "abbr",
+  "b",
+  "blockquote",
+  "br",
+  "code",
+  "dd",
+  "del",
+  "details",
+  "div",
+  "dl",
+  "dt",
+  "em",
+  "i",
+  "img",
+  "kbd",
+  "li",
+  "ol",
+  "p",
+  "pre",
+  "s",
+  "section",
+  "small",
+  "span",
+  "strong",
+  "sub",
+  "summary",
+  "sup",
+  "table",
+  "tbody",
+  "td",
+  "th",
+  "thead",
+  "tr",
+  "u",
+  "ul",
+]);
+
+export function transformSettingMarkdownLinks(description: string): string {
+  if (!description) return description;
+
+  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+
+  return description.replace(markdownLinkRegex, (match, linkText, url) => {
+    const absoluteUrl = transformMarkdownLink("setting", url);
+    return absoluteUrl !== url ? `[${linkText}](${absoluteUrl})` : match;
+  });
+}
+
+export function sanitizeUnknownInlineTags(description: string): string {
+  if (!description.includes("<")) {
+    return description;
+  }
+
+  return description
+    .replace(/<([a-z][a-z0-9_-]*)>([^<]+)<\/\1>/gi, (match, tagName, innerText) => {
+      const normalizedTagName = String(tagName).toLowerCase();
+      if (ALLOWED_RAW_TAGS.has(normalizedTagName)) {
+        return match;
+      }
+      return `\`${innerText.trim()}\``;
+    })
+    .replace(/<([a-z][a-z0-9_-]*)>/gi, (match, tagName) => {
+      const normalizedTagName = String(tagName).toLowerCase();
+      if (ALLOWED_RAW_TAGS.has(normalizedTagName)) {
+        return match;
+      }
+      return `\`${normalizedTagName}\``;
+    })
+    .replace(/<\/([a-z][a-z0-9_-]*)>/gi, (match, tagName) => {
+      const normalizedTagName = String(tagName).toLowerCase();
+      return ALLOWED_RAW_TAGS.has(normalizedTagName) ? match : "";
+    });
+}
+
+export function normalizeSettingDescriptionMarkdown(description: string): string {
+  return preprocessAdmonitions(
+    sanitizeUnknownInlineTags(transformSettingMarkdownLinks(description))
+  );
 }

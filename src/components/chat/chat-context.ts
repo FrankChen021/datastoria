@@ -2,11 +2,6 @@ import type { Connection } from "@/lib/connection/connection";
 
 export interface DatabaseContext {
   database?: string;
-  tables?: Array<{
-    name: string;
-    columns: Array<{ name: string; type: string }> | string[];
-    totalColumns?: number;
-  }>;
   clusterName?: string;
   serverVersion?: string;
   clickHouseUser?: string;

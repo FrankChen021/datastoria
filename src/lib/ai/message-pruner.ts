@@ -1,5 +1,5 @@
 import type { UIMessage } from "ai";
-import type { AgentContext } from "./chat-types";
+import type { AgentContext } from "./ai-types";
 
 const VALIDATE_SQL_TOOL_NAME = "validate_sql";
 
