@@ -11,6 +11,59 @@ import {
   type ChatInputSuggestionsType,
 } from "./chat-input-suggestions";
 
+vi.mock("@/components/ui/command", () => ({
+  Command: ({
+    children,
+    shouldFilter: _shouldFilter,
+    value: _value,
+    ...props
+  }: React.HTMLAttributes<HTMLDivElement> & {
+    shouldFilter?: boolean;
+    value?: string;
+  }) => <div {...props}>{children}</div>,
+  CommandEmpty: ({ children }: React.HTMLAttributes<HTMLDivElement>) => <div>{children}</div>,
+  CommandGroup: ({
+    children,
+    heading,
+    ...props
+  }: React.HTMLAttributes<HTMLDivElement> & {
+    heading?: React.ReactNode;
+  }) => (
+    <div {...props}>
+      {heading ? <div>{heading}</div> : null}
+      {children}
+    </div>
+  ),
+  CommandItem: ({
+    children,
+    onSelect,
+    value: _value,
+    ...props
+  }: React.HTMLAttributes<HTMLDivElement> & {
+    onSelect?: () => void;
+    value?: string;
+  }) => (
+    <div
+      {...props}
+      onClick={(event) => {
+        props.onClick?.(event);
+        onSelect?.();
+      }}
+    >
+      {children}
+    </div>
+  ),
+  CommandList: React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+    function CommandList({ children, ...props }, ref) {
+      return (
+        <div {...props} ref={ref}>
+          {children}
+        </div>
+      );
+    }
+  ),
+}));
+
 describe("ChatInputSuggestions", () => {
   let container: HTMLDivElement;
   let root: Root;
