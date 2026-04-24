@@ -1,6 +1,5 @@
 import { streamText, type ModelMessage } from "ai";
 import { LanguageModelProviderFactory } from "../llm/llm-provider-factory";
-import { logLlmPrompt } from "../llm/prompt-debug";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "../tools/server/server-tool-names";
 import type { ServerDatabaseContext } from "./common-types";
@@ -91,13 +90,6 @@ Guidelines:
 - For complex SQL generation (new analytics) or optimization, the orchestrator might route those to specialized agents, but you are the primary entry point for general questions.
 - Respond in a professional, helpful tone. Use markdown for formatting.
 `;
-
-  logLlmPrompt({
-    label: "general-agent",
-    provider: modelConfig.provider,
-    modelId: modelConfig.modelId,
-    messages: [{ role: "system", content: systemPrompt }, ...messages],
-  });
 
   return streamText({
     model,

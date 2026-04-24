@@ -1,7 +1,6 @@
 import { Output, streamText, tool, type ModelMessage } from "ai";
 import { z } from "zod";
 import { isMockMode, LanguageModelProviderFactory } from "../llm/llm-provider-factory";
-import { logLlmPrompt } from "../llm/prompt-debug";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
 import type { TableSchemaOutput } from "../tools/client/explore-schema";
 import type { ServerDatabaseContext } from "./common-types";
@@ -387,13 +386,6 @@ export async function sqlGenerationAgent(
 
     // Build base messages for processing
     const messages = [{ role: "user" as const, content: userQuestion }];
-    logLlmPrompt({
-      label: "sql-generation-tool",
-      provider: modelConfig.provider,
-      modelId: modelConfig.modelId,
-      messages: [{ role: "system", content: systemPrompt }, ...messages],
-    });
-
     // Generate SQL directly without validation (no validate_sql tool)
     const result = streamText({
       model,
@@ -481,13 +473,6 @@ LIMIT 10
 \`\`\`
 - Include a brief explanation before or after the SQL code block
 - Use markdown formatting for clarity and readability`;
-
-  logLlmPrompt({
-    label: "sql-generation-stream",
-    provider: modelConfig.provider,
-    modelId: modelConfig.modelId,
-    messages: [{ role: "system", content: systemPrompt }, ...messages],
-  });
 
   return streamText({
     model,

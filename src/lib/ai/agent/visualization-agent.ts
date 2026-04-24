@@ -1,7 +1,6 @@
 import { Output, streamText, tool, type ModelMessage } from "ai";
 import { z } from "zod";
 import { isMockMode, LanguageModelProviderFactory } from "../llm/llm-provider-factory";
-import { logLlmPrompt } from "../llm/prompt-debug";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "../tools/server/server-tool-names";
 import type { ServerDatabaseContext } from "./common-types";
@@ -257,13 +256,6 @@ SQL to visualize:
 ${sql}`,
       },
     ];
-    logLlmPrompt({
-      label: "visualization-agent-plan",
-      provider: modelConfig.provider,
-      modelId: modelConfig.modelId,
-      messages: planningMessages,
-    });
-
     // Use streamText instead of generateText to avoid proxy timeouts
     const result = streamText({
       model,
@@ -401,13 +393,6 @@ You are an expert at creating data visualizations for ClickHouse data.
 - Output a short summary of the generated SQL in markdown format
 - DO NOT output a summary of the chart panel configuration - only summarize the SQL query
 `;
-
-  logLlmPrompt({
-    label: "visualization-agent-stream",
-    provider: modelConfig.provider,
-    modelId: modelConfig.modelId,
-    messages: [{ role: "system", content: systemPrompt }, ...messages],
-  });
 
   return streamText({
     model,

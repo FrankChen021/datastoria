@@ -1,6 +1,5 @@
 import { streamText, type ModelMessage } from "ai";
 import { LanguageModelProviderFactory } from "../llm/llm-provider-factory";
-import { logLlmPrompt } from "../llm/prompt-debug";
 import { ClientTools as clientTools } from "../tools/client/client-tools";
 import type { ServerDatabaseContext } from "./common-types";
 import type { InputModel } from "./plan/sub-agent-registry";
@@ -174,13 +173,6 @@ Example:
 ## ✅ Validation
 [Results from validate_sql tool for proposed changes]
 `;
-
-  logLlmPrompt({
-    label: "sql-optimization-agent",
-    provider: modelConfig.provider,
-    modelId: modelConfig.modelId,
-    messages: [{ role: "system", content: systemPrompt }, ...messages],
-  });
 
   return streamText({
     model,

@@ -12,7 +12,6 @@ import {
   resolveModelConfig,
   resolveModelSupportsImageInput,
 } from "@/lib/ai/llm/llm-provider-factory";
-import { logLlmPrompt } from "@/lib/ai/llm/prompt-debug";
 import { MessagePruner } from "@/lib/ai/message-pruner";
 import { MentionContext } from "@/lib/ai/mention-context";
 import {
@@ -435,14 +434,6 @@ export async function POST(req: Request) {
     const orchestratorSystemPrompt = buildOrchestratorSystemPrompt(context, {
       responseLanguage: agentContext?.responseLanguage,
     });
-    logLlmPrompt({
-      label: "chat-v2-orchestrator",
-      provider: modelConfig.provider,
-      modelId: modelConfig.modelId,
-      system: orchestratorSystemPrompt,
-      messages: modelMessages,
-    });
-
     const result = streamText({
       model,
       system: orchestratorSystemPrompt,
