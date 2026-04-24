@@ -569,6 +569,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     } | null>(null);
     const resizeFrameRef = React.useRef<number | null>(null);
     const pendingSelectionOffsetRef = React.useRef<number | null>(null);
+    const pendingFocusEditorRef = React.useRef(false);
     const cursorOffsetRef = React.useRef(0);
     const attachmentsRef = React.useRef<ChatInputImageAttachment[]>([]);
     const appendQueueRef = React.useRef<Promise<void>>(Promise.resolve());
@@ -792,8 +793,15 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     }, []);
 
     const setInputAndSelection = React.useCallback(
-      (nextText: string, nextSelectionOffset: number) => {
+      (
+        nextText: string,
+        nextSelectionOffset: number,
+        options?: {
+          focusEditor?: boolean;
+        }
+      ) => {
         pendingSelectionOffsetRef.current = nextSelectionOffset;
+        pendingFocusEditorRef.current = options?.focusEditor ?? false;
         setInput(nextText);
         updateSuggestions(nextText, nextSelectionOffset);
       },
@@ -955,8 +963,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         const newCursorPos = suggestionStartPos + insertText.length;
 
         suggestionRef.current?.close();
-        setInputAndSelection(newText, newCursorPos);
-        editorRef.current?.focus();
+        setInputAndSelection(newText, newCursorPos, { focusEditor: true });
       },
       [input, setInputAndSelection, suggestionStartPos]
     );
@@ -967,8 +974,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         commandRef.current?.close();
         const nextCursor =
           newText === `/${command.name} ` ? newText.length : `/${command.name}`.length;
-        setInputAndSelection(newText, nextCursor);
-        editorRef.current?.focus();
+        setInputAndSelection(newText, nextCursor, { focusEditor: true });
       },
       [input, setInputAndSelection]
     );
@@ -976,8 +982,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const handleDismissCommand = React.useCallback(() => {
       const newText = removeLeadingCommand(input);
       commandRef.current?.close();
-      setInputAndSelection(newText, 0);
-      editorRef.current?.focus();
+      setInputAndSelection(newText, 0, { focusEditor: true });
     }, [input, setInputAndSelection]);
 
     const clearHoveredCodeTokenOpenTimeout = React.useCallback(() => {
@@ -1005,8 +1010,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         clearHoveredCodeTokenState();
         const newText = removeTableMentionAt(input, start, end);
         suggestionRef.current?.close();
-        setInputAndSelection(newText, Math.min(start, newText.length));
-        editorRef.current?.focus();
+        setInputAndSelection(newText, Math.min(start, newText.length), { focusEditor: true });
       },
       [clearHoveredCodeTokenState, input, setInputAndSelection]
     );
@@ -1016,8 +1020,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         clearHoveredCodeTokenState();
         const newText = removeSettingTokenAt(input, start, end);
         suggestionRef.current?.close();
-        setInputAndSelection(newText, Math.min(start, newText.length));
-        editorRef.current?.focus();
+        setInputAndSelection(newText, Math.min(start, newText.length), { focusEditor: true });
       },
       [clearHoveredCodeTokenState, input, setInputAndSelection]
     );
@@ -1035,8 +1038,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         clearHoveredCodeTokenState();
         const newText = sqlSnippetTokenCodec.removeAt(input, start, end);
         suggestionRef.current?.close();
-        setInputAndSelection(newText, Math.min(start, newText.length));
-        editorRef.current?.focus();
+        setInputAndSelection(newText, Math.min(start, newText.length), { focusEditor: true });
       },
       [clearHoveredCodeTokenState, input, setInputAndSelection]
     );
@@ -1192,8 +1194,12 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
       const nextSelectionOffset = pendingSelectionOffsetRef.current;
       if (nextSelectionOffset !== null) {
+        if (pendingFocusEditorRef.current && document.activeElement !== editor) {
+          editor.focus();
+        }
         setCaretAtOffset(editor, nextSelectionOffset);
         pendingSelectionOffsetRef.current = null;
+        pendingFocusEditorRef.current = false;
         if (editorScrollRef.current) {
           window.requestAnimationFrame(() => {
             if (editorScrollRef.current) {
@@ -1225,6 +1231,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       onSubmit({ text: message, files: attachments });
       clearHoveredCodeTokenState();
       pendingSelectionOffsetRef.current = 0;
+      pendingFocusEditorRef.current = false;
       setInput("");
       setAttachments([]);
       setAttachmentError(null);

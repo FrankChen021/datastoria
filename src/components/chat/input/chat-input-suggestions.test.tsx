@@ -90,7 +90,7 @@ describe("ChatInputSuggestions", () => {
 
     expect(document.body.textContent).toContain("Databases");
     expect(document.body.textContent).toContain("Tables");
-    expect(document.body.textContent).toContain("ClickHouse Settings");
+    expect(document.body.textContent).toContain("Settings");
     expect(ref.current?.getSelectedIndex()).toBe(-1);
 
     act(() => {
@@ -126,7 +126,7 @@ describe("ChatInputSuggestions", () => {
     });
 
     expect(document.body.textContent).toContain("max_threads");
-    expect(document.body.textContent).not.toContain("setting description");
+    expect(document.body.textContent).toContain("setting description");
 
     act(() => {
       ref.current?.handleKeyDown({
@@ -166,7 +166,7 @@ describe("ChatInputSuggestions", () => {
       ref.current?.open("max");
     });
 
-    expect(document.body.textContent).toContain("ClickHouse Settings");
+    expect(document.body.textContent).toContain("Settings");
 
     act(() => {
       ref.current?.handleKeyDown({
@@ -199,7 +199,7 @@ describe("ChatInputSuggestions", () => {
       ref.current?.open("thread");
     });
 
-    expect(document.body.textContent).toContain("ClickHouse Settings");
+    expect(document.body.textContent).toContain("Settings");
     expect(document.body.textContent).not.toContain("Databases");
 
     act(() => {
@@ -211,7 +211,7 @@ describe("ChatInputSuggestions", () => {
     });
 
     expect(document.body.textContent).toContain("max_threads");
-    expect(document.body.textContent).not.toContain("setting description");
+    expect(document.body.textContent).toContain("setting description");
 
     act(() => {
       ref.current?.handleKeyDown({

@@ -298,6 +298,9 @@ function SuggestionItemList({
   onActivate: (index: number) => void;
   onSelect: (item: ChatInputSuggestionItem) => void;
 }) {
+  const selectedSuggestion =
+    resolvedSuggestionIndex === null ? undefined : flatSuggestions[resolvedSuggestionIndex];
+
   const renderSuggestionItem = (item: FilteredSuggestionItem) => {
     const isSelected = item.globalIndex === activeIndex;
     return (
@@ -333,11 +336,7 @@ function SuggestionItemList({
   return (
     <Command
       className="flex-1 rounded-none border-0 bg-transparent shadow-none"
-      value={
-        resolvedSuggestionIndex === null
-          ? undefined
-          : getSuggestionValue(flatSuggestions[resolvedSuggestionIndex])
-      }
+      value={selectedSuggestion ? getSuggestionValue(selectedSuggestion) : undefined}
       shouldFilter={false}
     >
       <CommandList
