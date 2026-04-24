@@ -5,66 +5,67 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  ChatInputSuggestions,
-  type ChatInputSuggestionItem,
-  type ChatInputSuggestionsType,
-} from "./chat-input-suggestions";
+import type { ChatInputSuggestionItem, ChatInputSuggestionsType } from "./chat-input-suggestions";
 
-vi.mock("@/components/ui/command", () => ({
-  Command: ({
-    children,
-    shouldFilter: _shouldFilter,
-    value: _value,
-    ...props
-  }: React.HTMLAttributes<HTMLDivElement> & {
-    shouldFilter?: boolean;
-    value?: string;
-  }) => <div {...props}>{children}</div>,
-  CommandEmpty: ({ children }: React.HTMLAttributes<HTMLDivElement>) => <div>{children}</div>,
-  CommandGroup: ({
-    children,
-    heading,
-    ...props
-  }: React.HTMLAttributes<HTMLDivElement> & {
-    heading?: React.ReactNode;
-  }) => (
-    <div {...props}>
-      {heading ? <div>{heading}</div> : null}
-      {children}
-    </div>
-  ),
-  CommandItem: ({
-    children,
-    onSelect,
-    value: _value,
-    ...props
-  }: React.HTMLAttributes<HTMLDivElement> & {
-    onSelect?: () => void;
-    value?: string;
-  }) => (
-    <div
-      {...props}
-      onClick={(event) => {
-        props.onClick?.(event);
-        onSelect?.();
-      }}
-    >
-      {children}
-    </div>
-  ),
-  CommandList: React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-    function CommandList({ children, ...props }, ref) {
-      return (
-        <div {...props} ref={ref}>
-          {children}
-        </div>
-      );
-    }
-  ),
-}));
+vi.mock("@/components/ui/command", async () => {
+  const React = await import("react");
+
+  return {
+    Command: ({
+      children,
+      shouldFilter: _shouldFilter,
+      value: _value,
+      ...props
+    }: React.HTMLAttributes<HTMLDivElement> & {
+      shouldFilter?: boolean;
+      value?: string;
+    }) => <div {...props}>{children}</div>,
+    CommandEmpty: ({ children }: React.HTMLAttributes<HTMLDivElement>) => <div>{children}</div>,
+    CommandGroup: ({
+      children,
+      heading,
+      ...props
+    }: React.HTMLAttributes<HTMLDivElement> & {
+      heading?: React.ReactNode;
+    }) => (
+      <div {...props}>
+        {heading ? <div>{heading}</div> : null}
+        {children}
+      </div>
+    ),
+    CommandItem: ({
+      children,
+      onSelect,
+      value: _value,
+      ...props
+    }: React.HTMLAttributes<HTMLDivElement> & {
+      onSelect?: () => void;
+      value?: string;
+    }) => (
+      <div
+        {...props}
+        onClick={(event) => {
+          props.onClick?.(event);
+          onSelect?.();
+        }}
+      >
+        {children}
+      </div>
+    ),
+    CommandList: React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+      function CommandList({ children, ...props }, ref) {
+        return (
+          <div {...props} ref={ref}>
+            {children}
+          </div>
+        );
+      }
+    ),
+  };
+});
 
 describe("ChatInputSuggestions", () => {
+  let ChatInputSuggestions: (typeof import("./chat-input-suggestions"))["ChatInputSuggestions"];
   let container: HTMLDivElement;
   let root: Root;
   let ref: React.RefObject<ChatInputSuggestionsType | null>;
@@ -94,7 +95,8 @@ describe("ChatInputSuggestions", () => {
     group: "settings",
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    ({ ChatInputSuggestions } = await import("./chat-input-suggestions"));
     (
       globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
