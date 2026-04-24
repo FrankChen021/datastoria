@@ -1,5 +1,59 @@
 [
   {
+    "id": "7015807",
+    "date": "2026-04-24T07:12:51.875Z",
+    "notes": [
+      {
+        "text": "Handle non-200 release notes responses",
+        "pr": 194,
+        "type": "feature",
+        "merged_at": "2026-04-14T12:52:18Z"
+      },
+      {
+        "text": "Update the table-tab dashboard panels",
+        "pr": 196,
+        "type": "feature",
+        "merged_at": "2026-04-14T13:02:45Z"
+      },
+      {
+        "text": "Improve SQL editor and chat-panel integration",
+        "pr": 197,
+        "type": "feature",
+        "merged_at": "2026-04-14T16:24:57Z"
+      },
+      {
+        "text": "Refine dashboard metadata tabs",
+        "pr": 198,
+        "type": "feature",
+        "merged_at": "2026-04-15T13:14:11Z"
+      },
+      {
+        "text": "Update vizlayer flowchart fix",
+        "pr": 200,
+        "type": "feature",
+        "merged_at": "2026-04-23T13:19:08Z"
+      },
+      {
+        "text": "Add markdown math rendering support",
+        "pr": 199,
+        "type": "feature",
+        "merged_at": "2026-04-23T13:48:36Z"
+      },
+      {
+        "text": "Render sample questions with markdown",
+        "pr": 201,
+        "type": "feature",
+        "merged_at": "2026-04-23T13:52:04Z"
+      },
+      {
+        "text": "Add setting suggestions and update mention context injection",
+        "pr": 202,
+        "type": "feature",
+        "merged_at": "2026-04-24T06:08:23Z"
+      }
+    ]
+  },
+  {
     "id": "476b969",
     "date": "2026-04-13T16:11:53.081Z",
     "notes": [
