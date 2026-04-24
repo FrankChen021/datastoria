@@ -5,102 +5,13 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-interface ChatInputSuggestionItem {
-  name: string;
-  type: "database" | "table" | "setting";
-  description: React.ReactNode;
-  search: string;
-  badge?: string;
-  group: string;
-}
-
-interface ChatInputSuggestionsType {
-  open: (searchQuery: string) => void;
-  close: () => void;
-  isOpen: () => boolean;
-  getSelectedIndex: () => number;
-  getSuggestions: () => ChatInputSuggestionItem[];
-  handleKeyDown: (e: React.KeyboardEvent) => boolean;
-}
-
-type ChatInputSuggestionsComponent = React.ForwardRefExoticComponent<
-  {
-    onSelect: (item: ChatInputSuggestionItem) => void;
-    suggestions: {
-      databases: ChatInputSuggestionItem[];
-      tables: ChatInputSuggestionItem[];
-      settings: ChatInputSuggestionItem[];
-    };
-  } & React.RefAttributes<ChatInputSuggestionsType>
->;
-
-vi.mock("cmdk", async () => {
-  const React = await import("react");
-
-  const createPart = (displayName: string) => {
-    const Part = React.forwardRef<
-      HTMLDivElement,
-      React.HTMLAttributes<HTMLDivElement> & {
-        value?: string;
-        onSelect?: () => void;
-        shouldFilter?: boolean;
-        heading?: React.ReactNode;
-      }
-    >(function CommandPart(
-      {
-        children,
-        heading,
-        onClick,
-        onSelect,
-        shouldFilter: _shouldFilter,
-        value: _value,
-        ...props
-      },
-      ref
-    ) {
-      return (
-        <div
-          {...props}
-          ref={ref}
-          onClick={(event) => {
-            onClick?.(event);
-            onSelect?.();
-          }}
-        >
-          {heading ? <div>{heading}</div> : null}
-          {children}
-        </div>
-      );
-    });
-    Part.displayName = displayName;
-    return Part;
-  };
-
-  const Command = createPart("Command") as ReturnType<typeof createPart> & {
-    Input: ReturnType<typeof createPart>;
-    List: ReturnType<typeof createPart>;
-    Empty: ReturnType<typeof createPart>;
-    Group: ReturnType<typeof createPart>;
-    Separator: ReturnType<typeof createPart>;
-    Item: ReturnType<typeof createPart>;
-    Dialog: ReturnType<typeof createPart>;
-  };
-  Command.Input = createPart("CommandInput");
-  Command.List = createPart("CommandList");
-  Command.Empty = createPart("CommandEmpty");
-  Command.Group = createPart("CommandGroup");
-  Command.Separator = createPart("CommandSeparator");
-  Command.Item = createPart("CommandItem");
-  Command.Dialog = createPart("CommandDialog");
-
-  return {
-    Command,
-  };
-});
+import {
+  ChatInputSuggestions,
+  type ChatInputSuggestionItem,
+  type ChatInputSuggestionsType,
+} from "./chat-input-suggestions";
 
 describe("ChatInputSuggestions", () => {
-  let ChatInputSuggestions: ChatInputSuggestionsComponent;
   let container: HTMLDivElement;
   let root: Root;
   let ref: React.RefObject<ChatInputSuggestionsType | null>;
@@ -130,9 +41,7 @@ describe("ChatInputSuggestions", () => {
     group: "settings",
   };
 
-  beforeEach(async () => {
-    ({ ChatInputSuggestions } =
-      (await import("./chat-input-suggestions")) as typeof import("./chat-input-suggestions"));
+  beforeEach(() => {
     (
       globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
