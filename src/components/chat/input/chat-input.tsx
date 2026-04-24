@@ -980,26 +980,6 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       editorRef.current?.focus();
     }, [input, setInputAndSelection]);
 
-    const handleDismissMention = React.useCallback(
-      (start: number, end: number) => {
-        const newText = removeTableMentionAt(input, start, end);
-        suggestionRef.current?.close();
-        setInputAndSelection(newText, Math.min(start, newText.length));
-        editorRef.current?.focus();
-      },
-      [input, setInputAndSelection]
-    );
-
-    const handleDismissSetting = React.useCallback(
-      (start: number, end: number) => {
-        const newText = removeSettingTokenAt(input, start, end);
-        suggestionRef.current?.close();
-        setInputAndSelection(newText, Math.min(start, newText.length));
-        editorRef.current?.focus();
-      },
-      [input, setInputAndSelection]
-    );
-
     const clearHoveredCodeTokenOpenTimeout = React.useCallback(() => {
       if (hoveredCodeTokenOpenTimeoutRef.current !== null) {
         window.clearTimeout(hoveredCodeTokenOpenTimeoutRef.current);
@@ -1019,6 +999,28 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       clearHoveredCodeTokenCloseTimeout();
       setHoveredCodeToken(null);
     }, [clearHoveredCodeTokenCloseTimeout, clearHoveredCodeTokenOpenTimeout]);
+
+    const handleDismissMention = React.useCallback(
+      (start: number, end: number) => {
+        clearHoveredCodeTokenState();
+        const newText = removeTableMentionAt(input, start, end);
+        suggestionRef.current?.close();
+        setInputAndSelection(newText, Math.min(start, newText.length));
+        editorRef.current?.focus();
+      },
+      [clearHoveredCodeTokenState, input, setInputAndSelection]
+    );
+
+    const handleDismissSetting = React.useCallback(
+      (start: number, end: number) => {
+        clearHoveredCodeTokenState();
+        const newText = removeSettingTokenAt(input, start, end);
+        suggestionRef.current?.close();
+        setInputAndSelection(newText, Math.min(start, newText.length));
+        editorRef.current?.focus();
+      },
+      [clearHoveredCodeTokenState, input, setInputAndSelection]
+    );
 
     const scheduleHoveredCodeTokenClose = React.useCallback(() => {
       clearHoveredCodeTokenCloseTimeout();

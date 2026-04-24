@@ -1,5 +1,5 @@
-import { normalizeSettingDescriptionMarkdown } from "@/components/settings/query-context/settings-description";
 import type { Connection, JSONCompactFormatResponse } from "@/lib/connection/connection";
+import { normalizeSettingDescriptionMarkdown } from "./admonition-preprocessor";
 
 export type ClickHouseSettingCategory = "settings" | "server_settings" | "merge_tree_settings";
 

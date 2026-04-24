@@ -80,6 +80,18 @@ interface SuggestionGroupItem {
   matchCount?: number;
 }
 
+interface SuggestionModeResults {
+  databases: FilteredSuggestions;
+  tables: FilteredSuggestions;
+  settings: FilteredSuggestions;
+}
+
+function getSuggestionValue(
+  item: Pick<ChatInputSuggestionItem, "type" | "group" | "name">
+): string {
+  return `${item.type}:${item.group}:${item.name}`;
+}
+
 function filterTableSuggestions(
   suggestions: ChatInputSuggestionItem[],
   query: string
@@ -199,6 +211,163 @@ function filterNameSuggestions(
   };
 }
 
+function SuggestionGroupList({
+  items,
+  activeIndex,
+  query,
+  activeItemRef,
+  listViewportRef,
+  onActivate,
+  onEnterGroup,
+}: {
+  items: SuggestionGroupItem[];
+  activeIndex: number | null;
+  query: string;
+  activeItemRef: React.MutableRefObject<HTMLElement | null>;
+  listViewportRef: React.MutableRefObject<HTMLElement | null>;
+  onActivate: (index: number) => void;
+  onEnterGroup: (mode: Exclude<SuggestionMode, "groups">) => void;
+}) {
+  return (
+    <div
+      ref={listViewportRef as React.RefObject<HTMLDivElement>}
+      className="flex-1 overflow-y-auto py-1"
+    >
+      {items.map((item, index) => {
+        const Icon = item.icon;
+        const isSelected = index === activeIndex;
+
+        return (
+          <button
+            key={item.mode}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onEnterGroup(item.mode)}
+            onMouseEnter={() => onActivate(index)}
+            className={cn(
+              "mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2 rounded-sm px-2 py-1 text-left",
+              isSelected && "bg-accent text-accent-foreground"
+            )}
+            ref={
+              isSelected
+                ? (node) => {
+                    activeItemRef.current = node;
+                  }
+                : undefined
+            }
+          >
+            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+            <div className="min-w-0 flex-1 truncate text-sm font-medium">{item.title}</div>
+            <Badge
+              variant="outline"
+              className="border-0 px-1 py-0 text-[10px] text-muted-foreground"
+            >
+              {query.trim() ? item.matchCount : item.count}
+            </Badge>
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
+        );
+      })}
+      {items.length === 0 ? (
+        <div className="py-3 text-center text-sm text-muted-foreground">
+          No suggestion groups found
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SuggestionItemList({
+  mode,
+  flatSuggestions,
+  groupedSuggestions,
+  activeIndex,
+  resolvedSuggestionIndex,
+  activeItemRef,
+  listViewportRef,
+  onActivate,
+  onSelect,
+}: {
+  mode: Exclude<SuggestionMode, "groups">;
+  flatSuggestions: FilteredSuggestionItem[];
+  groupedSuggestions: Record<string, FilteredSuggestionItem[]>;
+  activeIndex: number | null;
+  resolvedSuggestionIndex: number | null;
+  activeItemRef: React.MutableRefObject<HTMLElement | null>;
+  listViewportRef: React.MutableRefObject<HTMLElement | null>;
+  onActivate: (index: number) => void;
+  onSelect: (item: ChatInputSuggestionItem) => void;
+}) {
+  const renderSuggestionItem = (item: FilteredSuggestionItem) => {
+    const isSelected = item.globalIndex === activeIndex;
+    return (
+      <CommandItem
+        key={getSuggestionValue(item)}
+        value={getSuggestionValue(item)}
+        onSelect={() => onSelect(item)}
+        onMouseEnter={() => onActivate(item.globalIndex)}
+        className={cn(
+          "flex w-full items-center gap-2 py-1 text-sm",
+          "pl-6 pr-2",
+          isSelected && "bg-accent text-accent-foreground"
+        )}
+        ref={isSelected ? activeItemRef : null}
+      >
+        <span className="min-w-0 flex-1 truncate">
+          {TextHighlighter.highlight2(
+            item.name,
+            item.matchStart,
+            item.matchStart >= 0 ? item.matchStart + item.matchLength : -1,
+            "text-yellow-500"
+          )}
+        </span>
+        {item.badge && (
+          <Badge variant="outline" className="border-0 px-1 py-0 text-[10px] text-muted-foreground">
+            {item.badge}
+          </Badge>
+        )}
+      </CommandItem>
+    );
+  };
+
+  return (
+    <Command
+      className="flex-1 rounded-none border-0 bg-transparent shadow-none"
+      value={
+        resolvedSuggestionIndex === null
+          ? undefined
+          : getSuggestionValue(flatSuggestions[resolvedSuggestionIndex])
+      }
+      shouldFilter={false}
+    >
+      <CommandList
+        ref={listViewportRef as React.RefObject<HTMLDivElement>}
+        className="flex-1 overflow-y-auto pt-1"
+      >
+        <CommandEmpty>
+          {mode === "settings"
+            ? "No settings found"
+            : mode === "databases"
+              ? "No databases found"
+              : "No tables found"}
+        </CommandEmpty>
+        {mode === "databases"
+          ? flatSuggestions.map((item) => renderSuggestionItem(item))
+          : flatSuggestions.length > 0 &&
+            Object.entries(groupedSuggestions).map(([group, items]) => (
+              <CommandGroup
+                key={group}
+                heading={group}
+                className="py-0 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[11px]"
+              >
+                {items.map((item) => renderSuggestionItem(item))}
+              </CommandGroup>
+            ))}
+      </CommandList>
+    </Command>
+  );
+}
+
 export const ChatInputSuggestions = React.memo(
   React.forwardRef<ChatInputSuggestionsType, ChatInputSuggestionsProps>(
     ({ onSelect, onInteractOutside, suggestions }, ref) => {
@@ -238,16 +407,20 @@ export const ChatInputSuggestions = React.memo(
         [suggestions.databases.length, suggestions.settings.length, suggestions.tables.length]
       );
 
+      const filteredResults = React.useMemo<SuggestionModeResults>(
+        () => ({
+          databases: filterNameSuggestions(suggestions.databases, query),
+          tables: filterTableSuggestions(suggestions.tables, query),
+          settings: filterNameSuggestions(suggestions.settings, query),
+        }),
+        [query, suggestions.databases, suggestions.settings, suggestions.tables]
+      );
+
       const visibleGroupItems = React.useMemo<SuggestionGroupItem[]>(() => {
         const normalizedQuery = query.trim().toLowerCase();
         return groupItems
           .map((item) => {
-            const matchCount =
-              item.mode === "databases"
-                ? filterNameSuggestions(suggestions.databases, query).flatSuggestions.length
-                : item.mode === "tables"
-                  ? filterTableSuggestions(suggestions.tables, query).flatSuggestions.length
-                  : filterNameSuggestions(suggestions.settings, query).flatSuggestions.length;
+            const matchCount = filteredResults[item.mode].flatSuggestions.length;
 
             return {
               ...item,
@@ -264,23 +437,17 @@ export const ChatInputSuggestions = React.memo(
               (item.matchCount ?? 0) > 0
             );
           });
-      }, [groupItems, query, suggestions.databases, suggestions.settings, suggestions.tables]);
+      }, [filteredResults, groupItems, query]);
 
       const currentSuggestions = React.useMemo(() => {
-        if (mode === "databases") {
-          return filterNameSuggestions(suggestions.databases, query);
-        }
-        if (mode === "tables") {
-          return filterTableSuggestions(suggestions.tables, query);
-        }
-        if (mode === "settings") {
-          return filterNameSuggestions(suggestions.settings, query);
+        if (mode !== "groups") {
+          return filteredResults[mode];
         }
         return {
           flatSuggestions: [],
           groupedSuggestions: {},
         } satisfies FilteredSuggestions;
-      }, [mode, query, suggestions.databases, suggestions.settings, suggestions.tables]);
+      }, [filteredResults, mode]);
 
       const flatSuggestions = currentSuggestions.flatSuggestions;
       const groupedSuggestions = currentSuggestions.groupedSuggestions;
@@ -290,9 +457,11 @@ export const ChatInputSuggestions = React.memo(
       React.useImperativeHandle(ref, () => ({
         open: (searchQuery: string) => {
           setQuery(searchQuery);
-          setActiveIndex(null);
           if (!openRef.current) {
             setMode("groups");
+            setActiveIndex(null);
+          } else if (mode === "groups") {
+            setActiveIndex(null);
           }
           setOpen(true);
         },
@@ -424,8 +593,22 @@ export const ChatInputSuggestions = React.memo(
       }, [activeIndex, open, mode]);
 
       React.useEffect(() => {
-        setActiveIndex(null);
-      }, [query]);
+        setActiveIndex((currentIndex) => {
+          if (mode === "groups") {
+            return null;
+          }
+
+          if (flatSuggestions.length === 0) {
+            return null;
+          }
+
+          if (currentIndex === null) {
+            return 0;
+          }
+
+          return Math.min(currentIndex, flatSuggestions.length - 1);
+        });
+      }, [flatSuggestions.length, mode, query]);
 
       React.useEffect(() => {
         if (mode !== "groups") {
@@ -450,46 +633,17 @@ export const ChatInputSuggestions = React.memo(
         [onSelect]
       );
 
+      const handleEnterGroup = React.useCallback((nextMode: Exclude<SuggestionMode, "groups">) => {
+        setMode(nextMode);
+        setActiveIndex(0);
+      }, []);
+
       const detailHeaderLabel =
-        mode === "settings" ? "ClickHouse Settings" : mode === "databases" ? "Databases" : "Tables";
+        mode === "settings" ? "Settings" : mode === "databases" ? "Databases" : "Tables";
       const description =
-        mode === "groups" || activeIndex === null
+        mode === "groups" || resolvedSuggestionIndex === null
           ? null
-          : flatSuggestions[Math.min(activeIndex, flatSuggestions.length - 1)]?.description;
-      const renderSuggestionItem = (item: FilteredSuggestionItem) => {
-        const isSelected = item.globalIndex === activeIndex;
-        return (
-          <CommandItem
-            key={`${item.type}.${item.group}.${item.name}`}
-            value={item.name}
-            onSelect={() => handleSelect(item)}
-            onMouseEnter={() => setActiveIndex(item.globalIndex)}
-            className={cn(
-              "flex w-full items-center gap-2 py-1 text-sm",
-              "pl-6 pr-2",
-              isSelected && "bg-accent text-accent-foreground"
-            )}
-            ref={isSelected ? activeItemRef : null}
-          >
-            <span className="min-w-0 flex-1 truncate">
-              {TextHighlighter.highlight2(
-                item.name,
-                item.matchStart,
-                item.matchStart >= 0 ? item.matchStart + item.matchLength : -1,
-                "text-yellow-500"
-              )}
-            </span>
-            {item.badge && (
-              <Badge
-                variant="outline"
-                className="border-0 px-1 py-0 text-[10px] text-muted-foreground"
-              >
-                {item.badge}
-              </Badge>
-            )}
-          </CommandItem>
-        );
-      };
+          : flatSuggestions[resolvedSuggestionIndex]?.description;
 
       return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -532,91 +686,27 @@ export const ChatInputSuggestions = React.memo(
                 )}
 
                 {mode === "groups" ? (
-                  <div
-                    ref={listViewportRef as React.RefObject<HTMLDivElement>}
-                    className="flex-1 overflow-y-auto py-1"
-                  >
-                    {visibleGroupItems.map((item, index) => {
-                      const Icon = item.icon;
-                      const isSelected = index === activeIndex;
-
-                      return (
-                        <button
-                          key={item.mode}
-                          type="button"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => {
-                            setMode(item.mode);
-                            setActiveIndex(0);
-                          }}
-                          onMouseEnter={() => setActiveIndex(index)}
-                          className={cn(
-                            "mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2 rounded-sm px-2 py-1 text-left",
-                            isSelected && "bg-accent text-accent-foreground"
-                          )}
-                          ref={
-                            isSelected
-                              ? (node) => {
-                                  activeItemRef.current = node;
-                                }
-                              : undefined
-                          }
-                        >
-                          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                          <div className="min-w-0 flex-1 truncate text-sm font-medium">
-                            {item.title}
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className="border-0 px-1 py-0 text-[10px] text-muted-foreground"
-                          >
-                            {query.trim() ? item.matchCount : item.count}
-                          </Badge>
-                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                        </button>
-                      );
-                    })}
-                    {visibleGroupItems.length === 0 ? (
-                      <div className="py-3 text-center text-sm text-muted-foreground">
-                        No suggestion groups found
-                      </div>
-                    ) : null}
-                  </div>
+                  <SuggestionGroupList
+                    items={visibleGroupItems}
+                    activeIndex={activeIndex}
+                    query={query}
+                    activeItemRef={activeItemRef}
+                    listViewportRef={listViewportRef}
+                    onActivate={setActiveIndex}
+                    onEnterGroup={handleEnterGroup}
+                  />
                 ) : (
-                  <Command
-                    className="flex-1 rounded-none border-0 bg-transparent shadow-none"
-                    value={
-                      resolvedSuggestionIndex === null
-                        ? undefined
-                        : flatSuggestions[resolvedSuggestionIndex]?.name
-                    }
-                    shouldFilter={false}
-                  >
-                    <CommandList
-                      ref={listViewportRef as React.RefObject<HTMLDivElement>}
-                      className="flex-1 overflow-y-auto pt-1"
-                    >
-                      <CommandEmpty>
-                        {mode === "settings"
-                          ? "No settings found"
-                          : mode === "databases"
-                            ? "No databases found"
-                            : "No tables found"}
-                      </CommandEmpty>
-                      {mode === "databases"
-                        ? flatSuggestions.map((item) => renderSuggestionItem(item))
-                        : flatSuggestions.length > 0 &&
-                          Object.entries(groupedSuggestions).map(([group, items]) => (
-                            <CommandGroup
-                              key={group}
-                              heading={group}
-                              className="py-0 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[11px]"
-                            >
-                              {items.map((item) => renderSuggestionItem(item))}
-                            </CommandGroup>
-                          ))}
-                    </CommandList>
-                  </Command>
+                  <SuggestionItemList
+                    mode={mode}
+                    flatSuggestions={flatSuggestions}
+                    groupedSuggestions={groupedSuggestions}
+                    activeIndex={activeIndex}
+                    resolvedSuggestionIndex={resolvedSuggestionIndex}
+                    activeItemRef={activeItemRef}
+                    listViewportRef={listViewportRef}
+                    onActivate={setActiveIndex}
+                    onSelect={handleSelect}
+                  />
                 )}
               </div>
 
