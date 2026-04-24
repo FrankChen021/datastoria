@@ -82,15 +82,19 @@ export class MentionContext {
   }
 
   static toContext(mentions: Mention[]): string {
-    const databases = mentions.filter((mention): mention is Extract<Mention, { kind: "database" }> => {
-      return mention.kind === "database";
-    });
+    const databases = mentions.filter(
+      (mention): mention is Extract<Mention, { kind: "database" }> => {
+        return mention.kind === "database";
+      }
+    );
     const tables = mentions.filter((mention): mention is Extract<Mention, { kind: "table" }> => {
       return mention.kind === "table";
     });
-    const settings = mentions.filter((mention): mention is Extract<Mention, { kind: "setting" }> => {
-      return mention.kind === "setting";
-    });
+    const settings = mentions.filter(
+      (mention): mention is Extract<Mention, { kind: "setting" }> => {
+        return mention.kind === "setting";
+      }
+    );
 
     const sections: string[] = ["[system-added context]"];
 
@@ -132,9 +136,7 @@ export class MentionContext {
 
       const mentionMetadata = (message.metadata as MessageMetadata | undefined)?.mentionMetadata;
       const validMentionMetadata =
-        mentionMetadata &&
-        mentionMetadata.version === 1 &&
-        Array.isArray(mentionMetadata.mentions)
+        mentionMetadata && mentionMetadata.version === 1 && Array.isArray(mentionMetadata.mentions)
           ? mentionMetadata
           : undefined;
       if (validMentionMetadata) {

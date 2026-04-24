@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/table";
 import { type JSONCompactFormatResponse, type QueryError } from "@/lib/connection/connection";
 import { toastManager } from "@/lib/toast";
-import { cn } from "@/lib/utils";
 import { AlertCircle, Check, Info, Plus, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {

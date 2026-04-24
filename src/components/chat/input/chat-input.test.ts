@@ -26,6 +26,7 @@ vi.mock("@/components/connection/connection-context", () => ({
             },
           ],
         ]),
+        clickhouseSettings: mockSettingsByName,
       },
     },
   }),
@@ -50,14 +51,6 @@ vi.mock("../agent-command-context", () => ({
         },
       ],
     ]),
-  }),
-}));
-
-vi.mock("../use-clickhouse-settings", () => ({
-  useClickHouseSettings: () => ({
-    settings: [],
-    settingsByName: mockSettingsByName,
-    isLoading: false,
   }),
 }));
 
@@ -279,7 +272,7 @@ describe("ChatInput inline tokens", () => {
       description: "Maximum number of execution threads.",
       value: "8",
       readonly: false,
-      source: "settings",
+      category: "settings",
     });
 
     act(() => {

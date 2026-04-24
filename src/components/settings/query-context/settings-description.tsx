@@ -1,7 +1,7 @@
 import { preprocessAdmonitions } from "@/lib/clickhouse/admonition-preprocessor";
 import { transformMarkdownLink } from "@/lib/clickhouse/clickhouse-docs-link";
 import { cn } from "@/lib/utils";
-import type { HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 
@@ -85,36 +85,8 @@ function sanitizeUnknownInlineTags(description: string): string {
 }
 
 export function normalizeSettingDescriptionMarkdown(description: string): string {
-  return preprocessAdmonitions(sanitizeUnknownInlineTags(transformSettingMarkdownLinks(description)));
-}
-
-function SettingInlineTag({
-  children,
-  className,
-  ...props
-}: {
-  children?: ReactNode;
-  className?: string;
-} & HTMLAttributes<HTMLElement>) {
-  return (
-    <code
-      {...props}
-      className={cn("bg-muted px-1 py-0.5 rounded text-xs font-mono", className)}
-    >
-      {children}
-    </code>
-  );
-}
-
-function InlineTagComponent({
-  children,
-  className,
-  ...props
-}: HTMLAttributes<HTMLElement> & { children?: ReactNode }) {
-  return (
-    <SettingInlineTag className={className} {...props}>
-      {children}
-    </SettingInlineTag>
+  return preprocessAdmonitions(
+    sanitizeUnknownInlineTags(transformSettingMarkdownLinks(description))
   );
 }
 
@@ -155,10 +127,7 @@ export function ClickHouseSettingDescription({
         className
       )}
     >
-      <ReactMarkdown
-        rehypePlugins={[rehypeRaw]}
-        components={markdownComponents}
-      >
+      <ReactMarkdown rehypePlugins={[rehypeRaw]} components={markdownComponents}>
         {descriptionMarkdown || "No description available."}
       </ReactMarkdown>
     </div>

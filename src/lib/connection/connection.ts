@@ -1,6 +1,6 @@
 import type { DependencyTableInfo } from "@/components/dependency-view/dependency-types";
 import { QueryContextManager } from "@/components/settings/query-context/query-context-manager";
-import type { ClickHouseSettingInfo } from "@/lib/clickhouse/clickhouse-settings";
+import type { ClickHouseSetting } from "@/lib/clickhouse/clickhouse-setting-loader";
 import type { ConnectionConfig } from "./connection-config";
 import { getAuthUser } from "./connection-private";
 
@@ -137,8 +137,7 @@ export interface ConnectionMetadata {
   profileEvents?: Set<string>;
 
   // Cached ClickHouse settings metadata used by chat suggestions and markdown hovers
-  clickhouseSettings?: Map<string, ClickHouseSettingInfo>;
-  clickhouseSettingsCacheVersion?: number;
+  clickhouseSettings: Map<string, ClickHouseSetting>;
 }
 
 const USER_CANCELLED_ERROR_MESSAGE = "User cancelled";
@@ -206,6 +205,7 @@ export class Connection {
 
       // Settings, Assume it's readonly by default in case we can't access the settings
       is_readonly_skip_unavailable_shards: true,
+      clickhouseSettings: new Map<string, ClickHouseSetting>(),
     };
   }
 

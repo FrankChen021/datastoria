@@ -173,6 +173,12 @@ export class QuerySuggestionManager {
      */
     const processCompletionItem = (eachRowObject: any) => {
       const type = eachRowObject[1];
+      const score =
+        type === "settings"
+          ? -60
+          : type === "server_settings" || type === "merge_tree_settings"
+            ? -100
+            : eachRowObject[2];
 
       let extraHtml = "";
       if (eachRowObject.length > 4 && eachRowObject[4] !== undefined) {
@@ -183,11 +189,11 @@ export class QuerySuggestionManager {
         caption: eachRowObject[0],
         value: eachRowObject[0],
         meta: type,
-        score: eachRowObject[2],
+        score,
         docHTML: QuerySuggestionManager.createDescriptionHTML(
           eachRowObject[0],
           eachRowObject[3] || "",
-          eachRowObject[1],
+          type,
           extraHtml
         ),
       };
@@ -201,10 +207,10 @@ export class QuerySuggestionManager {
 
       if (type === "format") {
         this.formatCompletion.push(completion);
-      } else if (type === "setting") {
+      } else if (type === "settings") {
         this.userSettingsCompletion.push(completion);
         this.allSettingsCompletion.push(completion);
-      } else if (type === "merge_tree_setting" || type === "server_setting") {
+      } else if (type === "merge_tree_settings" || type === "server_settings") {
         this.allSettingsCompletion.push(completion);
       } else if (type === "engine") {
         this.engineCompletion.push(completion);
@@ -319,64 +325,18 @@ SELECT * FROM (
         console.error("Failed to load data type completion data:", error);
       });
 
-    // Query 4: Settings
-    connection
-      .query(`SELECT name, 'setting', -60, description, value FROM system.settings ORDER BY name`, {
-        default_format: "JSONCompact",
-      })
-      .response.then((response) => {
-        const returnList = response.data.json<JSONCompactFormatResponse>().data;
-        returnList.forEach((eachRowObject: any) => {
-          if (eachRowObject.length > 4 && eachRowObject[4] !== undefined) {
-            eachRowObject[4] = `<div style="margin-top: 8px; font-weight: bold;">Current value: ${eachRowObject[4]}</div>`;
-          }
-          processCompletionItem(eachRowObject);
-        });
-      })
-      .catch((error) => {
-        console.error("Failed to load settings completion data:", error);
-      });
-
-    // Query 5: Merge Tree Settings
-    connection
-      .query(
-        `SELECT name, 'merge_tree_setting', -100, description, value FROM system.merge_tree_settings ORDER BY name`,
-        {
-          default_format: "JSONCompact",
-        }
-      )
-      .response.then((response) => {
-        const returnList = response.data.json<JSONCompactFormatResponse>().data;
-        returnList.forEach((eachRowObject: any) => {
-          if (eachRowObject.length > 4 && eachRowObject[4] !== undefined) {
-            eachRowObject[4] = `<div style="margin-top: 8px; font-weight: bold;">Current value: ${eachRowObject[4]}</div>`;
-          }
-          processCompletionItem(eachRowObject);
-        });
-      })
-      .catch((error) => {
-        console.error("Failed to load merge tree settings completion data:", error);
-      });
-
-    connection
-      .query(
-        `SELECT name, 'server_setting', -100, description, value FROM system.server_settings ORDER BY name`,
-        {
-          default_format: "JSONCompact",
-        }
-      )
-      .response.then((response) => {
-        const returnList = response.data.json<JSONCompactFormatResponse>().data;
-        returnList.forEach((eachRowObject: any) => {
-          if (eachRowObject.length > 4 && eachRowObject[4] !== undefined) {
-            eachRowObject[4] = `<div style="margin-top: 8px; font-weight: bold;">Current value: ${eachRowObject[4]}</div>`;
-          }
-          processCompletionItem(eachRowObject);
-        });
-      })
-      .catch((error) => {
-        console.error("Failed to load server tree settings completion data:", error);
-      });
+    // Query 4: Settings - loaded from connection metadata during initialization
+    if (connection.metadata.clickhouseSettings && connection.metadata.clickhouseSettings.size > 0) {
+      for (const settingInfo of connection.metadata.clickhouseSettings.values()) {
+        processCompletionItem([
+          settingInfo.name,
+          settingInfo.category,
+          0,
+          settingInfo.description,
+          `<div style="margin-top: 8px; font-weight: bold;">Current value: ${settingInfo.value}</div>`,
+        ]);
+      }
+    }
 
     // Query 6: Table Engines
     connection

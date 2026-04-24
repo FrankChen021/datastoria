@@ -12,6 +12,7 @@ vi.mock("@/components/connection/connection-context", () => ({
     connection: {
       metadata: {
         tableNames: new Map(),
+        clickhouseSettings: new Map(),
       },
     },
   }),
@@ -20,14 +21,6 @@ vi.mock("@/components/connection/connection-context", () => ({
 vi.mock("../agent-command-context", () => ({
   useAgentCommands: () => ({
     commands: [],
-  }),
-}));
-
-vi.mock("../use-clickhouse-settings", () => ({
-  useClickHouseSettings: () => ({
-    settings: [],
-    settingsByName: new Map(),
-    isLoading: false,
   }),
 }));
 

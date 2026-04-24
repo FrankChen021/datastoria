@@ -12,8 +12,8 @@ import {
   resolveModelConfig,
   resolveModelSupportsImageInput,
 } from "@/lib/ai/llm/llm-provider-factory";
-import { MessagePruner } from "@/lib/ai/message-pruner";
 import { MentionContext } from "@/lib/ai/mention-context";
+import { MessagePruner } from "@/lib/ai/message-pruner";
 import {
   hasCompletedToolOutputs,
   replaceOrAppendMessageById,

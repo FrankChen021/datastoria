@@ -84,10 +84,9 @@ function filterTableSuggestions(
   suggestions: ChatInputSuggestionItem[],
   query: string
 ): FilteredSuggestions {
-  const flatSuggestions: FilteredSuggestionItem[] = [];
+  const matchedSuggestions: Omit<FilteredSuggestionItem, "globalIndex">[] = [];
   const groupedSuggestions: Record<string, FilteredSuggestionItem[]> = {};
   const searchParts = query.toLowerCase().split(".");
-  let globalIndex = 0;
 
   for (const suggestionItem of suggestions) {
     let nameIndex = -1;
@@ -121,19 +120,32 @@ function filterTableSuggestions(
       groupedSuggestions[group] = [];
     }
 
-    const item: FilteredSuggestionItem = {
+    matchedSuggestions.push({
       ...suggestionItem,
-      globalIndex,
       matchStart: nameIndex,
       matchLength: nameLength,
-    };
-
-    flatSuggestions.push(item);
-    groupedSuggestions[group].push(item);
-    globalIndex++;
+    });
   }
 
-  return { flatSuggestions, groupedSuggestions };
+  const flatSuggestions = matchedSuggestions.map((item, globalIndex) => ({
+    ...item,
+    globalIndex,
+  }));
+
+  for (const item of flatSuggestions) {
+    const group = item.group || "Global";
+    if (!groupedSuggestions[group]) {
+      groupedSuggestions[group] = [];
+    }
+    groupedSuggestions[group].push(item);
+  }
+
+  const orderedFlatSuggestions = Object.values(groupedSuggestions).flat();
+  orderedFlatSuggestions.forEach((item, globalIndex) => {
+    item.globalIndex = globalIndex;
+  });
+
+  return { flatSuggestions: orderedFlatSuggestions, groupedSuggestions };
 }
 
 function filterNameSuggestions(
@@ -141,8 +153,7 @@ function filterNameSuggestions(
   query: string
 ): FilteredSuggestions {
   const normalizedQuery = query.trim().toLowerCase();
-  const flatSuggestions: FilteredSuggestionItem[] = [];
-  let globalIndex = 0;
+  const matchedSuggestions: Omit<FilteredSuggestionItem, "globalIndex">[] = [];
 
   for (const suggestionItem of suggestions) {
     const nameIndex = normalizedQuery
@@ -153,28 +164,38 @@ function filterNameSuggestions(
       continue;
     }
 
-    flatSuggestions.push({
+    matchedSuggestions.push({
       ...suggestionItem,
-      globalIndex,
       matchStart: nameIndex,
       matchLength: normalizedQuery.length,
     });
-    globalIndex++;
   }
 
+  const flatSuggestions = matchedSuggestions.map((item, globalIndex) => ({
+    ...item,
+    globalIndex,
+  }));
+
+  const groupedSuggestions = flatSuggestions.reduce<Record<string, FilteredSuggestionItem[]>>(
+    (result, item) => {
+      const group = item.group || "default";
+      if (!result[group]) {
+        result[group] = [];
+      }
+      result[group].push(item);
+      return result;
+    },
+    {}
+  );
+
+  const orderedFlatSuggestions = Object.values(groupedSuggestions).flat();
+  orderedFlatSuggestions.forEach((item, globalIndex) => {
+    item.globalIndex = globalIndex;
+  });
+
   return {
-    flatSuggestions,
-    groupedSuggestions: flatSuggestions.reduce<Record<string, FilteredSuggestionItem[]>>(
-      (result, item) => {
-        const group = item.group || "default";
-        if (!result[group]) {
-          result[group] = [];
-        }
-        result[group].push(item);
-        return result;
-      },
-      {}
-    ),
+    flatSuggestions: orderedFlatSuggestions,
+    groupedSuggestions,
   };
 }
 
@@ -209,7 +230,7 @@ export const ChatInputSuggestions = React.memo(
           },
           {
             mode: "settings",
-            title: "ClickHouse Settings",
+            title: "Settings",
             icon: Settings2,
             count: suggestions.settings.length,
           },
@@ -263,10 +284,8 @@ export const ChatInputSuggestions = React.memo(
 
       const flatSuggestions = currentSuggestions.flatSuggestions;
       const groupedSuggestions = currentSuggestions.groupedSuggestions;
-      const resolvedGroupIndex =
-        activeIndex ?? (visibleGroupItems.length === 1 ? 0 : null);
-      const resolvedSuggestionIndex =
-        activeIndex ?? (flatSuggestions.length === 1 ? 0 : null);
+      const resolvedGroupIndex = activeIndex ?? (visibleGroupItems.length === 1 ? 0 : null);
+      const resolvedSuggestionIndex = activeIndex ?? (flatSuggestions.length === 1 ? 0 : null);
 
       React.useImperativeHandle(ref, () => ({
         open: (searchQuery: string) => {
@@ -307,11 +326,10 @@ export const ChatInputSuggestions = React.memo(
                 return true;
               }
               if (e.key === "ArrowUp") {
-                setActiveIndex(
-                  (prev) =>
-                    prev === null
-                      ? visibleGroupItems.length - 1
-                      : (prev - 1 + visibleGroupItems.length) % visibleGroupItems.length
+                setActiveIndex((prev) =>
+                  prev === null
+                    ? visibleGroupItems.length - 1
+                    : (prev - 1 + visibleGroupItems.length) % visibleGroupItems.length
                 );
                 e.preventDefault();
                 e.stopPropagation();
@@ -326,14 +344,14 @@ export const ChatInputSuggestions = React.memo(
                 e.preventDefault();
                 e.stopPropagation();
                 setMode(visibleGroupItems[resolvedGroupIndex].mode);
-                setActiveIndex(null);
+                setActiveIndex(0);
                 return true;
               }
               if (e.key === "ArrowRight" && resolvedGroupIndex !== null) {
                 e.preventDefault();
                 e.stopPropagation();
                 setMode(visibleGroupItems[resolvedGroupIndex].mode);
-                setActiveIndex(null);
+                setActiveIndex(0);
                 return true;
               }
             }
@@ -356,11 +374,10 @@ export const ChatInputSuggestions = React.memo(
               return true;
             }
             if (e.key === "ArrowUp") {
-              setActiveIndex(
-                (prev) =>
-                  prev === null
-                    ? flatSuggestions.length - 1
-                    : (prev - 1 + flatSuggestions.length) % flatSuggestions.length
+              setActiveIndex((prev) =>
+                prev === null
+                  ? flatSuggestions.length - 1
+                  : (prev - 1 + flatSuggestions.length) % flatSuggestions.length
               );
               e.preventDefault();
               e.stopPropagation();
@@ -408,7 +425,7 @@ export const ChatInputSuggestions = React.memo(
 
       React.useEffect(() => {
         setActiveIndex(null);
-      }, [mode, query]);
+      }, [query]);
 
       React.useEffect(() => {
         if (mode !== "groups") {
@@ -515,7 +532,10 @@ export const ChatInputSuggestions = React.memo(
                 )}
 
                 {mode === "groups" ? (
-                  <div ref={listViewportRef as React.RefObject<HTMLDivElement>} className="flex-1 overflow-y-auto py-1">
+                  <div
+                    ref={listViewportRef as React.RefObject<HTMLDivElement>}
+                    className="flex-1 overflow-y-auto py-1"
+                  >
                     {visibleGroupItems.map((item, index) => {
                       const Icon = item.icon;
                       const isSelected = index === activeIndex;
@@ -527,7 +547,7 @@ export const ChatInputSuggestions = React.memo(
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
                             setMode(item.mode);
-                            setActiveIndex(null);
+                            setActiveIndex(0);
                           }}
                           onMouseEnter={() => setActiveIndex(index)}
                           className={cn(
@@ -563,16 +583,19 @@ export const ChatInputSuggestions = React.memo(
                     ) : null}
                   </div>
                 ) : (
-                    <Command
-                      className="flex-1 rounded-none border-0 bg-transparent shadow-none"
-                      value={
-                        resolvedSuggestionIndex === null
-                          ? undefined
-                          : flatSuggestions[resolvedSuggestionIndex]?.name
-                      }
-                      shouldFilter={false}
+                  <Command
+                    className="flex-1 rounded-none border-0 bg-transparent shadow-none"
+                    value={
+                      resolvedSuggestionIndex === null
+                        ? undefined
+                        : flatSuggestions[resolvedSuggestionIndex]?.name
+                    }
+                    shouldFilter={false}
+                  >
+                    <CommandList
+                      ref={listViewportRef as React.RefObject<HTMLDivElement>}
+                      className="flex-1 overflow-y-auto pt-1"
                     >
-                    <CommandList ref={listViewportRef as React.RefObject<HTMLDivElement>} className="flex-1 overflow-y-auto pt-1">
                       <CommandEmpty>
                         {mode === "settings"
                           ? "No settings found"
@@ -583,15 +606,15 @@ export const ChatInputSuggestions = React.memo(
                       {mode === "databases"
                         ? flatSuggestions.map((item) => renderSuggestionItem(item))
                         : flatSuggestions.length > 0 &&
-                        Object.entries(groupedSuggestions).map(([group, items]) => (
-                          <CommandGroup
-                            key={group}
-                            heading={group}
-                            className="py-0 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[11px]"
-                          >
-                            {items.map((item) => renderSuggestionItem(item))}
-                          </CommandGroup>
-                        ))}
+                          Object.entries(groupedSuggestions).map(([group, items]) => (
+                            <CommandGroup
+                              key={group}
+                              heading={group}
+                              className="py-0 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[11px]"
+                            >
+                              {items.map((item) => renderSuggestionItem(item))}
+                            </CommandGroup>
+                          ))}
                     </CommandList>
                   </Command>
                 )}

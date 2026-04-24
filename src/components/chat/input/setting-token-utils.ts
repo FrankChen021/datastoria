@@ -1,4 +1,4 @@
-import type { ClickHouseSettingInfo } from "@/lib/clickhouse/clickhouse-settings";
+import type { ClickHouseSetting } from "@/lib/clickhouse/clickhouse-setting-loader";
 
 export const SETTING_INLINE_CODE_REGEX = /`([A-Za-z_][\w]*)`(?=[\s?!.,;:)\]}]|$)/g;
 
@@ -7,12 +7,12 @@ export interface SettingTokenMatch {
   text: string;
   start: number;
   end: number;
-  setting: ClickHouseSettingInfo;
+  setting: ClickHouseSetting;
 }
 
 export function getSettingTokenMatches(
   text: string,
-  settingsByName: Map<string, ClickHouseSettingInfo>
+  settingsByName: Map<string, ClickHouseSetting>
 ): SettingTokenMatch[] {
   const regex = new RegExp(SETTING_INLINE_CODE_REGEX.source, SETTING_INLINE_CODE_REGEX.flags);
   const matches: SettingTokenMatch[] = [];

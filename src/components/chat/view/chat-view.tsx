@@ -73,9 +73,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     async ({ text, files = [] }: { text: string; files?: ChatInputImageAttachment[] }) => {
       if (!chat || (!text.trim() && files.length === 0)) return;
 
-      const mentionMetadata = connection
-        ? MentionContext.toMetadata(text, connection)
-        : undefined;
+      const mentionMetadata = connection ? MentionContext.toMetadata(text, connection) : undefined;
       const createdAt = Date.now();
       const messageId = uuidv7();
 

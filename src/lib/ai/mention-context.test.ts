@@ -105,8 +105,7 @@ describe("MentionContext.inject", () => {
     expect(secondUserMessage.parts).toEqual([
       {
         type: "text",
-        text:
-          "what columns does it have?\n\n[system-added context]\nMentioned tables:\n- system.query_log (engine: MergeTree)",
+        text: "what columns does it have?\n\n[system-added context]\nMentioned tables:\n- system.query_log (engine: MergeTree)",
       },
     ]);
   });

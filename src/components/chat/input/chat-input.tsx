@@ -1,7 +1,11 @@
 "use client";
 
+import {
+  DatabaseDescription,
+  SettingDescription,
+  TableDescription,
+} from "@/components/chat/mention-descriptions";
 import { useConnection } from "@/components/connection/connection-context";
-import { ClickHouseSettingDescription } from "@/components/settings/query-context/settings-description";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,14 +16,14 @@ import {
 import { useModelConfig } from "@/hooks/use-model-config";
 import type { CommandDetail } from "@/lib/ai/commands/command-manager";
 import { resolveModelSupportsImageInput } from "@/lib/ai/llm/llm-provider-factory";
-import type { ClickHouseSettingInfo } from "@/lib/clickhouse/clickhouse-settings";
+import type { ClickHouseSetting } from "@/lib/clickhouse/clickhouse-setting-loader";
+import type { DatabaseInfo, TableInfo } from "@/lib/connection/connection";
 import { cn } from "@/lib/utils";
 import type { LanguageModelUsage } from "ai";
 import { ImagePlus, MessageSquarePlus, Plus, Send, Square, X } from "lucide-react";
 import * as React from "react";
 import { useAgentCommands } from "../agent-command-context";
 import { ChatTokenStatus } from "../message/chat-token-status";
-import { useClickHouseSettings } from "../use-clickhouse-settings";
 import type { ChatComposerInput } from "../view/use-chat-panel";
 import { ChatInputCommands, type ChatInputCommandsType } from "./chat-input-commands";
 import {
@@ -110,7 +114,7 @@ type TokenSegment =
 
 type RenderSegment = { kind: "text"; text: string; start: number; end: number } | TokenSegment;
 type HoveredCodeToken = {
-  kind: "sqlSnippet" | "setting";
+  kind: "sqlSnippet" | "setting" | "database" | "table";
   rect: { top: number; left: number; width: number; height: number };
 } & (
   | {
@@ -119,7 +123,15 @@ type HoveredCodeToken = {
     }
   | {
       kind: "setting";
-      setting: ClickHouseSettingInfo;
+      setting: ClickHouseSetting;
+    }
+  | {
+      kind: "database";
+      database: DatabaseInfo;
+    }
+  | {
+      kind: "table";
+      table: TableInfo;
     }
 );
 
@@ -190,11 +202,7 @@ function createTokenNodeSegment(
   const icon = documentRef.createElement("span");
   icon.className = "shrink-0";
   icon.textContent =
-    segment.kind === "command"
-      ? "/"
-      : segment.kind === "sqlSnippet"
-        ? "SQL:"
-        : "@";
+    segment.kind === "command" ? "/" : segment.kind === "sqlSnippet" ? "SQL:" : "@";
 
   const label = documentRef.createElement("span");
   label.className = "max-w-[240px] truncate font-medium";
@@ -221,7 +229,7 @@ function createTokenNodeSegment(
   });
 
   if (
-    (segment.kind === "sqlSnippet" || segment.kind === "setting") &&
+    (segment.kind === "sqlSnippet" || segment.kind === "setting" || segment.kind === "mention") &&
     options?.onHoverStart &&
     options?.onHoverEnd
   ) {
@@ -433,44 +441,12 @@ function TokenHoverCard({
         <pre className="max-h-48 overflow-auto rounded-sm bg-muted/50 p-2 text-xs text-foreground">
           <code>{hoveredToken.code}</code>
         </pre>
+      ) : hoveredToken.kind === "table" ? (
+        <TableDescription table={hoveredToken.table} className="space-y-2 text-[11px]" />
+      ) : hoveredToken.kind === "database" ? (
+        <DatabaseDescription database={hoveredToken.database} className="space-y-2 text-[11px]" />
       ) : (
-        <div className="space-y-2 text-[11px]">
-          <div>
-            <div className="text-muted-foreground mb-0.5">Setting</div>
-            <div className="text-foreground whitespace-pre-wrap break-all">
-              {hoveredToken.setting.name}
-            </div>
-          </div>
-          <div>
-            <div className="text-muted-foreground mb-0.5">Type</div>
-            <div className="text-foreground whitespace-pre-wrap break-all">
-              {hoveredToken.setting.type}
-            </div>
-          </div>
-          <div>
-            <div className="text-muted-foreground mb-0.5">Current value</div>
-            <div className="text-foreground whitespace-pre-wrap break-all">
-              {hoveredToken.setting.value}
-            </div>
-          </div>
-          <div>
-            <div className="text-muted-foreground mb-0.5">ReadOnly</div>
-            <div className="text-foreground whitespace-pre-wrap break-all">
-              {hoveredToken.setting.readonly === null
-                ? "-"
-                : hoveredToken.setting.readonly
-                  ? "Yes"
-                  : "No"}
-            </div>
-          </div>
-          <div>
-            <div className="text-muted-foreground mb-0.5">Description</div>
-            <ClickHouseSettingDescription
-              descriptionMarkdown={hoveredToken.setting.description}
-              className="text-[11px] [&_.admonition]:my-1 [&_p]:mb-1 [&_ul]:mb-1 [&_ol]:mb-1"
-            />
-          </div>
-        </div>
+        <SettingDescription setting={hoveredToken.setting} />
       )}
     </div>
   );
@@ -479,10 +455,8 @@ function TokenHoverCard({
 function buildRenderSegments(
   input: string,
   command: CommandDetail | null,
-  databaseNames:
-    | Map<string, { name: string; engine: string; comment?: string | null }>
-    | undefined,
-  settingsByName: Map<string, ClickHouseSettingInfo>
+  databaseNames: Map<string, { name: string; engine: string; comment?: string | null }> | undefined,
+  settingsByName: Map<string, ClickHouseSetting>
 ): RenderSegment[] {
   const tokenSegments: TokenSegment[] = [];
 
@@ -519,7 +493,9 @@ function buildRenderSegments(
 
   for (const setting of getSettingTokenMatches(input, settingsByName)) {
     if (
-      tokenSegments.some((segment) => segment.start === setting.start && segment.end === setting.end)
+      tokenSegments.some(
+        (segment) => segment.start === setting.start && segment.end === setting.end
+      )
     ) {
       continue;
     }
@@ -613,8 +589,14 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const [suggestionStartPos, setSuggestionStartPos] = React.useState(0);
 
     const { connection } = useConnection();
-    const { settings: clickHouseSettings, settingsByName: clickHouseSettingsByName } =
-      useClickHouseSettings();
+    const clickHouseSettingsByName = React.useMemo(
+      () => connection?.metadata.clickhouseSettings ?? new Map<string, ClickHouseSetting>(),
+      [connection?.metadata?.clickhouseSettings]
+    );
+    const clickHouseSettings = React.useMemo(
+      () => Array.from(clickHouseSettingsByName.values()),
+      [clickHouseSettingsByName]
+    );
     const { commands, commandsByName } = useAgentCommands();
     const { selectedModel } = useModelConfig();
     const isResizable = resizedHeight !== null;
@@ -917,41 +899,16 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const tableSuggestions = React.useMemo((): ChatInputSuggestionItem[] => {
       if (!connection?.metadata?.tableNames) return [];
       return Array.from(connection.metadata.tableNames.values()).map((tableInfo) => {
-        const database = tableInfo.database || "";
         const table = tableInfo.table || "";
-        const engine = tableInfo.engine || "";
 
-        const description = (
-          <div className="space-y-3 text-xs">
-            <div>
-              <div className="text-muted-foreground mb-0.5">Database</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">{database || "-"}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground mb-0.5">Table</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">{table}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground mb-0.5">Engine</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">{engine || "-"}</div>
-            </div>
-            {tableInfo.comment ? (
-              <div>
-                <div className="text-muted-foreground mb-0.5">Comment</div>
-                <div className="text-foreground whitespace-pre-wrap break-all">
-                  {tableInfo.comment}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        );
+        const description = <TableDescription table={tableInfo} />;
 
         return {
           name: table,
           type: "table",
           description,
           search: table,
-          group: database || "Global",
+          group: tableInfo.database || "Global",
         } satisfies ChatInputSuggestionItem;
       });
     }, [connection?.metadata?.tableNames]);
@@ -959,30 +916,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     const databaseSuggestions = React.useMemo((): ChatInputSuggestionItem[] => {
       if (!connection?.metadata?.databaseNames) return [];
       return Array.from(connection.metadata.databaseNames.values()).map((databaseInfo) => {
-        const description = (
-          <div className="space-y-3 text-xs">
-            <div>
-              <div className="text-muted-foreground mb-0.5">Database</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">
-                {databaseInfo.name}
-              </div>
-            </div>
-            <div>
-              <div className="text-muted-foreground mb-0.5">Engine</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">
-                {databaseInfo.engine}
-              </div>
-            </div>
-            {databaseInfo.comment ? (
-              <div>
-                <div className="text-muted-foreground mb-0.5">Comment</div>
-                <div className="text-foreground whitespace-pre-wrap break-all">
-                  {databaseInfo.comment}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        );
+        const description = <DatabaseDescription database={databaseInfo} />;
 
         return {
           name: databaseInfo.name,
@@ -996,41 +930,14 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
     const settingSuggestions = React.useMemo((): ChatInputSuggestionItem[] => {
       return clickHouseSettings.map((setting) => {
-        const readonlyLabel = setting.readonly === null ? "-" : setting.readonly ? "Yes" : "No";
-        const description = (
-          <div className="space-y-2 text-[11px]">
-            <div>
-              <div className="text-muted-foreground mb-0.5">Setting</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">{setting.name}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground mb-0.5">Type</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">{setting.type}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground mb-0.5">Current value</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">{setting.value}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground mb-0.5">ReadOnly</div>
-              <div className="text-foreground whitespace-pre-wrap break-all">{readonlyLabel}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground mb-0.5">Description</div>
-              <ClickHouseSettingDescription
-                descriptionMarkdown={setting.description}
-                className="text-[11px] [&_.admonition]:my-1 [&_p]:mb-1 [&_ul]:mb-1 [&_ol]:mb-1"
-              />
-            </div>
-          </div>
-        );
+        const description = <SettingDescription setting={setting} />;
 
         return {
           name: setting.name,
           type: "setting",
           description,
           search: `${setting.name} ${setting.type} ${setting.description}`,
-          group: setting.source,
+          group: setting.category,
         } satisfies ChatInputSuggestionItem;
       });
     }, [clickHouseSettings]);
@@ -1155,18 +1062,38 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                 code: segment.sql,
                 rect,
               }
-            : segment.kind === "setting"
+            : segment.kind === "mention"
               ? (() => {
-                  const setting = clickHouseSettingsByName.get(segment.label);
-                  return setting
+                  const table = connection?.metadata?.tableNames?.get(segment.label);
+                  if (table) {
+                    return {
+                      kind: "table" as const,
+                      table,
+                      rect,
+                    } satisfies HoveredCodeToken;
+                  }
+
+                  const database = connection?.metadata?.databaseNames?.get(segment.label);
+                  return database
                     ? ({
-                        kind: "setting" as const,
-                        setting,
+                        kind: "database" as const,
+                        database,
                         rect,
                       } satisfies HoveredCodeToken)
                     : null;
                 })()
-              : null;
+              : segment.kind === "setting"
+                ? (() => {
+                    const setting = clickHouseSettingsByName.get(segment.label);
+                    return setting
+                      ? ({
+                          kind: "setting" as const,
+                          setting,
+                          rect,
+                        } satisfies HoveredCodeToken)
+                      : null;
+                  })()
+                : null;
 
         if (!nextHoveredCodeToken) {
           return;
@@ -1177,7 +1104,13 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
           hoveredCodeTokenOpenTimeoutRef.current = null;
         }, TOKEN_HOVER_CARD_OPEN_DELAY_MS);
       },
-      [clickHouseSettingsByName, clearHoveredCodeTokenCloseTimeout, clearHoveredCodeTokenOpenTimeout]
+      [
+        clickHouseSettingsByName,
+        clearHoveredCodeTokenCloseTimeout,
+        clearHoveredCodeTokenOpenTimeout,
+        connection?.metadata?.databaseNames,
+        connection?.metadata?.tableNames,
+      ]
     );
 
     const handleCodeTokenHoverEnd = React.useCallback(
@@ -1488,7 +1421,14 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
 
         return false;
       },
-      [clearHoveredCodeTokenState, input, leadingCommand, selectedCommand, setInputAndSelection]
+      [
+        clearHoveredCodeTokenState,
+        connection?.metadata?.databaseNames,
+        input,
+        leadingCommand,
+        selectedCommand,
+        setInputAndSelection,
+      ]
     );
 
     const handleKeyDown = React.useCallback(

@@ -12,31 +12,24 @@ const vizlayerSpy = vi.fn();
 const syntaxHighlighterSpy = vi.fn();
 const openNodeTabButtonSpy = vi.fn();
 const mockConnectionState: {
-  connection: { metadata?: { hostNames?: Set<string> } } | null;
+  connection: {
+    metadata?: {
+      hostNames?: Set<string>;
+      clickhouseSettings?: Map<
+        string,
+        {
+          name: string;
+          type: string;
+          description: string;
+          value: string;
+          readonly: boolean | null;
+          category: string;
+        }
+      >;
+    };
+  } | null;
 } = {
   connection: null,
-};
-const mockSettingsState = {
-  settings: [] as Array<{
-    name: string;
-    type: string;
-    description: string;
-    value: string;
-    readonly: boolean | null;
-    source: string;
-  }>,
-  settingsByName: new Map<
-    string,
-    {
-      name: string;
-      type: string;
-      description: string;
-      value: string;
-      readonly: boolean | null;
-      source: string;
-    }
-  >(),
-  isLoading: false,
 };
 
 vi.mock("@/components/connection/connection-context", () => ({
@@ -45,10 +38,6 @@ vi.mock("@/components/connection/connection-context", () => ({
 
 vi.mock("@/components/settings/settings-dialog", () => ({
   showSettingsDialog: vi.fn(),
-}));
-
-vi.mock("@/components/chat/use-clickhouse-settings", () => ({
-  useClickHouseSettings: () => mockSettingsState,
 }));
 
 vi.mock("@/components/table-tab/open-database-tab-button", () => ({
@@ -116,8 +105,6 @@ describe("MessageMarkdown", () => {
     syntaxHighlighterSpy.mockReset();
     openNodeTabButtonSpy.mockReset();
     mockConnectionState.connection = null;
-    mockSettingsState.settings = [];
-    mockSettingsState.settingsByName = new Map();
   });
 
   afterEach(() => {
@@ -298,10 +285,13 @@ describe("MessageMarkdown", () => {
       description: "Controls the maximum number of query execution threads.",
       value: "8",
       readonly: false,
-      source: "settings",
+      category: "settings",
     };
-    mockSettingsState.settings = [setting];
-    mockSettingsState.settingsByName = new Map([["max_threads", setting]]);
+    mockConnectionState.connection = {
+      metadata: {
+        clickhouseSettings: new Map([["max_threads", setting]]),
+      },
+    };
 
     act(() => {
       root.render(<MessageMarkdown text={"Use `max_threads` for this query"} />);
