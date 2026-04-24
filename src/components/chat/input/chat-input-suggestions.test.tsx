@@ -5,7 +5,35 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ChatInputSuggestionItem, ChatInputSuggestionsType } from "./chat-input-suggestions";
+
+interface ChatInputSuggestionItem {
+  name: string;
+  type: "database" | "table" | "setting";
+  description: React.ReactNode;
+  search: string;
+  badge?: string;
+  group: string;
+}
+
+interface ChatInputSuggestionsType {
+  open: (searchQuery: string) => void;
+  close: () => void;
+  isOpen: () => boolean;
+  getSelectedIndex: () => number;
+  getSuggestions: () => ChatInputSuggestionItem[];
+  handleKeyDown: (e: React.KeyboardEvent) => boolean;
+}
+
+type ChatInputSuggestionsComponent = React.ForwardRefExoticComponent<
+  {
+    onSelect: (item: ChatInputSuggestionItem) => void;
+    suggestions: {
+      databases: ChatInputSuggestionItem[];
+      tables: ChatInputSuggestionItem[];
+      settings: ChatInputSuggestionItem[];
+    };
+  } & React.RefAttributes<ChatInputSuggestionsType>
+>;
 
 vi.mock("@/components/ui/command", async () => {
   const React = await import("react");
@@ -65,7 +93,7 @@ vi.mock("@/components/ui/command", async () => {
 });
 
 describe("ChatInputSuggestions", () => {
-  let ChatInputSuggestions: (typeof import("./chat-input-suggestions"))["ChatInputSuggestions"];
+  let ChatInputSuggestions: ChatInputSuggestionsComponent;
   let container: HTMLDivElement;
   let root: Root;
   let ref: React.RefObject<ChatInputSuggestionsType | null>;
@@ -96,7 +124,8 @@ describe("ChatInputSuggestions", () => {
   };
 
   beforeEach(async () => {
-    ({ ChatInputSuggestions } = await import("./chat-input-suggestions"));
+    ({ ChatInputSuggestions } =
+      (await import("./chat-input-suggestions")) as typeof import("./chat-input-suggestions"));
     (
       globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
