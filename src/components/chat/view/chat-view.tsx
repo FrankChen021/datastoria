@@ -6,7 +6,15 @@ import { MentionContext } from "@/lib/ai/mention-context";
 import "@/lib/number-utils"; // Ensure formatTimeDiff is available
 
 import { useChat, type Chat } from "@ai-sdk/react";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { v7 as uuidv7 } from "uuid";
 import { ChatActionProvider, type UserActionInput } from "../chat-action-context";
 import { ChatContext, getDatabaseContextFromConnection } from "../chat-context";
@@ -20,6 +28,20 @@ import { ChatMessageList } from "../message/chat-message-list";
 import { SampleQuestions } from "./sample-questions";
 import { type ChatComposerInput } from "./use-chat-panel";
 import { useTokenUsage } from "./use-token-usage";
+
+const CHAT_STREAM_UPDATE_THROTTLE_MS = 50;
+
+function useStableCallback<Args extends unknown[], Return>(
+  callback: (...args: Args) => Return
+): (...args: Args) => Return {
+  const callbackRef = useRef(callback);
+
+  useLayoutEffect(() => {
+    callbackRef.current = callback;
+  });
+
+  return useCallback((...args: Args) => callbackRef.current(...args), []);
+}
 
 interface ChatViewProps {
   chat: Chat<AppUIMessage>;
@@ -53,7 +75,10 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     }
     setPromptInput(undefined);
   }, [chat.id, externalInput]);
-  const { messages, error, sendMessage, status, stop } = useChat({ chat });
+  const { messages, error, sendMessage, status, stop } = useChat({
+    chat,
+    experimental_throttle: CHAT_STREAM_UPDATE_THROTTLE_MS,
+  });
 
   // Focus input when ChatView is mounted
   useEffect(() => {
@@ -69,7 +94,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     onStreamingChange?.(status === "streaming" || status === "submitted");
   }, [status, onStreamingChange]);
 
-  const handleSubmit = useCallback(
+  const handleSubmit = useStableCallback(
     async ({ text, files = [] }: { text: string; files?: ChatInputImageAttachment[] }) => {
       if (!chat || (!text.trim() && files.length === 0)) return;
 
@@ -99,8 +124,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
           ...(mentionMetadata ? { mentionMetadata } : {}),
         },
       });
-    },
-    [chat, sendMessage, connection, currentDatabase]
+    }
   );
 
   // Expose send and getInput to parent component via imperative handle
@@ -122,7 +146,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
 
   const isRunning = status === "streaming" || status === "submitted";
 
-  const tokenUsage = useTokenUsage(messages as AppUIMessage[]);
+  const tokenUsage = useTokenUsage(isRunning ? undefined : (messages as AppUIMessage[]));
 
   const isEmpty = !messages || messages.length === 0;
 
@@ -130,7 +154,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     return { text, mode: "replace", nonce: ++promptInputNonceRef.current };
   }, []);
 
-  const handleQuestionClick = useCallback(
+  const handleQuestionClick = useStableCallback(
     (question: { text: string; autoRun?: boolean }) => {
       if (question.autoRun) {
         // Auto-run: send the message immediately
@@ -139,36 +163,37 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
         // Default: set the input for user to review/edit
         setPromptInput(createPromptInput(question.text));
       }
-    },
-    [createPromptInput, handleSubmit]
+    }
   );
 
-  const handleUserAction = useCallback(
+  const handleUserAction = useStableCallback(
     (input: UserActionInput) => {
       if (input.autoRun) {
         handleSubmit({ text: input.text });
         return;
       }
       setPromptInput(createPromptInput(input.text));
-    },
-    [createPromptInput, handleSubmit]
+    }
   );
 
-  const handleStop = useCallback(() => {
+  const handleStop = useStableCallback(() => {
     ChatFactory.stopClientTools(chat.id);
     stop();
-  }, [chat.id, stop]);
+  });
+
+  const handleToolOutput = useStableCallback(
+    ({ tool, toolCallId, output }: { tool: string; toolCallId: string; output: unknown }) =>
+      chat.addToolOutput({
+        tool: tool as never,
+        toolCallId,
+        output: output as never,
+      })
+  );
 
   return (
     <ChatActionProvider
       onAction={handleUserAction}
-      onToolOutput={({ tool, toolCallId, output }) =>
-        chat.addToolOutput({
-          tool: tool as never,
-          toolCallId,
-          output: output as never,
-        })
-      }
+      onToolOutput={handleToolOutput}
       chatId={chat.id}
     >
       <div className="flex flex-col h-full bg-background overflow-hidden relative">

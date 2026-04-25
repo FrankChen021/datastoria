@@ -81,6 +81,10 @@ export interface ChatInputHandle {
   focus: () => void;
 }
 
+interface ChatInputContentProps extends ChatInputProps {
+  forwardedRef: React.ForwardedRef<ChatInputHandle>;
+}
+
 type TokenSegment =
   | {
       kind: "command";
@@ -550,11 +554,17 @@ function buildRenderSegments(
   return segments.filter((segment) => segment.kind !== "text" || segment.text.length > 0);
 }
 
-export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
-  (
-    { onSubmit, onStop, isRunning, hasMessages = false, tokenUsage, onNewChat, externalInput },
-    ref
-  ) => {
+const ChatInputContent = React.memo(
+  function ChatInputContent({
+    onSubmit,
+    onStop,
+    isRunning,
+    hasMessages = false,
+    tokenUsage,
+    onNewChat,
+    externalInput,
+    forwardedRef,
+  }: ChatInputContentProps) {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const editorRef = React.useRef<HTMLDivElement>(null);
     const editorScrollRef = React.useRef<HTMLDivElement>(null);
@@ -1492,7 +1502,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     );
 
     React.useImperativeHandle(
-      ref,
+      forwardedRef,
       () => ({
         getInput: () => input,
         focus: () => {
@@ -1708,6 +1718,23 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
         </div>
       </div>
     );
+  },
+  (prevProps, nextProps) =>
+    prevProps.onSubmit === nextProps.onSubmit &&
+    prevProps.onStop === nextProps.onStop &&
+    prevProps.isRunning === nextProps.isRunning &&
+    prevProps.hasMessages === nextProps.hasMessages &&
+    prevProps.tokenUsage === nextProps.tokenUsage &&
+    prevProps.onNewChat === nextProps.onNewChat &&
+    prevProps.externalInput === nextProps.externalInput &&
+    prevProps.forwardedRef === nextProps.forwardedRef
+);
+
+ChatInputContent.displayName = "ChatInputContent";
+
+export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
+  function ChatInput(props, ref) {
+    return <ChatInputContent {...props} forwardedRef={ref} />;
   }
 );
 
