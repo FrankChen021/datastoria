@@ -269,7 +269,8 @@ const ChatMessagePart = memo(
     if (prevProps.part.type === "reasoning" && nextProps.part.type === "reasoning") {
       return (
         prevProps.part.text === nextProps.part.text &&
-        (prevProps.part as { state?: string }).state === (nextProps.part as { state?: string }).state
+        (prevProps.part as { state?: string }).state ===
+          (nextProps.part as { state?: string }).state
       );
     }
 

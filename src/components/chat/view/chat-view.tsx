@@ -154,27 +154,23 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
     return { text, mode: "replace", nonce: ++promptInputNonceRef.current };
   }, []);
 
-  const handleQuestionClick = useStableCallback(
-    (question: { text: string; autoRun?: boolean }) => {
-      if (question.autoRun) {
-        // Auto-run: send the message immediately
-        handleSubmit({ text: question.text });
-      } else {
-        // Default: set the input for user to review/edit
-        setPromptInput(createPromptInput(question.text));
-      }
+  const handleQuestionClick = useStableCallback((question: { text: string; autoRun?: boolean }) => {
+    if (question.autoRun) {
+      // Auto-run: send the message immediately
+      handleSubmit({ text: question.text });
+    } else {
+      // Default: set the input for user to review/edit
+      setPromptInput(createPromptInput(question.text));
     }
-  );
+  });
 
-  const handleUserAction = useStableCallback(
-    (input: UserActionInput) => {
-      if (input.autoRun) {
-        handleSubmit({ text: input.text });
-        return;
-      }
-      setPromptInput(createPromptInput(input.text));
+  const handleUserAction = useStableCallback((input: UserActionInput) => {
+    if (input.autoRun) {
+      handleSubmit({ text: input.text });
+      return;
     }
-  );
+    setPromptInput(createPromptInput(input.text));
+  });
 
   const handleStop = useStableCallback(() => {
     ChatFactory.stopClientTools(chat.id);
