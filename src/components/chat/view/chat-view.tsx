@@ -38,7 +38,7 @@ function useStableCallback<Args extends unknown[], Return>(
 
   useLayoutEffect(() => {
     callbackRef.current = callback;
-  });
+  }, [callback]);
 
   return useCallback((...args: Args) => callbackRef.current(...args), []);
 }

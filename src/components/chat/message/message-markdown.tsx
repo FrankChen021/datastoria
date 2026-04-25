@@ -49,6 +49,7 @@ interface MessageMarkdownProps {
   showExecuteButton?: boolean;
   showSqlActions?: boolean;
   resolveMetadataLinks?: boolean;
+  renderLinks?: boolean;
   /**
    * Allow expandable SQL blocks inside markdown. Default: false.
    */
@@ -101,6 +102,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   showExecuteButton = true,
   showSqlActions = true,
   resolveMetadataLinks = true,
+  renderLinks = true,
   expandable = false,
 }: MessageMarkdownProps) {
   const { connection } = useConnection();
@@ -291,6 +293,10 @@ export const MessageMarkdown = memo(function MessageMarkdown({
         return <pre {...props}>{children}</pre>;
       },
       a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+        if (!renderLinks) {
+          return <span>{children}</span>;
+        }
+
         if (href?.startsWith("skill://")) {
           const skillId = href.replace("skill://", "");
           const trigger = (
@@ -449,6 +455,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
       codeBlockStyle,
       customStyle,
       expandable,
+      renderLinks,
       resolveMetadataLinks,
       showExecuteButton,
       showSqlActions,

@@ -16,14 +16,22 @@ export const MessageReasoning = memo(function MessageReasoning({
     return null;
   }
 
+  const isStreaming = part.state !== undefined && part.state !== "done";
+  if (isStreaming) {
+    return (
+      <div className="whitespace-pre-wrap break-words text-[10px] leading-[1.45]">{part.text}</div>
+    );
+  }
+
   return (
-    <div className="text-[12px] [&_.prose]:text-[12px] [&_.prose_*]:text-[12px]">
+    <div className="text-[10px] [&_.prose]:text-[10px] [&_.prose_*]:text-[10px]">
       <MessageMarkdown
         text={part.text}
         customStyle={REASONING_MARKDOWN_STYLE}
         showExecuteButton={false}
         showSqlActions={false}
         resolveMetadataLinks={false}
+        renderLinks={false}
       />
     </div>
   );

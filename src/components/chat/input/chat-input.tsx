@@ -104,6 +104,20 @@ function useChatInputRuntime() {
   return React.useContext(ChatInputRuntimeContext);
 }
 
+interface ChatInputEditorElementProps {
+  editorRef: React.Ref<HTMLDivElement>;
+  isResizable: boolean;
+  style?: React.CSSProperties;
+  onCompositionStart: React.CompositionEventHandler<HTMLDivElement>;
+  onCompositionEnd: React.CompositionEventHandler<HTMLDivElement>;
+  onInput: React.FormEventHandler<HTMLDivElement>;
+  onKeyDown: React.KeyboardEventHandler<HTMLDivElement>;
+  onKeyUp: React.KeyboardEventHandler<HTMLDivElement>;
+  onMouseUp: React.MouseEventHandler<HTMLDivElement>;
+  onFocus: React.FocusEventHandler<HTMLDivElement>;
+  onPaste: React.ClipboardEventHandler<HTMLDivElement>;
+}
+
 type TokenSegment =
   | {
       kind: "command";
@@ -584,7 +598,6 @@ const ChatInputContent = React.memo(
     const editorRef = React.useRef<HTMLDivElement>(null);
     const editorScrollRef = React.useRef<HTMLDivElement>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
-    const attachmentTriggerRef = React.useRef<HTMLButtonElement>(null);
     const suggestionRef = React.useRef<ChatInputSuggestionsType>(null);
     const commandRef = React.useRef<ChatInputCommandsType>(null);
     const dragStateRef = React.useRef<{
@@ -1593,17 +1606,9 @@ const ChatInputContent = React.memo(
                     </div>
                   )}
 
-                  <div
-                    ref={editorRef}
-                    role="textbox"
-                    aria-multiline="true"
-                    aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to open table or setting suggestions, / for commands."
-                    contentEditable
-                    suppressContentEditableWarning
-                    className={cn(
-                      "w-full bg-transparent py-3 pl-3 pr-10 text-sm outline-none whitespace-pre-wrap break-words",
-                      isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px]"
-                    )}
+                  <ChatInputEditorElement
+                    editorRef={editorRef}
+                    isResizable={isResizable}
                     style={isResizable ? { minHeight: `${EDITOR_MIN_HEIGHT}px` } : undefined}
                     onCompositionStart={handleCompositionStart}
                     onCompositionEnd={handleCompositionEnd}
@@ -1613,7 +1618,7 @@ const ChatInputContent = React.memo(
                     onMouseUp={syncSelectionState}
                     onFocus={syncSelectionState}
                     onPaste={handlePaste}
-                  ></div>
+                  />
                 </div>
               </div>
               {attachments.length > 0 && (
@@ -1654,27 +1659,11 @@ const ChatInputContent = React.memo(
                   className="hidden"
                   onChange={handleFileInputChange}
                 />
-                <ChatInputRuntimeDomState
-                  editorRef={editorRef}
-                  attachmentTriggerRef={attachmentTriggerRef}
-                />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button
-                      ref={attachmentTriggerRef}
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="h-6 w-6 rounded-md"
-                      title={
-                        selectedModelSupportsImages
-                          ? "Add attachment"
-                          : "Select a vision-capable model to add images"
-                      }
-                      aria-label="Add attachment"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </Button>
+                    <ChatInputAttachmentTrigger
+                      selectedModelSupportsImages={selectedModelSupportsImages}
+                    />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" side="top" className="w-32 p-1">
                     <DropdownMenuItem
@@ -1706,26 +1695,76 @@ const ChatInputContent = React.memo(
 
 ChatInputContent.displayName = "ChatInputContent";
 
-const ChatInputRuntimeDomState = React.memo(function ChatInputRuntimeDomState({
+const ChatInputEditorElement = React.memo(function ChatInputEditorElement({
   editorRef,
-  attachmentTriggerRef,
-}: {
-  editorRef: React.RefObject<HTMLDivElement | null>;
-  attachmentTriggerRef: React.RefObject<HTMLButtonElement | null>;
-}) {
+  isResizable,
+  style,
+  onCompositionStart,
+  onCompositionEnd,
+  onInput,
+  onKeyDown,
+  onKeyUp,
+  onMouseUp,
+  onFocus,
+  onPaste,
+}: ChatInputEditorElementProps) {
   const { isRunning } = useChatInputRuntime();
 
-  React.useLayoutEffect(() => {
-    if (editorRef.current) {
-      editorRef.current.contentEditable = String(!isRunning);
-    }
-    if (attachmentTriggerRef.current) {
-      attachmentTriggerRef.current.disabled = isRunning;
-    }
-  }, [attachmentTriggerRef, editorRef, isRunning]);
-
-  return null;
+  return (
+    <div
+      ref={editorRef}
+      role="textbox"
+      aria-multiline="true"
+      aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to open table or setting suggestions, / for commands."
+      contentEditable={!isRunning}
+      suppressContentEditableWarning
+      className={cn(
+        "w-full bg-transparent py-3 pl-3 pr-10 text-sm outline-none whitespace-pre-wrap break-words",
+        isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px]"
+      )}
+      style={style}
+      onCompositionStart={onCompositionStart}
+      onCompositionEnd={onCompositionEnd}
+      onInput={onInput}
+      onKeyDown={onKeyDown}
+      onKeyUp={onKeyUp}
+      onMouseUp={onMouseUp}
+      onFocus={onFocus}
+      onPaste={onPaste}
+    />
+  );
 });
+
+const ChatInputAttachmentTrigger = React.memo(
+  React.forwardRef<
+    HTMLButtonElement,
+    React.ComponentPropsWithoutRef<typeof Button> & { selectedModelSupportsImages: boolean }
+  >(function ChatInputAttachmentTrigger({ selectedModelSupportsImages, className, ...props }, ref) {
+    const { isRunning } = useChatInputRuntime();
+
+    return (
+      <Button
+        {...props}
+        ref={ref}
+        type="button"
+        size="icon"
+        variant="ghost"
+        className={cn("h-6 w-6 rounded-md", className)}
+        title={
+          selectedModelSupportsImages
+            ? "Add attachment"
+            : "Select a vision-capable model to add images"
+        }
+        aria-label="Add attachment"
+        disabled={isRunning}
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </Button>
+    );
+  })
+);
+
+ChatInputAttachmentTrigger.displayName = "ChatInputAttachmentTrigger";
 
 const ChatInputFooterStatus = React.memo(function ChatInputFooterStatus({
   onNewChat,
