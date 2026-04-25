@@ -95,7 +95,7 @@ function ModelCommandItem({
 }: ModelCommandItemProps) {
   return (
     <CommandItem
-      value={`${model.provider} ${model.modelId}`}
+      value={showProvider ? `${model.provider} ${model.modelId}` : model.modelId}
       onSelect={() => onSelect({ provider: model.provider, modelId: model.modelId })}
       className="m-1 text-xs cursor-pointer py-0.5"
     >
@@ -352,7 +352,7 @@ export function ModelSelectorImpl({
               iconClassName="h-3 w-3"
             />
             {(providerEntries.length > 0 || sortedModels.length > 0) && (
-              <div className="flex items-center justify-between px-2 py-1.5 shrink-0">
+              <div className="flex items-center justify-between px-2 pt-1.5 shrink-0">
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                   <Layers className="h-3 w-3 opacity-50" />
                   <span>Group by provider</span>
@@ -366,7 +366,10 @@ export function ModelSelectorImpl({
             )}
             <CommandList
               id="model-list"
-              className="min-h-0 flex-1 overflow-y-auto [&_[cmdk-list-sizer]]:max-h-none"
+              className={cn(
+                "min-h-0 flex-1 overflow-y-auto [&_[cmdk-list-sizer]]:max-h-none",
+                groupByProvider && "[&_[cmdk-list-sizer]]:pt-1"
+              )}
             >
               <CommandEmpty className="h-[32px] py-2 text-center text-[10px]">
                 No model found.
@@ -377,7 +380,7 @@ export function ModelSelectorImpl({
                     <CommandGroup
                       key={provider}
                       heading={provider}
-                      className="[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:py-0 py-0"
+                      className="py-0 [&_[cmdk-group-heading]]:py-0 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-items]]:pt-0"
                     >
                       {models.map((model) => (
                         <ModelCommandItem

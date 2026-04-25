@@ -73,6 +73,19 @@ If you have your API keys, you can configure your models in the settings.`,
     this.notify();
   }
 
+  public setDynamicModelsForProvider(provider: string, models: ModelProps[]): void {
+    const nextModels = [
+      ...this.dynamicModels.filter((model) => model.provider !== provider),
+      ...models,
+    ];
+    if (JSON.stringify(this.dynamicModels) === JSON.stringify(nextModels)) {
+      return;
+    }
+
+    this.dynamicModels = nextModels;
+    this.notify();
+  }
+
   public setSystemModels(models: ModelProps[], notify = true): void {
     const normalized = models.map((model) => ({
       ...model,

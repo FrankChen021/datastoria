@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import { useModelConfig } from "@/hooks/use-model-config";
 import { resolveModelSupportsImageInput, type ModelProps } from "@/lib/ai/llm/llm-provider-factory";
-import { PROVIDER_GITHUB_COPILOT } from "@/lib/ai/llm/provider-ids";
+import { PROVIDER_GITHUB_COPILOT, PROVIDER_OPENAI_CODEX } from "@/lib/ai/llm/provider-ids";
 import { TextHighlighter } from "@/lib/text-highlighter";
 import {
   AlertCircle,
@@ -32,6 +32,7 @@ import {
   X,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import { CodexLoginComponent } from "./codex-login-component";
 import { GitHubLoginComponent } from "./github-login-component";
 
 const PROVIDER_LINKS: Record<string, string> = {
@@ -42,7 +43,10 @@ const PROVIDER_LINKS: Record<string, string> = {
   Groq: "https://console.groq.com/keys",
   Cerebras: "https://cloud.cerebras.ai/platform",
   Nebius: "https://tokenfactory.nebius.com/",
+  [PROVIDER_OPENAI_CODEX]: "https://developers.openai.com/codex/auth",
 };
+
+const LOGIN_PROVIDERS = new Set([PROVIDER_GITHUB_COPILOT, PROVIDER_OPENAI_CODEX]);
 
 export function ModelsEdit() {
   const { allModels, modelSettings, providerSettings, fetchDynamicModels } = useModelConfig();
@@ -132,11 +136,13 @@ export function ModelsEdit() {
     );
 
     const entries = Object.entries(grouped);
-    const hasCopilot = entries.some(([provider]) => provider === PROVIDER_GITHUB_COPILOT);
-    if (!hasCopilot) {
-      const copilotLabel = PROVIDER_GITHUB_COPILOT.toLowerCase();
-      if (!queryLower.trim() || copilotLabel.includes(queryLower)) {
-        entries.push([PROVIDER_GITHUB_COPILOT, [] as ModelSetting[]]);
+    for (const loginProvider of LOGIN_PROVIDERS) {
+      const hasProvider = entries.some(([provider]) => provider === loginProvider);
+      if (!hasProvider) {
+        const providerLabel = loginProvider.toLowerCase();
+        if (!queryLower.trim() || providerLabel.includes(queryLower)) {
+          entries.push([loginProvider, [] as ModelSetting[]]);
+        }
       }
     }
 
@@ -149,6 +155,7 @@ export function ModelsEdit() {
       title: "Login with GitHub Copilot",
       description: "Authorize this application to access your GitHub Copilot models.",
       className: "w-full max-w-[600px] sm:max-w-[600px]",
+      overlayClassName: "bg-black/70 backdrop-blur-sm",
       mainContent: (
         <GitHubLoginComponent
           onSuccess={(tokens) => {
@@ -167,7 +174,29 @@ export function ModelsEdit() {
           }}
         />
       ),
-      disableBackdrop: true,
+    });
+  };
+
+  const handleCodexLogin = async () => {
+    SharedDialog.showDialog({
+      title: "Login with OpenAI Codex",
+      description: "Authorize this application to access Codex with your ChatGPT subscription.",
+      className: "w-full max-w-[760px] sm:max-w-[760px]",
+      overlayClassName: "bg-black/70 backdrop-blur-sm",
+      mainContent: (
+        <CodexLoginComponent
+          onSuccess={(tokens) => {
+            modelManager.updateProviderSetting(PROVIDER_OPENAI_CODEX, {
+              apiKey: tokens.accessToken,
+              refreshToken: tokens.refreshToken,
+              accessTokenExpiresAt: tokens.accessTokenExpiresAt,
+              refreshTokenExpiresAt: tokens.refreshTokenExpiresAt,
+              authError: undefined,
+            });
+            SharedDialog.close();
+          }}
+        />
+      ),
     });
   };
 
@@ -297,8 +326,8 @@ export function ModelsEdit() {
                             />
                             <span className="font-semibold text-sm">{provider}</span>
                             <span className="text-xs text-muted-foreground">
-                              {provider === PROVIDER_GITHUB_COPILOT && !providerSetting?.apiKey
-                                ? "(Login to view available models)"
+                              {LOGIN_PROVIDERS.has(provider) && !providerSetting?.apiKey
+                                ? "(Login to use models)"
                                 : hasSystemModels
                                   ? `(${providerModels.length} ${
                                       providerModels.length === 1 ? "model" : "models"
@@ -325,16 +354,22 @@ export function ModelsEdit() {
                                 <ExternalLink className="h-4 w-4" />
                               </a>
                             )}
-                            {provider === PROVIDER_GITHUB_COPILOT && (
+                            {LOGIN_PROVIDERS.has(provider) && (
                               <div className="flex items-center gap-2 min-w-0">
                                 {!providerSetting?.apiKey ? (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={handleCopilotLogin}
+                                    onClick={
+                                      provider === PROVIDER_GITHUB_COPILOT
+                                        ? handleCopilotLogin
+                                        : handleCodexLogin
+                                    }
                                     className="h-7 text-xs"
                                   >
-                                    Login with Copilot
+                                    {provider === PROVIDER_GITHUB_COPILOT
+                                      ? "Login with Copilot"
+                                      : "Login with Codex"}
                                   </Button>
                                 ) : (
                                   <StatusPopover
@@ -356,8 +391,8 @@ export function ModelsEdit() {
                                     title="Confirm logout"
                                   >
                                     <div className="text-xs mb-3">
-                                      This will clear your local Copilot tokens. You'll need to log
-                                      in again to use Copilot models.
+                                      This will clear your local {provider} tokens. You'll need to
+                                      log in again to use {provider} models.
                                     </div>
                                     <div className="flex justify-end gap-2">
                                       <Button
@@ -390,7 +425,7 @@ export function ModelsEdit() {
                                 )}
                               </div>
                             )}
-                            {provider !== PROVIDER_GITHUB_COPILOT && (
+                            {!LOGIN_PROVIDERS.has(provider) && (
                               <div className="flex items-center gap-1 flex-1 ">
                                 <>
                                   <Input

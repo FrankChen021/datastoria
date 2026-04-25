@@ -9,7 +9,7 @@ import { createGitHubCopilotOpenAICompatible } from "@opeoginni/github-copilot-o
 import type { LanguageModel } from "ai";
 import { PRIVATE_MODELS, PRIVATE_PROVIDERS } from "./llm-provider-factory-private";
 import { mockModel } from "./models.mock";
-import { PROVIDER_GITHUB_COPILOT, PROVIDER_NEBIUS } from "./provider-ids";
+import { PROVIDER_GITHUB_COPILOT, PROVIDER_NEBIUS, PROVIDER_OPENAI_CODEX } from "./provider-ids";
 
 /**
  * Check if mock mode is enabled
@@ -35,7 +35,51 @@ export interface ModelProps {
   disabled?: boolean;
   supportedEndpoints?: string[];
   supportsImageInput?: boolean;
+  supportsTemperature?: boolean;
+  supportsReasoning?: boolean;
   source?: ModelSource;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | undefined {
+  const payload = token.split(".")[1];
+  if (!payload) return undefined;
+
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
+    const decoded = globalThis.atob(padded);
+    const bytes = Uint8Array.from(decoded, (char) => char.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
+export function extractCodexAccountId(token: string): string | undefined {
+  const payload = decodeJwtPayload(token);
+  if (!payload) return undefined;
+
+  const authClaim = payload["https://api.openai.com/auth"];
+  if (authClaim && typeof authClaim === "object") {
+    const auth = authClaim as Record<string, unknown>;
+    if (typeof auth.chatgpt_account_id === "string") return auth.chatgpt_account_id;
+    if (typeof auth.account_id === "string") return auth.account_id;
+
+    const organizations = auth.organizations;
+    if (Array.isArray(organizations)) {
+      const organization = organizations.find(
+        (candidate): candidate is Record<string, unknown> =>
+          Boolean(candidate) && typeof candidate === "object" && typeof candidate.id === "string"
+      );
+      if (typeof organization?.id === "string") return organization.id;
+    }
+  }
+
+  if (typeof payload.chatgpt_account_id === "string") return payload.chatgpt_account_id;
+  if (typeof payload.account_id === "string") return payload.account_id;
+  if (typeof payload.sub === "string") return payload.sub;
+
+  return undefined;
 }
 
 export function resolveModelSupportsImageInput(
@@ -145,6 +189,18 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
       })(modelId);
     },
   },
+  [PROVIDER_OPENAI_CODEX]: {
+    create: (modelId, apiKey) => {
+      const accountId = extractCodexAccountId(apiKey);
+      return createOpenAI({
+        apiKey,
+        baseURL: "https://chatgpt.com/backend-api/codex",
+        headers: {
+          ...(accountId ? { "chatgpt-account-id": accountId } : {}),
+        },
+      })(modelId);
+    },
+  },
   [PROVIDER_NEBIUS]: {
     create: (modelId, apiKey) =>
       createOpenAICompatible({
@@ -167,6 +223,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     supportsImageInput: true,
+    supportsReasoning: true,
     description: "Next-generation frontier model from OpenAI.",
     source: "user",
   },
@@ -176,6 +233,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     supportsImageInput: true,
+    supportsReasoning: true,
     description: "Enhanced version of GPT-5 with improved reasoning capabilities.",
     source: "user",
   },
@@ -216,6 +274,7 @@ export const MODELS: ModelProps[] = [
     modelId: "o1",
     free: false,
     supportsImageInput: true,
+    supportsReasoning: true,
     description: "OpenAI's latest reasoning model, optimized for chain-of-thought.",
     source: "user",
   },
@@ -224,6 +283,7 @@ export const MODELS: ModelProps[] = [
     modelId: "o3-mini",
     free: false,
     supportsImageInput: false,
+    supportsReasoning: true,
     description: "Optimized version of OpenAI's reasoning models for fast responses.",
     source: "user",
   },
@@ -448,6 +508,78 @@ export const MODELS: ModelProps[] = [
     description: "GPT-OSS 120B, open-source GPT model with strong general capabilities.",
     source: "user",
   },
+  {
+    provider: PROVIDER_OPENAI_CODEX,
+    modelId: "gpt-5.5",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsTemperature: false,
+    supportsReasoning: true,
+    supportedEndpoints: ["responses"],
+    description: "Codex model accessed with ChatGPT/Codex subscription authentication.",
+    source: "user",
+  },
+  {
+    provider: PROVIDER_OPENAI_CODEX,
+    modelId: "gpt-5.4",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsTemperature: false,
+    supportsReasoning: true,
+    supportedEndpoints: ["responses"],
+    description: "Codex model accessed with ChatGPT/Codex subscription authentication.",
+    source: "user",
+  },
+  {
+    provider: PROVIDER_OPENAI_CODEX,
+    modelId: "gpt-5.4-mini",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsTemperature: false,
+    supportsReasoning: true,
+    supportedEndpoints: ["responses"],
+    description: "Lower-cost Codex model accessed with ChatGPT/Codex subscription authentication.",
+    source: "user",
+  },
+  {
+    provider: PROVIDER_OPENAI_CODEX,
+    modelId: "gpt-5.3-codex",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsTemperature: false,
+    supportsReasoning: true,
+    supportedEndpoints: ["responses"],
+    description: "Codex model accessed with ChatGPT/Codex subscription authentication.",
+    source: "user",
+  },
+  {
+    provider: PROVIDER_OPENAI_CODEX,
+    modelId: "gpt-5.3-codex-spark",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: false,
+    supportsTemperature: false,
+    supportsReasoning: true,
+    supportedEndpoints: ["responses"],
+    description: "Text-only Codex model accessed with ChatGPT/Codex subscription authentication.",
+    source: "user",
+  },
+  {
+    provider: PROVIDER_OPENAI_CODEX,
+    modelId: "gpt-5.2",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsTemperature: false,
+    supportsReasoning: true,
+    supportedEndpoints: ["responses"],
+    description: "Codex model accessed with ChatGPT/Codex subscription authentication.",
+    source: "user",
+  },
 ];
 
 function getSystemProviderApiKey(provider: string): string | undefined {
@@ -516,7 +648,14 @@ export class LanguageModelProviderFactory {
    * @param modelId - The model ID to get default temperature for
    * @returns The default temperature value for the model
    */
-  static getDefaultTemperature(modelId: string): number {
+  static getDefaultTemperature(modelId: string, provider?: string): number | undefined {
+    const modelProps = MODELS.find(
+      (model) => model.modelId === modelId && (!provider || model.provider === provider)
+    );
+    if (modelProps?.supportsTemperature === false) {
+      return undefined;
+    }
+
     // Models that require temperature = 1
     if (modelId.includes("gpt-5-nano") || modelId.includes("gpt-5-mini")) {
       return 1;
@@ -637,5 +776,12 @@ export class LanguageModelProviderFactory {
 
   static supportsStructuredOutputs(provider: string, modelId: string): boolean {
     return !MODELS_WITHOUT_STRUCTURED_OUTPUTS.has(`${provider}:${modelId}`);
+  }
+
+  static supportsReasoning(provider: string, modelId: string): boolean {
+    return (
+      MODELS.find((model) => model.provider === provider && model.modelId === modelId)
+        ?.supportsReasoning === true
+    );
   }
 }
