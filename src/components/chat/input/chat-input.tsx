@@ -81,6 +81,43 @@ export interface ChatInputHandle {
   focus: () => void;
 }
 
+interface ChatInputContentProps {
+  onSubmit: ChatInputProps["onSubmit"];
+  onNewChat?: ChatInputProps["onNewChat"];
+  externalInput?: ChatInputProps["externalInput"];
+  forwardedRef: React.ForwardedRef<ChatInputHandle>;
+}
+
+interface ChatInputRuntimeValue {
+  isRunning: boolean;
+  hasMessages: boolean;
+  tokenUsage?: LanguageModelUsage;
+  onStop?: () => void;
+}
+
+const ChatInputRuntimeContext = React.createContext<ChatInputRuntimeValue>({
+  isRunning: false,
+  hasMessages: false,
+});
+
+function useChatInputRuntime() {
+  return React.useContext(ChatInputRuntimeContext);
+}
+
+interface ChatInputEditorElementProps {
+  editorRef: React.Ref<HTMLDivElement>;
+  isResizable: boolean;
+  style?: React.CSSProperties;
+  onCompositionStart: React.CompositionEventHandler<HTMLDivElement>;
+  onCompositionEnd: React.CompositionEventHandler<HTMLDivElement>;
+  onInput: React.FormEventHandler<HTMLDivElement>;
+  onKeyDown: React.KeyboardEventHandler<HTMLDivElement>;
+  onKeyUp: React.KeyboardEventHandler<HTMLDivElement>;
+  onMouseUp: React.MouseEventHandler<HTMLDivElement>;
+  onFocus: React.FocusEventHandler<HTMLDivElement>;
+  onPaste: React.ClipboardEventHandler<HTMLDivElement>;
+}
+
 type TokenSegment =
   | {
       kind: "command";
@@ -550,11 +587,13 @@ function buildRenderSegments(
   return segments.filter((segment) => segment.kind !== "text" || segment.text.length > 0);
 }
 
-export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
-  (
-    { onSubmit, onStop, isRunning, hasMessages = false, tokenUsage, onNewChat, externalInput },
-    ref
-  ) => {
+const ChatInputContent = React.memo(
+  function ChatInputContent({
+    onSubmit,
+    onNewChat,
+    externalInput,
+    forwardedRef,
+  }: ChatInputContentProps) {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const editorRef = React.useRef<HTMLDivElement>(null);
     const editorScrollRef = React.useRef<HTMLDivElement>(null);
@@ -895,10 +934,6 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
       onNewChat?.();
       editorRef.current?.focus();
     }, [onNewChat]);
-
-    const handleStopChat = React.useCallback(() => {
-      onStop?.();
-    }, [onStop]);
 
     React.useEffect(() => {
       editorRef.current?.focus();
@@ -1492,7 +1527,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
     );
 
     React.useImperativeHandle(
-      ref,
+      forwardedRef,
       () => ({
         getInput: () => input,
         focus: () => {
@@ -1571,17 +1606,9 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                     </div>
                   )}
 
-                  <div
-                    ref={editorRef}
-                    role="textbox"
-                    aria-multiline="true"
-                    aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to open table or setting suggestions, / for commands."
-                    contentEditable={!isRunning}
-                    suppressContentEditableWarning
-                    className={cn(
-                      "w-full bg-transparent py-3 pl-3 pr-10 text-sm outline-none whitespace-pre-wrap break-words",
-                      isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px]"
-                    )}
+                  <ChatInputEditorElement
+                    editorRef={editorRef}
+                    isResizable={isResizable}
                     style={isResizable ? { minHeight: `${EDITOR_MIN_HEIGHT}px` } : undefined}
                     onCompositionStart={handleCompositionStart}
                     onCompositionEnd={handleCompositionEnd}
@@ -1591,7 +1618,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                     onMouseUp={syncSelectionState}
                     onFocus={syncSelectionState}
                     onPaste={handlePaste}
-                  ></div>
+                  />
                 </div>
               </div>
               {attachments.length > 0 && (
@@ -1634,21 +1661,9 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                 />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="h-6 w-6 rounded-md"
-                      title={
-                        selectedModelSupportsImages
-                          ? "Add attachment"
-                          : "Select a vision-capable model to add images"
-                      }
-                      aria-label="Add attachment"
-                      disabled={isRunning}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </Button>
+                    <ChatInputAttachmentTrigger
+                      selectedModelSupportsImages={selectedModelSupportsImages}
+                    />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" side="top" className="w-32 p-1">
                     <DropdownMenuItem
@@ -1662,53 +1677,182 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <ModelSelector className="bg-muted" />
-                {hasMessages && (
-                  <>
-                    {onNewChat && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 gap-1 px-2 text-xs"
-                        title="Start New Chat"
-                        onClick={handleNewChat}
-                      >
-                        <MessageSquarePlus className="h-3 w-3" />
-                        New
-                      </Button>
-                    )}
-                    {tokenUsage && <ChatTokenStatus usage={tokenUsage} />}
-                  </>
-                )}
+                <ChatInputFooterStatus onNewChat={onNewChat ? handleNewChat : undefined} />
               </div>
-              {isRunning ? (
-                <Button
-                  onClick={handleStopChat}
-                  size="icon"
-                  variant="destructive"
-                  className="h-6 w-6 rounded-md shadow-sm"
-                  aria-label="Stop generating"
-                  title="Stop generating"
-                >
-                  <Square className="h-3.5 w-3.5" />
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!canSubmit}
-                  size="icon"
-                  className="h-6 w-6 rounded-md shadow-sm"
-                  aria-label="Send message"
-                  title={`Send (${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"}+Enter)`}
-                >
-                  <Send className="h-3.5 w-3.5" />
-                </Button>
-              )}
+              <ChatInputSubmitButton canSubmit={canSubmit} onSubmit={handleSubmit} />
             </div>
           </div>
         </div>
       </div>
     );
-  }
+  },
+  (prevProps, nextProps) =>
+    prevProps.onSubmit === nextProps.onSubmit &&
+    prevProps.onNewChat === nextProps.onNewChat &&
+    prevProps.externalInput === nextProps.externalInput &&
+    prevProps.forwardedRef === nextProps.forwardedRef
 );
+
+ChatInputContent.displayName = "ChatInputContent";
+
+const ChatInputEditorElement = React.memo(function ChatInputEditorElement({
+  editorRef,
+  isResizable,
+  style,
+  onCompositionStart,
+  onCompositionEnd,
+  onInput,
+  onKeyDown,
+  onKeyUp,
+  onMouseUp,
+  onFocus,
+  onPaste,
+}: ChatInputEditorElementProps) {
+  const { isRunning } = useChatInputRuntime();
+
+  return (
+    <div
+      ref={editorRef}
+      role="textbox"
+      aria-multiline="true"
+      aria-label="Chat input. Press Enter for new line, use Cmd/Ctrl + Enter to send. Use @ to open table or setting suggestions, / for commands."
+      contentEditable={!isRunning}
+      suppressContentEditableWarning
+      className={cn(
+        "w-full bg-transparent py-3 pl-3 pr-10 text-sm outline-none whitespace-pre-wrap break-words",
+        isResizable ? "h-full min-h-0 flex-1 max-h-none" : "min-h-[80px]"
+      )}
+      style={style}
+      onCompositionStart={onCompositionStart}
+      onCompositionEnd={onCompositionEnd}
+      onInput={onInput}
+      onKeyDown={onKeyDown}
+      onKeyUp={onKeyUp}
+      onMouseUp={onMouseUp}
+      onFocus={onFocus}
+      onPaste={onPaste}
+    />
+  );
+});
+
+const ChatInputAttachmentTrigger = React.memo(
+  React.forwardRef<
+    HTMLButtonElement,
+    React.ComponentPropsWithoutRef<typeof Button> & { selectedModelSupportsImages: boolean }
+  >(function ChatInputAttachmentTrigger({ selectedModelSupportsImages, className, ...props }, ref) {
+    const { isRunning } = useChatInputRuntime();
+
+    return (
+      <Button
+        {...props}
+        ref={ref}
+        type="button"
+        size="icon"
+        variant="ghost"
+        className={cn("h-6 w-6 rounded-md", className)}
+        title={
+          selectedModelSupportsImages
+            ? "Add attachment"
+            : "Select a vision-capable model to add images"
+        }
+        aria-label="Add attachment"
+        disabled={isRunning}
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </Button>
+    );
+  })
+);
+
+ChatInputAttachmentTrigger.displayName = "ChatInputAttachmentTrigger";
+
+const ChatInputFooterStatus = React.memo(function ChatInputFooterStatus({
+  onNewChat,
+}: {
+  onNewChat?: () => void;
+}) {
+  const { hasMessages, tokenUsage } = useChatInputRuntime();
+
+  if (!hasMessages) {
+    return null;
+  }
+
+  return (
+    <>
+      {onNewChat && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 gap-1 px-2 text-xs"
+          title="Start New Chat"
+          onClick={onNewChat}
+        >
+          <MessageSquarePlus className="h-3 w-3" />
+          New
+        </Button>
+      )}
+      {tokenUsage && <ChatTokenStatus usage={tokenUsage} />}
+    </>
+  );
+});
+
+const ChatInputSubmitButton = React.memo(function ChatInputSubmitButton({
+  canSubmit,
+  onSubmit,
+}: {
+  canSubmit: boolean;
+  onSubmit: () => void;
+}) {
+  const { isRunning, onStop } = useChatInputRuntime();
+
+  if (isRunning) {
+    return (
+      <Button
+        onClick={onStop}
+        size="icon"
+        variant="destructive"
+        className="h-6 w-6 rounded-md shadow-sm"
+        aria-label="Stop generating"
+        title="Stop generating"
+      >
+        <Square className="h-3.5 w-3.5" />
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      onClick={onSubmit}
+      disabled={!canSubmit}
+      size="icon"
+      className="h-6 w-6 rounded-md shadow-sm"
+      aria-label="Send message"
+      title={`Send (${typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"}+Enter)`}
+    >
+      <Send className="h-3.5 w-3.5" />
+    </Button>
+  );
+});
+
+export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput(
+  { onSubmit, onStop, isRunning, hasMessages = false, tokenUsage, onNewChat, externalInput },
+  ref
+) {
+  const runtimeValue = React.useMemo(
+    () => ({ isRunning, hasMessages, tokenUsage, onStop }),
+    [hasMessages, isRunning, onStop, tokenUsage]
+  );
+
+  return (
+    <ChatInputRuntimeContext.Provider value={runtimeValue}>
+      <ChatInputContent
+        onSubmit={onSubmit}
+        onNewChat={onNewChat}
+        externalInput={externalInput}
+        forwardedRef={ref}
+      />
+    </ChatInputRuntimeContext.Provider>
+  );
+});
 
 ChatInput.displayName = "ChatInput";

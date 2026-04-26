@@ -15,7 +15,7 @@ import { resolveModelSupportsImageInput, type ModelProps } from "@/lib/ai/llm/ll
 import { PROVIDER_GITHUB_COPILOT } from "@/lib/ai/llm/provider-ids";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Layers, Settings2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { showSettingsDialog } from "../../settings/settings-dialog";
@@ -159,7 +159,6 @@ export function ModelSelectorImpl({
   showConfigureAction = true,
 }: ModelSelectorImplProps = {}) {
   const [open, setOpen] = useState(false);
-  const leftPanelRef = useRef<HTMLDivElement | null>(null);
   const {
     availableModels,
     selectedModel,
@@ -176,7 +175,6 @@ export function ModelSelectorImpl({
     activeModel ? `${activeModel.provider} ${activeModel.modelId}` : undefined
   );
   const [groupByProvider, setGroupByProvider] = useState(false);
-  const [detailPaneHeight, setDetailPaneHeight] = useState<number | null>(null);
 
   // Filter out "System (Auto)" if auto-select is not available
   const filteredModels = useMemo(() => {
@@ -298,26 +296,6 @@ export function ModelSelectorImpl({
     [highlightedModel]
   );
 
-  useEffect(() => {
-    if (!open) {
-      setDetailPaneHeight(null);
-      return;
-    }
-
-    const node = leftPanelRef.current;
-    if (!node) {
-      return;
-    }
-
-    const frame = window.requestAnimationFrame(() => {
-      setDetailPaneHeight(node.offsetHeight || null);
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [open]);
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -361,11 +339,10 @@ export function ModelSelectorImpl({
           }}
         >
           <div
-            ref={leftPanelRef}
             data-panel="left"
             className={cn(
-              "flex max-h-[300px] w-[300px] flex-col overflow-hidden rounded-sm border bg-popover shadow-md",
-              highlightedModel?.description ? "rounded-r-none" : ""
+              "flex h-[250px] min-h-[250px] max-h-[250px] w-[300px] flex-col overflow-hidden rounded-sm border bg-popover shadow-md",
+              highlightedModelFields.length > 0 ? "rounded-r-none" : ""
             )}
           >
             <CommandInput
@@ -389,7 +366,7 @@ export function ModelSelectorImpl({
             )}
             <CommandList
               id="model-list"
-              className="flex-1 overflow-y-auto [&_[cmdk-list-sizer]]:max-h-none"
+              className="min-h-0 flex-1 overflow-y-auto [&_[cmdk-list-sizer]]:max-h-none"
             >
               <CommandEmpty className="h-[32px] py-2 text-center text-[10px]">
                 No model found.
@@ -454,8 +431,7 @@ export function ModelSelectorImpl({
           {highlightedModelFields.length > 0 && (
             <div
               data-panel="right"
-              className="w-[250px] overflow-y-auto rounded-sm rounded-l-none border border-l-0 bg-popover p-2 text-[10px] text-popover-foreground shadow-md"
-              style={detailPaneHeight ? { height: `${detailPaneHeight}px` } : undefined}
+              className="h-[250px] min-h-[250px] max-h-[250px] w-[250px] overflow-y-auto rounded-sm rounded-l-none border border-l-0 bg-popover p-2 text-[10px] text-popover-foreground shadow-md"
             >
               <div className="flex flex-col gap-3">
                 {highlightedModelFields.map((field) => (
