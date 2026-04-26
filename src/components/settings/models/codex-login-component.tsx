@@ -243,11 +243,19 @@ export function CodexLoginComponent({ onSuccess }: CodexLoginComponentProps) {
       const nextAuthUrl = url.toString();
       setAuthUrl(nextAuthUrl);
 
-      popupRef.current = window.open(
+      const popup = window.open(
         nextAuthUrl,
         "datastoria-codex-oauth",
         "popup=yes,width=520,height=760"
       );
+      if (!popup) {
+        setAuthError(
+          "Popup was blocked while opening Codex login. Allow popups for this site and try again, or open the login link manually."
+        );
+        return;
+      }
+
+      popupRef.current = popup;
     } catch {
       setAuthError("Failed to open Codex login. Please try again.");
     } finally {
@@ -288,6 +296,16 @@ export function CodexLoginComponent({ onSuccess }: CodexLoginComponentProps) {
                 </>
               )}
             </Button>
+            {authUrl ? (
+              <a
+                href={authUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="block text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                Open login link manually
+              </a>
+            ) : null}
           </div>
         </div>
 

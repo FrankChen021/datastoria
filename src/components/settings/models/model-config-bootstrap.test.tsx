@@ -109,7 +109,7 @@ describe("ModelConfigBootstrap", () => {
       githubToken: undefined,
     });
     expect(setSystemModelsMock).toHaveBeenCalledWith(systemModels, false);
-    expect(setDynamicModelsForProviderMock).toHaveBeenCalledWith("GitHub Copilot", []);
+    expect(setDynamicModelsForProviderMock).toHaveBeenCalledWith("GitHub Copilot", [], true);
     // Children are always rendered (no null gate)
     expect(container.textContent).toBe("ready");
     // isReady is true once the fetch resolves
@@ -140,7 +140,11 @@ describe("ModelConfigBootstrap", () => {
       githubToken: "copilot-token",
     });
     expect(setSystemModelsMock).toHaveBeenCalledWith(systemModels, false);
-    expect(setDynamicModelsForProviderMock).toHaveBeenCalledWith("GitHub Copilot", githubModels);
+    expect(setDynamicModelsForProviderMock).toHaveBeenCalledWith(
+      "GitHub Copilot",
+      githubModels,
+      true
+    );
     expect(updateProviderSettingMock).toHaveBeenCalledWith("GitHub Copilot", {
       authError: undefined,
     });
@@ -171,7 +175,7 @@ describe("ModelConfigBootstrap", () => {
       githubToken: undefined,
     });
     expect(setSystemModelsMock).toHaveBeenCalledWith(systemModels, false);
-    expect(setDynamicModelsForProviderMock).toHaveBeenCalledWith("GitHub Copilot", []);
+    expect(setDynamicModelsForProviderMock).toHaveBeenCalledWith("GitHub Copilot", [], true);
     expect(updateProviderSettingMock).not.toHaveBeenCalled();
     expect(container.textContent).toBe("ready");
   });

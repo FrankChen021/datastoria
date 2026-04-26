@@ -20,13 +20,7 @@ async function fetchCopilotModels(token: string): Promise<ModelProps[]> {
   }
 }
 
-type OAuthProvider = typeof PROVIDER_GITHUB_COPILOT | typeof PROVIDER_OPENAI_CODEX;
-
-function getRefreshRoute(provider: OAuthProvider) {
-  return provider === PROVIDER_GITHUB_COPILOT
-    ? "/api/ai/github/auth/refresh"
-    : "/api/ai/codex/auth/refresh";
-}
+const CODEX_REFRESH_ROUTE = "/api/ai/codex/auth/refresh";
 
 export function useModelConfig() {
   const manager = ModelManager.getInstance();
@@ -118,8 +112,9 @@ export function useModelConfig() {
     return data;
   }, []);
 
-  const refreshOAuthToken = useCallback(async (provider: OAuthProvider, refreshToken: string) => {
-    const response = await fetch(BasePath.getURL(getRefreshRoute(provider)), {
+  const refreshCodexOAuthToken = useCallback(async (refreshToken: string) => {
+    const provider = PROVIDER_OPENAI_CODEX;
+    const response = await fetch(BasePath.getURL(CODEX_REFRESH_ROUTE), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: refreshToken }),
@@ -214,19 +209,14 @@ export function useModelConfig() {
     [applyCopilotTokens, clearRefreshTimer, refreshCopilotToken, manager]
   );
 
-  const scheduleOAuthRefresh = useCallback(
-    (
-      provider: OAuthProvider,
-      accessTokenExpiresAt?: number,
-      refreshToken?: string,
-      refreshTokenExpiresAt?: number
-    ) => {
+  const scheduleCodexOAuthRefresh = useCallback(
+    (accessTokenExpiresAt?: number, refreshToken?: string, refreshTokenExpiresAt?: number) => {
       clearCodexRefreshTimer();
       if (!accessTokenExpiresAt) return;
       if (!refreshToken) return;
       if (refreshTokenExpiresAt && Date.now() >= refreshTokenExpiresAt) {
-        console.error(`${provider} refresh token expired before scheduling refresh`);
-        manager.updateProviderSetting(provider, { authError: "expired" });
+        console.error(`${PROVIDER_OPENAI_CODEX} refresh token expired before scheduling refresh`);
+        manager.updateProviderSetting(PROVIDER_OPENAI_CODEX, { authError: "expired" });
         return;
       }
 
@@ -235,9 +225,9 @@ export function useModelConfig() {
       const delayMs = Math.max(refreshAt - Date.now(), 0);
 
       codexRefreshTimerRef.current = window.setTimeout(async () => {
-        const refreshed = await refreshOAuthToken(provider, refreshToken);
+        const refreshed = await refreshCodexOAuthToken(refreshToken);
         if (!refreshed) {
-          manager.updateProviderSetting(provider, { authError: "refresh_failed" });
+          manager.updateProviderSetting(PROVIDER_OPENAI_CODEX, { authError: "refresh_failed" });
           return;
         }
 
@@ -248,20 +238,16 @@ export function useModelConfig() {
           ? Date.now() + refreshed.refresh_token_expires_in * 1000
           : refreshTokenExpiresAt;
 
-        manager.updateProviderSetting(provider, {
+        manager.updateProviderSetting(PROVIDER_OPENAI_CODEX, {
           apiKey: refreshed.access_token,
           refreshToken: refreshed.refresh_token ?? refreshToken,
           accessTokenExpiresAt: nextAccessTokenExpiresAt,
           refreshTokenExpiresAt: nextRefreshTokenExpiresAt,
           authError: undefined,
         });
-
-        if (provider === PROVIDER_GITHUB_COPILOT) {
-          fetchDynamicModels(refreshed.access_token);
-        }
       }, delayMs);
     },
-    [clearCodexRefreshTimer, fetchDynamicModels, manager, refreshOAuthToken]
+    [clearCodexRefreshTimer, manager, refreshCodexOAuthToken]
   );
 
   const refresh = useCallback(() => {
@@ -343,7 +329,7 @@ export function useModelConfig() {
       if (codexSetting.authError === "refresh_failed") {
         return;
       }
-      refreshOAuthToken(PROVIDER_OPENAI_CODEX, codexSetting.refreshToken).then((data) => {
+      refreshCodexOAuthToken(codexSetting.refreshToken).then((data) => {
         if (!data) {
           manager.updateProviderSetting(PROVIDER_OPENAI_CODEX, { authError: "refresh_failed" });
           return;
@@ -362,8 +348,7 @@ export function useModelConfig() {
       return;
     }
 
-    scheduleOAuthRefresh(
-      PROVIDER_OPENAI_CODEX,
+    scheduleCodexOAuthRefresh(
       accessTokenExpiresAt,
       codexSetting.refreshToken,
       refreshTokenExpiresAt
@@ -372,8 +357,8 @@ export function useModelConfig() {
     clearCodexRefreshTimer,
     config.providerSettings,
     manager,
-    refreshOAuthToken,
-    scheduleOAuthRefresh,
+    refreshCodexOAuthToken,
+    scheduleCodexOAuthRefresh,
   ]);
 
   useEffect(() => {

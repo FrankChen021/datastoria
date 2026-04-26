@@ -73,12 +73,19 @@ If you have your API keys, you can configure your models in the settings.`,
     this.notify();
   }
 
-  public setDynamicModelsForProvider(provider: string, models: ModelProps[]): void {
+  public setDynamicModelsForProvider(
+    provider: string,
+    models: ModelProps[],
+    notifyWhenUnchanged = false
+  ): void {
     const nextModels = [
       ...this.dynamicModels.filter((model) => model.provider !== provider),
       ...models,
     ];
     if (JSON.stringify(this.dynamicModels) === JSON.stringify(nextModels)) {
+      if (notifyWhenUnchanged) {
+        this.notify();
+      }
       return;
     }
 

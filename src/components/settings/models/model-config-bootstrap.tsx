@@ -22,25 +22,23 @@ let bootstrapCatalog:
     }
   | undefined;
 
-async function bootstrapModelCatalog(): Promise<void> {
+async function bootstrapModelCatalog(copilotToken: string | undefined): Promise<boolean> {
   const manager = ModelManager.getInstance();
-  const providerSettings = manager.getProviderSettings();
-  const copilotSetting = providerSettings.find(
-    (provider) => provider.provider === PROVIDER_GITHUB_COPILOT
-  );
 
   try {
     const { systemModels, githubModels } = await fetchAvailableModels({
-      githubToken: copilotSetting?.apiKey,
+      githubToken: copilotToken,
     });
 
     manager.setSystemModels(systemModels, false);
-    manager.setDynamicModelsForProvider(PROVIDER_GITHUB_COPILOT, githubModels);
-    if (copilotSetting?.apiKey && githubModels.length > 0) {
+    manager.setDynamicModelsForProvider(PROVIDER_GITHUB_COPILOT, githubModels, true);
+    if (copilotToken && githubModels.length > 0) {
       manager.updateProviderSetting(PROVIDER_GITHUB_COPILOT, { authError: undefined });
     }
+    return true;
   } catch (error) {
     console.error("Failed to bootstrap model catalog:", error);
+    return false;
   }
 }
 
@@ -55,9 +53,15 @@ function getBootstrapCatalogPromise(storageUserId: string | undefined): Promise<
   });
 
   if (!bootstrapCatalog || bootstrapCatalog.key !== key) {
+    const promise = bootstrapModelCatalog(copilotSetting?.apiKey).then((success) => {
+      if (!success && bootstrapCatalog?.key === key) {
+        bootstrapCatalog = undefined;
+      }
+    });
+
     bootstrapCatalog = {
       key,
-      promise: bootstrapModelCatalog(),
+      promise,
     };
   }
 

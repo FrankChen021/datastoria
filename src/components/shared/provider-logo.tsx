@@ -1,5 +1,5 @@
-import { BasePath } from "@/lib/base-path";
 import { PROVIDERS } from "@/lib/ai/llm/llm-provider-factory";
+import { BasePath } from "@/lib/base-path";
 import { cn } from "@/lib/utils";
 
 export function getProviderLogoUrl(provider: string): string | undefined {
@@ -7,13 +7,7 @@ export function getProviderLogoUrl(provider: string): string | undefined {
   return logo ? BasePath.getURL(`/provider-logos/${logo}`) : undefined;
 }
 
-export function ProviderLogo({
-  provider,
-  className,
-}: {
-  provider: string;
-  className?: string;
-}) {
+export function ProviderLogo({ provider, className }: { provider: string; className?: string }) {
   const url = getProviderLogoUrl(provider);
 
   if (!url) {

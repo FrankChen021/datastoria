@@ -96,7 +96,8 @@ function ModelCommandItem({
 }: ModelCommandItemProps) {
   return (
     <CommandItem
-      value={showProvider ? `${model.provider} ${model.modelId}` : model.modelId}
+      value={`${model.provider} ${model.modelId}`}
+      keywords={showProvider ? [model.provider, model.modelId] : [model.modelId]}
       onSelect={() => onSelect({ provider: model.provider, modelId: model.modelId })}
       className="m-1 text-xs cursor-pointer py-0.5"
     >
@@ -335,8 +336,11 @@ export function ModelSelectorImpl({
           value={highlightedValue}
           onValueChange={setHighlightedValue}
           className="flex flex-row items-stretch overflow-visible bg-transparent shadow-none border-0"
-          filter={(value: string, search: string) => {
-            return value.toLowerCase().includes(search.toLowerCase());
+          filter={(value: string, search: string, keywords?: string[]) => {
+            const normalizedSearch = search.toLowerCase();
+            const searchTargets =
+              groupByProvider && keywords?.length ? keywords : [value, ...(keywords ?? [])];
+            return searchTargets.some((target) => target.toLowerCase().includes(normalizedSearch));
           }}
         >
           <div
