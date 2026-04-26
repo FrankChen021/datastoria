@@ -206,6 +206,12 @@ export function AgentEdit() {
     AgentConfigurationManager.setConfiguration(newConfig);
   };
 
+  const handleOutputReasoningChange = (checked: boolean) => {
+    const newConfig = { ...configuration, outputReasoning: checked };
+    setConfiguration(newConfig);
+    AgentConfigurationManager.setConfiguration(newConfig);
+  };
+
   const handleAutoExplainChange = (checked: boolean) => {
     const newConfig = {
       ...configuration,
@@ -330,6 +336,23 @@ export function AgentEdit() {
             </TableCell>
             <TableCell className="px-0 py-1 align-middle text-sm text-muted-foreground">
               Enable surgical pruning of SQL validations from history to save tokens.
+            </TableCell>
+          </TableRow>
+
+          <TableRow className="h-12 hover:bg-transparent">
+            <TableCell className="px-0 pl-4 py-1 align-middle">
+              <Label>Output Reasoning</Label>
+            </TableCell>
+            <TableCell className="px-0 py-1 align-middle">
+              <div className="flex h-10 items-center">
+                <Switch
+                  checked={configuration.outputReasoning ?? false}
+                  onCheckedChange={handleOutputReasoningChange}
+                />
+              </div>
+            </TableCell>
+            <TableCell className="px-0 py-1 align-middle text-sm text-muted-foreground">
+              Request reasoning summaries when the selected model supports reasoning output.
             </TableCell>
           </TableRow>
 

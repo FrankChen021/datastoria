@@ -73,6 +73,7 @@ type SendMessagesRequestPayloadArgs = {
   generateTitle: boolean;
   ephemeral?: boolean;
   pruneValidateSql: boolean;
+  outputReasoning?: boolean;
   agentContext?: Partial<AgentContext>;
   chatPersistenceMode: "local" | "remote";
 };
@@ -142,6 +143,7 @@ export function buildSendMessagesRequestPayload({
   generateTitle,
   ephemeral,
   pruneValidateSql,
+  outputReasoning = false,
   agentContext,
   chatPersistenceMode,
 }: SendMessagesRequestPayloadArgs): Record<string, unknown> {
@@ -159,6 +161,7 @@ export function buildSendMessagesRequestPayload({
       agentContext: {
         ...(agentContext ?? {}),
         pruneValidateSql,
+        outputReasoning,
       },
       ...(requestContext ? { context: requestContext } : {}),
       ...(currentModel ? { model: currentModel } : {}),
@@ -173,6 +176,7 @@ export function buildSendMessagesRequestPayload({
     agentContext: {
       ...(agentContext ?? {}),
       pruneValidateSql,
+      outputReasoning,
     },
     generateTitle,
     ...(requestContext ? { context: requestContext } : {}),
@@ -480,6 +484,8 @@ export class ChatFactory {
               ephemeral: options.ephemeral,
               pruneValidateSql:
                 AgentConfigurationManager.getConfiguration().pruneValidateSql ?? true,
+              outputReasoning:
+                AgentConfigurationManager.getConfiguration().outputReasoning ?? false,
               agentContext: options.agentContext,
               chatPersistenceMode,
             }),

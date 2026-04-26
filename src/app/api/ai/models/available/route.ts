@@ -1,5 +1,5 @@
 import { normalizeGitHubCopilotModels } from "@/lib/ai/llm/github-copilot-models";
-import { getAvailableSystemModels } from "@/lib/ai/llm/llm-provider-factory";
+import { getAvailableSystemModels, type ModelProps } from "@/lib/ai/llm/llm-provider-factory";
 import { NextRequest, NextResponse } from "next/server";
 
 interface AvailableModelsRequestBody {
@@ -36,15 +36,16 @@ export async function POST(req: NextRequest) {
   }
 
   const githubToken = body?.github?.token?.trim();
-  if (!githubToken) {
-    return NextResponse.json({ systemModels, githubModels: [] });
+
+  let githubModels: ModelProps[] = [];
+
+  if (githubToken) {
+    try {
+      githubModels = await fetchGitHubModels(githubToken);
+    } catch (error) {
+      console.error("Error loading GitHub Copilot models for initial bootstrap:", error);
+    }
   }
 
-  try {
-    const githubModels = await fetchGitHubModels(githubToken);
-    return NextResponse.json({ systemModels, githubModels });
-  } catch (error) {
-    console.error("Error loading GitHub Copilot models for initial bootstrap:", error);
-    return NextResponse.json({ systemModels, githubModels: [] });
-  }
+  return NextResponse.json({ systemModels, githubModels });
 }

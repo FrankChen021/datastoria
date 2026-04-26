@@ -7,6 +7,8 @@ export interface AgentContext {
   pruneValidateSql?: boolean;
   /** Optional response language (BCP-47) enforced by system prompt for this chat flow only. */
   responseLanguage?: string;
+  /** Whether to request model reasoning summaries when the selected model supports them. */
+  outputReasoning?: boolean;
 }
 
 export type MessageRole = "user" | "assistant" | "system" | "data" | "tool";

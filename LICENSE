@@ -190,3 +190,12 @@ limitations under the License.
       of your accepting any such warranty or additional liability.
 
    END OF TERMS AND CONDITIONS
+
+--------------------------------------------------------------------------------
+
+Third-party notices:
+
+Provider logo SVG files under public/provider-logos/ are sourced from
+models.dev (https://github.com/anomalyco/models.dev/tree/dev/providers).
+All provider names, logos, and trademarks remain the property of their
+respective owners.

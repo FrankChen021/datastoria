@@ -10,6 +10,7 @@ import { ModelConfigBootstrap, useModelConfigBootstrap } from "./model-config-bo
 
 const setSystemModelsMock = vi.fn();
 const setDynamicModelsMock = vi.fn();
+const setDynamicModelsForProviderMock = vi.fn();
 const updateProviderSettingMock = vi.fn();
 const getProviderSettingsMock = vi.fn();
 const fetchAvailableModelsMock = vi.fn();
@@ -51,6 +52,7 @@ vi.mock("@/components/settings/models/model-manager", () => ({
       getProviderSettings: getProviderSettingsMock,
       setSystemModels: setSystemModelsMock,
       setDynamicModels: setDynamicModelsMock,
+      setDynamicModelsForProvider: setDynamicModelsForProviderMock,
       updateProviderSetting: updateProviderSettingMock,
     }),
   },
@@ -64,6 +66,7 @@ describe("ModelConfigBootstrap", () => {
     testGlobal.IS_REACT_ACT_ENVIRONMENT = true;
     setSystemModelsMock.mockReset();
     setDynamicModelsMock.mockReset();
+    setDynamicModelsForProviderMock.mockReset();
     updateProviderSettingMock.mockReset();
     getProviderSettingsMock.mockReset();
     fetchAvailableModelsMock.mockReset();
@@ -102,9 +105,11 @@ describe("ModelConfigBootstrap", () => {
       );
     });
 
-    expect(fetchAvailableModelsMock).toHaveBeenCalledWith(undefined);
+    expect(fetchAvailableModelsMock).toHaveBeenCalledWith({
+      githubToken: undefined,
+    });
     expect(setSystemModelsMock).toHaveBeenCalledWith(systemModels, false);
-    expect(setDynamicModelsMock).toHaveBeenCalledWith([]);
+    expect(setDynamicModelsForProviderMock).toHaveBeenCalledWith("GitHub Copilot", [], true);
     // Children are always rendered (no null gate)
     expect(container.textContent).toBe("ready");
     // isReady is true once the fetch resolves
@@ -131,12 +136,47 @@ describe("ModelConfigBootstrap", () => {
       );
     });
 
-    expect(fetchAvailableModelsMock).toHaveBeenCalledWith("copilot-token");
+    expect(fetchAvailableModelsMock).toHaveBeenCalledWith({
+      githubToken: "copilot-token",
+    });
     expect(setSystemModelsMock).toHaveBeenCalledWith(systemModels, false);
-    expect(setDynamicModelsMock).toHaveBeenCalledWith(githubModels);
+    expect(setDynamicModelsForProviderMock).toHaveBeenCalledWith(
+      "GitHub Copilot",
+      githubModels,
+      true
+    );
     expect(updateProviderSettingMock).toHaveBeenCalledWith("GitHub Copilot", {
       authError: undefined,
     });
+    expect(container.textContent).toBe("ready");
+  });
+
+  it("does not pass the stored Codex token to the initial-models API", async () => {
+    getProviderSettingsMock.mockReturnValue([
+      {
+        provider: "OpenAI Codex",
+        apiKey: "codex-token",
+      },
+    ]);
+    fetchAvailableModelsMock.mockResolvedValue({
+      systemModels,
+      githubModels: [],
+    });
+
+    await act(async () => {
+      root.render(
+        <ModelConfigBootstrap>
+          <div>ready</div>
+        </ModelConfigBootstrap>
+      );
+    });
+
+    expect(fetchAvailableModelsMock).toHaveBeenCalledWith({
+      githubToken: undefined,
+    });
+    expect(setSystemModelsMock).toHaveBeenCalledWith(systemModels, false);
+    expect(setDynamicModelsForProviderMock).toHaveBeenCalledWith("GitHub Copilot", [], true);
+    expect(updateProviderSettingMock).not.toHaveBeenCalled();
     expect(container.textContent).toBe("ready");
   });
 });

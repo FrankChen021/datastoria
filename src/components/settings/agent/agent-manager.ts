@@ -43,6 +43,8 @@ export type AgentConfiguration = {
   mode: AgentMode;
   /** Whether to prune successful validate_sql tool calls from history. Default true. */
   pruneValidateSql?: boolean;
+  /** Whether to request reasoning summaries from models that support them. Default false. */
+  outputReasoning?: boolean;
   /** Whether eligible ClickHouse errors should auto-trigger an inline AI explanation. */
   autoExplainClickHouseErrors?: boolean;
   /** ClickHouse error codes that should never auto-trigger inline explanation. */
@@ -68,6 +70,7 @@ export class AgentConfigurationManager {
       const stored = storage.getAsJSON<AgentConfiguration>(() => ({
         mode: "v2",
         pruneValidateSql: true,
+        outputReasoning: false,
         autoExplainClickHouseErrors: true,
         autoExplainBlacklist: DEFAULT_AUTO_EXPLAIN_BLACKLIST,
         aiResponseLanguage: DEFAULT_AI_RESPONSE_LANGUAGE,

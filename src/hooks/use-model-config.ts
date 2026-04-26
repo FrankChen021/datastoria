@@ -5,19 +5,57 @@ import {
 } from "@/components/settings/models/model-manager";
 import { fetchAvailableModels } from "@/lib/ai/llm/available-models-client";
 import type { ModelProps } from "@/lib/ai/llm/llm-provider-factory";
-import { PROVIDER_GITHUB_COPILOT } from "@/lib/ai/llm/provider-ids";
+import { PROVIDER_GITHUB_COPILOT, PROVIDER_OPENAI_CODEX } from "@/lib/ai/llm/provider-ids";
 import { BasePath } from "@/lib/base-path";
 import { DateTimeExtension } from "@/lib/datetime-utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 async function fetchCopilotModels(token: string): Promise<ModelProps[]> {
   try {
-    const { githubModels } = await fetchAvailableModels(token);
+    const { githubModels } = await fetchAvailableModels({ githubToken: token });
     return githubModels;
   } catch (error) {
     console.error("Error fetching Copilot models:", error);
     return [];
   }
+}
+
+const CODEX_REFRESH_ROUTE = "/api/ai/codex/auth/refresh";
+
+type TokenRefreshResponse = {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  refresh_token_expires_in?: number;
+};
+
+async function postRefreshToken(
+  url: string,
+  refreshToken: string,
+  providerLabel: string
+): Promise<TokenRefreshResponse | undefined> {
+  const response = await fetch(BasePath.getURL(url), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  }).catch((error) => {
+    console.error(`Failed to refresh ${providerLabel} token:`, error);
+    return undefined;
+  });
+
+  if (!response) return undefined;
+  if (!response.ok) {
+    console.error(`Failed to refresh ${providerLabel} token:`, await response.text());
+    return undefined;
+  }
+
+  const data = (await response.json()) as TokenRefreshResponse;
+  if (!data?.access_token) {
+    console.error(`${providerLabel} refresh response missing access_token`);
+    return undefined;
+  }
+
+  return data;
 }
 
 export function useModelConfig() {
@@ -35,11 +73,18 @@ export function useModelConfig() {
   const [isLoading, setIsLoading] = useState(false);
   const [copilotModelsLoaded, setCopilotModelsLoaded] = useState(true);
   const refreshTimerRef = useRef<number | undefined>(undefined);
+  const codexRefreshTimerRef = useRef<number | undefined>(undefined);
 
   const clearRefreshTimer = useCallback(() => {
     if (!refreshTimerRef.current) return;
     window.clearTimeout(refreshTimerRef.current);
     refreshTimerRef.current = undefined;
+  }, []);
+
+  const clearCodexRefreshTimer = useCallback(() => {
+    if (!codexRefreshTimerRef.current) return;
+    window.clearTimeout(codexRefreshTimerRef.current);
+    codexRefreshTimerRef.current = undefined;
   }, []);
 
   const clearCopilotAuthErrorIfRecovered = useCallback(
@@ -59,7 +104,7 @@ export function useModelConfig() {
       setIsLoading(true);
       try {
         const fetchedModels = await fetchCopilotModels(token);
-        manager.setDynamicModels(fetchedModels);
+        manager.setDynamicModelsForProvider(PROVIDER_GITHUB_COPILOT, fetchedModels);
         clearCopilotAuthErrorIfRecovered(token, fetchedModels);
       } catch (error) {
         console.error("Failed to fetch dynamic models:", error);
@@ -71,46 +116,21 @@ export function useModelConfig() {
     [clearCopilotAuthErrorIfRecovered, manager]
   );
 
-  type CopilotRefreshResponse = {
-    access_token: string;
-    refresh_token?: string;
-    expires_in?: number;
-    refresh_token_expires_in?: number;
-  };
+  const refreshCopilotToken = useCallback(
+    (refreshToken: string) =>
+      postRefreshToken("/api/ai/github/auth/refresh", refreshToken, "Copilot"),
+    []
+  );
 
-  const refreshCopilotToken = useCallback(async (refreshToken: string) => {
-    const response = await fetch(BasePath.getURL("/api/ai/github/auth/refresh"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    }).catch((error) => {
-      console.error("Failed to refresh Copilot token:", error);
-      return undefined;
-    });
-
-    if (!response) return undefined;
-    if (!response.ok) {
-      console.error("Failed to refresh Copilot token:", await response.text());
-      return undefined;
-    }
-
-    const data = (await response.json()) as CopilotRefreshResponse;
-    if (!data?.access_token) {
-      console.error("Copilot refresh response missing access_token");
-      return undefined;
-    }
-
-    return data;
-  }, []);
+  const refreshCodexOAuthToken = useCallback(
+    (refreshToken: string) =>
+      postRefreshToken(CODEX_REFRESH_ROUTE, refreshToken, PROVIDER_OPENAI_CODEX),
+    []
+  );
 
   const applyCopilotTokens = useCallback(
     (
-      data: {
-        access_token: string;
-        refresh_token?: string;
-        expires_in?: number;
-        refresh_token_expires_in?: number;
-      },
+      data: TokenRefreshResponse,
       current?: {
         refreshToken?: string;
         refreshTokenExpiresAt?: number;
@@ -174,6 +194,47 @@ export function useModelConfig() {
     [applyCopilotTokens, clearRefreshTimer, refreshCopilotToken, manager]
   );
 
+  const scheduleCodexOAuthRefresh = useCallback(
+    (accessTokenExpiresAt?: number, refreshToken?: string, refreshTokenExpiresAt?: number) => {
+      clearCodexRefreshTimer();
+      if (!accessTokenExpiresAt) return;
+      if (!refreshToken) return;
+      if (refreshTokenExpiresAt && Date.now() >= refreshTokenExpiresAt) {
+        console.error(`${PROVIDER_OPENAI_CODEX} refresh token expired before scheduling refresh`);
+        manager.updateProviderSetting(PROVIDER_OPENAI_CODEX, { authError: "expired" });
+        return;
+      }
+
+      const bufferMs = 60_000;
+      const refreshAt = accessTokenExpiresAt - bufferMs;
+      const delayMs = Math.max(refreshAt - Date.now(), 0);
+
+      codexRefreshTimerRef.current = window.setTimeout(async () => {
+        const refreshed = await refreshCodexOAuthToken(refreshToken);
+        if (!refreshed) {
+          manager.updateProviderSetting(PROVIDER_OPENAI_CODEX, { authError: "refresh_failed" });
+          return;
+        }
+
+        const nextAccessTokenExpiresAt = refreshed.expires_in
+          ? Date.now() + refreshed.expires_in * 1000
+          : undefined;
+        const nextRefreshTokenExpiresAt = refreshed.refresh_token_expires_in
+          ? Date.now() + refreshed.refresh_token_expires_in * 1000
+          : refreshTokenExpiresAt;
+
+        manager.updateProviderSetting(PROVIDER_OPENAI_CODEX, {
+          apiKey: refreshed.access_token,
+          refreshToken: refreshed.refresh_token ?? refreshToken,
+          accessTokenExpiresAt: nextAccessTokenExpiresAt,
+          refreshTokenExpiresAt: nextRefreshTokenExpiresAt,
+          authError: undefined,
+        });
+      }, delayMs);
+    },
+    [clearCodexRefreshTimer, manager, refreshCodexOAuthToken]
+  );
+
   const refresh = useCallback(() => {
     setConfig({
       allModels: manager.getAllModels(),
@@ -194,33 +255,96 @@ export function useModelConfig() {
     };
     window.addEventListener("storage", handleStorage);
 
-    if (!manager.hasSystemModelsHydrated()) {
-      const providerSettings = manager.getProviderSettings();
-      const copilotSetting = providerSettings.find((p) => p.provider === PROVIDER_GITHUB_COPILOT);
-
-      setIsLoading(true);
-      setCopilotModelsLoaded(false);
-      void fetchAvailableModels(copilotSetting?.apiKey)
-        .then(({ systemModels, githubModels }) => {
-          manager.setSystemModels(systemModels, false);
-          manager.setDynamicModels(githubModels);
-          clearCopilotAuthErrorIfRecovered(copilotSetting?.apiKey, githubModels);
-        })
-        .catch((error) => {
-          console.error("Failed to recover model catalog:", error);
-        })
-        .finally(() => {
-          setIsLoading(false);
-          setCopilotModelsLoaded(true);
-        });
-    }
-
     return () => {
       clearRefreshTimer();
+      clearCodexRefreshTimer();
       window.removeEventListener(MODEL_CONFIG_UPDATED_EVENT, refresh);
       window.removeEventListener("storage", handleStorage);
     };
-  }, [refresh, manager, clearRefreshTimer, clearCopilotAuthErrorIfRecovered]);
+  }, [
+    refresh,
+    manager,
+    clearRefreshTimer,
+    clearCodexRefreshTimer,
+    clearCopilotAuthErrorIfRecovered,
+  ]);
+
+  useEffect(() => {
+    const codexSetting = config.providerSettings.find((p) => p.provider === PROVIDER_OPENAI_CODEX);
+    if (!codexSetting) {
+      clearCodexRefreshTimer();
+      return;
+    }
+
+    const now = Date.now();
+    const accessTokenExpiresAt = codexSetting.accessTokenExpiresAt;
+    const refreshTokenExpiresAt = codexSetting.refreshTokenExpiresAt;
+    if (!accessTokenExpiresAt) {
+      clearCodexRefreshTimer();
+      return;
+    }
+
+    if (refreshTokenExpiresAt && now >= refreshTokenExpiresAt) {
+      manager.updateProviderSetting(PROVIDER_OPENAI_CODEX, {
+        apiKey: "",
+        refreshToken: "",
+        accessTokenExpiresAt: undefined,
+        refreshTokenExpiresAt: undefined,
+        authError: "expired",
+      });
+      clearCodexRefreshTimer();
+      return;
+    }
+
+    if (!codexSetting.refreshToken) {
+      if (now >= accessTokenExpiresAt) {
+        manager.updateProviderSetting(PROVIDER_OPENAI_CODEX, {
+          apiKey: "",
+          refreshToken: "",
+          accessTokenExpiresAt: undefined,
+          refreshTokenExpiresAt: undefined,
+          authError: "expired",
+        });
+      }
+      clearCodexRefreshTimer();
+      return;
+    }
+
+    if (now >= accessTokenExpiresAt) {
+      if (codexSetting.authError === "refresh_failed") {
+        return;
+      }
+      refreshCodexOAuthToken(codexSetting.refreshToken).then((data) => {
+        if (!data) {
+          manager.updateProviderSetting(PROVIDER_OPENAI_CODEX, { authError: "refresh_failed" });
+          return;
+        }
+        manager.updateProviderSetting(PROVIDER_OPENAI_CODEX, {
+          apiKey: data.access_token,
+          refreshToken: data.refresh_token ?? codexSetting.refreshToken,
+          accessTokenExpiresAt: data.expires_in ? Date.now() + data.expires_in * 1000 : undefined,
+          refreshTokenExpiresAt: data.refresh_token_expires_in
+            ? Date.now() + data.refresh_token_expires_in * 1000
+            : codexSetting.refreshTokenExpiresAt,
+          authError: undefined,
+        });
+      });
+      clearCodexRefreshTimer();
+      return;
+    }
+
+    scheduleCodexOAuthRefresh(
+      accessTokenExpiresAt,
+      codexSetting.refreshToken,
+      refreshTokenExpiresAt
+    );
+  }, [
+    clearCodexRefreshTimer,
+    config.providerSettings,
+    manager,
+    refreshCodexOAuthToken,
+    scheduleCodexOAuthRefresh,
+  ]);
 
   useEffect(() => {
     const copilotSetting = config.providerSettings.find(

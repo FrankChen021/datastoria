@@ -15,6 +15,59 @@ const ModelConfigBootstrapContext = createContext<ModelConfigBootstrapContextVal
   isReady: false,
 });
 
+let bootstrapCatalog:
+  | {
+      key: string;
+      promise: Promise<void>;
+    }
+  | undefined;
+
+async function bootstrapModelCatalog(copilotToken: string | undefined): Promise<boolean> {
+  const manager = ModelManager.getInstance();
+
+  try {
+    const { systemModels, githubModels } = await fetchAvailableModels({
+      githubToken: copilotToken,
+    });
+
+    manager.setSystemModels(systemModels, false);
+    manager.setDynamicModelsForProvider(PROVIDER_GITHUB_COPILOT, githubModels, true);
+    if (copilotToken && githubModels.length > 0) {
+      manager.updateProviderSetting(PROVIDER_GITHUB_COPILOT, { authError: undefined });
+    }
+    return true;
+  } catch (error) {
+    console.error("Failed to bootstrap model catalog:", error);
+    return false;
+  }
+}
+
+function getBootstrapCatalogPromise(storageUserId: string | undefined): Promise<void> {
+  const providerSettings = ModelManager.getInstance().getProviderSettings();
+  const copilotSetting = providerSettings.find(
+    (provider) => provider.provider === PROVIDER_GITHUB_COPILOT
+  );
+  const key = JSON.stringify({
+    storageUserId,
+    copilotToken: copilotSetting?.apiKey ?? "",
+  });
+
+  if (!bootstrapCatalog || bootstrapCatalog.key !== key) {
+    const promise = bootstrapModelCatalog(copilotSetting?.apiKey).then((success) => {
+      if (!success && bootstrapCatalog?.key === key) {
+        bootstrapCatalog = undefined;
+      }
+    });
+
+    bootstrapCatalog = {
+      key,
+      promise,
+    };
+  }
+
+  return bootstrapCatalog.promise;
+}
+
 /** Returns whether the initial model catalog has been bootstrapped. */
 export function useModelConfigBootstrap(): ModelConfigBootstrapContextValue {
   return useContext(ModelConfigBootstrapContext);
@@ -33,27 +86,9 @@ export function ModelConfigBootstrap({ children }: { children: ReactNode }) {
     setIsReady(false);
 
     void (async () => {
-      const manager = ModelManager.getInstance();
-      const copilotSetting = manager
-        .getProviderSettings()
-        .find((provider) => provider.provider === PROVIDER_GITHUB_COPILOT);
-
-      try {
-        const { systemModels, githubModels } = await fetchAvailableModels(copilotSetting?.apiKey);
-        if (cancelled) {
-          return;
-        }
-        manager.setSystemModels(systemModels, false);
-        manager.setDynamicModels(githubModels);
-        if (copilotSetting?.apiKey && githubModels.length > 0) {
-          manager.updateProviderSetting(PROVIDER_GITHUB_COPILOT, { authError: undefined });
-        }
-      } catch (error) {
-        console.error("Failed to bootstrap model catalog:", error);
-      } finally {
-        if (!cancelled) {
-          setIsReady(true);
-        }
+      await getBootstrapCatalogPromise(storageUserId);
+      if (!cancelled) {
+        setIsReady(true);
       }
     })();
 

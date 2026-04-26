@@ -1,7 +1,9 @@
 import { uiMessageToText } from "@/lib/ai/agent/plan/planning-prompt-builder";
 import type { InputModel } from "@/lib/ai/agent/plan/sub-agent-registry";
 import { LanguageModelProviderFactory } from "@/lib/ai/llm/llm-provider-factory";
-import { generateText, Output, type LanguageModelUsage, type UIMessage } from "ai";
+import { PROVIDER_OPENAI_CODEX } from "@/lib/ai/llm/provider-ids";
+import type { OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
+import { generateText, Output, streamText, type LanguageModelUsage, type UIMessage } from "ai";
 import { z } from "zod";
 import { PrivateSessionTitleGenerator } from "./session-title-generator-private";
 
@@ -22,6 +24,8 @@ export class SessionTitleGenerator {
         return { ...modelConfig, modelId: "claude-haiku-4-5" };
       case "Google":
         return { ...modelConfig, modelId: "gemini-2.5-flash" };
+      case PROVIDER_OPENAI_CODEX:
+        return { ...modelConfig, modelId: "gpt-5.4-mini" };
       default:
         return PrivateSessionTitleGenerator.resolveModel(modelConfig);
     }
@@ -67,20 +71,37 @@ export class SessionTitleGenerator {
 Return JSON with exactly one field: "title".
 The title must be 3 to 10 words and at most ${TITLE_MAX_LENGTH} characters.
 Use plain words only. Do not include quotes, punctuation, emojis, or explanations.`;
-      const { output, usage } = await generateText({
-        model,
-        system: titleSystemPrompt,
-        prompt: titleInput,
-        output: Output.object({
-          schema: z.object({
-            title: z
-              .string()
-              .max(TITLE_MAX_LENGTH)
-              .describe("Short conversation title (3-10 words)"),
-          }),
+      const titleOutput = Output.object({
+        schema: z.object({
+          title: z.string().max(TITLE_MAX_LENGTH).describe("Short conversation title (3-10 words)"),
         }),
-        temperature,
       });
+      const { output, usage } =
+        titleModelConfig.provider === PROVIDER_OPENAI_CODEX
+          ? await (async () => {
+              const result = streamText({
+                model,
+                system: titleSystemPrompt,
+                prompt: titleInput,
+                providerOptions: {
+                  openai: {
+                    instructions: titleSystemPrompt,
+                    // Keep chat state in DataStoria instead of creating stored OpenAI responses.
+                    store: false,
+                  } satisfies OpenAIResponsesProviderOptions,
+                },
+                output: titleOutput,
+              });
+              const [output, usage] = await Promise.all([result.output, result.usage]);
+              return { output, usage };
+            })()
+          : await generateText({
+              model,
+              system: titleSystemPrompt,
+              prompt: titleInput,
+              output: titleOutput,
+              temperature,
+            });
 
       const title = output?.title?.trim();
       const resolvedTitle =

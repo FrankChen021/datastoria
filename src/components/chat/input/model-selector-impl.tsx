@@ -20,6 +20,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { showSettingsDialog } from "../../settings/settings-dialog";
 import { HighlightableCommandItem } from "../../shared/cmdk/cmdk-extension";
+import { ProviderLogo } from "../../shared/provider-logo";
 
 interface ModelCommandItemProps {
   model: ModelProps;
@@ -96,6 +97,7 @@ function ModelCommandItem({
   return (
     <CommandItem
       value={`${model.provider} ${model.modelId}`}
+      keywords={showProvider ? [model.provider, model.modelId] : [model.modelId]}
       onSelect={() => onSelect({ provider: model.provider, modelId: model.modelId })}
       className="m-1 text-xs cursor-pointer py-0.5"
     >
@@ -334,8 +336,11 @@ export function ModelSelectorImpl({
           value={highlightedValue}
           onValueChange={setHighlightedValue}
           className="flex flex-row items-stretch overflow-visible bg-transparent shadow-none border-0"
-          filter={(value: string, search: string) => {
-            return value.toLowerCase().includes(search.toLowerCase());
+          filter={(value: string, search: string, keywords?: string[]) => {
+            const normalizedSearch = search.toLowerCase();
+            const searchTargets =
+              groupByProvider && keywords?.length ? keywords : [value, ...(keywords ?? [])];
+            return searchTargets.some((target) => target.toLowerCase().includes(normalizedSearch));
           }}
         >
           <div
@@ -352,7 +357,7 @@ export function ModelSelectorImpl({
               iconClassName="h-3 w-3"
             />
             {(providerEntries.length > 0 || sortedModels.length > 0) && (
-              <div className="flex items-center justify-between px-2 py-1.5 shrink-0">
+              <div className="flex items-center justify-between px-2 pt-1.5 shrink-0">
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                   <Layers className="h-3 w-3 opacity-50" />
                   <span>Group by provider</span>
@@ -366,7 +371,10 @@ export function ModelSelectorImpl({
             )}
             <CommandList
               id="model-list"
-              className="min-h-0 flex-1 overflow-y-auto [&_[cmdk-list-sizer]]:max-h-none"
+              className={cn(
+                "min-h-0 flex-1 overflow-y-auto [&_[cmdk-list-sizer]]:max-h-none",
+                groupByProvider && "[&_[cmdk-list-sizer]]:pt-1"
+              )}
             >
               <CommandEmpty className="h-[32px] py-2 text-center text-[10px]">
                 No model found.
@@ -376,8 +384,13 @@ export function ModelSelectorImpl({
                   providerEntries.map(([provider, models]) => (
                     <CommandGroup
                       key={provider}
-                      heading={provider}
-                      className="[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:py-0 py-0"
+                      heading={
+                        <span className="flex items-center gap-1.5">
+                          <ProviderLogo provider={provider} className="h-3 w-3 opacity-70" />
+                          <span>{provider}</span>
+                        </span>
+                      }
+                      className="py-0 [&_[cmdk-group-heading]]:py-0 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-items]]:pt-0"
                     >
                       {models.map((model) => (
                         <ModelCommandItem
