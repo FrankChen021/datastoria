@@ -20,6 +20,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { showSettingsDialog } from "../../settings/settings-dialog";
 import { HighlightableCommandItem } from "../../shared/cmdk/cmdk-extension";
+import { ProviderLogo } from "../../shared/provider-logo";
 
 interface ModelCommandItemProps {
   model: ModelProps;
@@ -379,7 +380,12 @@ export function ModelSelectorImpl({
                   providerEntries.map(([provider, models]) => (
                     <CommandGroup
                       key={provider}
-                      heading={provider}
+                      heading={
+                        <span className="flex items-center gap-1.5">
+                          <ProviderLogo provider={provider} className="h-3 w-3 opacity-70" />
+                          <span>{provider}</span>
+                        </span>
+                      }
                       className="py-0 [&_[cmdk-group-heading]]:py-0 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-items]]:pt-0"
                     >
                       {models.map((model) => (

@@ -24,6 +24,7 @@ export type ModelSource = "user" | "system";
 export interface ProviderDefinition {
   create: ModelCreator;
   systemApiKey?: () => string | undefined;
+  logo?: string;
 }
 
 export interface ModelProps {
@@ -134,6 +135,7 @@ export function resolveModelSupportsImageInput(
 export const PROVIDERS: Record<string, ProviderDefinition> = {
   ...PRIVATE_PROVIDERS,
   OpenAI: {
+    logo: "openai.svg",
     create: (modelId, apiKey) =>
       createOpenAI({
         apiKey,
@@ -141,6 +143,7 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
     systemApiKey: () => process.env.OPENAI_API_KEY,
   },
   Google: {
+    logo: "google.svg",
     create: (modelId, apiKey) =>
       createGoogleGenerativeAI({
         apiKey,
@@ -148,6 +151,7 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
     systemApiKey: () => process.env.GOOGLE_GENERATIVE_AI_API_KEY,
   },
   Anthropic: {
+    logo: "anthropic.svg",
     create: (modelId, apiKey) =>
       createAnthropic({
         apiKey,
@@ -155,6 +159,7 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
     systemApiKey: () => process.env.ANTHROPIC_API_KEY,
   },
   OpenRouter: {
+    logo: "openrouter.svg",
     create: (modelId, apiKey) =>
       createOpenRouter({
         apiKey,
@@ -162,6 +167,7 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
     systemApiKey: () => process.env.OPENROUTER_API_KEY,
   },
   Groq: {
+    logo: "groq.svg",
     create: (modelId, apiKey) =>
       createGroq({
         apiKey,
@@ -169,6 +175,7 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
     systemApiKey: () => process.env.GROQ_API_KEY,
   },
   Cerebras: {
+    logo: "cerebras.svg",
     create: (modelId, apiKey) =>
       createCerebras({
         apiKey,
@@ -176,6 +183,7 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
     systemApiKey: () => process.env.CEREBRAS_API_KEY,
   },
   [PROVIDER_GITHUB_COPILOT]: {
+    logo: "github-copilot.svg",
     create: (modelId, apiKey) => {
       console.log(`${PROVIDER_GITHUB_COPILOT} modelId:`, modelId);
       return createGitHubCopilotOpenAICompatible({
@@ -190,6 +198,7 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
     },
   },
   [PROVIDER_OPENAI_CODEX]: {
+    logo: "openai.svg",
     create: (modelId, apiKey) => {
       const accountId = extractCodexAccountId(apiKey);
       return createOpenAI({
@@ -202,6 +211,7 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
     },
   },
   [PROVIDER_NEBIUS]: {
+    logo: "nebius.svg",
     create: (modelId, apiKey) =>
       createOpenAICompatible({
         name: "nebius",

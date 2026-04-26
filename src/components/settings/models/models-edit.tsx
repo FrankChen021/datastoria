@@ -4,6 +4,7 @@ import {
   type ModelSetting,
   type ProviderSetting,
 } from "@/components/settings/models/model-manager";
+import { ProviderLogo } from "@/components/shared/provider-logo";
 import { Dialog as SharedDialog } from "@/components/shared/use-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -323,6 +324,10 @@ export function ModelsEdit() {
                               className={`h-4 w-4 transition-transform duration-200 ${
                                 isExpanded ? "rotate-0" : "-rotate-90"
                               }`}
+                            />
+                            <ProviderLogo
+                              provider={provider}
+                              className="h-4 w-4 text-muted-foreground"
                             />
                             <span className="font-semibold text-sm">{provider}</span>
                             <span className="text-xs text-muted-foreground">
