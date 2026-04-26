@@ -22,6 +22,42 @@ async function fetchCopilotModels(token: string): Promise<ModelProps[]> {
 
 const CODEX_REFRESH_ROUTE = "/api/ai/codex/auth/refresh";
 
+type TokenRefreshResponse = {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  refresh_token_expires_in?: number;
+};
+
+async function postRefreshToken(
+  url: string,
+  refreshToken: string,
+  providerLabel: string
+): Promise<TokenRefreshResponse | undefined> {
+  const response = await fetch(BasePath.getURL(url), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  }).catch((error) => {
+    console.error(`Failed to refresh ${providerLabel} token:`, error);
+    return undefined;
+  });
+
+  if (!response) return undefined;
+  if (!response.ok) {
+    console.error(`Failed to refresh ${providerLabel} token:`, await response.text());
+    return undefined;
+  }
+
+  const data = (await response.json()) as TokenRefreshResponse;
+  if (!data?.access_token) {
+    console.error(`${providerLabel} refresh response missing access_token`);
+    return undefined;
+  }
+
+  return data;
+}
+
 export function useModelConfig() {
   const manager = ModelManager.getInstance();
   const { autoSelectAvailable } = useRuntimeConfig();
@@ -80,72 +116,21 @@ export function useModelConfig() {
     [clearCopilotAuthErrorIfRecovered, manager]
   );
 
-  type CopilotRefreshResponse = {
-    access_token: string;
-    refresh_token?: string;
-    expires_in?: number;
-    refresh_token_expires_in?: number;
-  };
+  const refreshCopilotToken = useCallback(
+    (refreshToken: string) =>
+      postRefreshToken("/api/ai/github/auth/refresh", refreshToken, "Copilot"),
+    []
+  );
 
-  const refreshCopilotToken = useCallback(async (refreshToken: string) => {
-    const response = await fetch(BasePath.getURL("/api/ai/github/auth/refresh"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    }).catch((error) => {
-      console.error("Failed to refresh Copilot token:", error);
-      return undefined;
-    });
-
-    if (!response) return undefined;
-    if (!response.ok) {
-      console.error("Failed to refresh Copilot token:", await response.text());
-      return undefined;
-    }
-
-    const data = (await response.json()) as CopilotRefreshResponse;
-    if (!data?.access_token) {
-      console.error("Copilot refresh response missing access_token");
-      return undefined;
-    }
-
-    return data;
-  }, []);
-
-  const refreshCodexOAuthToken = useCallback(async (refreshToken: string) => {
-    const provider = PROVIDER_OPENAI_CODEX;
-    const response = await fetch(BasePath.getURL(CODEX_REFRESH_ROUTE), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    }).catch((error) => {
-      console.error(`Failed to refresh ${provider} token:`, error);
-      return undefined;
-    });
-
-    if (!response) return undefined;
-    if (!response.ok) {
-      console.error(`Failed to refresh ${provider} token:`, await response.text());
-      return undefined;
-    }
-
-    const data = (await response.json()) as CopilotRefreshResponse;
-    if (!data?.access_token) {
-      console.error(`${provider} refresh response missing access_token`);
-      return undefined;
-    }
-
-    return data;
-  }, []);
+  const refreshCodexOAuthToken = useCallback(
+    (refreshToken: string) =>
+      postRefreshToken(CODEX_REFRESH_ROUTE, refreshToken, PROVIDER_OPENAI_CODEX),
+    []
+  );
 
   const applyCopilotTokens = useCallback(
     (
-      data: {
-        access_token: string;
-        refresh_token?: string;
-        expires_in?: number;
-        refresh_token_expires_in?: number;
-      },
+      data: TokenRefreshResponse,
       current?: {
         refreshToken?: string;
         refreshTokenExpiresAt?: number;
