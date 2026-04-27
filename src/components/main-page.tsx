@@ -1,7 +1,6 @@
 import { AgentCommandProvider } from "@/components/chat/agent-command-context";
 import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { useConnection } from "@/components/connection/connection-context";
-import { ConnectionWizard } from "@/components/connection/connection-wizard";
 import { useReleaseDetector } from "@/components/release-note/release-detector";
 import { openReleaseNotes } from "@/components/release-note/release-notes-view";
 import {
@@ -35,7 +34,6 @@ import { SqlUtils } from "@/lib/sql-utils";
 import { cn } from "@/lib/utils";
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { AlertCircle, CheckCircle2, Circle, Database, Loader2, RotateCcw, Zap } from "lucide-react";
-import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -618,7 +616,6 @@ function NewReleaseBanner() {
 export function MainPage() {
   const { connection, pendingConfig, commitConnection, isInitialized, isConnectionAvailable } =
     useConnection();
-  const { status: sessionStatus } = useSession();
 
   const { displayMode, close: closeChatPanel } = useChatPanel();
   const [loadedSchemaData, setLoadedSchemaData] = useState<SchemaLoadResult | null>(null);
@@ -640,21 +637,23 @@ export function MainPage() {
   useLayoutEffect(() => {
     if (isMobile) return;
     const rafId = requestAnimationFrame(() => {
+      const sidebarPanelSize = displayMode === "fullscreen" ? 0 : DEFAULT_SCHEMA_PANEL_SIZE;
+
       switch (displayMode) {
         case "hidden":
-          // Schema tree visible, tabs take full content area, no chat
-          schemaPanelRef.current?.resize(DEFAULT_SCHEMA_PANEL_SIZE);
+          // Left sidebar visible, tabs take full content area, no chat
+          schemaPanelRef.current?.resize(sidebarPanelSize);
           tabsPanelRef.current?.resize(100); // 100% of content area
           break;
         case "panel":
-          // Schema tree visible, tabs and chat share content area
-          schemaPanelRef.current?.resize(DEFAULT_SCHEMA_PANEL_SIZE);
+          // Left sidebar visible, tabs and chat share content area
+          schemaPanelRef.current?.resize(sidebarPanelSize);
           tabsPanelRef.current?.resize(60); // 60% of content area
           chatPanelRef.current?.resize(40); // 40% of content area
           break;
         case "tabWidth":
-          // Schema tree visible, chat takes full content area, tabs collapsed
-          schemaPanelRef.current?.resize(DEFAULT_SCHEMA_PANEL_SIZE);
+          // Left sidebar visible, chat takes full content area, tabs collapsed
+          schemaPanelRef.current?.resize(sidebarPanelSize);
           tabsPanelRef.current?.resize(0);
           chatPanelRef.current?.resize(100); // 100% of content area
           break;
@@ -670,7 +669,7 @@ export function MainPage() {
     return () => {
       cancelAnimationFrame(rafId);
     };
-  }, [displayMode, isMobile]);
+  }, [connection, displayMode, isMobile]);
 
   // Determine if we should show the initializer overlay
   // Case 1: App is not initialized yet (booting up)
@@ -678,7 +677,6 @@ export function MainPage() {
   // Case 3: App initialized, but switching connections (initializing new connection)
   const showInitializer =
     !isInitialized ||
-    (sessionStatus === "loading" && !connection && !pendingConfig) ||
     (!!pendingConfig &&
       (!connection || connection.name !== pendingConfig.name || !isConnectionAvailable));
   if (showInitializer) {
@@ -689,16 +687,6 @@ export function MainPage() {
         </div>
       </div>
     );
-  }
-
-  // Show wizard ONLY if:
-  // 1. App is fully initialized
-  // 2. Session has resolved (so storage identity is set and we've had a chance to load saved connections)
-  // 3. No pending config (not currently connecting)
-  // 4. No active connection (fresh state)
-  const showWizard = isInitialized && sessionStatus !== "loading" && !pendingConfig && !connection;
-  if (showWizard) {
-    return <ConnectionWizard />;
   }
 
   // Mobile: one view at a time — chat full-screen when open, else tabs + schema in a sheet
@@ -717,41 +705,43 @@ export function MainPage() {
         <div className="relative h-full w-full flex flex-col min-w-0 overflow-hidden">
           <div className="shrink-0 flex items-center gap-2 border-b bg-background px-2 py-1.5">
             <SidebarTrigger className="h-8 w-8" />
-            <Sheet open={schemaSheetOpen} onOpenChange={setSchemaSheetOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  aria-label="Open schema browser"
-                >
-                  <Database className="h-4 w-4" />
-                  Schema
-                </Button>
-              </SheetTrigger>
-              <SheetPortal>
-                <SheetOverlay />
-                <SheetPrimitive.Content
-                  className={cn(
-                    "fixed z-50 gap-4 bg-background shadow-lg transition ease-in-out",
-                    "data-[state=open]:animate-in data-[state=closed]:animate-out",
-                    "data-[state=closed]:duration-300 data-[state=open]:duration-500",
-                    "inset-y-0 left-0 h-full w-3/4 border-r",
-                    "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
-                    "w-[min(320px,85vw)] p-0 flex flex-col overflow-hidden"
-                  )}
-                >
-                  <SheetTitle className="sr-only">Schema Browser</SheetTitle>
-                  <SheetDescription className="sr-only">
-                    Browse databases, tables, and columns. Use the search field to filter by name.
-                  </SheetDescription>
-                  <div className="flex-1 min-h-0 overflow-auto p-2">
-                    <SchemaTreeView initialSchemaData={loadedSchemaData} />
-                  </div>
-                </SheetPrimitive.Content>
-              </SheetPortal>
-            </Sheet>
+            {connection && (
+              <Sheet open={schemaSheetOpen} onOpenChange={setSchemaSheetOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    aria-label="Open schema browser"
+                  >
+                    <Database className="h-4 w-4" />
+                    Schema
+                  </Button>
+                </SheetTrigger>
+                <SheetPortal>
+                  <SheetOverlay />
+                  <SheetPrimitive.Content
+                    className={cn(
+                      "fixed z-50 gap-4 bg-background shadow-lg transition ease-in-out",
+                      "data-[state=open]:animate-in data-[state=closed]:animate-out",
+                      "data-[state=closed]:duration-300 data-[state=open]:duration-500",
+                      "inset-y-0 left-0 h-full w-3/4 border-r",
+                      "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
+                      "w-[min(320px,85vw)] p-0 flex flex-col overflow-hidden"
+                    )}
+                  >
+                    <SheetTitle className="sr-only">Schema Browser</SheetTitle>
+                    <SheetDescription className="sr-only">
+                      Browse databases, tables, and columns. Use the search field to filter by name.
+                    </SheetDescription>
+                    <div className="flex-1 min-h-0 overflow-auto p-2">
+                      <SchemaTreeView initialSchemaData={loadedSchemaData} />
+                    </div>
+                  </SheetPrimitive.Content>
+                </SheetPortal>
+              </Sheet>
+            )}
           </div>
           <div className="flex-1 min-h-0 overflow-hidden">
             <MainPageTabList selectedConnection={connection} />
@@ -761,7 +751,7 @@ export function MainPage() {
     );
   }
 
-  const showSchemaTree = displayMode !== "fullscreen";
+  const showSidebarPanel = displayMode !== "fullscreen";
   const showTabsVisible = displayMode === "hidden" || displayMode === "panel";
   const showChatPanel = displayMode !== "hidden";
 
@@ -771,21 +761,24 @@ export function MainPage() {
         <NewReleaseBanner />
         <div className="flex-1 relative flex min-w-0 overflow-hidden">
           <PanelGroup direction="horizontal" className="h-full w-full min-w-0">
-            {/* Left Panel: Schema Tree View - always mounted, hidden in fullscreen */}
+            {/* Left Panel: schema/snippets/session list with a connection; session list only without one. */}
             <Panel
               id="schema-panel"
               order={1}
               ref={schemaPanelRef}
-              defaultSize={showSchemaTree ? DEFAULT_SCHEMA_PANEL_SIZE : 0}
+              defaultSize={showSidebarPanel ? DEFAULT_SCHEMA_PANEL_SIZE : 0}
               minSize={0}
-              className={`bg-background ${!showSchemaTree ? "hidden" : ""}`}
+              className={`bg-background ${!showSidebarPanel ? "hidden" : ""}`}
             >
-              <SidebarPanel initialSchemaData={loadedSchemaData} />
+              <SidebarPanel
+                initialSchemaData={loadedSchemaData}
+                hasConnection={Boolean(connection)}
+              />
             </Panel>
 
             <PanelResizeHandle
               className={`w-0.5 transition-colors ${
-                showSchemaTree
+                showSidebarPanel
                   ? "bg-border hover:bg-border/80 cursor-col-resize"
                   : "bg-transparent hover:bg-transparent cursor-default pointer-events-none"
               }`}

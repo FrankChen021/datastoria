@@ -21,6 +21,10 @@ vi.mock("@/components/app-logo", () => ({
   AppLogo: () => <div>logo</div>,
 }));
 
+vi.mock("@/components/connection/connection-edit-component", () => ({
+  showConnectionEditDialog: vi.fn(),
+}));
+
 vi.mock("@/components/query-tab/query-tab", () => ({
   QueryTab: () => <div>query tab</div>,
 }));
@@ -62,10 +66,16 @@ vi.mock("@/components/query-log-inspector/query-log-inspector-tab", () => ({
 }));
 
 function getConnectionContextValue() {
+  const connection = {
+    connectionId: "test-connection",
+    cluster: "",
+    metadata: {},
+  };
+
   return {
-    isConnectionAvailable: false,
+    isConnectionAvailable: true,
     setIsConnectionAvailable: () => {},
-    connection: null,
+    connection,
     pendingConfig: null,
     isInitialized: true,
     switchConnection: () => {},
@@ -114,9 +124,9 @@ describe("MainPageTabList", () => {
   it("does not rerender unrelated tab panels when switching tabs", async () => {
     act(() => {
       root.render(
-        <ConnectionContext.Provider value={getConnectionContextValue()}>
+        <ConnectionContext.Provider value={getConnectionContextValue() as never}>
           <ChatPanelProvider>
-            <MainPageTabList selectedConnection={null} />
+            <MainPageTabList selectedConnection={getConnectionContextValue().connection as never} />
           </ChatPanelProvider>
         </ConnectionContext.Provider>
       );

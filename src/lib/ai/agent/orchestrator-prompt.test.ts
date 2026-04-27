@@ -30,6 +30,14 @@ describe("buildOrchestratorSystemPrompt", () => {
     expect(prompt).not.toContain("## Diagnosis Context");
   });
 
+  it("explains cluster tool limitations when no cluster is connected", () => {
+    const prompt = buildOrchestratorSystemPrompt({});
+
+    expect(prompt).toContain("## Cluster Availability");
+    expect(prompt).toContain("No ClickHouse cluster is currently connected");
+    expect(prompt).toContain("`execute_sql`");
+  });
+
   it("adds response language policy for non-English language", () => {
     const prompt = buildOrchestratorSystemPrompt({}, { responseLanguage: "zh-CN" });
 

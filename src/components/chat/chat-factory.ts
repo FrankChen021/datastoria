@@ -16,7 +16,10 @@ import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } fro
 import { v7 as uuidv7 } from "uuid";
 import { ChatContext, type DatabaseContext } from "./chat-context";
 import { ChatUIContext } from "./chat-ui-context";
-import { toSessionRepositoryConnectionId } from "./session/session-connection-id";
+import {
+  getSessionRepositoryConnectionId,
+  toSessionRepositoryConnectionId,
+} from "./session/session-connection-id";
 import { SessionManager } from "./session/session-manager";
 
 type AbortableQueryResult<TResponse extends QueryResponse | Response> = {
@@ -28,7 +31,8 @@ const PROVISIONAL_SESSION_TITLE_WORDS = 8;
 
 type ChatFactoryCreateOptions = {
   sessionId?: string;
-  connection: Connection;
+  connectionId?: string;
+  connection?: Connection | null;
   apiEndpoint?: string;
   context?: DatabaseContext;
   agentContext?: Partial<AgentContext>;
@@ -42,13 +46,15 @@ type ChatFactoryCreateOptions = {
 };
 type PrepareSendMessagesRequestArgs = {
   sessionId: string;
-  connection: Connection;
+  connection: Connection | null;
+  connectionId: string;
   historicalMessages: AppUIMessage[];
   messages: AppUIMessage[];
 };
 type FinishMessageArgs = {
   sessionId: string;
-  connection: Connection;
+  connection: Connection | null;
+  connectionId: string;
   message: AppUIMessage;
 };
 type CreateInternalOptions = ChatFactoryCreateOptions & {
@@ -307,7 +313,7 @@ export class ChatFactory {
       generateTitle: true,
       onPrepareSendMessagesRequest: async ({
         messages,
-        connection,
+        connectionId,
         sessionId,
         historicalMessages,
       }) => {
@@ -325,11 +331,7 @@ export class ChatFactory {
             }
           }
 
-          await SessionManager.touchSessionById(
-            sessionId,
-            connection.connectionId,
-            provisionalTitle
-          );
+          await SessionManager.touchSessionById(sessionId, connectionId, provisionalTitle);
           return;
         }
 
@@ -374,9 +376,9 @@ export class ChatFactory {
         }
 
         await SessionManager.saveMessages(sessionId, userMessagesToSave);
-        await SessionManager.touchSessionById(sessionId, connection.connectionId, provisionalTitle);
+        await SessionManager.touchSessionById(sessionId, connectionId, provisionalTitle);
       },
-      onFinish: async ({ message, connection, sessionId }) => {
+      onFinish: async ({ message, connectionId, sessionId }) => {
         const chatPersistenceMode = getRuntimeConfig().sessionRepositoryType;
         const now = new Date();
 
@@ -411,7 +413,7 @@ export class ChatFactory {
           await SessionManager.saveMessage(sessionId, messageToSave);
         }
 
-        await SessionManager.touchSessionById(sessionId, connection.connectionId, title);
+        await SessionManager.touchSessionById(sessionId, connectionId, title);
       },
     });
   }
@@ -432,8 +434,11 @@ export class ChatFactory {
   private static async createInternal(options: CreateInternalOptions): Promise<Chat<AppUIMessage>> {
     const sessionId = options.sessionId || newUniqueSessionId();
     const modelConfig = options.model;
-    const connection = options.connection;
-    const clientToolConnection = ChatFactory.createClientToolConnection(sessionId, connection);
+    const connection = options.connection ?? null;
+    const connectionId = options.connectionId ?? getSessionRepositoryConnectionId(connection);
+    const clientToolConnection = connection
+      ? ChatFactory.createClientToolConnection(sessionId, connection)
+      : null;
 
     // Create Chat instance
     const chat = new Chat<AppUIMessage>({
@@ -464,6 +469,7 @@ export class ChatFactory {
           await options.onPrepareSendMessagesRequest?.({
             sessionId,
             connection,
+            connectionId,
             historicalMessages: options.initialMessages,
             messages: messages as AppUIMessage[],
           });
@@ -473,7 +479,7 @@ export class ChatFactory {
           return {
             body: buildSendMessagesRequestPayload({
               sessionId,
-              connectionId: connection.connectionId,
+              connectionId,
               messages: messages as AppUIMessage[],
               trigger,
               messageId,
@@ -529,6 +535,12 @@ export class ChatFactory {
         const executor = ClientToolExecutors[toolName as ClientToolName];
 
         try {
+          if (!clientToolConnection) {
+            throw new Error(
+              "No ClickHouse cluster is connected. Connect a cluster to use ClickHouse tools."
+            );
+          }
+
           // Create progress callback for all tools (tools that don't use it will simply ignore it)
           const progressCallback = createToolProgressCallback(
             toolCallId,
@@ -560,6 +572,7 @@ export class ChatFactory {
             await options.onFinish?.({
               sessionId,
               connection,
+              connectionId,
               message: message as AppUIMessage,
             });
           }

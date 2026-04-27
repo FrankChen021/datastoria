@@ -9,9 +9,10 @@ import type { SchemaLoadResult } from "../schema-tree/schema-tree-loader";
 
 interface SidebarPanelProps {
   initialSchemaData: SchemaLoadResult | null;
+  hasConnection: boolean;
 }
 
-function SidebarTabHeader() {
+function SidebarTabHeader({ hasConnection }: { hasConnection: boolean }) {
   const tabsScrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -76,20 +77,24 @@ function SidebarTabHeader() {
 
       <div ref={tabsScrollContainerRef} className="flex-1 overflow-x-auto scrollbar-hide">
         <TabsList className="inline-flex justify-start rounded-none border-0 h-9 p-0 bg-transparent flex-nowrap">
-          <TabsTrigger
-            value="database"
-            className="shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-full px-3 whitespace-nowrap"
-          >
-            <Database className="h-4 w-4 mr-2" />
-            Schema
-          </TabsTrigger>
-          <TabsTrigger
-            value="snippets"
-            className="shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-full px-3 whitespace-nowrap"
-          >
-            <Book className="h-4 w-4 mr-2" />
-            Snippets
-          </TabsTrigger>
+          {hasConnection && (
+            <>
+              <TabsTrigger
+                value="database"
+                className="shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-full px-3 whitespace-nowrap"
+              >
+                <Database className="h-4 w-4 mr-2" />
+                Schema
+              </TabsTrigger>
+              <TabsTrigger
+                value="snippets"
+                className="shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-full px-3 whitespace-nowrap"
+              >
+                <Book className="h-4 w-4 mr-2" />
+                Snippets
+              </TabsTrigger>
+            </>
+          )}
           <TabsTrigger
             value="history"
             className="shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-full px-3 whitespace-nowrap"
@@ -115,27 +120,38 @@ function SidebarTabHeader() {
   );
 }
 
-export function SidebarPanel({ initialSchemaData }: SidebarPanelProps) {
+export function SidebarPanel({ initialSchemaData, hasConnection }: SidebarPanelProps) {
   const { currentChatId, requestNewChat, selectChat, activeSidebarTab, setActiveSidebarTab } =
     useChatPanel();
+  const visibleActiveSidebarTab = hasConnection ? activeSidebarTab : "history";
+
+  useEffect(() => {
+    if (!hasConnection && activeSidebarTab !== "history") {
+      setActiveSidebarTab("history");
+    }
+  }, [activeSidebarTab, hasConnection, setActiveSidebarTab]);
 
   return (
     <Tabs
-      value={activeSidebarTab}
+      value={visibleActiveSidebarTab}
       onValueChange={(value) => {
         setActiveSidebarTab(value as "database" | "snippets" | "history");
       }}
       className="w-full h-full flex flex-col"
     >
-      <SidebarTabHeader />
-      <TabsContent value="database" className="flex-1 overflow-hidden mt-0 min-h-0">
-        <SchemaTreeView initialSchemaData={initialSchemaData} />
-      </TabsContent>
-      <TabsContent value="snippets" className="flex-1 overflow-hidden mt-0 min-h-0">
-        <SnippetListView />
-      </TabsContent>
+      <SidebarTabHeader hasConnection={hasConnection} />
+      {hasConnection && (
+        <>
+          <TabsContent value="database" className="flex-1 overflow-hidden mt-0 min-h-0">
+            <SchemaTreeView initialSchemaData={initialSchemaData} />
+          </TabsContent>
+          <TabsContent value="snippets" className="flex-1 overflow-hidden mt-0 min-h-0">
+            <SnippetListView />
+          </TabsContent>
+        </>
+      )}
       <TabsContent value="history" className="flex-1 overflow-hidden mt-0 min-h-0">
-        {activeSidebarTab === "history" && (
+        {visibleActiveSidebarTab === "history" && (
           <ChatSessionList
             currentChatId={currentChatId ?? ""}
             onNewChat={requestNewChat}

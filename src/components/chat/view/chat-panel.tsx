@@ -3,11 +3,16 @@
 import { ChatContext, getDatabaseContextFromConnection } from "@/components/chat/chat-context";
 import { ChatFactory } from "@/components/chat/chat-factory";
 import { ChatUIContext } from "@/components/chat/chat-ui-context";
+import {
+  getSessionRepositoryConnectionId,
+  isNoConnectionSessionConnectionId,
+} from "@/components/chat/session/session-connection-id";
 import { SessionManager } from "@/components/chat/session/session-manager";
 import { useConnection } from "@/components/connection/connection-context";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { AppUIMessage, Message } from "@/lib/ai/ai-types";
+import type { Connection } from "@/lib/connection/connection";
 import type { Chat } from "@ai-sdk/react";
 import { Download, Loader2, Maximize2, Minimize2, Plus, Square, X } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -34,6 +39,8 @@ interface ChatHeaderProps {
 type LoadChatOptions = {
   isNewSession?: boolean;
   agentContext?: Partial<import("@/lib/ai/ai-types").AgentContext>;
+  connectionOverride?: Connection | null;
+  connectionId?: string;
 };
 
 function sanitizeFileName(input: string): string {
@@ -259,6 +266,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
   const trackedRunningChatIdRef = useRef<string | null>(null);
   const isInitializedRef = useRef(false);
   const { connection } = useConnection();
+  const chatConnectionId = getSessionRepositoryConnectionId(connection);
   const { data: authSession } = useSession();
   const createDraftSession = useCallback(
     () => ({
@@ -276,10 +284,15 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
         ? ((await SessionManager.getMessages(chatIdToLoad)).map(toAppUiMessage) as AppUIMessage[])
         : [];
       setChatTitle(chatData?.title ?? "New Chat");
+      const targetConnection = options?.connectionOverride ?? connection;
+      const targetConnectionId =
+        options?.connectionId ?? getSessionRepositoryConnectionId(targetConnection);
 
       const newChat = await ChatFactory.create({
         sessionId: chatIdToLoad,
-        connection: connection!,
+        connection: targetConnection,
+        connectionId: targetConnectionId,
+        context: targetConnection ? undefined : {},
         initialMessages,
         agentContext: options?.agentContext,
       });
@@ -296,11 +309,9 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
   }, [createDraftSession, loadChat]);
 
   const createFreshChat = useCallback(async () => {
-    if (!connection?.connectionId) return;
-
     previousChatIdRef.current = chat?.id || null;
     await loadDraftChat();
-  }, [chat?.id, connection?.connectionId, loadDraftChat]);
+  }, [chat?.id, loadDraftChat]);
 
   // Initial chat loading - only run once when chat is null
   useEffect(() => {
@@ -308,9 +319,6 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     if (isInitializedRef.current || chat) return;
 
     const initializeChat = async () => {
-      const connectionId = connection?.connectionId;
-      if (!connectionId) return;
-
       // Capture pendingCommand at initialization time to avoid re-running when it changes
       const currentPendingCommand = pendingCommand;
       let loadTarget:
@@ -322,7 +330,11 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
         | undefined;
 
       // Explicit session selection should win when opening a hidden panel.
-      if (selectedChat?.connectionId && selectedChat.connectionId !== connectionId) {
+      if (
+        selectedChat?.connectionId &&
+        selectedChat.connectionId !== chatConnectionId &&
+        !isNoConnectionSessionConnectionId(selectedChat.connectionId)
+      ) {
         return;
       } else if (selectedChat) {
         loadTarget = { id: selectedChat.chatId, isNewSession: false };
@@ -355,6 +367,12 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
         await loadChat(loadTarget.id, {
           isNewSession: loadTarget.isNewSession,
           agentContext: loadTarget.agentContext,
+          connectionOverride:
+            selectedChat?.connectionId &&
+            isNoConnectionSessionConnectionId(selectedChat.connectionId)
+              ? null
+              : undefined,
+          connectionId: selectedChat?.connectionId,
         });
         if (selectedChat?.chatId === loadTarget.id) {
           clearSelectedChat();
@@ -367,6 +385,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     connection?.connectionId,
+    chatConnectionId,
     createDraftSession,
     initialInput?.chatId,
     chat,
@@ -377,7 +396,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
 
   // Handle pending command when chat already exists (panel was already open)
   useEffect(() => {
-    if (!connection?.connectionId || !chat || !pendingCommand?.forceNewChat) return;
+    if (!chat || !pendingCommand?.forceNewChat) return;
 
     // Skip if we've already processed this pending command
     const commandKey = `${pendingCommand.timestamp}-${pendingCommand.forceNewChat}`;
@@ -396,7 +415,6 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     pendingCommand?.agentContext,
     pendingCommand?.forceNewChat,
     pendingCommand?.timestamp,
-    connection,
     chat,
     createDraftSession,
     loadChat,
@@ -405,11 +423,22 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
   useEffect(() => {
     if (!chat || !selectedChat) return;
     if (selectedChat.chatId === chat.id) return;
-    if (selectedChat.connectionId && selectedChat.connectionId !== connection?.connectionId) return;
+    if (
+      selectedChat.connectionId &&
+      selectedChat.connectionId !== chatConnectionId &&
+      !isNoConnectionSessionConnectionId(selectedChat.connectionId)
+    ) {
+      return;
+    }
 
-    void loadChat(selectedChat.chatId);
+    void loadChat(selectedChat.chatId, {
+      connectionOverride: isNoConnectionSessionConnectionId(selectedChat.connectionId)
+        ? null
+        : undefined,
+      connectionId: selectedChat.connectionId,
+    });
     clearSelectedChat();
-  }, [chat, clearSelectedChat, connection?.connectionId, loadChat, selectedChat]);
+  }, [chat, chatConnectionId, clearSelectedChat, loadChat, selectedChat]);
 
   // Update context builder when props change
   useEffect(() => {
@@ -432,10 +461,8 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
 
   // Handle new chat creation (from user action)
   const handleNewChat = useCallback(async () => {
-    if (!connection?.connectionId) return;
-
     await createFreshChat();
-  }, [connection?.connectionId, createFreshChat]);
+  }, [createFreshChat]);
 
   const handleExportSession = useCallback(async () => {
     if (!chat?.id) {
@@ -508,9 +535,9 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
 
   const handleSelectChat = useCallback(
     (id: string, targetConnectionId?: string) => {
-      selectChat(id, targetConnectionId ?? connection?.connectionId);
+      selectChat(id, targetConnectionId ?? chatConnectionId);
     },
-    [connection?.connectionId, selectChat]
+    [chatConnectionId, selectChat]
   );
 
   useEffect(() => {
@@ -526,13 +553,9 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
   }, [chat, currentChatId, setCurrentChatId]);
 
   useEffect(() => {
-    if (!connection?.connectionId) {
-      return;
-    }
-
     const trackedChatId = trackedRunningChatIdRef.current;
     if (trackedChatId && trackedChatId !== chat?.id) {
-      SessionManager.markRunning(connection.connectionId, trackedChatId, false);
+      SessionManager.markRunning(chatConnectionId, trackedChatId, false);
     }
 
     if (!chat?.id) {
@@ -541,8 +564,8 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     }
 
     trackedRunningChatIdRef.current = chat.id;
-    SessionManager.markRunning(connection.connectionId, chat.id, isRunning);
-  }, [chat?.id, connection?.connectionId, isRunning]);
+    SessionManager.markRunning(chatConnectionId, chat.id, isRunning);
+  }, [chat?.id, chatConnectionId, isRunning]);
 
   const handleToggleDisplayMode = useCallback(() => {
     toggleDisplayMode();
