@@ -118,6 +118,10 @@ function extractErrorMessage(error: unknown): string {
   return defaultMessage;
 }
 
+function hasClickHouseClusterContext(context: ServerDatabaseContext): boolean {
+  return typeof context.clickHouseUser === "string" && context.clickHouseUser.length > 0;
+}
+
 /**
  * POST /api/ai/chat
  *
@@ -155,15 +159,11 @@ export async function POST(req: Request) {
       return new Response("Invalid request format: messages must be an array", { status: 400 });
     }
 
-    // Validate clickHouseUser is provided in database context and add userEmail
+    // Add userEmail and mark whether ClickHouse-specific tools/context are available.
     const context: ServerDatabaseContext = apiRequest.context
       ? ({ ...apiRequest.context, userEmail } as ServerDatabaseContext)
       : ({ userEmail } as ServerDatabaseContext);
-    if (!context.clickHouseUser || typeof context.clickHouseUser !== "string") {
-      return new Response("Missing or invalid clickHouseUser in context (required string)", {
-        status: 400,
-      });
-    }
+    context.clusterAvailable = hasClickHouseClusterContext(context);
 
     // Get the appropriate model (mock or real based on USE_MOCK_LLM env var)
     // Use provided model config if available, otherwise auto-select

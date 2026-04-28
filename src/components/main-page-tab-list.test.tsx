@@ -6,6 +6,7 @@ import { ChatPanelProvider } from "@/components/chat/view/use-chat-panel";
 import { ConnectionContext } from "@/components/connection/connection-context";
 import { MainPageTabList } from "@/components/main-page-tab-list";
 import { TabManager } from "@/components/tab-manager";
+import { Connection } from "@/lib/connection/connection";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,6 +20,10 @@ const queryLogRenderCounts: Record<string, number> = {};
 
 vi.mock("@/components/app-logo", () => ({
   AppLogo: () => <div>logo</div>,
+}));
+
+vi.mock("@/components/connection/connection-edit-component", () => ({
+  showConnectionEditDialog: vi.fn(),
 }));
 
 vi.mock("@/components/query-tab/query-tab", () => ({
@@ -61,11 +66,20 @@ vi.mock("@/components/query-log-inspector/query-log-inspector-tab", () => ({
   },
 }));
 
-function getConnectionContextValue() {
+function getConnectionContextValue(): React.ContextType<typeof ConnectionContext> {
+  const connection = Connection.create({
+    name: "test-connection",
+    url: "https://example.com",
+    user: "default",
+    password: "",
+    cluster: "",
+    editable: true,
+  });
+
   return {
-    isConnectionAvailable: false,
+    isConnectionAvailable: true,
     setIsConnectionAvailable: () => {},
-    connection: null,
+    connection,
     pendingConfig: null,
     isInitialized: true,
     switchConnection: () => {},
@@ -112,11 +126,13 @@ describe("MainPageTabList", () => {
   });
 
   it("does not rerender unrelated tab panels when switching tabs", async () => {
+    const ctx = getConnectionContextValue();
+
     act(() => {
       root.render(
-        <ConnectionContext.Provider value={getConnectionContextValue()}>
+        <ConnectionContext.Provider value={ctx}>
           <ChatPanelProvider>
-            <MainPageTabList selectedConnection={null} />
+            <MainPageTabList selectedConnection={ctx.connection} />
           </ChatPanelProvider>
         </ConnectionContext.Provider>
       );

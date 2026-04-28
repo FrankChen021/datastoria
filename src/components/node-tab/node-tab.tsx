@@ -16,6 +16,14 @@ interface NodeTabProps {
 export const NodeTab = memo((_props: NodeTabProps) => {
   const { connection } = useConnection();
 
+  if (!connection) {
+    return (
+      <div className="flex h-full items-center justify-center px-4 text-sm text-muted-foreground">
+        Connect a ClickHouse cluster to view node dashboards.
+      </div>
+    );
+  }
+
   const dashboard: Dashboard = {
     version: 3,
     filter: {},
@@ -39,9 +47,9 @@ export const NodeTab = memo((_props: NodeTabProps) => {
     collapsed: false,
     charts: nodeMergeDashboard.filter((chart) => {
       return (
-        (connection!.metadata.metric_log_table_has_ProfileEvent_MergeSourceParts ||
+        (connection.metadata.metric_log_table_has_ProfileEvent_MergeSourceParts ||
           !chart.datasource.sql.includes("ProfileEvent_MergeSourceParts")) &&
-        (connection!.metadata.metric_log_table_has_ProfileEvent_MutationTotalParts ||
+        (connection.metadata.metric_log_table_has_ProfileEvent_MutationTotalParts ||
           !chart.datasource.sql.includes("ProfileEvent_MutationTotalParts"))
       );
     }),

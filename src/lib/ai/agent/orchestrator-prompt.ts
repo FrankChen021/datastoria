@@ -24,6 +24,10 @@ export function buildOrchestratorSystemPrompt(
   context?: ServerDatabaseContext,
   options?: { responseLanguage?: string }
 ): string {
+  const clusterAvailable = context?.clusterAvailable ?? hasDatabaseContextFacts(context);
+  const clusterPolicy = clusterAvailable
+    ? ""
+    : `\n\n## Cluster Availability\nNo ClickHouse cluster is currently connected for this conversation. ClickHouse tools such as \`execute_sql\`, \`validate_sql\`, schema exploration, query log search, and cluster diagnostics are unavailable. You may still help with general ClickHouse concepts, SQL drafting, code, documentation, and analysis from user-provided context. If the user needs live schema, SQL execution, system table introspection, or production diagnostics, ask them to connect a ClickHouse cluster first.`;
   const responseLanguage = sanitizeLanguageTag(options?.responseLanguage);
   const languagePolicy =
     responseLanguage && !isEnglishLanguageTag(responseLanguage)
@@ -31,12 +35,13 @@ export function buildOrchestratorSystemPrompt(
       : "";
 
   if (!hasDatabaseContextFacts(context)) {
-    return `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}${languagePolicy}`;
+    return `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}${clusterPolicy}${languagePolicy}`;
   }
 
   return `${ORCHESTRATOR_SYSTEM_PROMPT_BASE}
 
 ## Diagnosis Context
 ${formatDatabaseContextFacts(context)}
+${clusterPolicy}
 ${languagePolicy}`;
 }

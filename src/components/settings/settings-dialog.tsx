@@ -1,3 +1,4 @@
+import { useConnection } from "@/components/connection/connection-context";
 import { Dialog as SharedDialog } from "@/components/shared/use-dialog";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -15,13 +16,20 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { ChevronRight, X } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { SETTINGS_REGISTRY, type SettingsSection } from "./settings-registry";
 
 export interface ShowSettingsDialogOptions {
   initialSection?: SettingsSection;
   initialSkillId?: string;
   onCancel?: () => void;
+}
+
+function getAvailableSettingsSection(section: SettingsSection, hasConnection: boolean) {
+  if (section === "query-context" && !hasConnection) {
+    return "ui";
+  }
+  return section;
 }
 
 function SettingsDialogWrapper({
@@ -33,7 +41,15 @@ function SettingsDialogWrapper({
   initialSection?: SettingsSection;
   initialSkillId?: string;
 }) {
-  const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
+  const { connection } = useConnection();
+  const hasConnection = connection !== null;
+  const [activeSection, setActiveSection] = useState<SettingsSection>(() =>
+    getAvailableSettingsSection(initialSection, hasConnection)
+  );
+
+  useEffect(() => {
+    setActiveSection((current) => getAvailableSettingsSection(current, hasConnection));
+  }, [hasConnection]);
 
   const handleClose = useCallback(() => {
     if (onCancel) {
@@ -66,30 +82,31 @@ function SettingsDialogWrapper({
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  {/* SQL Section */}
-                  <SidebarMenuItem>
-                    <Collapsible defaultOpen className="group/collapsible">
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton>
-                          <span>SQL</span>
-                          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                        </SidebarMenuButton>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <SidebarMenuSub>
-                          <SidebarMenuSubItem>
-                            <SidebarMenuSubButton
-                              className="cursor-pointer"
-                              onClick={() => setActiveSection("query-context")}
-                              isActive={activeSection === "query-context"}
-                            >
-                              <span>Query Context</span>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </SidebarMenuItem>
+                  {hasConnection && (
+                    <SidebarMenuItem>
+                      <Collapsible defaultOpen className="group/collapsible">
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton>
+                            <span>SQL</span>
+                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton
+                                className="cursor-pointer"
+                                onClick={() => setActiveSection("query-context")}
+                                isActive={activeSection === "query-context"}
+                              >
+                                <span>Query Context</span>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </SidebarMenuItem>
+                  )}
 
                   {/* AI Section */}
                   <SidebarMenuItem>

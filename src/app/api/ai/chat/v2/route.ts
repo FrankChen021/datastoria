@@ -261,6 +261,10 @@ function withModelMetadata(
   };
 }
 
+function hasClickHouseClusterContext(context: ServerDatabaseContext): boolean {
+  return typeof context.clickHouseUser === "string" && context.clickHouseUser.length > 0;
+}
+
 export async function POST(req: Request) {
   try {
     const userEmail = getAuthenticatedUserEmail(req);
@@ -319,11 +323,7 @@ export async function POST(req: Request) {
       context = apiRequest.context
         ? ({ ...apiRequest.context, userEmail } as ServerDatabaseContext)
         : ({ userEmail } as ServerDatabaseContext);
-      if (!context.clickHouseUser || typeof context.clickHouseUser !== "string") {
-        return new Response("Missing or invalid clickHouseUser in context (required string)", {
-          status: 400,
-        });
-      }
+      context.clusterAvailable = hasClickHouseClusterContext(context);
 
       try {
         modelConfig = resolveModelConfig(apiRequest.model, {
@@ -428,11 +428,7 @@ export async function POST(req: Request) {
       context = apiRequest.context
         ? ({ ...apiRequest.context, userEmail } as ServerDatabaseContext)
         : ({ userEmail } as ServerDatabaseContext);
-      if (!context.clickHouseUser || typeof context.clickHouseUser !== "string") {
-        return new Response("Missing or invalid clickHouseUser in context (required string)", {
-          status: 400,
-        });
-      }
+      context.clusterAvailable = hasClickHouseClusterContext(context);
 
       agentContext = apiRequest.agentContext;
       generateTitle = apiRequest.generateTitle !== false;
@@ -477,6 +473,29 @@ export async function POST(req: Request) {
       responseLanguage: agentContext?.responseLanguage,
     });
     const outputReasoning = shouldOutputReasoning(modelConfig, agentContext);
+    const tools = {
+      [SERVER_TOOL_NAMES.SKILL]: serverTools.skill,
+      [SERVER_TOOL_NAMES.SKILL_RESOURCE]: serverTools.skill_resource,
+      ...(codeSearchContext
+        ? {
+            [SERVER_TOOL_NAMES.SEARCH_FILE]: serverTools.search_file,
+            [SERVER_TOOL_NAMES.READ_FILE]: serverTools.read_file,
+          }
+        : {}),
+      ask_user_question: ClientTools.ask_user_question,
+    };
+    if (context.clusterAvailable) {
+      Object.assign(tools, {
+        get_tables: ClientTools.get_tables,
+        explore_schema: ClientTools.explore_schema,
+        validate_sql: ClientTools.validate_sql,
+        execute_sql: ClientTools.execute_sql,
+        collect_sql_optimization_evidence: ClientTools.collect_sql_optimization_evidence,
+        search_query_log: ClientTools.search_query_log,
+        collect_cluster_status: ClientTools.collect_cluster_status,
+        collect_rca_evidence: ClientTools.collect_rca_evidence,
+      });
+    }
     const result = streamText({
       model,
       system: orchestratorSystemPrompt,
@@ -486,25 +505,7 @@ export async function POST(req: Request) {
         outputReasoning,
         instructions: orchestratorSystemPrompt,
       }),
-      tools: {
-        [SERVER_TOOL_NAMES.SKILL]: serverTools.skill,
-        [SERVER_TOOL_NAMES.SKILL_RESOURCE]: serverTools.skill_resource,
-        ...(codeSearchContext
-          ? {
-              [SERVER_TOOL_NAMES.SEARCH_FILE]: serverTools.search_file,
-              [SERVER_TOOL_NAMES.READ_FILE]: serverTools.read_file,
-            }
-          : {}),
-        ask_user_question: ClientTools.ask_user_question,
-        get_tables: ClientTools.get_tables,
-        explore_schema: ClientTools.explore_schema,
-        validate_sql: ClientTools.validate_sql,
-        execute_sql: ClientTools.execute_sql,
-        collect_sql_optimization_evidence: ClientTools.collect_sql_optimization_evidence,
-        search_query_log: ClientTools.search_query_log,
-        collect_cluster_status: ClientTools.collect_cluster_status,
-        collect_rca_evidence: ClientTools.collect_rca_evidence,
-      },
+      tools,
       stopWhen: stepCountIs(10),
       temperature,
     });

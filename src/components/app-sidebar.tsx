@@ -1,6 +1,7 @@
 import { AppLogo } from "@/components/app-logo";
 import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { useConnection } from "@/components/connection/connection-context";
+import { showConnectionEditDialog } from "@/components/connection/connection-edit-component";
 import { ConnectionSelector } from "@/components/connection/connection-selector";
 import { openConnectionSelectorDialog } from "@/components/connection/connection-selector-dialog";
 import { openReleaseNotes } from "@/components/release-note/release-notes-view";
@@ -122,10 +123,18 @@ function HoverCardSidebarMenuItem({
 
 function ConnectionManageSidebarMenuItem() {
   const { isMobile } = useSidebar();
-  const { connection } = useConnection();
+  const { connection, switchConnection } = useConnection();
   const [open, setOpen] = useState(false);
   const [tooltipAllowed, setTooltipAllowed] = useState(true);
   const tooltipDelayRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasConnection = connection !== null;
+
+  const openCreateConnectionDialog = useCallback(() => {
+    showConnectionEditDialog({
+      connection: null,
+      onSave: switchConnection,
+    });
+  }, [switchConnection]);
 
   // Suppress the sidebar button tooltip while the popover is open and briefly after it closes.
   useEffect(() => {
@@ -152,26 +161,28 @@ function ConnectionManageSidebarMenuItem() {
       tooltip={
         tooltipAllowed
           ? {
-              children: "Switch connection",
+              children: hasConnection ? "Switch connection" : "Create Connection",
               className: "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
             }
           : undefined
       }
       onClick={
-        isMobile
-          ? () =>
-              openConnectionSelectorDialog({
-                defaultConnectionName: connection?.name ?? null,
-              })
-          : () => setOpen((s) => !s)
+        !hasConnection
+          ? openCreateConnectionDialog
+          : isMobile
+            ? () =>
+                openConnectionSelectorDialog({
+                  defaultConnectionName: connection?.name ?? null,
+                })
+            : () => setOpen((s) => !s)
       }
     >
       <Database className="h-5 w-5" />
-      <span>Switch connection</span>
+      <span>{hasConnection ? "Switch connection" : "Create Connection"}</span>
     </SidebarMenuButton>
   );
 
-  if (isMobile) {
+  if (isMobile || !hasConnection) {
     return <SidebarMenuItem>{triggerButton}</SidebarMenuItem>;
   }
 
@@ -290,14 +301,10 @@ function DashboardsSidebarMenuItem() {
 }
 
 export function AppSidebar() {
-  const { isConnectionAvailable, pendingConfig } = useConnection();
+  const { isConnectionAvailable } = useConnection();
   const { data: session } = useSession();
   const { open: openChatPanel, setActiveSidebarTab, setDisplayMode } = useChatPanel();
   const [activeTabType, setActiveTabType] = useState<TabType | null>(null);
-
-  // Show connection selector if connection is available OR if there's a pending config (failed initialization)
-  // This allows users to switch connections even after a failure
-  const showConnectionSelector = isConnectionAvailable || !!pendingConfig;
 
   useEffect(() => {
     return TabManager.onActiveTabChange((event) => {
@@ -317,53 +324,51 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup className="pt-0">
           <SidebarMenu>
-            {showConnectionSelector && <ConnectionManageSidebarMenuItem />}
+            <ConnectionManageSidebarMenuItem />
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                tooltip={{
+                  children: "Work with AI",
+                  className:
+                    "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
+                }}
+                size="default"
+                onClick={() => {
+                  setActiveSidebarTab("history");
+                  if (activeTabType === "query") {
+                    setDisplayMode("panel");
+                  } else {
+                    openChatPanel();
+                  }
+                }}
+              >
+                <Sparkles className="h-5 w-5" />
+                <span>Work with AI</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
             {isConnectionAvailable && (
-              <>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip={{
-                      children: "Work with AI",
-                      className:
-                        "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
-                    }}
-                    size="default"
-                    onClick={() => {
-                      setActiveSidebarTab("history");
-                      if (activeTabType === "query") {
-                        setDisplayMode("panel");
-                      } else {
-                        openChatPanel();
-                      }
-                    }}
-                  >
-                    <Sparkles className="h-5 w-5" />
-                    <span>Work with AI</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip={{
-                      children: "Query Data with SQL",
-                      className:
-                        "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
-                    }}
-                    size="default"
-                    onClick={() => TabManager.activateQueryTab()}
-                  >
-                    <Terminal className="h-5 w-5" />
-                    <span>Query Data with SQL</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <DashboardsSidebarMenuItem />
-
-                <SystemTableIntrospectionSidebarMenuItem />
-
-                <SettingsSidebarMenuItem />
-              </>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip={{
+                    children: "Query Data with SQL",
+                    className:
+                      "bg-primary text-primary-foreground text-xs px-2 py-1 border-0 rounded-sm",
+                  }}
+                  size="default"
+                  onClick={() => TabManager.activateQueryTab()}
+                >
+                  <Terminal className="h-5 w-5" />
+                  <span>Query Data with SQL</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             )}
+
+            {isConnectionAvailable && <DashboardsSidebarMenuItem />}
+
+            {isConnectionAvailable && <SystemTableIntrospectionSidebarMenuItem />}
+
+            <SettingsSidebarMenuItem />
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>

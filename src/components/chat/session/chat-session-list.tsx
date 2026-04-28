@@ -2,6 +2,11 @@
 
 import { ChatUIContext } from "@/components/chat/chat-ui-context";
 import {
+  getSessionRepositoryConnectionId,
+  isNoConnectionSessionConnectionId,
+  NO_CONNECTION_SESSION_CONNECTION_ID,
+} from "@/components/chat/session/session-connection-id";
+import {
   SessionManager,
   useSessionPageInfo,
   useSessions,
@@ -116,6 +121,15 @@ function getConnectionGroupMeta(
   connectionId: string,
   currentConnectionId?: string
 ): ConnectionGroupMeta {
+  if (isNoConnectionSessionConnectionId(connectionId)) {
+    return {
+      label: "No cluster",
+      secondaryLabel: "Chat only",
+      isCurrent: currentConnectionId === NO_CONNECTION_SESSION_CONNECTION_ID,
+      config: null,
+    };
+  }
+
   const matchingConnections = ConnectionManager.getInstance()
     .getConnections()
     .filter((item) => Connection.create(item).connectionId === connectionId);
@@ -233,7 +247,12 @@ function CrossConnectionSwitchPopover({
   onConfirm: (chat: ManagedSession) => Promise<void>;
   children: React.ReactNode;
 }) {
-  if (!currentConnectionId || !chat.databaseId || chat.databaseId === currentConnectionId) {
+  if (
+    !currentConnectionId ||
+    !chat.databaseId ||
+    chat.databaseId === currentConnectionId ||
+    isNoConnectionSessionConnectionId(chat.databaseId)
+  ) {
     return <>{children}</>;
   }
 
@@ -475,7 +494,8 @@ function buildHistoryTree(
 export const ChatSessionList = React.memo<ChatHistoryListProps>(
   ({ currentChatId, onNewChat, onClose, onSelectChat, className }) => {
     const { connection, switchConnection } = useConnection();
-    const history = useSessions(connection?.connectionId, "all");
+    const currentConnectionId = getSessionRepositoryConnectionId(connection);
+    const history = useSessions(currentConnectionId, "all");
     const pageInfo = useSessionPageInfo();
     const [search, setSearch] = React.useState("");
     const [renameState, setRenameState] = React.useState<RenameState>(null);
@@ -549,7 +569,13 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
           return;
         }
 
-        if (chat.databaseId !== connection?.connectionId) {
+        if (isNoConnectionSessionConnectionId(chat.databaseId)) {
+          onSelectChat?.(chat.chatId, chat.databaseId);
+          onClose?.();
+          return;
+        }
+
+        if (chat.databaseId !== currentConnectionId) {
           const targetConfig = ConnectionManager.getInstance()
             .getConnections()
             .find((item) => Connection.create(item).connectionId === chat.databaseId);
@@ -565,14 +591,14 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
         onSelectChat?.(chat.chatId, chat.databaseId);
         onClose?.();
       },
-      [connection?.connectionId, currentChatId, onClose, onSelectChat, switchConnection]
+      [currentConnectionId, currentChatId, onClose, onSelectChat, switchConnection]
     );
 
     const treeData = React.useMemo(
       () =>
         buildHistoryTree(
           history,
-          connection?.connectionId,
+          currentConnectionId,
           switchConfirmState,
           setSwitchConfirmState,
           handleSelectSession,
@@ -587,7 +613,7 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
           setDeleteState
         ),
       [
-        connection?.connectionId,
+        currentConnectionId,
         deleteState,
         handleDeleteChats,
         handleSelectSession,
@@ -597,11 +623,7 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
     );
 
     const initialExpandedIds = React.useMemo(() => {
-      if (!connection?.connectionId) {
-        return [];
-      }
-
-      const currentConnectionNodeId = connectionNodeId(connection.connectionId);
+      const currentConnectionNodeId = connectionNodeId(currentConnectionId);
       const currentConnectionNode = treeData.find((node) => node.id === currentConnectionNodeId);
       if (!currentConnectionNode) {
         return [];
@@ -611,7 +633,7 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
         currentConnectionNodeId,
         ...(currentConnectionNode.children?.map((child) => child.id) ?? []),
       ];
-    }, [connection?.connectionId, treeData]);
+    }, [currentConnectionId, treeData]);
 
     const hasVisibleTreeData = React.useMemo(() => {
       if (search.length === 0) {
@@ -679,9 +701,10 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
 
                     if (
                       data.chat.chatId !== currentChatId &&
-                      connection?.connectionId &&
+                      currentConnectionId &&
                       data.chat.databaseId &&
-                      data.chat.databaseId !== connection.connectionId
+                      !isNoConnectionSessionConnectionId(data.chat.databaseId) &&
+                      data.chat.databaseId !== currentConnectionId
                     ) {
                       setSwitchConfirmState({
                         chat: data.chat,

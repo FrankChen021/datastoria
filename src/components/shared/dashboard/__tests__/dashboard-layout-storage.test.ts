@@ -16,8 +16,36 @@ import {
   type SavedLayout,
 } from "../dashboard-layout-storage";
 
+function installTestLocalStorage() {
+  if (typeof globalThis.localStorage?.clear === "function") {
+    return;
+  }
+
+  const store = new Map<string, string>();
+  const testLocalStorage: Storage = {
+    get length() {
+      return store.size;
+    },
+    clear: () => store.clear(),
+    getItem: (key) => store.get(key) ?? null,
+    key: (index) => Array.from(store.keys())[index] ?? null,
+    removeItem: (key) => {
+      store.delete(key);
+    },
+    setItem: (key, value) => {
+      store.set(key, value);
+    },
+  };
+
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: testLocalStorage,
+  });
+}
+
 describe("dashboard-layout-storage", () => {
   beforeEach(() => {
+    installTestLocalStorage();
     localStorage.clear();
     vi.clearAllMocks();
   });

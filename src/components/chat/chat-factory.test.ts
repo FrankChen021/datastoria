@@ -1,6 +1,7 @@
 import type { AppUIMessage } from "@/lib/ai/ai-types";
 import { describe, expect, it } from "vitest";
 import { buildSendMessagesRequestPayload } from "./chat-factory";
+import { NO_CONNECTION_SESSION_CONNECTION_ID } from "./session/session-connection-id";
 
 function createMessage(overrides: Partial<AppUIMessage>): AppUIMessage {
   return {
@@ -156,5 +157,28 @@ describe("buildSendMessagesRequestPayload", () => {
         },
       },
     });
+  });
+
+  it("supports remote chat payloads without a ClickHouse connection", () => {
+    const payload = buildSendMessagesRequestPayload({
+      sessionId: "session-1",
+      connectionId: NO_CONNECTION_SESSION_CONNECTION_ID,
+      messages: [createMessage({})],
+      trigger: "submit-message",
+      messageId: "message-1",
+      body: {},
+      requestContext: undefined,
+      currentModel: undefined,
+      generateTitle: false,
+      ephemeral: false,
+      pruneValidateSql: true,
+      chatPersistenceMode: "remote",
+    });
+
+    expect(payload).toMatchObject({
+      sessionId: "session-1",
+      connectionId: NO_CONNECTION_SESSION_CONNECTION_ID,
+    });
+    expect(payload).not.toHaveProperty("context");
   });
 });

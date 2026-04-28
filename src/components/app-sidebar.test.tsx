@@ -7,10 +7,20 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppSidebar } from "./app-sidebar";
 
-const { openMock, setDisplayModeMock, setActiveSidebarTabMock } = vi.hoisted(() => ({
+const {
+  openMock,
+  setDisplayModeMock,
+  setActiveSidebarTabMock,
+  switchConnectionMock,
+  showConnectionEditDialogMock,
+  savedConnectionsMock,
+} = vi.hoisted(() => ({
   openMock: vi.fn(),
   setDisplayModeMock: vi.fn(),
   setActiveSidebarTabMock: vi.fn(),
+  switchConnectionMock: vi.fn(),
+  showConnectionEditDialogMock: vi.fn(),
+  savedConnectionsMock: vi.fn((): unknown[] => []),
 }));
 
 const testGlobal = globalThis as typeof globalThis & {
@@ -30,6 +40,7 @@ vi.mock("@/components/connection/connection-context", () => ({
     isConnectionAvailable: true,
     pendingConfig: null,
     connection: null,
+    switchConnection: switchConnectionMock,
   }),
 }));
 
@@ -67,8 +78,20 @@ vi.mock("@/components/connection/connection-selector", () => ({
   ConnectionSelector: () => <div>ConnectionSelector</div>,
 }));
 
+vi.mock("@/components/connection/connection-edit-component", () => ({
+  showConnectionEditDialog: showConnectionEditDialogMock,
+}));
+
 vi.mock("@/components/connection/connection-selector-dialog", () => ({
   openConnectionSelectorDialog: vi.fn(),
+}));
+
+vi.mock("@/lib/connection/connection-manager", () => ({
+  ConnectionManager: {
+    getInstance: () => ({
+      getConnections: savedConnectionsMock,
+    }),
+  },
 }));
 
 vi.mock("@/components/release-note/release-notes-view", () => ({
@@ -129,6 +152,10 @@ describe("AppSidebar", () => {
     openMock.mockReset();
     setDisplayModeMock.mockReset();
     setActiveSidebarTabMock.mockReset();
+    switchConnectionMock.mockReset();
+    showConnectionEditDialogMock.mockReset();
+    savedConnectionsMock.mockReset();
+    savedConnectionsMock.mockReturnValue([]);
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -197,5 +224,45 @@ describe("AppSidebar", () => {
     expect(setActiveSidebarTabMock).toHaveBeenCalledWith("history");
     expect(openMock).toHaveBeenCalled();
     expect(setDisplayModeMock).not.toHaveBeenCalled();
+  });
+
+  it("opens the create connection dialog from the connection button when no connection exists", async () => {
+    await act(async () => {
+      root.render(<AppSidebar />);
+    });
+
+    const button = Array.from(container.querySelectorAll("button")).find((candidate) =>
+      candidate.textContent?.includes("Create Connection")
+    );
+
+    await act(async () => {
+      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(showConnectionEditDialogMock).toHaveBeenCalledWith({
+      connection: null,
+      onSave: switchConnectionMock,
+    });
+  });
+
+  it("opens the create connection dialog when saved connections already exist", async () => {
+    savedConnectionsMock.mockReturnValue([{ name: "existing" }]);
+
+    await act(async () => {
+      root.render(<AppSidebar />);
+    });
+
+    const button = Array.from(container.querySelectorAll("button")).find((candidate) =>
+      candidate.textContent?.includes("Create Connection")
+    );
+
+    await act(async () => {
+      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(showConnectionEditDialogMock).toHaveBeenCalledWith({
+      connection: null,
+      onSave: switchConnectionMock,
+    });
   });
 });
