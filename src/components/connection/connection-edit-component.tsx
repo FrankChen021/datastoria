@@ -550,11 +550,13 @@ export function ConnectionEditComponent({
       No server yet?{" "}
       <button
         type="button"
-        className="text-primary underline-offset-4 hover:underline disabled:pointer-events-none disabled:opacity-50"
+        className="text-primary disabled:pointer-events-none disabled:opacity-50"
         onClick={handleUsePlayground}
         disabled={isTesting || isSaving || showDeleteConfirm}
       >
-        Use play.clickhouse.com for testing
+        Use{" "}
+        <span className="underline decoration-dotted underline-offset-4">play.clickhouse.com</span>{" "}
+        for testing
       </button>
     </div>
   ) : null;
