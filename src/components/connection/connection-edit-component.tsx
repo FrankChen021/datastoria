@@ -43,6 +43,7 @@ import {
 
 // Type for test status
 type TestStatus = { type: "success" | "error"; message: string } | null;
+type ConnectionFormTab = "template" | "custom";
 
 const PLAYGROUND_CONNECTION: ConnectionConfig = {
   name: "ClickHouse Playground",
@@ -137,6 +138,7 @@ export function ConnectionEditComponent({
   const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
   const [testStatus, setTestStatus] = useState<TestStatus>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [activeConnectionTab, setActiveConnectionTab] = useState<ConnectionFormTab>("template");
 
   // Error and message state
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -414,6 +416,7 @@ export function ConnectionEditComponent({
   );
 
   const handleUsePlayground = useCallback(() => {
+    setActiveConnectionTab("custom");
     setCurrentSelectedConnection(PLAYGROUND_CONNECTION);
     setCluster(PLAYGROUND_CONNECTION.cluster);
     setEditable(PLAYGROUND_CONNECTION.editable);
@@ -539,21 +542,22 @@ export function ConnectionEditComponent({
       {fieldErrors.url && (
         <FieldDescription className="text-destructive text-xs">{fieldErrors.url}</FieldDescription>
       )}
-      {isAddMode && (
-        <FieldDescription className="text-xs text-muted-foreground">
-          No server yet?{" "}
-          <button
-            type="button"
-            className="text-primary underline-offset-4 hover:underline disabled:pointer-events-none disabled:opacity-50"
-            onClick={handleUsePlayground}
-            disabled={isTesting || isSaving || showDeleteConfirm}
-          >
-            Use play.clickhouse.com
-          </button>
-        </FieldDescription>
-      )}
     </Field>
   );
+
+  const renderPlaygroundHelper = isAddMode ? (
+    <div className="mb-4 text-xs text-muted-foreground">
+      No server yet?{" "}
+      <button
+        type="button"
+        className="text-primary underline-offset-4 hover:underline disabled:pointer-events-none disabled:opacity-50"
+        onClick={handleUsePlayground}
+        disabled={isTesting || isSaving || showDeleteConfirm}
+      >
+        Use play.clickhouse.com
+      </button>
+    </div>
+  ) : null;
 
   const renderClusterField = (
     <Field className="space-y-1">
@@ -759,7 +763,11 @@ export function ConnectionEditComponent({
       }}
     >
       {hasProvider ? (
-        <Tabs defaultValue="template" className="pt-2 w-full mb-4 sm:mb-4">
+        <Tabs
+          value={activeConnectionTab}
+          onValueChange={(value) => setActiveConnectionTab(value as ConnectionFormTab)}
+          className="pt-2 w-full mb-4 sm:mb-4"
+        >
           <TabsList className="mb-4 grid w-full grid-cols-2">
             <TabsTrigger
               value="template"
@@ -774,6 +782,7 @@ export function ConnectionEditComponent({
               Custom Connection
             </TabsTrigger>
           </TabsList>
+          {renderPlaygroundHelper}
           <TabsContent value="template" className="mt-0">
             <FieldGroup className="space-y-5 sm:space-y-4">
               <Field>{renderConnectionSelector}</Field>
@@ -785,6 +794,7 @@ export function ConnectionEditComponent({
         </Tabs>
       ) : (
         <FieldGroup className="space-y-5 sm:space-y-4 mb-5 sm:mb-4 pt-2">
+          {renderPlaygroundHelper}
           {renderUrlField}
         </FieldGroup>
       )}
