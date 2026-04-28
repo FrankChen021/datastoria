@@ -263,10 +263,11 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
   const previousChatIdRef = useRef<string | null>(null);
   const processedPendingCommandRef = useRef<string | null>(null);
   const processedNewChatRequestRef = useRef(newChatRequestNonce);
-  const trackedRunningChatIdRef = useRef<string | null>(null);
+  const trackedRunningChatRef = useRef<{ chatId: string; connectionId: string } | null>(null);
   const isInitializedRef = useRef(false);
   const { connection } = useConnection();
   const chatConnectionId = getSessionRepositoryConnectionId(connection);
+  const [loadedChatConnectionId, setLoadedChatConnectionId] = useState(chatConnectionId);
   const { data: authSession } = useSession();
   const createDraftSession = useCallback(
     () => ({
@@ -284,9 +285,11 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
         ? ((await SessionManager.getMessages(chatIdToLoad)).map(toAppUiMessage) as AppUIMessage[])
         : [];
       setChatTitle(chatData?.title ?? "New Chat");
-      const targetConnection = options?.connectionOverride ?? connection;
+      const targetConnection =
+        options && "connectionOverride" in options ? options.connectionOverride : connection;
       const targetConnectionId =
         options?.connectionId ?? getSessionRepositoryConnectionId(targetConnection);
+      setLoadedChatConnectionId(targetConnectionId);
 
       const newChat = await ChatFactory.create({
         sessionId: chatIdToLoad,
@@ -553,19 +556,22 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
   }, [chat, currentChatId, setCurrentChatId]);
 
   useEffect(() => {
-    const trackedChatId = trackedRunningChatIdRef.current;
-    if (trackedChatId && trackedChatId !== chat?.id) {
-      SessionManager.markRunning(chatConnectionId, trackedChatId, false);
+    const trackedChat = trackedRunningChatRef.current;
+    if (
+      trackedChat &&
+      (trackedChat.chatId !== chat?.id || trackedChat.connectionId !== loadedChatConnectionId)
+    ) {
+      SessionManager.markRunning(trackedChat.connectionId, trackedChat.chatId, false);
     }
 
     if (!chat?.id) {
-      trackedRunningChatIdRef.current = null;
+      trackedRunningChatRef.current = null;
       return;
     }
 
-    trackedRunningChatIdRef.current = chat.id;
-    SessionManager.markRunning(chatConnectionId, chat.id, isRunning);
-  }, [chat?.id, chatConnectionId, isRunning]);
+    trackedRunningChatRef.current = { chatId: chat.id, connectionId: loadedChatConnectionId };
+    SessionManager.markRunning(loadedChatConnectionId, chat.id, isRunning);
+  }, [chat?.id, loadedChatConnectionId, isRunning]);
 
   const handleToggleDisplayMode = useCallback(() => {
     toggleDisplayMode();

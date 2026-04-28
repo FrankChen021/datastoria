@@ -6,6 +6,7 @@ import { ChatPanelProvider } from "@/components/chat/view/use-chat-panel";
 import { ConnectionContext } from "@/components/connection/connection-context";
 import { MainPageTabList } from "@/components/main-page-tab-list";
 import { TabManager } from "@/components/tab-manager";
+import { Connection } from "@/lib/connection/connection";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -65,12 +66,15 @@ vi.mock("@/components/query-log-inspector/query-log-inspector-tab", () => ({
   },
 }));
 
-function getConnectionContextValue() {
-  const connection = {
-    connectionId: "test-connection",
+function getConnectionContextValue(): React.ContextType<typeof ConnectionContext> {
+  const connection = Connection.create({
+    name: "test-connection",
+    url: "https://example.com",
+    user: "default",
+    password: "",
     cluster: "",
-    metadata: {},
-  };
+    editable: true,
+  });
 
   return {
     isConnectionAvailable: true,
@@ -122,11 +126,13 @@ describe("MainPageTabList", () => {
   });
 
   it("does not rerender unrelated tab panels when switching tabs", async () => {
+    const ctx = getConnectionContextValue();
+
     act(() => {
       root.render(
-        <ConnectionContext.Provider value={getConnectionContextValue() as never}>
+        <ConnectionContext.Provider value={ctx}>
           <ChatPanelProvider>
-            <MainPageTabList selectedConnection={getConnectionContextValue().connection as never} />
+            <MainPageTabList selectedConnection={ctx.connection} />
           </ChatPanelProvider>
         </ConnectionContext.Provider>
       );
