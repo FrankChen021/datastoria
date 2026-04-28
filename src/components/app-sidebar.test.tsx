@@ -82,10 +82,6 @@ vi.mock("@/components/connection/connection-edit-component", () => ({
   showConnectionEditDialog: showConnectionEditDialogMock,
 }));
 
-vi.mock("@/components/connection/connection-wizard", () => ({
-  showConnectionWizardDialog: vi.fn(),
-}));
-
 vi.mock("@/components/connection/connection-selector-dialog", () => ({
   openConnectionSelectorDialog: vi.fn(),
 }));

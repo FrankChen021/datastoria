@@ -54,7 +54,7 @@ const PLAYGROUND_CONNECTION: ConnectionConfig = {
   editable: true,
 };
 
-// Exported component for inline use (e.g., in ConnectionWizard)
+// Exported component for inline use in connection creation flows.
 export function StatusPopover({
   children,
   className,
