@@ -26,7 +26,6 @@ import {
   Check,
   CheckCircle2,
   ChevronsUpDown,
-  Database,
   Eye,
   EyeOff,
   Loader2,
@@ -414,6 +413,18 @@ export function ConnectionEditComponent({
     [fieldErrors.name, setFieldError]
   );
 
+  const handleUsePlayground = useCallback(() => {
+    setCurrentSelectedConnection(PLAYGROUND_CONNECTION);
+    setCluster(PLAYGROUND_CONNECTION.cluster);
+    setEditable(PLAYGROUND_CONNECTION.editable);
+    setName(PLAYGROUND_CONNECTION.name);
+    setUrl(PLAYGROUND_CONNECTION.url);
+    setUser(PLAYGROUND_CONNECTION.user);
+    setPassword(PLAYGROUND_CONNECTION.password);
+    setIsNameManuallyEdited(true);
+    clearFieldErrors();
+  }, [clearFieldErrors]);
+
   // Memoize connection selector to prevent unnecessary re-renders
   const renderConnectionSelector = useMemo(() => {
     if (!hasProvider) return null;
@@ -527,6 +538,19 @@ export function ConnectionEditComponent({
       />
       {fieldErrors.url && (
         <FieldDescription className="text-destructive text-xs">{fieldErrors.url}</FieldDescription>
+      )}
+      {isAddMode && (
+        <FieldDescription className="text-xs text-muted-foreground">
+          No server yet?{" "}
+          <button
+            type="button"
+            className="text-primary underline-offset-4 hover:underline disabled:pointer-events-none disabled:opacity-50"
+            onClick={handleUsePlayground}
+            disabled={isTesting || isSaving || showDeleteConfirm}
+          >
+            Use play.clickhouse.com
+          </button>
+        </FieldDescription>
       )}
     </Field>
   );
@@ -685,17 +709,6 @@ export function ConnectionEditComponent({
     }
   }, [stableHandleSave]);
 
-  const handlePlaygroundConnect = useCallback(() => {
-    const manager = ConnectionManager.getInstance();
-    const savedConnection = manager.contains(PLAYGROUND_CONNECTION.name)
-      ? manager.getConnections().find((conn) => conn.name === PLAYGROUND_CONNECTION.name)
-      : manager.add(PLAYGROUND_CONNECTION).afterChange;
-
-    if (savedConnection && onSave) {
-      onSave(savedConnection);
-    }
-  }, [onSave]);
-
   const handleCancel = useCallback(() => {
     if (onCancel) {
       onCancel();
@@ -745,30 +758,6 @@ export function ConnectionEditComponent({
         handleSave();
       }}
     >
-      {isAddMode && (
-        <div className="mb-5 rounded-md border bg-muted/20 p-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 text-sm">
-              <div className="font-medium text-foreground">Quick start</div>
-              <div className="text-muted-foreground">
-                Use the public ClickHouse playground to explore DataStoria without setting up a
-                server.
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full sm:w-auto sm:shrink-0"
-              onClick={handlePlaygroundConnect}
-              disabled={isTesting || isSaving || showDeleteConfirm}
-            >
-              <Database className="h-4 w-4" />
-              Connect to play.clickhouse.com
-            </Button>
-          </div>
-        </div>
-      )}
-
       {hasProvider ? (
         <Tabs defaultValue="template" className="pt-2 w-full mb-4 sm:mb-4">
           <TabsList className="mb-4 grid w-full grid-cols-2">
