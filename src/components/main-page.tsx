@@ -637,7 +637,9 @@ export function MainPage() {
   useLayoutEffect(() => {
     if (isMobile) return;
     const rafId = requestAnimationFrame(() => {
-      const sidebarPanelSize = displayMode === "fullscreen" ? 0 : DEFAULT_SCHEMA_PANEL_SIZE;
+      const shouldShowSidebarPanel =
+        displayMode !== "fullscreen" && (Boolean(connection) || displayMode !== "hidden");
+      const sidebarPanelSize = shouldShowSidebarPanel ? DEFAULT_SCHEMA_PANEL_SIZE : 0;
 
       switch (displayMode) {
         case "hidden":
@@ -751,7 +753,8 @@ export function MainPage() {
     );
   }
 
-  const showSidebarPanel = displayMode !== "fullscreen";
+  const showSidebarPanel =
+    displayMode !== "fullscreen" && (Boolean(connection) || displayMode !== "hidden");
   const showTabsVisible = displayMode === "hidden" || displayMode === "panel";
   const showChatPanel = displayMode !== "hidden";
 
