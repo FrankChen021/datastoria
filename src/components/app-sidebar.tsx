@@ -4,7 +4,6 @@ import { useConnection } from "@/components/connection/connection-context";
 import { showConnectionEditDialog } from "@/components/connection/connection-edit-component";
 import { ConnectionSelector } from "@/components/connection/connection-selector";
 import { openConnectionSelectorDialog } from "@/components/connection/connection-selector-dialog";
-import { showConnectionWizardDialog } from "@/components/connection/connection-wizard";
 import { openReleaseNotes } from "@/components/release-note/release-notes-view";
 import { SYSTEM_TABLE_REGISTRY } from "@/components/system-table-tab/system-table-registry";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -34,7 +33,6 @@ import {
 } from "@/components/ui/sidebar";
 import { UserProfileImage } from "@/components/user-profile-image";
 import { BasePath } from "@/lib/base-path";
-import { ConnectionManager } from "@/lib/connection/connection-manager";
 import {
   BookOpen,
   ChevronRight,
@@ -132,11 +130,6 @@ function ConnectionManageSidebarMenuItem() {
   const hasConnection = connection !== null;
 
   const openCreateConnectionDialog = useCallback(() => {
-    if (ConnectionManager.getInstance().getConnections().length === 0) {
-      showConnectionWizardDialog();
-      return;
-    }
-
     showConnectionEditDialog({
       connection: null,
       onSave: switchConnection,

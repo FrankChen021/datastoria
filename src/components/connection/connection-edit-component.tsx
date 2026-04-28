@@ -26,6 +26,7 @@ import {
   Check,
   CheckCircle2,
   ChevronsUpDown,
+  Database,
   Eye,
   EyeOff,
   Loader2,
@@ -43,6 +44,15 @@ import {
 
 // Type for test status
 type TestStatus = { type: "success" | "error"; message: string } | null;
+
+const PLAYGROUND_CONNECTION: ConnectionConfig = {
+  name: "ClickHouse Playground",
+  url: "https://play.clickhouse.com",
+  user: "play",
+  password: "",
+  cluster: "",
+  editable: true,
+};
 
 // Exported component for inline use (e.g., in ConnectionWizard)
 export function StatusPopover({
@@ -675,6 +685,17 @@ export function ConnectionEditComponent({
     }
   }, [stableHandleSave]);
 
+  const handlePlaygroundConnect = useCallback(() => {
+    const manager = ConnectionManager.getInstance();
+    const savedConnection = manager.contains(PLAYGROUND_CONNECTION.name)
+      ? manager.getConnections().find((conn) => conn.name === PLAYGROUND_CONNECTION.name)
+      : manager.add(PLAYGROUND_CONNECTION).afterChange;
+
+    if (savedConnection && onSave) {
+      onSave(savedConnection);
+    }
+  }, [onSave]);
+
   const handleCancel = useCallback(() => {
     if (onCancel) {
       onCancel();
@@ -724,6 +745,30 @@ export function ConnectionEditComponent({
         handleSave();
       }}
     >
+      {isAddMode && (
+        <div className="mb-5 rounded-md border bg-muted/20 p-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 text-sm">
+              <div className="font-medium text-foreground">Quick start</div>
+              <div className="text-muted-foreground">
+                Use the public ClickHouse playground to explore DataStoria without setting up a
+                server.
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto sm:shrink-0"
+              onClick={handlePlaygroundConnect}
+              disabled={isTesting || isSaving || showDeleteConfirm}
+            >
+              <Database className="h-4 w-4" />
+              Connect to play.clickhouse.com
+            </Button>
+          </div>
+        </div>
+      )}
+
       {hasProvider ? (
         <Tabs defaultValue="template" className="pt-2 w-full mb-4 sm:mb-4">
           <TabsList className="mb-4 grid w-full grid-cols-2">

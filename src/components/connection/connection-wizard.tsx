@@ -193,13 +193,34 @@ export function ConnectionWizard({
   );
 }
 
+function ConnectionWizardDialogContent({ onComplete }: { onComplete: () => void }) {
+  const { switchConnection } = useConnection();
+
+  const handleSave = useCallback(
+    (savedConnection: ConnectionConfig) => {
+      switchConnection(savedConnection);
+      onComplete();
+    },
+    [onComplete, switchConnection]
+  );
+
+  return (
+    <ConnectionEditComponent
+      connection={null}
+      onSave={handleSave}
+      onCancel={onComplete}
+      isAddMode={true}
+    />
+  );
+}
+
 export function showConnectionWizardDialog() {
   Dialog.showDialog({
-    title: "Create Your First Connection",
-    visuallyHiddenTitle: true,
-    className: "w-[95vw] max-w-2xl p-0 overflow-hidden gap-0",
+    title: "Create a new connection",
+    description: "Configure your ClickHouse connection settings.",
+    className: "max-w-2xl",
     overlayClassName: "bg-black/85",
-    mainContent: <ConnectionWizard variant="dialog" onComplete={() => Dialog.close()} />,
-    disableContentScroll: true,
+    mainContent: <ConnectionWizardDialogContent onComplete={() => Dialog.close()} />,
+    onCancel: () => Dialog.close(),
   });
 }

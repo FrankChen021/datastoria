@@ -13,7 +13,6 @@ const {
   setActiveSidebarTabMock,
   switchConnectionMock,
   showConnectionEditDialogMock,
-  showConnectionWizardDialogMock,
   savedConnectionsMock,
 } = vi.hoisted(() => ({
   openMock: vi.fn(),
@@ -21,7 +20,6 @@ const {
   setActiveSidebarTabMock: vi.fn(),
   switchConnectionMock: vi.fn(),
   showConnectionEditDialogMock: vi.fn(),
-  showConnectionWizardDialogMock: vi.fn(),
   savedConnectionsMock: vi.fn((): unknown[] => []),
 }));
 
@@ -85,7 +83,7 @@ vi.mock("@/components/connection/connection-edit-component", () => ({
 }));
 
 vi.mock("@/components/connection/connection-wizard", () => ({
-  showConnectionWizardDialog: showConnectionWizardDialogMock,
+  showConnectionWizardDialog: vi.fn(),
 }));
 
 vi.mock("@/components/connection/connection-selector-dialog", () => ({
@@ -160,7 +158,6 @@ describe("AppSidebar", () => {
     setActiveSidebarTabMock.mockReset();
     switchConnectionMock.mockReset();
     showConnectionEditDialogMock.mockReset();
-    showConnectionWizardDialogMock.mockReset();
     savedConnectionsMock.mockReset();
     savedConnectionsMock.mockReturnValue([]);
     container = document.createElement("div");
@@ -233,7 +230,7 @@ describe("AppSidebar", () => {
     expect(setDisplayModeMock).not.toHaveBeenCalled();
   });
 
-  it("opens the first connection wizard from the connection button when no connection exists", async () => {
+  it("opens the create connection dialog from the connection button when no connection exists", async () => {
     await act(async () => {
       root.render(<AppSidebar />);
     });
@@ -246,8 +243,10 @@ describe("AppSidebar", () => {
       button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
-    expect(showConnectionWizardDialogMock).toHaveBeenCalled();
-    expect(showConnectionEditDialogMock).not.toHaveBeenCalled();
+    expect(showConnectionEditDialogMock).toHaveBeenCalledWith({
+      connection: null,
+      onSave: switchConnectionMock,
+    });
   });
 
   it("opens the create connection dialog when saved connections already exist", async () => {
@@ -269,6 +268,5 @@ describe("AppSidebar", () => {
       connection: null,
       onSave: switchConnectionMock,
     });
-    expect(showConnectionWizardDialogMock).not.toHaveBeenCalled();
   });
 });

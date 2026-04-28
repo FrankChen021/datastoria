@@ -3,7 +3,6 @@ import { useChatPanel } from "@/components/chat/view/use-chat-panel";
 import { ClusterTab } from "@/components/cluster-tab/cluster-tab";
 import { useConnection } from "@/components/connection/connection-context";
 import { showConnectionEditDialog } from "@/components/connection/connection-edit-component";
-import { showConnectionWizardDialog } from "@/components/connection/connection-wizard";
 import { SYSTEM_TABLE_REGISTRY } from "@/components/system-table-tab/system-table-registry";
 import { TabManager, type TabInfo } from "@/components/tab-manager";
 import { Button } from "@/components/ui/button";
@@ -22,9 +21,9 @@ import {
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Connection } from "@/lib/connection/connection";
-import { ConnectionManager } from "@/lib/connection/connection-manager";
 import { hostNameManager } from "@/lib/host-name-manager";
 import { StringUtils } from "@/lib/string-utils";
+import { cn } from "@/lib/utils";
 import {
   ChevronDown,
   ChevronLeft,
@@ -164,16 +163,23 @@ function EmptyStateButton({
   icon: Icon,
   children,
   onClick,
+  variant = "ghost",
 }: {
   icon: LucideIcon;
   children: React.ReactNode;
   onClick: () => void;
+  variant?: "primary" | "ghost";
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-2 rounded px-3 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
+      className={cn(
+        "flex items-center gap-2 rounded px-3 py-1.5 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer",
+        variant === "primary"
+          ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+      )}
     >
       <Icon className="h-4 w-4" />
       {children}
@@ -189,11 +195,6 @@ function EmptyTabPlaceholderComponent() {
   const isClusterMode = connection?.cluster && connection.cluster.length > 0;
 
   const openCreateConnectionDialog = useCallback(() => {
-    if (ConnectionManager.getInstance().getConnections().length === 0) {
-      showConnectionWizardDialog();
-      return;
-    }
-
     showConnectionEditDialog({
       connection: null,
       onSave: switchConnection,
@@ -250,20 +251,20 @@ function EmptyTabPlaceholderComponent() {
       <p className="text-muted-foreground mb-2 text-sm leading-relaxed">
         {hasConnection
           ? "Select a table from the sidebar to view its details, or start by clicking the following buttons."
-          : "Start a chat without a ClickHouse cluster, or connect a cluster to unlock SQL, schema, and diagnostics tools."}
+          : "Connect a cluster to unlock schema-aware chat, SQL execution, diagnostics, and dashboards. You can still ask general questions without connecting."}
       </p>
 
       {/* Action Buttons - VSCode style */}
       <div className="flex flex-col items-start gap-1">
-        <EmptyStateButton icon={Sparkles} onClick={() => setDisplayMode("tabWidth")}>
-          Work with AI
-        </EmptyStateButton>
-
         {!hasConnection && (
-          <EmptyStateButton icon={Database} onClick={openCreateConnectionDialog}>
+          <EmptyStateButton icon={Database} onClick={openCreateConnectionDialog} variant="primary">
             Create a ClickHouse Connection
           </EmptyStateButton>
         )}
+
+        <EmptyStateButton icon={Sparkles} onClick={() => setDisplayMode("tabWidth")}>
+          {hasConnection ? "Work with AI" : "Ask a general question"}
+        </EmptyStateButton>
 
         {hasConnection && (
           <EmptyStateButton icon={Terminal} onClick={openQueryTab}>
