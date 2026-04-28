@@ -554,7 +554,7 @@ export function ConnectionEditComponent({
         onClick={handleUsePlayground}
         disabled={isTesting || isSaving || showDeleteConfirm}
       >
-        Use play.clickhouse.com
+        Use play.clickhouse.com for testing
       </button>
     </div>
   ) : null;
