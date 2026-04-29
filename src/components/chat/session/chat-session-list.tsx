@@ -117,6 +117,37 @@ type ConnectionGroupMeta = {
   config: ConnectionConfig | null;
 };
 
+function findMatchingConnectionConfigs(connectionId?: string | null): ConnectionConfig[] {
+  if (!connectionId || isNoConnectionSessionConnectionId(connectionId)) {
+    return [];
+  }
+
+  return ConnectionManager.getInstance()
+    .getConnections()
+    .filter((item) => Connection.create(item).matchesSessionConnectionId(connectionId));
+}
+
+function findMatchingConnectionConfig(connectionId?: string | null): ConnectionConfig | null {
+  const matchingConnections = findMatchingConnectionConfigs(connectionId);
+  return matchingConnections.length === 1 ? (matchingConnections[0] ?? null) : null;
+}
+
+function getResolvedConnectionGroupId(connectionId: string, currentConnectionId?: string): string {
+  if (isNoConnectionSessionConnectionId(connectionId)) {
+    return connectionId;
+  }
+
+  const currentConnection = findMatchingConnectionConfigs(connectionId)
+    .map((config) => Connection.create(config))
+    .find((candidate) => candidate.connectionId === currentConnectionId);
+  if (currentConnection) {
+    return currentConnection.connectionId;
+  }
+
+  const matchingConnection = findMatchingConnectionConfig(connectionId);
+  return matchingConnection ? Connection.create(matchingConnection).connectionId : connectionId;
+}
+
 function getConnectionGroupMeta(
   connectionId: string,
   currentConnectionId?: string
@@ -130,18 +161,22 @@ function getConnectionGroupMeta(
     };
   }
 
-  const matchingConnections = ConnectionManager.getInstance()
-    .getConnections()
-    .filter((item) => Connection.create(item).connectionId === connectionId);
+  const matchingConnections = findMatchingConnectionConfigs(connectionId);
   const labels = Array.from(new Set(matchingConnections.map((item) => item.name)));
   const label = labels[0] ?? connectionId;
   const secondaryLabel =
     labels.length > 1 ? labels.slice(1).join(", ") : labels.length === 0 ? connectionId : undefined;
+  const isCurrent =
+    matchingConnections.length > 0
+      ? matchingConnections.some(
+          (item) => Connection.create(item).connectionId === currentConnectionId
+        )
+      : connectionId === currentConnectionId;
 
   return {
     label,
     secondaryLabel,
-    isCurrent: connectionId === currentConnectionId,
+    isCurrent,
     config: matchingConnections[0] ?? null,
   };
 }
@@ -234,23 +269,22 @@ function HistoryNodeDeleteButton({
 
 function CrossConnectionSwitchPopover({
   chat,
-  currentConnectionId,
+  isCurrentConnection,
   confirmState,
   onConfirmStateChange,
   onConfirm,
   children,
 }: {
   chat: ManagedSession;
-  currentConnectionId?: string;
+  isCurrentConnection: boolean;
   confirmState: SwitchConfirmState;
   onConfirmStateChange: (next: SwitchConfirmState) => void;
   onConfirm: (chat: ManagedSession) => Promise<void>;
   children: React.ReactNode;
 }) {
   if (
-    !currentConnectionId ||
     !chat.databaseId ||
-    chat.databaseId === currentConnectionId ||
+    isCurrentConnection ||
     isNoConnectionSessionConnectionId(chat.databaseId)
   ) {
     return <>{children}</>;
@@ -332,20 +366,28 @@ function buildHistoryTree(
       continue;
     }
 
-    const existing = connectionGroups.get(chat.databaseId);
+    const groupConnectionId = getResolvedConnectionGroupId(chat.databaseId, currentConnectionId);
+    const existing = connectionGroups.get(groupConnectionId);
     if (existing) {
       existing.push(chat);
     } else {
-      connectionGroups.set(chat.databaseId, [chat]);
+      connectionGroups.set(groupConnectionId, [chat]);
     }
   }
 
-  const sortedConnectionGroups = Array.from(connectionGroups.entries()).sort(
+  const connectionGroupEntries = Array.from(connectionGroups.entries());
+  const groupMetaByConnectionId = new Map(
+    connectionGroupEntries.map(([connectionId]) => [
+      connectionId,
+      getConnectionGroupMeta(connectionId, currentConnectionId),
+    ])
+  );
+  const sortedConnectionGroups = connectionGroupEntries.sort(
     ([leftConnectionId], [rightConnectionId]) => {
-      if (leftConnectionId === currentConnectionId) {
+      if (groupMetaByConnectionId.get(leftConnectionId)?.isCurrent) {
         return -1;
       }
-      if (rightConnectionId === currentConnectionId) {
+      if (groupMetaByConnectionId.get(rightConnectionId)?.isCurrent) {
         return 1;
       }
       return 0;
@@ -367,7 +409,9 @@ function buildHistoryTree(
       dateGroups[existingIndex]!.chats.push(chat);
     }
 
-    const meta = getConnectionGroupMeta(connectionId, currentConnectionId);
+    const meta =
+      groupMetaByConnectionId.get(connectionId) ??
+      getConnectionGroupMeta(connectionId, currentConnectionId);
     const connectionSearchTerms = [meta.label, meta.secondaryLabel, connectionId]
       .filter(Boolean)
       .join(" ")
@@ -436,7 +480,7 @@ function buildHistoryTree(
           labelContent: (
             <CrossConnectionSwitchPopover
               chat={chat}
-              currentConnectionId={currentConnectionId}
+              isCurrentConnection={meta.isCurrent}
               confirmState={switchConfirmState}
               onConfirmStateChange={onSwitchConfirmStateChange}
               onConfirm={onConfirmSwitch}
@@ -575,10 +619,8 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
           return;
         }
 
-        if (chat.databaseId !== currentConnectionId) {
-          const targetConfig = ConnectionManager.getInstance()
-            .getConnections()
-            .find((item) => Connection.create(item).connectionId === chat.databaseId);
+        if (!connection?.matchesSessionConnectionId(chat.databaseId)) {
+          const targetConfig = findMatchingConnectionConfig(chat.databaseId);
 
           if (targetConfig) {
             switchConnection(targetConfig);
@@ -591,7 +633,7 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
         onSelectChat?.(chat.chatId, chat.databaseId);
         onClose?.();
       },
-      [currentConnectionId, currentChatId, onClose, onSelectChat, switchConnection]
+      [connection, currentChatId, onClose, onSelectChat, switchConnection]
     );
 
     const treeData = React.useMemo(
@@ -623,14 +665,19 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
     );
 
     const initialExpandedIds = React.useMemo(() => {
-      const currentConnectionNodeId = connectionNodeId(currentConnectionId);
-      const currentConnectionNode = treeData.find((node) => node.id === currentConnectionNodeId);
+      const currentConnectionNode = treeData.find((node) => {
+        const data = node.data as HistoryNodeData | undefined;
+        return (
+          data?.kind === "connection" &&
+          getConnectionGroupMeta(data.connectionId, currentConnectionId).isCurrent
+        );
+      });
       if (!currentConnectionNode) {
         return [];
       }
 
       return [
-        currentConnectionNodeId,
+        currentConnectionNode.id,
         ...(currentConnectionNode.children?.map((child) => child.id) ?? []),
       ];
     }, [currentConnectionId, treeData]);
@@ -704,7 +751,8 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
                       currentConnectionId &&
                       data.chat.databaseId &&
                       !isNoConnectionSessionConnectionId(data.chat.databaseId) &&
-                      data.chat.databaseId !== currentConnectionId
+                      getResolvedConnectionGroupId(data.chat.databaseId, currentConnectionId) !==
+                        currentConnectionId
                     ) {
                       setSwitchConfirmState({
                         chat: data.chat,

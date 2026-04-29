@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   hasCompletedToolOutputs,
   replaceOrAppendMessageById,
+  validateConnectionId,
   validateRemoteChatRequest,
 } from "./remote-chat-request";
 
@@ -90,5 +91,32 @@ describe("validateRemoteChatRequest", () => {
       clusterName: "prod-eu",
       serverVersion: "24.8.1.1",
     });
+  });
+
+  it("trims a valid connectionId", () => {
+    const request = validateRemoteChatRequest({
+      sessionId: "chat-1",
+      connectionId: " conn-1 ",
+      message: createMessage({ role: "user" }),
+    });
+
+    expect(request?.connectionId).toBe("conn-1");
+  });
+
+  it("rejects a request with an oversized connectionId", () => {
+    const request = validateRemoteChatRequest({
+      sessionId: "chat-1",
+      connectionId: "x".repeat(256),
+      message: createMessage({ role: "user" }),
+    });
+
+    expect(request).toBeNull();
+  });
+});
+
+describe("validateConnectionId", () => {
+  it("returns false for non-string input", () => {
+    expect(validateConnectionId(null)).toBe(false);
+    expect(validateConnectionId({ id: "conn-1" })).toBe(false);
   });
 });

@@ -15,6 +15,38 @@ type ErrorWithCaptureStackTrace = ErrorConstructor & {
   ) => void;
 };
 
+type ParsedSessionConnectionId = {
+  user: string;
+  host: string;
+  cluster: string | null;
+};
+
+function parseSessionConnectionId(connectionId: string): ParsedSessionConnectionId | null {
+  const separatorIndex = connectionId.indexOf("@");
+  if (separatorIndex <= 0) {
+    return null;
+  }
+
+  const user = connectionId.slice(0, separatorIndex);
+  const hostWithParameters = connectionId.slice(separatorIndex + 1);
+  const parameterIndex = hostWithParameters.indexOf("?");
+  if (parameterIndex < 0) {
+    return {
+      user,
+      host: hostWithParameters,
+      cluster: null,
+    };
+  }
+
+  const host = hostWithParameters.slice(0, parameterIndex);
+  const parameters = new URLSearchParams(hostWithParameters.slice(parameterIndex + 1));
+  return {
+    user,
+    host,
+    cluster: parameters.get("cluster"),
+  };
+}
+
 export class QueryError extends Error {
   httpStatus?: number;
   httpHeaders?: QueryHeaders;
@@ -159,6 +191,7 @@ export class Connection {
   metadata: ConnectionMetadata;
 
   readonly connectionId: string;
+  readonly legacyConnectionId: string;
 
   private constructor(config: ConnectionConfig) {
     this.name = config.name;
@@ -183,7 +216,11 @@ export class Connection {
       }
     }
 
-    this.connectionId = `${config.user}@${this.host}`;
+    this.legacyConnectionId = `${config.user}@${this.host}`;
+    this.connectionId =
+      config.cluster && config.cluster.length > 0
+        ? `${config.user}@${this.host}?cluster=${encodeURIComponent(config.cluster)}`
+        : this.legacyConnectionId;
 
     // Initialize metadata with defaults
     this.metadata = {
@@ -211,6 +248,27 @@ export class Connection {
 
   static create(config: ConnectionConfig): Connection {
     return new Connection(config);
+  }
+
+  matchesSessionConnectionId(connectionId?: string | null): boolean {
+    if (!connectionId) {
+      return false;
+    }
+    if (connectionId === this.connectionId || connectionId === this.legacyConnectionId) {
+      return true;
+    }
+
+    const parsedConnectionId = parseSessionConnectionId(connectionId);
+    if (!parsedConnectionId) {
+      return false;
+    }
+
+    const cluster = this.cluster && this.cluster.length > 0 ? this.cluster : null;
+    return (
+      parsedConnectionId.user === this.user &&
+      parsedConnectionId.host === this.host &&
+      parsedConnectionId.cluster === cluster
+    );
   }
 
   private buildQueryParameters(userParams?: Record<string, unknown>): Record<string, unknown> {

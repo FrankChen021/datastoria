@@ -25,6 +25,8 @@ export interface ContinuationRequest extends ChatRequestBase {
 
 export type RemoteChatRequest = InitialTurnRequest | ContinuationRequest;
 
+const MAX_CONNECTION_ID_LENGTH = 255;
+
 export function replaceOrAppendMessageById(
   persistedMessages: AppUIMessage[],
   incomingMessage: AppUIMessage
@@ -43,6 +45,15 @@ export function validateSessionId(sessionId: string): boolean {
   return typeof sessionId === "string" && sessionId.length > 0 && sessionId.length <= 64;
 }
 
+export function validateConnectionId(connectionId: unknown): boolean {
+  if (typeof connectionId !== "string") {
+    return false;
+  }
+
+  const trimmedConnectionId = connectionId.trim();
+  return trimmedConnectionId.length > 0 && trimmedConnectionId.length <= MAX_CONNECTION_ID_LENGTH;
+}
+
 export function hasCompletedToolOutputs(message: AppUIMessage): boolean {
   return Array.isArray(message.parts)
     ? message.parts.some((part) => {
@@ -58,9 +69,11 @@ export function validateRemoteChatRequest(payload: unknown): RemoteChatRequest |
   }
 
   const candidate = payload as Partial<RemoteChatRequest>;
+  const connectionId =
+    typeof candidate.connectionId === "string" ? candidate.connectionId.trim() : "";
   if (
     !validateSessionId(candidate.sessionId ?? "") ||
-    typeof candidate.connectionId !== "string" ||
+    !validateConnectionId(connectionId) ||
     !candidate.message ||
     typeof candidate.message !== "object" ||
     typeof candidate.message.id !== "string" ||
@@ -70,11 +83,12 @@ export function validateRemoteChatRequest(payload: unknown): RemoteChatRequest |
   }
 
   if (candidate.continuation === true) {
-    return { ...candidate, continuation: true } as ContinuationRequest;
+    return { ...candidate, connectionId, continuation: true } as ContinuationRequest;
   }
 
   return {
     ...candidate,
+    connectionId,
     continuation: false,
   } as InitialTurnRequest;
 }

@@ -1,6 +1,6 @@
 import { getAuthenticatedUserEmail } from "@/auth";
 import type { AppUIMessage } from "@/lib/ai/ai-types";
-import { validateSessionId } from "@/lib/ai/session/remote-chat-request";
+import { validateConnectionId, validateSessionId } from "@/lib/ai/session/remote-chat-request";
 import { persistedSessionToDTO } from "@/lib/ai/session/serialization";
 import { getServerSessionRepository } from "@/lib/ai/session/server-session-repository-factory";
 import { v7 as uuidv7 } from "uuid";
@@ -69,8 +69,9 @@ export async function POST(req: Request) {
     return new Response("Invalid JSON in request body", { status: 400 });
   }
 
-  if (typeof payload.connectionId !== "string" || !payload.connectionId.trim()) {
-    return new Response("Missing connectionId", { status: 400 });
+  const connectionId = typeof payload.connectionId === "string" ? payload.connectionId.trim() : "";
+  if (!validateConnectionId(connectionId)) {
+    return new Response("Invalid connectionId", { status: 400 });
   }
 
   if (
@@ -98,13 +99,13 @@ export async function POST(req: Request) {
     await sessionRepository.createSession({
       id: sessionId,
       user_id: userId,
-      connection_id: payload.connectionId,
+      connection_id: connectionId,
       title:
         typeof payload.title === "string" && payload.title.trim()
           ? payload.title.trim()
           : "Inline error diagnosis",
     });
-  } else if (existingSession.connection_id !== payload.connectionId) {
+  } else if (existingSession.connection_id !== connectionId) {
     return new Response("Session connectionId mismatch", { status: 409 });
   }
 
