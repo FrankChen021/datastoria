@@ -3,7 +3,10 @@
 import type { Chat, Message } from "@/lib/ai/ai-types";
 import { useMemo, useSyncExternalStore } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { toSessionRepositoryConnectionId } from "./session-connection-id";
+import {
+  isNoConnectionSessionConnectionId,
+  toSessionRepositoryConnectionId,
+} from "./session-connection-id";
 import type { SessionPageInput } from "./session-repository";
 import { getSessionRepository } from "./session-repository-factory";
 
@@ -355,8 +358,13 @@ export const SessionManager = {
 
   async touchSessionById(chatId: string, connectionId: string, title?: string) {
     const current = await this.getOrCreateSession(chatId, connectionId);
+    const repositoryConnectionId = toSessionRepositoryConnectionId(connectionId);
     const nextSession: Chat = {
       ...current,
+      ...(isNoConnectionSessionConnectionId(current.databaseId) &&
+      !isNoConnectionSessionConnectionId(repositoryConnectionId)
+        ? { databaseId: repositoryConnectionId }
+        : {}),
       ...(title !== undefined ? { title } : {}),
       updatedAt: new Date(),
     };

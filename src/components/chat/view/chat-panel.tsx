@@ -268,6 +268,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
   const { connection } = useConnection();
   const chatConnectionId = getSessionRepositoryConnectionId(connection);
   const [loadedChatConnectionId, setLoadedChatConnectionId] = useState(chatConnectionId);
+  const [loadedChatIsDraft, setLoadedChatIsDraft] = useState(false);
   const { data: authSession } = useSession();
   const createDraftSession = useCallback(
     () => ({
@@ -290,6 +291,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
       const targetConnectionId =
         options?.connectionId ?? getSessionRepositoryConnectionId(targetConnection);
       setLoadedChatConnectionId(targetConnectionId);
+      setLoadedChatIsDraft(options?.isNewSession === true);
 
       const newChat = await ChatFactory.create({
         sessionId: chatIdToLoad,
@@ -442,6 +444,19 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     });
     clearSelectedChat();
   }, [chat, chatConnectionId, clearSelectedChat, loadChat, selectedChat]);
+
+  useEffect(() => {
+    if (
+      !chat ||
+      !loadedChatIsDraft ||
+      !isNoConnectionSessionConnectionId(loadedChatConnectionId) ||
+      isNoConnectionSessionConnectionId(chatConnectionId)
+    ) {
+      return;
+    }
+
+    void loadChat(chat.id, { isNewSession: true });
+  }, [chat, chatConnectionId, loadedChatConnectionId, loadedChatIsDraft, loadChat]);
 
   // Update context builder when props change
   useEffect(() => {
