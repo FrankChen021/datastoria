@@ -359,10 +359,13 @@ export const SessionManager = {
   async touchSessionById(chatId: string, connectionId: string, title?: string) {
     const current = await this.getOrCreateSession(chatId, connectionId);
     const repositoryConnectionId = toSessionRepositoryConnectionId(connectionId);
+    const shouldBackfillConnectionId =
+      !current.databaseId ||
+      current.databaseId.trim() === "" ||
+      isNoConnectionSessionConnectionId(current.databaseId);
     const nextSession: Chat = {
       ...current,
-      ...(isNoConnectionSessionConnectionId(current.databaseId) &&
-      !isNoConnectionSessionConnectionId(repositoryConnectionId)
+      ...(shouldBackfillConnectionId && !isNoConnectionSessionConnectionId(repositoryConnectionId)
         ? { databaseId: repositoryConnectionId }
         : {}),
       ...(title !== undefined ? { title } : {}),

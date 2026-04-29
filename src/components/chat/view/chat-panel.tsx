@@ -443,7 +443,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
       connectionId: selectedChat.connectionId,
     });
     clearSelectedChat();
-  }, [chat, chatConnectionId, clearSelectedChat, loadChat, selectedChat]);
+  }, [chat, clearSelectedChat, connection, loadChat, selectedChat]);
 
   useEffect(() => {
     if (

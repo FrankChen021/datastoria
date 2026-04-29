@@ -375,12 +375,19 @@ function buildHistoryTree(
     }
   }
 
-  const sortedConnectionGroups = Array.from(connectionGroups.entries()).sort(
+  const connectionGroupEntries = Array.from(connectionGroups.entries());
+  const groupMetaByConnectionId = new Map(
+    connectionGroupEntries.map(([connectionId]) => [
+      connectionId,
+      getConnectionGroupMeta(connectionId, currentConnectionId),
+    ])
+  );
+  const sortedConnectionGroups = connectionGroupEntries.sort(
     ([leftConnectionId], [rightConnectionId]) => {
-      if (getConnectionGroupMeta(leftConnectionId, currentConnectionId).isCurrent) {
+      if (groupMetaByConnectionId.get(leftConnectionId)?.isCurrent) {
         return -1;
       }
-      if (getConnectionGroupMeta(rightConnectionId, currentConnectionId).isCurrent) {
+      if (groupMetaByConnectionId.get(rightConnectionId)?.isCurrent) {
         return 1;
       }
       return 0;
@@ -402,7 +409,9 @@ function buildHistoryTree(
       dateGroups[existingIndex]!.chats.push(chat);
     }
 
-    const meta = getConnectionGroupMeta(connectionId, currentConnectionId);
+    const meta =
+      groupMetaByConnectionId.get(connectionId) ??
+      getConnectionGroupMeta(connectionId, currentConnectionId);
     const connectionSearchTerms = [meta.label, meta.secondaryLabel, connectionId]
       .filter(Boolean)
       .join(" ")
