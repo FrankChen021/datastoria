@@ -4,15 +4,15 @@ import { ModelManager } from "@/components/settings/models/model-manager";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import type { AgentContext, AppUIMessage, Message, MessageMetadata } from "@/lib/ai/ai-types";
 import { sanitizeMessageForPersistence } from "@/lib/ai/session/serialization";
+import {
+  getClickHouseConnectionValidationError,
+  type ClickHouseConnection,
+} from "@/lib/ai/tools/clickhouse/clickhouse-connection";
 import { ClickHouseToolExecutors } from "@/lib/ai/tools/clickhouse/clickhouse-tool-executors";
 import type {
   StageStatus,
   ToolProgressCallback,
 } from "@/lib/ai/tools/clickhouse/clickhouse-tool-types";
-import {
-  getClickHouseConnectionValidationError,
-  type ClickHouseConnection,
-} from "@/lib/ai/tools/clickhouse/clickhouse-connection";
 import { useToolProgressStore } from "@/lib/ai/tools/clickhouse/tool-progress-store";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";

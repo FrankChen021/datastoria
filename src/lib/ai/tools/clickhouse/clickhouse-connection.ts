@@ -9,11 +9,11 @@ export function hasClickHouseConnection(connection: unknown): connection is Clic
   const candidate = connection as Partial<ClickHouseConnection> | null;
   return Boolean(
     candidate &&
-      typeof candidate === "object" &&
-      typeof candidate.url === "string" &&
-      typeof candidate.user === "string" &&
-      typeof candidate.password === "string" &&
-      (candidate.cluster === undefined || typeof candidate.cluster === "string")
+    typeof candidate === "object" &&
+    typeof candidate.url === "string" &&
+    typeof candidate.user === "string" &&
+    typeof candidate.password === "string" &&
+    (candidate.cluster === undefined || typeof candidate.cluster === "string")
   );
 }
 

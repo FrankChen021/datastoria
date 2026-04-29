@@ -8,6 +8,10 @@
 import { Connection } from "@/lib/connection/connection";
 import { tool, type Tool } from "ai";
 import * as z from "zod";
+import {
+  getClickHouseConnectionValidationError,
+  type ClickHouseConnection,
+} from "./clickhouse-connection";
 import { ClickHouseToolExecutors } from "./clickhouse-tool-executors";
 import type { EvidenceContext } from "./collect-sql-optimization-evidence";
 import { type RcaEvidenceInput, type RcaEvidenceOutput } from "./rca/evidence-collector-common";
@@ -16,10 +20,6 @@ import {
   type GetClusterStatusInput,
   type GetClusterStatusOutput,
 } from "./status/collect-cluster-status";
-import {
-  getClickHouseConnectionValidationError,
-  type ClickHouseConnection,
-} from "./clickhouse-connection";
 
 export {
   getClickHouseConnectionValidationError,
