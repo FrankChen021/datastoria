@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS chat_sessions (
   id BIGSERIAL PRIMARY KEY,
   user_id VARCHAR(255) NOT NULL,
-  connection_id VARCHAR(255) NOT NULL,
+  connection_id VARCHAR(512) NOT NULL,
   session_id VARCHAR(64) NOT NULL,
   title TEXT NULL,
   created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),

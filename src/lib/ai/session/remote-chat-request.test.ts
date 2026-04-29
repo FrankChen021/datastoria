@@ -91,4 +91,14 @@ describe("validateRemoteChatRequest", () => {
       serverVersion: "24.8.1.1",
     });
   });
+
+  it("rejects a request with an oversized connectionId", () => {
+    const request = validateRemoteChatRequest({
+      sessionId: "chat-1",
+      connectionId: "x".repeat(513),
+      message: createMessage({ role: "user" }),
+    });
+
+    expect(request).toBeNull();
+  });
 });

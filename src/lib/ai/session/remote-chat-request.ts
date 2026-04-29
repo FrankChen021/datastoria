@@ -25,6 +25,8 @@ export interface ContinuationRequest extends ChatRequestBase {
 
 export type RemoteChatRequest = InitialTurnRequest | ContinuationRequest;
 
+const MAX_CONNECTION_ID_LENGTH = 512;
+
 export function replaceOrAppendMessageById(
   persistedMessages: AppUIMessage[],
   incomingMessage: AppUIMessage
@@ -41,6 +43,14 @@ export function replaceOrAppendMessageById(
 
 export function validateSessionId(sessionId: string): boolean {
   return typeof sessionId === "string" && sessionId.length > 0 && sessionId.length <= 64;
+}
+
+export function validateConnectionId(connectionId: string): boolean {
+  return (
+    typeof connectionId === "string" &&
+    connectionId.trim().length > 0 &&
+    connectionId.length <= MAX_CONNECTION_ID_LENGTH
+  );
 }
 
 export function hasCompletedToolOutputs(message: AppUIMessage): boolean {
@@ -60,7 +70,7 @@ export function validateRemoteChatRequest(payload: unknown): RemoteChatRequest |
   const candidate = payload as Partial<RemoteChatRequest>;
   if (
     !validateSessionId(candidate.sessionId ?? "") ||
-    typeof candidate.connectionId !== "string" ||
+    !validateConnectionId(candidate.connectionId ?? "") ||
     !candidate.message ||
     typeof candidate.message !== "object" ||
     typeof candidate.message.id !== "string" ||

@@ -159,6 +159,7 @@ export class Connection {
   metadata: ConnectionMetadata;
 
   readonly connectionId: string;
+  readonly legacyConnectionId: string;
 
   private constructor(config: ConnectionConfig) {
     this.name = config.name;
@@ -183,7 +184,11 @@ export class Connection {
       }
     }
 
-    this.connectionId = `${config.user}@${this.host}`;
+    this.legacyConnectionId = `${config.user}@${this.host}`;
+    this.connectionId =
+      config.cluster && config.cluster.length > 0
+        ? `${config.user}-${config.cluster}@${this.host}`
+        : this.legacyConnectionId;
 
     // Initialize metadata with defaults
     this.metadata = {
@@ -211,6 +216,13 @@ export class Connection {
 
   static create(config: ConnectionConfig): Connection {
     return new Connection(config);
+  }
+
+  matchesSessionConnectionId(connectionId?: string | null): boolean {
+    if (!connectionId) {
+      return false;
+    }
+    return connectionId === this.connectionId || connectionId === this.legacyConnectionId;
   }
 
   private buildQueryParameters(userParams?: Record<string, unknown>): Record<string, unknown> {
