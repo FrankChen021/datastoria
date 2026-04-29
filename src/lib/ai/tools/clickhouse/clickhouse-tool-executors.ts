@@ -1,6 +1,5 @@
 import { type InferToolInput, type InferToolOutput } from "ai";
 import type { ToolExecutor } from "./clickhouse-tool-types";
-import type { ClickHouseTools } from "./clickhouse-tools";
 import { collectSqlOptimizationEvidenceExecutor } from "./collect-sql-optimization-evidence";
 import { executeSqlExecutor } from "./execute-sql";
 import { exploreSchemaExecutor } from "./explore-schema";
@@ -10,6 +9,8 @@ import { searchQueryLogExecutor } from "./search-query-log";
 import { getClusterStatusExecutor } from "./status/collect-cluster-status";
 import { validateSqlExecutor } from "./validate-sql";
 
+type ClickHouseToolsRegistry = typeof import("./clickhouse-tools").ClickHouseTools;
+
 /**
  * Runtime executor registry for ClickHouse tools.
  *
@@ -17,9 +18,9 @@ import { validateSqlExecutor } from "./validate-sql";
  * and client code, while executors depend on the shared ClickHouse Connection implementation.
  */
 export const ClickHouseToolExecutors: {
-  [K in keyof typeof ClickHouseTools]: ToolExecutor<
-    InferToolInput<(typeof ClickHouseTools)[K]>,
-    InferToolOutput<(typeof ClickHouseTools)[K]>
+  [K in keyof ClickHouseToolsRegistry]: ToolExecutor<
+    InferToolInput<ClickHouseToolsRegistry[K]>,
+    InferToolOutput<ClickHouseToolsRegistry[K]>
   >;
 } = {
   explore_schema: exploreSchemaExecutor,

@@ -34,6 +34,7 @@ import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
 import {
   ClickHouseTools,
   createServerClickHouseTools,
+  getClickHouseConnectionValidationError,
   hasClickHouseConnection,
   type ClickHouseConnection,
 } from "@/lib/ai/tools/clickhouse/clickhouse-tools";
@@ -344,6 +345,14 @@ export async function POST(req: Request) {
       }
 
       agentContext = apiRequest.agentContext;
+      if (apiRequest.connection !== undefined) {
+        const connectionValidationError = getClickHouseConnectionValidationError(
+          apiRequest.connection
+        );
+        if (connectionValidationError) {
+          return new Response(connectionValidationError, { status: 400 });
+        }
+      }
       clickHouseConnection = hasClickHouseConnection(apiRequest.connection)
         ? apiRequest.connection
         : undefined;
@@ -446,6 +455,14 @@ export async function POST(req: Request) {
       context.clusterAvailable = hasClickHouseClusterContext(context);
 
       agentContext = apiRequest.agentContext;
+      if (apiRequest.connection !== undefined) {
+        const connectionValidationError = getClickHouseConnectionValidationError(
+          apiRequest.connection
+        );
+        if (connectionValidationError) {
+          return new Response(connectionValidationError, { status: 400 });
+        }
+      }
       clickHouseConnection = hasClickHouseConnection(apiRequest.connection)
         ? apiRequest.connection
         : undefined;

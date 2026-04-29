@@ -16,12 +16,16 @@ import {
   type GetClusterStatusInput,
   type GetClusterStatusOutput,
 } from "./status/collect-cluster-status";
+import {
+  getClickHouseConnectionValidationError,
+  type ClickHouseConnection,
+} from "./clickhouse-connection";
 
-export interface ClickHouseConnection {
-  url: string;
-  user: string;
-  password: string;
-}
+export {
+  getClickHouseConnectionValidationError,
+  hasClickHouseConnection,
+  type ClickHouseConnection,
+} from "./clickhouse-connection";
 
 export type ValidateSqlToolInput = {
   sql: string;
@@ -620,25 +624,18 @@ export const CLICKHOUSE_TOOL_NAMES = {
 export type ClickHouseToolName = (typeof CLICKHOUSE_TOOL_NAMES)[keyof typeof CLICKHOUSE_TOOL_NAMES];
 type ServerClickHouseTools = Record<ClickHouseToolName, Tool>;
 
-export function hasClickHouseConnection(connection: unknown): connection is ClickHouseConnection {
-  const candidate = connection as Partial<ClickHouseConnection> | null;
-  return Boolean(
-    candidate &&
-    typeof candidate === "object" &&
-    typeof candidate.url === "string" &&
-    typeof candidate.user === "string" &&
-    typeof candidate.password === "string" &&
-    candidate.password.length > 0
-  );
-}
-
 export function createServerClickHouseTools(config: ClickHouseConnection): ServerClickHouseTools {
+  const validationError = getClickHouseConnectionValidationError(config);
+  if (validationError) {
+    throw new Error(validationError);
+  }
+
   const connection = Connection.create({
     name: `${config.user}@${config.url}`,
     url: config.url,
     user: config.user,
     password: config.password,
-    cluster: "",
+    cluster: config.cluster ?? "",
     editable: false,
   });
 

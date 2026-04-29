@@ -55,6 +55,7 @@ describe("buildSendMessagesRequestPayload", () => {
         url: "https://clickhouse.example.com",
         user: "default",
         password: "secret",
+        cluster: "prod_cluster",
       },
       currentModel: { provider: "openai", modelId: "gpt-5" },
       generateTitle: false,
@@ -68,6 +69,7 @@ describe("buildSendMessagesRequestPayload", () => {
         url: "https://clickhouse.example.com",
         user: "default",
         password: "secret",
+        cluster: "prod_cluster",
       },
     });
   });

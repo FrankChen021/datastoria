@@ -9,7 +9,10 @@ import type {
   StageStatus,
   ToolProgressCallback,
 } from "@/lib/ai/tools/clickhouse/clickhouse-tool-types";
-import type { ClickHouseConnection } from "@/lib/ai/tools/clickhouse/clickhouse-tools";
+import {
+  getClickHouseConnectionValidationError,
+  type ClickHouseConnection,
+} from "@/lib/ai/tools/clickhouse/clickhouse-connection";
 import { useToolProgressStore } from "@/lib/ai/tools/clickhouse/tool-progress-store";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
@@ -201,15 +204,18 @@ export function buildSendMessagesRequestPayload({
 function buildClickHouseConnectionPayload(
   connection: Connection | null
 ): ClickHouseConnection | undefined {
-  if (!connection || !connection.password) {
+  if (!connection || typeof connection.password !== "string") {
     return undefined;
   }
 
-  return {
+  const payload: ClickHouseConnection = {
     url: connection.url,
     user: connection.user,
     password: connection.password,
+    ...(connection.cluster ? { cluster: connection.cluster } : {}),
   };
+
+  return getClickHouseConnectionValidationError(payload) ? undefined : payload;
 }
 
 export class ChatFactory {
