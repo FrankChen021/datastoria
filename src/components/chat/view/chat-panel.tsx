@@ -337,8 +337,8 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
       // Explicit session selection should win when opening a hidden panel.
       if (
         selectedChat?.connectionId &&
-        selectedChat.connectionId !== chatConnectionId &&
-        !isNoConnectionSessionConnectionId(selectedChat.connectionId)
+        !isNoConnectionSessionConnectionId(selectedChat.connectionId) &&
+        !connection?.matchesSessionConnectionId(selectedChat.connectionId)
       ) {
         return;
       } else if (selectedChat) {
@@ -430,8 +430,8 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     if (selectedChat.chatId === chat.id) return;
     if (
       selectedChat.connectionId &&
-      selectedChat.connectionId !== chatConnectionId &&
-      !isNoConnectionSessionConnectionId(selectedChat.connectionId)
+      !isNoConnectionSessionConnectionId(selectedChat.connectionId) &&
+      !connection?.matchesSessionConnectionId(selectedChat.connectionId)
     ) {
       return;
     }
