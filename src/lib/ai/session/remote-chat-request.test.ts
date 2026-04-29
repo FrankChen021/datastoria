@@ -92,10 +92,20 @@ describe("validateRemoteChatRequest", () => {
     });
   });
 
+  it("trims a valid connectionId", () => {
+    const request = validateRemoteChatRequest({
+      sessionId: "chat-1",
+      connectionId: " conn-1 ",
+      message: createMessage({ role: "user" }),
+    });
+
+    expect(request?.connectionId).toBe("conn-1");
+  });
+
   it("rejects a request with an oversized connectionId", () => {
     const request = validateRemoteChatRequest({
       sessionId: "chat-1",
-      connectionId: "x".repeat(513),
+      connectionId: "x".repeat(256),
       message: createMessage({ role: "user" }),
     });
 

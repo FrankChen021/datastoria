@@ -1,9 +1,6 @@
 import { getAuthenticatedUserEmail } from "@/auth";
 import type { AppUIMessage } from "@/lib/ai/ai-types";
-import {
-  validateConnectionId,
-  validateSessionId,
-} from "@/lib/ai/session/remote-chat-request";
+import { validateConnectionId, validateSessionId } from "@/lib/ai/session/remote-chat-request";
 import { persistedSessionToDTO } from "@/lib/ai/session/serialization";
 import { getServerSessionRepository } from "@/lib/ai/session/server-session-repository-factory";
 import { v7 as uuidv7 } from "uuid";
@@ -72,10 +69,10 @@ export async function POST(req: Request) {
     return new Response("Invalid JSON in request body", { status: 400 });
   }
 
-  if (!validateConnectionId(typeof payload.connectionId === "string" ? payload.connectionId : "")) {
+  const connectionId = typeof payload.connectionId === "string" ? payload.connectionId.trim() : "";
+  if (!validateConnectionId(connectionId)) {
     return new Response("Invalid connectionId", { status: 400 });
   }
-  const connectionId = typeof payload.connectionId === "string" ? payload.connectionId.trim() : "";
 
   if (
     payload.sessionId !== undefined &&

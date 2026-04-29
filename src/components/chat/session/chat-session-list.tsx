@@ -117,16 +117,19 @@ type ConnectionGroupMeta = {
   config: ConnectionConfig | null;
 };
 
-function findMatchingConnectionConfig(connectionId?: string | null): ConnectionConfig | null {
+function findMatchingConnectionConfigs(connectionId?: string | null): ConnectionConfig[] {
   if (!connectionId || isNoConnectionSessionConnectionId(connectionId)) {
-    return null;
+    return [];
   }
 
-  return (
-    ConnectionManager.getInstance()
-      .getConnections()
-      .find((item) => Connection.create(item).matchesSessionConnectionId(connectionId)) ?? null
-  );
+  return ConnectionManager.getInstance()
+    .getConnections()
+    .filter((item) => Connection.create(item).matchesSessionConnectionId(connectionId));
+}
+
+function findMatchingConnectionConfig(connectionId?: string | null): ConnectionConfig | null {
+  const matchingConnections = findMatchingConnectionConfigs(connectionId);
+  return matchingConnections.length === 1 ? (matchingConnections[0] ?? null) : null;
 }
 
 function getResolvedConnectionGroupId(connectionId: string): string {
@@ -151,15 +154,16 @@ function getConnectionGroupMeta(
     };
   }
 
-  const matchingConnection = findMatchingConnectionConfig(connectionId);
-  const matchingConnections = matchingConnection ? [matchingConnection] : [];
+  const matchingConnections = findMatchingConnectionConfigs(connectionId);
   const labels = Array.from(new Set(matchingConnections.map((item) => item.name)));
   const label = labels[0] ?? connectionId;
   const secondaryLabel =
     labels.length > 1 ? labels.slice(1).join(", ") : labels.length === 0 ? connectionId : undefined;
   const isCurrent =
     matchingConnections.length > 0
-      ? matchingConnections.some((item) => Connection.create(item).matchesSessionConnectionId(currentConnectionId))
+      ? matchingConnections.some((item) =>
+          Connection.create(item).matchesSessionConnectionId(currentConnectionId)
+        )
       : connectionId === currentConnectionId;
 
   return {
@@ -271,7 +275,11 @@ function CrossConnectionSwitchPopover({
   onConfirm: (chat: ManagedSession) => Promise<void>;
   children: React.ReactNode;
 }) {
-  if (!chat.databaseId || isCurrentConnection || isNoConnectionSessionConnectionId(chat.databaseId)) {
+  if (
+    !chat.databaseId ||
+    isCurrentConnection ||
+    isNoConnectionSessionConnectionId(chat.databaseId)
+  ) {
     return <>{children}</>;
   }
 
@@ -643,7 +651,10 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
     const initialExpandedIds = React.useMemo(() => {
       const currentConnectionNode = treeData.find((node) => {
         const data = node.data as HistoryNodeData | undefined;
-        return data?.kind === "connection" && getConnectionGroupMeta(data.connectionId, currentConnectionId).isCurrent;
+        return (
+          data?.kind === "connection" &&
+          getConnectionGroupMeta(data.connectionId, currentConnectionId).isCurrent
+        );
       });
       if (!currentConnectionNode) {
         return [];

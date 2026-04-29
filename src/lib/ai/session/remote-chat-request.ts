@@ -25,7 +25,7 @@ export interface ContinuationRequest extends ChatRequestBase {
 
 export type RemoteChatRequest = InitialTurnRequest | ContinuationRequest;
 
-const MAX_CONNECTION_ID_LENGTH = 512;
+const MAX_CONNECTION_ID_LENGTH = 255;
 
 export function replaceOrAppendMessageById(
   persistedMessages: AppUIMessage[],
@@ -46,10 +46,11 @@ export function validateSessionId(sessionId: string): boolean {
 }
 
 export function validateConnectionId(connectionId: string): boolean {
+  const trimmedConnectionId = connectionId.trim();
   return (
     typeof connectionId === "string" &&
-    connectionId.trim().length > 0 &&
-    connectionId.length <= MAX_CONNECTION_ID_LENGTH
+    trimmedConnectionId.length > 0 &&
+    trimmedConnectionId.length <= MAX_CONNECTION_ID_LENGTH
   );
 }
 
@@ -68,9 +69,11 @@ export function validateRemoteChatRequest(payload: unknown): RemoteChatRequest |
   }
 
   const candidate = payload as Partial<RemoteChatRequest>;
+  const connectionId =
+    typeof candidate.connectionId === "string" ? candidate.connectionId.trim() : "";
   if (
     !validateSessionId(candidate.sessionId ?? "") ||
-    !validateConnectionId(candidate.connectionId ?? "") ||
+    !validateConnectionId(connectionId) ||
     !candidate.message ||
     typeof candidate.message !== "object" ||
     typeof candidate.message.id !== "string" ||
@@ -80,11 +83,12 @@ export function validateRemoteChatRequest(payload: unknown): RemoteChatRequest |
   }
 
   if (candidate.continuation === true) {
-    return { ...candidate, continuation: true } as ContinuationRequest;
+    return { ...candidate, connectionId, continuation: true } as ContinuationRequest;
   }
 
   return {
     ...candidate,
+    connectionId,
     continuation: false,
   } as InitialTurnRequest;
 }
