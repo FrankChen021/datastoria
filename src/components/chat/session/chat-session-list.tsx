@@ -132,9 +132,16 @@ function findMatchingConnectionConfig(connectionId?: string | null): ConnectionC
   return matchingConnections.length === 1 ? (matchingConnections[0] ?? null) : null;
 }
 
-function getResolvedConnectionGroupId(connectionId: string): string {
+function getResolvedConnectionGroupId(connectionId: string, currentConnectionId?: string): string {
   if (isNoConnectionSessionConnectionId(connectionId)) {
     return connectionId;
+  }
+
+  const currentConnection = findMatchingConnectionConfigs(connectionId)
+    .map((config) => Connection.create(config))
+    .find((candidate) => candidate.connectionId === currentConnectionId);
+  if (currentConnection) {
+    return currentConnection.connectionId;
   }
 
   const matchingConnection = findMatchingConnectionConfig(connectionId);
@@ -359,7 +366,7 @@ function buildHistoryTree(
       continue;
     }
 
-    const groupConnectionId = getResolvedConnectionGroupId(chat.databaseId);
+    const groupConnectionId = getResolvedConnectionGroupId(chat.databaseId, currentConnectionId);
     const existing = connectionGroups.get(groupConnectionId);
     if (existing) {
       existing.push(chat);
@@ -735,7 +742,8 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
                       currentConnectionId &&
                       data.chat.databaseId &&
                       !isNoConnectionSessionConnectionId(data.chat.databaseId) &&
-                      !connection?.matchesSessionConnectionId(data.chat.databaseId)
+                      getResolvedConnectionGroupId(data.chat.databaseId, currentConnectionId) !==
+                        currentConnectionId
                     ) {
                       setSwitchConfirmState({
                         chat: data.chat,
