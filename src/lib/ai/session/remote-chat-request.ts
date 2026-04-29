@@ -45,13 +45,13 @@ export function validateSessionId(sessionId: string): boolean {
   return typeof sessionId === "string" && sessionId.length > 0 && sessionId.length <= 64;
 }
 
-export function validateConnectionId(connectionId: string): boolean {
+export function validateConnectionId(connectionId: unknown): boolean {
+  if (typeof connectionId !== "string") {
+    return false;
+  }
+
   const trimmedConnectionId = connectionId.trim();
-  return (
-    typeof connectionId === "string" &&
-    trimmedConnectionId.length > 0 &&
-    trimmedConnectionId.length <= MAX_CONNECTION_ID_LENGTH
-  );
+  return trimmedConnectionId.length > 0 && trimmedConnectionId.length <= MAX_CONNECTION_ID_LENGTH;
 }
 
 export function hasCompletedToolOutputs(message: AppUIMessage): boolean {

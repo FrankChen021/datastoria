@@ -168,8 +168,8 @@ function getConnectionGroupMeta(
     labels.length > 1 ? labels.slice(1).join(", ") : labels.length === 0 ? connectionId : undefined;
   const isCurrent =
     matchingConnections.length > 0
-      ? matchingConnections.some((item) =>
-          Connection.create(item).matchesSessionConnectionId(currentConnectionId)
+      ? matchingConnections.some(
+          (item) => Connection.create(item).connectionId === currentConnectionId
         )
       : connectionId === currentConnectionId;
 

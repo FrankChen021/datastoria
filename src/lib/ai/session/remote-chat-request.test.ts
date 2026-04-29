@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   hasCompletedToolOutputs,
   replaceOrAppendMessageById,
+  validateConnectionId,
   validateRemoteChatRequest,
 } from "./remote-chat-request";
 
@@ -110,5 +111,12 @@ describe("validateRemoteChatRequest", () => {
     });
 
     expect(request).toBeNull();
+  });
+});
+
+describe("validateConnectionId", () => {
+  it("returns false for non-string input", () => {
+    expect(validateConnectionId(null)).toBe(false);
+    expect(validateConnectionId({ id: "conn-1" })).toBe(false);
   });
 });

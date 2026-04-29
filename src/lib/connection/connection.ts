@@ -160,6 +160,7 @@ export class Connection {
 
   readonly connectionId: string;
   readonly legacyConnectionId: string;
+  private readonly transitionalClusterConnectionId: string | null;
 
   private constructor(config: ConnectionConfig) {
     this.name = config.name;
@@ -185,9 +186,13 @@ export class Connection {
     }
 
     this.legacyConnectionId = `${config.user}@${this.host}`;
-    this.connectionId =
+    this.transitionalClusterConnectionId =
       config.cluster && config.cluster.length > 0
         ? `${config.user}-${config.cluster}@${this.host}`
+        : null;
+    this.connectionId =
+      config.cluster && config.cluster.length > 0
+        ? `${encodeURIComponent(config.user)}@${this.host}#cluster=${encodeURIComponent(config.cluster)}`
         : this.legacyConnectionId;
 
     // Initialize metadata with defaults
@@ -222,7 +227,11 @@ export class Connection {
     if (!connectionId) {
       return false;
     }
-    return connectionId === this.connectionId || connectionId === this.legacyConnectionId;
+    return (
+      connectionId === this.connectionId ||
+      connectionId === this.legacyConnectionId ||
+      connectionId === this.transitionalClusterConnectionId
+    );
   }
 
   private buildQueryParameters(userParams?: Record<string, unknown>): Record<string, unknown> {

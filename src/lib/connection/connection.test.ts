@@ -38,9 +38,14 @@ describe("Connection session ids", () => {
     });
 
     expect(connection.connectionId).toBe(
-      "default-prod_cluster@https://clickhouse.example.com:8443"
+      "default@https://clickhouse.example.com:8443#cluster=prod_cluster"
     );
     expect(connection.legacyConnectionId).toBe("default@https://clickhouse.example.com:8443");
+    expect(
+      connection.matchesSessionConnectionId(
+        "default@https://clickhouse.example.com:8443#cluster=prod_cluster"
+      )
+    ).toBe(true);
     expect(
       connection.matchesSessionConnectionId(
         "default-prod_cluster@https://clickhouse.example.com:8443"
@@ -49,6 +54,29 @@ describe("Connection session ids", () => {
     expect(
       connection.matchesSessionConnectionId("default@https://clickhouse.example.com:8443")
     ).toBe(true);
+  });
+
+  it("encodes connection id components to avoid user and cluster delimiter collisions", () => {
+    const connectionA = Connection.create({
+      name: "prod-a",
+      url: "https://clickhouse.example.com:8443",
+      user: "a-b",
+      password: "",
+      cluster: "c",
+      editable: true,
+    });
+    const connectionB = Connection.create({
+      name: "prod-b",
+      url: "https://clickhouse.example.com:8443",
+      user: "a",
+      password: "",
+      cluster: "b-c",
+      editable: true,
+    });
+
+    expect(connectionA.connectionId).toBe("a-b@https://clickhouse.example.com:8443#cluster=c");
+    expect(connectionB.connectionId).toBe("a@https://clickhouse.example.com:8443#cluster=b-c");
+    expect(connectionA.connectionId).not.toBe(connectionB.connectionId);
   });
 });
 
