@@ -1,5 +1,5 @@
 import { QueryError, type JSONCompactFormatResponse } from "@/lib/connection/connection";
-import type { ToolExecutor } from "../client-tool-types";
+import type { ToolExecutor } from "../clickhouse-tool-types";
 
 export type HistoricalMetricType =
   | "replication"

@@ -1,5 +1,5 @@
 import type { JSONCompactFormatResponse } from "@/lib/connection/connection";
-import { escapeSqlString, type ToolExecutor } from "./client-tool-types";
+import { escapeSqlString, type ToolExecutor } from "./clickhouse-tool-types";
 
 const MAX_COLUMNS_WITHOUT_FILTER = 100;
 

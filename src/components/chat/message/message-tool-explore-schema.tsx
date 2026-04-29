@@ -11,7 +11,7 @@ import type {
   ExploreSchemaInput,
   ExploreSchemaOutput,
   TableSchemaInput,
-} from "@/lib/ai/tools/client/explore-schema";
+} from "@/lib/ai/tools/clickhouse/explore-schema";
 import { memo } from "react";
 import { CollapsiblePart } from "./collapsible-part";
 

@@ -1,5 +1,5 @@
 import { QueryError } from "@/lib/connection/connection";
-import type { ToolExecutor, ToolProgressCallback } from "../client-tool-types";
+import type { ToolExecutor, ToolProgressCallback } from "../clickhouse-tool-types";
 import {
   buildTimeFilter,
   createCachedRcaConnection,

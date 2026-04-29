@@ -1,6 +1,6 @@
 import { streamText, type ModelMessage } from "ai";
 import { LanguageModelProviderFactory } from "../llm/llm-provider-factory";
-import { ClientTools as clientTools } from "../tools/client/client-tools";
+import { ClickHouseTools as clickHouseTools } from "../tools/clickhouse/clickhouse-tools";
 import type { ServerDatabaseContext } from "./common-types";
 import type { InputModel } from "./plan/sub-agent-registry";
 
@@ -178,9 +178,9 @@ Example:
     model,
     messages: [{ role: "system", content: systemPrompt }, ...messages],
     tools: {
-      collect_sql_optimization_evidence: clientTools.collect_sql_optimization_evidence,
-      search_query_log: clientTools.search_query_log,
-      validate_sql: clientTools.validate_sql,
+      collect_sql_optimization_evidence: clickHouseTools.collect_sql_optimization_evidence,
+      search_query_log: clickHouseTools.search_query_log,
+      validate_sql: clickHouseTools.validate_sql,
     },
     temperature,
   });

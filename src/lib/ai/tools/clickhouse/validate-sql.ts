@@ -1,6 +1,6 @@
 import { QueryError } from "@/lib/connection/connection";
 import { SqlUtils } from "@/lib/sql-utils";
-import type { ToolExecutor } from "./client-tool-types";
+import type { ToolExecutor } from "./clickhouse-tool-types";
 
 type ValidateSqlInput = {
   sql: string;

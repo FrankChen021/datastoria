@@ -1,4 +1,4 @@
-import { escapeSqlString, type ToolExecutor } from "./client-tool-types";
+import { escapeSqlString, type ToolExecutor } from "./clickhouse-tool-types";
 
 export type GetTablesInput = {
   name_pattern?: string;

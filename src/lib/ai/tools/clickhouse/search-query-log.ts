@@ -4,7 +4,7 @@ import {
   type JSONCompactFormatResponse,
 } from "@/lib/connection/connection";
 import { SqlUtils } from "@/lib/sql-utils";
-import { escapeSqlString, type ToolExecutor } from "./client-tool-types";
+import { escapeSqlString, type ToolExecutor } from "./clickhouse-tool-types";
 
 export type SearchQueryLogMode = "patterns" | "executions";
 export type SearchQueryLogMetric =

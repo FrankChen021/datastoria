@@ -1,6 +1,6 @@
 import { type InferToolInput, type InferToolOutput } from "ai";
-import type { ToolExecutor } from "./client-tool-types";
-import { ClientTools, type AskUserQuestionInput, type AskUserQuestionOutput } from "./client-tools";
+import type { ToolExecutor } from "./clickhouse-tool-types";
+import type { ClickHouseTools } from "./clickhouse-tools";
 import { collectSqlOptimizationEvidenceExecutor } from "./collect-sql-optimization-evidence";
 import { executeSqlExecutor } from "./execute-sql";
 import { exploreSchemaExecutor } from "./explore-schema";
@@ -10,26 +10,18 @@ import { searchQueryLogExecutor } from "./search-query-log";
 import { getClusterStatusExecutor } from "./status/collect-cluster-status";
 import { validateSqlExecutor } from "./validate-sql";
 
-const askUserQuestionExecutor: ToolExecutor<
-  AskUserQuestionInput,
-  AskUserQuestionOutput
-> = async () => {
-  throw new Error("ask_user_question is interactive and must not be eagerly executed.");
-};
-
 /**
- * Runtime executor registry for client tools.
+ * Runtime executor registry for ClickHouse tools.
  *
- * Keep this separate from `client-tools.ts` because the tool schema definitions are imported
- * by both server and client code, while some executors depend on server-only modules.
+ * Keep this separate from `clickhouse-tools.ts` because tool schemas are imported by both server
+ * and client code, while executors depend on the shared ClickHouse Connection implementation.
  */
-export const ClientToolExecutors: {
-  [K in keyof typeof ClientTools]: ToolExecutor<
-    InferToolInput<(typeof ClientTools)[K]>,
-    InferToolOutput<(typeof ClientTools)[K]>
+export const ClickHouseToolExecutors: {
+  [K in keyof typeof ClickHouseTools]: ToolExecutor<
+    InferToolInput<(typeof ClickHouseTools)[K]>,
+    InferToolOutput<(typeof ClickHouseTools)[K]>
   >;
 } = {
-  ask_user_question: askUserQuestionExecutor,
   explore_schema: exploreSchemaExecutor,
   get_tables: getTablesExecutor,
   execute_sql: executeSqlExecutor,

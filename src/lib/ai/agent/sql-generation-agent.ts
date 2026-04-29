@@ -1,8 +1,8 @@
 import { Output, streamText, tool, type ModelMessage } from "ai";
 import { z } from "zod";
 import { isMockMode, LanguageModelProviderFactory } from "../llm/llm-provider-factory";
-import { ClientTools as clientTools } from "../tools/client/client-tools";
-import type { TableSchemaOutput } from "../tools/client/explore-schema";
+import { ClickHouseTools as clickHouseTools } from "../tools/clickhouse/clickhouse-tools";
+import type { TableSchemaOutput } from "../tools/clickhouse/explore-schema";
 import type { ServerDatabaseContext } from "./common-types";
 import type { InputModel } from "./plan/sub-agent-registry";
 import { mockSqlGenerationAgent } from "./sql-generation-agent.mock";
@@ -478,9 +478,9 @@ LIMIT 10
     model,
     messages: [{ role: "system", content: systemPrompt }, ...messages],
     tools: {
-      get_tables: clientTools.get_tables,
-      explore_schema: clientTools.explore_schema,
-      validate_sql: clientTools.validate_sql,
+      get_tables: clickHouseTools.get_tables,
+      explore_schema: clickHouseTools.explore_schema,
+      validate_sql: clickHouseTools.validate_sql,
     },
     temperature,
   });
