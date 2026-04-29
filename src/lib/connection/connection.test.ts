@@ -38,17 +38,42 @@ describe("Connection session ids", () => {
     });
 
     expect(connection.connectionId).toBe(
-      "default-prod_cluster@https://clickhouse.example.com:8443"
+      "default@https://clickhouse.example.com:8443?cluster=prod_cluster"
     );
     expect(connection.legacyConnectionId).toBe("default@https://clickhouse.example.com:8443");
     expect(
       connection.matchesSessionConnectionId(
-        "default-prod_cluster@https://clickhouse.example.com:8443"
+        "default@https://clickhouse.example.com:8443?cluster=prod_cluster"
       )
     ).toBe(true);
     expect(
       connection.matchesSessionConnectionId("default@https://clickhouse.example.com:8443")
     ).toBe(true);
+  });
+
+  it("matches stored parameter-format session ids by parsed cluster", () => {
+    const connection = Connection.create({
+      name: "prod",
+      url: "https://clickhouse.example.com:8443/path",
+      user: "default",
+      password: "",
+      cluster: "prod cluster/1",
+      editable: true,
+    });
+
+    expect(connection.connectionId).toBe(
+      "default@https://clickhouse.example.com:8443?cluster=prod%20cluster%2F1"
+    );
+    expect(
+      connection.matchesSessionConnectionId(
+        "default@https://clickhouse.example.com:8443?cluster=prod%20cluster%2F1"
+      )
+    ).toBe(true);
+    expect(
+      connection.matchesSessionConnectionId(
+        "default@https://clickhouse.example.com:8443?cluster=prod%20cluster%2F2"
+      )
+    ).toBe(false);
   });
 });
 
