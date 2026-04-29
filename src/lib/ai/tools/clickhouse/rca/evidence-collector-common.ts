@@ -3,7 +3,7 @@ import {
   type Connection,
   type JSONCompactFormatResponse,
 } from "@/lib/connection/connection";
-import { escapeSqlString, type ToolProgressCallback } from "../client-tool-types";
+import { escapeSqlString, type ToolProgressCallback } from "../clickhouse-tool-types";
 import type { HealthCategorySummary } from "../status/collect-cluster-status";
 
 export type CanonicalSymptom = "high_part_count" | "unknown";

@@ -1,7 +1,7 @@
 import { Output, streamText, tool, type ModelMessage } from "ai";
 import { z } from "zod";
 import { isMockMode, LanguageModelProviderFactory } from "../llm/llm-provider-factory";
-import { ClientTools as clientTools } from "../tools/client/client-tools";
+import { ClickHouseTools as clickHouseTools } from "../tools/clickhouse/clickhouse-tools";
 import { SERVER_TOOL_NAMES } from "../tools/server/server-tool-names";
 import type { ServerDatabaseContext } from "./common-types";
 import type { InputModel } from "./plan/sub-agent-registry";
@@ -398,11 +398,11 @@ You are an expert at creating data visualizations for ClickHouse data.
     model,
     messages: [{ role: "system", content: systemPrompt }, ...messages],
     tools: {
-      get_tables: clientTools.get_tables,
-      explore_schema: clientTools.explore_schema,
+      get_tables: clickHouseTools.get_tables,
+      explore_schema: clickHouseTools.explore_schema,
       [SERVER_TOOL_NAMES.GENERATE_SQL]: createGenerateSqlTool(modelConfig, context),
-      validate_sql: clientTools.validate_sql,
-      execute_sql: clientTools.execute_sql,
+      validate_sql: clickHouseTools.validate_sql,
+      execute_sql: clickHouseTools.execute_sql,
       [SERVER_TOOL_NAMES.GENERATE_VISUALIZATION]: createGenerateVisualizationTool(modelConfig),
     },
     temperature,

@@ -2,8 +2,8 @@ import type { AppUIMessage, ToolPart } from "@/lib/ai/ai-types";
 import type {
   CollectSqlOptimizationEvidenceInput,
   EvidenceContext,
-} from "@/lib/ai/tools/client/collect-sql-optimization-evidence";
-import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
+} from "@/lib/ai/tools/clickhouse/collect-sql-optimization-evidence";
+import { useToolProgressStore } from "@/lib/ai/tools/clickhouse/tool-progress-store";
 import { memo } from "react";
 import { CollapsiblePart } from "./collapsible-part";
 import { MessageMarkdownSql } from "./message-markdown-sql";

@@ -2,7 +2,7 @@ import type { AppUIMessage, ToolPart } from "@/lib/ai/ai-types";
 import {
   type ValidateSqlToolInput,
   type ValidateSqlToolOutput,
-} from "@/lib/ai/tools/client/client-tools";
+} from "@/lib/ai/tools/clickhouse/clickhouse-tools";
 import { memo } from "react";
 import { CollapsiblePart } from "./collapsible-part";
 import { MessageMarkdownSql } from "./message-markdown-sql";

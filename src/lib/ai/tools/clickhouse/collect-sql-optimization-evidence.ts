@@ -1,6 +1,10 @@
 import { QueryError, type Connection } from "@/lib/connection/connection";
 import { SqlUtils } from "@/lib/sql-utils";
-import { escapeSqlString, type ToolExecutor, type ToolProgressCallback } from "./client-tool-types";
+import {
+  escapeSqlString,
+  type ToolExecutor,
+  type ToolProgressCallback,
+} from "./clickhouse-tool-types";
 
 type CollectMode = "light" | "full";
 

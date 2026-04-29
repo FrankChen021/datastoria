@@ -1,5 +1,4 @@
 import type { PlannerMetadata } from "@/lib/ai/agent/plan/planning-types";
-import type { ClientTools } from "@/lib/ai/tools/client/client-tools";
 import type { InferUITools, LanguageModelUsage, UIDataTypes, UIMessage } from "ai";
 
 export interface AgentContext {
@@ -136,11 +135,13 @@ export interface Chat {
  * App UI message: UIMessage with MessageMetadata plus UI timestamps.
  * Single source of truth for message metadata (usage, planner) shared with Message.
  */
-export type AppUIMessage = UIMessage<
-  MessageMetadata,
-  UIDataTypes,
-  InferUITools<typeof ClientTools>
-> & { updatedAt?: Date; createdAt?: Date };
+type AppTools = typeof import("@/lib/ai/tools/client/client-tools").ClientTools &
+  typeof import("@/lib/ai/tools/clickhouse/clickhouse-tools").ClickHouseTools;
+
+export type AppUIMessage = UIMessage<MessageMetadata, UIDataTypes, InferUITools<AppTools>> & {
+  updatedAt?: Date;
+  createdAt?: Date;
+};
 
 /**
  * Type for tool parts that have input, output, and state properties.

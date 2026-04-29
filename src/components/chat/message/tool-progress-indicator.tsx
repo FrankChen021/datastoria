@@ -1,4 +1,4 @@
-import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
+import { useToolProgressStore } from "@/lib/ai/tools/clickhouse/tool-progress-store";
 import { Loader2 } from "lucide-react";
 import { memo } from "react";
 

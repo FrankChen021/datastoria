@@ -42,6 +42,38 @@ describe("buildSendMessagesRequestPayload", () => {
     });
   });
 
+  it("includes server tool connection credentials when provided", () => {
+    const payload = buildSendMessagesRequestPayload({
+      sessionId: "session-1",
+      connectionId: "default@https://example.com",
+      messages: [createMessage({})],
+      trigger: "submit-message",
+      messageId: "message-1",
+      body: {},
+      requestContext: diagnosisContext,
+      clickHouseConnection: {
+        url: "https://clickhouse.example.com",
+        user: "default",
+        password: "secret",
+        cluster: "prod_cluster",
+      },
+      currentModel: { provider: "openai", modelId: "gpt-5" },
+      generateTitle: false,
+      ephemeral: true,
+      pruneValidateSql: true,
+      chatPersistenceMode: "remote",
+    });
+
+    expect(payload).toMatchObject({
+      connection: {
+        url: "https://clickhouse.example.com",
+        user: "default",
+        password: "secret",
+        cluster: "prod_cluster",
+      },
+    });
+  });
+
   it("includes diagnosis context in local chat payloads", () => {
     const message = createMessage({});
     const payload = buildSendMessagesRequestPayload({

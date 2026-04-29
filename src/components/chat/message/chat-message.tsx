@@ -1,6 +1,7 @@
 import { AppLogo } from "@/components/app-logo";
 import { UserProfileImage } from "@/components/user-profile-image";
 import type { AppUIMessage, FilePart, ToolPart } from "@/lib/ai/ai-types";
+import { CLICKHOUSE_TOOL_NAMES } from "@/lib/ai/tools/clickhouse/clickhouse-tools";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { DateTimeExtension } from "@/lib/datetime-utils";
@@ -219,23 +220,23 @@ const ChatMessagePart = memo(
     // CLIENT TOOLS
     else if (toolName === CLIENT_TOOL_NAMES.ASK_USER_QUESTION) {
       return <MessageToolAskUserQuestion part={part} isRunning={isRunning} />;
-    } else if (toolName === CLIENT_TOOL_NAMES.EXECUTE_SQL) {
+    } else if (toolName === CLICKHOUSE_TOOL_NAMES.EXECUTE_SQL) {
       return <MessageToolExecuteSql part={part} isRunning={isRunning} />;
-    } else if (toolName === CLIENT_TOOL_NAMES.VALIDATE_SQL) {
+    } else if (toolName === CLICKHOUSE_TOOL_NAMES.VALIDATE_SQL) {
       return <MessageToolValidateSql part={part} isRunning={isRunning} />;
-    } else if (toolName === CLIENT_TOOL_NAMES.EXPLORE_SCHEMA) {
+    } else if (toolName === CLICKHOUSE_TOOL_NAMES.EXPLORE_SCHEMA) {
       return <MessageToolExploreSchema part={part} isRunning={isRunning} />;
-    } else if (toolName === CLIENT_TOOL_NAMES.GET_TABLES) {
+    } else if (toolName === CLICKHOUSE_TOOL_NAMES.GET_TABLES) {
       return <MessageToolGetTables part={part} isRunning={isRunning} />;
-    } else if (toolName === CLIENT_TOOL_NAMES.COLLECT_SQL_OPTIMIZATION_EVIDENCE) {
+    } else if (toolName === CLICKHOUSE_TOOL_NAMES.COLLECT_SQL_OPTIMIZATION_EVIDENCE) {
       return <MessageToolCollectSqlOptimizationEvidence part={part} isRunning={isRunning} />;
-    } else if (toolName === CLIENT_TOOL_NAMES.SEARCH_QUERY_LOG) {
+    } else if (toolName === CLICKHOUSE_TOOL_NAMES.SEARCH_QUERY_LOG) {
       return <MessageToolGeneral toolName={"Search Query Log"} part={part} isRunning={isRunning} />;
-    } else if (toolName === CLIENT_TOOL_NAMES.COLLECT_CLUSTER_STATUS) {
+    } else if (toolName === CLICKHOUSE_TOOL_NAMES.COLLECT_CLUSTER_STATUS) {
       return (
         <MessageToolGeneral toolName={"Collect Cluster Status"} part={part} isRunning={isRunning} />
       );
-    } else if (toolName === CLIENT_TOOL_NAMES.COLLECT_RCA_EVIDENCE) {
+    } else if (toolName === CLICKHOUSE_TOOL_NAMES.COLLECT_RCA_EVIDENCE) {
       return (
         <MessageToolGeneral toolName={"Collect RCA Evidence"} part={part} isRunning={isRunning} />
       );

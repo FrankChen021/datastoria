@@ -1,5 +1,5 @@
 import { QueryError } from "@/lib/connection/connection";
-import type { ToolExecutor } from "./client-tool-types";
+import type { ToolExecutor } from "./clickhouse-tool-types";
 
 type ExecuteSqlInput = {
   sql: string;

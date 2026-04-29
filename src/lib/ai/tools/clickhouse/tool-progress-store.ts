@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { StageStatus } from "./client-tool-types";
+import type { StageStatus } from "./clickhouse-tool-types";
 
 /**
  * Progress Stage - Represents a single stage in the tool execution

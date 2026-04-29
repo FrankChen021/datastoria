@@ -4,10 +4,17 @@ import { ModelManager } from "@/components/settings/models/model-manager";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import type { AgentContext, AppUIMessage, Message, MessageMetadata } from "@/lib/ai/ai-types";
 import { sanitizeMessageForPersistence } from "@/lib/ai/session/serialization";
-import { ClientToolExecutors } from "@/lib/ai/tools/client/client-tool-executors";
-import type { StageStatus, ToolProgressCallback } from "@/lib/ai/tools/client/client-tool-types";
+import {
+  getClickHouseConnectionValidationError,
+  type ClickHouseConnection,
+} from "@/lib/ai/tools/clickhouse/clickhouse-connection";
+import { ClickHouseToolExecutors } from "@/lib/ai/tools/clickhouse/clickhouse-tool-executors";
+import type {
+  StageStatus,
+  ToolProgressCallback,
+} from "@/lib/ai/tools/clickhouse/clickhouse-tool-types";
+import { useToolProgressStore } from "@/lib/ai/tools/clickhouse/tool-progress-store";
 import { CLIENT_TOOL_NAMES } from "@/lib/ai/tools/client/client-tools";
-import { useToolProgressStore } from "@/lib/ai/tools/client/tool-progress-store";
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { BasePath } from "@/lib/base-path";
 import { Connection, type QueryResponse } from "@/lib/connection/connection";
@@ -26,7 +33,7 @@ type AbortableQueryResult<TResponse extends QueryResponse | Response> = {
   response: Promise<TResponse>;
   abortController: AbortController;
 };
-type ClientToolName = keyof typeof ClientToolExecutors;
+type ClickHouseExecutorName = keyof typeof ClickHouseToolExecutors;
 const PROVISIONAL_SESSION_TITLE_WORDS = 8;
 
 type ChatFactoryCreateOptions = {
@@ -71,6 +78,7 @@ type SendMessagesRequestPayloadArgs = {
   messageId: string | undefined;
   body: unknown;
   requestContext?: DatabaseContext;
+  clickHouseConnection?: ClickHouseConnection;
   currentModel?: {
     provider: string;
     modelId: string;
@@ -145,6 +153,7 @@ export function buildSendMessagesRequestPayload({
   messageId,
   body,
   requestContext,
+  clickHouseConnection,
   currentModel,
   generateTitle,
   ephemeral,
@@ -169,6 +178,7 @@ export function buildSendMessagesRequestPayload({
         pruneValidateSql,
         outputReasoning,
       },
+      ...(clickHouseConnection ? { connection: clickHouseConnection } : {}),
       ...(requestContext ? { context: requestContext } : {}),
       ...(currentModel ? { model: currentModel } : {}),
     };
@@ -184,10 +194,28 @@ export function buildSendMessagesRequestPayload({
       pruneValidateSql,
       outputReasoning,
     },
+    ...(clickHouseConnection ? { connection: clickHouseConnection } : {}),
     generateTitle,
     ...(requestContext ? { context: requestContext } : {}),
     ...(currentModel ? { model: currentModel } : {}),
   };
+}
+
+function buildClickHouseConnectionPayload(
+  connection: Connection | null
+): ClickHouseConnection | undefined {
+  if (!connection || typeof connection.password !== "string") {
+    return undefined;
+  }
+
+  const payload: ClickHouseConnection = {
+    url: connection.url,
+    user: connection.user,
+    password: connection.password,
+    ...(connection.cluster ? { cluster: connection.cluster } : {}),
+  };
+
+  return getClickHouseConnectionValidationError(payload) ? undefined : payload;
 }
 
 export class ChatFactory {
@@ -451,7 +479,7 @@ export class ChatFactory {
       transport: new DefaultChatTransport({
         fetch: async (_input, init) => {
           const mode = AgentConfigurationManager.getConfiguration().mode;
-          const endpoint = BasePath.getURL(mode === "v2" ? "/api/ai/chat/v2" : "/api/ai/chat");
+          const endpoint = BasePath.getURL(mode === "v2" ? "/api/ai/agent" : "/api/ai/chat");
           return fetch(endpoint, init);
         },
 
@@ -476,6 +504,10 @@ export class ChatFactory {
 
           const requestContext = options.context ?? ChatContext.build();
           const chatPersistenceMode = getRuntimeConfig().sessionRepositoryType;
+          const clickHouseConnection =
+            AgentConfigurationManager.getConfiguration().mode === "v2"
+              ? buildClickHouseConnectionPayload(connection)
+              : undefined;
           return {
             body: buildSendMessagesRequestPayload({
               sessionId,
@@ -485,6 +517,7 @@ export class ChatFactory {
               messageId,
               body,
               requestContext,
+              clickHouseConnection,
               currentModel,
               generateTitle: options.generateTitle,
               ephemeral: options.ephemeral,
@@ -522,7 +555,7 @@ export class ChatFactory {
           return;
         }
 
-        if (!(toolName in ClientToolExecutors)) {
+        if (!(toolName in ClickHouseToolExecutors)) {
           console.error(`Unknown tool: ${toolName}`);
           chat.addToolOutput({
             tool: toolName as never,
@@ -532,7 +565,7 @@ export class ChatFactory {
           return;
         }
 
-        const executor = ClientToolExecutors[toolName as ClientToolName];
+        const executor = ClickHouseToolExecutors[toolName as ClickHouseExecutorName];
 
         try {
           if (!clientToolConnection) {
