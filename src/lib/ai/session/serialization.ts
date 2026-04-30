@@ -19,17 +19,41 @@ function isPersistedImagePart(part: MessagePart): part is FilePart {
   );
 }
 
+function hasProviderMetadata(part: MessagePart): boolean {
+  const metadata = (part as { providerMetadata?: unknown }).providerMetadata;
+  return typeof metadata === "object" && metadata !== null;
+}
+
+function isNonPersistedStreamPart(part: MessagePart): boolean {
+  const partType = String(part.type);
+  if (partType === "step-start") {
+    return true;
+  }
+
+  if (partType === "reasoning") {
+    const text = (part as { text?: unknown }).text;
+    return (typeof text !== "string" || text.trim().length === 0) && !hasProviderMetadata(part);
+  }
+
+  return false;
+}
+
 export function sanitizeMessageForPersistence(message: AppUIMessage): AppUIMessage {
   const parts = (message.parts ?? []) as MessagePart[];
-  if (!parts.some(isPersistedImagePart)) {
+  if (!parts.some((part) => isPersistedImagePart(part) || isNonPersistedStreamPart(part))) {
     return message;
   }
 
-  const sanitizedParts = parts.filter((part) => !isPersistedImagePart(part));
+  const removedImagePart = parts.some(isPersistedImagePart);
+  const sanitizedParts = parts.filter(
+    (part) => !isPersistedImagePart(part) && !isNonPersistedStreamPart(part)
+  );
   const nextParts =
     sanitizedParts.length > 0
       ? sanitizedParts
-      : ([{ type: "text", text: IMAGE_HISTORY_PLACEHOLDER }] satisfies MessagePart[]);
+      : removedImagePart
+        ? ([{ type: "text", text: IMAGE_HISTORY_PLACEHOLDER }] satisfies MessagePart[])
+        : [];
 
   return {
     ...message,

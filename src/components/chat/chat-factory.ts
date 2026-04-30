@@ -158,7 +158,7 @@ export function buildSendMessagesRequestPayload({
   generateTitle,
   ephemeral,
   pruneValidateSql,
-  outputReasoning = false,
+  outputReasoning = true,
   agentContext,
   chatPersistenceMode,
 }: SendMessagesRequestPayloadArgs): Record<string, unknown> {
@@ -523,8 +523,7 @@ export class ChatFactory {
               ephemeral: options.ephemeral,
               pruneValidateSql:
                 AgentConfigurationManager.getConfiguration().pruneValidateSql ?? true,
-              outputReasoning:
-                AgentConfigurationManager.getConfiguration().outputReasoning ?? false,
+              outputReasoning: AgentConfigurationManager.getConfiguration().outputReasoning ?? true,
               agentContext: options.agentContext,
               chatPersistenceMode,
             }),

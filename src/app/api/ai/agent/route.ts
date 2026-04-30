@@ -546,6 +546,7 @@ export async function POST(req: Request) {
     const responseStream = result.toUIMessageStream({
       originalMessages: originalMessages as UIMessage[],
       generateMessageId: () => messageId,
+      sendReasoning: outputReasoning,
       onFinish:
         repositoryType === "remote" &&
         sessionRepository &&
