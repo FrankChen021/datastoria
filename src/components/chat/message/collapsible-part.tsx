@@ -69,7 +69,15 @@ export function CollapsiblePart({
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   useEffect(() => {
-    setIsExpanded(defaultExpanded || (expandIncomplete && state !== "output-available"));
+    setIsExpanded(defaultExpanded);
+  }, [defaultExpanded]);
+
+  useEffect(() => {
+    if (!expandIncomplete) {
+      return;
+    }
+
+    setIsExpanded(defaultExpanded || state !== "output-available");
   }, [defaultExpanded, expandIncomplete, state]);
 
   // Determine if tool is complete
