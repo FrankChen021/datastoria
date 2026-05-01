@@ -65,6 +65,9 @@ describe("chat message part grouping", () => {
 
     expect(groups).toHaveLength(3);
     expect(groups.map((group) => group.type)).toEqual(["part", "part", "part"]);
+    expect(groups.map((group) => (group.type === "part" ? group.index : group.startIndex))).toEqual(
+      [0, 2, 5]
+    );
   });
 
   it("marks a grouped tool run as failed when any tool failed", () => {

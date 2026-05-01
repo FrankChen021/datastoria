@@ -50,11 +50,11 @@ export function groupRenderableParts(parts: MessagePart[]): RenderPartGroup[] {
     }
 
     const startIndex = index;
-    const toolParts: MessagePart[] = [];
+    const toolEntries: { part: MessagePart; index: number }[] = [];
     while (index < parts.length) {
       const currentPart = parts[index];
       if (isToolPart(currentPart)) {
-        toolParts.push(currentPart);
+        toolEntries.push({ part: currentPart, index });
         index += 1;
         continue;
       }
@@ -67,19 +67,23 @@ export function groupRenderableParts(parts: MessagePart[]): RenderPartGroup[] {
       break;
     }
 
-    if (toolParts.length === 0) {
+    if (toolEntries.length === 0) {
       index += 1;
       continue;
     }
 
     const hasPartAfterToolRun = index < parts.length;
-    if (toolParts.length > 1 && hasPartAfterToolRun) {
-      groups.push({ type: "tool-group", parts: toolParts, startIndex });
+    if (toolEntries.length > 1 && hasPartAfterToolRun) {
+      groups.push({
+        type: "tool-group",
+        parts: toolEntries.map((entry) => entry.part),
+        startIndex,
+      });
       continue;
     }
 
-    toolParts.forEach((toolPart, offset) => {
-      groups.push({ type: "part", part: toolPart, index: startIndex + offset });
+    toolEntries.forEach(({ part, index }) => {
+      groups.push({ type: "part", part, index });
     });
   }
 
