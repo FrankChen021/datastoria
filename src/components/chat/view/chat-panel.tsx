@@ -9,12 +9,15 @@ import {
 } from "@/components/chat/session/session-connection-id";
 import { SessionManager } from "@/components/chat/session/session-manager";
 import { useConnection } from "@/components/connection/connection-context";
+import { getRuntimeConfig } from "@/components/runtime-config-provider";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { AppUIMessage, Message } from "@/lib/ai/ai-types";
+import { BasePath } from "@/lib/base-path";
 import type { Connection } from "@/lib/connection/connection";
+import { toastManager } from "@/lib/toast";
 import type { Chat } from "@ai-sdk/react";
-import { Download, Loader2, Maximize2, Minimize2, Plus, Square, X } from "lucide-react";
+import { Download, Loader2, Maximize2, Minimize2, Plus, Share2, Square, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -28,12 +31,15 @@ interface ChatHeaderProps {
   onClose?: () => void;
   onNewChat: () => void;
   onExport?: () => void;
+  onShare?: () => void;
   currentChatId: string;
   onSelectChat?: (id: string, connectionId?: string) => void;
   toggleDisplayMode?: () => void;
   displayMode?: ChatPanelDisplayMode;
   initialTitle?: string;
   isRunning?: boolean;
+  isSharing?: boolean;
+  canShare?: boolean;
 }
 
 type LoadChatOptions = {
@@ -41,6 +47,7 @@ type LoadChatOptions = {
   agentContext?: Partial<import("@/lib/ai/ai-types").AgentContext>;
   connectionOverride?: Connection | null;
   connectionId?: string;
+  shareCode?: string;
 };
 
 function sanitizeFileName(input: string): string {
@@ -136,16 +143,25 @@ const ChatHeader = React.memo(
     onClose,
     onNewChat,
     onExport,
+    onShare,
     currentChatId,
     onSelectChat,
     toggleDisplayMode,
     displayMode = "panel",
     initialTitle,
     isRunning,
+    isSharing,
+    canShare,
   }: ChatHeaderProps) => {
     const isMobile = useIsMobile();
     const { icon, tooltip } = getDisplayModeButtonInfo(displayMode);
     const [title, setTitle] = useState<string | undefined>(initialTitle);
+    const isShareUnavailable = !canShare;
+    const shareTitle = isShareUnavailable
+      ? getRuntimeConfig().sessionRepositoryType === "remote"
+        ? "Sharing is unavailable for this session"
+        : "Sharing is not supported because this deployment stores chat sessions in your browser."
+      : "Copy share link";
 
     // Reset title when chat ID changes
     useEffect(() => {
@@ -191,6 +207,21 @@ const ChatHeader = React.memo(
             title="Export session as Markdown"
           >
             <Download className="!h-3.5 !w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-6 w-6 ${isShareUnavailable ? "cursor-not-allowed opacity-50 hover:bg-transparent" : ""}`}
+            onClick={isShareUnavailable ? undefined : onShare}
+            disabled={canShare && (isRunning || isSharing)}
+            aria-disabled={isShareUnavailable || isRunning || isSharing}
+            title={shareTitle}
+          >
+            {isSharing ? (
+              <Loader2 className="!h-3.5 !w-3.5 animate-spin" />
+            ) : (
+              <Share2 className="!h-3.5 !w-3.5" />
+            )}
           </Button>
           {isMobile && (
             <OpenSessionListButton
@@ -251,6 +282,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     setCurrentChatId,
     selectedChat,
     clearSelectedChat,
+    getSessionShareCode,
     newChatRequestNonce,
     toggleDisplayMode,
     selectChat,
@@ -258,6 +290,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
   const [chat, setChat] = useState<Chat<AppUIMessage> | null>(null);
   const [chatTitle, setChatTitle] = useState<string | undefined>(undefined);
   const [isRunning, setIsRunning] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const chatViewRef = useRef<ChatViewHandle | null>(null);
   const [isChatViewReady, setIsChatViewReady] = useState(false);
   const previousChatIdRef = useRef<string | null>(null);
@@ -280,16 +313,27 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
 
   const loadChat = useCallback(
     async (chatIdToLoad: string, options?: LoadChatOptions): Promise<void> => {
+      const shareCode = options?.shareCode ?? getSessionShareCode(chatIdToLoad);
       const chatData =
-        options?.isNewSession === true ? null : await SessionManager.getSession(chatIdToLoad);
+        options?.isNewSession === true
+          ? null
+          : await SessionManager.getSession(chatIdToLoad, { shareCode });
       const initialMessages = chatData
-        ? ((await SessionManager.getMessages(chatIdToLoad)).map(toAppUiMessage) as AppUIMessage[])
+        ? ((await SessionManager.getMessages(chatIdToLoad, { shareCode })).map(
+            toAppUiMessage
+          ) as AppUIMessage[])
         : [];
       setChatTitle(chatData?.title ?? "New Chat");
-      const targetConnection =
-        options && "connectionOverride" in options ? options.connectionOverride : connection;
+      const isSharedSession = Boolean(shareCode);
+      const targetConnection = isSharedSession
+        ? null
+        : options && "connectionOverride" in options
+          ? options.connectionOverride
+          : connection;
       const targetConnectionId =
-        options?.connectionId ?? getSessionRepositoryConnectionId(targetConnection);
+        options?.connectionId ??
+        chatData?.databaseId ??
+        getSessionRepositoryConnectionId(targetConnection);
       setLoadedChatConnectionId(targetConnectionId);
       setLoadedChatIsDraft(options?.isNewSession === true);
 
@@ -300,12 +344,13 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
         context: targetConnection ? undefined : {},
         initialMessages,
         agentContext: options?.agentContext,
+        shareCode,
       });
       setChat(newChat);
       chatViewRef.current = null;
       setIsChatViewReady(false);
     },
-    [connection]
+    [connection, getSessionShareCode]
   );
 
   const loadDraftChat = useCallback(async (): Promise<void> => {
@@ -337,6 +382,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
       // Explicit session selection should win when opening a hidden panel.
       if (
         selectedChat?.connectionId &&
+        !selectedChat.shareCode &&
         !isNoConnectionSessionConnectionId(selectedChat.connectionId) &&
         !connection?.matchesSessionConnectionId(selectedChat.connectionId)
       ) {
@@ -378,6 +424,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
               ? null
               : undefined,
           connectionId: selectedChat?.connectionId,
+          shareCode: selectedChat?.shareCode,
         });
         if (selectedChat?.chatId === loadTarget.id) {
           clearSelectedChat();
@@ -430,6 +477,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     if (selectedChat.chatId === chat.id) return;
     if (
       selectedChat.connectionId &&
+      !selectedChat.shareCode &&
       !isNoConnectionSessionConnectionId(selectedChat.connectionId) &&
       !connection?.matchesSessionConnectionId(selectedChat.connectionId)
     ) {
@@ -441,6 +489,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
         ? null
         : undefined,
       connectionId: selectedChat.connectionId,
+      shareCode: selectedChat.shareCode,
     });
     clearSelectedChat();
   }, [chat, clearSelectedChat, connection, loadChat, selectedChat]);
@@ -487,8 +536,9 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
       return;
     }
 
-    const storedSession = await SessionManager.getSession(chat.id);
-    const storedMessages = await SessionManager.getMessages(chat.id);
+    const shareCode = getSessionShareCode(chat.id);
+    const storedSession = await SessionManager.getSession(chat.id, { shareCode });
+    const storedMessages = await SessionManager.getMessages(chat.id, { shareCode });
     const title =
       (storedSession?.title?.trim() || chatTitle?.trim() || "New Chat").trim() || "New Chat";
     const userLabel = authSession?.user?.email?.trim() || "You";
@@ -503,7 +553,42 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
-  }, [authSession?.user?.email, chat?.id, chatTitle]);
+  }, [authSession?.user?.email, chat?.id, chatTitle, getSessionShareCode]);
+
+  const handleShareSession = useCallback(async () => {
+    if (!chat?.id || isSharing) {
+      return;
+    }
+
+    setIsSharing(true);
+    try {
+      const response = await fetch(
+        BasePath.getURL(`/api/ai/sessions/${encodeURIComponent(chat.id)}/share`),
+        {
+          method: "POST",
+          credentials: "same-origin",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to create share link: ${response.status}`);
+      }
+
+      const data = (await response.json()) as { url?: unknown };
+      if (typeof data.url !== "string" || data.url.length === 0) {
+        throw new Error("Share API returned an invalid URL");
+      }
+
+      const shareUrl = new URL(data.url, window.location.origin).toString();
+      await navigator.clipboard.writeText(shareUrl);
+      toastManager.show("Share link copied to clipboard", "success");
+    } catch (error) {
+      console.error("Failed to share session", error);
+      toastManager.show("Failed to create share link", "error");
+    } finally {
+      setIsSharing(false);
+    }
+  }, [chat?.id, isSharing]);
 
   useEffect(() => {
     if (!chat?.id) {
@@ -552,8 +637,8 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
   }, [pendingCommand, isChatViewReady, chat, consumeCommand]);
 
   const handleSelectChat = useCallback(
-    (id: string, targetConnectionId?: string) => {
-      selectChat(id, targetConnectionId ?? chatConnectionId);
+    (id: string, targetConnectionId?: string, shareCode?: string) => {
+      selectChat(id, targetConnectionId ?? chatConnectionId, shareCode);
     },
     [chatConnectionId, selectChat]
   );
@@ -605,6 +690,11 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     );
   }
 
+  const canShare =
+    getRuntimeConfig().sessionRepositoryType === "remote" &&
+    !loadedChatIsDraft &&
+    !getSessionShareCode(chat.id);
+
   return (
     <SqlExecutionProvider value={{ executionMode: "inline" }}>
       <div className="flex flex-col h-full bg-background overflow-hidden">
@@ -612,12 +702,15 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
           onClose={onClose}
           onNewChat={handleNewChat}
           onExport={handleExportSession}
+          onShare={handleShareSession}
           onSelectChat={handleSelectChat}
           currentChatId={chat.id}
           toggleDisplayMode={handleToggleDisplayMode}
           displayMode={displayMode}
           initialTitle={chatTitle}
           isRunning={isRunning}
+          isSharing={isSharing}
+          canShare={canShare}
         />
         <ChatView
           ref={(ref) => {

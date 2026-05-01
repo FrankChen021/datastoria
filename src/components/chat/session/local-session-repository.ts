@@ -260,9 +260,9 @@ export class LocalSessionRepository implements SessionRepository {
     );
   }
 
-  async getSession(id: string): Promise<Chat | null> {
+  async getSession(sessionId: string): Promise<Chat | null> {
     const chats = this.chatsStorage.getAsJSON<Record<string, Chat>>(() => ({}));
-    const chat = chats[id];
+    const chat = chats[sessionId];
 
     if (!chat) return null;
 
@@ -283,28 +283,28 @@ export class LocalSessionRepository implements SessionRepository {
     await this.safeSave(null, () => this.chatsStorage.setJSON(chats), session.chatId);
   }
 
-  async updateSessionTitle(id: string, title: string): Promise<void> {
+  async updateSessionTitle(sessionId: string, title: string): Promise<void> {
     const chats = this.chatsStorage.getAsJSON<Record<string, Chat>>(() => ({}));
-    if (chats[id]) {
-      chats[id] = {
-        ...chats[id],
+    if (chats[sessionId]) {
+      chats[sessionId] = {
+        ...chats[sessionId],
         title,
         updatedAt: new Date(),
       };
-      await this.safeSave(null, () => this.chatsStorage.setJSON(chats), id);
+      await this.safeSave(null, () => this.chatsStorage.setJSON(chats), sessionId);
     }
   }
 
-  async renameSession(chatId: string, title: string): Promise<void> {
-    await this.updateSessionTitle(chatId, title);
+  async renameSession(sessionId: string, title: string): Promise<void> {
+    await this.updateSessionTitle(sessionId, title);
   }
 
-  async deleteSession(id: string): Promise<void> {
+  async deleteSession(sessionId: string): Promise<void> {
     const chats = this.chatsStorage.getAsJSON<Record<string, Chat>>(() => ({}));
-    delete chats[id];
+    delete chats[sessionId];
 
     await this.safeSave(null, () => this.chatsStorage.setJSON(chats));
-    await this.clearMessages(id);
+    await this.clearMessages(sessionId);
   }
 
   private async getStoredSessions(): Promise<Chat[]> {
@@ -337,8 +337,8 @@ export class LocalSessionRepository implements SessionRepository {
     };
   }
 
-  async getMessages(chatId: string): Promise<Message[]> {
-    const messagesMap = this.getMessagesForChat(chatId);
+  async getMessages(sessionId: string): Promise<Message[]> {
+    const messagesMap = this.getMessagesForChat(sessionId);
     const messages = Object.values(messagesMap).map((message) => this.normalizeMessage(message));
 
     const needsBackfill = messages.some((message) => message.sequence == null);
@@ -349,7 +349,7 @@ export class LocalSessionRepository implements SessionRepository {
         sorted[index].sequence = sequence;
         messagesMap[sorted[index].id] = sorted[index];
       }
-      await this.saveMessagesForChat(chatId, messagesMap);
+      await this.saveMessagesForChat(sessionId, messagesMap);
     }
 
     return messages.sort((a, b) => this.compareMessages(a, b));
@@ -374,8 +374,8 @@ export class LocalSessionRepository implements SessionRepository {
     return session;
   }
 
-  async saveMessage(chatId: string, message: Message): Promise<void> {
-    const messagesMap = this.getMessagesForChat(chatId);
+  async saveMessage(sessionId: string, message: Message): Promise<void> {
+    const messagesMap = this.getMessagesForChat(sessionId);
     let sequence = messagesMap[message.id]?.sequence;
 
     if (sequence === undefined) {
@@ -394,18 +394,18 @@ export class LocalSessionRepository implements SessionRepository {
     };
 
     messagesMap[message.id] = messageToSave;
-    await this.saveMessagesForChat(chatId, messagesMap);
+    await this.saveMessagesForChat(sessionId, messagesMap);
 
-    const session = await this.getSession(chatId);
+    const session = await this.getSession(sessionId);
     if (session) {
       await this.saveSession({ ...session, updatedAt: new Date() });
     }
   }
 
-  async saveMessages(chatId: string, messagesToSave: Message[]): Promise<void> {
+  async saveMessages(sessionId: string, messagesToSave: Message[]): Promise<void> {
     if (messagesToSave.length === 0) return;
 
-    const messagesMap = this.getMessagesForChat(chatId);
+    const messagesMap = this.getMessagesForChat(sessionId);
     const messages = Object.values(messagesMap);
     let maxSequence =
       messages.length > 0 ? Math.max(...messages.map((message) => message.sequence ?? 0)) : 0;
@@ -425,9 +425,9 @@ export class LocalSessionRepository implements SessionRepository {
       messagesMap[message.id] = messageToSave;
     }
 
-    await this.saveMessagesForChat(chatId, messagesMap);
+    await this.saveMessagesForChat(sessionId, messagesMap);
 
-    const session = await this.getSession(chatId);
+    const session = await this.getSession(sessionId);
     if (session) {
       await this.saveSession({ ...session, updatedAt: new Date() });
     }

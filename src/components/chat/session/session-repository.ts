@@ -18,14 +18,18 @@ export interface SessionPage<TSession = Chat> {
   nextCursor: string | null;
 }
 
+export interface SessionAccessOptions {
+  shareCode?: string;
+}
+
 export interface SessionRepository {
-  getSession(chatId: string): Promise<Chat | null>;
+  getSession(sessionId: string, options?: SessionAccessOptions): Promise<Chat | null>;
   getSessions(input: SessionPageInput): Promise<SessionPage>;
-  getMessages(chatId: string): Promise<Message[]>;
+  getMessages(sessionId: string, options?: SessionAccessOptions): Promise<Message[]>;
   createSessionFromMessages(input: CreateSessionFromMessagesInput): Promise<Chat>;
   saveSession(session: Chat): Promise<void>;
-  saveMessages(chatId: string, messages: Message[]): Promise<void>;
-  saveMessage(chatId: string, message: Message): Promise<void>;
-  renameSession(chatId: string, title: string): Promise<void>;
-  deleteSession(chatId: string): Promise<void>;
+  saveMessages(sessionId: string, messages: Message[]): Promise<void>;
+  saveMessage(sessionId: string, message: Message): Promise<void>;
+  renameSession(sessionId: string, title: string, options?: SessionAccessOptions): Promise<void>;
+  deleteSession(sessionId: string, options?: SessionAccessOptions): Promise<void>;
 }

@@ -28,6 +28,8 @@ import {
   getServerSessionRepository,
   getSessionRepositoryType,
 } from "@/lib/ai/session/server-session-repository-factory";
+import { resolveSessionAccess, SessionAccessError } from "@/lib/ai/session/session-access";
+import { SESSION_SHARE_CODE_HEADER } from "@/lib/ai/session/session-share-constants";
 import { createSkillAvailabilityFilter } from "@/lib/ai/skills/skill-availability";
 import { SkillProviderFactory } from "@/lib/ai/skills/skill-provider-factory";
 import { normalizeUsage, sumTokenUsage } from "@/lib/ai/token-usage-utils";
@@ -304,6 +306,7 @@ export async function POST(req: Request) {
     let sessionRepositoryUserId: string | null = null;
     let sessionRepositoryChatId: string | null = null;
     let sessionRepositoryAllowMissingSession = false;
+    let isSharedSessionAccess = false;
     const sessionRepository: ReturnType<typeof getServerSessionRepository> | null =
       repositoryType === "remote" ? getServerSessionRepository() : null;
     let titlePromise: Promise<SessionTitleGenerationResponse | undefined> | undefined;
@@ -328,6 +331,7 @@ export async function POST(req: Request) {
       if (!sessionRepositoryUserId) {
         return new Response("Authentication required", { status: 401 });
       }
+      const shareCode = req.headers.get(SESSION_SHARE_CODE_HEADER);
 
       context = apiRequest.context
         ? ({ ...apiRequest.context, userEmail } as ServerDatabaseContext)
@@ -379,10 +383,31 @@ export async function POST(req: Request) {
         sessionRepositoryChatId = apiRequest.sessionId;
         sessionRepositoryAllowMissingSession = true;
       } else {
-        const existingSession = await sessionRepository!.getSession(
-          sessionRepositoryUserId,
-          apiRequest.sessionId
-        );
+        let existingSession;
+        if (shareCode) {
+          try {
+            const access = await resolveSessionAccess({
+              repository: sessionRepository!,
+              authenticatedUserId: sessionRepositoryUserId,
+              sessionId: apiRequest.sessionId,
+              shareCode,
+            });
+            sessionRepositoryUserId = access.ownerId;
+            existingSession = access.session;
+            isSharedSessionAccess = access.kind === "share";
+          } catch (error) {
+            if (error instanceof SessionAccessError) {
+              return new Response(error.message, { status: error.status });
+            }
+            throw error;
+          }
+        } else {
+          existingSession = await sessionRepository!.getSession(
+            sessionRepositoryUserId,
+            apiRequest.sessionId
+          );
+        }
+
         if (!existingSession) {
           await sessionRepository!.createSession({
             id: apiRequest.sessionId,
@@ -395,6 +420,11 @@ export async function POST(req: Request) {
           });
         } else if (existingSession.connection_id !== apiRequest.connectionId) {
           return new Response("Session connectionId mismatch", { status: 409 });
+        }
+
+        if (isSharedSessionAccess) {
+          clickHouseConnection = undefined;
+          context = { userEmail, clusterAvailable: false };
         }
 
         const persistedMessages = (
