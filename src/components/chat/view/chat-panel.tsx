@@ -459,14 +459,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     }
 
     void loadChat(chat.id, { isNewSession: true });
-  }, [
-    chat,
-    chatConnectionId,
-    isRunning,
-    loadedChatConnectionId,
-    loadedChatIsDraft,
-    loadChat,
-  ]);
+  }, [chat, chatConnectionId, isRunning, loadedChatConnectionId, loadedChatIsDraft, loadChat]);
 
   // Update context builder when props change
   useEffect(() => {
