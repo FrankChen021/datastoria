@@ -7,13 +7,14 @@ import {
   isNoConnectionSessionConnectionId,
   toSessionRepositoryConnectionId,
 } from "./session-connection-id";
-import type { SessionPageInput } from "./session-repository";
+import type { SessionAccessOptions, SessionPageInput } from "./session-repository";
 import { getSessionRepository } from "./session-repository-factory";
 
 const MAX_SESSION_PAGE_LIMIT = 500;
 
 export interface ManagedSession extends Chat {
   running: boolean;
+  shareCode?: string;
 }
 
 type SessionState = {
@@ -52,11 +53,27 @@ function getConnectionBucket(connectionId: string) {
   return state.sessionsByConnection[connectionId]!;
 }
 
-function toManagedSession(session: Chat, current?: ManagedSession): ManagedSession {
+function toManagedSession(
+  session: Chat,
+  current?: ManagedSession,
+  options?: SessionAccessOptions
+): ManagedSession {
   return {
     ...session,
     running: current?.running ?? state.runningByChatId[session.chatId] ?? false,
+    ...((options?.shareCode ?? current?.shareCode)
+      ? { shareCode: options?.shareCode ?? current?.shareCode }
+      : {}),
   };
+}
+
+function findManagedSession(sessionId: string): ManagedSession | undefined {
+  for (const bucket of Object.values(state.sessionsByConnection)) {
+    if (bucket[sessionId]) {
+      return bucket[sessionId]!;
+    }
+  }
+  return undefined;
 }
 
 export const SessionManager = {
@@ -190,15 +207,17 @@ export const SessionManager = {
     }
   },
 
-  async getSession(chatId: string): Promise<ManagedSession | null> {
-    for (const bucket of Object.values(state.sessionsByConnection)) {
-      if (bucket[chatId]) {
-        return bucket[chatId]!;
-      }
+  async getSession(
+    sessionId: string,
+    options?: SessionAccessOptions
+  ): Promise<ManagedSession | null> {
+    const cached = findManagedSession(sessionId);
+    if (cached && (!options?.shareCode || cached.shareCode === options.shareCode)) {
+      return cached;
     }
 
     const storage = getSessionRepository();
-    const session = await storage.getSession(chatId);
+    const session = await storage.getSession(sessionId, options);
     if (!session) {
       return null;
     }
@@ -206,18 +225,25 @@ export const SessionManager = {
     const connectionId = session.databaseId;
     if (connectionId) {
       const bucket = getConnectionBucket(connectionId);
-      bucket[chatId] = toManagedSession(session, bucket[chatId]);
+      bucket[sessionId] = toManagedSession(session, bucket[sessionId], options);
       emitChange();
-      return bucket[chatId]!;
+      return bucket[sessionId]!;
     }
 
-    return { ...session, running: false };
+    return {
+      ...session,
+      running: false,
+      ...(options?.shareCode ? { shareCode: options.shareCode } : {}),
+    };
   },
 
   upsertSession(session: Chat): ManagedSession {
     const connectionId = session.databaseId;
     if (!connectionId) {
-      return { ...session, running: state.runningByChatId[session.chatId] ?? false };
+      return {
+        ...session,
+        running: state.runningByChatId[session.chatId] ?? false,
+      };
     }
 
     const bucket = getConnectionBucket(connectionId);
@@ -242,9 +268,9 @@ export const SessionManager = {
     return this.upsertSession(session);
   },
 
-  async getMessages(chatId: string): Promise<Message[]> {
+  async getMessages(sessionId: string, options?: SessionAccessOptions): Promise<Message[]> {
     const storage = getSessionRepository();
-    return storage.getMessages(chatId);
+    return storage.getMessages(sessionId, options);
   },
 
   async createSessionFromMessages(
@@ -263,34 +289,44 @@ export const SessionManager = {
     return this.upsertSession(session);
   },
 
-  async saveMessages(chatId: string, messages: Message[]): Promise<void> {
+  async saveMessages(sessionId: string, messages: Message[]): Promise<void> {
     const storage = getSessionRepository();
-    await storage.saveMessages(chatId, messages);
+    await storage.saveMessages(sessionId, messages);
   },
 
-  async saveMessage(chatId: string, message: Message): Promise<void> {
+  async saveMessage(sessionId: string, message: Message): Promise<void> {
     const storage = getSessionRepository();
-    await storage.saveMessage(chatId, message);
+    await storage.saveMessage(sessionId, message);
   },
 
-  async getOrCreateSession(chatId: string, connectionId: string): Promise<ManagedSession> {
+  async getOrCreateSession(
+    sessionId: string,
+    connectionId: string,
+    options?: SessionAccessOptions
+  ): Promise<ManagedSession> {
     const repositoryConnectionId = toSessionRepositoryConnectionId(connectionId);
     const storage = getSessionRepository();
-    const existing = await storage.getSession(chatId);
+    const existing = await storage.getSession(sessionId, options);
     if (existing) {
-      return this.upsertSession(existing);
+      const bucket = getConnectionBucket(existing.databaseId ?? repositoryConnectionId);
+      bucket[sessionId] = toManagedSession(existing, bucket[sessionId], options);
+      emitChange();
+      return bucket[sessionId]!;
     }
 
     const now = new Date();
     const session: Chat = {
-      chatId,
+      chatId: sessionId,
       databaseId: repositoryConnectionId,
       createdAt: now,
       updatedAt: now,
     };
 
     await storage.saveSession(session);
-    return this.upsertSession(session);
+    const bucket = getConnectionBucket(repositoryConnectionId);
+    bucket[sessionId] = toManagedSession(session, bucket[sessionId], options);
+    emitChange();
+    return bucket[sessionId]!;
   },
 
   markRunning(connectionId: string | undefined, chatId: string, running: boolean) {
@@ -320,9 +356,9 @@ export const SessionManager = {
     emitChange();
   },
 
-  async renameSession(chatId: string, title: string) {
+  async renameSession(sessionId: string, title: string) {
     const storage = getSessionRepository();
-    const current = await this.getSession(chatId);
+    const current = await this.getSession(sessionId);
 
     if (!current) {
       return;
@@ -333,13 +369,17 @@ export const SessionManager = {
       title,
     };
 
-    await storage.renameSession(chatId, title);
+    await storage.renameSession(sessionId, title, { shareCode: current.shareCode });
     this.upsertSession(nextSession);
   },
 
   async deleteSessions(chatIds: string[]) {
     const storage = getSessionRepository();
-    await Promise.all(chatIds.map((chatId) => storage.deleteSession(chatId)));
+    await Promise.all(
+      chatIds.map((chatId) =>
+        storage.deleteSession(chatId, { shareCode: findManagedSession(chatId)?.shareCode })
+      )
+    );
 
     for (const chatId of chatIds) {
       for (const bucket of Object.values(state.sessionsByConnection)) {
@@ -356,8 +396,13 @@ export const SessionManager = {
     this.upsertSession(session);
   },
 
-  async touchSessionById(chatId: string, connectionId: string, title?: string) {
-    const current = await this.getOrCreateSession(chatId, connectionId);
+  async touchSessionById(
+    sessionId: string,
+    connectionId: string,
+    title?: string,
+    options?: SessionAccessOptions
+  ) {
+    const current = await this.getOrCreateSession(sessionId, connectionId, options);
     const repositoryConnectionId = toSessionRepositoryConnectionId(connectionId);
     const shouldBackfillConnectionId =
       !current.databaseId ||
@@ -374,7 +419,10 @@ export const SessionManager = {
 
     const storage = getSessionRepository();
     await storage.saveSession(nextSession);
-    return this.upsertSession(nextSession);
+    const bucket = getConnectionBucket(nextSession.databaseId ?? repositoryConnectionId);
+    bucket[sessionId] = toManagedSession(nextSession, bucket[sessionId], options);
+    emitChange();
+    return bucket[sessionId]!;
   },
 };
 

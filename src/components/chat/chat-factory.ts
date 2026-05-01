@@ -4,6 +4,7 @@ import { ModelManager } from "@/components/settings/models/model-manager";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import type { AgentContext, AppUIMessage, Message, MessageMetadata } from "@/lib/ai/ai-types";
 import { sanitizeMessageForPersistence } from "@/lib/ai/session/serialization";
+import { SESSION_SHARE_CODE_HEADER } from "@/lib/ai/session/session-share-constants";
 import {
   getClickHouseConnectionValidationError,
   type ClickHouseConnection,
@@ -50,6 +51,7 @@ type ChatFactoryCreateOptions = {
     modelId: string;
     apiKey?: string;
   };
+  shareCode?: string;
 };
 type PrepareSendMessagesRequestArgs = {
   sessionId: string;
@@ -218,6 +220,27 @@ function buildClickHouseConnectionPayload(
   return getClickHouseConnectionValidationError(payload) ? undefined : payload;
 }
 
+function buildChatRequestHeaders(
+  headers: HeadersInit | undefined,
+  shareCode: string | undefined
+): HeadersInit | undefined {
+  if (!shareCode) {
+    return headers;
+  }
+
+  const normalizedHeaders =
+    headers instanceof Headers
+      ? Object.fromEntries(headers.entries())
+      : Array.isArray(headers)
+        ? Object.fromEntries(headers)
+        : (headers ?? {});
+
+  return {
+    ...normalizedHeaders,
+    [SESSION_SHARE_CODE_HEADER]: shareCode,
+  };
+}
+
 export class ChatFactory {
   private static readonly clientToolAbortControllers = new Map<string, Set<AbortController>>();
 
@@ -359,7 +382,9 @@ export class ChatFactory {
             }
           }
 
-          await SessionManager.touchSessionById(sessionId, connectionId, provisionalTitle);
+          await SessionManager.touchSessionById(sessionId, connectionId, provisionalTitle, {
+            shareCode: options.shareCode,
+          });
           return;
         }
 
@@ -404,7 +429,9 @@ export class ChatFactory {
         }
 
         await SessionManager.saveMessages(sessionId, userMessagesToSave);
-        await SessionManager.touchSessionById(sessionId, connectionId, provisionalTitle);
+        await SessionManager.touchSessionById(sessionId, connectionId, provisionalTitle, {
+          shareCode: options.shareCode,
+        });
       },
       onFinish: async ({ message, connectionId, sessionId }) => {
         const chatPersistenceMode = getRuntimeConfig().sessionRepositoryType;
@@ -441,7 +468,9 @@ export class ChatFactory {
           await SessionManager.saveMessage(sessionId, messageToSave);
         }
 
-        await SessionManager.touchSessionById(sessionId, connectionId, title);
+        await SessionManager.touchSessionById(sessionId, connectionId, title, {
+          shareCode: options.shareCode,
+        });
       },
     });
   }
@@ -528,7 +557,7 @@ export class ChatFactory {
               agentContext: options.agentContext,
               chatPersistenceMode,
             }),
-            headers,
+            headers: buildChatRequestHeaders(headers, options.shareCode),
             credentials,
           };
         },

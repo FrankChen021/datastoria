@@ -2,6 +2,8 @@ import { getAuthenticatedUserEmail } from "@/auth";
 import { validateSessionId } from "@/lib/ai/session/remote-chat-request";
 import { persistedMessageToDTO } from "@/lib/ai/session/serialization";
 import { getServerSessionRepository } from "@/lib/ai/session/server-session-repository-factory";
+import { resolveSessionAccess, SessionAccessError } from "@/lib/ai/session/session-access";
+import { SESSION_SHARE_CODE_HEADER } from "@/lib/ai/session/session-share-constants";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +13,6 @@ type RouteContext = {
 
 export async function GET(req: Request, context: RouteContext) {
   const userId = getAuthenticatedUserEmail(req);
-  if (!userId) {
-    return new Response("Authentication required", { status: 401 });
-  }
 
   const { sessionId } = await context.params;
   if (!validateSessionId(sessionId)) {
@@ -21,11 +20,21 @@ export async function GET(req: Request, context: RouteContext) {
   }
 
   const sessionRepository = getServerSessionRepository();
-  const session = await sessionRepository.getSession(userId, sessionId);
-  if (!session) {
-    return new Response("Not found", { status: 404 });
+  let access;
+  try {
+    access = await resolveSessionAccess({
+      repository: sessionRepository,
+      authenticatedUserId: userId,
+      sessionId,
+      shareCode: req.headers.get(SESSION_SHARE_CODE_HEADER),
+    });
+  } catch (error) {
+    if (error instanceof SessionAccessError) {
+      return new Response(error.message, { status: error.status });
+    }
+    throw error;
   }
 
-  const messages = await sessionRepository.getMessages(userId, sessionId);
+  const messages = await sessionRepository.getMessages(access.ownerId, sessionId);
   return Response.json(messages.map(persistedMessageToDTO));
 }

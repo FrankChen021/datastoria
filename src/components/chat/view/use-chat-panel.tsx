@@ -8,6 +8,7 @@ export type SidebarTab = "database" | "snippets" | "history";
 export type SelectedChatTarget = {
   chatId: string;
   connectionId?: string;
+  shareCode?: string;
 };
 
 export type ChatComposerInputMode = "replace" | "append";
@@ -26,9 +27,11 @@ interface ChatPanelContextType {
   close: () => void;
   currentChatId: string | null;
   setCurrentChatId: (chatId: string | null) => void;
-  selectChat: (chatId: string, connectionId?: string) => void;
+  selectChat: (chatId: string, connectionId?: string, shareCode?: string) => void;
   selectedChat: SelectedChatTarget | null;
   clearSelectedChat: () => void;
+  getSessionShareCode: (sessionId: string) => string | undefined;
+  setSessionShareCode: (sessionId: string, shareCode: string) => void;
   requestNewChat: () => void;
   newChatRequestNonce: number;
   activeSidebarTab: SidebarTab;
@@ -74,6 +77,10 @@ const ChatPanelContext = createContext<ChatPanelContextType>({
   clearSelectedChat: () => {
     // Default implementation
   },
+  getSessionShareCode: () => undefined,
+  setSessionShareCode: () => {
+    // Default implementation
+  },
   requestNewChat: () => {
     // Default implementation
   },
@@ -98,11 +105,33 @@ const ChatPanelContext = createContext<ChatPanelContextType>({
   },
 });
 
-export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
+export function ChatPanelProvider({
+  children,
+  initialSessionId,
+  initialSessionShareCode,
+}: {
+  children: React.ReactNode;
+  initialSessionId?: string;
+  initialSessionShareCode?: string;
+}) {
   // Default to hidden
-  const [displayMode, setDisplayMode] = useState<ChatPanelDisplayMode>("hidden");
+  const [displayMode, setDisplayMode] = useState<ChatPanelDisplayMode>(
+    initialSessionId ? "tabWidth" : "hidden"
+  );
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  const [selectedChat, setSelectedChat] = useState<SelectedChatTarget | null>(null);
+  const [selectedChat, setSelectedChat] = useState<SelectedChatTarget | null>(
+    initialSessionId
+      ? {
+          chatId: initialSessionId,
+          ...(initialSessionShareCode ? { shareCode: initialSessionShareCode } : {}),
+        }
+      : null
+  );
+  const [sessionShareCodes, setSessionShareCodes] = useState<Record<string, string>>(() =>
+    initialSessionId && initialSessionShareCode
+      ? { [initialSessionId]: initialSessionShareCode }
+      : {}
+  );
   const [newChatRequestNonce, setNewChatRequestNonce] = useState(0);
   const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>("database");
   const [pendingCommand, setPendingCommand] = useState<{
@@ -137,14 +166,31 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
     setDisplayMode("hidden");
   };
 
-  const selectChat = (chatId: string, connectionId?: string) => {
-    setSelectedChat({ chatId, connectionId });
+  const selectChat = (chatId: string, connectionId?: string, shareCode?: string) => {
+    const nextShareCode = shareCode ?? sessionShareCodes[chatId];
+    setSelectedChat({
+      chatId,
+      connectionId,
+      ...(nextShareCode ? { shareCode: nextShareCode } : {}),
+    });
+    if (nextShareCode) {
+      setSessionShareCodes((current) => ({ ...current, [chatId]: nextShareCode }));
+    }
     setActiveSidebarTab("history");
     setDisplayMode("tabWidth");
   };
 
   const clearSelectedChat = () => {
     setSelectedChat(null);
+  };
+
+  const getSessionShareCode = (sessionId: string) => sessionShareCodes[sessionId];
+
+  const setSessionShareCode = (sessionId: string, shareCode: string) => {
+    setSessionShareCodes((current) => ({ ...current, [sessionId]: shareCode }));
+    setSelectedChat((current) =>
+      current?.chatId === sessionId ? { ...current, shareCode } : current
+    );
   };
 
   const requestNewChat = () => {
@@ -197,6 +243,8 @@ export function ChatPanelProvider({ children }: { children: React.ReactNode }) {
         selectChat,
         selectedChat,
         clearSelectedChat,
+        getSessionShareCode,
+        setSessionShareCode,
         requestNewChat,
         newChatRequestNonce,
         activeSidebarTab,

@@ -1,7 +1,9 @@
 import type { Chat, Message } from "@/lib/ai/ai-types";
+import { SESSION_SHARE_CODE_HEADER } from "@/lib/ai/session/session-share-constants";
 import { BasePath } from "@/lib/base-path";
 import type {
   CreateSessionFromMessagesInput,
+  SessionAccessOptions,
   SessionPage,
   SessionPageInput,
   SessionRepository,
@@ -54,11 +56,16 @@ async function parseJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
+function buildShareCodeHeaders(options?: SessionAccessOptions): HeadersInit | undefined {
+  return options?.shareCode ? { [SESSION_SHARE_CODE_HEADER]: options.shareCode } : undefined;
+}
+
 export class RemoteSessionRepository implements SessionRepository {
-  async getSession(chatId: string): Promise<Chat | null> {
+  async getSession(sessionId: string, options?: SessionAccessOptions): Promise<Chat | null> {
     const response = await fetch(
-      BasePath.getURL(`/api/ai/chat/sessions/${encodeURIComponent(chatId)}`),
+      BasePath.getURL(`/api/ai/chat/sessions/${encodeURIComponent(sessionId)}`),
       {
+        headers: buildShareCodeHeaders(options),
         credentials: "same-origin",
         cache: "no-store",
       }
@@ -97,10 +104,11 @@ export class RemoteSessionRepository implements SessionRepository {
     };
   }
 
-  async getMessages(chatId: string): Promise<Message[]> {
+  async getMessages(sessionId: string, options?: SessionAccessOptions): Promise<Message[]> {
     const response = await fetch(
-      BasePath.getURL(`/api/ai/chat/sessions/${encodeURIComponent(chatId)}/messages`),
+      BasePath.getURL(`/api/ai/chat/sessions/${encodeURIComponent(sessionId)}/messages`),
       {
+        headers: buildShareCodeHeaders(options),
         credentials: "same-origin",
         cache: "no-store",
       }
@@ -135,14 +143,21 @@ export class RemoteSessionRepository implements SessionRepository {
 
   async saveMessages(_chatId: string, _messages: Message[]): Promise<void> {}
 
-  async saveMessage(_chatId: string, _message: Message): Promise<void> {}
+  async saveMessage(_sessionId: string, _message: Message): Promise<void> {}
 
-  async renameSession(chatId: string, title: string): Promise<void> {
+  async renameSession(
+    sessionId: string,
+    title: string,
+    options?: SessionAccessOptions
+  ): Promise<void> {
     const response = await fetch(
-      BasePath.getURL(`/api/ai/chat/sessions/${encodeURIComponent(chatId)}`),
+      BasePath.getURL(`/api/ai/chat/sessions/${encodeURIComponent(sessionId)}`),
       {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...buildShareCodeHeaders(options),
+        },
         credentials: "same-origin",
         body: JSON.stringify({ title }),
       }
@@ -153,11 +168,12 @@ export class RemoteSessionRepository implements SessionRepository {
     }
   }
 
-  async deleteSession(chatId: string): Promise<void> {
+  async deleteSession(sessionId: string, options?: SessionAccessOptions): Promise<void> {
     const response = await fetch(
-      BasePath.getURL(`/api/ai/chat/sessions/${encodeURIComponent(chatId)}`),
+      BasePath.getURL(`/api/ai/chat/sessions/${encodeURIComponent(sessionId)}`),
       {
         method: "DELETE",
+        headers: buildShareCodeHeaders(options),
         credentials: "same-origin",
       }
     );

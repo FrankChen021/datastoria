@@ -1,0 +1,4 @@
+export const SESSION_SHARE_CODE_HEADER = "X-Session-Share-Code";
+export const SESSION_SHARE_SCOPE_FULL = "chat_session:full";
+export const SESSION_SHARE_EXPIRES_AT_SECONDS = 4102444800;
+export const SESSION_SHARE_EXPIRES_AT = new Date(SESSION_SHARE_EXPIRES_AT_SECONDS * 1000);

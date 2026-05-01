@@ -53,7 +53,7 @@ interface ChatHistoryListProps {
   currentChatId: string;
   onNewChat: () => void;
   onClose?: () => void;
-  onSelectChat?: (id: string, connectionId?: string) => void;
+  onSelectChat?: (id: string, connectionId?: string, shareCode?: string) => void;
   className?: string;
 }
 
@@ -613,8 +613,8 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
           return;
         }
 
-        if (isNoConnectionSessionConnectionId(chat.databaseId)) {
-          onSelectChat?.(chat.chatId, chat.databaseId);
+        if (isNoConnectionSessionConnectionId(chat.databaseId) || chat.shareCode) {
+          onSelectChat?.(chat.chatId, chat.databaseId, chat.shareCode);
           onClose?.();
           return;
         }
@@ -630,7 +630,7 @@ export const ChatSessionList = React.memo<ChatHistoryListProps>(
           }
         }
 
-        onSelectChat?.(chat.chatId, chat.databaseId);
+        onSelectChat?.(chat.chatId, chat.databaseId, chat.shareCode);
         onClose?.();
       },
       [connection, currentChatId, onClose, onSelectChat, switchConnection]
