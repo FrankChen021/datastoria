@@ -10,6 +10,13 @@ import NumberFlow from "@number-flow/react";
 import type { LanguageModelUsage } from "ai";
 import { Info, Loader2 } from "lucide-react";
 import { memo } from "react";
+import {
+  getToolGroupState,
+  getToolName,
+  groupRenderableParts,
+  type MessagePart,
+} from "./chat-message-parts";
+import { CollapsiblePart } from "./collapsible-part";
 import { ErrorMessageDisplay } from "./message-error";
 import { MessageMarkdown } from "./message-markdown";
 import { MessageReasoning } from "./message-reasoning";
@@ -194,12 +201,7 @@ const ChatMessagePart = memo(
     }
 
     // Handle tool calls and responses
-    let toolName: string | undefined;
-    if (part.type === "dynamic-tool") {
-      toolName = (part as ToolPart).toolName;
-    } else if (typeof part.type === "string" && part.type.startsWith("tool-")) {
-      toolName = part.type.replace("tool-", "");
-    }
+    const toolName = getToolName(part);
 
     // SERVER TOOLS
     if (toolName === SERVER_TOOL_NAMES.GENERATE_SQL) {
@@ -288,6 +290,43 @@ const ChatMessagePart = memo(
   }
 );
 
+const CollapsedToolCallGroup = memo(function CollapsedToolCallGroup({
+  parts,
+  isUser,
+  isRunning,
+  messageId,
+}: {
+  parts: MessagePart[];
+  isUser: boolean;
+  isRunning: boolean;
+  messageId?: string;
+}) {
+  const { state, success } = getToolGroupState(parts);
+
+  return (
+    <CollapsiblePart
+      toolName={`${parts.length} tool calls`}
+      state={state}
+      success={success}
+      isRunning={isRunning}
+      showStatusIcon={false}
+      expandIncomplete={false}
+    >
+      <div className="mt-1 space-y-0.5">
+        {parts.map((part, index) => (
+          <ChatMessagePart
+            key={`${(part as ToolPart).toolCallId ?? index}-${index}`}
+            part={part}
+            isUser={isUser}
+            isRunning={isRunning}
+            messageId={messageId}
+          />
+        ))}
+      </div>
+    </CollapsiblePart>
+  );
+});
+
 interface ChatMessageProps {
   message: AppUIMessage;
   isLoading?: boolean;
@@ -327,6 +366,7 @@ export const ChatMessage = memo(function ChatMessage({
   const isUser = message.role === "user";
   const timestamp = resolveMessageTimestamp(message);
   const parts = message.parts || [];
+  const partGroups = groupRenderableParts(parts);
   const error = (message as { error?: Error }).error;
 
   const showLoading = !isUser && isLoading;
@@ -369,15 +409,25 @@ export const ChatMessage = memo(function ChatMessage({
                 </div>
               )}
               {parts.length === 0 && !isLoading && !error && "Nothing returned"}
-              {parts.map((part: AppUIMessage["parts"][0], i: number) => (
-                <ChatMessagePart
-                  key={i}
-                  part={part}
-                  isUser={isUser}
-                  isRunning={isRunning}
-                  messageId={message.id}
-                />
-              ))}
+              {partGroups.map((group) =>
+                group.type === "tool-group" ? (
+                  <CollapsedToolCallGroup
+                    key={`tool-group-${group.startIndex}`}
+                    parts={group.parts}
+                    isUser={isUser}
+                    isRunning={isRunning}
+                    messageId={message.id}
+                  />
+                ) : (
+                  <ChatMessagePart
+                    key={group.index}
+                    part={group.part}
+                    isUser={isUser}
+                    isRunning={isRunning}
+                    messageId={message.id}
+                  />
+                )
+              )}
               {error && <ErrorMessageDisplay errorText={error.message || String(error)} />}
               {showLoading && (
                 <div className="mt-2 flex items-center gap-2 text-muted-foreground">

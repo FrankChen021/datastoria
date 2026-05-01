@@ -78,9 +78,9 @@ export const MessageToolSkill = memo(function MessageToolSkill({
       isRunning={isRunning}
     >
       {requestedItems.length > 0 ? (
-        <div className="mt-1 text-[10px] text-muted-foreground">
+        <div className="text-[10px] text-muted-foreground">
           <div className="font-medium">input:</div>
-          <div className="mt-1 space-y-1 font-mono">
+          <div className="pl-3 font-mono">
             {requestedItems.map((item, index) => (
               <div key={`${item}-${index}`}>{item}</div>
             ))}
@@ -88,7 +88,10 @@ export const MessageToolSkill = memo(function MessageToolSkill({
         </div>
       ) : null}
       {characterCount != null ? (
-        <div className="mt-1 text-[10px] text-muted-foreground">{characterCount} characters</div>
+        <div className="text-[10px] text-muted-foreground">
+          <div className="font-medium">output:</div>
+          <div className="pl-3 font-mono">{characterCount} characters</div>
+        </div>
       ) : null}
     </CollapsiblePart>
   );

@@ -52,6 +52,8 @@ export function CollapsiblePart({
   keepChildrenMounted = false,
   success,
   isRunning = true,
+  showStatusIcon = true,
+  expandIncomplete = true,
 }: {
   toolName: string;
   headerExtra?: React.ReactNode;
@@ -61,12 +63,22 @@ export function CollapsiblePart({
   keepChildrenMounted?: boolean;
   success?: boolean;
   isRunning?: boolean;
+  showStatusIcon?: boolean;
+  expandIncomplete?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   useEffect(() => {
+    setIsExpanded(defaultExpanded);
+  }, [defaultExpanded]);
+
+  useEffect(() => {
+    if (!expandIncomplete) {
+      return;
+    }
+
     setIsExpanded(defaultExpanded || state !== "output-available");
-  }, [defaultExpanded, state]);
+  }, [defaultExpanded, expandIncomplete, state]);
 
   // Determine if tool is complete
   // Use external success value if provided, otherwise use state-based logic
@@ -98,16 +110,20 @@ export function CollapsiblePart({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-2 py-0.5 text-[10px] leading-4">
-          {isComplete ? (
-            isError ? (
-              <CircleX className="h-3 w-3 text-destructive" />
-            ) : (
-              <Check className="h-3 w-3" />
-            )
-          ) : isActuallyRunning ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <CircleX className="h-3 w-3 text-destructive" />
+          {showStatusIcon && (
+            <>
+              {isComplete ? (
+                isError ? (
+                  <CircleX className="h-3 w-3 text-destructive" />
+                ) : (
+                  <Check className="h-3 w-3" />
+                )
+              ) : isActuallyRunning ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <CircleX className="h-3 w-3 text-destructive" />
+              )}
+            </>
           )}
           <Badge className="flex items-center gap-0.5 rounded-sm border-none pl-1 pr-2 h-4 py-0 font-normal text-[10px]">
             {children &&

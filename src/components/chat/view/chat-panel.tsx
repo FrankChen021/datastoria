@@ -298,7 +298,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
   const processedNewChatRequestRef = useRef(newChatRequestNonce);
   const trackedRunningChatRef = useRef<{ chatId: string; connectionId: string } | null>(null);
   const isInitializedRef = useRef(false);
-  const { connection } = useConnection();
+  const { connection, isInitialized: isConnectionInitialized } = useConnection();
   const chatConnectionId = getSessionRepositoryConnectionId(connection);
   const [loadedChatConnectionId, setLoadedChatConnectionId] = useState(chatConnectionId);
   const [loadedChatIsDraft, setLoadedChatIsDraft] = useState(false);
@@ -366,7 +366,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
   // Initial chat loading - only run once when chat is null
   useEffect(() => {
     // Skip if already initialized or chat already exists
-    if (isInitializedRef.current || chat) return;
+    if (!isConnectionInitialized || isInitializedRef.current || chat) return;
 
     const initializeChat = async () => {
       // Capture pendingCommand at initialization time to avoid re-running when it changes
@@ -437,6 +437,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     connection?.connectionId,
+    isConnectionInitialized,
     chatConnectionId,
     createDraftSession,
     initialInput?.chatId,
@@ -498,6 +499,8 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     if (
       !chat ||
       !loadedChatIsDraft ||
+      isRunning ||
+      chat.messages.length > 0 ||
       !isNoConnectionSessionConnectionId(loadedChatConnectionId) ||
       isNoConnectionSessionConnectionId(chatConnectionId)
     ) {
@@ -505,7 +508,7 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     }
 
     void loadChat(chat.id, { isNewSession: true });
-  }, [chat, chatConnectionId, loadedChatConnectionId, loadedChatIsDraft, loadChat]);
+  }, [chat, chatConnectionId, isRunning, loadedChatConnectionId, loadedChatIsDraft, loadChat]);
 
   // Update context builder when props change
   useEffect(() => {

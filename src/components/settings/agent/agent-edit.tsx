@@ -346,7 +346,7 @@ export function AgentEdit() {
             <TableCell className="px-0 py-1 align-middle">
               <div className="flex h-10 items-center">
                 <Switch
-                  checked={configuration.outputReasoning ?? false}
+                  checked={configuration.outputReasoning ?? true}
                   onCheckedChange={handleOutputReasoningChange}
                 />
               </div>
