@@ -170,6 +170,24 @@ describe("MessageMarkdown", () => {
     expect(container.textContent).toContain("Close below $300 and compare");
   });
 
+  it("escapes repeated currency values without breaking later inline math", () => {
+    act(() => {
+      root.render(
+        <MessageMarkdown
+          text={`${Array.from({ length: 50 }, (_, index) => `$${index + 100}`).join(
+            ", "
+          )}, formula $x$`}
+        />
+      );
+    });
+
+    const math = container.querySelector(".katex");
+    expect(math).not.toBeNull();
+    expect(math?.textContent).toContain("x");
+    expect(math?.textContent).not.toContain("100");
+    expect(container.textContent).toContain("$100, $101");
+  });
+
   it("renders LaTeX display math from backslash delimiters", () => {
     act(() => {
       root.render(
@@ -239,6 +257,20 @@ describe("MessageMarkdown", () => {
   it("does not escape currency inside indented fenced code blocks", () => {
     act(() => {
       root.render(<MessageMarkdown text={"   ```text\n$300\n```"} />);
+    });
+
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(syntaxHighlighterSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        language: "text",
+        children: "$300",
+      })
+    );
+  });
+
+  it("does not escape currency inside blockquoted fenced code blocks", () => {
+    act(() => {
+      root.render(<MessageMarkdown text={"> ```text\n> $300\n> ```"} />);
     });
 
     expect(container.querySelector(".katex")).toBeNull();
