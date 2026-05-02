@@ -16,7 +16,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { FileLink } from "./file-link";
 import { MessageMarkdownChartSpec } from "./message-markdown-chat";
-import { normalizeMathMarkdown } from "./message-markdown-math";
+import { escapeCurrencyDollarSigns, normalizeMathMarkdown } from "./message-markdown-math";
 import { MessageMarkdownSql } from "./message-markdown-sql";
 import { MessageMarkdownVizlayer } from "./message-markdown-vizlayer";
 import { remarkExtensions } from "./remark-extensions";
@@ -106,7 +106,10 @@ export const MessageMarkdown = memo(function MessageMarkdown({
   expandable = false,
 }: MessageMarkdownProps) {
   const { connection } = useConnection();
-  const normalizedText = useMemo(() => normalizeMathMarkdown(text), [text]);
+  const normalizedText = useMemo(
+    () => normalizeMathMarkdown(escapeCurrencyDollarSigns(text)),
+    [text]
+  );
 
   const codeBlockStyle = useMemo<React.CSSProperties>(
     () => ({

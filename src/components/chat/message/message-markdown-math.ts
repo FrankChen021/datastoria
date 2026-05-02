@@ -29,31 +29,234 @@ function getCurrentLinePrefix(text: string, index: number) {
   return text.slice(lineStart, index);
 }
 
+function skipOptionalIndent(text: string, index: number) {
+  let markerStart = index;
+  while (text[markerStart] === " " && markerStart - index < 3) {
+    markerStart += 1;
+  }
+  return markerStart;
+}
+
+function getMarkdownLineContentStart(text: string, index: number) {
+  let markerStart = skipOptionalIndent(text, index);
+  let hasBlockquoteMarker = false;
+
+  while (text[markerStart] === ">") {
+    hasBlockquoteMarker = true;
+    markerStart += 1;
+    if (text[markerStart] === " " || text[markerStart] === "\t") {
+      markerStart += 1;
+    }
+    markerStart = skipOptionalIndent(text, markerStart);
+  }
+
+  return { markerStart, hasBlockquoteMarker };
+}
+
+function getIndentedFenceMarker(
+  text: string,
+  index: number,
+  { allowBlockquoteMarkers }: { allowBlockquoteMarkers: boolean }
+) {
+  const { markerStart, hasBlockquoteMarker } = getMarkdownLineContentStart(text, index);
+  if (hasBlockquoteMarker && !allowBlockquoteMarkers) {
+    return null;
+  }
+
+  const fenceCharacter = text[markerStart];
+  if (fenceCharacter !== "`" && fenceCharacter !== "~") {
+    return null;
+  }
+
+  const fenceCount = countRepeatedCharacter(text, markerStart, fenceCharacter);
+  if (fenceCount < 3) {
+    return null;
+  }
+
+  return {
+    markerStart,
+    marker: fenceCharacter.repeat(fenceCount),
+    hasBlockquoteMarker,
+  };
+}
+
+function isUnescapedDollar(text: string, index: number) {
+  if (text[index] !== "$") {
+    return false;
+  }
+
+  let backslashCount = 0;
+  let cursor = index - 1;
+  while (text[cursor] === "\\") {
+    backslashCount += 1;
+    cursor -= 1;
+  }
+
+  return backslashCount % 2 === 0;
+}
+
+function getLineEnd(text: string, lineStart: number) {
+  const lineEnd = text.indexOf("\n", lineStart);
+  return lineEnd === -1 ? text.length : lineEnd;
+}
+
+function findNumericInlineMathOpenIndexes(text: string, lineStart: number) {
+  const lineEnd = getLineEnd(text, lineStart);
+  const openIndexes = new Set<number>();
+  let pendingNumericOpenIndex: number | null = null;
+  let index = lineStart;
+
+  while (index < lineEnd) {
+    const character = text[index];
+
+    if (character === "`") {
+      pendingNumericOpenIndex = null;
+      const delimiterLength = countRepeatedCharacter(text, index, "`");
+      const delimiter = "`".repeat(delimiterLength);
+      const closeIndex = text.indexOf(delimiter, index + delimiterLength);
+      if (closeIndex === -1 || closeIndex >= lineEnd) {
+        index += delimiterLength;
+        continue;
+      }
+      index = closeIndex + delimiterLength;
+      continue;
+    }
+
+    if (isUnescapedDollar(text, index)) {
+      if (pendingNumericOpenIndex !== null) {
+        const previousCharacter = text[index - 1] ?? "";
+        const nextCharacter = text[index + 1] ?? "";
+        if (!/\s/.test(previousCharacter) && !/\d/.test(nextCharacter)) {
+          openIndexes.add(pendingNumericOpenIndex);
+          pendingNumericOpenIndex = null;
+          index += 1;
+          continue;
+        }
+      }
+
+      pendingNumericOpenIndex = /\d/.test(text[index + 1] ?? "") ? index : null;
+    }
+
+    index += 1;
+  }
+
+  return openIndexes;
+}
+
+export function escapeCurrencyDollarSigns(text: string) {
+  let normalized = "";
+  let index = 0;
+  let atLineStart = true;
+  let fenceMarker: string | null = null;
+  let fenceHasBlockquoteMarker = false;
+  let inlineCodeDelimiterLength = 0;
+  const numericInlineMathOpenIndexesByLine = new Map<number, Set<number>>();
+
+  function isNumericInlineMathOpen(openIndex: number, lineStart: number) {
+    let openIndexes = numericInlineMathOpenIndexesByLine.get(lineStart);
+    if (openIndexes === undefined) {
+      openIndexes = findNumericInlineMathOpenIndexes(text, lineStart);
+      numericInlineMathOpenIndexesByLine.set(lineStart, openIndexes);
+    }
+    return openIndexes.has(openIndex);
+  }
+
+  let currentLineStart = 0;
+  while (index < text.length) {
+    if (atLineStart) {
+      currentLineStart = index;
+      const fence = getIndentedFenceMarker(text, index, {
+        allowBlockquoteMarkers: fenceMarker === null || fenceHasBlockquoteMarker,
+      });
+      const canCloseExistingFence =
+        fenceMarker !== null &&
+        fence !== null &&
+        fence.marker[0] === fenceMarker[0] &&
+        fence.marker.length >= fenceMarker.length;
+
+      if (fence !== null) {
+        const prefix = text.slice(index, fence.markerStart);
+        if (fenceMarker === null) {
+          fenceMarker = fence.marker;
+          fenceHasBlockquoteMarker = fence.hasBlockquoteMarker;
+        } else if (canCloseExistingFence) {
+          fenceMarker = null;
+          fenceHasBlockquoteMarker = false;
+        }
+        normalized += `${prefix}${fence.marker}`;
+        index = fence.markerStart + fence.marker.length;
+        atLineStart = false;
+        continue;
+      }
+    }
+
+    if (fenceMarker === null && text[index] === "`") {
+      const backtickCount = countRepeatedCharacter(text, index, "`");
+      if (inlineCodeDelimiterLength === 0) {
+        inlineCodeDelimiterLength = backtickCount;
+      } else if (inlineCodeDelimiterLength === backtickCount) {
+        inlineCodeDelimiterLength = 0;
+      }
+      normalized += "`".repeat(backtickCount);
+      index += backtickCount;
+      atLineStart = false;
+      continue;
+    }
+
+    const inCode = fenceMarker !== null || inlineCodeDelimiterLength > 0;
+    const character = text[index] ?? "";
+
+    if (
+      !inCode &&
+      character === "$" &&
+      /\d/.test(text[index + 1] ?? "") &&
+      isUnescapedDollar(text, index) &&
+      !isNumericInlineMathOpen(index, currentLineStart)
+    ) {
+      normalized += "\\$";
+      index += 1;
+      atLineStart = false;
+      continue;
+    }
+
+    normalized += character;
+    atLineStart = character === "\n";
+    index += 1;
+  }
+
+  return normalized;
+}
+
 export function normalizeMathMarkdown(text: string) {
   let normalized = "";
   let index = 0;
   let atLineStart = true;
   let fenceMarker: string | null = null;
+  let fenceHasBlockquoteMarker = false;
   let inlineCodeDelimiterLength = 0;
 
   while (index < text.length) {
-    if (atLineStart && (text[index] === "`" || text[index] === "~")) {
-      const fenceCharacter = text[index]!;
-      const fenceCount = countRepeatedCharacter(text, index, fenceCharacter);
+    if (atLineStart) {
+      const fence = getIndentedFenceMarker(text, index, {
+        allowBlockquoteMarkers: fenceMarker === null || fenceHasBlockquoteMarker,
+      });
       const canCloseExistingFence =
         fenceMarker !== null &&
-        fenceMarker[0] === fenceCharacter &&
-        fenceCount >= fenceMarker.length;
+        fence !== null &&
+        fence.marker[0] === fenceMarker[0] &&
+        fence.marker.length >= fenceMarker.length;
 
-      if (fenceCount >= 3) {
-        const marker = fenceCharacter.repeat(fenceCount);
+      if (fence !== null) {
+        const prefix = text.slice(index, fence.markerStart);
         if (fenceMarker === null) {
-          fenceMarker = marker;
+          fenceMarker = fence.marker;
+          fenceHasBlockquoteMarker = fence.hasBlockquoteMarker;
         } else if (canCloseExistingFence) {
           fenceMarker = null;
+          fenceHasBlockquoteMarker = false;
         }
-        normalized += marker;
-        index += fenceCount;
+        normalized += `${prefix}${fence.marker}`;
+        index = fence.markerStart + fence.marker.length;
         atLineStart = false;
         continue;
       }

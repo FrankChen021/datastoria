@@ -135,6 +135,82 @@ describe("MessageMarkdown", () => {
     expect(container.querySelector(".katex-display")).toBeNull();
   });
 
+  it("renders currency dollar signs inside markdown tables as text, not math delimiters", () => {
+    act(() => {
+      root.render(
+        <MessageMarkdown
+          text={
+            "| Field | Detail |\n| --- | --- |\n| **Stop / invalidation** | Close below **$300** damages breakout; below **$285** plus weak guidance invalidates current setup |"
+          }
+        />
+      );
+    });
+
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(container.textContent).toContain("Close below $300 damages breakout");
+    expect(container.textContent).toContain("below $285 plus weak guidance");
+  });
+
+  it("escapes currency after an even-length backslash run", async () => {
+    const { escapeCurrencyDollarSigns } = await import("./message-markdown-math");
+    const source = String.raw`Path prefix \\$300 remains currency`;
+
+    expect(escapeCurrencyDollarSigns(source)).toBe(
+      String.raw`Path prefix \\\$300 remains currency`
+    );
+
+    act(() => {
+      root.render(<MessageMarkdown text={source} />);
+    });
+
+    expect(container.querySelector(".katex")).toBeNull();
+  });
+
+  it("preserves valid numeric inline math with dollar delimiters", () => {
+    act(() => {
+      root.render(<MessageMarkdown text={"Inline math: $300$"} />);
+    });
+
+    expect(container.querySelector(".katex")).not.toBeNull();
+  });
+
+  it("preserves numeric inline math after unmatched backticks", () => {
+    act(() => {
+      root.render(<MessageMarkdown text={"Unmatched ` marker before inline math: $300$"} />);
+    });
+
+    expect(container.querySelector(".katex")).not.toBeNull();
+  });
+
+  it("does not pair currency with a later inline math opener", () => {
+    act(() => {
+      root.render(<MessageMarkdown text={"Close below $300 and compare $x$"} />);
+    });
+
+    const math = container.querySelector(".katex");
+    expect(math).not.toBeNull();
+    expect(math?.textContent).not.toContain("300");
+    expect(container.textContent).toContain("Close below $300 and compare");
+  });
+
+  it("escapes repeated currency values without breaking later inline math", () => {
+    act(() => {
+      root.render(
+        <MessageMarkdown
+          text={`${Array.from({ length: 50 }, (_, index) => `$${index + 100}`).join(
+            ", "
+          )}, formula $x$`}
+        />
+      );
+    });
+
+    const math = container.querySelector(".katex");
+    expect(math).not.toBeNull();
+    expect(math?.textContent).toContain("x");
+    expect(math?.textContent).not.toContain("100");
+    expect(container.textContent).toContain("$100, $101");
+  });
+
   it("renders LaTeX display math from backslash delimiters", () => {
     act(() => {
       root.render(
@@ -197,6 +273,48 @@ describe("MessageMarkdown", () => {
       expect.objectContaining({
         language: "text",
         children: "\\[\n\\text{avg_row_size}\n\\]",
+      })
+    );
+  });
+
+  it("does not escape currency inside indented fenced code blocks", () => {
+    act(() => {
+      root.render(<MessageMarkdown text={"   ```text\n$300\n```"} />);
+    });
+
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(syntaxHighlighterSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        language: "text",
+        children: "$300",
+      })
+    );
+  });
+
+  it("does not escape currency inside blockquoted fenced code blocks", () => {
+    act(() => {
+      root.render(<MessageMarkdown text={"> ```text\n> $300\n> ```"} />);
+    });
+
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(syntaxHighlighterSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        language: "text",
+        children: "$300",
+      })
+    );
+  });
+
+  it("does not treat blockquote-looking content as a closing fence inside normal code blocks", () => {
+    act(() => {
+      root.render(<MessageMarkdown text={"```text\n> ```\n$300\n```"} />);
+    });
+
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(syntaxHighlighterSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        language: "text",
+        children: "> ```\n$300",
       })
     );
   });
