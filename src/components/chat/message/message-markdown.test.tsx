@@ -151,6 +151,21 @@ describe("MessageMarkdown", () => {
     expect(container.textContent).toContain("below $285 plus weak guidance");
   });
 
+  it("escapes currency after an even-length backslash run", async () => {
+    const { escapeCurrencyDollarSigns } = await import("./message-markdown-math");
+    const source = String.raw`Path prefix \\$300 remains currency`;
+
+    expect(escapeCurrencyDollarSigns(source)).toBe(
+      String.raw`Path prefix \\\$300 remains currency`
+    );
+
+    act(() => {
+      root.render(<MessageMarkdown text={source} />);
+    });
+
+    expect(container.querySelector(".katex")).toBeNull();
+  });
+
   it("preserves valid numeric inline math with dollar delimiters", () => {
     act(() => {
       root.render(<MessageMarkdown text={"Inline math: $300$"} />);

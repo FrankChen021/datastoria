@@ -210,10 +210,10 @@ export function escapeCurrencyDollarSigns(text: string) {
       !inCode &&
       character === "$" &&
       /\d/.test(text[index + 1] ?? "") &&
+      isUnescapedDollar(text, index) &&
       !isNumericInlineMathOpen(index, currentLineStart)
     ) {
-      const previousCharacter = text[index - 1] ?? "";
-      normalized += previousCharacter === "\\" ? "$" : "\\$";
+      normalized += "\\$";
       index += 1;
       atLineStart = false;
       continue;
