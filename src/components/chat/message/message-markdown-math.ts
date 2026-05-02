@@ -115,7 +115,8 @@ function findNumericInlineMathOpenIndexes(text: string, lineStart: number) {
       const delimiter = "`".repeat(delimiterLength);
       const closeIndex = text.indexOf(delimiter, index + delimiterLength);
       if (closeIndex === -1 || closeIndex >= lineEnd) {
-        break;
+        index += delimiterLength;
+        continue;
       }
       index = closeIndex + delimiterLength;
       continue;
@@ -151,8 +152,7 @@ export function escapeCurrencyDollarSigns(text: string) {
   let inlineCodeDelimiterLength = 0;
   const numericInlineMathOpenIndexesByLine = new Map<number, Set<number>>();
 
-  function isNumericInlineMathOpen(openIndex: number) {
-    const lineStart = text.lastIndexOf("\n", openIndex - 1) + 1;
+  function isNumericInlineMathOpen(openIndex: number, lineStart: number) {
     let openIndexes = numericInlineMathOpenIndexesByLine.get(lineStart);
     if (openIndexes === undefined) {
       openIndexes = findNumericInlineMathOpenIndexes(text, lineStart);
@@ -161,8 +161,10 @@ export function escapeCurrencyDollarSigns(text: string) {
     return openIndexes.has(openIndex);
   }
 
+  let currentLineStart = 0;
   while (index < text.length) {
     if (atLineStart) {
+      currentLineStart = index;
       const fence = getIndentedFenceMarker(text, index, {
         allowBlockquoteMarkers: fenceMarker === null || fenceHasBlockquoteMarker,
       });
@@ -208,7 +210,7 @@ export function escapeCurrencyDollarSigns(text: string) {
       !inCode &&
       character === "$" &&
       /\d/.test(text[index + 1] ?? "") &&
-      !isNumericInlineMathOpen(index)
+      !isNumericInlineMathOpen(index, currentLineStart)
     ) {
       const previousCharacter = text[index - 1] ?? "";
       normalized += previousCharacter === "\\" ? "$" : "\\$";

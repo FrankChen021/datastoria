@@ -159,6 +159,14 @@ describe("MessageMarkdown", () => {
     expect(container.querySelector(".katex")).not.toBeNull();
   });
 
+  it("preserves numeric inline math after unmatched backticks", () => {
+    act(() => {
+      root.render(<MessageMarkdown text={"Unmatched ` marker before inline math: $300$"} />);
+    });
+
+    expect(container.querySelector(".katex")).not.toBeNull();
+  });
+
   it("does not pair currency with a later inline math opener", () => {
     act(() => {
       root.render(<MessageMarkdown text={"Close below $300 and compare $x$"} />);
