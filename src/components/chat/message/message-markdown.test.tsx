@@ -282,6 +282,20 @@ describe("MessageMarkdown", () => {
     );
   });
 
+  it("does not treat blockquote-looking content as a closing fence inside normal code blocks", () => {
+    act(() => {
+      root.render(<MessageMarkdown text={"```text\n> ```\n$300\n```"} />);
+    });
+
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(syntaxHighlighterSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        language: "text",
+        children: "> ```\n$300",
+      })
+    );
+  });
+
   it("does not parse LaTeX delimiters inside tilde-fenced code blocks", () => {
     act(() => {
       root.render(<MessageMarkdown text={"~~~text\n\\[\n\\text{avg_row_size}\n\\]\n~~~"} />);

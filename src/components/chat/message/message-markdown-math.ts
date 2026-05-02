@@ -39,8 +39,10 @@ function skipOptionalIndent(text: string, index: number) {
 
 function getMarkdownLineContentStart(text: string, index: number) {
   let markerStart = skipOptionalIndent(text, index);
+  let hasBlockquoteMarker = false;
 
   while (text[markerStart] === ">") {
+    hasBlockquoteMarker = true;
     markerStart += 1;
     if (text[markerStart] === " " || text[markerStart] === "\t") {
       markerStart += 1;
@@ -48,11 +50,18 @@ function getMarkdownLineContentStart(text: string, index: number) {
     markerStart = skipOptionalIndent(text, markerStart);
   }
 
-  return markerStart;
+  return { markerStart, hasBlockquoteMarker };
 }
 
-function getIndentedFenceMarker(text: string, index: number) {
-  const markerStart = getMarkdownLineContentStart(text, index);
+function getIndentedFenceMarker(
+  text: string,
+  index: number,
+  { allowBlockquoteMarkers }: { allowBlockquoteMarkers: boolean }
+) {
+  const { markerStart, hasBlockquoteMarker } = getMarkdownLineContentStart(text, index);
+  if (hasBlockquoteMarker && !allowBlockquoteMarkers) {
+    return null;
+  }
 
   const fenceCharacter = text[markerStart];
   if (fenceCharacter !== "`" && fenceCharacter !== "~") {
@@ -67,6 +76,7 @@ function getIndentedFenceMarker(text: string, index: number) {
   return {
     markerStart,
     marker: fenceCharacter.repeat(fenceCount),
+    hasBlockquoteMarker,
   };
 }
 
@@ -137,6 +147,7 @@ export function escapeCurrencyDollarSigns(text: string) {
   let index = 0;
   let atLineStart = true;
   let fenceMarker: string | null = null;
+  let fenceHasBlockquoteMarker = false;
   let inlineCodeDelimiterLength = 0;
   const numericInlineMathOpenIndexesByLine = new Map<number, Set<number>>();
 
@@ -152,7 +163,9 @@ export function escapeCurrencyDollarSigns(text: string) {
 
   while (index < text.length) {
     if (atLineStart) {
-      const fence = getIndentedFenceMarker(text, index);
+      const fence = getIndentedFenceMarker(text, index, {
+        allowBlockquoteMarkers: fenceMarker === null || fenceHasBlockquoteMarker,
+      });
       const canCloseExistingFence =
         fenceMarker !== null &&
         fence !== null &&
@@ -163,8 +176,10 @@ export function escapeCurrencyDollarSigns(text: string) {
         const prefix = text.slice(index, fence.markerStart);
         if (fenceMarker === null) {
           fenceMarker = fence.marker;
+          fenceHasBlockquoteMarker = fence.hasBlockquoteMarker;
         } else if (canCloseExistingFence) {
           fenceMarker = null;
+          fenceHasBlockquoteMarker = false;
         }
         normalized += `${prefix}${fence.marker}`;
         index = fence.markerStart + fence.marker.length;
@@ -215,11 +230,14 @@ export function normalizeMathMarkdown(text: string) {
   let index = 0;
   let atLineStart = true;
   let fenceMarker: string | null = null;
+  let fenceHasBlockquoteMarker = false;
   let inlineCodeDelimiterLength = 0;
 
   while (index < text.length) {
     if (atLineStart) {
-      const fence = getIndentedFenceMarker(text, index);
+      const fence = getIndentedFenceMarker(text, index, {
+        allowBlockquoteMarkers: fenceMarker === null || fenceHasBlockquoteMarker,
+      });
       const canCloseExistingFence =
         fenceMarker !== null &&
         fence !== null &&
@@ -230,8 +248,10 @@ export function normalizeMathMarkdown(text: string) {
         const prefix = text.slice(index, fence.markerStart);
         if (fenceMarker === null) {
           fenceMarker = fence.marker;
+          fenceHasBlockquoteMarker = fence.hasBlockquoteMarker;
         } else if (canCloseExistingFence) {
           fenceMarker = null;
+          fenceHasBlockquoteMarker = false;
         }
         normalized += `${prefix}${fence.marker}`;
         index = fence.markerStart + fence.marker.length;
