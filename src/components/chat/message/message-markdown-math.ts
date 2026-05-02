@@ -29,6 +29,117 @@ function getCurrentLinePrefix(text: string, index: number) {
   return text.slice(lineStart, index);
 }
 
+function getIndentedFenceMarker(text: string, index: number) {
+  let markerStart = index;
+  while (text[markerStart] === " " && markerStart - index < 3) {
+    markerStart += 1;
+  }
+
+  const fenceCharacter = text[markerStart];
+  if (fenceCharacter !== "`" && fenceCharacter !== "~") {
+    return null;
+  }
+
+  const fenceCount = countRepeatedCharacter(text, markerStart, fenceCharacter);
+  if (fenceCount < 3) {
+    return null;
+  }
+
+  return {
+    markerStart,
+    marker: fenceCharacter.repeat(fenceCount),
+  };
+}
+
+function hasNumericInlineMathClose(text: string, openIndex: number) {
+  let index = openIndex + 1;
+  while (index < text.length) {
+    const character = text[index];
+
+    if (character === "`" || character === "\n") {
+      return false;
+    }
+
+    if (character === "$" && text[index - 1] !== "\\") {
+      if (/\s/.test(text[index - 1] ?? "")) {
+        return false;
+      }
+      return !/\d/.test(text[index + 1] ?? "");
+    }
+
+    index += 1;
+  }
+
+  return false;
+}
+
+export function escapeCurrencyDollarSigns(text: string) {
+  let normalized = "";
+  let index = 0;
+  let atLineStart = true;
+  let fenceMarker: string | null = null;
+  let inlineCodeDelimiterLength = 0;
+
+  while (index < text.length) {
+    if (atLineStart) {
+      const fence = getIndentedFenceMarker(text, index);
+      const canCloseExistingFence =
+        fenceMarker !== null &&
+        fence !== null &&
+        fence.marker[0] === fenceMarker[0] &&
+        fence.marker.length >= fenceMarker.length;
+
+      if (fence !== null) {
+        const prefix = text.slice(index, fence.markerStart);
+        if (fenceMarker === null) {
+          fenceMarker = fence.marker;
+        } else if (canCloseExistingFence) {
+          fenceMarker = null;
+        }
+        normalized += `${prefix}${fence.marker}`;
+        index = fence.markerStart + fence.marker.length;
+        atLineStart = false;
+        continue;
+      }
+    }
+
+    if (fenceMarker === null && text[index] === "`") {
+      const backtickCount = countRepeatedCharacter(text, index, "`");
+      if (inlineCodeDelimiterLength === 0) {
+        inlineCodeDelimiterLength = backtickCount;
+      } else if (inlineCodeDelimiterLength === backtickCount) {
+        inlineCodeDelimiterLength = 0;
+      }
+      normalized += "`".repeat(backtickCount);
+      index += backtickCount;
+      atLineStart = false;
+      continue;
+    }
+
+    const inCode = fenceMarker !== null || inlineCodeDelimiterLength > 0;
+    const character = text[index] ?? "";
+
+    if (
+      !inCode &&
+      character === "$" &&
+      /\d/.test(text[index + 1] ?? "") &&
+      !hasNumericInlineMathClose(text, index)
+    ) {
+      const previousCharacter = text[index - 1] ?? "";
+      normalized += previousCharacter === "\\" ? "$" : "\\$";
+      index += 1;
+      atLineStart = false;
+      continue;
+    }
+
+    normalized += character;
+    atLineStart = character === "\n";
+    index += 1;
+  }
+
+  return normalized;
+}
+
 export function normalizeMathMarkdown(text: string) {
   let normalized = "";
   let index = 0;
@@ -37,23 +148,23 @@ export function normalizeMathMarkdown(text: string) {
   let inlineCodeDelimiterLength = 0;
 
   while (index < text.length) {
-    if (atLineStart && (text[index] === "`" || text[index] === "~")) {
-      const fenceCharacter = text[index]!;
-      const fenceCount = countRepeatedCharacter(text, index, fenceCharacter);
+    if (atLineStart) {
+      const fence = getIndentedFenceMarker(text, index);
       const canCloseExistingFence =
         fenceMarker !== null &&
-        fenceMarker[0] === fenceCharacter &&
-        fenceCount >= fenceMarker.length;
+        fence !== null &&
+        fence.marker[0] === fenceMarker[0] &&
+        fence.marker.length >= fenceMarker.length;
 
-      if (fenceCount >= 3) {
-        const marker = fenceCharacter.repeat(fenceCount);
+      if (fence !== null) {
+        const prefix = text.slice(index, fence.markerStart);
         if (fenceMarker === null) {
-          fenceMarker = marker;
+          fenceMarker = fence.marker;
         } else if (canCloseExistingFence) {
           fenceMarker = null;
         }
-        normalized += marker;
-        index += fenceCount;
+        normalized += `${prefix}${fence.marker}`;
+        index = fence.markerStart + fence.marker.length;
         atLineStart = false;
         continue;
       }
