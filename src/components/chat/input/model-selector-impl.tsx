@@ -153,9 +153,7 @@ function ReasoningDetailSection({
   if (!isInteractive || !supportsReasoning || levels.length === 0) {
     return (
       <div className="flex flex-col gap-1">
-        <div className="text-[9px] font-semibold text-muted-foreground">
-          Reasoning Level
-        </div>
+        <div className="text-[9px] font-semibold text-muted-foreground">Reasoning Level</div>
         <div className="text-[10px] leading-relaxed text-popover-foreground">
           {staticReasoningLevelLabel}
         </div>
@@ -165,9 +163,7 @@ function ReasoningDetailSection({
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="text-[9px] font-semibold text-muted-foreground">
-        Reasoning Level
-      </div>
+      <div className="text-[9px] font-semibold text-muted-foreground">Reasoning Level</div>
       <div className="flex flex-col gap-0.5" role="radiogroup" aria-label="Reasoning level">
         {levels.map((level) => {
           const isSelected = activeLevel === level;

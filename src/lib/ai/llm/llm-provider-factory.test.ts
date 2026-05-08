@@ -59,7 +59,6 @@ describe("MODELS reasoning capabilities", () => {
       "low",
       "medium",
       "high",
-      "xhigh",
     ]);
   });
 

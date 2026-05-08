@@ -539,7 +539,7 @@ export const MODELS: ModelProps[] = [
     autoSelectable: false,
     supportsImageInput: true,
     supportsReasoning: true,
-    reasoningLevels: ["none", "low", "medium", "high", "xhigh"],
+    reasoningLevels: ["none", "low", "medium", "high"],
     description: "Enhanced version of GPT-5 with improved reasoning capabilities.",
     source: "user",
   },
