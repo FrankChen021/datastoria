@@ -41,6 +41,61 @@ describe("remarkReferenceTokens", () => {
     ]);
   });
 
+  it("converts reference tokens inside CJK literal strong markers once", () => {
+    const tree = transformTree({
+      type: "root",
+      children: [
+        {
+          type: "paragraph",
+          children: [
+            {
+              type: "text",
+              value: "打开**中文 [[file:src/app/page.tsx#L1]]**继续。",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(tree.children?.[0]?.children).toEqual([
+      { type: "text", value: "打开" },
+      {
+        type: "strong",
+        children: [
+          { type: "text", value: "中文 " },
+          {
+            type: "link",
+            url: "codefile://open?path=src%2Fapp%2Fpage.tsx&startLine=1",
+            title: null,
+            children: [{ type: "text", value: "page.tsx:1" }],
+          },
+        ],
+      },
+      { type: "text", value: "继续。" },
+    ]);
+  });
+
+  it("abandons a CJK literal strong opener after an invalid closer", () => {
+    const tree = transformTree({
+      type: "root",
+      children: [
+        {
+          type: "paragraph",
+          children: [{ type: "text", value: "如果**abc **中**后" }],
+        },
+      ],
+    });
+
+    expect(tree.children?.[0]?.children).toEqual([
+      { type: "text", value: "如果**abc " },
+      {
+        type: "strong",
+        children: [{ type: "text", value: "中" }],
+      },
+      { type: "text", value: "后" },
+    ]);
+  });
+
   it("leaves non-CJK literal strong markers untouched", () => {
     const tree = transformTree({
       type: "root",

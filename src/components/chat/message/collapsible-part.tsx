@@ -125,9 +125,7 @@ export function CollapsiblePart({
             {toolName}
           </span>
           {headerExtra ? (
-            <span className="max-w-[360px] truncate text-sm font-medium">
-              {headerExtra}
-            </span>
+            <span className="max-w-[360px] truncate text-sm font-medium">{headerExtra}</span>
           ) : null}
           {statusText && <span className="text-sm text-muted-foreground">{statusText}</span>}
           <Timer isRunning={isActuallyRunning} />

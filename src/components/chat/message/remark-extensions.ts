@@ -61,7 +61,7 @@ function createBreakNode(): BreakNode {
 }
 
 function createStrongNode(value: string): StrongNode {
-  return { type: "strong", children: transformTextValue(value) };
+  return { type: "strong", children: [createTextNode(value)] };
 }
 
 function isBrHtmlNode(node: MarkdownNode): node is HtmlNode {
@@ -161,8 +161,8 @@ function findFallbackStrongSpan(value: string, fromIndex: number) {
     }
 
     let nextStartIndex = contentStart;
-    let end = value.indexOf("**", contentStart);
-    while (end !== -1) {
+    const end = value.indexOf("**", contentStart);
+    if (end !== -1) {
       const content = value.slice(contentStart, end);
       const lastContentChar = value[end - 1];
       const next = value[end + 2];
@@ -180,7 +180,7 @@ function findFallbackStrongSpan(value: string, fromIndex: number) {
         break;
       }
 
-      end = value.indexOf("**", end + 2);
+      nextStartIndex = end;
     }
 
     start = value.indexOf("**", nextStartIndex);
@@ -199,7 +199,7 @@ function transformTextValue(value: string): MarkdownNode[] {
       nodes.push(...transformReferenceTokens(value.slice(cursor, span.start)));
     }
 
-    nodes.push(createStrongNode(span.content));
+    nodes.push(transformNode(createStrongNode(span.content)));
     cursor = span.end;
     span = findFallbackStrongSpan(value, cursor);
   }
