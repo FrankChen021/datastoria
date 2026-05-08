@@ -101,7 +101,7 @@ export function CollapsiblePart({
   const statusText = getStatusText();
 
   return (
-    <div className="flex flex-col mt-1 overflow-hidden">
+    <div className="flex flex-col overflow-hidden">
       <div
         className={cn(
           "group flex w-fit items-center rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground",
