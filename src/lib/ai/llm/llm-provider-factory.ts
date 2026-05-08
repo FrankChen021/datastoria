@@ -7,6 +7,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createGitHubCopilotOpenAICompatible } from "@opeoginni/github-copilot-openai-compatible";
 import type { LanguageModel } from "ai";
+import type { ReasoningLevel } from "../reasoning-levels";
 import { PRIVATE_MODELS, PRIVATE_PROVIDERS } from "./llm-provider-factory-private";
 import { mockModel } from "./models.mock";
 import { PROVIDER_GITHUB_COPILOT, PROVIDER_NEBIUS, PROVIDER_OPENAI_CODEX } from "./provider-ids";
@@ -38,6 +39,7 @@ export interface ModelProps {
   supportsImageInput?: boolean;
   supportsTemperature?: boolean;
   supportsReasoning?: boolean;
+  reasoningLevels?: readonly ReasoningLevel[];
   source?: ModelSource;
 }
 
@@ -125,6 +127,54 @@ export function resolveModelSupportsImageInput(
   }
 
   return false;
+}
+
+function findExactModel(model: Pick<ModelProps, "provider" | "modelId">): ModelProps | undefined {
+  return (
+    SYSTEM_MODELS.find(
+      (candidate) => candidate.provider === model.provider && candidate.modelId === model.modelId
+    ) ??
+    MODELS.find(
+      (candidate) => candidate.provider === model.provider && candidate.modelId === model.modelId
+    )
+  );
+}
+
+export function resolveModelSupportsReasoning(
+  model?: Pick<ModelProps, "provider" | "modelId" | "supportsReasoning" | "reasoningLevels"> | null
+): boolean {
+  if (!model) {
+    return false;
+  }
+
+  if (typeof model.supportsReasoning === "boolean") {
+    return model.supportsReasoning;
+  }
+
+  if (model.reasoningLevels && model.reasoningLevels.length > 0) {
+    return true;
+  }
+
+  const exactMatch = findExactModel(model);
+  if (typeof exactMatch?.supportsReasoning === "boolean") {
+    return exactMatch.supportsReasoning;
+  }
+
+  return Boolean(exactMatch?.reasoningLevels?.length);
+}
+
+export function resolveModelReasoningLevels(
+  model?: Pick<ModelProps, "provider" | "modelId" | "reasoningLevels"> | null
+): readonly ReasoningLevel[] {
+  if (!model) {
+    return [];
+  }
+
+  if (model.reasoningLevels) {
+    return model.reasoningLevels;
+  }
+
+  return findExactModel(model)?.reasoningLevels ?? [];
 }
 
 /**
@@ -234,6 +284,7 @@ export const MODELS: ModelProps[] = [
     autoSelectable: false,
     supportsImageInput: true,
     supportsReasoning: true,
+    reasoningLevels: ["minimal", "low", "medium", "high"],
     description: "Next-generation frontier model from OpenAI.",
     source: "user",
   },
@@ -244,6 +295,7 @@ export const MODELS: ModelProps[] = [
     autoSelectable: false,
     supportsImageInput: true,
     supportsReasoning: true,
+    reasoningLevels: ["none", "low", "medium", "high", "xhigh"],
     description: "Enhanced version of GPT-5 with improved reasoning capabilities.",
     source: "user",
   },
@@ -285,6 +337,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     supportsImageInput: true,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "OpenAI's latest reasoning model, optimized for chain-of-thought.",
     source: "user",
   },
@@ -294,6 +347,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     supportsImageInput: false,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "Optimized version of OpenAI's reasoning models for fast responses.",
     source: "user",
   },
@@ -306,6 +360,8 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "high"],
     description: "Google's most capable model for complex tasks and multimodal inputs.",
     source: "user",
   },
@@ -315,6 +371,8 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["minimal", "low", "medium", "high"],
     description: "Fast and efficient model from Google for rapid interactions.",
     source: "user",
   },
@@ -351,6 +409,8 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     description: "Anthropic's most intelligent model for building agents and coding.",
     source: "user",
   },
@@ -359,6 +419,8 @@ export const MODELS: ModelProps[] = [
     modelId: "claude-opus-4-5",
     free: false,
     supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "Anthropic's most powerful model for highly complex analysis.",
     source: "user",
   },
@@ -368,6 +430,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     supportsImageInput: true,
+    supportsReasoning: true,
     description: "Anthropic's best combination of speed and intelligence.",
     source: "user",
   },
@@ -376,6 +439,7 @@ export const MODELS: ModelProps[] = [
     modelId: "claude-haiku-4-5",
     free: false,
     supportsImageInput: true,
+    supportsReasoning: true,
     description: "Anthropic's fastest model with near-frontier intelligence.",
     source: "user",
   },
@@ -404,6 +468,8 @@ export const MODELS: ModelProps[] = [
     free: true,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "Open-source GPT model with large parameter count for general tasks.",
     source: "user",
   },
@@ -413,6 +479,8 @@ export const MODELS: ModelProps[] = [
     free: true,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "Open-source GPT model with large parameter count for general tasks.",
     source: "user",
   },
@@ -425,6 +493,8 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "Fast-inference open-source model running on Groq hardware.",
     source: "user",
   },
@@ -448,6 +518,8 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "Cerebras's latest model with extreme intelligence and reliability.",
     source: "user",
   },
@@ -460,6 +532,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
     description: "DeepSeek V3, powerful open-source model with strong reasoning.",
     source: "user",
   },
@@ -469,6 +542,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
     description: "DeepSeek R1, advanced reasoning model with chain-of-thought.",
     source: "user",
   },
@@ -478,6 +552,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
     description: "Qwen 3 235B, largest Qwen model for complex tasks.",
     source: "user",
   },
@@ -487,6 +562,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
     description: "Qwen3-Next-80B-A3B-Thinking, efficient reasoning model.",
     source: "user",
   },
@@ -496,6 +572,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: true,
+    supportsReasoning: true,
     description:
       "Flagship GLM model with strong multilingual reasoning, long context, and robust tool use.",
     source: "user",
@@ -506,6 +583,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: true,
+    supportsReasoning: true,
     description: "Kimi-K2.5, 15 trillion mixed visual and text tokens atop Kimi-K2-Base",
     source: "user",
   },
@@ -515,6 +593,8 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "GPT-OSS 120B, open-source GPT model with strong general capabilities.",
     source: "user",
   },
@@ -526,6 +606,7 @@ export const MODELS: ModelProps[] = [
     supportsImageInput: true,
     supportsTemperature: false,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     supportedEndpoints: ["responses"],
     description: "Codex model accessed with ChatGPT/Codex subscription authentication.",
     source: "user",
@@ -538,6 +619,7 @@ export const MODELS: ModelProps[] = [
     supportsImageInput: true,
     supportsTemperature: false,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     supportedEndpoints: ["responses"],
     description: "Codex model accessed with ChatGPT/Codex subscription authentication.",
     source: "user",
@@ -550,6 +632,7 @@ export const MODELS: ModelProps[] = [
     supportsImageInput: true,
     supportsTemperature: false,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     supportedEndpoints: ["responses"],
     description: "Lower-cost Codex model accessed with ChatGPT/Codex subscription authentication.",
     source: "user",
@@ -562,6 +645,7 @@ export const MODELS: ModelProps[] = [
     supportsImageInput: true,
     supportsTemperature: false,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     supportedEndpoints: ["responses"],
     description: "Codex model accessed with ChatGPT/Codex subscription authentication.",
     source: "user",
@@ -574,6 +658,7 @@ export const MODELS: ModelProps[] = [
     supportsImageInput: false,
     supportsTemperature: false,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     supportedEndpoints: ["responses"],
     description: "Text-only Codex model accessed with ChatGPT/Codex subscription authentication.",
     source: "user",
@@ -586,6 +671,7 @@ export const MODELS: ModelProps[] = [
     supportsImageInput: true,
     supportsTemperature: false,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     supportedEndpoints: ["responses"],
     description: "Codex model accessed with ChatGPT/Codex subscription authentication.",
     source: "user",
@@ -789,9 +875,10 @@ export class LanguageModelProviderFactory {
   }
 
   static supportsReasoning(provider: string, modelId: string): boolean {
-    return (
-      MODELS.find((model) => model.provider === provider && model.modelId === modelId)
-        ?.supportsReasoning === true
-    );
+    return resolveModelSupportsReasoning({ provider, modelId });
+  }
+
+  static getReasoningLevels(provider: string, modelId: string): readonly ReasoningLevel[] {
+    return resolveModelReasoningLevels({ provider, modelId });
   }
 }

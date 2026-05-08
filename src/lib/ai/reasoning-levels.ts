@@ -1,0 +1,15 @@
+export type ReasoningLevel = string;
+
+export const DEFAULT_REASONING_LEVEL: ReasoningLevel = "medium";
+
+export function isReasoningLevel(value: unknown): value is ReasoningLevel {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+export function normalizeReasoningLevel(value: unknown): ReasoningLevel {
+  return isReasoningLevel(value) ? value.trim() : DEFAULT_REASONING_LEVEL;
+}
+
+export function formatReasoningLevel(level: ReasoningLevel): string {
+  return level;
+}

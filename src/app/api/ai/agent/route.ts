@@ -12,9 +12,14 @@ import {
   resolveModelConfig,
   resolveModelSupportsImageInput,
 } from "@/lib/ai/llm/llm-provider-factory";
-import { PROVIDER_OPENAI_CODEX } from "@/lib/ai/llm/provider-ids";
+import { PROVIDER_NEBIUS, PROVIDER_OPENAI_CODEX } from "@/lib/ai/llm/provider-ids";
 import { MentionContext } from "@/lib/ai/mention-context";
 import { MessagePruner } from "@/lib/ai/message-pruner";
+import {
+  DEFAULT_REASONING_LEVEL,
+  isReasoningLevel,
+  type ReasoningLevel,
+} from "@/lib/ai/reasoning-levels";
 import {
   hasCompletedToolOutputs,
   replaceOrAppendMessageById,
@@ -45,8 +50,13 @@ import { getRuntimeAvailableToolNames } from "@/lib/ai/tools/server/runtime-tool
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { createServerTools } from "@/lib/ai/tools/server/server-tools";
 import { defaultCodeSearchFactory } from "@/lib/code-search/code-search-factory";
+import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
+import type { GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
+import type { GroqLanguageModelOptions } from "@ai-sdk/groq";
 import type { OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
+import type { OpenAICompatibleLanguageModelChatOptions } from "@ai-sdk/openai-compatible";
 import { APICallError } from "@ai-sdk/provider";
+import type { OpenRouterProviderOptions } from "@openrouter/ai-sdk-provider";
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
@@ -71,6 +81,17 @@ interface AgentRequest {
 }
 
 const TITLE_WAIT_MS = 3000;
+const ANTHROPIC_MANUAL_THINKING_BUDGET_TOKENS = 1024;
+
+type AgentProviderOptions = {
+  openai?: OpenAIResponsesProviderOptions;
+  anthropic?: AnthropicProviderOptions;
+  cerebras?: OpenAICompatibleLanguageModelChatOptions;
+  google?: GoogleGenerativeAIProviderOptions;
+  groq?: GroqLanguageModelOptions;
+  nebius?: OpenAICompatibleLanguageModelChatOptions;
+  openrouter?: OpenRouterProviderOptions;
+};
 
 function messageHasImageParts(message: UIMessage): boolean {
   return (message.parts ?? []).some((part) => {
@@ -97,15 +118,93 @@ function shouldOutputReasoning(
   );
 }
 
-function buildOpenAIProviderOptions(input: {
+function resolveReasoningLevelForModel(input: {
   provider: string;
+  modelId: string;
+  reasoningLevel?: unknown;
+}): ReasoningLevel | undefined {
+  const levels = LanguageModelProviderFactory.getReasoningLevels(input.provider, input.modelId);
+  if (levels.length === 0) {
+    return undefined;
+  }
+
+  if (isReasoningLevel(input.reasoningLevel) && levels.includes(input.reasoningLevel)) {
+    return input.reasoningLevel;
+  }
+
+  if (levels.includes(DEFAULT_REASONING_LEVEL)) {
+    return DEFAULT_REASONING_LEVEL;
+  }
+
+  return levels[0];
+}
+
+function toAnthropicEffort(
+  level: ReasoningLevel
+): NonNullable<AnthropicProviderOptions["effort"]> | undefined {
+  if (level === "xhigh") return "max";
+  if (level === "low" || level === "medium" || level === "high" || level === "max") return level;
+  return undefined;
+}
+
+function supportsAnthropicAdaptiveThinking(modelId: string): boolean {
+  return modelId.includes("claude-opus-4-6") || modelId.includes("claude-sonnet-4-6");
+}
+
+function getAnthropicThinkingOptions(
+  modelId: string,
+  outputReasoning: boolean
+): AnthropicProviderOptions["thinking"] | undefined {
+  if (supportsAnthropicAdaptiveThinking(modelId)) {
+    return { type: "adaptive" };
+  }
+
+  if (outputReasoning) {
+    return {
+      type: "enabled",
+      budgetTokens: ANTHROPIC_MANUAL_THINKING_BUDGET_TOKENS,
+    };
+  }
+
+  return undefined;
+}
+
+function toGoogleThinkingLevel(
+  level: ReasoningLevel
+):
+  | NonNullable<NonNullable<GoogleGenerativeAIProviderOptions["thinkingConfig"]>["thinkingLevel"]>
+  | undefined {
+  if (level === "xhigh") return "high";
+  if (level === "minimal" || level === "low" || level === "medium" || level === "high") {
+    return level;
+  }
+  return undefined;
+}
+
+function toStandardReasoningLevel(level: ReasoningLevel): "low" | "medium" | "high" | undefined {
+  if (level === "xhigh") return "high";
+  if (level === "low" || level === "medium" || level === "high") return level;
+  return undefined;
+}
+
+function buildProviderOptions(input: {
+  provider: string;
+  modelId: string;
   outputReasoning: boolean;
+  reasoningLevel?: unknown;
   instructions: string;
-}): { openai: OpenAIResponsesProviderOptions } | undefined {
+}): AgentProviderOptions | undefined {
+  const reasoningLevel = resolveReasoningLevelForModel({
+    provider: input.provider,
+    modelId: input.modelId,
+    reasoningLevel: input.reasoningLevel,
+  });
+
   if (input.provider === PROVIDER_OPENAI_CODEX) {
     return {
       openai: {
         instructions: input.instructions,
+        ...(reasoningLevel ? { reasoningEffort: reasoningLevel } : {}),
         ...(input.outputReasoning ? { reasoningSummary: "auto" as const } : {}),
         // Keep chat state in DataStoria instead of creating stored OpenAI responses.
         store: false,
@@ -113,11 +212,110 @@ function buildOpenAIProviderOptions(input: {
     };
   }
 
-  if (input.provider === "OpenAI" && input.outputReasoning) {
+  if (input.provider === "OpenAI" && (input.outputReasoning || reasoningLevel)) {
     return {
       openai: {
-        reasoningSummary: "auto",
+        ...(reasoningLevel ? { reasoningEffort: reasoningLevel } : {}),
+        ...(input.outputReasoning ? { reasoningSummary: "auto" as const } : {}),
       } satisfies OpenAIResponsesProviderOptions,
+    };
+  }
+
+  if (input.provider === "Anthropic" && reasoningLevel) {
+    const effort = toAnthropicEffort(reasoningLevel);
+    if (!effort) {
+      return undefined;
+    }
+    const thinking = getAnthropicThinkingOptions(input.modelId, input.outputReasoning);
+
+    return {
+      anthropic: {
+        ...(thinking ? { thinking } : {}),
+        effort,
+      } satisfies AnthropicProviderOptions,
+    };
+  }
+
+  if (input.provider === "Anthropic" && input.outputReasoning) {
+    return {
+      anthropic: {
+        thinking: {
+          type: "enabled",
+          budgetTokens: ANTHROPIC_MANUAL_THINKING_BUDGET_TOKENS,
+        },
+      } satisfies AnthropicProviderOptions,
+    };
+  }
+
+  if (input.provider === "Google" && reasoningLevel) {
+    const thinkingLevel = toGoogleThinkingLevel(reasoningLevel);
+    if (!thinkingLevel) {
+      return undefined;
+    }
+
+    return {
+      google: {
+        thinkingConfig: {
+          thinkingLevel,
+          ...(input.outputReasoning ? { includeThoughts: true } : {}),
+        },
+      } satisfies GoogleGenerativeAIProviderOptions,
+    };
+  }
+
+  if (input.provider === "OpenRouter" && reasoningLevel) {
+    const effort = toStandardReasoningLevel(reasoningLevel);
+    if (!effort) {
+      return undefined;
+    }
+
+    return {
+      openrouter: {
+        reasoning: {
+          enabled: true,
+          effort,
+        },
+      } satisfies OpenRouterProviderOptions,
+    };
+  }
+
+  if (input.provider === "Groq" && reasoningLevel) {
+    const reasoningEffort = toStandardReasoningLevel(reasoningLevel);
+    if (!reasoningEffort) {
+      return undefined;
+    }
+
+    return {
+      groq: {
+        reasoningEffort,
+        ...(input.outputReasoning ? { reasoningFormat: "parsed" as const } : {}),
+      } satisfies GroqLanguageModelOptions,
+    };
+  }
+
+  if (input.provider === "Cerebras" && reasoningLevel) {
+    const reasoningEffort = toStandardReasoningLevel(reasoningLevel);
+    if (!reasoningEffort) {
+      return undefined;
+    }
+
+    return {
+      cerebras: {
+        reasoningEffort,
+      } satisfies OpenAICompatibleLanguageModelChatOptions,
+    };
+  }
+
+  if (input.provider === PROVIDER_NEBIUS && reasoningLevel) {
+    const reasoningEffort = toStandardReasoningLevel(reasoningLevel);
+    if (!reasoningEffort) {
+      return undefined;
+    }
+
+    return {
+      nebius: {
+        reasoningEffort,
+      } satisfies OpenAICompatibleLanguageModelChatOptions,
     };
   }
 
@@ -563,9 +761,11 @@ export async function POST(req: Request) {
       model,
       system: orchestratorSystemPrompt,
       messages: modelMessages,
-      providerOptions: buildOpenAIProviderOptions({
+      providerOptions: buildProviderOptions({
         provider: modelConfig.provider,
+        modelId: modelConfig.modelId,
         outputReasoning,
+        reasoningLevel: agentContext?.reasoningLevel,
         instructions: orchestratorSystemPrompt,
       }),
       tools,

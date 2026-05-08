@@ -90,6 +90,7 @@ type SendMessagesRequestPayloadArgs = {
   ephemeral?: boolean;
   pruneValidateSql: boolean;
   outputReasoning?: boolean;
+  reasoningLevel?: AgentContext["reasoningLevel"];
   agentContext?: Partial<AgentContext>;
   chatPersistenceMode: "local" | "remote";
 };
@@ -161,6 +162,7 @@ export function buildSendMessagesRequestPayload({
   ephemeral,
   pruneValidateSql,
   outputReasoning = true,
+  reasoningLevel,
   agentContext,
   chatPersistenceMode,
 }: SendMessagesRequestPayloadArgs): Record<string, unknown> {
@@ -179,6 +181,7 @@ export function buildSendMessagesRequestPayload({
         ...(agentContext ?? {}),
         pruneValidateSql,
         outputReasoning,
+        reasoningLevel,
       },
       ...(clickHouseConnection ? { connection: clickHouseConnection } : {}),
       ...(requestContext ? { context: requestContext } : {}),
@@ -195,6 +198,7 @@ export function buildSendMessagesRequestPayload({
       ...(agentContext ?? {}),
       pruneValidateSql,
       outputReasoning,
+      reasoningLevel,
     },
     ...(clickHouseConnection ? { connection: clickHouseConnection } : {}),
     generateTitle,
@@ -533,8 +537,9 @@ export class ChatFactory {
 
           const requestContext = options.context ?? ChatContext.build();
           const chatPersistenceMode = getRuntimeConfig().sessionRepositoryType;
+          const agentConfiguration = AgentConfigurationManager.getConfiguration();
           const clickHouseConnection =
-            AgentConfigurationManager.getConfiguration().mode === "v2"
+            agentConfiguration.mode === "v2"
               ? buildClickHouseConnectionPayload(connection)
               : undefined;
           return {
@@ -550,9 +555,9 @@ export class ChatFactory {
               currentModel,
               generateTitle: options.generateTitle,
               ephemeral: options.ephemeral,
-              pruneValidateSql:
-                AgentConfigurationManager.getConfiguration().pruneValidateSql ?? true,
-              outputReasoning: AgentConfigurationManager.getConfiguration().outputReasoning ?? true,
+              pruneValidateSql: agentConfiguration.pruneValidateSql ?? true,
+              outputReasoning: agentConfiguration.outputReasoning ?? true,
+              reasoningLevel: agentConfiguration.reasoningLevel,
               agentContext: options.agentContext,
               chatPersistenceMode,
             }),

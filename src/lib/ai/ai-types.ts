@@ -1,4 +1,5 @@
 import type { PlannerMetadata } from "@/lib/ai/agent/plan/planning-types";
+import type { ReasoningLevel } from "@/lib/ai/reasoning-levels";
 import type { InferUITools, LanguageModelUsage, UIDataTypes, UIMessage } from "ai";
 
 export interface AgentContext {
@@ -8,6 +9,8 @@ export interface AgentContext {
   responseLanguage?: string;
   /** Whether to request model reasoning summaries when the selected model supports them. */
   outputReasoning?: boolean;
+  /** Preferred reasoning level for models that expose configurable reasoning. */
+  reasoningLevel?: ReasoningLevel;
 }
 
 export type MessageRole = "user" | "assistant" | "system" | "data" | "tool";
