@@ -47,8 +47,7 @@ function getLoadedManuals(outputText: string | null): string[] {
     .filter((name): name is string => Boolean(name));
 }
 
-function buildHeader(input: SkillInput, outputText: string | null): string {
-  const requestedItems = getRequestedItems(input);
+function buildHeader(requestedItems: string[], outputText: string | null): string {
   const headerItems = requestedItems.length > 0 ? requestedItems : getLoadedManuals(outputText);
   if (headerItems.length === 0) {
     return "";
@@ -83,7 +82,7 @@ export const MessageToolSkill = memo(function MessageToolSkill({
   const outputText = typeof toolPart.output === "string" ? toolPart.output : null;
   const characterCount = outputText?.length ?? null;
   const requestedItems = getRequestedItems(input);
-  const header = buildHeader(input, outputText);
+  const header = buildHeader(requestedItems, outputText);
   const displayLabel = normalizeToolLabel(label);
 
   return (

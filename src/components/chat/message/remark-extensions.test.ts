@@ -96,6 +96,27 @@ describe("remarkReferenceTokens", () => {
     ]);
   });
 
+  it("continues scanning after non-CJK literal strong markers", () => {
+    const tree = transformTree({
+      type: "root",
+      children: [
+        {
+          type: "paragraph",
+          children: [{ type: "text", value: "Use **plain** then **中文** markers." }],
+        },
+      ],
+    });
+
+    expect(tree.children?.[0]?.children).toEqual([
+      { type: "text", value: "Use **plain** then " },
+      {
+        type: "strong",
+        children: [{ type: "text", value: "中文" }],
+      },
+      { type: "text", value: " markers." },
+    ]);
+  });
+
   it("leaves non-CJK literal strong markers untouched", () => {
     const tree = transformTree({
       type: "root",

@@ -43,13 +43,14 @@ describe("CollapsiblePart", () => {
 
     expect(container.textContent).not.toContain("Grouped tool call details");
 
-    const header = container.querySelector(".cursor-pointer");
+    const header = container.querySelector('button[aria-expanded="false"]');
     expect(header).not.toBeNull();
 
     act(() => {
       header!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
+    expect(header?.getAttribute("aria-expanded")).toBe("true");
     expect(container.textContent).toContain("Grouped tool call details");
 
     act(() => {

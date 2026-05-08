@@ -99,46 +99,57 @@ export function CollapsiblePart({
   };
 
   const statusText = getStatusText();
+  const isCollapsible = Boolean(children);
+  const headerClassName = cn(
+    "group flex w-fit items-center rounded-md px-1.5 py-1 text-left text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground",
+    isExpanded ? "bg-muted/30 text-foreground" : "",
+    isCollapsible
+      ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+      : ""
+  );
+  const headerContent = (
+    <div className="flex items-center gap-2 text-sm leading-5">
+      {showStatusIcon && (
+        <>
+          {isError || (!isComplete && !isActuallyRunning) ? (
+            <CircleX className="h-3.5 w-3.5 text-destructive" />
+          ) : (
+            <Wrench className="h-4 w-4" />
+          )}
+        </>
+      )}
+      {!showStatusIcon && <SquareTerminal className="h-4 w-4" />}
+      <span className={cn("font-medium", isActuallyRunning && RUNNING_TEXT_CLASS)}>{toolName}</span>
+      {headerExtra ? (
+        <span className="max-w-[360px] truncate text-sm font-medium">{headerExtra}</span>
+      ) : null}
+      {statusText && <span className="text-sm text-muted-foreground">{statusText}</span>}
+      <Timer isRunning={isActuallyRunning} />
+      {isCollapsible && (
+        <ChevronRight
+          className={cn(
+            "h-4 w-4 text-muted-foreground opacity-0 transition-all group-hover:opacity-100",
+            isExpanded ? "rotate-90 opacity-100" : ""
+          )}
+        />
+      )}
+    </div>
+  );
 
   return (
     <div className="flex flex-col overflow-hidden">
-      <div
-        className={cn(
-          "group flex w-fit items-center rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground",
-          isExpanded ? "bg-muted/30 text-foreground" : "",
-          children ? "cursor-pointer" : ""
-        )}
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center gap-2 text-sm leading-5">
-          {showStatusIcon && (
-            <>
-              {isError || (!isComplete && !isActuallyRunning) ? (
-                <CircleX className="h-3.5 w-3.5 text-destructive" />
-              ) : (
-                <Wrench className="h-4 w-4" />
-              )}
-            </>
-          )}
-          {!showStatusIcon && <SquareTerminal className="h-4 w-4" />}
-          <span className={cn("font-medium", isActuallyRunning && RUNNING_TEXT_CLASS)}>
-            {toolName}
-          </span>
-          {headerExtra ? (
-            <span className="max-w-[360px] truncate text-sm font-medium">{headerExtra}</span>
-          ) : null}
-          {statusText && <span className="text-sm text-muted-foreground">{statusText}</span>}
-          <Timer isRunning={isActuallyRunning} />
-          {children && (
-            <ChevronRight
-              className={cn(
-                "h-4 w-4 text-muted-foreground opacity-0 transition-all group-hover:opacity-100",
-                isExpanded ? "rotate-90 opacity-100" : ""
-              )}
-            />
-          )}
-        </div>
-      </div>
+      {isCollapsible ? (
+        <button
+          type="button"
+          className={headerClassName}
+          onClick={() => setIsExpanded((current) => !current)}
+          aria-expanded={isExpanded}
+        >
+          {headerContent}
+        </button>
+      ) : (
+        <div className={headerClassName}>{headerContent}</div>
+      )}
       {(isExpanded || keepChildrenMounted) && (
         <div
           className={cn(

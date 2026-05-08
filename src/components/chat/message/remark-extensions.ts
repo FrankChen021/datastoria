@@ -166,21 +166,20 @@ function findFallbackStrongSpan(value: string, fromIndex: number) {
       const content = value.slice(contentStart, end);
       const lastContentChar = value[end - 1];
       const next = value[end + 2];
-
-      if (
+      const hasValidCloser =
         lastContentChar !== "\\" &&
         lastContentChar !== "*" &&
         next !== "*" &&
-        !isWhitespace(lastContentChar)
-      ) {
+        !isWhitespace(lastContentChar);
+
+      if (hasValidCloser) {
         if (hasCjkScript(content)) {
           return { start, end: end + 2, content };
         }
         nextStartIndex = end + 2;
-        break;
+      } else {
+        nextStartIndex = end;
       }
-
-      nextStartIndex = end;
     }
 
     start = value.indexOf("**", nextStartIndex);
