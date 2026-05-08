@@ -4,8 +4,8 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { CollapsiblePart } from "./collapsible-part";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CollapsiblePart, Timer } from "./collapsible-part";
 
 describe("CollapsiblePart", () => {
   let container: HTMLDivElement;
@@ -24,7 +24,40 @@ describe("CollapsiblePart", () => {
     act(() => {
       root.unmount();
     });
+    vi.useRealTimers();
     container.remove();
+  });
+
+  it("shows whole-second timer updates after the first second", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+
+    act(() => {
+      root.render(<Timer isRunning />);
+    });
+
+    expect(container.querySelector("span")).toBeNull();
+    expect(container.textContent).toBe("");
+
+    act(() => {
+      vi.advanceTimersByTime(999);
+    });
+
+    expect(container.querySelector("span")).toBeNull();
+    expect(container.textContent).toBe("");
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(container.querySelector("span")?.className).toContain("min-w-[3ch]");
+    expect(container.textContent).toBe("1s");
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(container.textContent).toBe("2s");
   });
 
   it("does not reset manual expansion on state changes when incomplete auto-expansion is disabled", () => {

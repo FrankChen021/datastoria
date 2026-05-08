@@ -5,31 +5,37 @@ import { useEffect, useRef, useState } from "react";
 export const RUNNING_TEXT_CLASS =
   "animate-tool-call-text-shimmer bg-[linear-gradient(100deg,color-mix(in_oklch,var(--muted-foreground)_62%,transparent)_0%,var(--foreground)_24%,color-mix(in_oklch,var(--muted-foreground)_62%,transparent)_48%)] bg-[length:220%_100%] [background-position:140%_0] bg-clip-text text-transparent motion-reduce:animate-none motion-reduce:bg-none motion-reduce:text-muted-foreground";
 
+function formatElapsedTime(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${remainingSeconds.toString().padStart(2, "0")}s`;
+}
+
 export function Timer({ isRunning }: { isRunning: boolean }) {
-  const [formattedTime, setFormattedTime] = useState("");
+  const [elapsedSeconds, setElapsedSeconds] = useState<number | null>(null);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (isRunning) {
-      // Start timing
       const now = Date.now();
+      setElapsedSeconds(null);
 
-      // Update every 100ms
-      // Use the captured 'now' value directly since state updates are async
       intervalRef.current = setInterval(() => {
-        const elapsed = Date.now() - now;
-        setFormattedTime(`${(elapsed / 1000).toFixed(1)}s`);
-      }, 100);
+        const elapsed = Math.floor((Date.now() - now) / 1000);
+        setElapsedSeconds(elapsed > 0 ? elapsed : null);
+      }, 1000);
     } else {
-      // Stop timing
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     }
 
-    // Cleanup on unmount or when isExecuting changes
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -38,7 +44,22 @@ export function Timer({ isRunning }: { isRunning: boolean }) {
     };
   }, [isRunning]);
 
-  return <span className="text-xs text-muted-foreground">{formattedTime}</span>;
+  if (elapsedSeconds === null) {
+    return null;
+  }
+
+  const formattedTime = formatElapsedTime(elapsedSeconds);
+
+  return (
+    <span
+      className={cn(
+        "text-left text-xs tabular-nums text-muted-foreground",
+        elapsedSeconds < 60 ? "min-w-[3ch]" : "min-w-[6ch]"
+      )}
+    >
+      {formattedTime}
+    </span>
+  );
 }
 
 /**
