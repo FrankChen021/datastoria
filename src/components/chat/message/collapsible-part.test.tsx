@@ -101,4 +101,26 @@ describe("CollapsiblePart", () => {
 
     expect(container.textContent).toContain("Grouped tool call details");
   });
+
+  it("does not present conditionally empty children as expandable", () => {
+    act(() => {
+      root.render(
+        <CollapsiblePart
+          toolName="Empty tool details"
+          state="output-available"
+          isRunning={false}
+          defaultExpanded
+        >
+          {false}
+          {null}
+          {undefined}
+          {""}
+        </CollapsiblePart>
+      );
+    });
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector(".border-l")).toBeNull();
+    expect(container.textContent).toContain("Empty tool details");
+  });
 });

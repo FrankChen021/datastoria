@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { ChevronRight, CircleX, SquareTerminal, Wrench } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Children, useEffect, useRef, useState } from "react";
 
 export const RUNNING_TEXT_CLASS =
   "animate-tool-call-text-shimmer bg-[linear-gradient(100deg,color-mix(in_oklch,var(--muted-foreground)_62%,transparent)_0%,var(--foreground)_24%,color-mix(in_oklch,var(--muted-foreground)_62%,transparent)_48%)] bg-[length:220%_100%] [background-position:140%_0] bg-clip-text text-transparent motion-reduce:animate-none motion-reduce:bg-none motion-reduce:text-muted-foreground";
@@ -120,7 +120,10 @@ export function CollapsiblePart({
   };
 
   const statusText = getStatusText();
-  const isCollapsible = Boolean(children);
+  const renderableChildren = Children.toArray(children).filter(
+    (child) => typeof child !== "string" || child.length > 0
+  );
+  const isCollapsible = renderableChildren.length > 0;
   const headerClassName = cn(
     "group flex w-fit items-center rounded-md px-1.5 py-1 text-left text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground",
     isExpanded ? "bg-muted/30 text-foreground" : "",
@@ -171,15 +174,12 @@ export function CollapsiblePart({
       ) : (
         <div className={headerClassName}>{headerContent}</div>
       )}
-      {(isExpanded || keepChildrenMounted) && (
+      {isCollapsible && (isExpanded || keepChildrenMounted) && (
         <div
-          className={cn(
-            "ml-3 border-l border-muted/50 pl-4 transition-all",
-            children ? "mb-1" : ""
-          )}
+          className="mb-1 ml-3 border-l border-muted/50 pl-4 transition-all"
           style={keepChildrenMounted && !isExpanded ? { display: "none" } : undefined}
         >
-          {children}
+          {renderableChildren}
         </div>
       )}
     </div>
