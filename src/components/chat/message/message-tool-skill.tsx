@@ -62,6 +62,12 @@ function buildHeader(input: SkillInput, outputText: string | null): string {
   return `${joinedNames.slice(0, MAX_HEADER_LENGTH - 1).trimEnd()}…`;
 }
 
+function normalizeToolLabel(label: string): string {
+  if (label === "Load Skill Resources") return "Load skill resources";
+  if (label === "Load Skill") return "Load skill";
+  return label;
+}
+
 export const MessageToolSkill = memo(function MessageToolSkill({
   isRunning = true,
   part,
@@ -77,11 +83,13 @@ export const MessageToolSkill = memo(function MessageToolSkill({
   const outputText = typeof toolPart.output === "string" ? toolPart.output : null;
   const characterCount = outputText?.length ?? null;
   const requestedItems = getRequestedItems(input);
+  const header = buildHeader(input, outputText);
+  const displayLabel = normalizeToolLabel(label);
 
   return (
     <CollapsiblePart
-      toolName={label}
-      headerExtra={buildHeader(input, outputText)}
+      toolName={header ? `${displayLabel}:` : displayLabel}
+      headerExtra={header || undefined}
       state={state}
       isRunning={isRunning}
     >

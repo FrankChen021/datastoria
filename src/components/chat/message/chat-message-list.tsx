@@ -8,6 +8,7 @@ import { AlertCircle } from "lucide-react";
 import * as React from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { ChatMessage } from "./chat-message";
+import { RUNNING_TEXT_CLASS } from "./collapsible-part";
 
 interface ChatMessageListProps {
   messages: AppUIMessage[];
@@ -156,7 +157,7 @@ export const ChatMessageList = React.memo(
 
                     <div className="flex-1 overflow-hidden min-w-0 text-sm pr-6">
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <span>Thinking</span>
+                        <span className={RUNNING_TEXT_CLASS}>Thinking</span>
                       </div>
                       <div className="mt-2 flex items-center gap-2 text-muted-foreground">
                         <TypingDots />
