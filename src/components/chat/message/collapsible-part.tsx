@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 export const RUNNING_TEXT_CLASS =
   "animate-tool-call-text-shimmer bg-[linear-gradient(100deg,color-mix(in_oklch,var(--muted-foreground)_62%,transparent)_0%,var(--foreground)_24%,color-mix(in_oklch,var(--muted-foreground)_62%,transparent)_48%)] bg-[length:220%_100%] [background-position:140%_0] bg-clip-text text-transparent motion-reduce:animate-none motion-reduce:bg-none motion-reduce:text-muted-foreground";
 
+const RUNNING_TEXT_SHIMMER_DELAY_MS = 600;
+
 export function Timer({ isRunning }: { isRunning: boolean }) {
   const [formattedTime, setFormattedTime] = useState("");
 
@@ -89,6 +91,20 @@ export function CollapsiblePart({
 
   // If streaming stopped and tool is not complete, treat it as stopped (no timer, no spinner)
   const isActuallyRunning = !isComplete && isRunning;
+  const [showRunningTextShimmer, setShowRunningTextShimmer] = useState(false);
+
+  useEffect(() => {
+    if (!isActuallyRunning) {
+      setShowRunningTextShimmer(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setShowRunningTextShimmer(true);
+    }, RUNNING_TEXT_SHIMMER_DELAY_MS);
+
+    return () => clearTimeout(timer);
+  }, [isActuallyRunning]);
 
   // Get status text based on state
   const getStatusText = () => {
@@ -121,7 +137,7 @@ export function CollapsiblePart({
             </>
           )}
           {!showStatusIcon && <SquareTerminal className="h-4 w-4" />}
-          <span className={cn("font-medium", isActuallyRunning && RUNNING_TEXT_CLASS)}>
+          <span className={cn("font-medium", showRunningTextShimmer && RUNNING_TEXT_CLASS)}>
             {toolName}
           </span>
           {headerExtra ? (
