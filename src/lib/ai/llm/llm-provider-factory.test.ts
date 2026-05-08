@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  LanguageModelProviderFactory,
   MODELS,
   resolveModelReasoningLevels,
   resolveModelSupportsReasoning,
@@ -132,5 +133,25 @@ describe("MODELS reasoning capabilities", () => {
     expect(resolveModelReasoningLevels({ provider: "GitHub Copilot", modelId: "gpt-5.2" })).toEqual(
       []
     );
+  });
+
+  it("builds provider options from model configuration", () => {
+    expect(
+      LanguageModelProviderFactory.buildProviderOptions({
+        modelConfig: { provider: "Google", modelId: "gemini-3-pro-preview" },
+        outputReasoning: true,
+        reasoningLevel: "medium",
+        instructions: "ignored",
+      })?.google?.thinkingConfig?.thinkingLevel
+    ).toBe("low");
+
+    expect(
+      LanguageModelProviderFactory.buildProviderOptions({
+        modelConfig: { provider: "Anthropic", modelId: "claude-opus-4-5" },
+        outputReasoning: false,
+        reasoningLevel: "medium",
+        instructions: "ignored",
+      })?.anthropic
+    ).toEqual({ effort: "medium" });
   });
 });

@@ -1,13 +1,20 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
+import { createAnthropic, type AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import { createCerebras } from "@ai-sdk/cerebras";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createGroq } from "@ai-sdk/groq";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createGoogleGenerativeAI, type GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
+import { createGroq, type GroqLanguageModelOptions } from "@ai-sdk/groq";
+import { createOpenAI, type OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
+import {
+  createOpenAICompatible,
+  type OpenAICompatibleLanguageModelChatOptions,
+} from "@ai-sdk/openai-compatible";
+import { createOpenRouter, type OpenRouterProviderOptions } from "@openrouter/ai-sdk-provider";
 import { createGitHubCopilotOpenAICompatible } from "@opeoginni/github-copilot-openai-compatible";
 import type { LanguageModel } from "ai";
-import type { ReasoningLevel } from "../reasoning-levels";
+import {
+  DEFAULT_REASONING_LEVEL,
+  isReasoningLevel,
+  type ReasoningLevel,
+} from "../reasoning-levels";
 import { PRIVATE_MODELS, PRIVATE_PROVIDERS } from "./llm-provider-factory-private";
 import { mockModel } from "./models.mock";
 import { PROVIDER_GITHUB_COPILOT, PROVIDER_NEBIUS, PROVIDER_OPENAI_CODEX } from "./provider-ids";
@@ -22,10 +29,39 @@ type ModelCreator = (modelId: string, apiKey: string) => LanguageModel;
 type RequestedModelConfig = { provider: string; modelId: string; apiKey?: string };
 type ResolvedModelConfig = { provider: string; modelId: string; apiKey: string };
 export type ModelSource = "user" | "system";
+
+type ProviderOptionsModelConfig = {
+  provider: string;
+  modelId: string;
+  reasoningLevels?: readonly ReasoningLevel[];
+};
+
+type ProviderOptionsInput = {
+  modelConfig: ProviderOptionsModelConfig;
+  outputReasoning: boolean;
+  reasoningLevel?: ReasoningLevel;
+  instructions: string;
+};
+
+type ProviderOptionsRequestInput = Omit<ProviderOptionsInput, "reasoningLevel"> & {
+  reasoningLevel?: unknown;
+};
+
+export type LanguageModelProviderOptions = {
+  openai?: OpenAIResponsesProviderOptions;
+  anthropic?: AnthropicProviderOptions;
+  cerebras?: OpenAICompatibleLanguageModelChatOptions;
+  google?: GoogleGenerativeAIProviderOptions;
+  groq?: GroqLanguageModelOptions;
+  nebius?: OpenAICompatibleLanguageModelChatOptions;
+  openrouter?: OpenRouterProviderOptions;
+};
+
 export interface ProviderDefinition {
   create: ModelCreator;
   systemApiKey?: () => string | undefined;
   logo?: string;
+  buildProviderOptions?: (input: ProviderOptionsInput) => LanguageModelProviderOptions | undefined;
 }
 
 export interface ModelProps {
@@ -177,6 +213,77 @@ export function resolveModelReasoningLevels(
   return findExactModel(model)?.reasoningLevels ?? [];
 }
 
+const ANTHROPIC_MANUAL_THINKING_BUDGET_TOKENS = 1024;
+
+function resolveReasoningLevelForModel(
+  modelConfig: ProviderOptionsModelConfig,
+  reasoningLevel?: unknown
+): ReasoningLevel | undefined {
+  const levels = resolveModelReasoningLevels(modelConfig);
+  if (levels.length === 0) {
+    return undefined;
+  }
+
+  const requestedLevel = isReasoningLevel(reasoningLevel) ? reasoningLevel.trim() : undefined;
+  if (requestedLevel && levels.includes(requestedLevel)) {
+    return requestedLevel;
+  }
+
+  if (levels.includes(DEFAULT_REASONING_LEVEL)) {
+    return DEFAULT_REASONING_LEVEL;
+  }
+
+  return levels[0];
+}
+
+function toAnthropicEffort(
+  level: ReasoningLevel
+): NonNullable<AnthropicProviderOptions["effort"]> | undefined {
+  if (level === "xhigh") return "max";
+  if (level === "low" || level === "medium" || level === "high" || level === "max") return level;
+  return undefined;
+}
+
+function supportsAnthropicAdaptiveThinking(modelId: string): boolean {
+  return modelId.includes("claude-opus-4-6") || modelId.includes("claude-sonnet-4-6");
+}
+
+function getAnthropicThinkingOptions(
+  modelId: string,
+  outputReasoning: boolean
+): AnthropicProviderOptions["thinking"] | undefined {
+  if (supportsAnthropicAdaptiveThinking(modelId)) {
+    return { type: "adaptive" };
+  }
+
+  if (outputReasoning) {
+    return {
+      type: "enabled",
+      budgetTokens: ANTHROPIC_MANUAL_THINKING_BUDGET_TOKENS,
+    };
+  }
+
+  return undefined;
+}
+
+function toGoogleThinkingLevel(
+  level: ReasoningLevel
+):
+  | NonNullable<NonNullable<GoogleGenerativeAIProviderOptions["thinkingConfig"]>["thinkingLevel"]>
+  | undefined {
+  if (level === "xhigh") return "high";
+  if (level === "minimal" || level === "low" || level === "medium" || level === "high") {
+    return level;
+  }
+  return undefined;
+}
+
+function toStandardReasoningLevel(level: ReasoningLevel): "low" | "medium" | "high" | undefined {
+  if (level === "xhigh") return "high";
+  if (level === "low" || level === "medium" || level === "high") return level;
+  return undefined;
+}
+
 /**
  * Provider definitions map
  * Key: provider name (e.g., "OpenAI", "Google", "Anthropic", "OpenRouter", "Groq")
@@ -191,6 +298,18 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         apiKey,
       })(modelId),
     systemApiKey: () => process.env.OPENAI_API_KEY,
+    buildProviderOptions: ({ outputReasoning, reasoningLevel }) => {
+      if (!outputReasoning && !reasoningLevel) {
+        return undefined;
+      }
+
+      return {
+        openai: {
+          ...(reasoningLevel ? { reasoningEffort: reasoningLevel } : {}),
+          ...(outputReasoning ? { reasoningSummary: "auto" as const } : {}),
+        } satisfies OpenAIResponsesProviderOptions,
+      };
+    },
   },
   Google: {
     logo: "google.svg",
@@ -199,6 +318,25 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         apiKey,
       })(modelId),
     systemApiKey: () => process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    buildProviderOptions: ({ outputReasoning, reasoningLevel }) => {
+      if (!reasoningLevel) {
+        return undefined;
+      }
+
+      const thinkingLevel = toGoogleThinkingLevel(reasoningLevel);
+      if (!thinkingLevel) {
+        return undefined;
+      }
+
+      return {
+        google: {
+          thinkingConfig: {
+            thinkingLevel,
+            ...(outputReasoning ? { includeThoughts: true } : {}),
+          },
+        } satisfies GoogleGenerativeAIProviderOptions,
+      };
+    },
   },
   Anthropic: {
     logo: "anthropic.svg",
@@ -207,6 +345,35 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         apiKey,
       })(modelId),
     systemApiKey: () => process.env.ANTHROPIC_API_KEY,
+    buildProviderOptions: ({ modelConfig, outputReasoning, reasoningLevel }) => {
+      if (reasoningLevel) {
+        const effort = toAnthropicEffort(reasoningLevel);
+        if (!effort) {
+          return undefined;
+        }
+        const thinking = getAnthropicThinkingOptions(modelConfig.modelId, outputReasoning);
+
+        return {
+          anthropic: {
+            ...(thinking ? { thinking } : {}),
+            effort,
+          } satisfies AnthropicProviderOptions,
+        };
+      }
+
+      if (!outputReasoning) {
+        return undefined;
+      }
+
+      return {
+        anthropic: {
+          thinking: {
+            type: "enabled",
+            budgetTokens: ANTHROPIC_MANUAL_THINKING_BUDGET_TOKENS,
+          },
+        } satisfies AnthropicProviderOptions,
+      };
+    },
   },
   OpenRouter: {
     logo: "openrouter.svg",
@@ -215,6 +382,25 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         apiKey,
       })(modelId),
     systemApiKey: () => process.env.OPENROUTER_API_KEY,
+    buildProviderOptions: ({ reasoningLevel }) => {
+      if (!reasoningLevel) {
+        return undefined;
+      }
+
+      const effort = toStandardReasoningLevel(reasoningLevel);
+      if (!effort) {
+        return undefined;
+      }
+
+      return {
+        openrouter: {
+          reasoning: {
+            enabled: true,
+            effort,
+          },
+        } satisfies OpenRouterProviderOptions,
+      };
+    },
   },
   Groq: {
     logo: "groq.svg",
@@ -223,6 +409,23 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         apiKey,
       })(modelId),
     systemApiKey: () => process.env.GROQ_API_KEY,
+    buildProviderOptions: ({ outputReasoning, reasoningLevel }) => {
+      if (!reasoningLevel) {
+        return undefined;
+      }
+
+      const reasoningEffort = toStandardReasoningLevel(reasoningLevel);
+      if (!reasoningEffort) {
+        return undefined;
+      }
+
+      return {
+        groq: {
+          reasoningEffort,
+          ...(outputReasoning ? { reasoningFormat: "parsed" as const } : {}),
+        } satisfies GroqLanguageModelOptions,
+      };
+    },
   },
   Cerebras: {
     logo: "cerebras.svg",
@@ -231,6 +434,22 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         apiKey,
       })(modelId),
     systemApiKey: () => process.env.CEREBRAS_API_KEY,
+    buildProviderOptions: ({ reasoningLevel }) => {
+      if (!reasoningLevel) {
+        return undefined;
+      }
+
+      const reasoningEffort = toStandardReasoningLevel(reasoningLevel);
+      if (!reasoningEffort) {
+        return undefined;
+      }
+
+      return {
+        cerebras: {
+          reasoningEffort,
+        } satisfies OpenAICompatibleLanguageModelChatOptions,
+      };
+    },
   },
   [PROVIDER_GITHUB_COPILOT]: {
     logo: "github-copilot.svg",
@@ -259,6 +478,15 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         },
       })(modelId);
     },
+    buildProviderOptions: ({ instructions, outputReasoning, reasoningLevel }) => ({
+      openai: {
+        instructions,
+        ...(reasoningLevel ? { reasoningEffort: reasoningLevel } : {}),
+        ...(outputReasoning ? { reasoningSummary: "auto" as const } : {}),
+        // Keep chat state in DataStoria instead of creating stored OpenAI responses.
+        store: false,
+      } satisfies OpenAIResponsesProviderOptions,
+    }),
   },
   [PROVIDER_NEBIUS]: {
     logo: "nebius.svg",
@@ -269,6 +497,22 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         baseURL: "https://api.tokenfactory.nebius.com/v1/",
       })(modelId),
     systemApiKey: () => process.env.NEBIUS_API_KEY,
+    buildProviderOptions: ({ reasoningLevel }) => {
+      if (!reasoningLevel) {
+        return undefined;
+      }
+
+      const reasoningEffort = toStandardReasoningLevel(reasoningLevel);
+      if (!reasoningEffort) {
+        return undefined;
+      }
+
+      return {
+        nebius: {
+          reasoningEffort,
+        } satisfies OpenAICompatibleLanguageModelChatOptions,
+      };
+    },
   },
 };
 
@@ -880,5 +1124,21 @@ export class LanguageModelProviderFactory {
 
   static getReasoningLevels(provider: string, modelId: string): readonly ReasoningLevel[] {
     return resolveModelReasoningLevels({ provider, modelId });
+  }
+
+  static buildProviderOptions(
+    input: ProviderOptionsRequestInput
+  ): LanguageModelProviderOptions | undefined {
+    const providerDefinition = PROVIDERS[input.modelConfig.provider];
+    if (!providerDefinition?.buildProviderOptions) {
+      return undefined;
+    }
+
+    const reasoningLevel = resolveReasoningLevelForModel(input.modelConfig, input.reasoningLevel);
+
+    return providerDefinition.buildProviderOptions({
+      ...input,
+      reasoningLevel,
+    });
   }
 }
