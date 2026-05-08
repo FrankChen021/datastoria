@@ -121,9 +121,11 @@ export function CollapsiblePart({
             </>
           )}
           {!showStatusIcon && <SquareTerminal className="h-4 w-4" />}
-          <span className="font-medium">{toolName}</span>
+          <span className={cn("font-medium", isActuallyRunning && RUNNING_TEXT_CLASS)}>
+            {toolName}
+          </span>
           {headerExtra ? (
-            <span className="max-w-[360px] truncate font-mono text-sm text-muted-foreground">
+            <span className="max-w-[360px] truncate text-sm font-medium">
               {headerExtra}
             </span>
           ) : null}
