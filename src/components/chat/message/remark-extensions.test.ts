@@ -14,6 +14,49 @@ function transformTree(tree: MarkdownNode): MarkdownNode {
 }
 
 describe("remarkReferenceTokens", () => {
+  it("converts CJK literal strong markers left by markdown parsing into strong nodes", () => {
+    const tree = transformTree({
+      type: "root",
+      children: [
+        {
+          type: "paragraph",
+          children: [
+            {
+              type: "text",
+              value:
+                "如果你不特别指定，我下面先按**“行业龙头 + AI 受益程度”**给出一个较实用的版本。",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(tree.children?.[0]?.children).toEqual([
+      { type: "text", value: "如果你不特别指定，我下面先按" },
+      {
+        type: "strong",
+        children: [{ type: "text", value: "“行业龙头 + AI 受益程度”" }],
+      },
+      { type: "text", value: "给出一个较实用的版本。" },
+    ]);
+  });
+
+  it("leaves non-CJK literal strong markers untouched", () => {
+    const tree = transformTree({
+      type: "root",
+      children: [
+        {
+          type: "paragraph",
+          children: [{ type: "text", value: 'Use word**"quoted"**word literally.' }],
+        },
+      ],
+    });
+
+    expect(tree.children?.[0]?.children).toEqual([
+      { type: "text", value: 'Use word**"quoted"**word literally.' },
+    ]);
+  });
+
   it("converts skill and file tokens inside text nodes into link nodes", () => {
     const tree = transformTree({
       type: "root",

@@ -1,8 +1,9 @@
-import { Formatter } from "@/lib/formatter";
 import { cn } from "@/lib/utils";
-import { Check, ChevronDown, ChevronRight, CircleX, Loader2 } from "lucide-react";
+import { ChevronRight, CircleX, SquareTerminal, Wrench } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Badge } from "../../ui/badge";
+
+export const RUNNING_TEXT_CLASS =
+  "animate-tool-call-text-shimmer bg-[linear-gradient(100deg,color-mix(in_oklch,var(--muted-foreground)_62%,transparent)_0%,var(--foreground)_24%,color-mix(in_oklch,var(--muted-foreground)_62%,transparent)_48%)] bg-[length:220%_100%] [background-position:140%_0] bg-clip-text text-transparent motion-reduce:animate-none motion-reduce:bg-none motion-reduce:text-muted-foreground";
 
 export function Timer({ isRunning }: { isRunning: boolean }) {
   const [formattedTime, setFormattedTime] = useState("");
@@ -18,7 +19,7 @@ export function Timer({ isRunning }: { isRunning: boolean }) {
       // Use the captured 'now' value directly since state updates are async
       intervalRef.current = setInterval(() => {
         const elapsed = Date.now() - now;
-        setFormattedTime(Formatter.getInstance().milliFormat(elapsed, 2));
+        setFormattedTime(`${(elapsed / 1000).toFixed(1)}s`);
       }, 100);
     } else {
       // Stop timing
@@ -37,7 +38,7 @@ export function Timer({ isRunning }: { isRunning: boolean }) {
     };
   }, [isRunning]);
 
-  return <span className="text-xs text-muted-foreground text-[10px]">{formattedTime}</span>;
+  return <span className="text-xs text-muted-foreground">{formattedTime}</span>;
 }
 
 /**
@@ -100,53 +101,50 @@ export function CollapsiblePart({
   const statusText = getStatusText();
 
   return (
-    <div className="flex flex-col mt-0 overflow-hidden">
+    <div className="flex flex-col mt-1 overflow-hidden">
       <div
         className={cn(
-          "flex items-center hover:bg-muted/50 transition-colors w-fit pr-2 rounded-sm",
-          isExpanded ? "bg-muted/50" : "",
+          "group flex w-fit items-center rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground",
+          isExpanded ? "bg-muted/30 text-foreground" : "",
           children ? "cursor-pointer" : ""
         )}
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-2 py-0.5 text-[10px] leading-4">
+        <div className="flex items-center gap-2 text-sm leading-5">
           {showStatusIcon && (
             <>
-              {isComplete ? (
-                isError ? (
-                  <CircleX className="h-3 w-3 text-destructive" />
-                ) : (
-                  <Check className="h-3 w-3" />
-                )
-              ) : isActuallyRunning ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
+              {isError || (!isComplete && !isActuallyRunning) ? (
+                <CircleX className="h-3.5 w-3.5 text-destructive" />
               ) : (
-                <CircleX className="h-3 w-3 text-destructive" />
+                <Wrench className="h-4 w-4" />
               )}
             </>
           )}
-          <Badge className="flex items-center gap-0.5 rounded-sm border-none pl-1 pr-2 h-4 py-0 font-normal text-[10px]">
-            {children &&
-              (isExpanded ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
-              ))}
+          {!showStatusIcon && <SquareTerminal className="h-4 w-4" />}
+          <span className={cn("font-medium", isActuallyRunning && RUNNING_TEXT_CLASS)}>
             {toolName}
-          </Badge>
+          </span>
           {headerExtra ? (
-            <span className="max-w-[360px] truncate font-mono text-[10px] text-muted-foreground">
+            <span className="max-w-[360px] truncate font-mono text-sm text-muted-foreground">
               {headerExtra}
             </span>
           ) : null}
-          {statusText && <span className="text-muted-foreground">{statusText}</span>}
+          {statusText && <span className="text-sm text-muted-foreground">{statusText}</span>}
           <Timer isRunning={isActuallyRunning} />
+          {children && (
+            <ChevronRight
+              className={cn(
+                "h-4 w-4 text-muted-foreground opacity-0 transition-all group-hover:opacity-100",
+                isExpanded ? "rotate-90 opacity-100" : ""
+              )}
+            />
+          )}
         </div>
       </div>
       {(isExpanded || keepChildrenMounted) && (
         <div
           className={cn(
-            "pl-3 border-l ml-1.5 border-muted/50 transition-all",
+            "ml-3 border-l border-muted/50 pl-4 transition-all",
             children ? "mb-1" : ""
           )}
           style={keepChildrenMounted && !isExpanded ? { display: "none" } : undefined}

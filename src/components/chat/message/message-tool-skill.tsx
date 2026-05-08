@@ -40,13 +40,21 @@ function getRequestedItems(input: SkillInput): string[] {
   });
 }
 
-function buildHeader(input: SkillInput): string {
+function getLoadedManuals(outputText: string | null): string[] {
+  if (!outputText) return [];
+  return [...outputText.matchAll(/^# Manual Loaded: (.+)$/gm)]
+    .map((match) => match[1]?.trim())
+    .filter((name): name is string => Boolean(name));
+}
+
+function buildHeader(input: SkillInput, outputText: string | null): string {
   const requestedItems = getRequestedItems(input);
-  if (requestedItems.length === 0) {
+  const headerItems = requestedItems.length > 0 ? requestedItems : getLoadedManuals(outputText);
+  if (headerItems.length === 0) {
     return "";
   }
 
-  const joinedNames = requestedItems.join(", ");
+  const joinedNames = headerItems.join(", ");
   if (joinedNames.length <= MAX_HEADER_LENGTH) {
     return joinedNames;
   }
@@ -57,7 +65,7 @@ function buildHeader(input: SkillInput): string {
 export const MessageToolSkill = memo(function MessageToolSkill({
   isRunning = true,
   part,
-  label = "Load Skill",
+  label = "Load skill",
 }: {
   part: AppUIMessage["parts"][0];
   isRunning?: boolean;
@@ -73,7 +81,7 @@ export const MessageToolSkill = memo(function MessageToolSkill({
   return (
     <CollapsiblePart
       toolName={label}
-      headerExtra={buildHeader(input)}
+      headerExtra={buildHeader(input, outputText)}
       state={state}
       isRunning={isRunning}
     >

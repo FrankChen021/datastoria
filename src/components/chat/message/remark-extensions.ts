@@ -39,7 +39,14 @@ type LinkNode = MarkdownNode & {
   children: MarkdownNode[];
 };
 
+type StrongNode = MarkdownNode & {
+  type: "strong";
+  children: MarkdownNode[];
+};
+
 const LINKNODE_TOKEN_PATTERN = /\[\[\s*(file|skill)\s*:\s*((?:\\.|[^\]])+?)\s*\]\]/gi;
+const CJK_SCRIPT_PATTERN =
+  /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 
 function hasChildren(node: MarkdownNode): node is ParentNode {
   return Array.isArray(node.children);
@@ -51,6 +58,10 @@ function createTextNode(value: string): TextNode {
 
 function createBreakNode(): BreakNode {
   return { type: "break" };
+}
+
+function createStrongNode(value: string): StrongNode {
+  return { type: "strong", children: transformTextValue(value) };
 }
 
 function isBrHtmlNode(node: MarkdownNode): node is HtmlNode {
@@ -81,7 +92,7 @@ function createLinkNode(referenceType: string, tokenBody: string): LinkNode | nu
   return null;
 }
 
-function transformTextValue(value: string): MarkdownNode[] {
+function transformReferenceTokens(value: string): MarkdownNode[] {
   const nodes: MarkdownNode[] = [];
   let lastIndex = 0;
 
@@ -118,6 +129,87 @@ function transformTextValue(value: string): MarkdownNode[] {
 
   if (lastIndex < value.length) {
     nodes.push(createTextNode(value.slice(lastIndex)));
+  }
+
+  return nodes;
+}
+
+function hasCjkScript(value: string) {
+  return CJK_SCRIPT_PATTERN.test(value);
+}
+
+function isWhitespace(value: string | undefined) {
+  return value !== undefined && /\s/u.test(value);
+}
+
+function findFallbackStrongSpan(value: string, fromIndex: number) {
+  let start = value.indexOf("**", fromIndex);
+
+  while (start !== -1) {
+    const contentStart = start + 2;
+    const previous = value[start - 1];
+    const firstContentChar = value[contentStart];
+
+    if (
+      previous === "\\" ||
+      previous === "*" ||
+      firstContentChar === "*" ||
+      isWhitespace(firstContentChar)
+    ) {
+      start = value.indexOf("**", contentStart);
+      continue;
+    }
+
+    let nextStartIndex = contentStart;
+    let end = value.indexOf("**", contentStart);
+    while (end !== -1) {
+      const content = value.slice(contentStart, end);
+      const lastContentChar = value[end - 1];
+      const next = value[end + 2];
+
+      if (
+        lastContentChar !== "\\" &&
+        lastContentChar !== "*" &&
+        next !== "*" &&
+        !isWhitespace(lastContentChar)
+      ) {
+        if (hasCjkScript(content)) {
+          return { start, end: end + 2, content };
+        }
+        nextStartIndex = end + 2;
+        break;
+      }
+
+      end = value.indexOf("**", end + 2);
+    }
+
+    start = value.indexOf("**", nextStartIndex);
+  }
+
+  return null;
+}
+
+function transformTextValue(value: string): MarkdownNode[] {
+  const nodes: MarkdownNode[] = [];
+  let cursor = 0;
+  let span = findFallbackStrongSpan(value, cursor);
+
+  while (span) {
+    if (span.start > cursor) {
+      nodes.push(...transformReferenceTokens(value.slice(cursor, span.start)));
+    }
+
+    nodes.push(createStrongNode(span.content));
+    cursor = span.end;
+    span = findFallbackStrongSpan(value, cursor);
+  }
+
+  if (cursor === 0) {
+    return transformReferenceTokens(value);
+  }
+
+  if (cursor < value.length) {
+    nodes.push(...transformReferenceTokens(value.slice(cursor)));
   }
 
   return nodes;
