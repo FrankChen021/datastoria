@@ -6,6 +6,9 @@ export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      animation: {
+        "tool-call-text-shimmer": "tool-call-text-shimmer 1.6s linear infinite",
+      },
       colors: {
         border: "var(--border)",
         input: "var(--input)",
@@ -57,6 +60,12 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "tool-call-text-shimmer": {
+          "0%": { backgroundPosition: "140% 0" },
+          "100%": { backgroundPosition: "-80% 0" },
+        },
       },
     },
   },

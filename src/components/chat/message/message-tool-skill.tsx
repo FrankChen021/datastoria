@@ -40,13 +40,20 @@ function getRequestedItems(input: SkillInput): string[] {
   });
 }
 
-function buildHeader(input: SkillInput): string {
-  const requestedItems = getRequestedItems(input);
-  if (requestedItems.length === 0) {
+function getLoadedManuals(outputText: string | null): string[] {
+  if (!outputText) return [];
+  return [...outputText.matchAll(/^# Manual Loaded: (.+)$/gm)]
+    .map((match) => match[1]?.trim())
+    .filter((name): name is string => Boolean(name));
+}
+
+function buildHeader(requestedItems: string[], outputText: string | null): string {
+  const headerItems = requestedItems.length > 0 ? requestedItems : getLoadedManuals(outputText);
+  if (headerItems.length === 0) {
     return "";
   }
 
-  const joinedNames = requestedItems.join(", ");
+  const joinedNames = headerItems.join(", ");
   if (joinedNames.length <= MAX_HEADER_LENGTH) {
     return joinedNames;
   }
@@ -54,10 +61,16 @@ function buildHeader(input: SkillInput): string {
   return `${joinedNames.slice(0, MAX_HEADER_LENGTH - 1).trimEnd()}…`;
 }
 
+function normalizeToolLabel(label: string): string {
+  if (label === "Load Skill Resources") return "Load skill resources";
+  if (label === "Load Skill") return "Load skill";
+  return label;
+}
+
 export const MessageToolSkill = memo(function MessageToolSkill({
   isRunning = true,
   part,
-  label = "Load Skill",
+  label = "Load skill",
 }: {
   part: AppUIMessage["parts"][0];
   isRunning?: boolean;
@@ -69,11 +82,13 @@ export const MessageToolSkill = memo(function MessageToolSkill({
   const outputText = typeof toolPart.output === "string" ? toolPart.output : null;
   const characterCount = outputText?.length ?? null;
   const requestedItems = getRequestedItems(input);
+  const header = buildHeader(requestedItems, outputText);
+  const displayLabel = normalizeToolLabel(label);
 
   return (
     <CollapsiblePart
-      toolName={label}
-      headerExtra={buildHeader(input)}
+      toolName={header ? `${displayLabel}:` : displayLabel}
+      headerExtra={header || undefined}
       state={state}
       isRunning={isRunning}
     >

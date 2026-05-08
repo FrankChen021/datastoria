@@ -16,7 +16,7 @@ import {
   groupRenderableParts,
   type MessagePart,
 } from "./chat-message-parts";
-import { CollapsiblePart } from "./collapsible-part";
+import { CollapsiblePart, RUNNING_TEXT_CLASS } from "./collapsible-part";
 import { ErrorMessageDisplay } from "./message-error";
 import { MessageMarkdown } from "./message-markdown";
 import { MessageReasoning } from "./message-reasoning";
@@ -405,7 +405,7 @@ export const ChatMessage = memo(function ChatMessage({
               {parts.length === 0 && isLoading && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   {/* Under the state that request is submitted, but server has not responded yet */}
-                  <span>{loadingText}</span>
+                  <span className={RUNNING_TEXT_CLASS}>{loadingText}</span>
                 </div>
               )}
               {parts.length === 0 && !isLoading && !error && "Nothing returned"}

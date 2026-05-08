@@ -4,8 +4,8 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { CollapsiblePart } from "./collapsible-part";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CollapsiblePart, Timer } from "./collapsible-part";
 
 describe("CollapsiblePart", () => {
   let container: HTMLDivElement;
@@ -24,7 +24,40 @@ describe("CollapsiblePart", () => {
     act(() => {
       root.unmount();
     });
+    vi.useRealTimers();
     container.remove();
+  });
+
+  it("shows whole-second timer updates after the first second", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+
+    act(() => {
+      root.render(<Timer isRunning />);
+    });
+
+    expect(container.querySelector("span")).toBeNull();
+    expect(container.textContent).toBe("");
+
+    act(() => {
+      vi.advanceTimersByTime(999);
+    });
+
+    expect(container.querySelector("span")).toBeNull();
+    expect(container.textContent).toBe("");
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(container.querySelector("span")?.className).toContain("min-w-[3ch]");
+    expect(container.textContent).toBe("1s");
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(container.textContent).toBe("2s");
   });
 
   it("does not reset manual expansion on state changes when incomplete auto-expansion is disabled", () => {
@@ -43,13 +76,14 @@ describe("CollapsiblePart", () => {
 
     expect(container.textContent).not.toContain("Grouped tool call details");
 
-    const header = container.querySelector(".cursor-pointer");
+    const header = container.querySelector('button[aria-expanded="false"]');
     expect(header).not.toBeNull();
 
     act(() => {
       header!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
+    expect(header?.getAttribute("aria-expanded")).toBe("true");
     expect(container.textContent).toContain("Grouped tool call details");
 
     act(() => {
@@ -66,5 +100,27 @@ describe("CollapsiblePart", () => {
     });
 
     expect(container.textContent).toContain("Grouped tool call details");
+  });
+
+  it("does not present conditionally empty children as expandable", () => {
+    act(() => {
+      root.render(
+        <CollapsiblePart
+          toolName="Empty tool details"
+          state="output-available"
+          isRunning={false}
+          defaultExpanded
+        >
+          {false}
+          {null}
+          {undefined}
+          {""}
+        </CollapsiblePart>
+      );
+    });
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector(".border-l")).toBeNull();
+    expect(container.textContent).toContain("Empty tool details");
   });
 });

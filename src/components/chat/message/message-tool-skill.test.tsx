@@ -61,7 +61,7 @@ describe("MessageToolSkill", () => {
       );
     });
 
-    expect(container.textContent).toContain("Load Skill Resources");
+    expect(container.textContent).toContain("Load skill resources:");
     expect(container.textContent).toContain("vizlayer | reference/flowchart.md");
     expect(container.textContent).toContain("vizlayer | reference/sequence-diagram.md");
     expect(container.textContent).toContain("input:");
@@ -78,7 +78,7 @@ describe("MessageToolSkill", () => {
       );
     });
 
-    expect(container.textContent).toContain("Load Skill");
+    expect(container.textContent).toContain("Load skill:");
     expect(container.textContent).toContain("vizlayer");
     expect(container.textContent).toContain("clickhouse-best-practices");
     expect(container.textContent).toContain("input:");
@@ -102,8 +102,24 @@ describe("MessageToolSkill", () => {
       );
     });
 
-    expect(container.textContent).toContain("Load Skill Resources");
+    expect(container.textContent).toContain("Load skill resources:");
     expect(container.textContent).toContain("vizlayer | reference/flowchart.md");
     expect(container.textContent).not.toContain("reference/class-diagram.md");
+  });
+
+  it("falls back to the loaded manual name when input is empty", () => {
+    act(() => {
+      root.render(
+        <MessageToolSkill
+          part={createToolPart({}, "# Manual Loaded: clickhouse-best-practices\n\n# Guidelines")}
+          isRunning={false}
+          label="Load Skill"
+        />
+      );
+    });
+
+    expect(container.textContent).toContain("Load skill:");
+    expect(container.textContent).toContain("clickhouse-best-practices");
+    expect(container.textContent).not.toContain("input:");
   });
 });

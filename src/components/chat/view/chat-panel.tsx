@@ -495,21 +495,6 @@ export function ChatPanel({ currentDatabase, onClose }: ChatPanelProps) {
     clearSelectedChat();
   }, [chat, clearSelectedChat, connection, loadChat, selectedChat]);
 
-  useEffect(() => {
-    if (
-      !chat ||
-      !loadedChatIsDraft ||
-      isRunning ||
-      chat.messages.length > 0 ||
-      !isNoConnectionSessionConnectionId(loadedChatConnectionId) ||
-      isNoConnectionSessionConnectionId(chatConnectionId)
-    ) {
-      return;
-    }
-
-    void loadChat(chat.id, { isNewSession: true });
-  }, [chat, chatConnectionId, isRunning, loadedChatConnectionId, loadedChatIsDraft, loadChat]);
-
   // Update context builder when props change
   useEffect(() => {
     ChatContext.setBuilder(() => ({
