@@ -13,7 +13,9 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { useModelConfig } from "@/hooks/use-model-config";
 import {
@@ -71,7 +73,7 @@ function toDescriptionHeaderLabel(label: string): string {
 function parseModelDetailFields(model: ModelProps): ModelDetailField[] {
   const fields: ModelDetailField[] = [
     {
-      label: "Support Image Input",
+      label: "Supports Image Input",
       value: resolveModelSupportsImageInput(model) ? "Yes" : "No",
     },
   ];
@@ -164,29 +166,40 @@ function ReasoningDetailSection({
   return (
     <div className="flex flex-col gap-1">
       <div className="text-[9px] font-semibold text-muted-foreground">Reasoning Level</div>
-      <div className="flex flex-col gap-0.5" role="radiogroup" aria-label="Reasoning level">
+      <RadioGroup
+        className="flex flex-col gap-0.5"
+        value={activeLevel}
+        onValueChange={handleSelect}
+        aria-label="Reasoning level"
+      >
         {levels.map((level) => {
+          const itemId = `reasoning-level-${level.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
           const isSelected = activeLevel === level;
           return (
-            <button
+            <div
               key={level}
-              type="button"
-              role="radio"
-              aria-checked={isSelected}
               title={`Use ${formatReasoningLevel(level)} reasoning`}
               className={cn(
                 "flex h-6 w-full items-center gap-2 rounded-sm px-2 text-left text-[10px] outline-none transition-colors",
-                "cursor-pointer hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
+                "hover:bg-accent hover:text-accent-foreground",
                 isSelected && "bg-accent text-accent-foreground"
               )}
-              onClick={() => handleSelect(level)}
             >
-              <Check className={cn("h-3 w-3 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
-              <span className="truncate">{formatReasoningLevel(level)}</span>
-            </button>
+              <RadioGroupItem
+                id={itemId}
+                value={level}
+                className="h-3 w-3 shrink-0 border-muted-foreground/60 text-current"
+              />
+              <Label
+                htmlFor={itemId}
+                className="min-w-0 flex-1 cursor-pointer truncate text-[10px] font-normal leading-none"
+              >
+                {formatReasoningLevel(level)}
+              </Label>
+            </div>
           );
         })}
-      </div>
+      </RadioGroup>
     </div>
   );
 }
