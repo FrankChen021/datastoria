@@ -31,7 +31,7 @@ export function buildOrchestratorSystemPrompt(
   const responseLanguage = sanitizeLanguageTag(options?.responseLanguage);
   const languagePolicy =
     responseLanguage && !isEnglishLanguageTag(responseLanguage)
-      ? `\n\n## Response Language Policy\n- Response language (BCP-47): ${responseLanguage}\n- You MUST write all explanatory prose, headings, and visible reasoning summaries in this language.\n- Keep SQL, code, error codes, identifiers, and setting names unchanged.`
+      ? `\n\n## Response Language Policy\n- Response language (BCP-47): ${responseLanguage}\n- You MUST write all explanatory prose, headings, reasoning blocks, visible reasoning summaries, thinking summaries, and planning notes in this language.\n- Never write visible reasoning text in English unless the configured response language is English.\n- Keep SQL, code, error codes, identifiers, and setting names unchanged.`
       : "";
 
   if (!hasDatabaseContextFacts(context)) {

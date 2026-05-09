@@ -19,6 +19,8 @@ import {
 import { ANTHROPIC_PROVIDER } from "./llm-provider-anthropic";
 import { PRIVATE_MODELS, PRIVATE_PROVIDERS } from "./llm-provider-factory-private";
 import { GOOGLE_PROVIDER } from "./llm-provider-google";
+import { OPENAI_CODEX_PROVIDER } from "./llm-provider-openai-codex";
+import { withVisibleReasoningLanguageInstruction } from "./llm-provider-openai-options";
 import { mockModel } from "./models.mock";
 import { PROVIDER_GITHUB_COPILOT, PROVIDER_NEBIUS, PROVIDER_OPENAI_CODEX } from "./provider-ids";
 
@@ -44,6 +46,7 @@ type ProviderOptionsInput = {
   outputReasoning: boolean;
   reasoningLevel?: ReasoningLevel;
   instructions: string;
+  responseLanguage?: string;
 };
 
 type ProviderOptionsRequestInput = Omit<ProviderOptionsInput, "reasoningLevel"> & {
@@ -80,48 +83,6 @@ export interface ModelProps {
   supportsReasoning?: boolean;
   reasoningLevels?: readonly ReasoningLevel[];
   source?: ModelSource;
-}
-
-function decodeJwtPayload(token: string): Record<string, unknown> | undefined {
-  const payload = token.split(".")[1];
-  if (!payload) return undefined;
-
-  try {
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
-    const decoded = globalThis.atob(padded);
-    const bytes = Uint8Array.from(decoded, (char) => char.charCodeAt(0));
-    return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
-  } catch {
-    return undefined;
-  }
-}
-
-export function extractCodexAccountId(token: string): string | undefined {
-  const payload = decodeJwtPayload(token);
-  if (!payload) return undefined;
-
-  const authClaim = payload["https://api.openai.com/auth"];
-  if (authClaim && typeof authClaim === "object") {
-    const auth = authClaim as Record<string, unknown>;
-    if (typeof auth.chatgpt_account_id === "string") return auth.chatgpt_account_id;
-    if (typeof auth.account_id === "string") return auth.account_id;
-
-    const organizations = auth.organizations;
-    if (Array.isArray(organizations)) {
-      const organization = organizations.find(
-        (candidate): candidate is Record<string, unknown> =>
-          Boolean(candidate) && typeof candidate === "object" && typeof candidate.id === "string"
-      );
-      if (typeof organization?.id === "string") return organization.id;
-    }
-  }
-
-  if (typeof payload.chatgpt_account_id === "string") return payload.chatgpt_account_id;
-  if (typeof payload.account_id === "string") return payload.account_id;
-  if (typeof payload.sub === "string") return payload.sub;
-
-  return undefined;
 }
 
 export function resolveModelSupportsImageInput(
@@ -257,13 +218,18 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         apiKey,
       })(modelId),
     systemApiKey: () => process.env.OPENAI_API_KEY,
-    buildProviderOptions: ({ outputReasoning, reasoningLevel }) => {
+    buildProviderOptions: ({ instructions, outputReasoning, reasoningLevel, responseLanguage }) => {
       if (!outputReasoning && !reasoningLevel) {
         return undefined;
       }
 
       return {
         openai: {
+          instructions: withVisibleReasoningLanguageInstruction(
+            instructions,
+            outputReasoning,
+            responseLanguage
+          ),
           ...(reasoningLevel ? { reasoningEffort: reasoningLevel } : {}),
           ...(outputReasoning ? { reasoningSummary: "auto" as const } : {}),
         } satisfies OpenAIResponsesProviderOptions,
@@ -363,28 +329,7 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
       })(modelId);
     },
   },
-  [PROVIDER_OPENAI_CODEX]: {
-    logo: "openai.svg",
-    create: (modelId, apiKey) => {
-      const accountId = extractCodexAccountId(apiKey);
-      return createOpenAI({
-        apiKey,
-        baseURL: "https://chatgpt.com/backend-api/codex",
-        headers: {
-          ...(accountId ? { "chatgpt-account-id": accountId } : {}),
-        },
-      })(modelId);
-    },
-    buildProviderOptions: ({ instructions, outputReasoning, reasoningLevel }) => ({
-      openai: {
-        instructions,
-        ...(reasoningLevel ? { reasoningEffort: reasoningLevel } : {}),
-        ...(outputReasoning ? { reasoningSummary: "auto" as const } : {}),
-        // Keep chat state in DataStoria instead of creating stored OpenAI responses.
-        store: false,
-      } satisfies OpenAIResponsesProviderOptions,
-    }),
-  },
+  [PROVIDER_OPENAI_CODEX]: OPENAI_CODEX_PROVIDER,
   [PROVIDER_NEBIUS]: {
     logo: "nebius.svg",
     create: (modelId, apiKey) =>

@@ -51,7 +51,7 @@ export type AgentConfiguration = {
   pruneValidateSql?: boolean;
   /** Whether to request reasoning summaries from models that support them. Default true. */
   outputReasoning?: boolean;
-  /** Preferred reasoning level for models that expose configurable reasoning. Default medium. */
+  /** Preferred reasoning level for models that expose configurable reasoning. Defaults to DEFAULT_REASONING_LEVEL. */
   reasoningLevel?: ReasoningLevel;
   /** Whether eligible ClickHouse errors should auto-trigger an inline AI explanation. */
   autoExplainClickHouseErrors?: boolean;

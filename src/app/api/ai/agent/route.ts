@@ -539,6 +539,7 @@ export async function POST(req: Request) {
         outputReasoning,
         reasoningLevel: agentContext?.reasoningLevel,
         instructions: orchestratorSystemPrompt,
+        responseLanguage: agentContext?.responseLanguage,
       }),
       tools,
       stopWhen: stepCountIs(10),

@@ -60,6 +60,7 @@ type ModelDetailField = {
 const MODEL_PANEL_HEIGHT_WITH_REASONING = "h-[320px] min-h-[320px] max-h-[320px]";
 const MODEL_PANEL_HEIGHT_DEFAULT = "h-[250px] min-h-[250px] max-h-[250px]";
 const UNSUPPORTED_REASONING_VALUE = "__reasoning_not_supported__";
+const BUILT_IN_REASONING_VALUE = "__reasoning_built_in__";
 
 function toDescriptionHeaderLabel(label: string): string {
   return label
@@ -149,37 +150,58 @@ function ReasoningDetailSection({
     [configuration, levels, onChange]
   );
 
-  if (isInteractive && !supportsReasoning) {
-    return (
-      <div className="flex flex-col gap-1">
-        <div className="text-[9px] font-semibold text-muted-foreground">Reasoning Level</div>
-        <RadioGroup
-          className="flex flex-col gap-0.5"
-          value={UNSUPPORTED_REASONING_VALUE}
-          aria-label="Reasoning level"
+  const renderStaticReasoningOption = (input: {
+    id: string;
+    label: string;
+    title: string;
+    value: string;
+  }) => (
+    <div className="flex flex-col gap-1">
+      <div className="text-[9px] font-semibold text-muted-foreground">Reasoning Level</div>
+      <RadioGroup
+        className="flex flex-col gap-0.5"
+        value={input.value}
+        aria-label="Reasoning level"
+      >
+        <div
+          title={input.title}
+          className={cn(
+            "flex h-6 w-full items-center gap-2 rounded-sm px-2 text-left text-[10px] outline-none transition-colors",
+            "bg-accent text-accent-foreground"
+          )}
         >
-          <div
-            title="Reasoning is not supported by this model"
-            className={cn(
-              "flex h-6 w-full items-center gap-2 rounded-sm px-2 text-left text-[10px] outline-none transition-colors",
-              "bg-accent text-accent-foreground"
-            )}
+          <RadioGroupItem
+            id={input.id}
+            value={input.value}
+            className="h-3 w-3 shrink-0 border-muted-foreground/60 text-current"
+          />
+          <Label
+            htmlFor={input.id}
+            className="min-w-0 flex-1 cursor-pointer truncate text-[10px] font-normal leading-none"
           >
-            <RadioGroupItem
-              id="reasoning-level-not-supported"
-              value={UNSUPPORTED_REASONING_VALUE}
-              className="h-3 w-3 shrink-0 border-muted-foreground/60 text-current"
-            />
-            <Label
-              htmlFor="reasoning-level-not-supported"
-              className="min-w-0 flex-1 cursor-pointer truncate text-[10px] font-normal leading-none"
-            >
-              Not supported
-            </Label>
-          </div>
-        </RadioGroup>
-      </div>
-    );
+            {input.label}
+          </Label>
+        </div>
+      </RadioGroup>
+    </div>
+  );
+
+  if (isInteractive && !supportsReasoning) {
+    return renderStaticReasoningOption({
+      id: "reasoning-level-not-supported",
+      label: "Not supported",
+      title: "Reasoning is not supported by this model",
+      value: UNSUPPORTED_REASONING_VALUE,
+    });
+  }
+
+  if (isInteractive && supportsReasoning && levels.length === 0) {
+    return renderStaticReasoningOption({
+      id: "reasoning-level-built-in",
+      label: "Built-in",
+      title: "Reasoning is built into this model",
+      value: BUILT_IN_REASONING_VALUE,
+    });
   }
 
   if (!isInteractive || levels.length === 0) {

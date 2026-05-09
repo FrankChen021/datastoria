@@ -176,6 +176,46 @@ describe("MODELS reasoning capabilities", () => {
   it("builds provider options from model configuration", () => {
     expect(
       LanguageModelProviderFactory.buildProviderOptions({
+        modelConfig: { provider: "OpenAI", modelId: "gpt-5.5" },
+        outputReasoning: true,
+        reasoningLevel: "high",
+        instructions: "Use Chinese reasoning summaries.",
+        responseLanguage: "zh-CN",
+      })?.openai
+    ).toEqual({
+      instructions: `Use Chinese reasoning summaries.
+
+## Visible Reasoning Language
+The API may emit visible reasoning summaries separately from the final answer. Every visible reasoning summary, thinking summary, planning note, heading, and paragraph MUST be written in zh-CN. Never emit English visible reasoning text unless the configured response language is English.`,
+      reasoningEffort: "high",
+      reasoningSummary: "auto",
+    });
+
+    expect(
+      LanguageModelProviderFactory.buildProviderOptions({
+        modelConfig: { provider: PROVIDER_OPENAI_CODEX, modelId: "gpt-5.4" },
+        outputReasoning: true,
+        reasoningLevel: "high",
+        instructions: "Use Chinese reasoning summaries.",
+        responseLanguage: "zh-CN",
+      })?.openai?.instructions
+    ).toContain("Every visible reasoning summary, thinking summary, planning note");
+
+    expect(
+      LanguageModelProviderFactory.buildProviderOptions({
+        modelConfig: { provider: PROVIDER_OPENAI_CODEX, modelId: "gpt-5.4" },
+        outputReasoning: false,
+        reasoningLevel: "high",
+        instructions: "Use Chinese reasoning summaries.",
+      })?.openai
+    ).toEqual({
+      instructions: "Use Chinese reasoning summaries.",
+      reasoningEffort: "high",
+      store: false,
+    });
+
+    expect(
+      LanguageModelProviderFactory.buildProviderOptions({
         modelConfig: { provider: "Google", modelId: "gemini-3-pro-preview" },
         outputReasoning: true,
         reasoningLevel: "medium",
@@ -210,4 +250,5 @@ describe("MODELS reasoning capabilities", () => {
       })?.anthropic
     ).toEqual({ thinking: { type: "adaptive" }, effort: "max" });
   });
+
 });

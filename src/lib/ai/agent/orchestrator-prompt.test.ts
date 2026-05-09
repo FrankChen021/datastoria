@@ -46,7 +46,10 @@ describe("buildOrchestratorSystemPrompt", () => {
     expect(prompt).toContain("## Response Language Policy");
     expect(prompt).toContain("Response language (BCP-47): zh-CN");
     expect(prompt).toContain(
-      "You MUST write all explanatory prose, headings, and visible reasoning summaries in this language."
+      "You MUST write all explanatory prose, headings, reasoning blocks, visible reasoning summaries, thinking summaries, and planning notes in this language."
+    );
+    expect(prompt).toContain(
+      "Never write visible reasoning text in English unless the configured response language is English."
     );
   });
 
