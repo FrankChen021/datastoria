@@ -250,5 +250,4 @@ The API may emit visible reasoning summaries separately from the final answer. E
       })?.anthropic
     ).toEqual({ thinking: { type: "adaptive" }, effort: "max" });
   });
-
 });
