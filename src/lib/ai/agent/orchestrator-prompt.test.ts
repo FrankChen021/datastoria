@@ -9,6 +9,8 @@ describe("buildOrchestratorSystemPrompt", () => {
     expect(prompt).toContain(
       "Use the available skill names and descriptions to choose the best match"
     );
+    expect(prompt).toContain("Use the user's language");
+    expect(prompt).toContain("visible reasoning summaries");
   });
 
   it("appends diagnosis context when present", () => {
@@ -43,7 +45,12 @@ describe("buildOrchestratorSystemPrompt", () => {
 
     expect(prompt).toContain("## Response Language Policy");
     expect(prompt).toContain("Response language (BCP-47): zh-CN");
-    expect(prompt).toContain("You MUST write all explanatory prose and headings in this language.");
+    expect(prompt).toContain(
+      "You MUST write all explanatory prose, headings, reasoning blocks, visible reasoning summaries, thinking summaries, and planning notes in this language."
+    );
+    expect(prompt).toContain(
+      "Never write visible reasoning text in English unless the configured response language is English."
+    );
   });
 
   it("ignores invalid response language values", () => {

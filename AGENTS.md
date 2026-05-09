@@ -35,6 +35,7 @@ Primary areas:
 Use the existing root scripts unless there is a documented reason not to:
 
 - `npm run dev`: main development workflow
+- `npm run format`: format code after code changes
 - `npm run build`: production build
 - `npm run typecheck`: TypeScript validation
 - `npm run lint`: ESLint
@@ -76,6 +77,7 @@ Apply the `vercel-react-best-practices` skill when writing, reviewing, or refact
 
 ## Testing Guidance
 
+- After any code change, run `npm run format` before the final validation pass. If formatting cannot be run, call that out explicitly.
 - For non-`src` changes, run `npm run lint` whenever the touched files or config can affect ESLint behavior or results.
 - For behavior changes with test coverage, run `npm run test` or the narrowest Vitest target available.
 - For docs changes that affect the manual, run `npm run docs:build` when practical.
@@ -94,6 +96,7 @@ Before finishing, verify:
 - The change matches local patterns in the touched area.
 - Imports, types, and call sites are consistent.
 - Error and empty states are still coherent.
+- `npm run format` has been run after code changes.
 - Relevant validation has been run, or the gap is called out clearly.
 
 ## Commit Rules

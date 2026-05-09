@@ -18,7 +18,7 @@ const ORCHESTRATOR_SYSTEM_PROMPT_BASE = `You are a ClickHouse Expert with access
 3. **Execute**: Use \`execute_sql\` without a skill only for trivial one-off checks (e.g. \`SELECT 1\`).
 4. **Retry**: On tool error, consult the loaded skill instructions, fix, and retry. Do not give up after one failure.
 5. **Time context**: Reuse the most recent explicit time range from the conversation. Default to the last 60 minutes only when none exists.
-6. **Output**: Respond in markdown. Follow the loaded skill's output instructions exactly.`;
+6. **Output**: Respond in markdown. Follow the loaded skill's output instructions exactly. Use the user's language for explanatory prose, headings, and visible reasoning summaries unless a response language policy below says otherwise.`;
 
 export function buildOrchestratorSystemPrompt(
   context?: ServerDatabaseContext,
@@ -31,7 +31,7 @@ export function buildOrchestratorSystemPrompt(
   const responseLanguage = sanitizeLanguageTag(options?.responseLanguage);
   const languagePolicy =
     responseLanguage && !isEnglishLanguageTag(responseLanguage)
-      ? `\n\n## Response Language Policy\n- Response language (BCP-47): ${responseLanguage}\n- You MUST write all explanatory prose and headings in this language.\n- Keep SQL, code, error codes, identifiers, and setting names unchanged.`
+      ? `\n\n## Response Language Policy\n- Response language (BCP-47): ${responseLanguage}\n- You MUST write all explanatory prose, headings, reasoning blocks, visible reasoning summaries, thinking summaries, and planning notes in this language.\n- Never write visible reasoning text in English unless the configured response language is English.\n- Keep SQL, code, error codes, identifiers, and setting names unchanged.`
       : "";
 
   if (!hasDatabaseContextFacts(context)) {

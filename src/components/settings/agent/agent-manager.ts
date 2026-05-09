@@ -1,9 +1,15 @@
+import {
+  DEFAULT_REASONING_LEVEL,
+  normalizeReasoningLevel,
+  type ReasoningLevel,
+} from "@/lib/ai/reasoning-levels";
 import type { LocalStorage } from "@/lib/storage/local-storage-provider";
 import { StorageManager } from "@/lib/storage/storage-provider-manager";
 
 export type AgentMode = "v2" | "legacy";
 
 const STORAGE_KEY = "settings:ai:agent";
+export const AGENT_CONFIG_UPDATED_EVENT = "AGENT_CONFIG_UPDATED";
 
 // See clickhouse-error-code.ts
 export const DEFAULT_AUTO_EXPLAIN_BLACKLIST = [
@@ -45,6 +51,8 @@ export type AgentConfiguration = {
   pruneValidateSql?: boolean;
   /** Whether to request reasoning summaries from models that support them. Default true. */
   outputReasoning?: boolean;
+  /** Preferred reasoning level for models that expose configurable reasoning. Defaults to DEFAULT_REASONING_LEVEL. */
+  reasoningLevel?: ReasoningLevel;
   /** Whether eligible ClickHouse errors should auto-trigger an inline AI explanation. */
   autoExplainClickHouseErrors?: boolean;
   /** ClickHouse error codes that should never auto-trigger inline explanation. */
@@ -71,12 +79,14 @@ export class AgentConfigurationManager {
         mode: "v2",
         pruneValidateSql: true,
         outputReasoning: true,
+        reasoningLevel: DEFAULT_REASONING_LEVEL,
         autoExplainClickHouseErrors: true,
         autoExplainBlacklist: DEFAULT_AUTO_EXPLAIN_BLACKLIST,
         aiResponseLanguage: DEFAULT_AI_RESPONSE_LANGUAGE,
       }));
       this.configuration = {
         ...stored,
+        reasoningLevel: normalizeReasoningLevel(stored.reasoningLevel),
         aiResponseLanguage: normalizeAIResponseLanguage(
           stored.aiResponseLanguage ?? stored.sqlReviewLanguage ?? stored.autoExplainLanguage
         ),
@@ -93,9 +103,13 @@ export class AgentConfigurationManager {
     } = cfg;
     const normalized = {
       ...rest,
+      reasoningLevel: normalizeReasoningLevel(cfg.reasoningLevel),
       aiResponseLanguage: normalizeAIResponseLanguage(cfg.aiResponseLanguage),
     };
     this.configuration = normalized;
     this.getStorage().setJSON(normalized);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(AGENT_CONFIG_UPDATED_EVENT));
+    }
   }
 }

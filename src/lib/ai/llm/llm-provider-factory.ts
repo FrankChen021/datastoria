@@ -1,13 +1,26 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
+import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import { createCerebras } from "@ai-sdk/cerebras";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createGroq } from "@ai-sdk/groq";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import type { GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
+import { createGroq, type GroqLanguageModelOptions } from "@ai-sdk/groq";
+import { createOpenAI, type OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
+import {
+  createOpenAICompatible,
+  type OpenAICompatibleLanguageModelChatOptions,
+} from "@ai-sdk/openai-compatible";
+import { createOpenRouter, type OpenRouterProviderOptions } from "@openrouter/ai-sdk-provider";
 import { createGitHubCopilotOpenAICompatible } from "@opeoginni/github-copilot-openai-compatible";
 import type { LanguageModel } from "ai";
+import {
+  DEFAULT_REASONING_LEVEL,
+  getDefaultReasoningLevel,
+  isReasoningLevel,
+  type ReasoningLevel,
+} from "../reasoning-levels";
+import { ANTHROPIC_PROVIDER } from "./llm-provider-anthropic";
 import { PRIVATE_MODELS, PRIVATE_PROVIDERS } from "./llm-provider-factory-private";
+import { GOOGLE_PROVIDER } from "./llm-provider-google";
+import { OPENAI_CODEX_PROVIDER } from "./llm-provider-openai-codex";
+import { withVisibleReasoningLanguageInstruction } from "./llm-provider-openai-options";
 import { mockModel } from "./models.mock";
 import { PROVIDER_GITHUB_COPILOT, PROVIDER_NEBIUS, PROVIDER_OPENAI_CODEX } from "./provider-ids";
 
@@ -21,10 +34,40 @@ type ModelCreator = (modelId: string, apiKey: string) => LanguageModel;
 type RequestedModelConfig = { provider: string; modelId: string; apiKey?: string };
 type ResolvedModelConfig = { provider: string; modelId: string; apiKey: string };
 export type ModelSource = "user" | "system";
+
+type ProviderOptionsModelConfig = {
+  provider: string;
+  modelId: string;
+  reasoningLevels?: readonly ReasoningLevel[];
+};
+
+type ProviderOptionsInput = {
+  modelConfig: ProviderOptionsModelConfig;
+  outputReasoning: boolean;
+  reasoningLevel?: ReasoningLevel;
+  instructions: string;
+  responseLanguage?: string;
+};
+
+type ProviderOptionsRequestInput = Omit<ProviderOptionsInput, "reasoningLevel"> & {
+  reasoningLevel?: unknown;
+};
+
+export type LanguageModelProviderOptions = {
+  openai?: OpenAIResponsesProviderOptions;
+  anthropic?: AnthropicProviderOptions;
+  cerebras?: OpenAICompatibleLanguageModelChatOptions;
+  google?: GoogleGenerativeAIProviderOptions;
+  groq?: GroqLanguageModelOptions;
+  nebius?: OpenAICompatibleLanguageModelChatOptions;
+  openrouter?: OpenRouterProviderOptions;
+};
+
 export interface ProviderDefinition {
   create: ModelCreator;
   systemApiKey?: () => string | undefined;
   logo?: string;
+  buildProviderOptions?: (input: ProviderOptionsInput) => LanguageModelProviderOptions | undefined;
 }
 
 export interface ModelProps {
@@ -38,49 +81,8 @@ export interface ModelProps {
   supportsImageInput?: boolean;
   supportsTemperature?: boolean;
   supportsReasoning?: boolean;
+  reasoningLevels?: readonly ReasoningLevel[];
   source?: ModelSource;
-}
-
-function decodeJwtPayload(token: string): Record<string, unknown> | undefined {
-  const payload = token.split(".")[1];
-  if (!payload) return undefined;
-
-  try {
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
-    const decoded = globalThis.atob(padded);
-    const bytes = Uint8Array.from(decoded, (char) => char.charCodeAt(0));
-    return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
-  } catch {
-    return undefined;
-  }
-}
-
-export function extractCodexAccountId(token: string): string | undefined {
-  const payload = decodeJwtPayload(token);
-  if (!payload) return undefined;
-
-  const authClaim = payload["https://api.openai.com/auth"];
-  if (authClaim && typeof authClaim === "object") {
-    const auth = authClaim as Record<string, unknown>;
-    if (typeof auth.chatgpt_account_id === "string") return auth.chatgpt_account_id;
-    if (typeof auth.account_id === "string") return auth.account_id;
-
-    const organizations = auth.organizations;
-    if (Array.isArray(organizations)) {
-      const organization = organizations.find(
-        (candidate): candidate is Record<string, unknown> =>
-          Boolean(candidate) && typeof candidate === "object" && typeof candidate.id === "string"
-      );
-      if (typeof organization?.id === "string") return organization.id;
-    }
-  }
-
-  if (typeof payload.chatgpt_account_id === "string") return payload.chatgpt_account_id;
-  if (typeof payload.account_id === "string") return payload.account_id;
-  if (typeof payload.sub === "string") return payload.sub;
-
-  return undefined;
 }
 
 export function resolveModelSupportsImageInput(
@@ -127,6 +129,81 @@ export function resolveModelSupportsImageInput(
   return false;
 }
 
+function findExactModel(model: Pick<ModelProps, "provider" | "modelId">): ModelProps | undefined {
+  return (
+    SYSTEM_MODELS.find(
+      (candidate) => candidate.provider === model.provider && candidate.modelId === model.modelId
+    ) ??
+    MODELS.find(
+      (candidate) => candidate.provider === model.provider && candidate.modelId === model.modelId
+    )
+  );
+}
+
+export function resolveModelSupportsReasoning(
+  model?: Pick<ModelProps, "provider" | "modelId" | "supportsReasoning" | "reasoningLevels"> | null
+): boolean {
+  if (!model) {
+    return false;
+  }
+
+  if (typeof model.supportsReasoning === "boolean") {
+    return model.supportsReasoning;
+  }
+
+  if (model.reasoningLevels && model.reasoningLevels.length > 0) {
+    return true;
+  }
+
+  const exactMatch = findExactModel(model);
+  if (typeof exactMatch?.supportsReasoning === "boolean") {
+    return exactMatch.supportsReasoning;
+  }
+
+  return Boolean(exactMatch?.reasoningLevels?.length);
+}
+
+export function resolveModelReasoningLevels(
+  model?: Pick<ModelProps, "provider" | "modelId" | "reasoningLevels"> | null
+): readonly ReasoningLevel[] {
+  if (!model) {
+    return [];
+  }
+
+  if (model.reasoningLevels) {
+    return model.reasoningLevels;
+  }
+
+  return findExactModel(model)?.reasoningLevels ?? [];
+}
+
+function resolveReasoningLevelForModel(
+  modelConfig: ProviderOptionsModelConfig,
+  reasoningLevel?: unknown
+): ReasoningLevel | undefined {
+  const levels = resolveModelReasoningLevels(modelConfig);
+  if (levels.length === 0) {
+    return undefined;
+  }
+
+  const requestedLevel = isReasoningLevel(reasoningLevel) ? reasoningLevel.trim() : undefined;
+  if (requestedLevel && levels.includes(requestedLevel)) {
+    return requestedLevel;
+  }
+
+  if (levels.includes(DEFAULT_REASONING_LEVEL)) {
+    return DEFAULT_REASONING_LEVEL;
+  }
+
+  return getDefaultReasoningLevel(levels);
+}
+
+function toStandardReasoningLevel(level: ReasoningLevel): "low" | "medium" | "high" | undefined {
+  if (level === "xhigh") return "high";
+  if (level === "low" || level === "medium" || level === "high") return level;
+  return undefined;
+}
+
 /**
  * Provider definitions map
  * Key: provider name (e.g., "OpenAI", "Google", "Anthropic", "OpenRouter", "Groq")
@@ -141,23 +218,26 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         apiKey,
       })(modelId),
     systemApiKey: () => process.env.OPENAI_API_KEY,
+    buildProviderOptions: ({ instructions, outputReasoning, reasoningLevel, responseLanguage }) => {
+      if (!outputReasoning && !reasoningLevel) {
+        return undefined;
+      }
+
+      return {
+        openai: {
+          instructions: withVisibleReasoningLanguageInstruction(
+            instructions,
+            outputReasoning,
+            responseLanguage
+          ),
+          ...(reasoningLevel ? { reasoningEffort: reasoningLevel } : {}),
+          ...(outputReasoning ? { reasoningSummary: "auto" as const } : {}),
+        } satisfies OpenAIResponsesProviderOptions,
+      };
+    },
   },
-  Google: {
-    logo: "google.svg",
-    create: (modelId, apiKey) =>
-      createGoogleGenerativeAI({
-        apiKey,
-      })(modelId),
-    systemApiKey: () => process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-  },
-  Anthropic: {
-    logo: "anthropic.svg",
-    create: (modelId, apiKey) =>
-      createAnthropic({
-        apiKey,
-      })(modelId),
-    systemApiKey: () => process.env.ANTHROPIC_API_KEY,
-  },
+  Google: GOOGLE_PROVIDER,
+  Anthropic: ANTHROPIC_PROVIDER,
   OpenRouter: {
     logo: "openrouter.svg",
     create: (modelId, apiKey) =>
@@ -165,6 +245,25 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         apiKey,
       })(modelId),
     systemApiKey: () => process.env.OPENROUTER_API_KEY,
+    buildProviderOptions: ({ reasoningLevel }) => {
+      if (!reasoningLevel) {
+        return undefined;
+      }
+
+      const effort = toStandardReasoningLevel(reasoningLevel);
+      if (!effort) {
+        return undefined;
+      }
+
+      return {
+        openrouter: {
+          reasoning: {
+            enabled: true,
+            effort,
+          },
+        } satisfies OpenRouterProviderOptions,
+      };
+    },
   },
   Groq: {
     logo: "groq.svg",
@@ -173,6 +272,23 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         apiKey,
       })(modelId),
     systemApiKey: () => process.env.GROQ_API_KEY,
+    buildProviderOptions: ({ outputReasoning, reasoningLevel }) => {
+      if (!reasoningLevel) {
+        return undefined;
+      }
+
+      const reasoningEffort = toStandardReasoningLevel(reasoningLevel);
+      if (!reasoningEffort) {
+        return undefined;
+      }
+
+      return {
+        groq: {
+          reasoningEffort,
+          ...(outputReasoning ? { reasoningFormat: "parsed" as const } : {}),
+        } satisfies GroqLanguageModelOptions,
+      };
+    },
   },
   Cerebras: {
     logo: "cerebras.svg",
@@ -181,6 +297,22 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         apiKey,
       })(modelId),
     systemApiKey: () => process.env.CEREBRAS_API_KEY,
+    buildProviderOptions: ({ reasoningLevel }) => {
+      if (!reasoningLevel) {
+        return undefined;
+      }
+
+      const reasoningEffort = toStandardReasoningLevel(reasoningLevel);
+      if (!reasoningEffort) {
+        return undefined;
+      }
+
+      return {
+        cerebras: {
+          reasoningEffort,
+        } satisfies OpenAICompatibleLanguageModelChatOptions,
+      };
+    },
   },
   [PROVIDER_GITHUB_COPILOT]: {
     logo: "github-copilot.svg",
@@ -197,19 +329,7 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
       })(modelId);
     },
   },
-  [PROVIDER_OPENAI_CODEX]: {
-    logo: "openai.svg",
-    create: (modelId, apiKey) => {
-      const accountId = extractCodexAccountId(apiKey);
-      return createOpenAI({
-        apiKey,
-        baseURL: "https://chatgpt.com/backend-api/codex",
-        headers: {
-          ...(accountId ? { "chatgpt-account-id": accountId } : {}),
-        },
-      })(modelId);
-    },
-  },
+  [PROVIDER_OPENAI_CODEX]: OPENAI_CODEX_PROVIDER,
   [PROVIDER_NEBIUS]: {
     logo: "nebius.svg",
     create: (modelId, apiKey) =>
@@ -219,6 +339,22 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         baseURL: "https://api.tokenfactory.nebius.com/v1/",
       })(modelId),
     systemApiKey: () => process.env.NEBIUS_API_KEY,
+    buildProviderOptions: ({ reasoningLevel }) => {
+      if (!reasoningLevel) {
+        return undefined;
+      }
+
+      const reasoningEffort = toStandardReasoningLevel(reasoningLevel);
+      if (!reasoningEffort) {
+        return undefined;
+      }
+
+      return {
+        nebius: {
+          reasoningEffort,
+        } satisfies OpenAICompatibleLanguageModelChatOptions,
+      };
+    },
   },
 };
 
@@ -229,11 +365,78 @@ export const MODELS: ModelProps[] = [
   // https://platform.openai.com/chat/edit
   {
     provider: "OpenAI",
+    modelId: "gpt-5.5",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "A new class of intelligence for coding and professional work.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
+    modelId: "gpt-5.5-pro",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "Version of GPT-5.5 that produces smarter and more precise responses.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
+    modelId: "gpt-5.4",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "A more affordable model for coding and professional work.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
+    modelId: "gpt-5.4-pro",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "Version of GPT-5.4 that produces smarter and more precise responses.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
+    modelId: "gpt-5.4-mini",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "OpenAI's strongest mini model yet for coding, computer use, and subagents.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
+    modelId: "gpt-5.4-nano",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "OpenAI's cheapest GPT-5.4-class model for simple high-volume tasks.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
     modelId: "gpt-5",
     free: false,
     autoSelectable: false,
     supportsImageInput: true,
     supportsReasoning: true,
+    reasoningLevels: ["minimal", "low", "medium", "high"],
     description: "Next-generation frontier model from OpenAI.",
     source: "user",
   },
@@ -244,15 +447,8 @@ export const MODELS: ModelProps[] = [
     autoSelectable: false,
     supportsImageInput: true,
     supportsReasoning: true,
+    reasoningLevels: ["none", "low", "medium", "high"],
     description: "Enhanced version of GPT-5 with improved reasoning capabilities.",
-    source: "user",
-  },
-  {
-    provider: "OpenAI",
-    modelId: "gpt-4.1",
-    free: false,
-    supportsImageInput: true,
-    description: "Updated GPT-4 model with improved performance and accuracy.",
     source: "user",
   },
   {
@@ -261,40 +457,6 @@ export const MODELS: ModelProps[] = [
     free: false,
     supportsImageInput: true,
     description: "Omni model from OpenAI, designed for speed and multimodal interaction.",
-    source: "user",
-  },
-  {
-    provider: "OpenAI",
-    modelId: "gpt-4o-mini",
-    free: false,
-    supportsImageInput: true,
-    description: "Lighter version of GPT-4o for faster, cost-effective tasks.",
-    source: "user",
-  },
-  {
-    provider: "OpenAI",
-    modelId: "gpt-4",
-    free: false,
-    supportsImageInput: false,
-    description: "Robust high-capability model for complex reasoning and tasks.",
-    source: "user",
-  },
-  {
-    provider: "OpenAI",
-    modelId: "o1",
-    free: false,
-    supportsImageInput: true,
-    supportsReasoning: true,
-    description: "OpenAI's latest reasoning model, optimized for chain-of-thought.",
-    source: "user",
-  },
-  {
-    provider: "OpenAI",
-    modelId: "o3-mini",
-    free: false,
-    supportsImageInput: false,
-    supportsReasoning: true,
-    description: "Optimized version of OpenAI's reasoning models for fast responses.",
     source: "user",
   },
 
@@ -306,6 +468,8 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "high"],
     description: "Google's most capable model for complex tasks and multimodal inputs.",
     source: "user",
   },
@@ -315,6 +479,8 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["minimal", "low", "medium", "high"],
     description: "Fast and efficient model from Google for rapid interactions.",
     source: "user",
   },
@@ -347,10 +513,23 @@ export const MODELS: ModelProps[] = [
   // https://platform.claude.com/docs/en/about-claude/models/overview
   {
     provider: "Anthropic",
+    modelId: "claude-opus-4-7",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "Anthropic's latest Opus model for complex analysis, agents, and coding.",
+    source: "user",
+  },
+  {
+    provider: "Anthropic",
     modelId: "claude-opus-4-6",
     free: false,
     autoSelectable: false,
     supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     description: "Anthropic's most intelligent model for building agents and coding.",
     source: "user",
   },
@@ -359,7 +538,20 @@ export const MODELS: ModelProps[] = [
     modelId: "claude-opus-4-5",
     free: false,
     supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "Anthropic's most powerful model for highly complex analysis.",
+    source: "user",
+  },
+  {
+    provider: "Anthropic",
+    modelId: "claude-sonnet-4-6",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "Anthropic's most capable Sonnet model for agents, coding, and computer use.",
     source: "user",
   },
   {
@@ -368,6 +560,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: false,
     supportsImageInput: true,
+    supportsReasoning: true,
     description: "Anthropic's best combination of speed and intelligence.",
     source: "user",
   },
@@ -376,6 +569,7 @@ export const MODELS: ModelProps[] = [
     modelId: "claude-haiku-4-5",
     free: false,
     supportsImageInput: true,
+    supportsReasoning: true,
     description: "Anthropic's fastest model with near-frontier intelligence.",
     source: "user",
   },
@@ -404,6 +598,8 @@ export const MODELS: ModelProps[] = [
     free: true,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "Open-source GPT model with large parameter count for general tasks.",
     source: "user",
   },
@@ -413,6 +609,8 @@ export const MODELS: ModelProps[] = [
     free: true,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "Open-source GPT model with large parameter count for general tasks.",
     source: "user",
   },
@@ -425,6 +623,8 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "Fast-inference open-source model running on Groq hardware.",
     source: "user",
   },
@@ -448,6 +648,8 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "Cerebras's latest model with extreme intelligence and reliability.",
     source: "user",
   },
@@ -460,6 +662,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
     description: "DeepSeek V3, powerful open-source model with strong reasoning.",
     source: "user",
   },
@@ -469,6 +672,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
     description: "DeepSeek R1, advanced reasoning model with chain-of-thought.",
     source: "user",
   },
@@ -478,6 +682,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
     description: "Qwen 3 235B, largest Qwen model for complex tasks.",
     source: "user",
   },
@@ -487,6 +692,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
     description: "Qwen3-Next-80B-A3B-Thinking, efficient reasoning model.",
     source: "user",
   },
@@ -496,6 +702,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: true,
+    supportsReasoning: true,
     description:
       "Flagship GLM model with strong multilingual reasoning, long context, and robust tool use.",
     source: "user",
@@ -506,6 +713,7 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: true,
+    supportsReasoning: true,
     description: "Kimi-K2.5, 15 trillion mixed visual and text tokens atop Kimi-K2-Base",
     source: "user",
   },
@@ -515,6 +723,8 @@ export const MODELS: ModelProps[] = [
     free: false,
     autoSelectable: true,
     supportsImageInput: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high"],
     description: "GPT-OSS 120B, open-source GPT model with strong general capabilities.",
     source: "user",
   },
@@ -526,6 +736,7 @@ export const MODELS: ModelProps[] = [
     supportsImageInput: true,
     supportsTemperature: false,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     supportedEndpoints: ["responses"],
     description: "Codex model accessed with ChatGPT/Codex subscription authentication.",
     source: "user",
@@ -538,6 +749,7 @@ export const MODELS: ModelProps[] = [
     supportsImageInput: true,
     supportsTemperature: false,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     supportedEndpoints: ["responses"],
     description: "Codex model accessed with ChatGPT/Codex subscription authentication.",
     source: "user",
@@ -550,6 +762,7 @@ export const MODELS: ModelProps[] = [
     supportsImageInput: true,
     supportsTemperature: false,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     supportedEndpoints: ["responses"],
     description: "Lower-cost Codex model accessed with ChatGPT/Codex subscription authentication.",
     source: "user",
@@ -562,6 +775,7 @@ export const MODELS: ModelProps[] = [
     supportsImageInput: true,
     supportsTemperature: false,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     supportedEndpoints: ["responses"],
     description: "Codex model accessed with ChatGPT/Codex subscription authentication.",
     source: "user",
@@ -574,6 +788,7 @@ export const MODELS: ModelProps[] = [
     supportsImageInput: false,
     supportsTemperature: false,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     supportedEndpoints: ["responses"],
     description: "Text-only Codex model accessed with ChatGPT/Codex subscription authentication.",
     source: "user",
@@ -586,6 +801,7 @@ export const MODELS: ModelProps[] = [
     supportsImageInput: true,
     supportsTemperature: false,
     supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
     supportedEndpoints: ["responses"],
     description: "Codex model accessed with ChatGPT/Codex subscription authentication.",
     source: "user",
@@ -789,9 +1005,26 @@ export class LanguageModelProviderFactory {
   }
 
   static supportsReasoning(provider: string, modelId: string): boolean {
-    return (
-      MODELS.find((model) => model.provider === provider && model.modelId === modelId)
-        ?.supportsReasoning === true
-    );
+    return resolveModelSupportsReasoning({ provider, modelId });
+  }
+
+  static getReasoningLevels(provider: string, modelId: string): readonly ReasoningLevel[] {
+    return resolveModelReasoningLevels({ provider, modelId });
+  }
+
+  static buildProviderOptions(
+    input: ProviderOptionsRequestInput
+  ): LanguageModelProviderOptions | undefined {
+    const providerDefinition = PROVIDERS[input.modelConfig.provider];
+    if (!providerDefinition?.buildProviderOptions) {
+      return undefined;
+    }
+
+    const reasoningLevel = resolveReasoningLevelForModel(input.modelConfig, input.reasoningLevel);
+
+    return providerDefinition.buildProviderOptions({
+      ...input,
+      reasoningLevel,
+    });
   }
 }

@@ -12,7 +12,6 @@ import {
   resolveModelConfig,
   resolveModelSupportsImageInput,
 } from "@/lib/ai/llm/llm-provider-factory";
-import { PROVIDER_OPENAI_CODEX } from "@/lib/ai/llm/provider-ids";
 import { MentionContext } from "@/lib/ai/mention-context";
 import { MessagePruner } from "@/lib/ai/message-pruner";
 import {
@@ -45,7 +44,6 @@ import { getRuntimeAvailableToolNames } from "@/lib/ai/tools/server/runtime-tool
 import { SERVER_TOOL_NAMES } from "@/lib/ai/tools/server/server-tool-names";
 import { createServerTools } from "@/lib/ai/tools/server/server-tools";
 import { defaultCodeSearchFactory } from "@/lib/code-search/code-search-factory";
-import type { OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
 import { APICallError } from "@ai-sdk/provider";
 import {
   convertToModelMessages,
@@ -95,33 +93,6 @@ function shouldOutputReasoning(
     agentContext?.outputReasoning === true &&
     LanguageModelProviderFactory.supportsReasoning(model.provider, model.modelId)
   );
-}
-
-function buildOpenAIProviderOptions(input: {
-  provider: string;
-  outputReasoning: boolean;
-  instructions: string;
-}): { openai: OpenAIResponsesProviderOptions } | undefined {
-  if (input.provider === PROVIDER_OPENAI_CODEX) {
-    return {
-      openai: {
-        instructions: input.instructions,
-        ...(input.outputReasoning ? { reasoningSummary: "auto" as const } : {}),
-        // Keep chat state in DataStoria instead of creating stored OpenAI responses.
-        store: false,
-      } satisfies OpenAIResponsesProviderOptions,
-    };
-  }
-
-  if (input.provider === "OpenAI" && input.outputReasoning) {
-    return {
-      openai: {
-        reasoningSummary: "auto",
-      } satisfies OpenAIResponsesProviderOptions,
-    };
-  }
-
-  return undefined;
 }
 
 function getMessageIdFromMessages(messages: UIMessage[]): string {
@@ -563,10 +534,12 @@ export async function POST(req: Request) {
       model,
       system: orchestratorSystemPrompt,
       messages: modelMessages,
-      providerOptions: buildOpenAIProviderOptions({
-        provider: modelConfig.provider,
+      providerOptions: LanguageModelProviderFactory.buildProviderOptions({
+        modelConfig,
         outputReasoning,
+        reasoningLevel: agentContext?.reasoningLevel,
         instructions: orchestratorSystemPrompt,
+        responseLanguage: agentContext?.responseLanguage,
       }),
       tools,
       stopWhen: stepCountIs(10),

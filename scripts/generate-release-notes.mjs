@@ -18,9 +18,9 @@
  * RELEASE_ID, HEAD, OUTPUT_DIR default from git and cwd. Optional: FROM=last_release_sha.
  */
 
+import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const REPO = process.env.REPO; // owner/repo
@@ -49,7 +49,9 @@ const PREVIOUS_RELEASE_NOTES_JSON = process.env.PREVIOUS_RELEASE_NOTES_JSON;
 const OUTPUT_DIR = process.env.OUTPUT_DIR || process.cwd();
 
 if (!GITHUB_TOKEN || !REPO || !RELEASE_ID) {
-  console.error("Error: GITHUB_TOKEN and REPO are required. RELEASE_ID is required if not in a git repo.");
+  console.error(
+    "Error: GITHUB_TOKEN and REPO are required. RELEASE_ID is required if not in a git repo."
+  );
   process.exit(1);
 }
 
@@ -84,9 +86,7 @@ function typeFromLabels(labelNames) {
   }
   // Skip if PR has only documentation (docs/documentation) and no highlight/feature/fix
   const hasAnyDocsLabel = lowerNames.some((n) => DOCS_LABELS.has(n));
-  const hasReleaseNoteType = lowerNames.some((n) =>
-    ["highlight", "feature", "fix"].includes(n)
-  );
+  const hasReleaseNoteType = lowerNames.some((n) => ["highlight", "feature", "fix"].includes(n));
   if (hasAnyDocsLabel && !hasReleaseNoteType) return null;
 
   let chosen = "feature"; // default when no label matches
@@ -101,8 +101,16 @@ function typeFromLabels(labelNames) {
   return chosen;
 }
 
+function stripCodexPrefix(title) {
+  return title.replace(/^\s*(?:\[codex\]\s*)+/i, "").trim() || title;
+}
+
 function stripConventionalPrefix(title) {
   return title.replace(/^(feat|fix|docs|chore)(\([^)]*\))?!?:\s*/i, "").trim() || title;
+}
+
+function normalizeReleaseTitle(title) {
+  return stripConventionalPrefix(stripCodexPrefix(title));
 }
 
 const PR_NUMBER_REGEX = /#(\d+)|Merge pull request #(\d+)/gi;
@@ -146,9 +154,9 @@ async function getPrTitleAndLabels(prNumber) {
   let type = typeFromLabels(labelNames);
   if (type === null) return null;
   // Title prefix "fix" (case insensitive) maps to fix category
-  const title = issue.title || "";
+  const title = stripCodexPrefix(issue.title || "");
   if (/^fix\b/i.test(title)) type = "fix";
-  const text = stripConventionalPrefix(title);
+  const text = normalizeReleaseTitle(title);
 
   let mergedAt = null;
   try {
@@ -213,8 +221,7 @@ async function main() {
 
   history = history.filter((h) => h.id !== RELEASE_ID);
   if (notes.length > 0) history.unshift(releaseData);
-  const finalHistory = history
-    .filter((h) => h.notes && h.notes.length > 0);
+  const finalHistory = history.filter((h) => h.notes && h.notes.length > 0);
 
   if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
   fs.writeFileSync(outputPath, JSON.stringify(finalHistory, null, 2));
