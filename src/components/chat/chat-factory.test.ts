@@ -1,6 +1,9 @@
 import type { AppUIMessage } from "@/lib/ai/ai-types";
 import { describe, expect, it } from "vitest";
-import { buildSendMessagesRequestPayload } from "./chat-factory";
+import {
+  buildAgentContextWithResponseLanguage,
+  buildSendMessagesRequestPayload,
+} from "./chat-factory";
 import { NO_CONNECTION_SESSION_CONNECTION_ID } from "./session/session-connection-id";
 
 function createMessage(overrides: Partial<AppUIMessage>): AppUIMessage {
@@ -238,5 +241,23 @@ describe("buildSendMessagesRequestPayload", () => {
       connectionId: NO_CONNECTION_SESSION_CONNECTION_ID,
     });
     expect(payload).not.toHaveProperty("context");
+  });
+});
+
+describe("buildAgentContextWithResponseLanguage", () => {
+  it("adds configured non-English response language to agent context", () => {
+    expect(buildAgentContextWithResponseLanguage(undefined, "zh-CN")).toEqual({
+      responseLanguage: "zh-CN",
+    });
+  });
+
+  it("lets explicit agent context override configured response language", () => {
+    expect(buildAgentContextWithResponseLanguage({ responseLanguage: "ja" }, "zh-CN")).toEqual({
+      responseLanguage: "ja",
+    });
+  });
+
+  it("does not force English as an explicit response language", () => {
+    expect(buildAgentContextWithResponseLanguage(undefined, "en")).toBeUndefined();
   });
 });

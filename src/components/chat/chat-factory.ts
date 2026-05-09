@@ -1,5 +1,8 @@
 import { getRuntimeConfig } from "@/components/runtime-config-provider";
-import { AgentConfigurationManager } from "@/components/settings/agent/agent-manager";
+import {
+  AgentConfigurationManager,
+  normalizeAIResponseLanguage,
+} from "@/components/settings/agent/agent-manager";
 import { ModelManager } from "@/components/settings/models/model-manager";
 import type { PlanToolOutput } from "@/lib/ai/agent/plan/planning-types";
 import type { AgentContext, AppUIMessage, Message, MessageMetadata } from "@/lib/ai/ai-types";
@@ -94,6 +97,22 @@ type SendMessagesRequestPayloadArgs = {
   agentContext?: Partial<AgentContext>;
   chatPersistenceMode: "local" | "remote";
 };
+
+export function buildAgentContextWithResponseLanguage(
+  agentContext: Partial<AgentContext> | undefined,
+  configuredLanguage: string | undefined
+): Partial<AgentContext> | undefined {
+  const responseLanguage = normalizeAIResponseLanguage(configuredLanguage);
+  const configuredAgentContext =
+    responseLanguage === "en" ? undefined : ({ responseLanguage } satisfies Partial<AgentContext>);
+
+  return configuredAgentContext || agentContext
+    ? {
+        ...configuredAgentContext,
+        ...(agentContext ?? {}),
+      }
+    : undefined;
+}
 
 function extractTextFromMessage(
   message: Pick<Message, "parts"> | Pick<AppUIMessage, "parts">
@@ -538,6 +557,10 @@ export class ChatFactory {
           const requestContext = options.context ?? ChatContext.build();
           const chatPersistenceMode = getRuntimeConfig().sessionRepositoryType;
           const agentConfiguration = AgentConfigurationManager.getConfiguration();
+          const agentContext = buildAgentContextWithResponseLanguage(
+            options.agentContext,
+            agentConfiguration.aiResponseLanguage
+          );
           const clickHouseConnection =
             agentConfiguration.mode === "v2"
               ? buildClickHouseConnectionPayload(connection)
@@ -558,7 +581,7 @@ export class ChatFactory {
               pruneValidateSql: agentConfiguration.pruneValidateSql ?? true,
               outputReasoning: agentConfiguration.outputReasoning ?? true,
               reasoningLevel: agentConfiguration.reasoningLevel,
-              agentContext: options.agentContext,
+              agentContext,
               chatPersistenceMode,
             }),
             headers: buildChatRequestHeaders(headers, options.shareCode),

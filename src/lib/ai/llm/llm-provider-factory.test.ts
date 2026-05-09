@@ -62,6 +62,30 @@ describe("MODELS reasoning capabilities", () => {
     ]);
   });
 
+  it("lists the latest OpenAI GPT-5.5 and GPT-5.4 models", () => {
+    expect(
+      MODELS.filter((model) => model.provider === "OpenAI")
+        .slice(0, 6)
+        .map((model) => model.modelId)
+    ).toEqual(["gpt-5.5", "gpt-5.5-pro", "gpt-5.4", "gpt-5.4-pro", "gpt-5.4-mini", "gpt-5.4-nano"]);
+
+    for (const modelId of [
+      "gpt-5.5",
+      "gpt-5.5-pro",
+      "gpt-5.4",
+      "gpt-5.4-pro",
+      "gpt-5.4-mini",
+      "gpt-5.4-nano",
+    ]) {
+      expect(resolveModelReasoningLevels({ provider: "OpenAI", modelId })).toEqual([
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+      ]);
+    }
+  });
+
   it("exposes extra high for Codex reasoning models", () => {
     expect(
       resolveModelReasoningLevels({ provider: PROVIDER_OPENAI_CODEX, modelId: "gpt-5.4" })
@@ -90,6 +114,21 @@ describe("MODELS reasoning capabilities", () => {
     expect(
       resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-opus-4-5" })
     ).toEqual(["low", "medium", "high"]);
+  });
+
+  it("lists Claude 4.6 and 4.7 adaptive reasoning models", () => {
+    expect(
+      resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-opus-4-7" })
+    ).toBe(true);
+    expect(
+      resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-opus-4-7" })
+    ).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(
+      resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-sonnet-4-6" })
+    ).toBe(true);
+    expect(
+      resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-sonnet-4-6" })
+    ).toEqual(["low", "medium", "high", "xhigh"]);
   });
 
   it("marks Claude 4.5 non-Opus models as reasoning-capable without adaptive effort levels", () => {
@@ -142,7 +181,7 @@ describe("MODELS reasoning capabilities", () => {
         reasoningLevel: "medium",
         instructions: "ignored",
       })?.google?.thinkingConfig?.thinkingLevel
-    ).toBe("low");
+    ).toBe("high");
 
     expect(
       LanguageModelProviderFactory.buildProviderOptions({
@@ -152,5 +191,23 @@ describe("MODELS reasoning capabilities", () => {
         instructions: "ignored",
       })?.anthropic
     ).toEqual({ effort: "medium" });
+  });
+
+  it("defaults provider options to the highest supported reasoning level", () => {
+    expect(
+      LanguageModelProviderFactory.buildProviderOptions({
+        modelConfig: { provider: "Google", modelId: "gemini-3-flash-preview" },
+        outputReasoning: false,
+        instructions: "ignored",
+      })?.google?.thinkingConfig?.thinkingLevel
+    ).toBe("high");
+
+    expect(
+      LanguageModelProviderFactory.buildProviderOptions({
+        modelConfig: { provider: "Anthropic", modelId: "claude-opus-4-7" },
+        outputReasoning: false,
+        instructions: "ignored",
+      })?.anthropic
+    ).toEqual({ thinking: { type: "adaptive" }, effort: "max" });
   });
 });

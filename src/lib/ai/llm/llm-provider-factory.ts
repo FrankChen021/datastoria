@@ -1,6 +1,6 @@
-import { createAnthropic, type AnthropicProviderOptions } from "@ai-sdk/anthropic";
+import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import { createCerebras } from "@ai-sdk/cerebras";
-import { createGoogleGenerativeAI, type GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
+import type { GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
 import { createGroq, type GroqLanguageModelOptions } from "@ai-sdk/groq";
 import { createOpenAI, type OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
 import {
@@ -12,10 +12,13 @@ import { createGitHubCopilotOpenAICompatible } from "@opeoginni/github-copilot-o
 import type { LanguageModel } from "ai";
 import {
   DEFAULT_REASONING_LEVEL,
+  getDefaultReasoningLevel,
   isReasoningLevel,
   type ReasoningLevel,
 } from "../reasoning-levels";
+import { ANTHROPIC_PROVIDER } from "./llm-provider-anthropic";
 import { PRIVATE_MODELS, PRIVATE_PROVIDERS } from "./llm-provider-factory-private";
+import { GOOGLE_PROVIDER } from "./llm-provider-google";
 import { mockModel } from "./models.mock";
 import { PROVIDER_GITHUB_COPILOT, PROVIDER_NEBIUS, PROVIDER_OPENAI_CODEX } from "./provider-ids";
 
@@ -213,8 +216,6 @@ export function resolveModelReasoningLevels(
   return findExactModel(model)?.reasoningLevels ?? [];
 }
 
-const ANTHROPIC_MANUAL_THINKING_BUDGET_TOKENS = 1024;
-
 function resolveReasoningLevelForModel(
   modelConfig: ProviderOptionsModelConfig,
   reasoningLevel?: unknown
@@ -233,49 +234,7 @@ function resolveReasoningLevelForModel(
     return DEFAULT_REASONING_LEVEL;
   }
 
-  return levels[0];
-}
-
-function toAnthropicEffort(
-  level: ReasoningLevel
-): NonNullable<AnthropicProviderOptions["effort"]> | undefined {
-  if (level === "xhigh") return "max";
-  if (level === "low" || level === "medium" || level === "high" || level === "max") return level;
-  return undefined;
-}
-
-function supportsAnthropicAdaptiveThinking(modelId: string): boolean {
-  return modelId.includes("claude-opus-4-6") || modelId.includes("claude-sonnet-4-6");
-}
-
-function getAnthropicThinkingOptions(
-  modelId: string,
-  outputReasoning: boolean
-): AnthropicProviderOptions["thinking"] | undefined {
-  if (supportsAnthropicAdaptiveThinking(modelId)) {
-    return { type: "adaptive" };
-  }
-
-  if (outputReasoning) {
-    return {
-      type: "enabled",
-      budgetTokens: ANTHROPIC_MANUAL_THINKING_BUDGET_TOKENS,
-    };
-  }
-
-  return undefined;
-}
-
-function toGoogleThinkingLevel(
-  level: ReasoningLevel
-):
-  | NonNullable<NonNullable<GoogleGenerativeAIProviderOptions["thinkingConfig"]>["thinkingLevel"]>
-  | undefined {
-  if (level === "xhigh") return "high";
-  if (level === "minimal" || level === "low" || level === "medium" || level === "high") {
-    return level;
-  }
-  return undefined;
+  return getDefaultReasoningLevel(levels);
 }
 
 function toStandardReasoningLevel(level: ReasoningLevel): "low" | "medium" | "high" | undefined {
@@ -311,70 +270,8 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
       };
     },
   },
-  Google: {
-    logo: "google.svg",
-    create: (modelId, apiKey) =>
-      createGoogleGenerativeAI({
-        apiKey,
-      })(modelId),
-    systemApiKey: () => process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-    buildProviderOptions: ({ outputReasoning, reasoningLevel }) => {
-      if (!reasoningLevel) {
-        return undefined;
-      }
-
-      const thinkingLevel = toGoogleThinkingLevel(reasoningLevel);
-      if (!thinkingLevel) {
-        return undefined;
-      }
-
-      return {
-        google: {
-          thinkingConfig: {
-            thinkingLevel,
-            ...(outputReasoning ? { includeThoughts: true } : {}),
-          },
-        } satisfies GoogleGenerativeAIProviderOptions,
-      };
-    },
-  },
-  Anthropic: {
-    logo: "anthropic.svg",
-    create: (modelId, apiKey) =>
-      createAnthropic({
-        apiKey,
-      })(modelId),
-    systemApiKey: () => process.env.ANTHROPIC_API_KEY,
-    buildProviderOptions: ({ modelConfig, outputReasoning, reasoningLevel }) => {
-      if (reasoningLevel) {
-        const effort = toAnthropicEffort(reasoningLevel);
-        if (!effort) {
-          return undefined;
-        }
-        const thinking = getAnthropicThinkingOptions(modelConfig.modelId, outputReasoning);
-
-        return {
-          anthropic: {
-            ...(thinking ? { thinking } : {}),
-            effort,
-          } satisfies AnthropicProviderOptions,
-        };
-      }
-
-      if (!outputReasoning) {
-        return undefined;
-      }
-
-      return {
-        anthropic: {
-          thinking: {
-            type: "enabled",
-            budgetTokens: ANTHROPIC_MANUAL_THINKING_BUDGET_TOKENS,
-          },
-        } satisfies AnthropicProviderOptions,
-      };
-    },
-  },
+  Google: GOOGLE_PROVIDER,
+  Anthropic: ANTHROPIC_PROVIDER,
   OpenRouter: {
     logo: "openrouter.svg",
     create: (modelId, apiKey) =>
@@ -523,6 +420,72 @@ export const MODELS: ModelProps[] = [
   // https://platform.openai.com/chat/edit
   {
     provider: "OpenAI",
+    modelId: "gpt-5.5",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "A new class of intelligence for coding and professional work.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
+    modelId: "gpt-5.5-pro",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "Version of GPT-5.5 that produces smarter and more precise responses.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
+    modelId: "gpt-5.4",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "A more affordable model for coding and professional work.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
+    modelId: "gpt-5.4-pro",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "Version of GPT-5.4 that produces smarter and more precise responses.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
+    modelId: "gpt-5.4-mini",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "OpenAI's strongest mini model yet for coding, computer use, and subagents.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
+    modelId: "gpt-5.4-nano",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "OpenAI's cheapest GPT-5.4-class model for simple high-volume tasks.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
     modelId: "gpt-5",
     free: false,
     autoSelectable: false,
@@ -545,54 +508,10 @@ export const MODELS: ModelProps[] = [
   },
   {
     provider: "OpenAI",
-    modelId: "gpt-4.1",
-    free: false,
-    supportsImageInput: true,
-    description: "Updated GPT-4 model with improved performance and accuracy.",
-    source: "user",
-  },
-  {
-    provider: "OpenAI",
     modelId: "gpt-4o",
     free: false,
     supportsImageInput: true,
     description: "Omni model from OpenAI, designed for speed and multimodal interaction.",
-    source: "user",
-  },
-  {
-    provider: "OpenAI",
-    modelId: "gpt-4o-mini",
-    free: false,
-    supportsImageInput: true,
-    description: "Lighter version of GPT-4o for faster, cost-effective tasks.",
-    source: "user",
-  },
-  {
-    provider: "OpenAI",
-    modelId: "gpt-4",
-    free: false,
-    supportsImageInput: false,
-    description: "Robust high-capability model for complex reasoning and tasks.",
-    source: "user",
-  },
-  {
-    provider: "OpenAI",
-    modelId: "o1",
-    free: false,
-    supportsImageInput: true,
-    supportsReasoning: true,
-    reasoningLevels: ["low", "medium", "high"],
-    description: "OpenAI's latest reasoning model, optimized for chain-of-thought.",
-    source: "user",
-  },
-  {
-    provider: "OpenAI",
-    modelId: "o3-mini",
-    free: false,
-    supportsImageInput: false,
-    supportsReasoning: true,
-    reasoningLevels: ["low", "medium", "high"],
-    description: "Optimized version of OpenAI's reasoning models for fast responses.",
     source: "user",
   },
 
@@ -649,6 +568,17 @@ export const MODELS: ModelProps[] = [
   // https://platform.claude.com/docs/en/about-claude/models/overview
   {
     provider: "Anthropic",
+    modelId: "claude-opus-4-7",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "Anthropic's latest Opus model for complex analysis, agents, and coding.",
+    source: "user",
+  },
+  {
+    provider: "Anthropic",
     modelId: "claude-opus-4-6",
     free: false,
     autoSelectable: false,
@@ -666,6 +596,17 @@ export const MODELS: ModelProps[] = [
     supportsReasoning: true,
     reasoningLevels: ["low", "medium", "high"],
     description: "Anthropic's most powerful model for highly complex analysis.",
+    source: "user",
+  },
+  {
+    provider: "Anthropic",
+    modelId: "claude-sonnet-4-6",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    description: "Anthropic's most capable Sonnet model for agents, coding, and computer use.",
     source: "user",
   },
   {

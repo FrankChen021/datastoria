@@ -26,8 +26,8 @@ import {
 } from "@/lib/ai/llm/llm-provider-factory";
 import { PROVIDER_GITHUB_COPILOT } from "@/lib/ai/llm/provider-ids";
 import {
-  DEFAULT_REASONING_LEVEL,
   formatReasoningLevel,
+  getDefaultReasoningLevel,
   type ReasoningLevel,
 } from "@/lib/ai/reasoning-levels";
 import { cn } from "@/lib/utils";
@@ -59,6 +59,7 @@ type ModelDetailField = {
 
 const MODEL_PANEL_HEIGHT_WITH_REASONING = "h-[320px] min-h-[320px] max-h-[320px]";
 const MODEL_PANEL_HEIGHT_DEFAULT = "h-[250px] min-h-[250px] max-h-[250px]";
+const UNSUPPORTED_REASONING_VALUE = "__reasoning_not_supported__";
 
 function toDescriptionHeaderLabel(label: string): string {
   return label
@@ -115,11 +116,7 @@ function resolveActiveReasoningLevel(
     return configuredLevel;
   }
 
-  if (levels.includes(DEFAULT_REASONING_LEVEL)) {
-    return DEFAULT_REASONING_LEVEL;
-  }
-
-  return levels[0];
+  return getDefaultReasoningLevel(levels);
 }
 
 function ReasoningDetailSection({
@@ -140,7 +137,7 @@ function ReasoningDetailSection({
     ? levels.length > 0
       ? "Configurable"
       : "Built-in"
-    : "No";
+    : "Not supported";
 
   const handleSelect = useCallback(
     (level: ReasoningLevel) => {
@@ -152,7 +149,40 @@ function ReasoningDetailSection({
     [configuration, levels, onChange]
   );
 
-  if (!isInteractive || !supportsReasoning || levels.length === 0) {
+  if (isInteractive && !supportsReasoning) {
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="text-[9px] font-semibold text-muted-foreground">Reasoning Level</div>
+        <RadioGroup
+          className="flex flex-col gap-0.5"
+          value={UNSUPPORTED_REASONING_VALUE}
+          aria-label="Reasoning level"
+        >
+          <div
+            title="Reasoning is not supported by this model"
+            className={cn(
+              "flex h-6 w-full items-center gap-2 rounded-sm px-2 text-left text-[10px] outline-none transition-colors",
+              "bg-accent text-accent-foreground"
+            )}
+          >
+            <RadioGroupItem
+              id="reasoning-level-not-supported"
+              value={UNSUPPORTED_REASONING_VALUE}
+              className="h-3 w-3 shrink-0 border-muted-foreground/60 text-current"
+            />
+            <Label
+              htmlFor="reasoning-level-not-supported"
+              className="min-w-0 flex-1 cursor-pointer truncate text-[10px] font-normal leading-none"
+            >
+              Not supported
+            </Label>
+          </div>
+        </RadioGroup>
+      </div>
+    );
+  }
+
+  if (!isInteractive || levels.length === 0) {
     return (
       <div className="flex flex-col gap-1">
         <div className="text-[9px] font-semibold text-muted-foreground">Reasoning Level</div>
@@ -313,7 +343,7 @@ export function ModelSelectorImpl({
   const [highlightedValue, setHighlightedValue] = useState<string | undefined>(
     activeModel ? `${activeModel.provider} ${activeModel.modelId}` : undefined
   );
-  const [groupByProvider, setGroupByProvider] = useState(false);
+  const [groupByProvider, setGroupByProvider] = useState(true);
   const [agentConfiguration, setAgentConfiguration] = useState(() =>
     AgentConfigurationManager.getConfiguration()
   );
