@@ -51,6 +51,7 @@ const AceEditor = dynamic(
     await initAce();
 
     await import("ace-builds/src-noconflict/ext-language_tools");
+    await import("ace-builds/src-noconflict/ext-searchbox");
     await import("ace-builds/src-noconflict/mode-sql");
     await import("ace-builds/src-noconflict/theme-xcode");
     await import("ace-builds/src-noconflict/theme-solarized_dark");
@@ -90,6 +91,15 @@ type SelectionActionState = {
 const FLOATING_ACTION_HEIGHT = 28;
 const FLOATING_ACTION_GAP = 8;
 const FLOATING_ACTION_ESTIMATED_WIDTH = 420;
+
+type AceSearchBoxModule = {
+  Search: (editor: Ace.Editor, isReplace?: boolean) => void;
+};
+
+const openAceSearchBox = (editor: Ace.Editor) => {
+  const searchBox = window.ace.require("ace/ext/searchbox") as AceSearchBoxModule;
+  searchBox.Search(editor);
+};
 
 // Logic to apply query to editor
 const applyQueryToEditor = (
@@ -508,7 +518,16 @@ export const QueryInputView = forwardRef<QueryInputViewRef, QueryInputViewProps>
           applyQueryToEditor(editor, initialQuery, initialMode, storageKey);
         }
 
-        // Update command
+        // Update commands
+        editor.commands.addCommand({
+          name: "find",
+          bindKey: { win: "Ctrl-F", mac: "Command-F|Ctrl-F" },
+          exec: (searchEditor) => {
+            openAceSearchBox(searchEditor);
+          },
+          readOnly: true,
+        });
+
         editor.commands.addCommand({
           name: "run",
           bindKey: { win: "Ctrl-Enter", mac: "Command-Enter" },
