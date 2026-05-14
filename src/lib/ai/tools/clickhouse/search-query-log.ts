@@ -138,6 +138,7 @@ const METRIC_CONFIG: Record<SearchQueryLogMetric, MetricConfig> = {
 
 const queryLogColumnsCache = new WeakMap<Connection, Set<string>>();
 const queryLogColumnsPromiseCache = new WeakMap<Connection, Promise<Set<string>>>();
+const PATTERN_TABLES_PROJECTION = "query_log_tables";
 
 function isDateOnly(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -439,7 +440,7 @@ SELECT
   max(memory_usage) AS max_memory_usage,
   sum(read_rows) AS sum_read_rows,
   sum(read_bytes) AS sum_read_bytes,
-  any(tables) AS tables${metricProjection}
+  any(tables) AS ${PATTERN_TABLES_PROJECTION}${metricProjection}
 FROM {clusterAllReplicas:system.query_log}
 WHERE
   ${conditions.join("\n  AND ")}
@@ -484,10 +485,15 @@ LIMIT ${limit}
 
 function qualifyPreviewSql(row: Record<string, unknown>) {
   const sqlPreview = typeof row.sql_preview === "string" ? row.sql_preview : undefined;
-  const tables = Array.isArray(row.tables) ? (row.tables as string[]) : undefined;
+  const tables = Array.isArray(row[PATTERN_TABLES_PROJECTION])
+    ? (row[PATTERN_TABLES_PROJECTION] as string[])
+    : Array.isArray(row.tables)
+      ? (row.tables as string[])
+      : undefined;
   if (sqlPreview && tables && tables.length > 0) {
     row.sql_preview = SqlUtils.qualifyTableNames(sqlPreview, tables);
   }
+  delete row[PATTERN_TABLES_PROJECTION];
   delete row.tables;
 }
 

@@ -75,6 +75,23 @@ describe("search_query_log helpers", () => {
     expect(result.sql).toContain("ORDER BY metric_value DESC, last_execution_time DESC");
   });
 
+  it("keeps table predicates on the source column in patterns mode", () => {
+    const result = buildSearchQueryLogSql(
+      {
+        mode: "patterns",
+        metric_aggregation: "sum",
+        limit: 20,
+        time_window: 1440,
+        predicates: [{ field: "table", op: "has", value: "bithon_trace_span_summary_local" }],
+      },
+      new Set(["query_duration_ms"])
+    );
+
+    expect(result.sql).toContain("has(tables, 'bithon_trace_span_summary_local')");
+    expect(result.sql).toContain("any(tables) AS query_log_tables");
+    expect(result.sql).not.toContain("any(tables) AS tables");
+  });
+
   it("lets explicit predicates override default query_kind and is_initial_query filters", () => {
     const result = buildSearchQueryLogSql(
       {
@@ -163,5 +180,77 @@ describe("search_query_log helpers", () => {
 
     expect(systemColumnsCalls).toHaveLength(1);
     expect(connection.metadata).toEqual({});
+  });
+
+  it("uses internal pattern table projection to qualify previews without leaking it", async () => {
+    const query = vi.fn((sql: string) => {
+      if (sql.includes("FROM system.columns")) {
+        return {
+          response: Promise.resolve(
+            createJsonCompactResponse(
+              [{ name: "name", type: "String" }],
+              [
+                ["query_duration_ms"],
+                ["memory_usage"],
+                ["read_rows"],
+                ["read_bytes"],
+                ["result_rows"],
+              ]
+            )
+          ),
+          abortController: new AbortController(),
+        };
+      }
+
+      return {
+        response: Promise.resolve(
+          createJsonCompactResponse(
+            [
+              { name: "normalized_query_hash", type: "UInt64" },
+              { name: "sample_query_id", type: "String" },
+              { name: "sample_user", type: "String" },
+              { name: "sql_preview", type: "String" },
+              { name: "last_execution_time", type: "DateTime" },
+              { name: "execution_count", type: "UInt64" },
+              { name: "avg_duration_ms", type: "Float64" },
+              { name: "max_duration_ms", type: "UInt64" },
+              { name: "max_memory_usage", type: "UInt64" },
+              { name: "sum_read_rows", type: "UInt64" },
+              { name: "sum_read_bytes", type: "UInt64" },
+              { name: "query_log_tables", type: "Array(String)" },
+            ],
+            [
+              [
+                "123",
+                "query-1",
+                "alice",
+                "SELECT * FROM spans",
+                "2026-05-14 12:00:00",
+                3,
+                10,
+                15,
+                1024,
+                100,
+                2048,
+                ["analytics.spans"],
+              ],
+            ]
+          )
+        ),
+        abortController: new AbortController(),
+      };
+    });
+    const connection = {
+      metadata: {},
+      query,
+    } as unknown as Connection;
+
+    const result = await searchQueryLogExecutor({ mode: "patterns" }, connection);
+
+    expect(result.success).toBe(true);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].sql_preview).toBe("SELECT * FROM analytics.spans");
+    expect(result.rows[0]).not.toHaveProperty("query_log_tables");
+    expect(result.rows[0]).not.toHaveProperty("tables");
   });
 });
