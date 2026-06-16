@@ -20,7 +20,11 @@ import {
 } from "@/components/ui/table";
 import { useModelConfig } from "@/hooks/use-model-config";
 import { resolveModelSupportsImageInput, type ModelProps } from "@/lib/ai/llm/llm-provider-factory";
-import { PROVIDER_GITHUB_COPILOT, PROVIDER_OPENAI_CODEX } from "@/lib/ai/llm/provider-ids";
+import {
+  PROVIDER_GITHUB_COPILOT,
+  PROVIDER_OLLAMA,
+  PROVIDER_OPENAI_CODEX,
+} from "@/lib/ai/llm/provider-ids";
 import { TextHighlighter } from "@/lib/text-highlighter";
 import {
   AlertCircle,
@@ -44,6 +48,7 @@ const PROVIDER_LINKS: Record<string, string> = {
   Groq: "https://console.groq.com/keys",
   Cerebras: "https://cloud.cerebras.ai/platform",
   Nebius: "https://tokenfactory.nebius.com/",
+  [PROVIDER_OLLAMA]: "https://ollama.com/library",
   [PROVIDER_OPENAI_CODEX]: "https://developers.openai.com/codex/auth",
 };
 

@@ -45,7 +45,7 @@ hero:
 features:
   - icon: 🤖
     title: AI Features
-    details: Turn plain-language questions into ClickHouse SQL, optimization guidance, and cluster insights with your choice of models from OpenAI, Anthropic, Gemini, GitHub Copilot, OpenRouter, Groq, Cerebras, Nebius, Compass, and more.
+    details: Turn plain-language questions into ClickHouse SQL, optimization guidance, and cluster insights with your choice of models from OpenAI, Anthropic, Gemini, GitHub Copilot, OpenRouter, Groq, Cerebras, Nebius, Compass, local models via Ollama, and more.
   - icon: ⚡
     title: Powerful Query Experience
     details: Advanced SQL editor with syntax highlighting, auto-completion, smart error diagnostics, and query explain visualization for optimal performance.

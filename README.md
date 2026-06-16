@@ -17,7 +17,7 @@ The AI-native ClickHouse console for your cluster diagnostics, query generation,
 - **Smart Query Optimization** — AI inspects schema, validates SQL, collects evidence, and recommends concrete ClickHouse performance improvements.
 - **Intelligent Visualization** — Ask for a chart in plain language and DataStoria generates both the SQL and the visualization spec for time series, bar, pie, and table views.
 - **Agent SKILLs Supported** — Skill-based agent architecture that saves tokens across multi-turn conversations; apply the [Official ClickHouse Agent Skills](https://github.com/ClickHouse/agent-skills) to your ClickHouse
-- **Multiple Model Providers** — Use OpenAI, Anthropic Claude, Google Gemini, GitHub Copilot, OpenRouter, Groq, Cerebras, Nebius and more.
+- **Multiple Model Providers** — Use OpenAI, Anthropic Claude, Google Gemini, GitHub Copilot, OpenRouter, Groq, Cerebras, Nebius, local models via Ollama, and more.
 - **GitHub Copilot Integration** — Sign in with GitHub device flow and use your existing Copilot subscription for chat, query assistance, and other AI-powered workflows.
 
 

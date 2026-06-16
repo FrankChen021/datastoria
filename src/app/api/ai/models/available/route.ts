@@ -1,5 +1,6 @@
 import { normalizeGitHubCopilotModels } from "@/lib/ai/llm/github-copilot-models";
 import { getAvailableSystemModels, type ModelProps } from "@/lib/ai/llm/llm-provider-factory";
+import { fetchOllamaModels } from "@/lib/ai/llm/ollama-models";
 import { NextRequest, NextResponse } from "next/server";
 
 interface AvailableModelsRequestBody {
@@ -26,7 +27,6 @@ async function fetchGitHubModels(token: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const systemModels = getAvailableSystemModels();
   let body: AvailableModelsRequestBody | undefined;
 
   try {
@@ -37,15 +37,17 @@ export async function POST(req: NextRequest) {
 
   const githubToken = body?.github?.token?.trim();
 
-  let githubModels: ModelProps[] = [];
+  const [ollamaModels, githubModels] = await Promise.all([
+    fetchOllamaModels(),
+    githubToken
+      ? fetchGitHubModels(githubToken).catch((error) => {
+          console.error("Error loading GitHub Copilot models for initial bootstrap:", error);
+          return [] as ModelProps[];
+        })
+      : Promise.resolve([] as ModelProps[]),
+  ]);
 
-  if (githubToken) {
-    try {
-      githubModels = await fetchGitHubModels(githubToken);
-    } catch (error) {
-      console.error("Error loading GitHub Copilot models for initial bootstrap:", error);
-    }
-  }
+  const systemModels = [...getAvailableSystemModels(), ...ollamaModels];
 
   return NextResponse.json({ systemModels, githubModels });
 }

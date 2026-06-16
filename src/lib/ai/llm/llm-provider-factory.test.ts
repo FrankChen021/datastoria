@@ -1,11 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   LanguageModelProviderFactory,
   MODELS,
+  PROVIDERS,
+  resolveModelConfig,
   resolveModelReasoningLevels,
   resolveModelSupportsReasoning,
 } from "./llm-provider-factory";
-import { PROVIDER_NEBIUS, PROVIDER_OPENAI_CODEX } from "./provider-ids";
+import { PROVIDER_NEBIUS, PROVIDER_OLLAMA, PROVIDER_OPENAI_CODEX } from "./provider-ids";
 
 function getModel(provider: string, modelId: string) {
   return MODELS.find((model) => model.provider === provider && model.modelId === modelId);
@@ -42,6 +44,49 @@ describe("MODELS OpenAI Codex catalog", () => {
     expect(getModel(PROVIDER_OPENAI_CODEX, "gpt-5.4-mini")?.supportedEndpoints).toEqual([
       "responses",
     ]);
+  });
+});
+
+describe("Ollama provider", () => {
+  const ORIGINAL_BASE_URL = process.env.OLLAMA_BASE_URL;
+
+  afterEach(() => {
+    if (ORIGINAL_BASE_URL === undefined) {
+      delete process.env.OLLAMA_BASE_URL;
+    } else {
+      process.env.OLLAMA_BASE_URL = ORIGINAL_BASE_URL;
+    }
+  });
+
+  it("registers an Ollama provider definition", () => {
+    expect(PROVIDERS[PROVIDER_OLLAMA]).toBeDefined();
+    expect(typeof PROVIDERS[PROVIDER_OLLAMA].create).toBe("function");
+  });
+
+  it("is system-backed only when OLLAMA_BASE_URL is configured", () => {
+    delete process.env.OLLAMA_BASE_URL;
+    expect(PROVIDERS[PROVIDER_OLLAMA].systemApiKey?.()).toBeUndefined();
+
+    process.env.OLLAMA_BASE_URL = "http://localhost:11434";
+    expect(PROVIDERS[PROVIDER_OLLAMA].systemApiKey?.()).toBe("ollama");
+  });
+
+  it("resolves dynamic Ollama models through the system key when configured", () => {
+    process.env.OLLAMA_BASE_URL = "http://localhost:11434";
+    expect(
+      resolveModelConfig({ provider: PROVIDER_OLLAMA, modelId: "llama3.1:not-in-catalog" })
+    ).toEqual({
+      provider: PROVIDER_OLLAMA,
+      modelId: "llama3.1:not-in-catalog",
+      apiKey: "ollama",
+    });
+  });
+
+  it("creates a model for a dynamic Ollama id without catalog verification", () => {
+    process.env.OLLAMA_BASE_URL = "http://localhost:11434";
+    expect(() =>
+      LanguageModelProviderFactory.createModel(PROVIDER_OLLAMA, "llama3.1:not-in-catalog", "ollama")
+    ).not.toThrow();
   });
 });
 
