@@ -62,12 +62,22 @@ describe("MODELS reasoning capabilities", () => {
     ]);
   });
 
-  it("lists the latest OpenAI GPT-5.5 and GPT-5.4 models", () => {
+  it("lists the latest OpenAI GPT-5.6, GPT-5.5, and GPT-5.4 models", () => {
     expect(
       MODELS.filter((model) => model.provider === "OpenAI")
         .slice(0, 6)
         .map((model) => model.modelId)
-    ).toEqual(["gpt-5.5", "gpt-5.5-pro", "gpt-5.4", "gpt-5.4-pro", "gpt-5.4-mini", "gpt-5.4-nano"]);
+    ).toEqual(["gpt-5.6", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5", "gpt-5.5-pro", "gpt-5.4"]);
+
+    for (const modelId of ["gpt-5.6", "gpt-5.6-terra", "gpt-5.6-luna"]) {
+      expect(resolveModelReasoningLevels({ provider: "OpenAI", modelId })).toEqual([
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+      ]);
+    }
 
     for (const modelId of [
       "gpt-5.5",
@@ -116,12 +126,30 @@ describe("MODELS reasoning capabilities", () => {
     ).toEqual(["low", "medium", "high"]);
   });
 
-  it("lists Claude 4.6 and 4.7 adaptive reasoning models", () => {
+  it("lists Claude adaptive reasoning models", () => {
+    expect(
+      resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-fable-5" })
+    ).toBe(true);
+    expect(
+      resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-fable-5" })
+    ).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(
+      resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-opus-4-8" })
+    ).toBe(true);
+    expect(
+      resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-opus-4-8" })
+    ).toEqual(["low", "medium", "high", "xhigh"]);
     expect(
       resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-opus-4-7" })
     ).toBe(true);
     expect(
       resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-opus-4-7" })
+    ).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(
+      resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-sonnet-5" })
+    ).toBe(true);
+    expect(
+      resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-sonnet-5" })
     ).toEqual(["low", "medium", "high", "xhigh"]);
     expect(
       resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-sonnet-4-6" })
@@ -244,7 +272,7 @@ The API may emit visible reasoning summaries separately from the final answer. E
 
     expect(
       LanguageModelProviderFactory.buildProviderOptions({
-        modelConfig: { provider: "Anthropic", modelId: "claude-opus-4-7" },
+        modelConfig: { provider: "Anthropic", modelId: "claude-opus-4-8" },
         outputReasoning: false,
         instructions: "ignored",
       })?.anthropic

@@ -14,8 +14,11 @@ function toAnthropicEffort(
 
 function supportsAnthropicAdaptiveThinking(modelId: string): boolean {
   return (
+    modelId.includes("claude-fable-5") ||
+    modelId.includes("claude-opus-4-8") ||
     modelId.includes("claude-opus-4-7") ||
     modelId.includes("claude-opus-4-6") ||
+    modelId.includes("claude-sonnet-5") ||
     modelId.includes("claude-sonnet-4-6")
   );
 }
