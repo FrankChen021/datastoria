@@ -55,7 +55,10 @@ export async function POST(req: Request) {
       modelConfig.modelId,
       modelConfig.apiKey
     );
-    const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
+    const temperature = LanguageModelProviderFactory.getDefaultTemperature(
+      modelConfig.modelId,
+      modelConfig.provider
+    );
     const prompt = buildSkillFileReviewPrompt({
       skillId: parsed.data.skillId,
       path: reviewedFile.path,

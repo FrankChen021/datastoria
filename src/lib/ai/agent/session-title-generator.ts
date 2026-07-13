@@ -65,7 +65,8 @@ export class SessionTitleGenerator {
       );
 
       const temperature = LanguageModelProviderFactory.getDefaultTemperature(
-        titleModelConfig.modelId
+        titleModelConfig.modelId,
+        titleModelConfig.provider
       );
       const titleSystemPrompt = `You generate short chat session titles.
 Return JSON with exactly one field: "title".

@@ -64,6 +64,13 @@ describe("MODELS reasoning capabilities", () => {
     );
   });
 
+  it("uses the provider when duplicate model IDs have different temperature support", () => {
+    expect(
+      LanguageModelProviderFactory.getDefaultTemperature("gpt-5.6-sol", PROVIDER_OPENAI_CODEX)
+    ).toBeUndefined();
+    expect(LanguageModelProviderFactory.getDefaultTemperature("gpt-5.6-sol", "OpenAI")).toBe(0.1);
+  });
+
   it("exposes configurable reasoning levels for reasoning-capable OpenAI models", () => {
     expect(resolveModelReasoningLevels({ provider: "OpenAI", modelId: "gpt-5" })).toEqual([
       "minimal",
