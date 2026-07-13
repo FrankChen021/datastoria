@@ -31,6 +31,9 @@ describe("MODELS OpenAI Codex catalog", () => {
     const codexModels = MODELS.filter((model) => model.provider === PROVIDER_OPENAI_CODEX);
 
     expect(codexModels.map((model) => model.modelId)).toEqual([
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
       "gpt-5.5",
       "gpt-5.4",
       "gpt-5.4-mini",
@@ -42,10 +45,25 @@ describe("MODELS OpenAI Codex catalog", () => {
     expect(getModel(PROVIDER_OPENAI_CODEX, "gpt-5.4-mini")?.supportedEndpoints).toEqual([
       "responses",
     ]);
+    expect(
+      resolveModelReasoningLevels({ provider: PROVIDER_OPENAI_CODEX, modelId: "gpt-5.6-sol" })
+    ).toEqual(["low", "medium", "high", "xhigh", "max"]);
   });
 });
 
 describe("MODELS reasoning capabilities", () => {
+  it("omits temperature for Claude models that reject non-default sampling parameters", () => {
+    for (const modelId of ["claude-fable-5", "claude-opus-4-8", "claude-sonnet-5"]) {
+      expect(
+        LanguageModelProviderFactory.getDefaultTemperature(modelId, "Anthropic")
+      ).toBeUndefined();
+    }
+
+    expect(LanguageModelProviderFactory.getDefaultTemperature("claude-opus-4-7", "Anthropic")).toBe(
+      0.1
+    );
+  });
+
   it("exposes configurable reasoning levels for reasoning-capable OpenAI models", () => {
     expect(resolveModelReasoningLevels({ provider: "OpenAI", modelId: "gpt-5" })).toEqual([
       "minimal",
@@ -67,9 +85,16 @@ describe("MODELS reasoning capabilities", () => {
       MODELS.filter((model) => model.provider === "OpenAI")
         .slice(0, 6)
         .map((model) => model.modelId)
-    ).toEqual(["gpt-5.6", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5", "gpt-5.5-pro", "gpt-5.4"]);
+    ).toEqual([
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "gpt-5.5",
+      "gpt-5.5-pro",
+      "gpt-5.4",
+    ]);
 
-    for (const modelId of ["gpt-5.6", "gpt-5.6-terra", "gpt-5.6-luna"]) {
+    for (const modelId of ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]) {
       expect(resolveModelReasoningLevels({ provider: "OpenAI", modelId })).toEqual([
         "low",
         "medium",
