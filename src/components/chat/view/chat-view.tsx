@@ -178,12 +178,13 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(function ChatV
   });
 
   const handleToolOutput = useStableCallback(
-    ({ tool, toolCallId, output }: { tool: string; toolCallId: string; output: unknown }) =>
-      chat.addToolOutput({
+    async ({ tool, toolCallId, output }: { tool: string; toolCallId: string; output: unknown }) => {
+      await chat.addToolOutput({
         tool: tool as never,
         toolCallId,
         output: output as never,
-      })
+      });
+    }
   );
 
   return (

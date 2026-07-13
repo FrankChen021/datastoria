@@ -7,8 +7,15 @@ const ANTHROPIC_MANUAL_THINKING_BUDGET_TOKENS = 1024;
 function toAnthropicEffort(
   level: ReasoningLevel
 ): NonNullable<AnthropicProviderOptions["effort"]> | undefined {
-  if (level === "xhigh") return "max";
-  if (level === "low" || level === "medium" || level === "high" || level === "max") return level;
+  if (
+    level === "low" ||
+    level === "medium" ||
+    level === "high" ||
+    level === "xhigh" ||
+    level === "max"
+  ) {
+    return level;
+  }
   return undefined;
 }
 

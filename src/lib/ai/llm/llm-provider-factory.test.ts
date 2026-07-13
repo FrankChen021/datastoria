@@ -158,37 +158,40 @@ describe("MODELS reasoning capabilities", () => {
     ).toEqual(["low", "medium", "high"]);
   });
 
-  it("lists Claude adaptive reasoning models", () => {
+  it("lists Claude effort levels by model support", () => {
     expect(
       resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-fable-5" })
     ).toBe(true);
     expect(
       resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-fable-5" })
-    ).toEqual(["low", "medium", "high", "xhigh"]);
+    ).toEqual(["low", "medium", "high", "xhigh", "max"]);
     expect(
       resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-opus-4-8" })
     ).toBe(true);
     expect(
       resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-opus-4-8" })
-    ).toEqual(["low", "medium", "high", "xhigh"]);
+    ).toEqual(["low", "medium", "high", "xhigh", "max"]);
     expect(
       resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-opus-4-7" })
     ).toBe(true);
     expect(
       resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-opus-4-7" })
-    ).toEqual(["low", "medium", "high", "xhigh"]);
+    ).toEqual(["low", "medium", "high", "xhigh", "max"]);
+    expect(
+      resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-opus-4-6" })
+    ).toEqual(["low", "medium", "high", "max"]);
     expect(
       resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-sonnet-5" })
     ).toBe(true);
     expect(
       resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-sonnet-5" })
-    ).toEqual(["low", "medium", "high", "xhigh"]);
+    ).toEqual(["low", "medium", "high", "xhigh", "max"]);
     expect(
       resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-sonnet-4-6" })
     ).toBe(true);
     expect(
       resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-sonnet-4-6" })
-    ).toEqual(["low", "medium", "high", "xhigh"]);
+    ).toEqual(["low", "medium", "high", "max"]);
   });
 
   it("marks Claude 4.5 non-Opus models as reasoning-capable without adaptive effort levels", () => {
@@ -291,9 +294,18 @@ The API may emit visible reasoning summaries separately from the final answer. E
         instructions: "ignored",
       })?.anthropic
     ).toEqual({ effort: "medium" });
+
+    expect(
+      LanguageModelProviderFactory.buildProviderOptions({
+        modelConfig: { provider: "Anthropic", modelId: "claude-opus-4-8" },
+        outputReasoning: false,
+        reasoningLevel: "xhigh",
+        instructions: "ignored",
+      })?.anthropic
+    ).toEqual({ thinking: { type: "adaptive" }, effort: "xhigh" });
   });
 
-  it("defaults provider options to the highest supported reasoning level", () => {
+  it("uses the configured default reasoning level for provider options", () => {
     expect(
       LanguageModelProviderFactory.buildProviderOptions({
         modelConfig: { provider: "Google", modelId: "gemini-3-flash-preview" },
@@ -308,6 +320,6 @@ The API may emit visible reasoning summaries separately from the final answer. E
         outputReasoning: false,
         instructions: "ignored",
       })?.anthropic
-    ).toEqual({ thinking: { type: "adaptive" }, effort: "max" });
+    ).toEqual({ thinking: { type: "adaptive" }, effort: "xhigh" });
   });
 });
