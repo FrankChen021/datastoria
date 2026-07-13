@@ -9,7 +9,7 @@ import {
 } from "@ai-sdk/openai-compatible";
 import { createOpenRouter, type OpenRouterProviderOptions } from "@openrouter/ai-sdk-provider";
 import { createGitHubCopilotOpenAICompatible } from "@opeoginni/github-copilot-openai-compatible";
-import type { LanguageModel } from "ai";
+import type { LanguageModel, streamText } from "ai";
 import {
   DEFAULT_REASONING_LEVEL,
   getDefaultReasoningLevel,
@@ -53,7 +53,9 @@ type ProviderOptionsRequestInput = Omit<ProviderOptionsInput, "reasoningLevel"> 
   reasoningLevel?: unknown;
 };
 
-export type LanguageModelProviderOptions = {
+export type LanguageModelProviderOptions = NonNullable<
+  Parameters<typeof streamText>[0]["providerOptions"]
+> & {
   openai?: OpenAIResponsesProviderOptions;
   anthropic?: AnthropicProviderOptions;
   cerebras?: OpenAICompatibleLanguageModelChatOptions;

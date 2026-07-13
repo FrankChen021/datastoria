@@ -540,7 +540,7 @@ export async function POST(req: Request) {
         reasoningLevel: agentContext?.reasoningLevel,
         instructions: orchestratorSystemPrompt,
         responseLanguage: agentContext?.responseLanguage,
-      }) as Parameters<typeof streamText>[0]["providerOptions"],
+      }),
       tools,
       stopWhen: stepCountIs(10),
       temperature,
