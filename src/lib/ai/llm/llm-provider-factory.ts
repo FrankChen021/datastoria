@@ -9,7 +9,7 @@ import {
 } from "@ai-sdk/openai-compatible";
 import { createOpenRouter, type OpenRouterProviderOptions } from "@openrouter/ai-sdk-provider";
 import { createGitHubCopilotOpenAICompatible } from "@opeoginni/github-copilot-openai-compatible";
-import type { LanguageModel } from "ai";
+import type { LanguageModel, streamText } from "ai";
 import {
   DEFAULT_REASONING_LEVEL,
   getDefaultReasoningLevel,
@@ -53,7 +53,9 @@ type ProviderOptionsRequestInput = Omit<ProviderOptionsInput, "reasoningLevel"> 
   reasoningLevel?: unknown;
 };
 
-export type LanguageModelProviderOptions = {
+export type LanguageModelProviderOptions = NonNullable<
+  Parameters<typeof streamText>[0]["providerOptions"]
+> & {
   openai?: OpenAIResponsesProviderOptions;
   anthropic?: AnthropicProviderOptions;
   cerebras?: OpenAICompatibleLanguageModelChatOptions;
@@ -365,6 +367,39 @@ export const MODELS: ModelProps[] = [
   // https://platform.openai.com/chat/edit
   {
     provider: "OpenAI",
+    modelId: "gpt-5.6-sol",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh", "max"],
+    description: "OpenAI's latest frontier model for complex reasoning and coding.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
+    modelId: "gpt-5.6-terra",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh", "max"],
+    description: "Balanced GPT-5.6 model optimized for intelligence, latency, and cost.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
+    modelId: "gpt-5.6-luna",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh", "max"],
+    description: "Cost-sensitive GPT-5.6 model for high-volume workloads.",
+    source: "user",
+  },
+  {
+    provider: "OpenAI",
     modelId: "gpt-5.5",
     free: false,
     autoSelectable: false,
@@ -513,12 +548,38 @@ export const MODELS: ModelProps[] = [
   // https://platform.claude.com/docs/en/about-claude/models/overview
   {
     provider: "Anthropic",
+    modelId: "claude-fable-5",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsTemperature: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh", "max"],
+    description:
+      "Anthropic's most capable generally available model for demanding reasoning and agentic work.",
+    source: "user",
+  },
+  {
+    provider: "Anthropic",
+    modelId: "claude-opus-4-8",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsTemperature: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh", "max"],
+    description:
+      "Anthropic's most capable generally available model for coding and enterprise work.",
+    source: "user",
+  },
+  {
+    provider: "Anthropic",
     modelId: "claude-opus-4-7",
     free: false,
     autoSelectable: false,
     supportsImageInput: true,
     supportsReasoning: true,
-    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    reasoningLevels: ["low", "medium", "high", "xhigh", "max"],
     description: "Anthropic's latest Opus model for complex analysis, agents, and coding.",
     source: "user",
   },
@@ -529,7 +590,7 @@ export const MODELS: ModelProps[] = [
     autoSelectable: false,
     supportsImageInput: true,
     supportsReasoning: true,
-    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    reasoningLevels: ["low", "medium", "high", "max"],
     description: "Anthropic's most intelligent model for building agents and coding.",
     source: "user",
   },
@@ -545,12 +606,24 @@ export const MODELS: ModelProps[] = [
   },
   {
     provider: "Anthropic",
+    modelId: "claude-sonnet-5",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsTemperature: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh", "max"],
+    description: "Anthropic's latest Sonnet model balancing speed and intelligence.",
+    source: "user",
+  },
+  {
+    provider: "Anthropic",
     modelId: "claude-sonnet-4-6",
     free: false,
     autoSelectable: false,
     supportsImageInput: true,
     supportsReasoning: true,
-    reasoningLevels: ["low", "medium", "high", "xhigh"],
+    reasoningLevels: ["low", "medium", "high", "max"],
     description: "Anthropic's most capable Sonnet model for agents, coding, and computer use.",
     source: "user",
   },
@@ -726,6 +799,46 @@ export const MODELS: ModelProps[] = [
     supportsReasoning: true,
     reasoningLevels: ["low", "medium", "high"],
     description: "GPT-OSS 120B, open-source GPT model with strong general capabilities.",
+    source: "user",
+  },
+  {
+    provider: PROVIDER_OPENAI_CODEX,
+    modelId: "gpt-5.6-sol",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsTemperature: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh", "max"],
+    supportedEndpoints: ["responses"],
+    description: "Latest frontier model accessed with ChatGPT/Codex subscription authentication.",
+    source: "user",
+  },
+  {
+    provider: PROVIDER_OPENAI_CODEX,
+    modelId: "gpt-5.6-terra",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsTemperature: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh", "max"],
+    supportedEndpoints: ["responses"],
+    description: "Balanced GPT-5.6 model accessed with ChatGPT/Codex subscription authentication.",
+    source: "user",
+  },
+  {
+    provider: PROVIDER_OPENAI_CODEX,
+    modelId: "gpt-5.6-luna",
+    free: false,
+    autoSelectable: false,
+    supportsImageInput: true,
+    supportsTemperature: false,
+    supportsReasoning: true,
+    reasoningLevels: ["low", "medium", "high", "xhigh", "max"],
+    supportedEndpoints: ["responses"],
+    description:
+      "Cost-sensitive GPT-5.6 model accessed with ChatGPT/Codex subscription authentication.",
     source: "user",
   },
   {

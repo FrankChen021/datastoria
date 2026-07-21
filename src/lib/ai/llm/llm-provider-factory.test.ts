@@ -31,6 +31,9 @@ describe("MODELS OpenAI Codex catalog", () => {
     const codexModels = MODELS.filter((model) => model.provider === PROVIDER_OPENAI_CODEX);
 
     expect(codexModels.map((model) => model.modelId)).toEqual([
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
       "gpt-5.5",
       "gpt-5.4",
       "gpt-5.4-mini",
@@ -42,10 +45,32 @@ describe("MODELS OpenAI Codex catalog", () => {
     expect(getModel(PROVIDER_OPENAI_CODEX, "gpt-5.4-mini")?.supportedEndpoints).toEqual([
       "responses",
     ]);
+    expect(
+      resolveModelReasoningLevels({ provider: PROVIDER_OPENAI_CODEX, modelId: "gpt-5.6-sol" })
+    ).toEqual(["low", "medium", "high", "xhigh", "max"]);
   });
 });
 
 describe("MODELS reasoning capabilities", () => {
+  it("omits temperature for Claude models that reject non-default sampling parameters", () => {
+    for (const modelId of ["claude-fable-5", "claude-opus-4-8", "claude-sonnet-5"]) {
+      expect(
+        LanguageModelProviderFactory.getDefaultTemperature(modelId, "Anthropic")
+      ).toBeUndefined();
+    }
+
+    expect(LanguageModelProviderFactory.getDefaultTemperature("claude-opus-4-7", "Anthropic")).toBe(
+      0.1
+    );
+  });
+
+  it("uses the provider when duplicate model IDs have different temperature support", () => {
+    expect(
+      LanguageModelProviderFactory.getDefaultTemperature("gpt-5.6-sol", PROVIDER_OPENAI_CODEX)
+    ).toBeUndefined();
+    expect(LanguageModelProviderFactory.getDefaultTemperature("gpt-5.6-sol", "OpenAI")).toBe(0.1);
+  });
+
   it("exposes configurable reasoning levels for reasoning-capable OpenAI models", () => {
     expect(resolveModelReasoningLevels({ provider: "OpenAI", modelId: "gpt-5" })).toEqual([
       "minimal",
@@ -62,12 +87,29 @@ describe("MODELS reasoning capabilities", () => {
     ]);
   });
 
-  it("lists the latest OpenAI GPT-5.5 and GPT-5.4 models", () => {
+  it("lists the latest OpenAI GPT-5.6, GPT-5.5, and GPT-5.4 models", () => {
     expect(
       MODELS.filter((model) => model.provider === "OpenAI")
         .slice(0, 6)
         .map((model) => model.modelId)
-    ).toEqual(["gpt-5.5", "gpt-5.5-pro", "gpt-5.4", "gpt-5.4-pro", "gpt-5.4-mini", "gpt-5.4-nano"]);
+    ).toEqual([
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "gpt-5.5",
+      "gpt-5.5-pro",
+      "gpt-5.4",
+    ]);
+
+    for (const modelId of ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]) {
+      expect(resolveModelReasoningLevels({ provider: "OpenAI", modelId })).toEqual([
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+      ]);
+    }
 
     for (const modelId of [
       "gpt-5.5",
@@ -116,19 +158,40 @@ describe("MODELS reasoning capabilities", () => {
     ).toEqual(["low", "medium", "high"]);
   });
 
-  it("lists Claude 4.6 and 4.7 adaptive reasoning models", () => {
+  it("lists Claude effort levels by model support", () => {
+    expect(
+      resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-fable-5" })
+    ).toBe(true);
+    expect(
+      resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-fable-5" })
+    ).toEqual(["low", "medium", "high", "xhigh", "max"]);
+    expect(
+      resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-opus-4-8" })
+    ).toBe(true);
+    expect(
+      resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-opus-4-8" })
+    ).toEqual(["low", "medium", "high", "xhigh", "max"]);
     expect(
       resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-opus-4-7" })
     ).toBe(true);
     expect(
       resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-opus-4-7" })
-    ).toEqual(["low", "medium", "high", "xhigh"]);
+    ).toEqual(["low", "medium", "high", "xhigh", "max"]);
+    expect(
+      resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-opus-4-6" })
+    ).toEqual(["low", "medium", "high", "max"]);
+    expect(
+      resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-sonnet-5" })
+    ).toBe(true);
+    expect(
+      resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-sonnet-5" })
+    ).toEqual(["low", "medium", "high", "xhigh", "max"]);
     expect(
       resolveModelSupportsReasoning({ provider: "Anthropic", modelId: "claude-sonnet-4-6" })
     ).toBe(true);
     expect(
       resolveModelReasoningLevels({ provider: "Anthropic", modelId: "claude-sonnet-4-6" })
-    ).toEqual(["low", "medium", "high", "xhigh"]);
+    ).toEqual(["low", "medium", "high", "max"]);
   });
 
   it("marks Claude 4.5 non-Opus models as reasoning-capable without adaptive effort levels", () => {
@@ -231,9 +294,18 @@ The API may emit visible reasoning summaries separately from the final answer. E
         instructions: "ignored",
       })?.anthropic
     ).toEqual({ effort: "medium" });
+
+    expect(
+      LanguageModelProviderFactory.buildProviderOptions({
+        modelConfig: { provider: "Anthropic", modelId: "claude-opus-4-8" },
+        outputReasoning: false,
+        reasoningLevel: "xhigh",
+        instructions: "ignored",
+      })?.anthropic
+    ).toEqual({ thinking: { type: "adaptive" }, effort: "xhigh" });
   });
 
-  it("defaults provider options to the highest supported reasoning level", () => {
+  it("uses the configured default reasoning level for provider options", () => {
     expect(
       LanguageModelProviderFactory.buildProviderOptions({
         modelConfig: { provider: "Google", modelId: "gemini-3-flash-preview" },
@@ -244,10 +316,10 @@ The API may emit visible reasoning summaries separately from the final answer. E
 
     expect(
       LanguageModelProviderFactory.buildProviderOptions({
-        modelConfig: { provider: "Anthropic", modelId: "claude-opus-4-7" },
+        modelConfig: { provider: "Anthropic", modelId: "claude-opus-4-8" },
         outputReasoning: false,
         instructions: "ignored",
       })?.anthropic
-    ).toEqual({ thinking: { type: "adaptive" }, effort: "max" });
+    ).toEqual({ thinking: { type: "adaptive" }, effort: "xhigh" });
   });
 });

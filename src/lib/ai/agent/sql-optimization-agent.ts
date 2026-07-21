@@ -24,7 +24,10 @@ export async function streamSqlOptimization({
     modelConfig.apiKey
   );
 
-  const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
+  const temperature = LanguageModelProviderFactory.getDefaultTemperature(
+    modelConfig.modelId,
+    modelConfig.provider
+  );
 
   const systemPrompt = `SYSTEM: ClickHouse SQL Optimization Sub-Agent (Evidence-Driven)
 

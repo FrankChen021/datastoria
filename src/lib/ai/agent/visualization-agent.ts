@@ -126,7 +126,10 @@ export async function visualizationAgent(
   }
 
   // Use model-specific default temperature
-  const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
+  const temperature = LanguageModelProviderFactory.getDefaultTemperature(
+    modelConfig.modelId,
+    modelConfig.provider
+  );
 
   const systemPrompt = `You are a data visualization expert. Analyze the provided ClickHouse SQL query and the original user question to determine the best visualization. Return your response in JSON format.
 
@@ -329,7 +332,10 @@ export async function streamVisualization({
     modelConfig.apiKey
   );
 
-  const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
+  const temperature = LanguageModelProviderFactory.getDefaultTemperature(
+    modelConfig.modelId,
+    modelConfig.provider
+  );
 
   const systemPrompt = `SYSTEM: ClickHouse Visualization Sub-Agent (Expert)
 You are an expert at creating data visualizations for ClickHouse data.

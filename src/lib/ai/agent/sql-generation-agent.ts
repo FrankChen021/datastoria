@@ -351,7 +351,10 @@ export async function sqlGenerationAgent(
   }
 
   // Use model-specific default temperature
-  const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
+  const temperature = LanguageModelProviderFactory.getDefaultTemperature(
+    modelConfig.modelId,
+    modelConfig.provider
+  );
 
   // Build shared system prompt (no validation instructions, no schema discovery)
   // Add JSON output format instructions to the prompt
@@ -451,7 +454,10 @@ export async function streamSqlGeneration({
     modelConfig.apiKey
   );
 
-  const temperature = LanguageModelProviderFactory.getDefaultTemperature(modelConfig.modelId);
+  const temperature = LanguageModelProviderFactory.getDefaultTemperature(
+    modelConfig.modelId,
+    modelConfig.provider
+  );
 
   // Build shared system prompt (standalone mode: with schema discovery and validation)
   const { prompt: basePrompt } = buildSqlGenerationPrompt({

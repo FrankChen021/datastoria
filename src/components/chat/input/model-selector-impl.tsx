@@ -38,6 +38,7 @@ import remarkGfm from "remark-gfm";
 import { showSettingsDialog } from "../../settings/settings-dialog";
 import { HighlightableCommandItem } from "../../shared/cmdk/cmdk-extension";
 import { ProviderLogo } from "../../shared/provider-logo";
+import { groupModelsByProvider } from "./model-selector-order";
 
 interface ModelCommandItemProps {
   model: ModelProps;
@@ -379,31 +380,14 @@ export function ModelSelectorImpl({
     return availableModels.filter((m) => !(m.provider === "System" && m.modelId === "Auto"));
   }, [availableModels, effectiveAutoSelectAvailable]);
 
-  const sortedModels = useMemo(() => {
-    const items = [...filteredModels];
-    items.sort((a, b) => {
-      const providerCompare = a.provider.localeCompare(b.provider);
-      if (providerCompare !== 0) return providerCompare;
-      return a.modelId.localeCompare(b.modelId);
-    });
-    return items;
+  const providerEntries = useMemo(() => {
+    return groupModelsByProvider(filteredModels);
   }, [filteredModels]);
 
-  // Group models by provider for grouped view
-  const modelsByProvider = useMemo(() => {
-    const groups: Record<string, ModelProps[]> = {};
-    for (const model of sortedModels) {
-      if (!groups[model.provider]) {
-        groups[model.provider] = [];
-      }
-      groups[model.provider].push(model);
-    }
-    return groups;
-  }, [sortedModels]);
-
-  const providerEntries = useMemo(() => {
-    return Object.entries(modelsByProvider).sort(([a], [b]) => a.localeCompare(b));
-  }, [modelsByProvider]);
+  const orderedModels = useMemo(
+    () => providerEntries.flatMap(([, models]) => models),
+    [providerEntries]
+  );
 
   useEffect(() => {
     // If no model is selected, or the selected model is no longer available, select default
@@ -596,7 +580,7 @@ export function ModelSelectorImpl({
                 wrapperClassName="px-2"
                 iconClassName="h-3 w-3"
               />
-              {(providerEntries.length > 0 || sortedModels.length > 0) && (
+              {(providerEntries.length > 0 || orderedModels.length > 0) && (
                 <div className="flex items-center justify-between px-2 pt-1.5 shrink-0">
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <Layers className="h-3 w-3 opacity-50" />
@@ -648,7 +632,7 @@ export function ModelSelectorImpl({
                       </CommandGroup>
                     ))
                   : // Flat view
-                    sortedModels.map((model) => (
+                    orderedModels.map((model) => (
                       <ModelCommandItem
                         key={`${model.provider}-${model.modelId}`}
                         model={model}
