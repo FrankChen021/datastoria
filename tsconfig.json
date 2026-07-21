@@ -19,7 +19,6 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "incremental": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
