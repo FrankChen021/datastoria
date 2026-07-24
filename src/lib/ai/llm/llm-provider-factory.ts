@@ -22,7 +22,13 @@ import { GOOGLE_PROVIDER } from "./llm-provider-google";
 import { OPENAI_CODEX_PROVIDER } from "./llm-provider-openai-codex";
 import { withVisibleReasoningLanguageInstruction } from "./llm-provider-openai-options";
 import { mockModel } from "./models.mock";
-import { PROVIDER_GITHUB_COPILOT, PROVIDER_NEBIUS, PROVIDER_OPENAI_CODEX } from "./provider-ids";
+import { getOllamaApiKey, getOllamaOpenAiBaseUrl, isOllamaConfigured } from "./ollama-models";
+import {
+  PROVIDER_GITHUB_COPILOT,
+  PROVIDER_NEBIUS,
+  PROVIDER_OLLAMA,
+  PROVIDER_OPENAI_CODEX,
+} from "./provider-ids";
 
 /**
  * Check if mock mode is enabled
@@ -355,6 +361,19 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
         } satisfies OpenAICompatibleLanguageModelChatOptions,
       };
     },
+  },
+  [PROVIDER_OLLAMA]: {
+    logo: "ollama.svg",
+    create: (modelId, apiKey) =>
+      createOpenAICompatible({
+        name: "ollama",
+        apiKey: apiKey || getOllamaApiKey(),
+        baseURL: getOllamaOpenAiBaseUrl(),
+      })(modelId),
+    // Ollama runs locally and needs no key. When OLLAMA_BASE_URL is configured
+    // we back its models server-side so the client can use them without
+    // entering provider credentials.
+    systemApiKey: () => (isOllamaConfigured() ? getOllamaApiKey() : undefined),
   },
 };
 
@@ -983,8 +1002,10 @@ export class LanguageModelProviderFactory {
       throw new Error("Provider, modelId, and apiKey are required to create a model");
     }
 
-    // Look up model in the flattened models array
-    if (provider !== PROVIDER_GITHUB_COPILOT && verifyModelId) {
+    // Look up model in the flattened models array.
+    // GitHub Copilot and Ollama expose models dynamically, so they are not
+    // present in the static catalog and must skip verification.
+    if (provider !== PROVIDER_GITHUB_COPILOT && provider !== PROVIDER_OLLAMA && verifyModelId) {
       const modelProps = MODELS.find((m) => m.provider === provider && m.modelId === modelId);
       if (!modelProps) {
         throw new Error(`Model ${modelId} is not supported for provider ${provider}`);

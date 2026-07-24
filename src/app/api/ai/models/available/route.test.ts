@@ -87,6 +87,44 @@ describe("POST /api/ai/models/available", () => {
     ]);
   });
 
+  it("appends locally discovered Ollama models to system models when configured", async () => {
+    const originalBaseUrl = process.env.OLLAMA_BASE_URL;
+    process.env.OLLAMA_BASE_URL = "http://localhost:11434";
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url.includes("/api/tags")) {
+        return {
+          ok: true,
+          json: async () => ({ models: [{ model: "llama3.1:latest" }] }),
+        } as Response;
+      }
+      throw new Error(`Unexpected fetch to ${url}`);
+    });
+
+    try {
+      const response = await POST(
+        new Request("http://localhost/api/ai/models/available", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        }) as never
+      );
+      const body = await response.json();
+
+      expect(body.systemModels).toEqual([
+        { provider: "OpenAI", modelId: "gpt-5", source: "system" },
+        expect.objectContaining({ provider: "Ollama", modelId: "llama3.1:latest" }),
+      ]);
+      expect(body.githubModels).toEqual([]);
+    } finally {
+      if (originalBaseUrl === undefined) {
+        delete process.env.OLLAMA_BASE_URL;
+      } else {
+        process.env.OLLAMA_BASE_URL = originalBaseUrl;
+      }
+    }
+  });
+
   it("treats invalid JSON as no optional providers", async () => {
     const response = await POST(
       new Request("http://localhost/api/ai/models/available", {
