@@ -1145,21 +1145,26 @@ export const TimeseriesVisualization = React.forwardRef<
           icon: "circle",
         },
         grid: {
-          left: 20,
+          // Fixed left gutter (containLabel: false) so every panel's plot area
+          // starts at the same x regardless of y-axis label width, keeping the
+          // time axes aligned across the dashboard grid.
+          left: 72,
           right: 20,
-          bottom: 8,
+          bottom: 24,
           // Adjust top margin based on whether ECharts legend is shown
           top:
             series.length > 0 &&
             (!descriptor.legendOption || descriptor.legendOption.placement === "inside")
               ? 32
               : 12,
-          containLabel: true,
+          containLabel: false,
         },
         xAxis: {
           type: "category",
           data: xAxisData,
           boundaryGap: descriptor.type === "bar",
+          // Deterministic label thinning so equal-width panels show the same ticks.
+          axisLabel: { hideOverlap: true },
         },
         yAxis,
         series,
